@@ -304,7 +304,7 @@ class ClearTaskInstancesBody(BaseModel):
     include_downstream_dags: Annotated[
         bool | None,
         Field(
-            description="If True, also clear tasks in downstream DAGs that are linked via ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth configured on each ExternalTaskMarker.",
+            description="If True, also clear tasks in downstream Dags that are linked via ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth configured on each ExternalTaskMarker.",
             title="Include Downstream Dags",
         ),
     ] = False

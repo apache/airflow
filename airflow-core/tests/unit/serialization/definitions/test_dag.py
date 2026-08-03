@@ -23,10 +23,10 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models.dagbag import DBDagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
+from airflow.serialization.definitions.dag import MaxRecursionDepthError
 
 from tests_common.test_utils.db import (
     clear_db_dags,
@@ -278,7 +278,7 @@ def test_clear_raises_when_recursion_depth_exceeded(dag_maker, session):
     dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
     session.flush()
 
-    with pytest.raises(AirflowException, match="Maximum recursion depth"):
+    with pytest.raises(MaxRecursionDepthError, match="Maximum recursion depth"):
         serialized_parent.clear(dry_run=True, only_failed=False, include_dependent_dags=True, session=session)
 
 

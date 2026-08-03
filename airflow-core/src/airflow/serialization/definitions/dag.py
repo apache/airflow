@@ -1147,9 +1147,7 @@ class SerializedDAG:
                 )
 
                 for ti in external_marker_tis:
-                    ti_key = ti.key.primary
-
-                    if ti_key in visited_external_tis:
+                    if (ti_key := ti.key.primary) in visited_external_tis:
                         continue
 
                     visited_external_tis.add(ti_key)
@@ -1174,7 +1172,7 @@ class SerializedDAG:
                     external_dag_id = task.external_dag_id
                     external_task_id = task.external_task_id
 
-                    if (rendered := RenderedTaskInstanceFields.get_templated_fields(ti, session=session)):
+                    if rendered := RenderedTaskInstanceFields.get_templated_fields(ti, session=session):
                         external_dag_id = rendered.get("external_dag_id", external_dag_id)
                         external_task_id = rendered.get("external_task_id", external_task_id)
 
