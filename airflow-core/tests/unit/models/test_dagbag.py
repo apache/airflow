@@ -244,29 +244,36 @@ class TestDBDagBag:
         db.clear_db_dag_bundles()
 
     def test_iter_all_latest_version_dags_yields_only_the_latest_version(self, dag_maker):
-        dag_id = "versioned_dag"
         db.clear_db_runs()
         db.clear_db_dags()
         db.clear_db_serialized_dags()
         db.clear_db_dag_bundles()
 
-        with dag_maker(dag_id, schedule=None):
+        with dag_maker("versioned_dag", schedule=None):
             EmptyOperator(task_id="a")
         # A version with task instances is kept rather than updated in place, so the next
         # write adds a second version instead of overwriting the first.
         dag_maker.create_dagrun()
 
-        with DAG(dag_id, schedule=None) as dag:
+        with DAG("versioned_dag", schedule=None) as dag:
             EmptyOperator(task_id="a")
             EmptyOperator(task_id="b")
         sync_dag_to_db(dag)
 
+        # Left at version 1, below the highest version_number in the table.
+        with dag_maker("single_version_dag", schedule=None):
+            EmptyOperator(task_id="only")
+
         with create_session() as session:
-            assert DagVersion.get_latest_version(dag_id, session=session).version_number == 2
+            assert DagVersion.get_latest_version("versioned_dag", session=session).version_number == 2
+            assert DagVersion.get_latest_version("single_version_dag", session=session).version_number == 1
             dags = list(DBDagBag().iter_all_latest_version_dags(session=session))
 
-        assert [dag.dag_id for dag in dags] == [dag_id]
-        assert set(dags[0].task_ids) == {"a", "b"}
+        assert sorted(d.dag_id for d in dags) == ["single_version_dag", "versioned_dag"]
+        assert {d.dag_id: set(d.task_ids) for d in dags} == {
+            "versioned_dag": {"a", "b"},
+            "single_version_dag": {"only"},
+        }
 
         db.clear_db_runs()
         db.clear_db_dags()
