@@ -166,7 +166,8 @@ class TestCreateFeatureOnlineStoreOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             **common_kwargs,
         )
-        result = op.execute(context={"ti": mock.MagicMock()})
+        ti = mock.MagicMock()
+        result = op.execute(context={"ti": ti})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -174,6 +175,9 @@ class TestCreateFeatureOnlineStoreOperator:
         )
         # Verify hook method call
         mock_hook.create_feature_online_store.assert_called_once_with(**common_kwargs)
+        # Verify xcom push for created Feature Online Store
+        ti.xcom_push.assert_any_call(key="feature_online_store_name", value=FEATURE_ONLINE_STORE_NAME)
+        ti.xcom_push.assert_any_call(key="feature_online_store_id", value=FEATURE_ONLINE_STORE_ID)
         # Verify result matches expected value
         assert result == sample_result
 
