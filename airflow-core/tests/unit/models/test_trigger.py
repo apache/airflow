@@ -289,12 +289,39 @@ def test_handle_event_submit_fails_task_with_unusable_next_kwargs(
     handle_event_submit(TriggerEvent("payload"), task_instance=task_instance, session=session)
 
     session.refresh(task_instance)
-    # Re-queued for a worker to fail, rather than resumed with kwargs we could not read.
     assert task_instance.state == State.SCHEDULED
     assert task_instance.next_method == "__fail__"
     assert task_instance.trigger_id is None
     assert "event" not in task_instance.next_kwargs
-    assert "next_kwargs could not be processed" in task_instance.next_kwargs["error"]
+    assert "stored next_kwargs could not be decoded" in task_instance.next_kwargs["error"]
+    # The traceback reaches the task log only through next_kwargs, and the runtime joins the list.
+    assert isinstance(task_instance.next_kwargs["traceback"], list)
+
+
+def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_serialized(
+    session, create_task_instance
+):
+    """A payload serde cannot encode is reported as such, not as unreadable stored kwargs.
+
+    Blaming the stored kwargs would point the Dag author at database state that was never the
+    problem.
+    """
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = {}
+    session.flush()
+
+    # serde refuses any dict carrying its reserved keys, at any depth.
+    handle_event_submit(
+        TriggerEvent({"__classname__": "anything"}), task_instance=task_instance, session=session
+    )
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "__fail__"
+    assert "event payload could not be serialized" in task_instance.next_kwargs["error"]
 
 
 def test_submit_failure(session, create_task_instance):

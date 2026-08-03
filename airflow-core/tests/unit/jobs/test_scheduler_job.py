@@ -8214,11 +8214,7 @@ class TestSchedulerJob:
         assert ti.next_kwargs["event"]["error_type"] == "timeout"
 
     def test_awaiting_input_timeout_sweep_survives_unusable_next_kwargs(self, dag_maker):
-        """
-        A parked task whose stored ``next_kwargs`` cannot be turned into a dict is failed by the
-        sweep instead of aborting it, and the other timed-out tasks in the same batch are still
-        resolved. The sweep runs on a recurring scheduler timer, so it has to finish the batch.
-        """
+        """The sweep finishes its batch even when one task's stored kwargs cannot be read."""
         session = settings.Session()
         with dag_maker(
             dag_id="test_awaiting_input_bad_kwargs",
@@ -8254,18 +8250,20 @@ class TestSchedulerJob:
         session.flush()
 
         self.job_runner = SchedulerJobRunner(job=Job())
-        self.job_runner.check_awaiting_input_timeouts(session=session)
+        mock_log = mock.MagicMock(spec=logging.Logger)
+        with mock.patch.object(SchedulerJobRunner, "log", mock_log):
+            self.job_runner.check_awaiting_input_timeouts(session=session)
 
         session.refresh(ti_bad)
         session.refresh(ti_good)
-        # The unreadable one is re-queued for a worker to fail...
         assert ti_bad.state == State.SCHEDULED
         assert ti_bad.next_method == "__fail__"
         assert "error" in ti_bad.next_kwargs
-        # ...and the healthy one in the same batch is still resumed with its default response.
         assert ti_good.state == State.SCHEDULED
         assert ti_good.next_method == "execute_complete"
         assert ti_good.next_kwargs["event"]["chosen_options"] == ["Approve"]
+        # The one it could not resume is reported as such rather than counted as resolved.
+        assert mock_log.info.call_args.args[1:] == (1, 0, 1)
 
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
