@@ -48,13 +48,16 @@ def _show_teams(teams, output):
     )
 
 
+TEAM_NAME_PATTERN = r"^[a-zA-Z0-9_-]{3,50}$"
+
+
 def _extract_team_name(args):
     """Extract and validate team name from args."""
     team_name = args.name.strip()
     if not team_name:
         raise SystemExit("Team name cannot be empty")
-    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", team_name):
-        raise SystemExit("Invalid team name: must match regex ^[a-zA-Z0-9_-]{3,50}$")
+    if not re.match(TEAM_NAME_PATTERN, team_name):
+        raise SystemExit(f"Invalid team name: must match regex {TEAM_NAME_PATTERN}")
     return team_name
 
 
@@ -168,6 +171,18 @@ def team_sync(args, *, session=NEW_SESSION):
         for bundle in DagBundlesManager()._bundle_config.values()
         if bundle.team_name is not None
     }
+
+    # The bundle config is a second creation path for teams, so it has to enforce the same
+    # name rule as `teams create`. Other code relies on a stored team name being a valid one
+    # -- the environment secrets backend decides whether a supplied secret id could name a
+    # team namespace by testing the leading segment against this pattern, and an unvalidated
+    # short name such as "a" would make that test miss.
+    invalid = sorted(name for name in dag_bundle_teams if not re.match(TEAM_NAME_PATTERN, name))
+    if invalid:
+        raise SystemExit(
+            f"Invalid team name(s) in the dag bundle config: {', '.join(invalid)}. "
+            f"Team names must match regex {TEAM_NAME_PATTERN}."
+        )
 
     teams_added = 0
 

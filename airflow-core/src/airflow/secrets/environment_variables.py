@@ -27,6 +27,15 @@ from airflow.secrets import BaseSecretsBackend
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 
+# Separator between the team name and the secret id in a team namespaced
+# environment variable name: AIRFLOW_CONN__<TEAM>___<ID>.
+TEAM_SEP = "___"
+
+# What ``airflow teams create`` accepts as a team name, so what a team
+# namespace can actually be spelled with.
+# Kept in sync with ``airflow.cli.commands.team_command``.
+_TEAM_NAME = re.compile(r"[a-zA-Z0-9_-]{3,50}")
+
 
 class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
@@ -65,25 +74,36 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     @staticmethod
     def _names_a_team_namespace(secret_id: str) -> bool:
         """
-        Whether ``secret_id`` spells out a team namespaced environment variable name.
+        Whether ``secret_id`` could spell out a team namespaced environment variable name.
 
         A team specific secret lives in the ``_<TEAM_NAME>___<SECRET_ID>`` namespace of the
-        environment. An id of that shape therefore makes the team agnostic lookup -- which
-        prepends only ``AIRFLOW_CONN_`` / ``AIRFLOW_VAR_`` -- land inside some team's namespace,
-        so that lookup is refused for such an id.
+        environment. An id of that shape makes the team agnostic lookup -- which prepends only
+        ``AIRFLOW_CONN_`` / ``AIRFLOW_VAR_`` -- land inside some team's namespace, so that
+        lookup is refused for such an id.
+
+        The test is whether the leading segment **could be a team name**, not merely whether
+        the id contains the separator. Team names are validated on creation, so an id like
+        ``_a___b`` cannot name a team namespace -- ``a`` is too short to be a team -- and
+        refusing it would block a legitimate team agnostic secret for no benefit. Every id
+        that does spell a real team's namespace has a valid team name in that position by
+        construction, so nothing reachable is let through.
 
         **The id is never attributed to a particular team**, because it cannot be: a team name
-        may itself contain the ``___`` separator, so ``_a___b___c`` is both team ``a`` with id
-        ``b___c`` and team ``a___b`` with id ``c``, and nothing in the string distinguishes them.
-        Only the caller's own namespace is ever constructed, never parsed.
-
-        This is why the check is not "does the id belong to some team other than the caller's".
-        Comparing the id against the prefix the caller's team builds looks equivalent and is not:
-        for a caller in team ``a`` the id ``_a___b___c`` starts with ``_A___``, yet the variable
-        it resolves, ``AIRFLOW_CONN__A___B___C``, is team ``a___b``'s. Treating a prefix match as
-        ownership hands one team the secrets of every team whose name extends it. Callers reach
-        their own team's secrets with the bare id plus their team scope -- handled above, and safe
-        because that path can only ever build the caller's own namespace -- so nothing legitimate
-        needs a namespaced id here.
+        may itself contain the separator, so ``_a___b___c`` is both team ``a`` with id
+        ``b___c`` and team ``a___b`` with id ``c``. Every split is therefore considered, and
+        one plausible team name is enough to refuse. Comparing the id against the prefix the
+        caller's own team builds looks equivalent and is not: for a caller in team ``a`` the
+        id ``_a___b___c`` starts with ``_A___``, yet the variable it resolves,
+        ``AIRFLOW_CONN__A___B___C``, is team ``a___b``'s. Treating a prefix match as ownership
+        hands one team the secrets of every team whose name extends it.
         """
-        return re.fullmatch(r"_.+___.+", secret_id) is not None
+        if not secret_id.startswith("_"):
+            return False
+        # Overlapping positions matter: ``_abc____x`` splits at both index 4 and 5.
+        for i in range(1, len(secret_id) - len(TEAM_SEP) + 1):
+            if secret_id[i : i + len(TEAM_SEP)] != TEAM_SEP:
+                continue
+            team, rest = secret_id[1:i], secret_id[i + len(TEAM_SEP) :]
+            if rest and _TEAM_NAME.fullmatch(team):
+                return True
+        return False
