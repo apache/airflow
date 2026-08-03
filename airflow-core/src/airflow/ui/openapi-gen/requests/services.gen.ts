@@ -4760,6 +4760,7 @@ export class DeadlinesService {
      * Get all deadline alerts defined on a Dag.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.versionNumber
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
@@ -4774,6 +4775,7 @@ export class DeadlinesService {
                 dag_id: data.dagId
             },
             query: {
+                version_number: data.versionNumber,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
