@@ -80,21 +80,17 @@ Human-in-the-Loop Approval
 
 Set ``require_approval=True`` to pause the task after the LLM chooses the
 branch(es) and wait for a human reviewer to approve the choice before any
-downstream task is skipped. When ``allow_modifications=True``, the reviewer
-can also change the choice — the modified branch(es) are validated against
-the downstream task IDs before branching. With
-``allow_multiple_branches=True`` the reviewed value is a JSON list of task
-IDs (e.g. ``["task_a", "task_b"]``):
+downstream task is skipped. The review form shows the LLM's choice and the
+valid downstream task IDs. When ``allow_modifications=True``, the reviewer
+can also change the choice — rendered as a dropdown of the downstream task
+IDs, or a free-text JSON list of task IDs (e.g. ``["task_a", "task_b"]``)
+with ``allow_multiple_branches=True``. The reviewed branch(es) are validated
+against the downstream task IDs before branching:
 
-.. code-block:: python
-
-    branch = LLMBranchOperator(
-        task_id="route",
-        prompt="Route this support ticket: {{ dag_run.conf['message'] }}",
-        llm_conn_id="openai_default",
-        require_approval=True,
-        allow_modifications=True,
-    )
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_branch.py
+    :language: python
+    :start-after: [START howto_operator_llm_branch_approval]
+    :end-before: [END howto_operator_llm_branch_approval]
 
 ``approval_timeout`` and the rest of the approval behaviour are inherited
 from :ref:`LLMOperator <howto/operator:llm>`.
@@ -123,6 +119,12 @@ Parameters
   task ID. When ``True`` the LLM may return one or more task IDs.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``). Supports Jinja templating.
+- ``require_approval``: If ``True``, the task pauses after the LLM chooses the
+  branch(es) and waits for human review before branching.  Default ``False``.
+- ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
+  means wait indefinitely.  Default ``None``.
+- ``allow_modifications``: If ``True``, the reviewer can change the chosen
+  branch(es) before approving.  Default ``False``.
 
 Logging
 -------

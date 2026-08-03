@@ -53,10 +53,12 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``allow_modifications``).
     The task pauses after the LLM chooses the branch(es) and only skips the
-    unselected downstream tasks once a reviewer approves. When
-    ``allow_modifications=True`` and the reviewer edits the choice, the
-    modified branch(es) are validated against the downstream task IDs before
-    branching.
+    unselected downstream tasks once a reviewer approves. The review form
+    lists the valid downstream task IDs; with ``allow_modifications=True``
+    the editable choice is rendered as a dropdown of those IDs (single-branch
+    mode) or a free-text JSON list (``allow_multiple_branches=True``), and
+    the reviewed branch(es) are validated against the downstream task IDs
+    before branching.
     """
 
     inherits_from_skipmixin = True
@@ -74,13 +76,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         self.allow_multiple_branches = allow_multiple_branches
 
     def execute(self, context: Context) -> str | Iterable[str] | None:
-        if self.require_approval and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The approval review body renders the prompt as text. Return a "
-                f"str prompt, or disable require_approval."
-            )
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
 
         if not self.downstream_task_ids:
             raise ValueError(
@@ -112,7 +109,18 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             branches = str(output)
 
         if self.require_approval:
-            self.defer_for_approval(context, branches)  # type: ignore[misc]
+            choices = sorted(self.downstream_task_ids)
+            chosen = branches if isinstance(branches, str) else json.dumps(branches)
+            body = (
+                f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```\n\n"
+                f"Valid branches: {', '.join(f'`{c}`' for c in choices)}"
+            )
+            modification_schema = (
+                None if self.allow_multiple_branches else {"type": "string", "enum": choices}
+            )
+            self.defer_for_approval(  # type: ignore[misc]
+                context, branches, body=body, modification_schema=modification_schema
+            )
 
         return self.do_branch(context, branches)
 
@@ -144,5 +152,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             raise ValueError(
                 f"Reviewed output {output!r} must be a JSON list of task ID strings, "
                 f'e.g. ["task_a", "task_b"].'
+            )
+        if not branches:
+            raise ValueError(
+                "Reviewed output selects no branches, which would skip every downstream "
+                "task. Select at least one task ID, or reject the review instead."
             )
         return branches

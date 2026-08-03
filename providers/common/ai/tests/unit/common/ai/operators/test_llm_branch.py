@@ -256,6 +256,70 @@ class TestLLMBranchOperatorApproval:
         assert exc_info.value.kwargs["generated_output"] == '["task_a","task_c"]'
         mock_do_branch.assert_not_called()
 
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_review_form_lists_choices_and_renders_enum_dropdown(
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch
+    ):
+        """The review body lists the valid branches and the editable param is an enum dropdown."""
+        downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMBranchOperator(
+            task_id="branch_approval",
+            prompt="Pick a branch",
+            llm_conn_id="my_llm",
+            require_approval=True,
+            allow_modifications=True,
+        )
+        op.downstream_task_ids = {"task_b", "task_a"}
+
+        with pytest.raises(ApprovalPauseSignal):
+            op.execute(_make_context())
+
+        call_kwargs = mock_upsert.call_args.kwargs
+        assert "Valid branches: `task_a`, `task_b`" in call_kwargs["body"]
+        assert call_kwargs["params"]["output"]["schema"] == {
+            "type": "string",
+            "enum": ["task_a", "task_b"],
+        }
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_review_form_multi_branch_keeps_string_schema(
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch
+    ):
+        """With allow_multiple_branches the editable param stays free-text (JSON list)."""
+        downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result([downstream_enum.task_a])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMBranchOperator(
+            task_id="branch_approval_multi",
+            prompt="Pick branches",
+            llm_conn_id="my_llm",
+            allow_multiple_branches=True,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        op.downstream_task_ids = {"task_a", "task_b"}
+
+        with pytest.raises(ApprovalPauseSignal):
+            op.execute(_make_context())
+
+        call_kwargs = mock_upsert.call_args.kwargs
+        assert "Valid branches: `task_a`, `task_b`" in call_kwargs["body"]
+        assert call_kwargs["params"]["output"]["schema"] == {"type": "string"}
+
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
         """Non-string prompt + require_approval=True fails before the agent runs."""
@@ -334,6 +398,28 @@ class TestLLMBranchOperatorApproval:
 
         with pytest.raises(ValueError, match="not downstream tasks"):
             op.execute_complete(_make_context(), generated_output="task_a", event=event)
+
+        mock_do_branch.assert_not_called()
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_rejects_empty_branch_list(self, mock_do_branch):
+        """A reviewed empty list would skip every downstream task and must be rejected."""
+        op = LLMBranchOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            allow_multiple_branches=True,
+            allow_modifications=True,
+        )
+        op.downstream_task_ids = {"task_a", "task_b"}
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "admin",
+            "params_input": {"output": "[]"},
+        }
+
+        with pytest.raises(ValueError, match="selects no branches"):
+            op.execute_complete(_make_context(), generated_output='["task_a"]', event=event)
 
         mock_do_branch.assert_not_called()
 
