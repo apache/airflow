@@ -29,7 +29,7 @@ import logging
 import math
 import sys
 import weakref
-from collections.abc import Collection, Iterable, Iterator, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
@@ -242,50 +242,39 @@ def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     return priority_weight_strategy_class()
 
 
-# Builtin exceptions the serializer emits as ``BASE_EXC_SER``. Only these are ever
-# serialized (see the encode side), so deserialization resolves the stored name against
-# this fixed map instead of importing it -- ``builtins.eval`` / ``builtins.exec`` and any
-# other name are rejected without importing anything.
+# Builtin exceptions a ``BASE_EXC_SER`` node can be rebuilt into. The encode side matches
+# ``KeyError`` / ``AttributeError`` *and their subclasses* while storing the concrete class name,
+# so a user-defined subclass serializes to a name that is absent here and cannot be rebuilt --
+# which was equally true when the name was imported, since ``builtins`` does not hold it either.
+# Resolving against this map keeps ``builtins.eval`` / ``builtins.exec`` out without importing.
 _DESERIALIZABLE_BUILTIN_EXCEPTIONS: dict[str, type[BaseException]] = {
     "KeyError": KeyError,
     "AttributeError": AttributeError,
 }
 
 
-def _iter_subclasses(cls: type) -> Iterator[type]:
-    """Yield every (transitive) subclass of ``cls``."""
-    for sub in cls.__subclasses__():
-        yield sub
-        yield from _iter_subclasses(sub)
-
-
-@cache
-def _serializable_airflow_exceptions() -> dict[str, type[AirflowException]]:
-    """
-    Map ``"<module>.<name>" -> AirflowException subclass``, used to resolve ``AIRFLOW_EXC_SER`` nodes.
-
-    Built once, from the in-memory ``AirflowException`` subclass tree (never from the
-    attacker-controlled stored name), and never rebuilt -- a name absent from it is rejected, not
-    imported. ``airflow.exceptions`` is imported by this module, so every built-in Airflow exception
-    is registered by the time this is first called; exceptions defined later are not added.
-    """
-    return {
-        f"{cls.__module__}.{cls.__name__}": cls
-        for cls in (AirflowException, *_iter_subclasses(AirflowException))
-    }
-
-
 def _resolve_airflow_exception(exc_cls_name: str) -> type[AirflowException]:
     """
     Resolve a serialized ``AirflowException`` class name to the loaded class, without importing it.
 
-    The name is matched against the once-built ``AirflowException`` subclass map, so deserializing a
-    stored DAG never runs the top-level code of a module named in the blob. A name that is not a
-    registered ``AirflowException`` subclass -- e.g. an attacker's ``subprocess.check_output`` -- is
-    rejected rather than imported.
+    The module part is looked up in ``sys.modules`` and the class is read out of that module's
+    namespace, so a name in the stored blob can never cause an import: a module that is not already
+    loaded simply fails to resolve. The result must be an ``AirflowException`` subclass, so an
+    attacker's ``subprocess.check_output`` is rejected even when ``subprocess`` is loaded.
+
+    The namespace is read directly rather than through ``getattr`` so that a module-level
+    ``__getattr__`` -- which Airflow uses for deprecation shims and lazy provider re-exports -- stays
+    out of the path, since those hooks do import on access.
+
+    Resolving the name instead of matching it against a prebuilt map is also what keeps blobs
+    written by older versions readable: these exceptions moved to ``airflow.sdk.exceptions`` in
+    3.2.0 and are re-exported from ``airflow.exceptions``, so a 3.0/3.1 blob naming the old module
+    still resolves, exactly as it did when the name was imported.
     """
-    exc_cls = _serializable_airflow_exceptions().get(exc_cls_name)
-    if exc_cls is None:
+    module_name, _, attr_name = exc_cls_name.rpartition(".")
+    module = sys.modules.get(module_name)
+    exc_cls = vars(module).get(attr_name) if module is not None else None
+    if not (isinstance(exc_cls, type) and issubclass(exc_cls, AirflowException)):
         raise DeserializationError(f"Refusing to deserialize unknown exception class {exc_cls_name!r}")
     return exc_cls
 
@@ -717,7 +706,7 @@ class BaseSerialization:
                 builtin_exc_cls = _DESERIALIZABLE_BUILTIN_EXCEPTIONS.get(exc_cls_name)
                 if builtin_exc_cls is None:
                     raise DeserializationError(
-                        f"Refusing to deserialize disallowed builtin exception {exc_cls_name!r}"
+                        f"Refusing to deserialize unsupported builtin exception {exc_cls_name!r}"
                     )
                 exc_cls = builtin_exc_cls
             return exc_cls(*args, **kwargs)
