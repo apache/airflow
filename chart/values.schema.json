@@ -3406,24 +3406,24 @@
                         "size": {
                             "description": "Volume size for the scheduler StatefulSet. If unset, workers.celery.persistence.size is used.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": "100Gi"
                         },
                         "storageClassName": {
                             "description": "StorageClass for the scheduler StatefulSet (templated). If unset, `workers.celery.persistence.storageClassName` is used.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "annotations": {
                             "description": "Annotations to add to scheduler volumes. If unset, workers.celery.persistence.annotations is used.",
                             "type": [
-                                "object",
-                                "null"
+                                "null",
+                                "object"
                             ],
                             "default": {},
                             "additionalProperties": {
