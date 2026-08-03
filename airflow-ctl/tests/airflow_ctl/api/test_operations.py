@@ -697,7 +697,9 @@ class TestConnectionsOperations:
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.get(self.connection_id)
@@ -706,7 +708,9 @@ class TestConnectionsOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connections_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connections_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.list()
@@ -715,7 +719,9 @@ class TestConnectionsOperations:
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=self.connection)
@@ -737,7 +743,9 @@ class TestConnectionsOperations:
                 "schema": self.schema_,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=connection)
@@ -783,7 +791,9 @@ class TestConnectionsOperations:
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.delete(self.connection_id)
@@ -792,7 +802,9 @@ class TestConnectionsOperations:
     def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=self.connection)
@@ -821,7 +833,9 @@ class TestConnectionsOperations:
                 "team_name": None,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=connection)
