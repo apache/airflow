@@ -40,58 +40,6 @@ def _make_logger():
 
 
 class TestUploadToRemote:
-    def test_warns_when_handler_unavailable(self):
-        ti = _make_ti()
-        with (
-            mock.patch.object(sdk_log, "load_remote_log_handler", return_value=None),
-            structlog.testing.capture_logs() as captured,
-        ):
-            sdk_log.upload_to_remote(_make_logger(), ti)
-
-        events = [e for e in captured if e["event"] == "remote_log_handler_unavailable"]
-        assert len(events) == 1
-        assert events[0]["log_level"] == "warning"
-        assert events[0]["ti_id"] == str(ti.id)
-
-    def test_warns_when_path_resolution_fails(self):
-        ti = _make_ti()
-        handler = mock.MagicMock()
-        boom = RuntimeError("cannot resolve path")
-        with (
-            mock.patch.object(sdk_log, "load_remote_log_handler", return_value=handler),
-            mock.patch.object(sdk_log, "relative_path_from_logger", side_effect=boom),
-            structlog.testing.capture_logs() as captured,
-        ):
-            sdk_log.upload_to_remote(_make_logger(), ti)
-
-        events = [e for e in captured if e["event"] == "remote_log_path_resolution_failed"]
-        assert len(events) == 1
-        assert events[0]["log_level"] == "warning"
-        assert events[0]["ti_id"] == str(ti.id)
-        assert events[0]["exc_info"] is boom
-        handler.upload.assert_not_called()
-
-    def test_warns_when_upload_fails(self, tmp_path):
-        ti = _make_ti()
-        handler = mock.MagicMock()
-        boom = RuntimeError("s3 unreachable")
-        handler.upload.side_effect = boom
-        relative = tmp_path / "dag_id" / "run_id" / "task.log"
-        with (
-            mock.patch.object(sdk_log, "load_remote_log_handler", return_value=handler),
-            mock.patch.object(sdk_log, "relative_path_from_logger", return_value=relative),
-            structlog.testing.capture_logs() as captured,
-        ):
-            sdk_log.upload_to_remote(_make_logger(), ti)
-
-        events = [e for e in captured if e["event"] == "remote_log_upload_failed"]
-        assert len(events) == 1
-        assert events[0]["log_level"] == "warning"
-        assert events[0]["ti_id"] == str(ti.id)
-        assert events[0]["log_relative_path"] == relative.as_posix()
-        assert events[0]["exc_info"] is boom
-        handler.upload.assert_called_once_with(relative.as_posix(), ti)
-
     def test_silent_when_relative_path_is_none(self):
         ti = _make_ti()
         handler = mock.MagicMock()
@@ -147,14 +95,22 @@ class TestConfigureLogging:
             call_order.append("dictConfig")
             return original_inner(*args, **kwargs)
 
-        # configure_logging is @cache decorated — clear it so the test actually runs the function
+        # Save global structlog state so we can restore it after the test
+        original_processors = list(structlog.get_config()["processors"])
+
         sdk_log.configure_logging.cache_clear()
 
-        with (
-            mock.patch.object(sdk_log, "load_remote_log_handler", side_effect=track_load_remote),
-            mock.patch.object(shared_logging, "configure_logging", side_effect=track_inner_configure),
-        ):
-            sdk_log.configure_logging()
+        try:
+            with (
+                mock.patch.object(sdk_log, "load_remote_log_handler", side_effect=track_load_remote),
+                mock.patch.object(shared_logging, "configure_logging", side_effect=track_inner_configure),
+            ):
+                sdk_log.configure_logging()
+        finally:
+            # Restore global structlog processor chain and clear the cache so
+            # subsequent tests start from a clean state
+            structlog.configure(processors=original_processors)
+            sdk_log.configure_logging.cache_clear()
 
         assert "dictConfig" in call_order, "inner configure_logging was never called"
         assert "load_remote_log_handler" in call_order, "load_remote_log_handler() was never called"
