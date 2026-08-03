@@ -1678,8 +1678,8 @@ class TestPatchDagRun:
             (
                 {"update_mask": ["random"]},
                 {"state": DagRunState.FAILED},
-                {"state": "success", "note": "test_note"},
-                200,
+                {"detail": "Unknown field(s) in update_mask: 'random'. Valid fields are: note, state."},
+                400,
                 {"user_id": "not_test", "content": "test_note"},
             ),
         ],

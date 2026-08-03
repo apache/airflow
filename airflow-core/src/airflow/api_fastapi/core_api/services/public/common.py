@@ -37,6 +37,44 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 
 
+def validate_update_mask(patch_body: BaseModel, update_mask: list[str] | None) -> list[str] | None:
+    """
+    Reject ``update_mask`` entries that name no field of ``patch_body``.
+
+    Every caller narrows the patch down with ``set(update_mask)``, which drops an entry matching
+    nothing -- so a typo used to make the whole request a no-op that still answered ``200``.
+    Aliases count as known names because that is what a caller sends in the body and reads back in
+    the response; which of the two a given endpoint acts on is left untouched here. Surrounding
+    whitespace is stripped so a stray space selects the field instead of silently selecting nothing.
+
+    :param patch_body: the request body the mask selects fields from.
+    :param update_mask: the requested field names, or ``None``.
+    :return: the mask with whitespace stripped, or ``None``.
+    :raises HTTPException: 400 if any entry names no field.
+    """
+    if not update_mask:
+        return update_mask
+
+    fields = type(patch_body).model_fields
+    known = set(fields) | {
+        alias
+        for field in fields.values()
+        for alias in (field.alias, field.serialization_alias, field.validation_alias)
+        if isinstance(alias, str)
+    }
+
+    stripped = [entry.strip() for entry in update_mask]
+    if unknown := {entry for entry in stripped if entry not in known}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Unknown field(s) in update_mask: {', '.join(sorted(map(repr, unknown)))}. "
+                f"Valid fields are: {', '.join(sorted(known))}."
+            ),
+        )
+    return stripped
+
+
 class BulkService(Generic[T], ABC):
     """Base class for bulk service operations."""
 
@@ -99,6 +137,7 @@ class BulkService(Generic[T], ABC):
 
         non_update_fields = non_update_fields or set()
 
+        update_mask = validate_update_mask(patch_body, update_mask)
         if update_mask:
             restricted_in_mask = set(update_mask).intersection(non_update_fields)
             if restricted_in_mask:

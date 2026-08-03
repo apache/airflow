@@ -47,7 +47,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     PatchTaskInstanceBody,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
-from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.common import BulkService, validate_update_mask
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
@@ -95,6 +95,7 @@ def _validate_patch_task_instance_body(
 ) -> dict:
     """Validate the patch body and return the fields to update as a dict."""
     fields_to_update = body.model_fields_set
+    update_mask = validate_update_mask(body, update_mask)
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
     else:
