@@ -34,11 +34,18 @@ Features
 
 * ``OpenLineage: add execute_in_thread to emit task events without forking (#68708)``
 * ``Add team_name tag to OpenLineage metrics (#69109)``
+* ``Fix openlineage team name handling, add dag_version_data and TI note (#70772)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``OpenLineage: reuse per-process adapter in dag-state-change pool workers (#69283)``
+* ``Fix OpenLineage team_name access and other failing paths (#70626)``
+
+Misc
+~~~~
+
+* ``Bump openlineage libraries to 1.52 in openlineage provider (#70773)``
 
 Doc-only
 ~~~~~~~~
@@ -49,7 +56,9 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add providers E2E tests framework and OpenLineage tests (#69212)``
-
+   * ``Raise the datamodel-code-generator floor for the codegen toolchain (#70670)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
 
 2.19.0
 ......

@@ -96,6 +96,11 @@ def glue_data_quality_recommendation_workflow():
         },
         role=test_context[ROLE_ARN_KEY],
         rule_set_names=[rule_set_name],
+        # The ruleset is generated dynamically by Glue's recommendation engine and is
+        # non-deterministic, so recommended rules may not always pass against the sample
+        # data. This system test only needs to exercise the operators/sensors end-to-end,
+        # not assert that every recommended rule passes, so do not fail on rule failures.
+        verify_result_status=False,
     )
     start_evaluation_run.wait_for_completion = False
 

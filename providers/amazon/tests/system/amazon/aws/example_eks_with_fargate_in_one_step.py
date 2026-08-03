@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pendulum import duration
-
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfileStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -132,9 +130,6 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         force_delete_compute=True,
-        retries=4,
-        retry_delay=duration(seconds=30),
-        retry_exponential_backoff=True,
     )
 
     await_delete_cluster = EksClusterStateSensor(

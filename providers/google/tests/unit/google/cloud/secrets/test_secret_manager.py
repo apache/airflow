@@ -26,7 +26,7 @@ from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
+from airflow.providers.google.cloud.secrets.secret_manager import TEAM_SEP, CloudSecretManagerBackend
 
 CREDENTIALS = "test-creds"
 KEY_FILE = "test-file.json"
@@ -34,6 +34,7 @@ PROJECT_ID = "test-project-id"
 OVERRIDDEN_PROJECT_ID = "overridden-test-project-id"
 CONNECTIONS_PREFIX = "test-connections"
 VARIABLES_PREFIX = "test-variables"
+CONFIG_PREFIX = "test-config"
 SEP = "-"
 CONN_ID = "test-postgres"
 CONN_URI = "postgresql://airflow:airflow@host:5432/airflow"
@@ -272,3 +273,193 @@ class TestCloudSecretManagerBackend:
 
         backend = CloudSecretManagerBackend(project_id="explicit-project")
         assert backend.project_id == "explicit-project"
+
+
+class TestCloudSecretManagerBackendTeamScope:
+    """A team scoped secret must only be resolvable for the team it is stored for."""
+
+    TEAM = "team_a"
+    OTHER_TEAM = "team_b"
+    # A team name may itself contain the team separator, so one team's namespace can start
+    # with another's. Treating a prefix match as ownership is what this guards against.
+    EXTENDING_TEAM = "team_a--prod"
+
+    @staticmethod
+    def _backend(mock_client_callable):
+        """
+        Build a backend over an in-memory secret store keyed by full secret name.
+
+        The store is returned rather than taken as an argument so tests can populate it after
+        building the backend -- the lookup closes over it by reference. Names are derived from
+        the backend, so it has to exist first.
+        """
+        store: dict[str, str] = {}
+        client = mock.MagicMock()
+        client.get_secret.side_effect = lambda secret_id, project_id, **kwargs: store.get(secret_id)
+        mock_client_callable.return_value = client
+        backend = CloudSecretManagerBackend(
+            connections_prefix=CONNECTIONS_PREFIX,
+            variables_prefix=VARIABLES_PREFIX,
+            config_prefix=CONFIG_PREFIX,
+            project_id=PROJECT_ID,
+        )
+        return backend, store
+
+    @staticmethod
+    def _team_name(backend, team, secret_id, prefix=CONNECTIONS_PREFIX):
+        return backend._build_team_secret_name(prefix, team, secret_id)
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_team_scoped_secret_is_resolved_for_its_own_team(self, mock_client, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        store[self._team_name(backend, self.TEAM, CONN_ID)] = CONN_URI
+
+        assert backend.get_conn_value(conn_id=CONN_ID, team_name=self.TEAM) == CONN_URI
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_team_scoped_secret_is_not_resolved_for_another_team(self, mock_client, mock_get_creds):
+        """The whole point: team B must not reach team A's secret by spelling out its name."""
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        encoded = f"{self.TEAM}--{CONN_ID}"
+        store[self._team_name(backend, self.TEAM, CONN_ID)] = CONN_URI
+
+        assert backend.get_conn_value(conn_id=encoded, team_name=self.OTHER_TEAM) is None
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_team_scoped_secret_is_not_resolved_without_a_team_scope(self, mock_client, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        encoded = f"{self.TEAM}--{CONN_ID}"
+        store[self._team_name(backend, self.TEAM, CONN_ID)] = CONN_URI
+
+        assert backend.get_conn_value(conn_id=encoded) is None
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_team_whose_name_extends_the_callers_is_not_readable(self, mock_client, mock_get_creds):
+        """A prefix match on the caller's namespace is not proof of ownership."""
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        store[self._team_name(backend, self.EXTENDING_TEAM, CONN_ID)] = CONN_URI
+        encoded = f"{self.EXTENDING_TEAM}--{CONN_ID}"
+
+        assert backend.get_conn_value(conn_id=encoded, team_name=self.TEAM) is None
+        # and the owning team still reaches it normally, with the bare id
+        assert backend.get_conn_value(conn_id=CONN_ID, team_name=self.EXTENDING_TEAM) == CONN_URI
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_team_agnostic_secret_is_resolved_for_any_team_scope(self, mock_client, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        store[backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)] = CONN_URI
+
+        assert backend.get_conn_value(conn_id=CONN_ID) == CONN_URI
+        assert backend.get_conn_value(conn_id=CONN_ID, team_name=self.TEAM) == CONN_URI
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_team_scoped_variable_is_not_resolved_for_another_team(self, mock_client, mock_get_creds):
+        """Variables share the lookup, so they must be scoped identically."""
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        encoded = f"{self.TEAM}--{VAR_KEY}"
+        store[self._team_name(backend, self.TEAM, VAR_KEY, VARIABLES_PREFIX)] = VAR_VALUE
+
+        assert backend.get_variable(key=VAR_KEY, team_name=self.TEAM) == VAR_VALUE
+        assert backend.get_variable(key=encoded, team_name=self.OTHER_TEAM) is None
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_team_secret_name_is_built_literally(self, mock_client, mock_get_creds):
+        """
+        Pin the literal name rather than deriving it from the method under test.
+
+        Every other test in this class keys its store with ``_build_team_secret_name``, so it
+        agrees with the implementation by construction and cannot see a naming defect.
+        """
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, _ = self._backend(mock_client)
+
+        assert (
+            backend._build_team_secret_name(CONNECTIONS_PREFIX, "team_a", "test_postgres")
+            == f"{CONNECTIONS_PREFIX}{SEP}team_a{TEAM_SEP}test_postgres"
+        )
+        # Underscores survive in the secret id, matching the team agnostic name this backend
+        # documents -- unlike Azure, nothing here normalises ``_`` to the separator.
+        assert (
+            backend._build_team_secret_name(CONNECTIONS_PREFIX, "team_a", "smtp_default")
+            == f"{CONNECTIONS_PREFIX}{SEP}team_a{TEAM_SEP}smtp_default"
+        )
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_underscores_cannot_manufacture_a_team_namespace(self, mock_client, mock_get_creds):
+        """
+        An id containing ``__`` must not resolve into a team whose name ends with that segment.
+
+        Normalising ``_`` to the separator when building the team scoped name (as the Azure
+        backend does) made team ``team_a`` asking for ``prod__conn`` build exactly the name
+        team ``team_a--prod`` stores ``conn`` under.
+        """
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        victim = backend._build_team_secret_name(CONNECTIONS_PREFIX, self.EXTENDING_TEAM, CONN_ID)
+        store[victim] = CONN_URI
+
+        assert backend.get_conn_value(conn_id=f"prod__{CONN_ID}", team_name=self.TEAM) is None
+        # the two names must not coincide in the first place
+        assert backend._build_team_secret_name(CONNECTIONS_PREFIX, self.TEAM, f"prod__{CONN_ID}") != victim
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_ambiguous_id_is_refused_even_for_its_own_team(self, mock_client, mock_get_creds):
+        """
+        An id containing the separator is ambiguous in both directions, so it is never resolved.
+
+        ``team_a`` with id ``b--c`` and ``team_a--b`` with id ``c`` name the same secret, so
+        honouring the id for its own team would still hand one team the other's secret.
+        """
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        ambiguous = f"prod{TEAM_SEP}{CONN_ID}"
+        store[backend._build_team_secret_name(CONNECTIONS_PREFIX, self.TEAM, ambiguous)] = CONN_URI
+
+        assert backend.get_conn_value(conn_id=ambiguous, team_name=self.TEAM) is None
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_refusing_an_ambiguous_id_is_logged(self, mock_client, mock_get_creds, caplog):
+        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, _ = self._backend(mock_client)
+        ambiguous = f"prod{TEAM_SEP}{CONN_ID}"
+
+        assert backend.get_conn_value(conn_id=ambiguous) is None
+        assert backend.get_variable(key=ambiguous) is None
+
+        refusals = [r for r in caplog.records if "is ambiguous and is not looked up" in r.getMessage()]
+        assert len(refusals) == 2
+        assert all(r.levelname == "WARNING" for r in refusals)
+        assert all(ambiguous in r.getMessage() for r in refusals)
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_config_lookup_is_not_team_scoped(self, mock_client, mock_get_creds):
+        """
+        ``get_config`` has no team scope, so the namespace guard must not apply to it.
+
+        Refusing config keys containing the separator would be stricter than the Azure backend
+        this convention comes from, and there is no team namespace for a config key to invade.
+        """
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        key = f"some{TEAM_SEP}option"
+        store[backend.build_path(CONFIG_PREFIX, key, SEP)] = "config-value"
+
+        assert backend.get_config(key) == "config-value"
