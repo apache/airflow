@@ -454,6 +454,18 @@ core:
       type: string
       example: ~
       default: ""
+    mask_secrets_content_patterns:
+      description: |
+        If set to ``True``, Airflow scans string values in Task logs and Rendered fields for a small,
+        curated set of well-known credential formats (AWS access keys, GitHub tokens, Slack tokens,
+        Google API keys, Stripe live keys, PEM-encoded private key blocks, JWTs) and redacts any
+        match. This is a defense-in-depth measure that complements — but does not replace —
+        registering secrets explicitly via ``mask_secret`` or through Connections/Variables. It
+        is opt-in because the regex scan runs on every string that passes through the masker.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
     default_pool_task_slot_count:
       description: |
         Task Slot counts for ``default_pool``. This setting would not have any effect in an existing

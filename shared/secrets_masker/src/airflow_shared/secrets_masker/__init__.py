@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from .secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
+    KNOWN_SECRET_PATTERNS,
     Redactable,
     Redacted,
     RedactedIO,
@@ -42,6 +43,7 @@ __all__ = [
     "should_hide_value_for_key",
     "_secrets_masker",
     "DEFAULT_SENSITIVE_FIELDS",
+    "KNOWN_SECRET_PATTERNS",
     "Redactable",
     "Redacted",
 ]
