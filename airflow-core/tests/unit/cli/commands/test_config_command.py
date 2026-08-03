@@ -531,6 +531,61 @@ class TestConfigLint:
 
         assert "Invalid value" not in normalized_output
 
+    @pytest.mark.parametrize(
+        ("remove_if_equals", "config_value", "expect_issue"),
+        [
+            pytest.param("removed_value", "removed_value", True, id="match"),
+            pytest.param("removed_value", "kept_value", False, id="no-match"),
+            pytest.param("", "", True, id="empty-string-match"),
+            pytest.param("", "kept_value", False, id="empty-string-no-match"),
+        ],
+    )
+    def test_lint_reports_conditional_removal_only_when_value_matches(
+        self, remove_if_equals, config_value, expect_issue, stdout_capture
+    ):
+        config_change = ConfigChange(
+            config=ConfigParameter("test_section", "test_option"),
+            was_removed=True,
+            remove_if_equals=remove_if_equals,
+        )
+        with (
+            mock.patch.object(config_command, "CONFIGS_CHANGES", [config_change]),
+            conf_vars({("test_section", "test_option"): config_value}),
+            stdout_capture as temp_stdout,
+        ):
+            config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+        normalized_output = re.sub(r"\s+", " ", temp_stdout.getvalue().strip())
+        expected_message = (
+            "Removed deprecated `test_option` configuration parameter from `test_section` section."
+        )
+
+        assert (expected_message in normalized_output) is expect_issue
+
+    @pytest.mark.parametrize(
+        ("section", "option", "value"),
+        [
+            ("core", "hostname", ":"),
+            ("email", "email_backend", "airflow.contrib.utils.sendgrid.send_email"),
+            ("elasticsearch", "log_id_template", "{dag_id}-{task_id}-{logical_date}-{try_number}"),
+            (
+                "logging",
+                "log_filename_template",
+                "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+            ),
+        ],
+    )
+    def test_lint_detects_shipped_conditional_removals(self, section, option, value, stdout_capture):
+        env_var = f"AIRFLOW__{section.upper()}__{option.upper()}"
+        with mock.patch.dict(os.environ, {env_var: value}), stdout_capture as temp_stdout:
+            config_command.lint_config(
+                cli_parser.get_parser().parse_args(["config", "lint", "--section", section])
+            )
+
+        normalized_output = re.sub(r"\s+", " ", temp_stdout.getvalue().strip())
+
+        assert f"`{option}` configuration parameter from `{section}` section." in normalized_output
+
 
 class TestCliConfigUpdate:
     @conf_vars({("core", "executor"): "SequentialExecutor"})
