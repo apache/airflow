@@ -853,6 +853,14 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       - name: limit
         in: query
         required: false
