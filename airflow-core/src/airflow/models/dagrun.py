@@ -309,7 +309,7 @@ class DagRun(Base, LoggingMixin):
     )
     created_dag_version_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
-        ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="set null"),
+        ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="RESTRICT"),
         nullable=True,
     )
     """The id of the dag version column that was in effect at dag run creation time.
