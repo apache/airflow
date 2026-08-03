@@ -1231,7 +1231,6 @@ existing_list = one,two,three
         assert "team_a_value" not in hidden_values
         assert "echo -n team_a_cmd_value" not in hidden_values
         assert "< hidden >" in hidden_values
-        # An option that is not registered as sensitive keeps being readable.
         assert "team_a_key1_value" in hidden_values
         # display_sensitive=True still returns the real value.
         assert "team_a_value" in sensitive_values
@@ -1263,7 +1262,6 @@ existing_list = one,two,three
 
         assert "team_a_value" not in written
         assert "sensitive_key = < hidden >" in written
-        # An option that is not registered as sensitive keeps being readable.
         assert "key1 = team_a_key1_value" in written
 
     @staticmethod

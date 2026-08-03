@@ -879,9 +879,7 @@ class AirflowConfigParser(ConfigParser):
                 continue
             if not display_sensitive and env_var != self._env_var_name("core", "unit_test_mode"):
                 if self._names_sensitive_team_env_var(env_var):
-                    # A team scoped value is not resolved by _include_commands / _include_secrets
-                    # and is reported under the section and key the variable name splits into, so
-                    # its cmd/secret variants have to be hidden here as well.
+                    # Covers the cmd/secret variants too; see is_sensitive_option.
                     opt = "< hidden >"
                 # Don't hide cmd/secret values here
                 elif not env_var.lower().endswith(("cmd", "secret")):
