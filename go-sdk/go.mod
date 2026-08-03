@@ -1,11 +1,11 @@
 module github.com/apache/airflow/go-sdk
 
-go 1.25.0
+go 1.26
 
 tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack
 
 require (
-	github.com/cappuccinotm/slogx v1.4.2
+	github.com/cappuccinotm/slogx v1.5.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0

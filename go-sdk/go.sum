@@ -4,8 +4,8 @@ github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
 github.com/bufbuild/protocompile v0.14.1 h1:iA73zAf/fyljNjQKwYzUHD6AD4R8KMasmwa/FBatYVw=
 github.com/bufbuild/protocompile v0.14.1/go.mod h1:ppVdAIhbr2H8asPk6k4pY7t9zB1OU5DoEw9xY/FUi1c=
-github.com/cappuccinotm/slogx v1.4.2 h1:QKhrgxWdG3Qh1Gt+pvj9ieJipyNhKJ5jX5WftEmq8wQ=
-github.com/cappuccinotm/slogx v1.4.2/go.mod h1:Q9lmOfumtErQpVTT5/3nKH++YRJMrYNvGe7Xkqnjr2Q=
+github.com/cappuccinotm/slogx v1.5.0 h1:F4NneAFuXpRIMFhpKIhXLClBbgACmFK9AFbc5feA3cA=
+github.com/cappuccinotm/slogx v1.5.0/go.mod h1:fxSvU0hoORlIkjePEK5zR6oLA+nqnu+VGl4FV/3CNSs=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
