@@ -278,6 +278,11 @@ class TestAssetsOperations:
     )
 
     dag_run_response = DAGRunResponse(
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
         dag_display_name=dag_id,
         dag_run_id=dag_id,
         dag_id=dag_id,
@@ -296,6 +301,7 @@ class TestAssetsOperations:
         note=None,
         dag_versions=[
             DagVersionResponse(
+                bundle_url=None,
                 id=uuid.uuid4(),
                 version_number=1,
                 dag_id=dag_id,
@@ -655,6 +661,8 @@ class TestConnectionsOperations:
     )
 
     connection_response = ConnectionResponse(
+        description=None,
+        team_name=None,
         connection_id=connection_id,
         conn_type=conn_type,
         host=host,
@@ -871,6 +879,9 @@ class TestDagOperations:
     dag_id = "dag_id"
     dag_display_name = "dag_display_name"
     dag_response = DAGResponse(
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
         dag_id=dag_id,
         dag_display_name=dag_display_name,
         is_paused=False,
@@ -901,6 +912,11 @@ class TestDagOperations:
     )
 
     dag_details_response = DAGDetailsResponse(
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
+        default_args=None,
+        latest_dag_version=None,
         dag_id=dag_id,
         dag_display_name="dag_display_name",
         is_paused=False,
@@ -978,6 +994,7 @@ class TestDagOperations:
     )
 
     dag_version_response = DagVersionResponse(
+        bundle_url=None,
         id=uuid.uuid4(),
         version_number=1,
         dag_id=dag_id,
@@ -1011,6 +1028,7 @@ class TestDagOperations:
 
     # DagRun related
     trigger_dag_run = TriggerDAGRunPostBody(
+        logical_date=None,
         conf=None,
         note=None,
     )
@@ -1018,6 +1036,11 @@ class TestDagOperations:
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
     dag_run_response = DAGRunResponse(
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
         dag_display_name=dag_run_id,
         dag_run_id=dag_run_id,
         dag_id=dag_id,
@@ -1036,6 +1059,7 @@ class TestDagOperations:
         note=None,
         dag_versions=[
             DagVersionResponse(
+                bundle_url=None,
                 id=uuid.uuid4(),
                 version_number=1,
                 dag_id=dag_id,
@@ -1175,6 +1199,11 @@ class TestDagRunOperations:
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
     dag_run_response = DAGRunResponse(
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
         dag_display_name=dag_run_id,
         dag_run_id=dag_run_id,
         dag_id=dag_id,
@@ -1193,6 +1222,7 @@ class TestDagRunOperations:
         note=None,
         dag_versions=[
             DagVersionResponse(
+                bundle_url=None,
                 id=uuid.uuid4(),
                 version_number=1,
                 dag_id=dag_id,
@@ -1387,6 +1417,7 @@ class TestPoolsOperations:
         ]
     )
     pool_response = PoolResponse(
+        team_name=None,
         name=pool_name,
         slots=1,
         description="description",
@@ -1456,6 +1487,7 @@ class TestPoolsOperations:
 
 class TestProvidersOperations:
     provider_response = ProviderResponse(
+        documentation_url=None,
         package_name="package_name",
         version="version",
         description="description",
@@ -1487,6 +1519,7 @@ class TestVariablesOperations:
         }
     )
     variable_response = VariableResponse(
+        team_name=None,
         key=key,
         value=value,
         description=description,
