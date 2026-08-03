@@ -112,7 +112,7 @@ jobs:
         "uranusjr",
         "utkarsharma2",
         "vincbeck"
-        ]'), github.event.sender.login))
+        ]'), github.event.sender.login)
     runs-on: ubuntu-latest
     env:
       SCARF_ANALYTICS: "false"
