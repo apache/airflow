@@ -28,8 +28,12 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 
-from tests_common.test_utils import db
-from tests_common.test_utils.db import clear_rendered_ti_fields
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+    clear_rendered_ti_fields,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -38,9 +42,9 @@ EXTERNAL_LOGICAL_DATE = pendulum.datetime(2024, 1, 1, tz="UTC")
 
 @pytest.fixture(autouse=True)
 def reset_db():
-    db.clear_db_dags()
-    db.clear_db_runs()
-    db.clear_db_serialized_dags()
+    clear_db_dags()
+    clear_db_runs()
+    clear_db_serialized_dags()
     clear_rendered_ti_fields()
 
 

@@ -1174,9 +1174,7 @@ class SerializedDAG:
                     external_dag_id = task.external_dag_id
                     external_task_id = task.external_task_id
 
-                    rendered = RenderedTaskInstanceFields.get_templated_fields(ti, session=session)
-
-                    if rendered:
+                    if (rendered := RenderedTaskInstanceFields.get_templated_fields(ti, session=session)):
                         external_dag_id = rendered.get("external_dag_id", external_dag_id)
                         external_task_id = rendered.get("external_task_id", external_task_id)
 
@@ -1200,7 +1198,6 @@ class SerializedDAG:
 
                     for tii in external_tis:
                         external_dag = dag_bag.get_latest_version_of_dag(tii.dag_id, session=session)
-
                         if not external_dag:
                             raise DagNotFound(f"Could not find Dag {tii.dag_id}")
 
@@ -1414,7 +1411,7 @@ class SerializedDAG:
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
         :param exclude_run_ids: A set of ``run_id`` or (``run_id``)
-        :param include_dependent_dags: If True, also clear tasks in downstream DAGs that are
+        :param include_dependent_dags: If True, also clear tasks in downstream Dags that are
             linked via ExternalTaskMarker. Follows transitive dependencies up to the
             ``recursion_depth`` configured on each ExternalTaskMarker.
         :param dag_bag: An existing ``DBDagBag`` to reuse (e.g. the request-scoped bag) when
