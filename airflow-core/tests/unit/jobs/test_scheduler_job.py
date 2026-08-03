@@ -343,6 +343,14 @@ class TestSchedulerJob:
         self.null_exec = None
 
     @pytest.fixture
+    def team_bundle(self, testing_team, testing_dag_bundle, session):
+        team = session.merge(testing_team)
+        bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == "testing"))
+        bundle.teams.append(team)
+        session.flush()
+        return bundle
+
+    @pytest.fixture
     def mock_executors(self):
         mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
@@ -9637,24 +9645,14 @@ class TestSchedulerJob:
 
     @conf_vars({("core", "multi_team"): "true"})
     @mock.patch("airflow.models.dagrun.get_listener_manager")
-    def test_dag_start_notifies_listener_with_team_name(self, mock_get_listener_manager, dag_maker, session):
+    def test_dag_start_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
         """Test that on_dag_run_running receives dag_run with _team_name set."""
         mock_listener_manager = MagicMock()
         mock_get_listener_manager.return_value = mock_listener_manager
 
-        clear_db_teams()
-        clear_db_dag_bundles()
-
-        team = Team(name="test_team")
-        session.add(team)
-        session.flush()
-
-        bundle = DagBundleModel(name="test_bundle")
-        bundle.teams.append(team)
-        session.add(bundle)
-        session.flush()
-
-        with dag_maker(dag_id="test_dag_start_team", bundle_name="test_bundle", session=session):
+        with dag_maker(dag_id="test_dag_start_team", bundle_name="testing", session=session):
             EmptyOperator(task_id="test_task")
 
         dag_maker.create_dagrun(run_id="test_run", state=DagRunState.QUEUED)
@@ -9668,33 +9666,21 @@ class TestSchedulerJob:
 
         mock_listener_manager.hook.on_dag_run_running.assert_called_once()
         call_args = mock_listener_manager.hook.on_dag_run_running.call_args
-        assert call_args.kwargs["dag_run"]._team_name == "test_team"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
 
     @conf_vars({("core", "multi_team"): "true"})
     @time_machine.travel(DEFAULT_DATE, tick=False)
     @mock.patch("airflow.models.dagrun.get_listener_manager")
     def test_dag_timeout_notifies_listener_with_team_name(
-        self, mock_get_listener_manager, dag_maker, session
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
     ):
         """Test that on_dag_run_failed receives dag_run with _team_name set when a DAG times out."""
         mock_listener_manager = MagicMock()
         mock_get_listener_manager.return_value = mock_listener_manager
 
-        clear_db_teams()
-        clear_db_dag_bundles()
-
-        team = Team(name="test_team")
-        session.add(team)
-        session.flush()
-
-        bundle = DagBundleModel(name="test_bundle")
-        bundle.teams.append(team)
-        session.add(bundle)
-        session.flush()
-
         with dag_maker(
             dag_id="test_dag_timeout_team",
-            bundle_name="test_bundle",
+            bundle_name="testing",
             session=session,
             dagrun_timeout=timedelta(seconds=60),
         ):
@@ -9715,30 +9701,18 @@ class TestSchedulerJob:
         mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
         call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
         assert call_args.kwargs["msg"] == "timed_out"
-        assert call_args.kwargs["dag_run"]._team_name == "test_team"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
 
     @conf_vars({("core", "multi_team"): "true"})
     @mock.patch("airflow.models.dagrun.get_listener_manager")
     def test_dag_success_notifies_listener_with_team_name(
-        self, mock_get_listener_manager, dag_maker, session
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
     ):
         """Test that on_dag_run_success receives dag_run with _team_name set."""
         mock_listener_manager = MagicMock()
         mock_get_listener_manager.return_value = mock_listener_manager
 
-        clear_db_teams()
-        clear_db_dag_bundles()
-
-        team = Team(name="test_team")
-        session.add(team)
-        session.flush()
-
-        bundle = DagBundleModel(name="test_bundle")
-        bundle.teams.append(team)
-        session.add(bundle)
-        session.flush()
-
-        with dag_maker(dag_id="test_dag_success_team", bundle_name="test_bundle", session=session):
+        with dag_maker(dag_id="test_dag_success_team", bundle_name="testing", session=session):
             EmptyOperator(task_id="test_task")
 
         dag_run = dag_maker.create_dagrun()
@@ -9752,30 +9726,18 @@ class TestSchedulerJob:
 
         mock_listener_manager.hook.on_dag_run_success.assert_called_once()
         call_args = mock_listener_manager.hook.on_dag_run_success.call_args
-        assert call_args.kwargs["dag_run"]._team_name == "test_team"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
 
     @conf_vars({("core", "multi_team"): "true"})
     @mock.patch("airflow.models.dagrun.get_listener_manager")
     def test_dag_failure_notifies_listener_with_team_name(
-        self, mock_get_listener_manager, dag_maker, session
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
     ):
         """Test that on_dag_run_failed receives dag_run with _team_name set."""
         mock_listener_manager = MagicMock()
         mock_get_listener_manager.return_value = mock_listener_manager
 
-        clear_db_teams()
-        clear_db_dag_bundles()
-
-        team = Team(name="test_team")
-        session.add(team)
-        session.flush()
-
-        bundle = DagBundleModel(name="test_bundle")
-        bundle.teams.append(team)
-        session.add(bundle)
-        session.flush()
-
-        with dag_maker(dag_id="test_dag_failure_team", bundle_name="test_bundle", session=session):
+        with dag_maker(dag_id="test_dag_failure_team", bundle_name="testing", session=session):
             EmptyOperator(task_id="test_task")
 
         dag_run = dag_maker.create_dagrun()
@@ -9789,31 +9751,19 @@ class TestSchedulerJob:
 
         mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
         call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
-        assert call_args.kwargs["dag_run"]._team_name == "test_team"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
 
     @conf_vars({("core", "multi_team"): "true"})
     @time_machine.travel(DEFAULT_DATE, tick=False)
     @mock.patch("airflow.models.dagrun.get_listener_manager")
     def test_dag_paused_success_notifies_listener_with_team_name(
-        self, mock_get_listener_manager, dag_maker, session
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
     ):
         """Test that on_dag_run_success receives dag_run with _team_name set for paused DAGs."""
         mock_listener_manager = MagicMock()
         mock_get_listener_manager.return_value = mock_listener_manager
 
-        clear_db_teams()
-        clear_db_dag_bundles()
-
-        team = Team(name="test_team")
-        session.add(team)
-        session.flush()
-
-        bundle = DagBundleModel(name="test_bundle")
-        bundle.teams.append(team)
-        session.add(bundle)
-        session.flush()
-
-        with dag_maker(dag_id="test_dag_paused_team", bundle_name="test_bundle", session=session) as dag:
+        with dag_maker(dag_id="test_dag_paused_team", bundle_name="testing", session=session) as dag:
             EmptyOperator(task_id="test_task")
 
         dag_run = dag_maker.create_dagrun()
@@ -9832,7 +9782,7 @@ class TestSchedulerJob:
 
         mock_listener_manager.hook.on_dag_run_success.assert_called_once()
         call_args = mock_listener_manager.hook.on_dag_run_success.call_args
-        assert call_args.kwargs["dag_run"]._team_name == "test_team"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
