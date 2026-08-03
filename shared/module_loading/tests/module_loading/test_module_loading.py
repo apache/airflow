@@ -32,17 +32,28 @@ def _sample_function():
     pass
 
 
+class TopLevelClass:
+    class NestedClass:
+        pass
+
+
 class TestModuleImport:
     def test_import_string(self):
         cls = import_string("module_loading.test_module_loading._import_string")
         assert cls == _import_string
 
+    def test_import_nested_class(self):
+        cls = import_string("module_loading.test_module_loading.TopLevelClass.NestedClass")
+        assert cls == TopLevelClass.NestedClass
+
+    def test_import_string_exceptions(self):
         # Test exceptions raised
         with pytest.raises(ImportError):
             import_string("no_dots_in_path")
-        msg = 'Module "module_loading.test_module_loading" does not define a "nonexistent" attribute'
+        msg = 'Module "module_loading.test_module_loading" does not define a "nonexistent" attribute/class'
         with pytest.raises(ImportError, match=msg):
             import_string("module_loading.test_module_loading.nonexistent")
+
 
 
 class TestModuleLoading:
