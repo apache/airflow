@@ -30,6 +30,7 @@ from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
+from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -76,6 +77,7 @@ GRID_RUN_1 = {
     "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
     "has_missed_deadline": False,
+    "has_note": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_1",
     "run_type": "scheduled",
@@ -97,6 +99,7 @@ GRID_RUN_2 = {
     "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
     "has_missed_deadline": False,
+    "has_note": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_2",
     "run_type": "manual",
@@ -642,6 +645,19 @@ class TestGetGridDataEndpoint:
             response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
         assert response.status_code == 200
         assert _strip_dag_version_ids(response.json()) == [GRID_RUN_1, GRID_RUN_2]
+
+    def test_get_grid_runs_has_note(self, session, test_client):
+        """has_note is True when a DagRunNote exists for a dag run, False otherwise."""
+        run_1 = session.scalar(select(DagRun).where(DagRun.dag_id == DAG_ID, DagRun.run_id == "run_1"))
+        run_1.dag_run_note = DagRunNote(content="a note on run_1")
+        session.commit()
+
+        response = test_client.get(f"/grid/runs/{DAG_ID}")
+        assert response.status_code == 200
+        by_run_id = {run["run_id"]: run for run in response.json()}
+
+        assert by_run_id["run_1"]["has_note"] is True
+        assert by_run_id["run_2"]["has_note"] is False
 
     def test_get_grid_runs_multiple_dag_versions(self, session, test_client):
         # run_5_2 is created after version 2 exists, so its task instances run on version 2.

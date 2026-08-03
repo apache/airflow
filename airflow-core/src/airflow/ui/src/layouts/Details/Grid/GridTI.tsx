@@ -24,8 +24,7 @@ import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
-const NOTE_GRADIENT =
-  "linear-gradient(45deg, var(--chakra-colors-color-palette-solid) 65%, var(--chakra-colors-color-palette-emphasized) 65%)";
+import { NOTE_GRADIENT } from "./constants";
 
 type Props = {
   readonly dagId: string;
