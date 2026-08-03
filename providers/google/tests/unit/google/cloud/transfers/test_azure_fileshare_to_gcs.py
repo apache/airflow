@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import datetime
-import warnings
 from unittest import mock
 
 import pytest
@@ -81,7 +80,7 @@ class TestAzureFileShareToGCSOperator:
         assert operator.directory_path is None
 
         operator.render_template_fields({"params": {"legacy_dir": "rendered/dir"}})
-        assert operator.directory_path == "rendered/dir"
+        assert operator.directory_path is None
 
         azure_fileshare_mock_hook.return_value.list_files.return_value = MOCK_FILES
         operator.execute(None)
@@ -97,12 +96,11 @@ class TestAzureFileShareToGCSOperator:
         self, gcs_mock_hook, azure_fileshare_mock_hook
     ):
         """
-        Behaviour-preservation guard for the __init__ -> render_template_fields move.
+        Behaviour-preservation guard: the alias decision must come from the un-rendered values.
 
-        Deciding the alias from the pre-render values must be kept: with render_template_as_native_obj
-        an explicitly supplied directory_path can render to None, and re-inferring the alias afterwards
-        would wrongly fall back to the deprecated directory_name. This passes on the unrefactored code
-        (the provision decision was made in __init__) and fails if the decision is moved past rendering.
+        With render_template_as_native_obj an explicitly supplied directory_path can render to None,
+        and re-deciding the alias after rendering would wrongly fall back to the deprecated
+        directory_name. Deciding in __init__ (pre-render) keeps this case an explicit error.
         """
         dag = DAG(
             "test_azure_fileshare_native",
@@ -132,24 +130,33 @@ class TestAzureFileShareToGCSOperator:
         with pytest.raises(RuntimeError, match="directory_name must be set"):
             operator.execute(None)
 
-    @pytest.mark.parametrize(
-        "extra_kwargs",
-        [
-            pytest.param({"directory_path": AZURE_FILESHARE_DIRECTORY_PATH}, id="directory_path-supplied"),
-            pytest.param({}, id="neither-supplied"),
-        ],
-    )
-    def test_no_directory_name_deprecation_without_directory_name(self, extra_kwargs):
-        """The directory_name deprecation must fire only when directory_name is the argument supplied."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-            AzureFileShareToGCSOperator(
-                task_id=TASK_ID,
-                share_name=AZURE_FILESHARE_SHARE,
-                dest_gcs=GCS_PATH_PREFIX,
-                return_gcs_uris=True,
-                **extra_kwargs,
-            )
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")
+    def test_mapped_task_aliases_directory_name(self, gcs_mock_hook, azure_fileshare_mock_hook):
+        """
+        Mapped tasks reach execute() through MappedOperator.unmap(), never through
+        render_template_fields overrides, so the alias must not depend on one.
+        """
+        mapped = AzureFileShareToGCSOperator.partial(
+            task_id=TASK_ID,
+            share_name=AZURE_FILESHARE_SHARE,
+            directory_name=AZURE_FILESHARE_DIRECTORY_PATH,
+            azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+            return_gcs_uris=True,
+        ).expand(prefix=["sub/a/", "sub/b/"])
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Use 'directory_path' instead"):
+            operator = mapped.unmap({"prefix": "sub/a/"})
+
+        azure_fileshare_mock_hook.return_value.list_files.return_value = MOCK_FILES
+        operator.execute(None)
+        azure_fileshare_mock_hook.assert_any_call(
+            share_name=AZURE_FILESHARE_SHARE,
+            azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
+            directory_path=AZURE_FILESHARE_DIRECTORY_PATH,
+        )
 
     @pytest.mark.parametrize("return_gcs_uris", [True, False])
     @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
