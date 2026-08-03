@@ -319,69 +319,20 @@ jobs:
         uses: ./.github/actions/breeze
         with:
           python-version: "${{ needs.build-info.outputs.docs-python-version }}"
-      # The image is built here rather than in a job of its own. Docs are the only consumer of
-      # this Python's image, so a separate job would only export a multi-gigabyte tarball and
-      # import it straight back. What is worth carrying between runs is the BuildKit mount cache,
-      # which is restored and saved below under this ref's own key.
-      - name: "Restore mount cache linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
-        uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
-        with:
-          key: "ci-cache-mount-save-v3-linux/amd64-\
-            ${{ needs.build-info.outputs.docs-python-version }}\
-            -${{ needs.build-info.outputs.image-stash-ref }}"
-          path: "/tmp/"
-        id: restore-mount-cache
-      - name: "Import mount cache linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.docs-python-version }}
-        run: >
-          breeze ci-image import-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
-        if: steps.restore-mount-cache.outputs.stash-hit == 'true'
-      - name: "Login to ghcr.io"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTOR: ${{ github.actor }}
-        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
+      # Built here rather than in a job of its own: a separate job could only hand the image over
+      # as a multi-gigabyte artifact, for a single consumer. The image, the commit it was built
+      # from and the mount cache are still stashed under this ref, so the next publish of the same
+      # ref seeds its build from them - or skips the build outright when the sources have not moved.
       - name: "Build CI image linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
-        env:
-          DOCKER_CACHE: "registry"
-          DISABLE_AIRFLOW_REPO_CACHE: "false"
-          UPGRADE_TO_NEWER_DEPENDENCIES: "false"
-          CONSTRAINTS_GITHUB_REPOSITORY: >-
+        uses: ./.github/actions/build_ci_image_with_cache
+        with:
+          python: "${{ needs.build-info.outputs.docs-python-version }}"
+          platform: "linux/amd64"
+          image-stash-ref: "${{ needs.build-info.outputs.image-stash-ref }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          constraints-github-repository: >-
             ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
             secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_USERNAME: ${{ github.actor }}
-          PUSH: "false"
-        run: |
-          if breeze ci-image build --platform "linux/amd64"; then
-            exit 0
-          fi
-          # Reached when this ref's pyproject.toml has drifted far enough from the branch the
-          # registry cache was built for that the cached layers cannot satisfy it. Slow, but
-          # correct - and the case that matters here, since docs are published from refs cut
-          # days or weeks before main.
-          echo "Build with registry cache failed - retrying with the cache disabled."
-          DOCKER_CACHE="disabled" breeze ci-image build --platform "linux/amd64"
-      - name: "Export mount cache linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.docs-python-version }}
-        run: >
-          breeze ci-image export-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
-      - name: "Stash mount cache linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
-        uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
-        with:
-          key: "ci-cache-mount-save-v3-linux/amd64-\
-            ${{ needs.build-info.outputs.docs-python-version }}\
-            -${{ needs.build-info.outputs.image-stash-ref }}"
-          path: "/tmp/ci-cache-mount-save-v3-\
-            ${{ needs.build-info.outputs.docs-python-version }}.tar.gz"
-          if-no-files-found: 'error'
-          # Read by the next publish of this same ref - an RC and then the final docs, days apart.
-          retention-days: '6'
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
         with:
@@ -684,12 +635,10 @@ jobs:
     with:
       destination: ${{ needs.build-info.outputs.destination }}
       provider: ${{ needs.build-info.outputs.registry-providers }}
-      # The registry extracts on 3.12 and the docs build on the default Python, so each builds
-      # the image it needs instead of sharing one. registry-build.yml builds its own whenever the
-      # caller has not stashed one, keyed by this ref so consecutive publishes reuse it.
+      # The registry extracts on 3.12 and the docs build on the default Python, so each builds the
+      # image it needs in the job that uses it, keyed by this ref so consecutive publishes reuse it.
       python-version: ${{ needs.build-info.outputs.registry-python-version }}
-      ci-image-already-built: false
-      # Without this the registry would document main rather than the ref being published.
+      # Without this the registry would read main rather than the ref being published.
       checkout-ref: ${{ inputs.ref }}
       image-stash-ref: ${{ needs.build-info.outputs.image-stash-ref }}
     secrets:
