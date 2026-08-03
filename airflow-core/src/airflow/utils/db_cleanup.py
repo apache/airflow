@@ -282,7 +282,14 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
 
 
 def _do_delete(
-    *, query: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+    *,
+    query: Select,
+    orm_model: Base,
+    skip_archive: bool,
+    session: Session,
+    batch_size: int | None,
+    skip_if_referenced: list[tuple[str, str]] | None = None,
+    referenced_pk_column: str = "id",
 ) -> None:
     import itertools
     import re
@@ -353,6 +360,20 @@ def _do_delete(
                 delete = source_table.delete().where(
                     and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
                 )
+            # Re-apply skip_if_referenced on the DELETE to guard against a race where a new
+            # referencing row is created after the archive INSERT committed but before the DELETE
+            # runs. Without this the DELETE would violate the ON DELETE RESTRICT FK and fail.
+            if skip_if_referenced:
+                pk_col = source_table.c[referenced_pk_column]
+                for referencing_table_name, fk_column in skip_if_referenced:
+                    referencing = table(referencing_table_name, column(fk_column))
+                    delete = delete.where(
+                        ~select(literal(1))
+                        .select_from(referencing)
+                        .where(referencing.c[fk_column] == pk_col)
+                        .correlate(source_table)
+                        .exists()
+                    )
             logger.debug("delete statement:\n%s", delete.compile())
             session.execute(delete)
             session.commit()
@@ -551,6 +572,8 @@ def _cleanup_table(
             skip_archive=skip_archive,
             session=session,
             batch_size=batch_size,
+            skip_if_referenced=skip_if_referenced,
+            referenced_pk_column=referenced_pk_column,
         )
 
     session.commit()
