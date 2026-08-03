@@ -23,6 +23,7 @@ import pytest
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 
 class TestLoginRouter:
@@ -79,8 +80,9 @@ class TestLoginRouter:
         assert "_token" in response.cookies
         assert response.cookies["_token"] == token
         assert response.cookies["_id_token"] == "id_token"
-        assert response.cookies["_access_token"] == "access_token"
-        assert response.cookies["_refresh_token"] == "refresh_token"
+        if AIRFLOW_V_3_3_PLUS:
+            assert response.cookies["_access_token"] == "access_token"
+            assert response.cookies["_refresh_token"] == "refresh_token"
 
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login_sets_secure_state_cookie_behind_tls_proxy(self, mock_get_keycloak_client, client):
