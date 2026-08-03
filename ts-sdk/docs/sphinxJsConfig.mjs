@@ -23,8 +23,9 @@
 // TypeDoc represents these as ``inline-tag`` comment parts, but sphinx-js's comment
 // renderer only understands ``text`` and ``code`` parts and throws "Not implemented"
 // on anything else. We register a TypeDoc resolve-end listener that flattens every
-// unsupported comment part (``inline-tag``, ``relative-link``) into plain ``text`` using
-// the tag's own display text, so the reference reads naturally without crashing the build.
+// unsupported comment part (``inline-tag``, ``relative-link``) into a ``code`` part
+// wrapping the tag's own display text in backticks, so the referenced identifier renders
+// as an inline literal, is skipped by sphinxcontrib-spelling, and never crashes the build.
 
 import { Converter } from "typedoc";
 
@@ -36,7 +37,7 @@ function flattenParts(parts) {
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     if (part.kind !== "text" && part.kind !== "code") {
-      parts[i] = { kind: "text", text: part.text ?? "" };
+      parts[i] = { kind: "code", text: "`" + (part.text ?? "") + "`" };
     }
   }
 }
