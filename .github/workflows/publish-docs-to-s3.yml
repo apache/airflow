@@ -299,6 +299,16 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-tags: true
           fetch-depth: 0
+      # A local action is read from the workspace, not from the ref the workflow itself runs from,
+      # so an action added after this tag was cut is simply absent. Checking the workflow's own
+      # version out alongside supplies the definition; the image is still built from the sources
+      # above. It has to come after the checkout that populates the root, which cleans untracked
+      # siblings away.
+      - name: "Checkout the workflow version for its actions"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: workflow-version
       - name: "Apply patch commits if provided"
         run: |
           if [[ "${APPLY_COMMITS}" != "" ]]; then
@@ -324,7 +334,7 @@ jobs:
       # from and the mount cache are still stashed under this ref, so the next publish of the same
       # ref seeds its build from them - or skips the build outright when the sources have not moved.
       - name: "Build CI image linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
-        uses: ./.github/actions/build_ci_image_with_cache
+        uses: ./workflow-version/.github/actions/build_ci_image_with_cache
         with:
           python: "${{ needs.build-info.outputs.docs-python-version }}"
           platform: "linux/amd64"
