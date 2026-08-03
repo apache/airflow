@@ -3757,6 +3757,25 @@ class TestTriggerDagRun:
 
         assert response_1.json()["dag_run_id"] != response_2.json()["dag_run_id"]
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_trigger_records_triggering_user_display_name(
+        self, mock_display_name, dag_maker, test_client, session
+    ):
+        dag_id = "test_trigger_display_name"
+        with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
+            EmptyOperator(task_id="task")
+        session.commit()
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z"},
+        )
+        assert response.status_code == 200
+        run = session.scalars(select(DagRun).where(DagRun.run_id == response.json()["dag_run_id"])).one()
+        assert run.triggering_user_name == "Jane Doe"
+
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
     @pytest.mark.usefixtures("custom_timetable_plugin")
     def test_custom_timetable_generate_run_id_for_manual_trigger(self, dag_maker, test_client, session):

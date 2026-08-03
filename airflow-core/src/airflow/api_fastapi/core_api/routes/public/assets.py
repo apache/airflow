@@ -502,7 +502,7 @@ def materialize_asset(
             conf=params["conf"],
             run_type=DagRunType.ASSET_MATERIALIZATION,
             triggered_by=DagRunTriggeredByType.REST_API,
-            triggering_user_name=user.get_name(),
+            triggering_user_name=user.get_display_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             partition_date=params["partition_date"],

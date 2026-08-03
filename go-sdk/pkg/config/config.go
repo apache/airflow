@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	cc "github.com/ivanpirog/coloredcobra"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -53,18 +52,6 @@ type ClientConfig struct {
 }
 
 var envKeyReplacer *strings.Replacer = strings.NewReplacer(".", "__", "-", "_")
-
-func InitColor(rootCmd *cobra.Command) {
-	cc.Init(&cc.Config{
-		RootCmd:       rootCmd,
-		Headings:      cc.Bold,
-		Commands:      cc.Yellow + cc.Bold,
-		Example:       cc.Italic,
-		ExecName:      cc.HiMagenta + cc.Bold,
-		Flags:         cc.Green,
-		FlagsDataType: cc.Italic + cc.White,
-	})
-}
 
 func Configure(cmd *cobra.Command) error {
 	var cfgFile string
