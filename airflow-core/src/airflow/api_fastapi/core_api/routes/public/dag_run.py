@@ -101,6 +101,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag_run_bulk,
     requires_access_dag_run_clear_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.common import validate_update_mask
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
@@ -216,6 +217,7 @@ def patch_dag_run(
 
     fields_to_update = patch_body.model_fields_set
 
+    update_mask = validate_update_mask(patch_body, update_mask)
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
     else:

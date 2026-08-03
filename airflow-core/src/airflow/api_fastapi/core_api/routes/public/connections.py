@@ -59,6 +59,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_connection,
     requires_access_connection_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.common import validate_update_mask
 from airflow.api_fastapi.core_api.services.public.connections import (
     BulkConnectionService,
     update_orm_from_pydantic,
@@ -282,6 +283,7 @@ def patch_connection(
             status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
         )
 
+    update_mask = validate_update_mask(patch_body, update_mask)
     if update_mask:
         fields_to_update = patch_body.model_fields_set & set(update_mask)
         try:
