@@ -679,10 +679,10 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Extra JVM arguments such as ``["-Xmx1g", "-Dsome.property=value"]``.
    * - ``main_class``
      - *(auto-detect)*
-     - Explicit entry-point class. If omitted,
-       :class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans ``jars_root`` for a
-       JAR whose manifest sets ``Main-Class``. If multiple executable JARs are found the
-       result is non-deterministic; set ``main_class`` explicitly in that case.
+     - Explicit entry-point class. If omitted, the coordinator scans for a JAR whose
+       manifest sets ``Main-Class`` — in ``jars_root`` when set, otherwise across the
+       resolved Dag bundle. If multiple executable JARs match the result is
+       non-deterministic; set ``main_class`` explicitly in that case.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
