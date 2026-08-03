@@ -340,7 +340,7 @@ jobs:
       - name: >
           Restore CI docker image built for ref ${{ inputs.ref }}
           linux/amd64:${{ needs.build-info.outputs.default-python-version }}
-        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
         with:
           key: "ci-image-save-v3-linux/amd64-\
             ${{ needs.build-info.outputs.default-python-version }}-${{ inputs.ref }}"
@@ -353,7 +353,7 @@ jobs:
         run: >
           breeze ci-image load --platform "linux/amd64" --python "${PYTHON}" --image-file-dir "/mnt"
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -383,7 +383,7 @@ jobs:
             breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
         if: >-
           steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
           steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'

@@ -744,35 +744,32 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         if record is None and self.accept_none:
             record = 0
         match_boolean = True
+
+        # abs() so the tolerance margin widens the bound outward for negative expected values too.
+        # Without a tolerance the bound is compared as-is: a min/max check may be declared on a
+        # date or text column, where arithmetic on the bound raises TypeError.
+        def _lower(expected):
+            return expected - abs(expected) * tolerance if tolerance is not None else expected
+
+        def _upper(expected):
+            return expected + abs(expected) * tolerance if tolerance is not None else expected
+
         if "geq_to" in check_values:
-            if tolerance is not None:
-                match_boolean = record >= check_values["geq_to"] * (1 - tolerance)
-            else:
-                match_boolean = record >= check_values["geq_to"]
+            match_boolean = record >= _lower(check_values["geq_to"])
         elif "greater_than" in check_values:
-            if tolerance is not None:
-                match_boolean = record > check_values["greater_than"] * (1 - tolerance)
-            else:
-                match_boolean = record > check_values["greater_than"]
+            match_boolean = record > _lower(check_values["greater_than"])
         if "leq_to" in check_values:
-            if tolerance is not None:
-                match_boolean = record <= check_values["leq_to"] * (1 + tolerance) and match_boolean
-            else:
-                match_boolean = record <= check_values["leq_to"] and match_boolean
+            match_boolean = record <= _upper(check_values["leq_to"]) and match_boolean
         elif "less_than" in check_values:
-            if tolerance is not None:
-                match_boolean = record < check_values["less_than"] * (1 + tolerance) and match_boolean
-            else:
-                match_boolean = record < check_values["less_than"] and match_boolean
+            match_boolean = record < _upper(check_values["less_than"]) and match_boolean
         if "equal_to" in check_values:
-            if tolerance is not None:
-                match_boolean = (
-                    check_values["equal_to"] * (1 - tolerance)
-                    <= record
-                    <= check_values["equal_to"] * (1 + tolerance)
-                ) and match_boolean
+            expected = check_values["equal_to"]
+            if tolerance is None:
+                # Equality, not a degenerate range: a NULL result must fail the check rather
+                # than raise on an ordering comparison against None.
+                match_boolean = record == expected and match_boolean
             else:
-                match_boolean = record == check_values["equal_to"] and match_boolean
+                match_boolean = (_lower(expected) <= record <= _upper(expected)) and match_boolean
         return match_boolean
 
     def _column_mapping_validation(self, check, check_values):
@@ -1279,12 +1276,14 @@ class SQLValueCheckOperator(BaseSQLOperator):
     def _get_string_matches(self, records, pass_value_conv):
         return [str(record) == pass_value_conv for record in records]
 
+    def _get_tolerance_bounds(self, numeric_pass_value_conv):
+        margin = abs(numeric_pass_value_conv) * self.tol
+        return numeric_pass_value_conv - margin, numeric_pass_value_conv + margin
+
     def _get_numeric_matches(self, numeric_records, numeric_pass_value_conv):
         if self.has_tolerance:
-            return [
-                numeric_pass_value_conv * (1 - self.tol) <= record <= numeric_pass_value_conv * (1 + self.tol)
-                for record in numeric_records
-            ]
+            lower_bound, upper_bound = self._get_tolerance_bounds(numeric_pass_value_conv)
+            return [lower_bound <= record <= upper_bound for record in numeric_records]
 
         return [record == numeric_pass_value_conv for record in numeric_records]
 
@@ -1308,7 +1307,8 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
             pass_value_conv = _convert_to_float_if_possible(self.pass_value)
             if isinstance(pass_value_conv, float) and isinstance(self.tol, float):
-                expected_str = f">= {pass_value_conv * (1 - self.tol)}, <= {pass_value_conv * (1 + self.tol)}"
+                lower_bound, upper_bound = self._get_tolerance_bounds(pass_value_conv)
+                expected_str = f">= {lower_bound}, <= {upper_bound}"
                 check_type = "accepted_range"
 
             return [
