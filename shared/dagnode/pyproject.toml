@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "structlog>=25.4.0",
+    "structlog>=26.1.0",
 ]
 
 [dependency-groups]

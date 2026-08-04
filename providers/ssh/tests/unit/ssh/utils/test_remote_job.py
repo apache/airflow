@@ -237,7 +237,7 @@ class TestKillCommands:
     def test_posix_kill_signals_process_group_then_falls_back(self):
         """POSIX kill targets the process group first, then a single PID as fallback."""
         cmd = build_posix_kill_command("/tmp/pid")
-        assert "cat '/tmp/pid'" in cmd
+        assert "cat /tmp/pid" in cmd
         # Negative PID => signal the whole process group (kills the job's children too)
         assert 'kill -TERM -"$p"' in cmd
         # Fallback for jobs that are not group leaders (host without setsid)
@@ -397,11 +397,6 @@ class TestPosixKillBehaviour:
         pgid = self._await_recorded_pid(paths)
         self._assert_kill_tears_down(paths, pgid, marker)
 
-    # Same environment-dependent process-group race that #69384 added reruns for on the
-    # sibling test; that marker was dropped in #69490 when this pty variant was written.
-    # The launch still depends on how the runner schedules the setsid fork, so keep main
-    # green on a fresh draw - the first attempt's assertion text stays in the CI log.
-    @pytest.mark.flaky(reruns=5)
     def test_kill_terminates_whole_job_tree_under_job_control(self, tmp_path):
         """With job control on, setsid(1) forks and the launcher's ``$!`` would name the
         short-lived setsid parent, not the job -- the condition the old wrapper orphaned
@@ -414,8 +409,9 @@ class TestPosixKillBehaviour:
         self._run_bash_mc_under_pty(
             wrapper + "\necho SUBMIT_DONE\n",
             b"SUBMIT_DONE",
-            # The job records its pid only after setsid(2) has put it in its own session, so
-            # a non-empty pid file is proof the pty hangup below can no longer reach it.
+            # Hang up only once the job is up (pid file written), so the pgrep below sees a
+            # started job. The job survives the hangup regardless: the wrapper detaches its
+            # stdin from the terminal, so the setsid session never adopts the pty.
             detached=lambda: pid_path.exists() and bool(pid_path.read_text().strip()),
         )
         pgid = self._await_recorded_pid(paths)
@@ -457,3 +453,54 @@ class TestCleanupCommands:
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_windows_cleanup_command("C:\\temp\\other_dir")
+
+    def test_posix_cleanup_accepts_custom_base_dir(self):
+        """Test POSIX cleanup accepts job dirs under a custom base directory."""
+        cmd = build_posix_cleanup_command("/data/airflow-jobs/job_123", base_dir="/data/airflow-jobs")
+        assert "rm -rf" in cmd
+        assert "/data/airflow-jobs/job_123" in cmd
+
+    def test_windows_cleanup_accepts_custom_base_dir(self):
+        """Test Windows cleanup accepts job dirs under a custom base directory."""
+        cmd = build_windows_cleanup_command("D:\\airflow-jobs\\job_123", base_dir="D:\\airflow-jobs")
+        assert "powershell.exe" in cmd
+
+    def test_posix_cleanup_custom_base_dir_rejects_outside_paths(self):
+        """With a custom base dir, paths outside it (even the default) are rejected."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_posix_cleanup_command("/tmp/airflow-ssh-jobs/job_123", base_dir="/data/airflow-jobs")
+
+    def test_windows_cleanup_custom_base_dir_rejects_outside_paths(self):
+        """With a custom base dir, paths outside it (even the default) are rejected."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_windows_cleanup_command("$env:TEMP\\airflow-ssh-jobs\\job_123", base_dir="D:\\airflow-jobs")
+
+
+class TestPosixPathQuoting:
+    """A shell metacharacter in remote_base_dir must stay data, never become a command."""
+
+    @staticmethod
+    def _builders(paths):
+        return {
+            "wrapper": lambda: build_posix_wrapper_command("true", paths),
+            "cleanup": lambda: build_posix_cleanup_command(paths.job_dir),
+            "kill": lambda: build_posix_kill_command(paths.pid_file),
+            "log_tail": lambda: build_posix_log_tail_command(paths.log_file, 0, 64),
+            "file_size": lambda: build_posix_file_size_command(paths.log_file),
+            "completion": lambda: build_posix_completion_check_command(paths.exit_code_file),
+        }
+
+    @pytest.mark.parametrize(
+        "builder",
+        ["wrapper", "cleanup", "kill", "log_tail", "file_size", "completion"],
+    )
+    def test_single_quote_in_base_dir_does_not_execute(self, builder, tmp_path):
+        marker = tmp_path / "injected"
+        # The prefix keeps job_dir under POSIX_DEFAULT_BASE_DIR so _validate_job_dir passes.
+        base_dir = f"/tmp/airflow-ssh-jobs/x'; touch {marker}; :'"
+        paths = RemoteJobPaths(job_id="job_123", remote_os="posix", base_dir=base_dir)
+
+        cmd = self._builders(paths)[builder]()
+        subprocess.run(["sh", "-c", cmd], capture_output=True, check=False)
+
+        assert not marker.exists()

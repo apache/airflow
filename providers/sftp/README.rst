@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-sftp``
 
-Release: ``6.0.0``
+Release: ``6.0.1``
 
 
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``sftp`` provider. All classes for this provider 
 are in ``airflow.providers.sftp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/6.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/6.0.1/>`_.
 
 Installation
 ------------
@@ -92,4 +92,4 @@ Extra            Dependencies
 ===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/6.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/6.0.1/changelog.html>`_.
