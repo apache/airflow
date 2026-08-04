@@ -16,14 +16,37 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from pydantic import BaseModel
+from pydantic_ai import ToolOutput
 
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.output_type import (
+    dump_output_to_json,
+    rehydrate_pydantic_output,
+)
 
 
 class A(BaseModel):
     x: int
+
+
+class B(BaseModel):
+    y: int
+
+
+UNION_OUTPUT_TYPE: list[Any] = [A, B]
+
+
+class Widget:
+    """Plain class pydantic cannot build a schema for."""
+
+    def __init__(self, n: int) -> None:
+        self.n = n
+
+    def __str__(self) -> str:
+        return f"Widget({self.n})"
 
 
 class TestRehydratePydanticOutput:
@@ -60,3 +83,39 @@ class TestRehydratePydanticOutput:
         # ``A`` requires ``x: int`` -- this payload should fail validation
         result = rehydrate_pydantic_output(A, '{"y": "no-x-field"}', serialize_output=False)
         assert result == '{"y": "no-x-field"}'
+
+    @pytest.mark.parametrize(
+        "output_type",
+        [UNION_OUTPUT_TYPE, ToolOutput(A)],
+        ids=["union-list", "tool-output-marker"],
+    )
+    def test_falls_back_to_json_when_output_type_has_no_schema(self, output_type):
+        # pydantic-ai accepts these shapes, but TypeAdapter cannot build a schema for
+        # them and the failure is not a ValidationError, so it must not escape.
+        result = rehydrate_pydantic_output(output_type, '{"x": 7}', serialize_output=False)
+        assert result == {"x": 7}
+
+    def test_returns_raw_when_output_type_has_no_schema_and_raw_is_not_json(self):
+        result = rehydrate_pydantic_output(UNION_OUTPUT_TYPE, "not-json", serialize_output=False)
+        assert result == "not-json"
+
+
+class TestDumpOutputToJson:
+    def test_returns_str_unchanged(self):
+        assert dump_output_to_json("plain text") == "plain text"
+
+    def test_uses_model_dump_json_for_base_model(self):
+        assert dump_output_to_json(A(x=7)) == '{"x":7}'
+
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [(["tag-a", "tag-b"], '["tag-a","tag-b"]'), (True, "true"), ({"k": 1}, '{"k":1}')],
+        ids=["list", "bool", "dict"],
+    )
+    def test_dumps_other_types_as_json(self, output, expected):
+        assert dump_output_to_json(output) == expected
+
+    def test_falls_back_to_str_when_type_has_no_schema(self):
+        # Reachable via a pydantic-ai output function: a non-schema-able return type
+        # only warns at agent-build time, so serialization must not raise here.
+        assert dump_output_to_json(Widget(3)) == "Widget(3)"

@@ -18,9 +18,27 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
+
+
+def dump_output_to_json(output: Any) -> str:
+    """
+    Serialize an LLM output into the string carried through human review.
+
+    The inverse of :func:`rehydrate_pydantic_output`: both sides of the review
+    round-trip live here so they cannot drift apart.
+    """
+    if isinstance(output, BaseModel):
+        return output.model_dump_json()
+    if isinstance(output, str):
+        return output
+    try:
+        return TypeAdapter(type(output)).dump_json(output).decode()
+    except Exception:
+        return str(output)
 
 
 def rehydrate_pydantic_output(
@@ -37,7 +55,8 @@ def rehydrate_pydantic_output(
     reviewer. ``str`` outputs pass through unchanged; any other ``output_type``
     (``BaseModel`` subclass, ``int``, ``list[str]``, ...) is validated with a
     pydantic ``TypeAdapter``. When validation fails (reviewer edited the string
-    into something the type rejects), returns ``raw`` unchanged.
+    into something the type rejects), returns ``raw`` unchanged. An
+    ``output_type`` pydantic cannot build a schema for falls back to plain JSON.
 
     When ``serialize_output`` is ``True``, returns the model dumped to a
     ``dict`` -- matches the operator's ``serialize_output=True`` opt-in for
@@ -46,7 +65,19 @@ def rehydrate_pydantic_output(
     if output_type is str:
         return raw
     try:
-        rehydrated = TypeAdapter(output_type).validate_json(raw)
+        adapter = TypeAdapter(output_type)
+    except Exception:
+        # No pydantic schema for this output_type: a ToolOutput/NativeOutput/
+        # PromptedOutput marker, an output function, or a ``[A, B]`` union list.
+        # These reach us because the operator passes output_type straight to
+        # Agent(...). Schema-build failures are not ValidationError subclasses,
+        # so raising here would lose an already-approved output.
+        try:
+            return json.loads(raw)
+        except (ValueError, TypeError):
+            return raw
+    try:
+        rehydrated = adapter.validate_json(raw)
     except (ValidationError, ValueError, TypeError):
         return raw
     if serialize_output and isinstance(rehydrated, BaseModel):
