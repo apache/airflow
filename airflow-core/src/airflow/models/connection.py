@@ -172,7 +172,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
         if uri and (conn_type or host or login or password or schema or port or extra):
-            raise AirflowException(
+            raise ValueError(
                 "You must create an object using the URI or individual values "
                 "(conn_type, host, login, password, schema, port or extra)."
                 "You can't mix these two ways to create this object."
@@ -236,7 +236,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
     def _parse_from_uri(self, uri: str):
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
-            raise AirflowException("Invalid connection string.")
+            raise ValueError("Invalid connection string.")
         host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         self._prenormalized_conn_type = uri_parts.scheme
@@ -247,7 +247,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
-                raise AirflowException("Invalid connection string.")
+                raise ValueError("Invalid connection string.")
         uri_parts = urlsplit(rest_of_the_url)
         protocol = uri_parts.scheme if host_with_protocol else None
         host = _parse_netloc_to_hostname(uri_parts)
