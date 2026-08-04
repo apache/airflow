@@ -70,6 +70,8 @@ class DagAttributeTypes(str, Enum):
     TIMEDELTA = "timedelta"
     TIMEZONE = "timezone"
     RELATIVEDELTA = "relativedelta"
+    # Decode-only: nothing emits these anymore, but rows written before exception serialization
+    # was removed still have to be readable across an upgrade.
     AIRFLOW_EXC_SER = "airflow_exc_ser"
     BASE_EXC_SER = "base_exc_ser"
     DICT = "dict"
