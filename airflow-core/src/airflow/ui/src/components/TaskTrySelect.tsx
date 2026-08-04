@@ -60,6 +60,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) || isStatePending(state)
           ? refetchInterval
           : false,
+      staleTime: 0,
     },
   );
 
