@@ -412,14 +412,8 @@ def requires_access_backfill(
         # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
-            # Parse with the *same* type the endpoints declare for this path parameter, so this
-            # dependency and the handler always resolve the same backfill -- and therefore the
-            # same Dag.
-            #
-            # `int()` is not that parser: pydantic's lax mode accepts strings `int()` rejects,
-            # so "1.0" and "1.00" validate to 1 for the handler while `int()` raised here. Since
-            # dependencies resolve before the endpoint's own parameter validation, that left
-            # `dag_id` unresolved for a request the handler went on to serve against backfill 1.
+            # Must parse exactly as the handler does (e.g. pydantic's lax mode coerces "1.0" to 1
+            # where int() raises), or the two can authorize and act on different backfills.
             backfill_id = (
                 _BACKFILL_ID_ADAPTER.validate_python(backfill_id_raw) if backfill_id_raw is not None else None
             )
@@ -433,6 +427,10 @@ def requires_access_backfill(
             dag_id = backfill.dag_id if backfill else None
 
         # Try to retrieve the dag_id from the request body (POST backfill)
+        # TODO: a backfill_id that parses but matches no row also lands here, so an unknown
+        # backfill is authorized against the body's dag_id and answers 404 where an unauthorized
+        # one answers 403 - disclosing which ids exist. Not exploitable for a cross-Dag action;
+        # tracked at https://github.com/apache/airflow/issues/71080
         if dag_id is None:
             # Not a json body, ignore
             with suppress(JSONDecodeError):

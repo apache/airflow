@@ -433,10 +433,7 @@ class TestFastApiSecurity:
     async def test_requires_access_backfill_backfill_not_found_falls_back_to_body(
         self, mock_get_auth_manager, mock_get_team_name
     ):
-        """When backfill_id is int but Backfill not found, dag_id from body is used.
-
-        Not exploitable: the handler answers 404 before acting, so no cross-Dag action follows.
-        """
+        """When backfill_id is int but Backfill not found, dag_id from body is used."""
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
