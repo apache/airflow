@@ -46,8 +46,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       allow-pre-releases:
         description: >
-          Whether the PyPI constraints may pin pre-releases (true/false). Set when constraints are
-          cut for a release candidate, whose providers are on PyPI only as rc versions.
+          Whether the PyPI constraints may pin pre-release providers (true/false). Set when
+          constraints are cut for a release candidate, whose providers are on PyPI only as rc
+          versions. Scoped to apache-airflow-providers-* - no other package can resolve to a
+          pre-release.
         required: false
         default: "false"
         type: string

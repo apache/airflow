@@ -459,6 +459,19 @@ def get_all_active_provider_distributions(python_version: str | None = None) -> 
     ]
 
 
+def build_provider_pre_release_requirements(python_version: str) -> list[str]:
+    """Requirements that let only the providers resolve to a pre-release.
+
+    uv considers a pre-release for a package only when some requirement for it mentions one, so a
+    pre-release lower bound on each provider confines the allowance to them. `--pre` would apply to
+    the whole resolution and could put a pre-release of any third-party dependency into the
+    constraints a release ships.
+    """
+    return [
+        f"{distribution}>=0.0.0rc0" for distribution in get_all_active_provider_distributions(python_version)
+    ]
+
+
 def generate_constraints_source_providers(config_params: ConfigParams) -> None:
     """
     Generates constraints with provider dependencies used from current sources. This might be different
@@ -524,11 +537,21 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
 
     # Constraints cut for a release candidate have to pin the candidates themselves - the providers
     # for that wave exist on PyPI only as rcN versions, and uv will not resolve to a pre-release
-    # unless asked. The final release regenerates these without the flag, so a released constraints
-    # file can never carry an rc pin.
-    pre_release_flags = ["--pre"] if config_params.allow_pre_releases else []
+    # unless asked. The final release regenerates these without it, so a released constraints file
+    # can never carry an rc pin.
+    #
+    # Scoped to the providers rather than passing `--pre`, which applies to the whole resolution
+    # and would let any dependency answer with a pre-release - putting, say, a beta of a
+    # third-party library into the constraints a release ships. uv only considers a pre-release for
+    # a package whose requirement mentions one, so naming the providers with a pre-release lower
+    # bound confines the allowance to them while every other package keeps the default policy.
+    pre_release_requirements: list[str] = []
     if config_params.allow_pre_releases:
-        console.print("[bright_blue]Allowing pre-release versions of airflow and providers")
+        pre_release_requirements = build_provider_pre_release_requirements(config_params.python)
+        console.print(
+            f"[bright_blue]Allowing pre-releases for {len(pre_release_requirements)} provider "
+            "distributions - every other package keeps the default policy."
+        )
 
     result = run_command(
         cmd=[
@@ -543,7 +566,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             f"apache-airflow-task-sdk=={AIRFLOW_TASK_SDK_VERSION}",
             "./airflow-ctl",
             *additional_constraints_for_highest_resolution,
-            *pre_release_flags,
+            *pre_release_requirements,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
