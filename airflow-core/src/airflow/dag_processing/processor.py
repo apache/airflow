@@ -562,7 +562,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     in core Airflow.
     """
 
-    logger_filehandle: BinaryIO
+    logger_filehandle: BinaryIO | None
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
@@ -733,6 +733,8 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
 
     def close(self):
+        if self.logger_filehandle is None:
+            return
         try:
             self.logger_filehandle.close()
         except OSError:
