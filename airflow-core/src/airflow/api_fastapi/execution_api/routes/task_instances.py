@@ -469,6 +469,7 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
+        session.rollback()
         ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
