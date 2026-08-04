@@ -2712,7 +2712,7 @@ requires-dist = [
     { name = "types-deprecated", marker = "extra == 'mypy'", specifier = ">=1.2.9.20240311" },
     { name = "types-docutils", marker = "extra == 'mypy'", specifier = ">=0.21.0.20240704" },
     { name = "types-markdown", marker = "extra == 'mypy'", specifier = ">=3.6.0.20240316" },
-    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402,<5.0.0" },
+    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402" },
     { name = "types-protobuf", marker = "extra == 'mypy'", specifier = ">=5.26.0.20240422" },
     { name = "types-pymysql", marker = "extra == 'mypy'", specifier = ">=1.1.0.20240425" },
     { name = "types-python-dateutil", marker = "extra == 'mypy'", specifier = ">=2.9.0.20240316" },
