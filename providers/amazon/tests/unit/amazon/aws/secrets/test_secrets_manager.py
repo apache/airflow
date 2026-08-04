@@ -24,6 +24,10 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.secrets.secrets_manager import TEAM_SEP, SecretsManagerBackend
 
+from tests_common.test_utils.config import conf_vars
+
+multi_team_enabled = conf_vars({("core", "multi_team"): "True"})
+
 
 class TestSecretsManagerBackend:
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.get_conn_value")
@@ -80,6 +84,7 @@ class TestSecretsManagerBackend:
         returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres", team_name="my_team")
         assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
+    @multi_team_enabled
     @mock_aws
     def test_global_caller_cannot_access_team_scoped_connection(self):
         secret_id = "airflow/connections/my_team--test_postgres"
@@ -93,6 +98,7 @@ class TestSecretsManagerBackend:
 
         assert secrets_manager_backend.get_conn_value(conn_id="my_team--test_postgres") is None
 
+    @multi_team_enabled
     @mock_aws
     def test_another_teams_secret_is_not_reachable(self):
         """A caller scoped to one team must not reach another team's secret by naming it."""
@@ -103,6 +109,7 @@ class TestSecretsManagerBackend:
 
         assert backend.get_conn_value(conn_id="my_team--test_postgres", team_name="other_team") is None
 
+    @multi_team_enabled
     @mock_aws
     def test_team_whose_name_extends_the_callers_is_not_reachable(self):
         """A prefix match on the caller's own namespace is not proof of ownership."""
@@ -113,6 +120,7 @@ class TestSecretsManagerBackend:
 
         assert backend.get_conn_value(conn_id="my_team--prod--test_postgres", team_name="my_team") is None
 
+    @multi_team_enabled
     @mock_aws
     def test_team_scoped_lookup_cannot_reach_a_longer_teams_namespace(self):
         """The team scoped name is not safe by construction -- the id can extend it.
@@ -129,6 +137,7 @@ class TestSecretsManagerBackend:
 
         assert backend.get_conn_value(conn_id="prod--test_postgres", team_name="my_team") is None
 
+    @multi_team_enabled
     @mock_aws
     def test_refusing_an_ambiguous_id_is_logged(self, caplog):
         """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged.
@@ -157,6 +166,22 @@ class TestSecretsManagerBackend:
         for refused_id in ("prod--test_postgres", "prod--hello", "prod--sql_alchemy_conn"):
             assert sum(refused_id in r.getMessage() for r in refusals) == 1
         assert all(TEAM_SEP in r.getMessage() for r in refusals)
+
+    @mock_aws
+    def test_ambiguous_id_resolves_when_multi_team_is_disabled(self):
+        """No team scoped secret can exist without multi-team mode, so there is no ambiguity
+        to refuse -- an ordinary id containing the separator must resolve normally."""
+        secret_id = "airflow/connections/prod--test_postgres"
+        create_param = {
+            "Name": secret_id,
+            "SecretString": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        backend = SecretsManagerBackend()
+        backend.client.create_secret(**create_param)
+
+        assert backend.get_conn_value(conn_id="prod--test_postgres") == (
+            "postgresql://airflow:airflow@host:5432/airflow"
+        )
 
     @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
@@ -209,6 +234,7 @@ class TestSecretsManagerBackend:
 
         assert secrets_manager_backend.get_variable(key="hello", team_name="my_team") == "world"
 
+    @multi_team_enabled
     @mock_aws
     def test_global_caller_cannot_access_team_scoped_variable(self):
         secret_id = "airflow/variables/my_team--hello"

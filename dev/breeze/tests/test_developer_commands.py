@@ -23,6 +23,7 @@ import pytest
 from click.testing import CliRunner
 
 from airflow_breeze.commands.developer_commands import build_docs
+from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
 
 @pytest.fixture
@@ -31,7 +32,12 @@ def runner():
 
 
 class TestBuildDocsPythonVersion:
-    """`breeze build-docs` must document with the Python version it was asked for."""
+    """`breeze build-docs` always documents on the default Python.
+
+    The Sphinx config mocks third-party modules and what that mocking does depends on the
+    interpreter, so the docs build must not follow whatever Python the caller happens to have
+    selected - see the comment in ``_build_python_docs``.
+    """
 
     @pytest.fixture(autouse=True)
     def _no_docker(self, monkeypatch):
@@ -54,15 +60,18 @@ class TestBuildDocsPythonVersion:
             runner.invoke(build_docs, args, env=env, catch_exceptions=False)
         return mock_rebuild, mock_shell
 
-    @pytest.mark.parametrize(
-        ("args", "env"),
-        [
-            pytest.param(["--python", "3.12"], None, id="python-option"),
-            pytest.param([], {"PYTHON_MAJOR_MINOR_VERSION": "3.12"}, id="python-env-var"),
-        ],
-    )
-    def test_selected_python_is_used_for_image_and_shell(self, runner, args, env):
-        mock_rebuild, mock_shell = self._invoke(runner, [*args, "--docs-only"], env=env)
+    def test_environment_python_does_not_change_the_docs_build(self, runner):
+        # PYTHON_MAJOR_MINOR_VERSION is set on every job of the docs publishing workflow, so an
+        # option reading it silently decided what the docs were built with.
+        mock_rebuild, mock_shell = self._invoke(
+            runner, ["--docs-only"], env={"PYTHON_MAJOR_MINOR_VERSION": "3.12"}
+        )
 
-        assert mock_rebuild.call_args.kwargs["command_params"].python == "3.12"
-        assert mock_shell.call_args.args[0].python == "3.12"
+        assert mock_rebuild.call_args.kwargs["command_params"].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+        assert mock_shell.call_args.args[0].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+
+    def test_python_option_is_rejected(self, runner):
+        result = runner.invoke(build_docs, ["--python", "3.12", "--docs-only"])
+
+        assert result.exit_code != 0
+        assert "no such option" in result.output.lower()
