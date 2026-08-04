@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 from uuid import UUID
 
 import structlog
@@ -77,6 +77,8 @@ class ExecuteCallback(BaseDagBundleWorkload):
 
     type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
 
+    token_scope: ClassVar[str] = "callback"
+
     @property
     def key(self) -> CallbackKey:
         """Return the callback key for this workload."""
@@ -127,7 +129,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         return cls(
             callback=CallbackDTO.model_validate(callback, from_attributes=True),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc or ""),
-            token=cls.generate_token(str(callback.id), generator, scope="callback"),
+            token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
