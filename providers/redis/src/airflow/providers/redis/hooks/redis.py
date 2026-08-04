@@ -24,6 +24,7 @@ from typing import Any
 
 import redis
 from redis import Redis
+from redis.cluster import ClusterNode, RedisCluster
 
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.redis import __version__ as provider_version
@@ -32,6 +33,7 @@ DriverInfo = getattr(redis, "DriverInfo", None)
 
 DEFAULT_SSL_CERT_REQS = "required"
 ALLOWED_SSL_CERT_REQS = [DEFAULT_SSL_CERT_REQS, "optional", "none"]
+DEFAULT_REDIS_PORT = 6379
 
 # Check at module import time what Redis client identification features are supported
 _REDIS_PARAMS = inspect.signature(Redis.__init__).parameters
@@ -45,6 +47,11 @@ class RedisHook(BaseHook):
     You can set your db in the extra field of your connection as ``{"db": 3}``.
     Also you can set ssl parameters as:
     ``{"ssl": true, "ssl_cert_reqs": "require", "ssl_certfile": "/path/to/cert.pem", etc}``.
+
+    To talk to a Redis deployment running in cluster mode, set ``{"cluster": true}``. Additional
+    bootstrap nodes may be listed as ``{"startup_nodes": ["node-2:6379", "node-3:6379"]}`` so that
+    a single unreachable node does not leave the whole connection unusable. Cluster mode only
+    supports database 0, so ``db`` must be left unset or 0.
     """
 
     conn_name_attr = "redis_conn_id"
@@ -67,6 +74,7 @@ class RedisHook(BaseHook):
         self.username = kwargs.get("username", None)
         self.password = kwargs.get("password", None)
         self.db = kwargs.get("db", None)
+        self.cluster = kwargs.get("cluster", False)
 
     def get_conn(self):
         """Return a Redis connection."""
@@ -76,6 +84,14 @@ class RedisHook(BaseHook):
         self.username = conn.login
         self.password = None if str(conn.password).lower() in ["none", "false", ""] else conn.password
         self.db = conn.extra_dejson.get("db")
+        self.cluster = conn.extra_dejson.get("cluster", False)
+
+        # https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/#implemented-subset
+        if self.cluster and self.db not in (None, 0):
+            raise ValueError(
+                f"Redis connection {self.redis_conn_id!r} sets `db` to {self.db!r}, but Redis in cluster "
+                "mode only supports database 0. Remove `db` from the connection extra."
+            )
 
         # check for ssl parameters in conn.extra
         ssl_arg_names = [
@@ -111,17 +127,49 @@ class RedisHook(BaseHook):
                     "lib_name": f"redis-py(apache-airflow-providers-redis_v{provider_version})",
                 }
 
-            self.redis = Redis(
-                host=self.host,
-                port=self.port,
-                username=self.username,
-                password=self.password,
-                db=self.db,
-                **ssl_args,
-                **driver_info_options,
-            )
+            if self.cluster:
+                self.redis = RedisCluster(
+                    host=self.host,
+                    port=self.port,
+                    startup_nodes=self._build_startup_nodes(conn.extra_dejson.get("startup_nodes")),
+                    username=self.username,
+                    password=self.password,
+                    **ssl_args,
+                    **driver_info_options,
+                )
+            else:
+                self.redis = Redis(
+                    host=self.host,
+                    port=self.port,
+                    username=self.username,
+                    password=self.password,
+                    db=self.db,
+                    **ssl_args,
+                    **driver_info_options,
+                )
 
         return self.redis
+
+    @staticmethod
+    def _build_startup_nodes(raw_nodes: Any) -> list[ClusterNode]:
+        """Build redis-py cluster nodes from the ``startup_nodes`` extra, given as ``host`` or ``host:port``."""
+        if not raw_nodes:
+            return []
+
+        entries = raw_nodes.split(",") if isinstance(raw_nodes, str) else raw_nodes
+        nodes = []
+        for entry in entries:
+            host, _, port = str(entry).strip().partition(":")
+            if not host:
+                raise ValueError(f"Missing host in `startup_nodes` entry {entry!r}; expected `host:port`.")
+            try:
+                parsed_port = int(port) if port else DEFAULT_REDIS_PORT
+            except ValueError:
+                raise ValueError(
+                    f"Invalid port in `startup_nodes` entry {entry!r}; expected `host:port`."
+                ) from None
+            nodes.append(ClusterNode(host, parsed_port))
+        return nodes
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
@@ -141,6 +189,14 @@ class RedisHook(BaseHook):
 
         return {
             "db": IntegerField(lazy_gettext("DB"), widget=BS3TextFieldWidget(), default=0),
+            "cluster": BooleanField(lazy_gettext("Enable cluster mode"), default=False),
+            "startup_nodes": StringField(
+                lazy_gettext("Cluster startup nodes"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional()],
+                description="Comma-separated extra bootstrap nodes as host:port. Cluster mode only.",
+                default=None,
+            ),
             "ssl": BooleanField(lazy_gettext("Enable SSL"), default=False),
             "ssl_cert_reqs": StringField(
                 lazy_gettext("SSL verify mode"),

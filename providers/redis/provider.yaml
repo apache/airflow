@@ -116,6 +116,20 @@ connection-types:
             - integer
             - 'null'
           default: 0
+      cluster:
+        label: Enable cluster mode
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
+      startup_nodes:
+        label: Cluster startup nodes
+        description: "Comma-separated extra bootstrap nodes as host:port. Cluster mode only."
+        schema:
+          type:
+            - string
+            - 'null'
       ssl:
         label: Enable SSL
         schema:
