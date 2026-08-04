@@ -130,6 +130,7 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 @dataclass
 class ConfigParams:
     airflow_constraints_mode: str
+    allow_pre_releases: bool
     constraints_github_repository: str
     default_constraints_branch: str
     github_actions: bool
@@ -521,6 +522,14 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
         "gremlinpython>=3.8.0",
     ]
 
+    # Constraints cut for a release candidate have to pin the candidates themselves - the providers
+    # for that wave exist on PyPI only as rcN versions, and uv will not resolve to a pre-release
+    # unless asked. The final release regenerates these without the flag, so a released constraints
+    # file can never carry an rc pin.
+    pre_release_flags = ["--pre"] if config_params.allow_pre_releases else []
+    if config_params.allow_pre_releases:
+        console.print("[bright_blue]Allowing pre-release versions of airflow and providers")
+
     result = run_command(
         cmd=[
             "uv",
@@ -534,6 +543,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             f"apache-airflow-task-sdk=={AIRFLOW_TASK_SDK_VERSION}",
             "./airflow-ctl",
             *additional_constraints_for_highest_resolution,
+            *pre_release_flags,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
@@ -632,8 +642,17 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     help="Use uv instead of pip as packaging tool.",
     envvar="USE_UV",
 )
+@click.option(
+    "--allow-pre-releases",
+    is_flag=True,
+    default=False,
+    help="Allow pre-release versions of Airflow and providers to be pinned. Used when constraints "
+    "are generated for a release candidate, whose providers are only on PyPI as rc versions.",
+    envvar="ALLOW_PRE_RELEASES",
+)
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     constraints_github_repository: str,
     default_constraints_branch: str,
     github_actions: bool,
@@ -642,6 +661,7 @@ def generate_constraints(
 ) -> None:
     config_params = ConfigParams(
         airflow_constraints_mode=airflow_constraints_mode,
+        allow_pre_releases=allow_pre_releases,
         constraints_github_repository=constraints_github_repository,
         default_constraints_branch=default_constraints_branch,
         github_actions=github_actions,

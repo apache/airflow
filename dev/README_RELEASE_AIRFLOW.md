@@ -1372,15 +1372,28 @@ breeze release-management start-release \
 
 Note: The `--task-sdk-version` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
-Note: When it reaches the constraints step, `start-release` asks whether to base the final
-`constraints-${VERSION}` tag on the latest `constraints-X-Y` branch tip instead of the RC
-constraints tag. The RC constraints are frozen when the RC is cut, so if any providers were
-released (or constraints were otherwise refreshed - see
+Note: When it reaches the constraints step, `start-release` resolves the constraints again rather
+than promoting the ones the RC was cut with. The RC constraints deliberately pin pre-releases -
+that wave's providers exist on PyPI only as `rcN` versions at candidate time - so they can never
+become the released constraints by retagging. The regeneration runs without pre-releases against
+the same providers now published as finals, commits the result onto the `constraints-X-Y` branch,
+pushes it, and tags it `constraints-${VERSION}`. That commit is what makes the released
+constraints the new baseline, so refreshing the branch beforehand (see
 [MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md](MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md))
-after the last RC and you want the released constraints to reflect that, answer **yes** to tag the
-`constraints-X-Y` branch tip. Otherwise (the default) the final tag matches the RC exactly. If you
-do refresh, run the `Update constraints` workflow from `main` with `ref` set to the ref you are
-releasing (typically `v3-*-stable`) **before** running `start-release`.
+is no longer necessary.
+
+The resolution runs on CI runners through the `Release constraints` workflow, so the release
+manager's machine does not need a CI image for every supported Python. `start-release` triggers it
+and waits. You can also run it on its own - to redo a candidate's constraints, or to produce them
+for a release cut before this existed:
+
+```shell script
+breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable
+```
+
+The workflow derives the stage from `--version` alone: `3.1.3rc1` resolves with pre-releases and
+lands on `constraints-3.1.3rc1`, `3.1.3` resolves without them and commits onto `constraints-3-1`.
+There is no separate switch that could disagree with the version.
 
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
