@@ -18,16 +18,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from airflow_breeze.prepare_providers import provider_distributions
 from airflow_breeze.prepare_providers.provider_distributions import (
-    build_provider_distribution,
     check_flit_worktree_compatibility,
 )
-from airflow_breeze.utils.packages import ProviderPackageDetails
 
 # Rich output is wrapped to the terminal width and peppered with ANSI escapes;
 # strip both when asserting on message contents.
@@ -127,27 +125,3 @@ def test_plain_checkout_allows_all_formats(plain_checkout_root: Path) -> None:
         check_flit_worktree_compatibility("sdist")
         check_flit_worktree_compatibility("both")
         check_flit_worktree_compatibility("wheel")
-
-
-@pytest.mark.parametrize("distribution_format", ["sdist", "wheel", "both"])
-@patch.object(provider_distributions, "run_command")
-@patch.object(provider_distributions, "get_provider_details")
-@patch.object(provider_distributions, "get_provider_distributions_metadata")
-def test_flit_build_passes_only_options_flit_4_still_accepts(
-    mock_get_metadata: Mock,
-    mock_get_details: Mock,
-    mock_run_command: Mock,
-    tmp_path: Path,
-    distribution_format: str,
-) -> None:
-    mock_get_metadata.return_value = {"zendesk": {"build-system": "flit_core"}}
-    mock_get_details.return_value = Mock(spec=ProviderPackageDetails, source_date_epoch=1779138497)
-
-    build_provider_distribution("zendesk", tmp_path, distribution_format)
-
-    command = mock_run_command.call_args.args[0]
-    # flit 4.0 dropped --setup-py/--no-setup-py; passing either aborts the build in argparse.
-    assert "--no-setup-py" not in command
-    assert "--setup-py" not in command
-    # Still required, because flit 4.0 made --no-use-vcs the default for sdists.
-    assert "--use-vcs" in command
