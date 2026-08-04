@@ -449,10 +449,22 @@ def set_xcom(
                 dag_result=dag_result,
                 session=session,
             )
-    except IntegrityError:
-        # A concurrent or retried write for the same (dag_id, run_id, task_id, key,
-        # map_index) committed first.  The savepoint was rolled back automatically;
-        # fall through to an explicit UPDATE so the latest value wins.
+    except IntegrityError as e:
+        # Only swallow unique-constraint violations (a concurrent or retried write
+        # for the same PK beat us to it). FK violations — e.g. the task_instance
+        # cascade-deleted between our dag_run_id lookup and the flush — must
+        # propagate; silently returning 200 there would hide a lost write.
+        if not any(
+            msg in str(e.orig)
+            for msg in (
+                "UNIQUE constraint failed",    # SQLite
+                "Duplicate entry",             # MySQL
+                "violates unique constraint",  # PostgreSQL
+            )
+        ):
+            raise
+        # The savepoint was rolled back automatically; fall through to an explicit
+        # UPDATE so the latest value wins.
         session.execute(
             update(XComModel)
             .where(
