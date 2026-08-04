@@ -1146,8 +1146,6 @@ existing_list = one,two,three
         assert test_conf.is_sensitive_option("test", "sensitive_key")
         assert test_conf.is_sensitive_option("team_a=test", "sensitive_key")
         assert test_conf.is_sensitive_option("team-a=test", "sensitive_key")
-        # A team name is never able to hide the base section it overrides, not even when it
-        # contains the separator itself.
         assert test_conf.is_sensitive_option("a=team=test", "sensitive_key")
         # The section and key an AIRFLOW__<TEAM>___<SECTION>__<KEY> variable name splits into.
         assert test_conf.is_sensitive_option("team_a", "_test__sensitive_key")
