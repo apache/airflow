@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import httpx
+import httpx2 as httpx
 
 from airflow.sdk.api.client import Client
 from airflow.sdk.execution_time.comms import BundleInfo

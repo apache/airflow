@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import quote
 
 import certifi
-import httpx
+import httpx2 as httpx
 import msgspec
 import structlog
 from opentelemetry import trace
