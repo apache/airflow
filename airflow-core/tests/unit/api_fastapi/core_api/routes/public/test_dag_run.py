@@ -3757,6 +3757,25 @@ class TestTriggerDagRun:
 
         assert response_1.json()["dag_run_id"] != response_2.json()["dag_run_id"]
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_trigger_records_triggering_user_display_name(
+        self, mock_display_name, dag_maker, test_client, session
+    ):
+        dag_id = "test_trigger_display_name"
+        with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
+            EmptyOperator(task_id="task")
+        session.commit()
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z"},
+        )
+        assert response.status_code == 200
+        run = session.scalars(select(DagRun).where(DagRun.run_id == response.json()["dag_run_id"])).one()
+        assert run.triggering_user_name == "Jane Doe"
+
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
     @pytest.mark.usefixtures("custom_timetable_plugin")
     def test_custom_timetable_generate_run_id_for_manual_trigger(self, dag_maker, test_client, session):
@@ -4372,6 +4391,32 @@ class TestWaitDagRun:
                 method="GET",
                 access_entity=DagAccessEntity.XCOM,
                 details=DagDetails(id=DAG1_ID),
+                user=mock.ANY,
+            )
+
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_xcom_against_the_dags_team(self, test_client, team_name):
+        """The XCom check must carry the Dag's team, matching what the route dependency above already
+        resolves — see the call site's comment for why."""
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+                autospec=True,
+            ) as mock_get_auth_manager,
+            mock.patch.object(DagModel, "get_team_name", return_value=team_name, autospec=True),
+        ):
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1", "result": "task_1"},
+            )
+
+            assert response.status_code == 200
+            mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+                method="GET",
+                access_entity=DagAccessEntity.XCOM,
+                details=DagDetails(id=DAG1_ID, team_name=team_name),
                 user=mock.ANY,
             )
 
