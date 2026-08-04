@@ -17,8 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import copy
-from collections.abc import AsyncGenerator, Awaitable, Callable
+import random
+import time
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
@@ -35,8 +38,9 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 from tenacity import retry_if_exception
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
-from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException, HttpSrvLookupException
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.strings import to_boolean
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -50,6 +54,19 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
         return f"{base_url}/{endpoint}"
     return (base_url or "") + (endpoint or "")
+
+
+def _select_srv_target(answers: Iterable[Any]) -> tuple[str, int]:
+    """Select a target host and port from resolved DNS SRV records."""
+    candidates_by_priority: dict[int, list[Any]] = {}
+    for record in answers:
+        candidates_by_priority.setdefault(record.priority, []).append(record)
+    # Failover mechanism: RFC 2782
+    candidates = candidates_by_priority[min(candidates_by_priority)]
+    chosen = random.choice(candidates)
+
+    target_host = str(chosen.target).rstrip(".")
+    return target_host, chosen.port
 
 
 def _process_extra_options_from_connection(
@@ -75,6 +92,9 @@ def _process_extra_options_from_connection(
     max_redirects = conn_extra_options.pop("max_redirects", None)
     trust_env = conn_extra_options.pop("trust_env", None)
     check_response = conn_extra_options.pop("check_response", None)
+
+    conn_extra_options.pop("srv_lookup", None)
+    conn_extra_options.pop("srv_cache_ttl", None)
 
     if stream is not None and "stream" not in passed_extra_options:
         passed_extra_options["stream"] = stream
@@ -135,6 +155,11 @@ class HttpHook(BaseHook):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
+
+    Extra also supports resolving ``host`` via a DNS SRV record:
+
+    * ``srv_lookup`` (bool): treat ``host`` as an SRV record name, e.g. ``_http._tcp.example.com``.
+    * ``srv_cache_ttl`` (float): SRV cache TTL in seconds (default 60).
     """
 
     conn_name_attr = "http_conn_id"
@@ -162,6 +187,12 @@ class HttpHook(BaseHook):
         self._base_url_initialized: bool = False
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
+        self._srv_lookup_enabled: bool = False
+        self._srv_name: str | None = None
+        self._srv_scheme: str = "http"
+        self._srv_cache: tuple[str, int] | None = None
+        self._srv_cache_time: float = 0.0
+        self._srv_cache_ttl: float = 60.0
 
         # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
         self.adapter = adapter
@@ -218,6 +249,9 @@ class HttpHook(BaseHook):
     def _set_base_url(self, connection) -> None:
         host = connection.host or self.default_host
         schema = connection.schema or "http"
+        extra = connection.extra_dejson
+        self._srv_lookup_enabled = to_boolean(str(extra.get("srv_lookup", False)))
+        self._srv_cache_ttl = float(extra.get("srv_cache_ttl", self._srv_cache_ttl))
         # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
         if "://" in host:
             self.base_url = host
@@ -228,7 +262,47 @@ class HttpHook(BaseHook):
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
+        if self._srv_lookup_enabled:
+            # When SRV lookup is enabled, ``host`` is the SRV record name (e.g.
+            # ``_http._tcp.example.com``), not a directly connectable hostname.
+            self._srv_name = parsed.hostname
+            self._srv_scheme = parsed.scheme
+            self._srv_cache = None
+            self._srv_cache_time = 0.0
         self._base_url_initialized = True
+
+    def _get_dynamic_base_url(self) -> str:
+        """Return the base URL for the current request, resolving SRV records when enabled."""
+        if not self._srv_lookup_enabled:
+            return self.base_url
+        now = time.monotonic()
+        if self._srv_cache is None or (now - self._srv_cache_time) >= self._srv_cache_ttl:
+            self._srv_cache = self._resolve_srv_record(cast("str", self._srv_name))
+            self._srv_cache_time = now
+        target_host, target_port = self._srv_cache
+        return f"{self._srv_scheme}://{target_host}:{target_port}"
+
+    def _resolve_srv_record(self, host: str) -> tuple[str, int]:
+        """
+        Resolve a DNS SRV record to a target host and port.
+
+        Requires the optional ``dnspython`` dependency.
+        """
+        try:
+            import dns.exception
+            import dns.resolver
+        except ImportError as e:
+            raise HttpSrvLookupException(
+                "To use SRV DNS resolution in HttpHook, the 'dnspython' library must be installed. "
+                "Install it via the 'srv' extra: pip install apache-airflow-providers-http[srv]"
+            ) from e
+
+        try:
+            answers = dns.resolver.resolve(host, "SRV")
+        except dns.exception.DNSException as e:
+            self.log.error("Failed to resolve SRV record for %s: %s", host, e)
+            raise HttpSrvLookupException(f"Failed to resolve SRV record for {host}: {e}") from e
+        return _select_srv_target(answers)
 
     def _configure_session_from_auth(self, session: Session, connection: Connection) -> Session:
         session.auth = self._extract_auth(connection)
@@ -407,12 +481,17 @@ class HttpHook(BaseHook):
         return self._retry_obj(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
-        """Combine base url with endpoint."""
+        """
+        Combine base url with endpoint.
+
+        If SRV lookup is enabled on the connection, the base URL is re-resolved (subject to
+        caching) before combining it with the endpoint.
+        """
         # Ensure base_url is set by initializing it if it hasn't been initialized yet
         if not self._base_url_initialized and not self.base_url:
             connection = self.get_connection(self.http_conn_id)
             self._set_base_url(connection)
-        return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
+        return _url_from_endpoint(base_url=self._get_dynamic_base_url(), endpoint=endpoint)
 
     def test_connection(self):
         """Test HTTP Connection."""
@@ -509,7 +588,7 @@ class AsyncHttpSession(LoggingMixin):
         """
         from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
 
-        url = _url_from_endpoint(self.base_url, endpoint)
+        url = _url_from_endpoint(await self._hook._get_dynamic_base_url_async(), endpoint)
         merged_headers = {**(self.headers or {}), **(headers or {})}
         extra_options = {**(self.extra_options or {}), **(extra_options or {})}
 
@@ -558,6 +637,11 @@ class HttpAsyncHook(BaseHook):
     :param auth_type: The auth type for the service
     :param retry_limit: Maximum number of times to retry this job if it fails  (default is 3)
     :param retry_delay: Delay between retry attempts (default is 1.0)
+
+    Extra also supports resolving ``host`` via a DNS SRV record:
+
+    * ``srv_lookup`` (bool): treat ``host`` as an SRV record name, e.g. ``_http._tcp.example.com``.
+    * ``srv_cache_ttl`` (float): SRV cache TTL in seconds (default 60).
     """
 
     conn_name_attr = "http_conn_id"
@@ -583,6 +667,13 @@ class HttpAsyncHook(BaseHook):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self._config: SessionConfig | None = None
+        self._srv_lookup_enabled: bool = False
+        self._srv_name: str | None = None
+        self._srv_scheme: str = "http"
+        self._srv_cache: tuple[str, int] | None = None
+        self._srv_cache_time: float = 0.0
+        self._srv_cache_ttl: float = 60.0
+        self._srv_lock = asyncio.Lock()
 
     def _get_request_func(
         self, session: aiohttp.ClientSession, method: str | None = None
@@ -634,6 +725,16 @@ class HttpAsyncHook(BaseHook):
                     )
                     headers.update(conn_extra_options)
 
+                extra = conn.extra_dejson
+                self._srv_lookup_enabled = to_boolean(str(extra.get("srv_lookup", False)))
+                self._srv_cache_ttl = float(extra.get("srv_cache_ttl", self._srv_cache_ttl))
+                if self._srv_lookup_enabled:
+                    # When SRV lookup is enabled, ``host`` is the SRV record name (e.g.
+                    # ``_http._tcp.example.com``), not a directly connectable hostname.
+                    parsed = urlparse(base_url)
+                    self._srv_name = parsed.hostname
+                    self._srv_scheme = parsed.scheme
+
             self._config = SessionConfig(
                 base_url=base_url,
                 headers=headers,
@@ -641,6 +742,45 @@ class HttpAsyncHook(BaseHook):
                 extra_options=extra_options,
             )
         return self._config
+
+    async def _get_dynamic_base_url_async(self) -> str:
+        """Return the base URL for the current request, resolving SRV records when enabled."""
+        config = await self.config()
+        if not self._srv_lookup_enabled:
+            return config.base_url
+        now = time.monotonic()
+        if self._srv_cache is None or (now - self._srv_cache_time) >= self._srv_cache_ttl:
+            async with self._srv_lock:
+                # Re-check after acquiring the lock: another concurrent request may have
+                # already refreshed the cache while this one was waiting.
+                now = time.monotonic()
+                if self._srv_cache is None or (now - self._srv_cache_time) >= self._srv_cache_ttl:
+                    self._srv_cache = await self._resolve_srv_record_async(cast("str", self._srv_name))
+                    self._srv_cache_time = now
+        target_host, target_port = self._srv_cache
+        return f"{self._srv_scheme}://{target_host}:{target_port}"
+
+    async def _resolve_srv_record_async(self, host: str) -> tuple[str, int]:
+        """
+        Resolve a DNS SRV record to a target host and port without blocking the event loop.
+
+        Requires the optional ``dnspython`` dependency.
+        """
+        try:
+            import dns.asyncresolver
+            import dns.exception
+        except ImportError as e:
+            raise HttpSrvLookupException(
+                "To use SRV DNS resolution in HttpAsyncHook, the 'dnspython' library must be installed. "
+                "Install it via the 'srv' extra: pip install apache-airflow-providers-http[srv]"
+            ) from e
+
+        try:
+            answers = await dns.asyncresolver.resolve(host, "SRV")
+        except dns.exception.DNSException as e:
+            self.log.error("Failed to resolve SRV record for %s: %s", host, e)
+            raise HttpSrvLookupException(f"Failed to resolve SRV record for {host}: {e}") from e
+        return _select_srv_target(answers)
 
     @asynccontextmanager
     async def session(self, method: str | None = None) -> AsyncGenerator[AsyncHttpSession, None]:
