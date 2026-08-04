@@ -30,8 +30,12 @@ instance details to run the optional section for a selected Dag run.
 By default, the operator skips all descendants. Set ``ignore_downstream_trigger_rules=False`` to skip only
 direct downstream tasks and let later descendants follow their own trigger rules.
 
-.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_manual_gate_operator.py
+For example, a CI/CD Dag can build and validate a release in staging during its normal run while leaving
+the production deployment available on demand. After reviewing the staging deployment, an operator can
+run the production section from the same Dag run.
+
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_on_demand_deployment.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_manual_gate]
-    :end-before: [END howto_operator_manual_gate]
+    :start-after: [START howto_operator_on_demand_deployment]
+    :end-before: [END howto_operator_on_demand_deployment]
