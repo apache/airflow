@@ -458,7 +458,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Ensure all requested dag_ids are in the result (with None for those not found)
         return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
 
-    def _stamp_team_names(self, dag_runs: Iterable[DagRun], session: Session) -> None:
+    def _stamp_team_names(self, dag_runs: Collection[DagRun], session: Session) -> None:
         """
         Stamp ``_team_name`` on each DagRun.
 
@@ -469,11 +469,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         if not self._multi_team:
             return
-        runs = list(dag_runs)
-        if not runs:
+        if not dag_runs:
             return
-        team_map = self._get_team_names_for_dag_ids({dr.dag_id for dr in runs}, session)
-        for dr in runs:
+        team_map = self._get_team_names_for_dag_ids({dr.dag_id for dr in dag_runs}, session)
+        for dr in dag_runs:
             if team := team_map.get(dr.dag_id):
                 dr._team_name = team
 
@@ -2995,7 +2994,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 execute=False,
             )
 
-            # dag_run was reloaded from DB above, so _team_name set on the original object is lost.
             # Team name should be added before listeners are called in notify_dagrun_state_changed()
             self._stamp_team_names([dag_run], session)
             dag_run.notify_dagrun_state_changed(msg="timed_out")
