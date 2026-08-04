@@ -56,7 +56,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     unselected downstream tasks once a reviewer approves. The review form
     lists the valid downstream task IDs; with ``allow_modifications=True``
     the editable choice is rendered as a dropdown of those IDs (single-branch
-    mode) or a free-text JSON list (``allow_multiple_branches=True``), and
+    mode) or a multi-select of them (``allow_multiple_branches=True``), and
     the reviewed branch(es) are validated against the downstream task IDs
     before branching.
     """
@@ -121,7 +121,9 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```"
             )
             modification_schema = (
-                None if self.allow_multiple_branches else {"type": "string", "enum": choices}
+                {"type": "array", "items": {"type": "string", "enum": choices}, "examples": choices}
+                if self.allow_multiple_branches
+                else {"type": "string", "enum": choices}
             )
             self.defer_for_approval(  # type: ignore[misc]
                 context, branches, body=body, modification_schema=modification_schema
