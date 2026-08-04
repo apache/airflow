@@ -30,6 +30,7 @@ import yandex.cloud.lockbox.v1.secret_service_pb2_grpc as secret_service_pb_grpc
 import yandexcloud
 
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.yandex.utils.credentials import get_credentials
 from airflow.providers.yandex.utils.defaults import default_conn_name
 from airflow.providers.yandex.utils.fields import get_field_from_extras
@@ -272,7 +273,12 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         the caller's own team builds looks equivalent and is not -- a caller in team ``a`` would
         match ``a//b``'s namespace on the prefix and read its secrets. Only the caller's own
         namespace is ever constructed, never parsed.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no
+        team scoped secret can exist to collide with.
         """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
         return self.sep * TEAM_SEP_MULTIPLIER in secret_id
 
     def _log_refusal(self, kind: str, secret_id: str) -> None:
