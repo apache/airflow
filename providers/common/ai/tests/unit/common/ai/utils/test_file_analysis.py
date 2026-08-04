@@ -32,6 +32,7 @@ from airflow.providers.common.ai.exceptions import (
     LLMFileAnalysisUnsupportedFormatError,
 )
 from airflow.providers.common.ai.utils.file_analysis import (
+    _DECOMPRESSORS,
     FileAnalysisRequest,
     _infer_partitions,
     _read_raw_bytes,
@@ -406,6 +407,18 @@ class TestFileAnalysisHelpers:
         with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="Compression"):
             detect_file_format(ObjectStoragePath(str(path)))
 
+    @pytest.mark.parametrize(("filename", "codec"), [("events.csv.bz2", "bzip2"), ("events.json.xz", "xz")])
+    def test_detect_file_format_rejects_compression_without_codec_module(self, tmp_path, filename, codec):
+        path = tmp_path / filename
+        path.write_bytes(b"content")
+
+        with patch.dict(_DECOMPRESSORS, {"gzip": gzip.open}, clear=True):
+            with pytest.raises(
+                LLMFileAnalysisUnsupportedFormatError,
+                match=f"Compression '{codec}' is not supported for file analysis",
+            ):
+                detect_file_format(ObjectStoragePath(str(path)))
+
     @pytest.mark.parametrize(
         "filename", ["sample.parquet.gz", "sample.avro.bz2", "sample.png.xz", "sample.pdf.gz"]
     )
@@ -413,7 +426,9 @@ class TestFileAnalysisHelpers:
         path = tmp_path / filename
         path.write_bytes(b"content")
 
-        with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="not supported for"):
+        with pytest.raises(
+            LLMFileAnalysisUnsupportedFormatError, match=r"not supported for '\w+' file analysis"
+        ):
             detect_file_format(ObjectStoragePath(str(path)))
 
     @pytest.mark.parametrize(

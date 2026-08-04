@@ -18,17 +18,26 @@
 
 from __future__ import annotations
 
-import bz2
 import csv
 import gzip
 import io
 import json
 import logging
-import lzma
 from bisect import insort
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any
+
+# bz2/lzma are optional CPython extensions and may be missing from some interpreter builds
+try:
+    import bz2
+except ImportError:
+    bz2 = None  # type: ignore[assignment]
+
+try:
+    import lzma
+except ImportError:
+    lzma = None  # type: ignore[assignment]
 
 from pydantic_ai.messages import BinaryContent
 
@@ -67,11 +76,11 @@ _COMPRESSION_SUFFIXES = {
     "xz": "xz",
     "zst": "zstd",
 }
-_DECOMPRESSORS: dict[str, Callable[..., io.BufferedIOBase]] = {
-    "bzip2": bz2.open,
-    "gzip": gzip.open,
-    "xz": lzma.open,
-}
+_DECOMPRESSORS: dict[str, Callable[..., io.BufferedIOBase]] = {"gzip": gzip.open}
+if bz2 is not None:
+    _DECOMPRESSORS["bzip2"] = bz2.open
+if lzma is not None:
+    _DECOMPRESSORS["xz"] = lzma.open
 _COMPRESSION_SUPPORTED_FORMATS = frozenset({"csv", "json", "log", "txt", "md"})
 _TEXT_SAMPLE_HEAD_CHARS = 8_000
 _TEXT_SAMPLE_TAIL_CHARS = 2_000
