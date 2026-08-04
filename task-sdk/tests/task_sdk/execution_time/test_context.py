@@ -429,6 +429,36 @@ class TestVariableAccessor:
         mock_mask_secret.assert_any_call({"password": "s3cr3t", "host": "db.example.com"})
 
     @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_list_values(self, mock_mask_secret, mock_supervisor_comms):
+        """A JSON list is handed to the masker whole, exactly as a dict is."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '[{"password": "s3cr3t"}, {"password": "s3cr3t2"}]'
+        mock_supervisor_comms.send.return_value = VariableResult(key="db_configs", value=raw_json)
+
+        val = accessor.db_configs
+
+        assert val == [{"password": "s3cr3t"}, {"password": "s3cr3t2"}]
+        mock_mask_secret.assert_any_call(raw_json, "db_configs")
+        # under the variable's key; dicts inside are still masked by their own key names
+        mock_mask_secret.assert_any_call([{"password": "s3cr3t"}, {"password": "s3cr3t2"}], "db_configs")
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            pytest.param("12345", 12345, id="int"),
+            pytest.param("true", True, id="bool"),
+            pytest.param("null", None, id="null"),
+            pytest.param("1.5", 1.5, id="float"),
+        ],
+    )
+    def test_var_json_scalar_values_pass_through(self, raw, expected, mock_supervisor_comms):
+        """Handing a scalar to the masker is a no-op and must not change the value returned."""
+        accessor = VariableAccessor(deserialize_json=True)
+        mock_supervisor_comms.send.return_value = VariableResult(key="some_number", value=raw)
+
+        assert accessor.some_number == expected
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
     def test_var_json_sensitive_key_masks_raw_json(self, mock_mask_secret, mock_supervisor_comms):
         """var.json.<sensitive_key> masks the entire raw JSON string because the variable key is sensitive."""
         accessor = VariableAccessor(deserialize_json=True)
@@ -464,7 +494,10 @@ class TestVariableAccessor:
         val = accessor.aws_regions
 
         assert val == ["us-east-1", "eu-west-1"]
-        mock_mask_secret.assert_called_once_with(raw_json, "aws_regions")
+        mock_mask_secret.assert_any_call(raw_json, "aws_regions")
+        mock_mask_secret.assert_any_call(["us-east-1", "eu-west-1"], "aws_regions")
+        # never anonymously -- that is what would mask the elements globally
+        assert mock.call(["us-east-1", "eu-west-1"]) not in mock_mask_secret.call_args_list
 
     @mock.patch("airflow.sdk.execution_time.context.mask_secret")
     def test_var_json_invalid_json_raises(self, mock_mask_secret):
