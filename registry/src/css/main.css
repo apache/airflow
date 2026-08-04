@@ -3761,14 +3761,14 @@ main {
   border-color: var(--color-green-400);
 }
 
-/* Per-connection upstream integration matrix */
-.provider-detail-page .connections-card .conn-integrations-table {
+/* Per-connection external services matrix */
+.provider-detail-page .connections-card .conn-external-services-table {
   width: 100%;
   margin-top: var(--space-4);
   border-collapse: collapse;
 }
 
-.provider-detail-page .connections-card .conn-integrations-header th {
+.provider-detail-page .connections-card .conn-external-services-header th {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -3777,20 +3777,20 @@ main {
   background: var(--bg-tertiary);
 }
 
-.provider-detail-page .connections-card .conn-integrations-row {
+.provider-detail-page .connections-card .conn-external-services-row {
   border-top: 1px solid var(--border-primary);
 }
 
-.provider-detail-page .connections-card .conn-integrations-row td {
+.provider-detail-page .connections-card .conn-external-services-row td {
   padding: var(--space-2) var(--space-3);
   vertical-align: top;
 }
 
-.provider-detail-page .connections-card .conn-integrations-row td:first-child {
+.provider-detail-page .connections-card .conn-external-services-row td:first-child {
   white-space: nowrap;
 }
 
-.provider-detail-page .connections-card .conn-integrations-list {
+.provider-detail-page .connections-card .conn-external-services-list {
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }

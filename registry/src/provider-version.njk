@@ -253,9 +253,9 @@ eleventyComputed:
         {% if conn.external_services and conn.external_services.length > 0 %}{% set hasExternalServices = true %}{% endif %}
       {% endfor %}
       {% if hasExternalServices %}
-      <table class="conn-integrations-table">
+      <table class="conn-external-services-table">
         <thead>
-          <tr class="conn-integrations-header">
+          <tr class="conn-external-services-header">
             <th>Connection type</th>
             <th>External services (examples)</th>
           </tr>
@@ -263,9 +263,9 @@ eleventyComputed:
         <tbody>
           {% for conn in conns %}
           {% if conn.external_services and conn.external_services.length > 0 %}
-          <tr class="conn-integrations-row">
+          <tr class="conn-external-services-row">
             <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
-            <td class="conn-integrations-list">{{ conn.external_services | join(", ") }}</td>
+            <td class="conn-external-services-list">{{ conn.external_services | join(", ") }}</td>
           </tr>
           {% endif %}
           {% endfor %}
