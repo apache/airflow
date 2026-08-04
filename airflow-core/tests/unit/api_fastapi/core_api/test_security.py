@@ -57,7 +57,6 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
-from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
@@ -342,10 +341,8 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        backfill = Mock()
-        backfill.dag_id = "backfill_dag_id"
         session = Mock()
-        session.scalars.return_value.one_or_none.return_value = backfill
+        session.scalar.return_value = "backfill_dag_id"
 
         request = Mock()
         request.path_params = {"backfill_id": "42"}
@@ -377,7 +374,6 @@ class TestFastApiSecurity:
         mock_get_team_name.return_value = "team1"
 
         session = Mock()
-        session.scalars.return_value.one_or_none.return_value = None
 
         request = Mock()
         request.path_params = {}
@@ -400,25 +396,25 @@ class TestFastApiSecurity:
     @patch.object(DagModel, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_backfill_unauthorized(self, mock_get_auth_manager, mock_get_team_name):
-        """When is_authorized_dag returns False, Forbidden is raised."""
+        """A caller who may not read the backfill's Dag is told it does not exist."""
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = None
 
-        backfill = Mock()
-        backfill.dag_id = "unauthorized_dag"
         session = Mock()
-        session.scalars.return_value.one_or_none.return_value = backfill
+        session.scalar.return_value = "unauthorized_dag"
 
         request = Mock()
         request.path_params = {"backfill_id": "1"}
         user = Mock()
 
         inner = requires_access_backfill("GET")
-        with pytest.raises(HTTPException, match="Forbidden"):
+        with pytest.raises(HTTPException) as exc_info:
             await inner(request, user, session)
 
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail == "Backfill not found"
         auth_manager.is_authorized_dag.assert_called_once_with(
             method="GET",
             access_entity=DagAccessEntity.RUN,
@@ -430,33 +426,56 @@ class TestFastApiSecurity:
     @pytest.mark.asyncio
     @patch.object(DagModel, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_backfill_backfill_not_found_falls_back_to_body(
+    async def test_requires_access_backfill_forbidden_when_the_dag_is_readable(
         self, mock_get_auth_manager, mock_get_team_name
     ):
-        """When backfill_id is int but Backfill not found, dag_id from body is used."""
-        auth_manager = Mock()
+        """A caller who may read the Dag but not write it keeps the Forbidden answer."""
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_dag.side_effect = lambda *, method, **kwargs: method == "GET"
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+
+        session = Mock(spec=Session)
+        session.scalar.return_value = "readable_dag"
+
+        request = Mock(spec=Request)
+        request.path_params = {"backfill_id": "1"}
+        user = Mock(spec=BaseUser)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await requires_access_backfill("PUT")(request, user, session)
+
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_unknown_id_ignores_the_request_dag_id(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """An unknown backfill is not authorized against a Dag the caller names."""
+        auth_manager = Mock(spec=BaseAuthManager)
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        session = Mock()
-        session.scalars.return_value.one_or_none.return_value = None
+        session = Mock(spec=Session)
+        session.scalar.return_value = None
 
-        request = Mock()
+        request = Mock(spec=Request)
         request.path_params = {"backfill_id": "999"}
-        request.json = AsyncMock(return_value={"dag_id": "fallback_dag_id"})
+        request.query_params = {"dag_id": "caller_dag_id"}
+        request.json = AsyncMock(return_value={"dag_id": "caller_dag_id"})
 
-        user = Mock()
+        user = Mock(spec=BaseUser)
 
-        inner = requires_access_backfill("POST")
-        await inner(request, user, session)
+        with pytest.raises(HTTPException) as exc_info:
+            await requires_access_backfill("PUT")(request, user, session)
 
-        auth_manager.is_authorized_dag.assert_called_once_with(
-            method="POST",
-            access_entity=DagAccessEntity.RUN,
-            details=DagDetails(id="fallback_dag_id", team_name="team1"),
-            user=user,
-        )
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail == "Backfill not found"
+        auth_manager.is_authorized_dag.assert_not_called()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
@@ -478,10 +497,8 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        backfill = Mock(spec=Backfill)
-        backfill.dag_id = "backfill_dag"
         session = Mock(spec=Session)
-        session.scalars.return_value.one_or_none.return_value = backfill
+        session.scalar.return_value = "backfill_dag"
 
         request = Mock(spec=Request)
         request.path_params = {"backfill_id": backfill_id}
