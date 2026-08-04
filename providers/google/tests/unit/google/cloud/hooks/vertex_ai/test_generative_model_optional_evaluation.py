@@ -17,11 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import importlib
-import sys
-from collections.abc import Iterator
-from types import ModuleType
-from typing import cast
 from unittest import mock
 
 import pytest
@@ -32,54 +27,37 @@ from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_pro
 
 pytest.importorskip("google.cloud.aiplatform_v1")
 
-EVALUATION_MODULE = "vertexai.preview.evaluation"
+from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
+    GenerativeModelHook,
+)
+
 HOOK_MODULE = "airflow.providers.google.cloud.hooks.vertex_ai.generative_model"
 BASE_HOOK_INIT = "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__"
 INSTALL_EXTRA_REGEX = r"apache-airflow-providers-google\[evaluation\]"
 
-_MISSING = object()
+# Patching the guard variable (instead of reloading the hook module with the evaluation import
+# blocked) keeps the module and class objects stable for other test files in the same session.
+MISSING_EVALUATION_IMPORT = ImportError("No module named 'vertexai.preview.evaluation'")
 
 
 @pytest.fixture
-def generative_model_hook_module_without_evaluation() -> Iterator[ModuleType]:
-    modules = cast("dict[str, object]", sys.modules)
-    original_evaluation_module = modules.get(EVALUATION_MODULE, _MISSING)
-    original_hook_module = modules.get(HOOK_MODULE, _MISSING)
-
-    modules[EVALUATION_MODULE] = None
-    hook_module = importlib.import_module(HOOK_MODULE)
-    hook_module = importlib.reload(hook_module)
-
-    try:
-        yield hook_module
-    finally:
-        if original_evaluation_module is _MISSING:
-            modules.pop(EVALUATION_MODULE, None)
-        else:
-            modules[EVALUATION_MODULE] = original_evaluation_module
-
-        if original_hook_module is _MISSING:
-            modules.pop(HOOK_MODULE, None)
-        else:
-            importlib.reload(hook_module)
-
-
-def test_get_eval_task_raises_optional_provider_feature_exception_without_evaluation_extra(
-    generative_model_hook_module_without_evaluation: ModuleType,
-):
+def hook() -> GenerativeModelHook:
     with mock.patch(BASE_HOOK_INIT, new=mock_base_gcp_hook_default_project_id):
-        hook = generative_model_hook_module_without_evaluation.GenerativeModelHook()
+        return GenerativeModelHook()
 
+
+@mock.patch(f"{HOOK_MODULE}._evaluation_import_error", MISSING_EVALUATION_IMPORT)
+def test_get_eval_task_raises_optional_provider_feature_exception_without_evaluation_extra(
+    hook: GenerativeModelHook,
+):
     with pytest.raises(AirflowOptionalProviderFeatureException, match=INSTALL_EXTRA_REGEX):
         hook.get_eval_task(dataset={}, metrics=[], experiment="test-experiment")
 
 
+@mock.patch(f"{HOOK_MODULE}._evaluation_import_error", MISSING_EVALUATION_IMPORT)
 def test_run_evaluation_raises_optional_provider_feature_exception_without_evaluation_extra(
-    generative_model_hook_module_without_evaluation: ModuleType,
+    hook: GenerativeModelHook,
 ):
-    with mock.patch(BASE_HOOK_INIT, new=mock_base_gcp_hook_default_project_id):
-        hook = generative_model_hook_module_without_evaluation.GenerativeModelHook()
-
     with pytest.raises(AirflowOptionalProviderFeatureException, match=INSTALL_EXTRA_REGEX):
         hook.run_evaluation(
             project_id="test-project",
