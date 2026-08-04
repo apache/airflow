@@ -162,8 +162,7 @@ def _create_zip_bundle_with_keywordless_dag(zip_path: Path) -> None:
 
     ``with_keywords.py`` contains the ``airflow``/``dag`` strings the safe-mode heuristic looks
     for. ``no_keywords.py`` mimics a custom wrapper whose source contains neither ``airflow`` nor
-    ``dag``/``asset`` -- exactly the case ``dag_discovery_safe_mode=False`` exists to support
-    (issue #66104).
+    ``dag``/``asset`` -- exactly the case ``dag_discovery_safe_mode=False`` exists to support.
     """
     with zipfile.ZipFile(zip_path, "w") as zf:
         zf.writestr(
@@ -375,9 +374,9 @@ class TestDagFileProcessorManager:
     def test_get_observed_filelocs_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
         """ZIP-member discovery used for deactivation must honor the configured safe_mode.
 
-        Regression for #66104: with ``dag_discovery_safe_mode=False`` a keyword-less (wrapped)
-        zip member is parsed and activated, so it must also be reported as observed -- otherwise
-        it is deactivated right after being parsed. This path previously hardcoded safe_mode=True.
+        With ``dag_discovery_safe_mode=False`` a keyword-less (wrapped) zip member is parsed and
+        activated, so it must also be reported as observed -- otherwise it is deactivated right
+        after being parsed. This path previously hardcoded safe_mode=True.
         """
         zip_path = tmp_path / "test_zip.zip"
         _create_zip_bundle_with_keywordless_dag(zip_path)
