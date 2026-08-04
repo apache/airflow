@@ -37,8 +37,10 @@ export const FieldBool = ({ name, namespace = "default" }: FlexibleFormElementPr
       checked={Boolean(param.value)}
       disabled={disabled}
       id={`element_${name}`}
+      justifyContent="flex-end"
       name={`element_${name}`}
       onCheckedChange={(event) => onCheck(event.checked)}
+      width="full"
     />
   );
 };

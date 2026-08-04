@@ -434,6 +434,29 @@ class TestCreateBackfill(TestBackfillEndpoint):
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_create_backfill_records_triggering_user_display_name(
+        self, mock_display_name, session, dag_maker, test_client
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_DISPLAY_NAME", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-02-01")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+        }
+        response = test_client.post(url="/backfills", json=data)
+        assert response.status_code == 200
+        backfill = session.scalars(select(Backfill).where(Backfill.dag_id == dag.dag_id)).one()
+        assert backfill.triggering_user_name == "Jane Doe"
+
     def test_dag_not_exist(self, session, test_client):
         session.scalars(select(DagModel)).all()
         session.commit()

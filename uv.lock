@@ -2712,7 +2712,7 @@ requires-dist = [
     { name = "types-deprecated", marker = "extra == 'mypy'", specifier = ">=1.2.9.20240311" },
     { name = "types-docutils", marker = "extra == 'mypy'", specifier = ">=0.21.0.20240704" },
     { name = "types-markdown", marker = "extra == 'mypy'", specifier = ">=3.6.0.20240316" },
-    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402,<5.0.0" },
+    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402" },
     { name = "types-protobuf", marker = "extra == 'mypy'", specifier = ">=5.26.0.20240422" },
     { name = "types-pymysql", marker = "extra == 'mypy'", specifier = ">=1.1.0.20240425" },
     { name = "types-python-dateutil", marker = "extra == 'mypy'", specifier = ">=2.9.0.20240316" },
@@ -2904,7 +2904,7 @@ packages = []
 
 [[package]]
 name = "apache-airflow-providers-airbyte"
-version = "6.0.0"
+version = "6.0.1"
 source = { editable = "providers/airbyte" }
 dependencies = [
     { name = "airbyte-api" },
@@ -2987,7 +2987,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-alibaba"
-version = "3.3.9"
+version = "3.4.0"
 source = { editable = "providers/alibaba" }
 dependencies = [
     { name = "alibabacloud-adb20211201" },
@@ -3031,7 +3031,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.33.0"
+version = "9.34.0"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3180,9 +3180,9 @@ requires-dist = [
     { name = "jsonpath-ng", specifier = ">=1.5.3" },
     { name = "lxml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=6.0.0" },
     { name = "marshmallow", specifier = ">=3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3,<3" },
     { name = "pyathena", specifier = ">=3.10.0" },
     { name = "python3-saml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.16.0" },
     { name = "redshift-connector", specifier = ">=2.1.3" },
@@ -3235,7 +3235,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-anthropic"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "providers/anthropic" }
 dependencies = [
     { name = "anthropic" },
@@ -3458,7 +3458,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-hdfs"
-version = "4.12.1"
+version = "4.12.2"
 source = { editable = "providers/apache/hdfs" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3488,9 +3488,9 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.14'", specifier = ">=1.12.1" },
     { name = "hdfs", extras = ["avro", "dataframe", "kerberos"], marker = "python_full_version < '3.12'", specifier = ">=2.5.4" },
     { name = "hdfs", extras = ["avro", "dataframe", "kerberos"], marker = "python_full_version >= '3.12'", specifier = ">=2.7.3" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
 ]
 
 [package.metadata.requires-dev]
@@ -3505,7 +3505,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-hive"
-version = "9.6.0"
+version = "9.6.1"
 source = { editable = "providers/apache/hive" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3578,9 +3578,9 @@ requires-dist = [
     { name = "hmsclient", specifier = ">=0.1.0" },
     { name = "jmespath", specifier = ">=0.7.0" },
     { name = "kerberos", marker = "sys_platform != 'win32' and extra == 'gssapi'", specifier = ">=1.3.0" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "pyhive", extras = ["hive-pure-sasl"], specifier = ">=0.7.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
     { name = "winkerberos", marker = "sys_platform == 'win32' and extra == 'gssapi'", specifier = ">=0.7.0" },
@@ -3703,7 +3703,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-kafka"
-version = "1.15.0"
+version = "1.15.1"
 source = { editable = "providers/apache/kafka" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3802,7 +3802,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-livy"
-version = "4.5.7"
+version = "4.6.0"
 source = { editable = "providers/apache/livy" }
 dependencies = [
     { name = "aiohttp" },
@@ -3922,7 +3922,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-spark"
-version = "6.3.0"
+version = "6.3.1"
 source = { editable = "providers/apache/spark" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4060,7 +4060,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-arangodb"
-version = "2.9.5"
+version = "2.9.6"
 source = { editable = "providers/arangodb" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4175,7 +4175,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-celery"
-version = "3.23.0"
+version = "3.23.1"
 source = { editable = "providers/celery" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4298,7 +4298,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.20.0"
+version = "10.21.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
     { name = "aiofiles" },
@@ -4346,7 +4346,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cohere"
-version = "1.6.6"
+version = "1.6.7"
 source = { editable = "providers/cohere" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4529,7 +4529,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-compat"
-version = "1.17.0"
+version = "1.18.0"
 source = { editable = "providers/common/compat" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4695,7 +4695,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-sql"
-version = "2.0.3"
+version = "2.1.0"
 source = { editable = "providers/common/sql" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4763,9 +4763,9 @@ requires-dist = [
     { name = "datafusion", marker = "extra == 'datafusion'", specifier = ">=50.0.0,<52.0.0" },
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "more-itertools", specifier = ">=9.0.0" },
-    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
-    { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2,<3" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "pyiceberg-core", marker = "extra == 'pyiceberg-core'", specifier = ">=0.8.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
@@ -4796,7 +4796,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-databricks"
-version = "7.18.0"
+version = "7.18.1"
 source = { editable = "providers/databricks" }
 dependencies = [
     { name = "aiohttp" },
@@ -4877,9 +4877,9 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.9.0" },
     { name = "mergedeep", specifier = ">=1.3.4" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
     { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
@@ -4944,7 +4944,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.9.2"
+version = "4.9.3"
 source = { editable = "providers/dbt/cloud" }
 dependencies = [
     { name = "aiohttp" },
@@ -5077,7 +5077,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-docker"
-version = "4.5.8"
+version = "4.5.9"
 source = { editable = "providers/docker" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5116,7 +5116,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-edge3"
-version = "4.2.0"
+version = "4.3.0"
 source = { editable = "providers/edge3" }
 dependencies = [
     { name = "aiofiles" },
@@ -5159,7 +5159,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-elasticsearch"
-version = "6.8.1"
+version = "6.9.0"
 source = { editable = "providers/elasticsearch" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5208,7 +5208,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-exasol"
-version = "4.10.4"
+version = "4.10.5"
 source = { editable = "providers/exasol" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5241,9 +5241,9 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "pyexasol", specifier = ">=0.26.0,<2" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
@@ -5262,7 +5262,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-fab"
-version = "3.7.3"
+version = "3.8.0"
 source = { editable = "providers/fab" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5428,7 +5428,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-git"
-version = "0.4.1"
+version = "0.4.2"
 source = { editable = "providers/git" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5759,9 +5759,9 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "immutabledict", specifier = ">=4.2.0" },
     { name = "looker-sdk", specifier = ">=22.4.0,!=24.18.0" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "pandas-gbq", specifier = ">=0.7.0" },
     { name = "plyvel", marker = "python_full_version < '3.13' and extra == 'leveldb'", specifier = ">=1.5.1" },
     { name = "proto-plus", specifier = ">=1.26.0" },
@@ -5853,7 +5853,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-hashicorp"
-version = "4.7.2"
+version = "4.8.0"
 source = { editable = "providers/hashicorp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6000,7 +6000,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-imap"
-version = "3.12.0"
+version = "3.12.1"
 source = { editable = "providers/imap" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6231,7 +6231,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-keycloak"
-version = "0.8.2"
+version = "0.9.0"
 source = { editable = "providers/keycloak" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6268,7 +6268,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "14.0.0"
+version = "14.1.0"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
@@ -6661,7 +6661,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-neo4j"
-version = "3.12.0"
+version = "3.12.1"
 source = { editable = "providers/neo4j" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6740,7 +6740,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openai"
-version = "1.8.1"
+version = "1.8.2"
 source = { editable = "providers/openai" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6850,8 +6850,8 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "attrs", specifier = ">=22.2" },
-    { name = "openlineage-integration-common", specifier = ">=1.47.0" },
-    { name = "openlineage-python", specifier = ">=1.47.0" },
+    { name = "openlineage-integration-common", specifier = ">=1.52.0" },
+    { name = "openlineage-python", specifier = ">=1.52.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
 provides-extras = ["sqlalchemy"]
@@ -6873,7 +6873,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-opensearch"
-version = "1.11.1"
+version = "1.11.2"
 source = { editable = "providers/opensearch" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7056,7 +7056,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-papermill"
-version = "3.13.1"
+version = "3.13.2"
 source = { editable = "providers/papermill" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7085,9 +7085,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "ipykernel", specifier = ">=6.29.4" },
     { name = "nbconvert", specifier = ">=7.16.1" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "papermill", extras = ["all"], specifier = ">=2.6.0" },
     { name = "scrapbook", extras = ["all"], specifier = ">=0.5.0" },
 ]
@@ -7190,7 +7190,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-postgres"
-version = "7.0.0"
+version = "7.0.1"
 source = { editable = "providers/postgres" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7253,9 +7253,9 @@ requires-dist = [
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "asyncpg", marker = "extra == 'asyncpg'", specifier = ">=0.30.0" },
-    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3,<3" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "psycopg", extras = ["binary"], marker = "python_full_version < '3.14'", specifier = ">=3.2.9" },
     { name = "psycopg", extras = ["binary"], marker = "python_full_version >= '3.14'", specifier = ">=3.3.3" },
@@ -7286,7 +7286,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-presto"
-version = "5.12.0"
+version = "5.12.1"
 source = { editable = "providers/presto" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7326,9 +7326,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "presto-python-client", specifier = ">=0.8.4" },
     { name = "psycopg2-binary", marker = "python_full_version < '3.13'", specifier = ">=2.9.9" },
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
@@ -7435,7 +7435,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-salesforce"
-version = "5.14.1"
+version = "5.14.2"
 source = { editable = "providers/salesforce" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7459,9 +7459,9 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "simple-salesforce", specifier = ">=1.0.0" },
 ]
 
@@ -7596,7 +7596,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-sftp"
-version = "6.0.0"
+version = "6.0.1"
 source = { editable = "providers/sftp" }
 dependencies = [
     { name = "aiofiles" },
@@ -7743,7 +7743,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-smtp"
-version = "3.0.2"
+version = "3.0.3"
 source = { editable = "providers/smtp" }
 dependencies = [
     { name = "aiosmtplib" },
@@ -7780,7 +7780,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-snowflake"
-version = "6.15.0"
+version = "6.16.0"
 source = { editable = "providers/snowflake" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7824,9 +7824,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
     { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
@@ -7889,7 +7889,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ssh"
-version = "6.0.0"
+version = "6.0.1"
 source = { editable = "providers/ssh" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7928,7 +7928,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-standard"
-version = "1.16.0"
+version = "1.17.0"
 source = { editable = "providers/standard" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8011,7 +8011,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-telegram"
-version = "4.9.5"
+version = "4.9.6"
 source = { editable = "providers/telegram" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8048,7 +8048,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-teradata"
-version = "3.6.1"
+version = "3.6.2"
 source = { editable = "providers/teradata" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8120,7 +8120,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-trino"
-version = "6.6.0"
+version = "6.6.1"
 source = { editable = "providers/trino" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8159,9 +8159,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "trino", specifier = ">=0.319.0" },
 ]
 provides-extras = ["google", "openlineage"]
@@ -8271,7 +8271,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-weaviate"
-version = "3.4.0"
+version = "3.4.1"
 source = { editable = "providers/weaviate" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8297,9 +8297,9 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "httpx", specifier = ">=0.25.0" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
     { name = "weaviate-client", specifier = ">=4.16.0,!=4.16.7" },
 ]
 
@@ -8314,7 +8314,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-yandex"
-version = "4.5.0"
+version = "4.5.1"
 source = { editable = "providers/yandex" }
 dependencies = [
     { name = "apache-airflow" },
@@ -9070,9 +9070,9 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
@@ -17516,7 +17516,7 @@ wheels = [
 
 [[package]]
 name = "openlineage-integration-common"
-version = "1.51.0"
+version = "1.52.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -17525,12 +17525,12 @@ dependencies = [
     { name = "pyyaml" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/0d/d4579be921fb5ed547296f1b12725b3b288a0dba720de58f8949069a64a9/openlineage_integration_common-1.51.0-py3-none-any.whl", hash = "sha256:765917edb89768f1303a51775b182f83e0e0a293fb716be20e4331b8a256e771", size = 61680, upload-time = "2026-07-06T11:46:40.872Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/66/7d8adfff44cffac121836c33baedbf93e85fda814f6cf2821cb38e995c55/openlineage_integration_common-1.52.0-py3-none-any.whl", hash = "sha256:b003b812535b9f2b9570a7dbedc8c8913713b3e971abda77edfdb9234542d548", size = 67467, upload-time = "2026-07-23T14:40:31.011Z" },
 ]
 
 [[package]]
 name = "openlineage-python"
-version = "1.51.0"
+version = "1.52.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -17541,7 +17541,7 @@ dependencies = [
     { name = "requests" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/33/ec58ea03fbcb32bc62c4d012e9d2a0710817e423fff41b2880241f9c95f3/openlineage_python-1.51.0-py3-none-any.whl", hash = "sha256:bbf03eeb2271ccb23dc6b7a5f39e9968585d10160fa1d7ac345d07f59b45f568", size = 114334, upload-time = "2026-07-06T11:46:41.801Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/77/2f5b471c93c8c89f8777a18e0a05abd8dd14abf76f71bcd57f5e3c90d8e5/openlineage_python-1.52.0-py3-none-any.whl", hash = "sha256:e1bd73b3066021eecf69cc5c3571f6fd7e253768ea941f2c76f18969ea0ecb20", size = 116447, upload-time = "2026-07-23T14:40:32.073Z" },
 ]
 
 [[package]]
