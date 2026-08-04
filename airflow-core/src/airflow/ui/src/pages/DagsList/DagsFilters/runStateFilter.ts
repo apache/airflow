@@ -25,7 +25,7 @@ import type { RunStateScope } from "./RunStateScopeSelect";
 // An unset key means "clear this param".
 export type RunStateSelection = {
   readonly dagRunState?: string;
-  readonly dagRunStateWithin?: string;
+  readonly dagRunStateWithinHours?: string;
   readonly lastDagRunState?: string;
 };
 
@@ -40,7 +40,7 @@ export const runStateSelectionFor = (state: string | undefined, scope: RunStateS
     return { dagRunState: state };
   }
 
-  return { dagRunState: state, dagRunStateWithin: scope };
+  return { dagRunState: state, dagRunStateWithinHours: scope };
 };
 
 export const runScopeFor = (

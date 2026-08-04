@@ -40,7 +40,7 @@ import { runScopeFor, runStateSelectionFor } from "./runStateFilter";
 
 const {
   DAG_RUN_STATE: DAG_RUN_STATE_PARAM,
-  DAG_RUN_STATE_WITHIN: DAG_RUN_STATE_WITHIN_PARAM,
+  DAG_RUN_STATE_WITHIN_HOURS: DAG_RUN_STATE_WITHIN_HOURS_PARAM,
   FAVORITE: FAVORITE_PARAM,
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
@@ -72,7 +72,7 @@ export const DagsFilters = () => {
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const lastRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const anyRunState = searchParams.get(DAG_RUN_STATE_PARAM);
-  const anyRunStateWindow = searchParams.get(DAG_RUN_STATE_WITHIN_PARAM);
+  const anyRunStateWindow = searchParams.get(DAG_RUN_STATE_WITHIN_HOURS_PARAM);
   const selectedTeams = searchParams.getAll(TEAMS_PARAM);
   const timetableTypes = searchParams.getAll(TIMETABLE_TYPE_PARAM).filter(Boolean);
 
@@ -143,7 +143,7 @@ export const DagsFilters = () => {
 
     setOrDelete(LAST_DAG_RUN_STATE_PARAM, selection.lastDagRunState);
     setOrDelete(DAG_RUN_STATE_PARAM, selection.dagRunState);
-    setOrDelete(DAG_RUN_STATE_WITHIN_PARAM, selection.dagRunStateWithin);
+    setOrDelete(DAG_RUN_STATE_WITHIN_HOURS_PARAM, selection.dagRunStateWithinHours);
     resetPagination();
     setSearchParams(searchParams);
   };

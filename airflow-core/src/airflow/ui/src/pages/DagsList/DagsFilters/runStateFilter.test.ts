@@ -34,7 +34,7 @@ describe("runStateSelectionFor", () => {
   it("maps a time window to dag_run_state plus the within bound", () => {
     expect(runStateSelectionFor("failed", "168")).toEqual({
       dagRunState: "failed",
-      dagRunStateWithin: "168",
+      dagRunStateWithinHours: "168",
     });
   });
 
