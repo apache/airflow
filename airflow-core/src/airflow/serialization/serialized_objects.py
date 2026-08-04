@@ -242,11 +242,9 @@ def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     return priority_weight_strategy_class()
 
 
-# Builtin exceptions a ``BASE_EXC_SER`` node can be rebuilt into. The encode side matches
-# ``KeyError`` / ``AttributeError`` *and their subclasses* while storing the concrete class name,
-# so a user-defined subclass serializes to a name that is absent here and cannot be rebuilt --
-# which was equally true when the name was imported, since ``builtins`` does not hold it either.
-# Resolving against this map keeps ``builtins.eval`` / ``builtins.exec`` out without importing.
+# Builtin exceptions a BASE_EXC_SER node can rebuild into. A user defined subclass
+# (e.g. a custom KeyError) serializes to a name absent here and won't round-trip --
+# unchanged from before, since builtins never held it either.
 _DESERIALIZABLE_BUILTIN_EXCEPTIONS: dict[str, type[BaseException]] = {
     "KeyError": KeyError,
     "AttributeError": AttributeError,
@@ -255,21 +253,11 @@ _DESERIALIZABLE_BUILTIN_EXCEPTIONS: dict[str, type[BaseException]] = {
 
 def _resolve_airflow_exception(exc_cls_name: str) -> type[AirflowException]:
     """
-    Resolve a serialized ``AirflowException`` class name to the loaded class, without importing it.
+    Resolve a stored ``AirflowException`` name without importing it.
 
-    The module part is looked up in ``sys.modules`` and the class is read out of that module's
-    namespace, so a name in the stored blob can never cause an import: a module that is not already
-    loaded simply fails to resolve. The result must be an ``AirflowException`` subclass, so an
-    attacker's ``subprocess.check_output`` is rejected even when ``subprocess`` is loaded.
-
-    The namespace is read directly rather than through ``getattr`` so that a module-level
-    ``__getattr__`` -- which Airflow uses for deprecation shims and lazy provider re-exports -- stays
-    out of the path, since those hooks do import on access.
-
-    Resolving the name instead of matching it against a prebuilt map is also what keeps blobs
-    written by older versions readable: these exceptions moved to ``airflow.sdk.exceptions`` in
-    3.2.0 and are re-exported from ``airflow.exceptions``, so a 3.0/3.1 blob naming the old module
-    still resolves, exactly as it did when the name was imported.
+    Read via ``vars()`` rather than ``getattr`` -- a module's deprecation-shim
+    ``__getattr__`` can still import on access -- which also lets pre-3.2.0 blobs
+    naming the old ``airflow.exceptions`` path keep resolving.
     """
     module_name, _, attr_name = exc_cls_name.rpartition(".")
     module = sys.modules.get(module_name)

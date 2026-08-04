@@ -521,11 +521,7 @@ def timetable_plugin(monkeypatch: pytest.MonkeyPatch):
 
 
 class PluginContributedError(AirflowException):
-    """Stands in for an AirflowException subclass contributed by a provider or a plugin.
-
-    It lives outside ``airflow.exceptions`` on purpose: resolution must not be limited to the
-    exceptions Airflow itself ships.
-    """
+    """Defined outside airflow.exceptions on purpose: resolution must not be limited to exceptions Airflow itself ships."""
 
 
 class TestStringifiedDAGs:
@@ -2871,13 +2867,12 @@ class TestStringifiedDAGs:
         assert module_name not in sys.modules
 
     def test_airflow_exc_deserialization_roundtrips_airflow_exception(self):
-        """A genuine AirflowException subclass round-trips."""
         result = BaseSerialization.deserialize(BaseSerialization.serialize(AirflowException("boom")))
         assert isinstance(result, AirflowException)
         assert result.args == ("boom",)
 
     def test_airflow_exc_deserialization_resolves_a_subclass_outside_airflow(self):
-        """A subclass a provider or plugin contributes resolves as long as its module is loaded."""
+        """Resolves as long as its module is loaded, registration order doesn't matter."""
         result = BaseSerialization.deserialize(BaseSerialization.serialize(PluginContributedError("boom")))
         assert isinstance(result, PluginContributedError)
         assert result.args == ("boom",)
