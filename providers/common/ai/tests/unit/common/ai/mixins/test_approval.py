@@ -148,6 +148,18 @@ class TestDeferForApproval:
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
+    def test_modification_schema_overrides_output_param_schema(
+        self, mock_upsert, mock_trigger_cls, approval_op_with_modifications, context
+    ):
+        schema = {"type": "string", "enum": ["task_a", "task_b"]}
+
+        approval_op_with_modifications.defer_for_approval(context, "task_a", modification_schema=schema)
+
+        param = mock_upsert.call_args[1]["params"]["output"]
+        assert param["schema"] == schema
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
     def test_no_modifications_params_empty(self, mock_upsert, mock_trigger_cls, approval_op, context):
         approval_op.defer_for_approval(context, "output")
 
