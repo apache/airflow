@@ -64,9 +64,9 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-oracle = false
 apache-airflow-providers-mysql = false
-apache-airflow-providers-teradata = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-microsoft-mssql = false
+apache-airflow-providers-teradata = false
 apache-airflow-providers-jdbc = false
 apache-airflow-helm-chart = false
 apache-airflow-providers-anthropic = false
@@ -9558,14 +9558,15 @@ name = "azure-batch"
 version = "15.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "azure-core", specifier = ">=1.37.0" },
-    { name = "isodate", specifier = ">=0.6.1" },
-    { name = "typing-extensions", specifier = ">=4.6.0" },
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/ec/9c38379dea2a4817a5c5b44282eff56476326cefa09da9e804809b397656/azure_batch-15.1.0.tar.gz", hash = "sha256:2f684d176b457b7213535e145180a914ed6844b2d1066fcc22ac88c3ac9e3fa5", size = 298104, upload-time = "2026-05-01T23:30:12Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/ec/9c38379dea2a4817a5c5b44282eff56476326cefa09da9e804809b397656/azure_batch-15.1.0.tar.gz", hash = "sha256:2f684d176b457b7213535e145180a914ed6844b2d1066fcc22ac88c3ac9e3fa5", size = 298104, upload-time = "2026-05-01T23:30:12.731Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/35/358a421ebbb0d6fa929333dd71b94922d34445aa02d9d2fa7c0a277dcf53/azure_batch-15.1.0-py3-none-any.whl", hash = "sha256:6001232ba67a4051f4f1b35d434232757b78baa14e4964ec3bfb91afa1d10ed4", size = 260933, upload-time = "2026-05-01T23:30:14Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/35/358a421ebbb0d6fa929333dd71b94922d34445aa02d9d2fa7c0a277dcf53/azure_batch-15.1.0-py3-none-any.whl", hash = "sha256:6001232ba67a4051f4f1b35d434232757b78baa14e4964ec3bfb91afa1d10ed4", size = 260933, upload-time = "2026-05-01T23:30:14.604Z" },
 ]
+
 [[package]]
 name = "azure-common"
 version = "1.1.28"
