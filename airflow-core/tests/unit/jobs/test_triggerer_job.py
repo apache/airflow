@@ -3329,6 +3329,9 @@ async def test_trigger_event_payload_not_logged_at_info(cap_structlog):
 
 @pytest.mark.asyncio
 async def test_trigger_event_payload_available_at_debug(cap_structlog):
+    """Ensure the full event payload is available at DEBUG level for diagnostics."""
+
+    cap_structlog.set_level("debug")
     runner = TriggerRunner()
     runner.triggers = {
         1: {
@@ -3339,33 +3342,22 @@ async def test_trigger_event_payload_available_at_debug(cap_structlog):
         }
     }
 
-    mock_trigger = MagicMock(spec=BaseTrigger)
-    mock_trigger.task_instance = MagicMock()
-    mock_trigger.task_instance.map_index = -1
-
     payload = {"api_response": {"token": "s3cr3t-api-k3y", "user_id": 42}}
 
     async def fake_run():
         yield TriggerEvent(payload)
 
+    mock_trigger = MagicMock(spec=BaseTrigger)
+    mock_trigger.task_instance = MagicMock()
+    mock_trigger.task_instance.map_index = -1
     mock_trigger.run = fake_run
-
-    mock_log = AsyncMock()
-    mock_log.isEnabledFor = MagicMock(return_value=True)
-    runner.log = mock_log
-
     mock_trigger.cleanup = AsyncMock()
 
     task = asyncio.create_task(runner.run_trigger(1, mock_trigger))
     await task
 
-    # ainfo must not be called with result
-    for call in mock_log.ainfo.call_args_list:
-        assert "result" not in call.kwargs, "Payload must not appear in ainfo call"
-
-    # adebug must be called with full payload as 'result'
-    print(mock_log.adebug.call_args.kwargs.get("result"))
-    mock_log.adebug.assert_awaited_once()
-    assert mock_log.adebug.call_args.kwargs.get("result") == TriggerEvent(payload), (
-        "Full event payload must be passed to adebug as 'result'"
-    )
+    debug_logs = [log for log in cap_structlog if log.get("log_level") == "debug"]
+    assert any(
+        log.get("event") == "Trigger fired event payload" and log.get("result") == TriggerEvent(payload)
+        for log in debug_logs
+    ), "Full event payload must be logged at DEBUG level"
