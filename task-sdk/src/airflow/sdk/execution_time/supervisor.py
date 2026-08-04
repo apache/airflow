@@ -43,7 +43,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
-import httpx
+import httpx2 as httpx
 import msgspec
 import psutil
 import structlog

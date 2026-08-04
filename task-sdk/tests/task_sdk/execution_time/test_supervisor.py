@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpx2 as httpx
 import msgspec
 import psutil
 import pytest

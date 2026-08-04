@@ -21,7 +21,7 @@ import os
 import sys
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 from datamodel_code_generator import (
     DataModelType,
     DatetimeClassType,
