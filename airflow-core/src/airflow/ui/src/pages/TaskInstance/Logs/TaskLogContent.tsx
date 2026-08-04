@@ -29,7 +29,7 @@ import type { ParsedLogEntry } from "src/queries/useLogs";
 
 import { HighlightedText } from "./HighlightedText";
 import { ScrollToButton } from "./ScrollToButton";
-import { getSelectionPinnedRows, mergePinnedIndexes } from "./logSelection";
+import { getBottomDragClampTarget, getSelectionPinnedRows, mergePinnedIndexes } from "./logSelection";
 import { useLogGroups } from "./useLogGroups";
 import { getHighlightColor, isSelectionWithin, scrollToBottom, scrollToTop } from "./utils";
 
@@ -78,6 +78,10 @@ export const TaskLogContent = ({
   const isAtBottomRef = useRef<boolean>(true);
   const prevVisibleCountRef = useRef<number>(0);
   const pinnedRowsRef = useRef<Array<number>>([]);
+  const isSelectingRef = useRef<boolean>(false);
+  // NaN disables clamping between drags.
+  const lastPointerYRef = useRef<number>(Number.NaN);
+  const dragClampRafRef = useRef<number>(0);
 
   const rangeExtractor = (range: VirtualizerRange) =>
     mergePinnedIndexes(defaultRangeExtractor(range), pinnedRowsRef.current, range.count);
@@ -113,16 +117,88 @@ export const TaskLogContent = ({
 
   useEffect(() => {
     const container = parentRef.current;
-    const handleSelectionChange = () => {
-      if (!container) {
+
+    if (!container) {
+      return undefined;
+    }
+    const clampSelectionToBottom = () => {
+      dragClampRafRef.current = 0;
+
+      if (!isSelectingRef.current) {
         return;
       }
-      pinnedRowsRef.current = getSelectionPinnedRows(document.getSelection(), container);
+      const selection = document.getSelection();
+
+      if (!selection) {
+        return;
+      }
+      const clampTarget = getBottomDragClampTarget({
+        container,
+        pointerY: lastPointerYRef.current,
+        selection,
+      });
+
+      if (clampTarget) {
+        selection.extend(clampTarget.node, clampTarget.offset);
+      }
+    };
+    const scheduleBottomClamp = () => {
+      if (
+        !isSelectingRef.current ||
+        dragClampRafRef.current !== 0 ||
+        !(lastPointerYRef.current >= container.getBoundingClientRect().bottom)
+      ) {
+        return;
+      }
+      dragClampRafRef.current = requestAnimationFrame(clampSelectionToBottom);
+    };
+    const handleSelectionChange = () => {
+      const selection = document.getSelection();
+
+      pinnedRowsRef.current = getSelectionPinnedRows(selection, container);
+      scheduleBottomClamp();
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target.closest("[data-index]") : null;
+
+      if (event.button !== 0 || event.pointerType !== "mouse" || !target || !container.contains(target)) {
+        return;
+      }
+      isSelectingRef.current = true;
+      lastPointerYRef.current = event.clientY;
+    };
+    const stopSelecting = () => {
+      isSelectingRef.current = false;
+      lastPointerYRef.current = Number.NaN;
+      cancelAnimationFrame(dragClampRafRef.current);
+      dragClampRafRef.current = 0;
+    };
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!isSelectingRef.current) {
+        return;
+      }
+      lastPointerYRef.current = event.clientY;
+      scheduleBottomClamp();
     };
 
+    container.addEventListener("pointerdown", handlePointerDown);
+    container.addEventListener("scroll", scheduleBottomClamp, { passive: true });
     document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("pointermove", handlePointerMove, { passive: true });
+    document.addEventListener("pointerup", stopSelecting);
+    document.addEventListener("pointercancel", stopSelecting);
+    globalThis.addEventListener("blur", stopSelecting);
 
-    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      container.removeEventListener("pointerdown", handlePointerDown);
+      container.removeEventListener("scroll", scheduleBottomClamp);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", stopSelecting);
+      document.removeEventListener("pointercancel", stopSelecting);
+      globalThis.removeEventListener("blur", stopSelecting);
+      cancelAnimationFrame(dragClampRafRef.current);
+    };
   }, []);
 
   useLayoutEffect(() => {

@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -527,5 +527,108 @@ describe("Selection pinning across scrolling", () => {
     await waitFor(() => {
       expect(container.querySelector(`[data-index="${anchorIndex}"]`)).toBeNull();
     });
+  });
+});
+
+describe("Downward drag selection", () => {
+  it("coalesces events and extends the selection to the mounted bottom row", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const container = screen.getByTestId("virtual-scroll-container");
+    const rows = container.querySelectorAll<HTMLElement>("[data-index]");
+    const anchorRow = rows[0] as HTMLElement;
+    const lastRow = rows[rows.length - 1] as HTMLElement;
+    const extend = vi.fn();
+    const range = document.createRange();
+
+    range.selectNodeContents(anchorRow);
+
+    const selection = {
+      anchorNode: anchorRow,
+      extend,
+      focusNode: anchorRow,
+      focusOffset: 0,
+      getRangeAt: () => range,
+      rangeCount: 1,
+    } as unknown as Selection;
+    const animationFrames = new Array<FrameRequestCallback>();
+    const getSelectionSpy = vi.spyOn(document, "getSelection").mockReturnValue(selection);
+    const requestAnimationFrameSpy = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        animationFrames.push(callback);
+
+        return animationFrames.length;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(globalThis, "cancelAnimationFrame")
+      .mockImplementation(() => undefined);
+
+    container.getBoundingClientRect = () => ({ bottom: 500 }) as DOMRect;
+
+    fireEvent.pointerDown(anchorRow, { button: 0, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 600, pointerType: "mouse" });
+    document.dispatchEvent(new Event("selectionchange"));
+    fireEvent.scroll(container);
+
+    expect(animationFrames).toHaveLength(1);
+    animationFrames.shift()?.(0);
+    expect(extend).toHaveBeenCalledWith(lastRow, lastRow.childNodes.length);
+
+    fireEvent.scroll(container);
+    expect(animationFrames).toHaveLength(1);
+    animationFrames.shift()?.(1);
+    expect(extend).toHaveBeenCalledTimes(2);
+
+    fireEvent.scroll(container);
+    const pendingAnimationFrame = animationFrames.shift();
+
+    fireEvent.pointerUp(document, { pointerType: "mouse" });
+    expect(cancelAnimationFrameSpy).toHaveBeenCalledWith(1);
+
+    pendingAnimationFrame?.(2);
+    expect(extend).toHaveBeenCalledTimes(2);
+
+    getSelectionSpy.mockRestore();
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
+  });
+
+  it("only activates for downward primary-mouse drags starting in a log row", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const container = screen.getByTestId("virtual-scroll-container");
+    const anchorRow = container.querySelector<HTMLElement>("[data-index]") as HTMLElement;
+    const requestAnimationFrameSpy = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation(() => 1);
+
+    container.getBoundingClientRect = () => ({ bottom: 500 }) as DOMRect;
+
+    fireEvent.pointerDown(container, { button: 0, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 600, pointerType: "mouse" });
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(anchorRow, { button: 2, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 600, pointerType: "mouse" });
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(anchorRow, { button: 0, clientY: 200, pointerType: "touch" });
+    fireEvent.pointerMove(document, { clientY: 600, pointerType: "touch" });
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(anchorRow, { button: 0, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 50, pointerType: "mouse" });
+    fireEvent.scroll(container);
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(document, { pointerType: "mouse" });
+    requestAnimationFrameSpy.mockRestore();
   });
 });

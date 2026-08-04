@@ -53,6 +53,50 @@ export const getSelectionPinnedRows = (
   ].filter((index): index is number => index !== undefined);
 };
 
+type BottomDragClampOptions = {
+  container: HTMLElement;
+  pointerY: number;
+  selection: Selection;
+};
+
+/**
+ * Re-extend a downward drag selection to the last mounted row. When all log
+ * rows are absolutely positioned, Chrome can resolve a hit-test below the
+ * scrollport's text to the block start, reversing a downward selection.
+ */
+export const getBottomDragClampTarget = ({
+  container,
+  pointerY,
+  selection,
+}: BottomDragClampOptions): { node: Node; offset: number } | undefined => {
+  if (selection.rangeCount === 0) {
+    return undefined;
+  }
+  const anchorRow = getRowIndexForNode(selection.anchorNode, container);
+
+  if (anchorRow === undefined) {
+    return undefined;
+  }
+  const rect = container.getBoundingClientRect();
+
+  if (pointerY < rect.bottom) {
+    return undefined;
+  }
+  const rows = container.querySelectorAll("[data-index]");
+  const lastRow = rows[rows.length - 1];
+
+  if (lastRow === undefined) {
+    return undefined;
+  }
+  const offset = lastRow.childNodes.length;
+
+  if (selection.focusNode === lastRow && selection.focusOffset === offset) {
+    return undefined;
+  }
+
+  return { node: lastRow, offset };
+};
+
 /**
  * Merge selection-pinned row indexes into the virtualizer's default render
  * range. Rows holding selection boundaries must stay mounted while the user

@@ -18,7 +18,7 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getSelectionPinnedRows, mergePinnedIndexes } from "./logSelection";
+import { getBottomDragClampTarget, getSelectionPinnedRows, mergePinnedIndexes } from "./logSelection";
 
 const buildLogContainer = (rows: Array<{ index: number; text: string }>): HTMLElement => {
   const container = document.createElement("div");
@@ -128,6 +128,161 @@ describe("getSelectionPinnedRows", () => {
     const container = buildLogContainer([{ index: 0, text: "line 0" }]);
 
     expect(getSelectionPinnedRows(null, container)).toEqual([]);
+  });
+});
+
+const makeDirectionalSelection = (options: {
+  anchor: Node;
+  anchorOffset: number;
+  focus: Node;
+  focusOffset: number;
+}): Selection =>
+  ({
+    anchorNode: options.anchor,
+    anchorOffset: options.anchorOffset,
+    focusNode: options.focus,
+    focusOffset: options.focusOffset,
+    isCollapsed: false,
+    rangeCount: 1,
+  }) as unknown as Selection;
+
+const buildClampContainer = () => {
+  const container = buildLogContainer([
+    { index: 10, text: "row ten" },
+    { index: 11, text: "row eleven" },
+    { index: 12, text: "row twelve" },
+  ]);
+
+  container.getBoundingClientRect = () => ({ bottom: 500, top: 100 }) as unknown as DOMRect;
+
+  return container;
+};
+
+describe("getBottomDragClampTarget", () => {
+  it("returns undefined when there is no selection range", () => {
+    const container = buildClampContainer();
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 11),
+      anchorOffset: 2,
+      focus: getRowTextNode(container, 10),
+      focusOffset: 0,
+    });
+
+    Object.defineProperty(selection, "rangeCount", { value: 0 });
+
+    expect(getBottomDragClampTarget({ container, pointerY: 600, selection })).toBeUndefined();
+  });
+
+  it("clamps to the last row when the pointer is below and the focus flipped above the anchor", () => {
+    const container = buildClampContainer();
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 11),
+      anchorOffset: 2,
+      focus: getRowTextNode(container, 10),
+      focusOffset: 0,
+    });
+    const lastRow = container.querySelector('[data-index="12"]') as Element;
+
+    expect(getBottomDragClampTarget({ container, pointerY: 600, selection })).toEqual({
+      node: lastRow,
+      offset: lastRow.childNodes.length,
+    });
+  });
+
+  it("clamps to the last row when the pointer is below and the focus left the rows", () => {
+    const container = buildClampContainer();
+    const outside = document.createElement("div");
+
+    outside.textContent = "outside";
+    document.body.append(outside);
+
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 11),
+      anchorOffset: 2,
+      focus: outside.firstChild as Node,
+      focusOffset: 0,
+    });
+    const lastRow = container.querySelector('[data-index="12"]') as Element;
+
+    expect(getBottomDragClampTarget({ container, pointerY: 600, selection })).toEqual({
+      node: lastRow,
+      offset: lastRow.childNodes.length,
+    });
+  });
+
+  it("does not clamp an upward selection when the pointer is above the container", () => {
+    const container = buildClampContainer();
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 11),
+      anchorOffset: 2,
+      focus: getRowTextNode(container, 10),
+      focusOffset: 0,
+    });
+
+    expect(getBottomDragClampTarget({ container, pointerY: 50, selection })).toBeUndefined();
+  });
+
+  it("clamps a same-row focus inversion when the pointer is below the container", () => {
+    const container = buildClampContainer();
+    const node = getRowTextNode(container, 10);
+    const selection = makeDirectionalSelection({
+      anchor: node,
+      anchorOffset: 4,
+      focus: node,
+      focusOffset: 0,
+    });
+    const lastRow = container.querySelector('[data-index="12"]') as Element;
+
+    expect(getBottomDragClampTarget({ container, pointerY: 600, selection })).toEqual({
+      node: lastRow,
+      offset: lastRow.childNodes.length,
+    });
+  });
+
+  it("follows the mounted edge for a forward selection while the pointer is below the container", () => {
+    const container = buildClampContainer();
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 10),
+      anchorOffset: 2,
+      focus: getRowTextNode(container, 11),
+      focusOffset: 3,
+    });
+    const lastRow = container.querySelector('[data-index="12"]') as Element;
+
+    expect(getBottomDragClampTarget({ container, pointerY: 600, selection })).toEqual({
+      node: lastRow,
+      offset: lastRow.childNodes.length,
+    });
+  });
+
+  it("returns undefined when the focus already sits at the clamp target", () => {
+    const container = buildClampContainer();
+    const lastRow = container.querySelector('[data-index="12"]') as Element;
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 12),
+      anchorOffset: 2,
+      focus: lastRow,
+      focusOffset: lastRow.childNodes.length,
+    });
+
+    expect(getBottomDragClampTarget({ container, pointerY: 600, selection })).toBeUndefined();
+  });
+
+  it("returns undefined when the anchor is not inside a row", () => {
+    const container = buildClampContainer();
+    const outside = document.createElement("div");
+
+    outside.textContent = "outside";
+    document.body.append(outside);
+
+    const selection = makeDirectionalSelection({
+      anchor: outside.firstChild as Node,
+      anchorOffset: 0,
+      focus: getRowTextNode(container, 10),
+      focusOffset: 0,
+    });
+
+    expect(getBottomDragClampTarget({ container, pointerY: 600, selection })).toBeUndefined();
   });
 });
 
