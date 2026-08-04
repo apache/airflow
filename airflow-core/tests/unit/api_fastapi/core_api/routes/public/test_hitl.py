@@ -28,8 +28,8 @@ import time_machine
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from airflow._shared.serialization import CLASSNAME, SCHEMA_ID
 from airflow._shared.timezones.timezone import utc, utcnow
+from airflow.api_fastapi.core_api.routes.public.hitl import _SERDE_RESERVED_KEYS
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
@@ -410,7 +410,7 @@ class TestUpdateHITLDetailEndpoint:
         assert "Invalid options" in response.json()["detail"]
 
     @pytest.mark.usefixtures("sample_hitl_detail")
-    @pytest.mark.parametrize("reserved_key", [CLASSNAME, SCHEMA_ID])
+    @pytest.mark.parametrize("reserved_key", _SERDE_RESERVED_KEYS)
     @pytest.mark.parametrize(
         "make_params_input",
         [
@@ -454,7 +454,7 @@ class TestUpdateHITLDetailEndpoint:
 
         rejected = test_client.patch(
             f"{sample_ti_url_identifier}/hitlDetails",
-            json={"chosen_options": ["Approve"], "params_input": {CLASSNAME: "x"}},
+            json={"chosen_options": ["Approve"], "params_input": {_SERDE_RESERVED_KEYS[0]: "x"}},
         )
         assert rejected.status_code == 400
 

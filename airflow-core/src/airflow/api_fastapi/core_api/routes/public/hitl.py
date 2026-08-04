@@ -82,19 +82,19 @@ task_instance_hitl_path = "/taskInstances/{task_id}/{map_index}/hitlDetails"
 log = structlog.get_logger(__name__)
 
 
-def _find_serde_reserved_key(value: object) -> str | None:
-    """
-    Return the first serde-reserved key found at any depth in ``value``, else ``None``.
+# Keys that ``serde.serialize`` refuses at any depth. A ``params_input`` carrying one could not be
+# serialized into the resume event, so the response is rejected before it is stored. Extend this
+# tuple if serde gains another reserved key; the write-side check and its tests read from here.
+_SERDE_RESERVED_KEYS = (CLASSNAME, SCHEMA_ID)
 
-    ``serialize`` refuses a dict holding these keys, so a ``params_input`` carrying one cannot be
-    packed into the resume event and the parked task could never restart. Reject it on submission.
-    """
-    reserved = (CLASSNAME, SCHEMA_ID)
+
+def _find_serde_reserved_key(value: object) -> str | None:
+    """Return the first ``_SERDE_RESERVED_KEYS`` entry found at any depth in ``value``, else ``None``."""
     stack: list[object] = [value]
     while stack:
         current = stack.pop()
         if isinstance(current, Mapping):
-            for key in reserved:
+            for key in _SERDE_RESERVED_KEYS:
                 if key in current:
                     return key
             stack.extend(current.values())
