@@ -190,6 +190,26 @@ class TestBaseAuthManager:
 
         assert result is True
 
+    def test_authorize_view_denies_a_view_the_manager_cannot_map(self):
+        # AccessView members are added by core, but auth managers ship as separately
+        # released providers, so a core newer than the installed manager can name a view
+        # the manager has never heard of. Managers that translate the enum through a lookup
+        # table raise KeyError on such a member, which would surface as a 500 on the
+        # endpoint. authorize_view denies instead -- the endpoint keeps working and the
+        # records these views gate stay closed.
+        class LookupTableAuthManager(EmptyAuthManager):
+            def is_authorized_view(self, *, access_view, user=None, team_name=None):
+                return {AccessView.WEBSITE: True}[access_view]
+
+        manager = LookupTableAuthManager()
+
+        with pytest.warns(UserWarning, match="cannot map the 'DOCS' view"):
+            result = manager.authorize_view(access_view=AccessView.DOCS, user=None)
+
+        assert result is False
+        # A view the manager does map is unaffected.
+        assert manager.authorize_view(access_view=AccessView.WEBSITE, user=None) is True
+
     def test_authorize_view_treats_kwargs_override_as_team_aware(self):
         class KwargsAuthManager(EmptyAuthManager):
             def is_authorized_view(self, *, access_view, user=None, **kwargs):

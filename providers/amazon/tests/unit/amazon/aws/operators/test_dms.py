@@ -209,16 +209,14 @@ class TestDmsModifyTaskOperator:
     def _modifying_task(self):
         return [{"ReplicationTaskArn": self.TASK_ARN, "Status": "modifying"}]
 
-    def test_execute_raises_if_both_cdc_start_params_provided(self):
-        op = DmsModifyTaskOperator(
-            task_id="modify_task",
-            replication_task_arn=self.TASK_ARN,
-            cdc_start_time=datetime(2024, 1, 1),
-            cdc_start_position="mysql-bin.000001:4",
-        )
-
+    def test_init_raises_if_both_cdc_start_params_provided(self):
         with pytest.raises(ValueError, match="Only one of"):
-            op.execute(None)
+            DmsModifyTaskOperator(
+                task_id="modify_task",
+                replication_task_arn=self.TASK_ARN,
+                cdc_start_time=datetime(2024, 1, 1),
+                cdc_start_position="mysql-bin.000001:4",
+            )
 
     @pytest.mark.parametrize("status", ["stopped", "ready", "failed"])
     @mock.patch.object(DmsHook, "find_replication_tasks_by_arn")
@@ -1445,17 +1443,15 @@ class TestDmsStartReplicationOperator:
             }
         }
 
-    def test_execute_raises_if_both_cdc_start_params_provided(self):
-        op = DmsStartReplicationOperator(
-            task_id="start_replication",
-            replication_config_arn="XXXXXXXXXXXXXXX",
-            replication_start_type="cdc",
-            cdc_start_pos=1,
-            cdc_start_time="2024-01-01 00:00:00",
-        )
-
-        with pytest.raises(AirflowException, match="Only one of"):
-            op.execute({})
+    def test_init_raises_if_both_cdc_start_params_provided(self):
+        with pytest.raises(ValueError, match="Only one of"):
+            DmsStartReplicationOperator(
+                task_id="start_replication",
+                replication_config_arn="XXXXXXXXXXXXXXX",
+                replication_start_type="cdc",
+                cdc_start_pos=1,
+                cdc_start_time="2024-01-01 00:00:00",
+            )
 
     @mock.patch.object(DmsHook, "describe_replications")
     @mock.patch.object(DmsHook, "start_replication")
