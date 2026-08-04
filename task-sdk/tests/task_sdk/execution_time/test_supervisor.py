@@ -161,6 +161,7 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.supervisor import (
+    SERVER_TERMINATED,
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
@@ -3844,6 +3845,22 @@ class TestSignalRetryLogic:
         mock_watched_subprocess._should_retry = True
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_server_terminated_takes_precedence_over_retry(self, mocker):
+        """Test that a server-terminated task stays SERVER_TERMINATED even with retries enabled."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = True
+        mock_watched_subprocess._terminal_state = SERVER_TERMINATED
+
+        assert mock_watched_subprocess.final_state == SERVER_TERMINATED
 
     def test_non_signal_exit_code_without_retry_goes_to_failed(self, mocker):
         """Test that non-signal exit codes without retries enabled go to FAILED."""
