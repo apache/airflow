@@ -542,15 +542,19 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #
     # Scoped to the providers rather than passing `--pre`, which applies to the whole resolution
     # and would let any dependency answer with a pre-release - putting, say, a beta of a
-    # third-party library into the constraints a release ships. uv only considers a pre-release for
-    # a package whose requirement mentions one, so naming the providers with a pre-release lower
-    # bound confines the allowance to them while every other package keeps the default policy.
+    # third-party library into the constraints a release ships. uv has no per-package pre-release
+    # flag, so the scoping is expressed the way it does support: `explicit` permits a pre-release
+    # only for a package some requirement marks as such, and the rc lower bound below is that mark.
+    # `explicit` rather than the default `if-necessary-or-explicit` also drops the fallback that
+    # would otherwise let an unmarked package resolve to a pre-release when no final satisfies.
     pre_release_requirements: list[str] = []
+    pre_release_strategy: list[str] = []
     if config_params.allow_pre_releases:
         pre_release_requirements = build_provider_pre_release_requirements(config_params.python)
+        pre_release_strategy = ["--prerelease", "explicit"]
         console.print(
             f"[bright_blue]Allowing pre-releases for {len(pre_release_requirements)} provider "
-            "distributions - every other package keeps the default policy."
+            "distributions - no other package can resolve to one."
         )
 
     result = run_command(
@@ -567,6 +571,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "./airflow-ctl",
             *additional_constraints_for_highest_resolution,
             *pre_release_requirements,
+            *pre_release_strategy,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
