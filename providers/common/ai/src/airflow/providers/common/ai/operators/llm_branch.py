@@ -108,6 +108,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         else:
             branches = str(output)
 
+        if not branches:
+            raise ValueError(
+                f"LLM selected no branches for {self.task_id!r}, which would skip every downstream task."
+            )
+
         if self.require_approval:
             choices = sorted(self.downstream_task_ids)
             chosen = branches if isinstance(branches, str) else json.dumps(branches)

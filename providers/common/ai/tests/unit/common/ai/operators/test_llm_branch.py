@@ -123,6 +123,26 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_rejects_empty_branch_selection(self, mock_hook_cls, mock_do_branch):
+        """LLM returning an empty list fails instead of skipping every downstream task."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result([])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMBranchOperator(
+            task_id="test",
+            prompt="Pick branches",
+            llm_conn_id="my_llm",
+            allow_multiple_branches=True,
+        )
+        op.downstream_task_ids = {"task_a", "task_b"}
+
+        with pytest.raises(ValueError, match="selected no branches"):
+            op.execute(MagicMock())
+        mock_do_branch.assert_not_called()
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_system_prompt_forwarded(self, mock_hook_cls, mock_do_branch):
         """system_prompt is passed to create_agent(instructions=...)."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a"})
