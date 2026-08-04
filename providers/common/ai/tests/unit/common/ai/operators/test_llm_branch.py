@@ -26,6 +26,7 @@ from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 from airflow.providers.common.compat.sdk import Param, ParamValidationError, TaskDeferred
+from airflow.providers.standard.exceptions import HITLRejectException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -396,6 +397,30 @@ class TestLLMBranchOperatorApproval:
 
         assert result == ["task_a", "task_c"]
         mock_do_branch.assert_called_once_with(ctx, ["task_a", "task_c"])
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_reject_skips_all_downstream(self, mock_do_branch):
+        mock_do_branch.return_value = None
+        op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c")
+        op.downstream_task_ids = {"task_a", "task_b"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        ctx = _make_context()
+
+        result = op.execute_complete(ctx, generated_output="task_a", event=event)
+
+        assert result is None
+        mock_do_branch.assert_called_once_with(ctx, None)
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_reject_fails_with_fail_on_reject(self, mock_do_branch):
+        op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c", fail_on_reject=True)
+        op.downstream_task_ids = {"task_a", "task_b"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+
+        with pytest.raises(HITLRejectException, match="rejected"):
+            op.execute_complete(_make_context(), generated_output="task_a", event=event)
+
+        mock_do_branch.assert_not_called()
 
     @patch.object(LLMBranchOperator, "do_branch")
     def test_execute_complete_with_modified_branch(self, mock_do_branch):
