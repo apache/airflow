@@ -66,6 +66,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
+from unit.listeners import asset_listener
 
 if TYPE_CHECKING:
     from airflow.sdk.api.client import Client
@@ -1294,6 +1295,41 @@ class TestTIUpdateState:
         assert len(event) == 1
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
+
+    def test_ti_update_state_to_success_runs_deferred_asset_listener_callbacks(
+        self, client, session, create_task_instance, listener_manager
+    ):
+        """The success endpoint runs the deferred asset listener callbacks after committing."""
+        asset_listener.clear()
+        listener_manager(asset_listener)
+
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_runs_deferred_asset_listener_callbacks",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == 204
+
+        # Notifications are deferred during registration and run by the endpoint after the
+        # TI state is committed (and the task_instance row lock released).
+        assert len(asset_listener.changed) == 1
+        assert asset_listener.changed[0].uri == "s3://bucket/my-task"
+        assert len(asset_listener.emitted) == 1
 
     @pytest.mark.parametrize(
         ("outlet_events", "expected_extra"),

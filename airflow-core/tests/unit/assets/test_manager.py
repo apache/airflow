@@ -236,6 +236,44 @@ class TestAssetManager:
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
 
+    def test_register_asset_change_defers_notifications_to_callback_sink(
+        self, session, mock_task_instance, testing_dag_bundle, listener_manager
+    ):
+        asset_manager = AssetManager()
+        asset_listener.clear()
+        listener_manager(asset_listener)
+
+        bundle_name = "testing"
+
+        asset = Asset(uri="test://asset1", name="test_asset_1")
+        dag1 = DagModel(dag_id="dag3", bundle_name=bundle_name)
+        session.add(dag1)
+
+        asm = AssetModel(uri="test://asset1/", name="test_asset_1", group="asset")
+        session.add(asm)
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
+        session.flush()
+
+        # When a callback_sink is supplied, listener notifications are collected into it
+        # instead of firing inline, so the caller can run them after releasing the lock.
+        callback_sink: list = []
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset,
+            session=session,
+            callback_sink=callback_sink,
+        )
+        session.flush()
+
+        assert asset_listener.changed == []
+        assert callback_sink
+
+        # Running the collected callbacks fires the listeners.
+        for callback in callback_sink:
+            callback()
+        assert len(asset_listener.changed) == 1
+        assert asset_listener.changed[0].uri == asset.uri
+
     def test_create_assets_notifies_asset_listener(self, session, listener_manager):
         asset_manager = AssetManager()
         asset_listener.clear()
