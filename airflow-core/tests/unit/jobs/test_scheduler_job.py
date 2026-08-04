@@ -12693,15 +12693,15 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(dag_maker: Dag
     )
     runner._max_partition_dag_runs_per_loop = 2
 
-    def _audit_row_count() -> int:
+    def _count_audit_log() -> int:
         return session.scalar(select(func.count()).where(Log.event == "partition dag run cap reached")) or 0
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 5 pending, cap 2
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 3 pending, still over cap
-    assert _audit_row_count() == 1, "backlog persisted across two ticks; audit row must only be written once"
+    assert _count_audit_log() == 1, "backlog persisted across two ticks; audit row must only be written once"
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: 1 pending, drains below cap
-    assert _audit_row_count() == 1, "draining below the cap must not write another audit row"
+    assert _count_audit_log() == 1, "draining below the cap must not write another audit row"
 
     # A fresh backlog episode for the same consumer: three more satisfied APDRs push
     # pending count back above the cap.
@@ -12721,7 +12721,7 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(dag_maker: Dag
     session.commit()
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 4: new episode, 3 pending
-    assert _audit_row_count() == 2, "a fresh backlog episode after draining should write a second audit row"
+    assert _count_audit_log() == 2, "a fresh backlog episode after draining should write a second audit row"
 
 
 @pytest.mark.need_serialized_dag
