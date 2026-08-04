@@ -328,15 +328,18 @@ def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
     for request in callback_requests:
-        request_json = request.to_json()
         if isinstance(request, (TaskCallbackRequest, EmailRequest)):
-            log.debug(
-                "Processing Callback Request",
-                request=request_json,
-                ti_id=str(request.ti.id),
-            )
+            log_extra = {
+                "dag_id": request.ti.dag_id,
+                "run_id": request.ti.run_id,
+                "ti_id": str(request.ti.id),
+            }
         else:
-            log.debug("Processing Callback Request", request=request_json)
+            log_extra = {"dag_id": request.dag_id, "run_id": request.run_id}
+        # context_from_server can carry user-supplied run conf, and the masker cannot
+        # redact inside an already-serialized string, so keep it out of log payloads.
+        request_json = request.to_json(exclude={"context_from_server"})
+        log.debug("Processing Callback Request", request=request_json, **log_extra)
         # A failed request (e.g. the Dag or task was removed since the callback
         # was scheduled) must not abort the remaining requests in this batch --
         # they were already popped from the manager's queue and would be lost.
@@ -352,7 +355,7 @@ def _execute_callbacks(
                 elif isinstance(request, EmailRequest):
                     _execute_email_callbacks(dagbag, request, log)
         except Exception:
-            log.exception("Failed to execute callback request", request=request_json)
+            log.exception("Failed to execute callback request", request=request_json, **log_extra)
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -367,27 +370,36 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
     ctx_from_server = request.context_from_server
 
+    context: Context = {
+        "dag": dag,
+        "run_id": request.run_id,
+        "reason": request.msg,
+    }
     if ctx_from_server is not None and ctx_from_server.last_ti is not None:
-        _, task = _get_dag_with_task(dagbag, request.dag_id, ctx_from_server.last_ti.task_id)
-        if TYPE_CHECKING:
-            assert task is not None
-
-        runtime_ti = RuntimeTaskInstance.model_construct(
-            **ctx_from_server.last_ti.model_dump(exclude_unset=True),
-            task=task,
-            _ti_context_from_server=TIRunContext.model_construct(
-                dag_run=ctx_from_server.dag_run,
-                max_tries=task.retries,
-            ),
-        )
-        context = runtime_ti.get_template_context()
-        context["reason"] = request.msg
-    else:
-        context: Context = {  # type: ignore[no-redef]
-            "dag": dag,
-            "run_id": request.run_id,
-            "reason": request.msg,
-        }
+        try:
+            _, task = _get_dag_with_task(dagbag, request.dag_id, ctx_from_server.last_ti.task_id)
+        except ValueError:
+            # The task only enriches the callback context; a task removed since the
+            # run must not cost the user the callback itself (produce_dag_callback
+            # makes the same call for an unrepresentable last_ti).
+            log.warning(
+                "Task from callback context no longer exists in the Dag; running callback with minimal context",
+                dag_id=request.dag_id,
+                task_id=ctx_from_server.last_ti.task_id,
+            )
+        else:
+            if TYPE_CHECKING:
+                assert task is not None
+            runtime_ti = RuntimeTaskInstance.model_construct(
+                **ctx_from_server.last_ti.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=TIRunContext.model_construct(
+                    dag_run=ctx_from_server.dag_run,
+                    max_tries=task.retries,
+                ),
+            )
+            context = runtime_ti.get_template_context()
+            context["reason"] = request.msg
 
     for callback in callbacks:
         log.info(
