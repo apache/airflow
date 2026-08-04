@@ -153,9 +153,7 @@ def get_config_value(
         )
 
     section_l, option_l = section.lower(), option.lower()
-    if (section_l, option_l) in conf.sensitive_config_values or _is_per_key_sensitive_option(
-        section_l, option_l
-    ):
+    if conf.is_sensitive_option(section_l, option_l) or _is_per_key_sensitive_option(section_l, option_l):
         value = "< hidden >"
     else:
         value = conf.get(section, option)
