@@ -27,14 +27,14 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Checkbox, Dialog, IconButton } from "src/components/ui";
-import { useRunManualSection } from "src/queries/useRunManualSection";
-import { useRunManualSectionDryRun } from "src/queries/useRunManualSectionDryRun";
+import { useRunOnDemandSection } from "src/queries/useRunOnDemandSection";
+import { useRunOnDemandSectionDryRun } from "src/queries/useRunOnDemandSectionDryRun";
 
 import {
-  getManualSectionTarget,
-  isRunnableManualGate,
-  type ManualSectionTarget,
-} from "./manualSectionTarget";
+  getOnDemandSectionTarget,
+  isRunnableOnDemandSection,
+  type OnDemandSectionTarget,
+} from "./onDemandSectionTarget";
 
 type Props = {
   readonly taskInstance: TaskInstanceResponse;
@@ -43,10 +43,10 @@ type Props = {
 type ActionProps = {
   readonly buttonProps?: Omit<IconButtonProps, "aria-label" | "children" | "onClick">;
   readonly onButtonClick?: (event: MouseEvent<HTMLButtonElement>) => void;
-  readonly target: ManualSectionTarget;
+  readonly target: OnDemandSectionTarget;
 };
 
-export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: ActionProps) => {
+export const RunOnDemandSectionAction = ({ buttonProps, onButtonClick, target }: ActionProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(target.note);
@@ -65,7 +65,7 @@ export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: A
     prevent_running_task: preventRunningTask,
   };
 
-  const { data, isPending: isPendingDryRun } = useRunManualSectionDryRun({
+  const { data, isPending: isPendingDryRun } = useRunOnDemandSectionDryRun({
     dagId,
     dagRunId,
     options: {
@@ -76,7 +76,7 @@ export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: A
     taskId,
   });
 
-  const { isPending, mutate } = useRunManualSection({
+  const { isPending, mutate } = useRunOnDemandSection({
     dagId,
     dagRunId,
     onSuccess: onClose,
@@ -87,7 +87,7 @@ export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: A
     task_instances: [],
     total_entries: 0,
   };
-  const label = translate("dags:runAndTaskActions.manualSection.button");
+  const label = translate("dags:runAndTaskActions.onDemandSection.button");
 
   return (
     <>
@@ -114,7 +114,7 @@ export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: A
           <Dialog.Header>
             <VStack align="start" gap={4}>
               <Heading size="xl">
-                <strong>{translate("dags:runAndTaskActions.manualSection.title")}:</strong>{" "}
+                <strong>{translate("dags:runAndTaskActions.onDemandSection.title")}:</strong>{" "}
                 {target.taskDisplayName} <Time datetime={target.startDate} />{" "}
                 <StateBadge state={target.state} />
               </Heading>
@@ -157,10 +157,10 @@ export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: A
   );
 };
 
-const RunManualSectionButton = ({ taskInstance }: Props) => {
-  const target = getManualSectionTarget(taskInstance);
+const RunOnDemandSectionButton = ({ taskInstance }: Props) => {
+  const target = getOnDemandSectionTarget(taskInstance);
 
-  return isRunnableManualGate(target) ? <RunManualSectionAction target={target} /> : null;
+  return isRunnableOnDemandSection(target) ? <RunOnDemandSectionAction target={target} /> : null;
 };
 
-export default RunManualSectionButton;
+export default RunOnDemandSectionButton;

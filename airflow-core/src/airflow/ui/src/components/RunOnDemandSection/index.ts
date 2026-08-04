@@ -16,6 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export { default as RunManualSectionButton, RunManualSectionAction } from "./RunManualSectionButton";
-export { getManualSectionTarget, isRunnableManualGate } from "./manualSectionTarget";
-export type { ManualSectionTarget } from "./manualSectionTarget";
+export { default as RunOnDemandSectionButton, RunOnDemandSectionAction } from "./RunOnDemandSectionButton";
+export { getOnDemandSectionTarget, isRunnableOnDemandSection } from "./onDemandSectionTarget";
+export type { OnDemandSectionTarget } from "./onDemandSectionTarget";

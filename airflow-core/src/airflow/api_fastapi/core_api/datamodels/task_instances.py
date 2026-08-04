@@ -248,8 +248,8 @@ class ClearTaskInstancesBody(StrictBaseModel):
         return data
 
 
-class RunManualSectionBody(StrictBaseModel):
-    """Request body for running a manual-gated section."""
+class RunOnDemandSectionBody(StrictBaseModel):
+    """Request body for running an on-demand section."""
 
     dry_run: bool = True
     prevent_running_task: bool = False

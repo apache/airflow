@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.manual import ManualGateOperator
+from airflow.providers.standard.operators.on_demand import OnDemandSectionOperator
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import TriggerRule, timezone
@@ -33,7 +33,7 @@ if AIRFLOW_V_3_0_1:
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class TestManualGateOperator:
+class TestOnDemandSectionOperator:
     pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
     @pytest.fixture(autouse=True)
@@ -61,23 +61,23 @@ class TestManualGateOperator:
                 True,
                 TriggerRule.ALL_SUCCESS,
                 {"optional_step", "join"},
-                {"manual_gate": State.SUCCESS, "optional_step": State.SKIPPED, "join": State.SKIPPED},
+                {"on_demand_section": State.SUCCESS, "optional_step": State.SKIPPED, "join": State.SKIPPED},
             ),
             (
                 False,
                 TriggerRule.ALL_SUCCESS,
                 {"optional_step"},
-                {"manual_gate": State.SUCCESS, "optional_step": State.SKIPPED, "join": State.NONE},
+                {"on_demand_section": State.SUCCESS, "optional_step": State.SKIPPED, "join": State.NONE},
             ),
             (
                 False,
                 TriggerRule.ALL_DONE,
                 {"optional_step"},
-                {"manual_gate": State.SUCCESS, "optional_step": State.SKIPPED, "join": State.SUCCESS},
+                {"on_demand_section": State.SUCCESS, "optional_step": State.SKIPPED, "join": State.SUCCESS},
             ),
         ],
     )
-    def test_manual_gate_skips_optional_section(
+    def test_on_demand_section_skips_optional_section(
         self,
         ignore_downstream_trigger_rules,
         join_trigger_rule,
@@ -85,68 +85,70 @@ class TestManualGateOperator:
         expected_task_states,
     ):
         with self.dag_maker(
-            "manual_gate_test",
+            "on_demand_section_test",
             start_date=DEFAULT_DATE,
             serialized=True,
         ):
-            manual_gate = ManualGateOperator(
-                task_id="manual_gate",
+            on_demand_section = OnDemandSectionOperator(
+                task_id="on_demand_section",
                 ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
             )
             optional_step = EmptyOperator(task_id="optional_step")
             join = EmptyOperator(task_id="join", trigger_rule=join_trigger_rule)
 
-            manual_gate >> optional_step >> join
+            on_demand_section >> optional_step >> join
 
         dag_run = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                self.dag_maker.run_ti("manual_gate", dag_run)
+                self.dag_maker.run_ti("on_demand_section", dag_run)
 
             assert set(exc_info.value.tasks) == expected_skipped_tasks
         else:
-            self.dag_maker.run_ti("manual_gate", dag_run)
+            self.dag_maker.run_ti("on_demand_section", dag_run)
             self.dag_maker.run_ti("optional_step", dag_run)
             self.dag_maker.run_ti("join", dag_run)
 
-            assert manual_gate.ignore_downstream_trigger_rules == ignore_downstream_trigger_rules
+            assert on_demand_section.ignore_downstream_trigger_rules == ignore_downstream_trigger_rules
             self.assert_expected_task_states(dag_run, expected_task_states)
 
-    def test_manual_gate_stores_skipped_tasks_for_clear_semantics(self):
-        with self.dag_maker("manual_gate_xcom_test", start_date=DEFAULT_DATE, serialized=True):
-            manual_gate = ManualGateOperator(task_id="manual_gate")
+    def test_on_demand_section_stores_skipped_tasks_for_clear_semantics(self):
+        with self.dag_maker("on_demand_section_xcom_test", start_date=DEFAULT_DATE, serialized=True):
+            on_demand_section = OnDemandSectionOperator(task_id="on_demand_section")
             optional_step = EmptyOperator(task_id="optional_step")
-            manual_gate >> optional_step
+            on_demand_section >> optional_step
 
         dag_run = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped):
-                self.dag_maker.run_ti("manual_gate", dag_run)
+                self.dag_maker.run_ti("on_demand_section", dag_run)
         else:
-            self.dag_maker.run_ti("manual_gate", dag_run)
+            self.dag_maker.run_ti("on_demand_section", dag_run)
 
         task_instances = dag_run.get_task_instances()
-        gate_ti = next(ti for ti in task_instances if ti.task_id == "manual_gate")
+        section_ti = next(ti for ti in task_instances if ti.task_id == "on_demand_section")
 
-        assert gate_ti.xcom_pull(task_ids=manual_gate.task_id, key="skipmixin_key") == {
+        assert section_ti.xcom_pull(task_ids=on_demand_section.task_id, key="skipmixin_key") == {
             "skipped": ["optional_step"]
         }
 
-    def test_manual_gate_uses_label_or_task_identity(self):
-        labeled_gate = ManualGateOperator(task_id="manual_gate", label="Run optional section")
-        display_name_gate = ManualGateOperator(task_id="display_gate", task_display_name="Displayed gate")
-        task_id_gate = ManualGateOperator(task_id="task_id_gate")
+    def test_on_demand_section_uses_label_or_task_identity(self):
+        labeled_section = OnDemandSectionOperator(task_id="on_demand_section", label="Run optional section")
+        display_name_section = OnDemandSectionOperator(
+            task_id="display_section", task_display_name="Displayed section"
+        )
+        task_id_section = OnDemandSectionOperator(task_id="task_id_section")
 
-        assert labeled_gate.manual_gate_label == "Run optional section"
-        assert display_name_gate.manual_gate_label == "Displayed gate"
-        assert task_id_gate.manual_gate_label == "task_id_gate"
+        assert labeled_section.on_demand_section_label == "Run optional section"
+        assert display_name_section.on_demand_section_label == "Displayed section"
+        assert task_id_section.on_demand_section_label == "task_id_section"
 
-    def test_manual_gate_noop_without_downstream(self):
-        with self.dag_maker("manual_gate_noop_test", start_date=DEFAULT_DATE, serialized=True):
-            manual_gate = ManualGateOperator(task_id="manual_gate")
+    def test_on_demand_section_noop_without_downstream(self):
+        with self.dag_maker("on_demand_section_noop_test", start_date=DEFAULT_DATE, serialized=True):
+            on_demand_section = OnDemandSectionOperator(task_id="on_demand_section")
 
-        result = manual_gate.execute({})
+        result = on_demand_section.execute({})
 
-        assert result == {"label": "manual_gate", "skipped_task_ids": []}
+        assert result == {"label": "on_demand_section", "skipped_task_ids": []}

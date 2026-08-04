@@ -93,7 +93,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
-    RunManualSectionBody,
+    RunOnDemandSectionBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
@@ -127,16 +127,16 @@ log = structlog.get_logger(__name__)
 
 task_instances_router = AirflowRouter(tags=["Task Instance"], prefix="/dags/{dag_id}")
 task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
-MANUAL_GATE_OPERATOR_NAMES = frozenset({"ManualGateOperator"})
+ON_DEMAND_SECTION_OPERATOR_NAMES = frozenset({"OnDemandSectionOperator"})
 
 
-def _is_manual_gate_task(task: Any) -> bool:
+def _is_on_demand_section_task(task: Any) -> bool:
     task_type = getattr(task, "task_type", None)
     operator_name = getattr(task, "operator_name", None)
-    return task_type in MANUAL_GATE_OPERATOR_NAMES or operator_name in MANUAL_GATE_OPERATOR_NAMES
+    return task_type in ON_DEMAND_SECTION_OPERATOR_NAMES or operator_name in ON_DEMAND_SECTION_OPERATOR_NAMES
 
 
-def _get_manual_gate_downstream_task_ids(task: Any) -> list[str]:
+def _get_on_demand_section_downstream_task_ids(task: Any) -> list[str]:
     if getattr(task, "ignore_downstream_trigger_rules", True):
         tasks = task.get_flat_relatives(upstream=False)
     else:
@@ -145,7 +145,9 @@ def _get_manual_gate_downstream_task_ids(task: Any) -> list[str]:
     return sorted(downstream_task.task_id for downstream_task in tasks if not downstream_task.is_teardown)
 
 
-def _delete_manual_gate_skip_xcom(*, dag_id: str, dag_run_id: str, task_id: str, session: Session) -> None:
+def _delete_on_demand_section_skip_xcom(
+    *, dag_id: str, dag_run_id: str, task_id: str, session: Session
+) -> None:
     session.execute(
         delete(XComModel).where(
             XComModel.dag_id == dag_id,
@@ -1028,8 +1030,8 @@ def post_clear_task_instances(
 
 
 @task_instances_router.post(
-    task_instances_prefix + "/{task_id}/runManualSection",
-    operation_id="run_manual_section",
+    task_instances_prefix + "/{task_id}/runOnDemandSection",
+    operation_id="run_on_demand_section",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
     ),
@@ -1038,16 +1040,16 @@ def post_clear_task_instances(
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
 )
-def post_run_manual_section(
+def post_run_on_demand_section(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
     dag_bag: DagBagDep,
-    body: RunManualSectionBody,
+    body: RunOnDemandSectionBody,
     session: SessionDep,
     user: GetUserDep,
 ) -> TaskInstanceCollectionResponse:
-    """Run the downstream section controlled by a manual gate task."""
+    """Run the downstream section controlled by an on-demand section task."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
     )
@@ -1060,10 +1062,12 @@ def post_run_manual_section(
     except TaskNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task id {task_id} not found") from None
 
-    if not _is_manual_gate_task(task):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Task id {task_id} is not a manual gate task")
+    if not _is_on_demand_section_task(task):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Task id {task_id} is not an on-demand section task"
+        )
 
-    manual_gate_ti = session.scalar(
+    on_demand_section_ti = session.scalar(
         select(TI).where(
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
@@ -1071,20 +1075,20 @@ def post_run_manual_section(
             TI.map_index == -1,
         )
     )
-    if manual_gate_ti is None:
+    if on_demand_section_ti is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"The manual gate Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, "
+            f"The on-demand section task instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, "
             f"task_id: `{task_id}` was not found",
         )
 
-    if manual_gate_ti.state != TaskInstanceState.SUCCESS:
+    if on_demand_section_ti.state != TaskInstanceState.SUCCESS:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            "Manual gate task instance must be successful before its manual section can be run",
+            "On-demand section task instance must be successful before the section can be run",
         )
 
-    downstream_task_ids = _get_manual_gate_downstream_task_ids(task)
+    downstream_task_ids = _get_on_demand_section_downstream_task_ids(task)
     task_instances: list[TI] = []
     if downstream_task_ids:
         task_instances = list(
@@ -1109,7 +1113,7 @@ def post_run_manual_section(
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 
-        _delete_manual_gate_skip_xcom(
+        _delete_on_demand_section_skip_xcom(
             dag_id=dag_id,
             dag_run_id=dag_run_id,
             task_id=task_id,

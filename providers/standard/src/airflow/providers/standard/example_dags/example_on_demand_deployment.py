@@ -19,7 +19,7 @@ from __future__ import annotations
 import datetime
 
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.providers.standard.operators.manual import ManualGateOperator
+from airflow.providers.standard.operators.on_demand import OnDemandSectionOperator
 from airflow.sdk import DAG
 
 with DAG(
@@ -51,7 +51,7 @@ with DAG(
         bash_command="echo 'Verifying the staging deployment'",
     )
 
-    production_release = ManualGateOperator(
+    production_release = OnDemandSectionOperator(
         task_id="production_release",
         label="Deploy this release to production",
     )

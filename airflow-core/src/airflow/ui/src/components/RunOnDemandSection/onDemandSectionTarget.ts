@@ -18,9 +18,9 @@
  */
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 
-const MANUAL_GATE_OPERATOR_NAME = "ManualGateOperator";
+const ON_DEMAND_SECTION_OPERATOR_NAME = "OnDemandSectionOperator";
 
-export type ManualSectionTarget = {
+export type OnDemandSectionTarget = {
   readonly dagId: string;
   readonly dagRunId: string;
   readonly mapIndex: number;
@@ -33,12 +33,13 @@ export type ManualSectionTarget = {
   readonly taskId: string;
 };
 
-export const isRunnableManualGate = (target: ManualSectionTarget) =>
+export const isRunnableOnDemandSection = (target: OnDemandSectionTarget) =>
   target.state === "success" &&
   target.mapIndex === -1 &&
-  (target.operatorName === MANUAL_GATE_OPERATOR_NAME || target.operator === MANUAL_GATE_OPERATOR_NAME);
+  (target.operatorName === ON_DEMAND_SECTION_OPERATOR_NAME ||
+    target.operator === ON_DEMAND_SECTION_OPERATOR_NAME);
 
-export const getManualSectionTarget = (taskInstance: TaskInstanceResponse): ManualSectionTarget => ({
+export const getOnDemandSectionTarget = (taskInstance: TaskInstanceResponse): OnDemandSectionTarget => ({
   dagId: taskInstance.dag_id,
   dagRunId: taskInstance.dag_run_id,
   mapIndex: taskInstance.map_index,

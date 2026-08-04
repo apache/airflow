@@ -19,19 +19,19 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 import { TaskInstanceService } from "openapi/requests/services.gen";
-import type { RunManualSectionBody, RunManualSectionResponse } from "openapi/requests/types.gen";
+import type { RunOnDemandSectionBody, RunOnDemandSectionResponse } from "openapi/requests/types.gen";
 
 type Props<TData, TError> = {
   dagId: string;
   dagRunId: string;
   options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">;
-  requestBody: RunManualSectionBody;
+  requestBody: RunOnDemandSectionBody;
   taskId: string;
 };
 
-export const useRunManualSectionDryRunKey = "runManualSectionDryRun";
+export const useRunOnDemandSectionDryRunKey = "runOnDemandSectionDryRun";
 
-export const useRunManualSectionDryRun = <TData = RunManualSectionResponse, TError = unknown>({
+export const useRunOnDemandSectionDryRun = <TData = RunOnDemandSectionResponse, TError = unknown>({
   dagId,
   dagRunId,
   options,
@@ -41,7 +41,7 @@ export const useRunManualSectionDryRun = <TData = RunManualSectionResponse, TErr
   useQuery<TData, TError>({
     ...options,
     queryFn: () =>
-      TaskInstanceService.runManualSection({
+      TaskInstanceService.runOnDemandSection({
         dagId,
         dagRunId,
         requestBody: {
@@ -50,5 +50,5 @@ export const useRunManualSectionDryRun = <TData = RunManualSectionResponse, TErr
         },
         taskId,
       }) as TData,
-    queryKey: [useRunManualSectionDryRunKey, dagId, dagRunId, taskId, requestBody],
+    queryKey: [useRunOnDemandSectionDryRunKey, dagId, dagRunId, taskId, requestBody],
   });

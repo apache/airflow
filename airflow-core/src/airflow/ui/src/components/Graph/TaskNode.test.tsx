@@ -28,7 +28,7 @@ import { TaskNode } from "./TaskNode";
 import { readableTextForFill } from "./nodeColors";
 import type { CustomNodeProps } from "./reactflowUtils";
 
-const RUN_MANUAL_SECTION_LABEL = "dags:runAndTaskActions.manualSection.button";
+const RUN_ON_DEMAND_SECTION_LABEL = "dags:runAndTaskActions.onDemandSection.button";
 
 vi.mock("src/context/groups", () => ({
   useGroups: vi.fn(() => ({ toggleGroupId: vi.fn() })),
@@ -42,7 +42,7 @@ const TestWrapper = ({ children }: { readonly children: ReactNode }) => (
 
 const TestWrapperWithDagRun = ({ children }: { readonly children: ReactNode }) => (
   <BaseWrapper>
-    <MemoryRouter initialEntries={["/dags/example/runs/manual__2026-07-23T23:01:47/tasks/gate"]}>
+    <MemoryRouter initialEntries={["/dags/example/runs/manual__2026-07-23T23:01:47/tasks/on_demand_section"]}>
       <Routes>
         <Route
           element={<ReactFlowProvider>{children}</ReactFlowProvider>}
@@ -75,8 +75,15 @@ const renderNodeWithDagRun = (data: Partial<CustomNodeProps>) =>
   render(
     <TaskNode
       {...({
-        data: { height: 80, id: "gate", label: "gate", type: "task", width: 200, ...data },
-        id: "gate",
+        data: {
+          height: 80,
+          id: "on_demand_section",
+          label: "on_demand_section",
+          type: "task",
+          width: 200,
+          ...data,
+        },
+        id: "on_demand_section",
       } as unknown as ComponentProps<typeof TaskNode>)}
     />,
     { wrapper: TestWrapperWithDagRun },
@@ -112,7 +119,7 @@ describe("TaskNode operator colors", () => {
   });
 });
 
-describe("TaskNode manual gate action", () => {
+describe("TaskNode on-demand section action", () => {
   const taskInstance = {
     child_states: {},
     dag_version_number: 1,
@@ -120,48 +127,48 @@ describe("TaskNode manual gate action", () => {
     max_end_date: null,
     min_start_date: "2026-07-23T23:01:47.000Z",
     state: "success",
-    task_display_name: "gate",
-    task_id: "gate",
+    task_display_name: "on_demand_section",
+    task_id: "on_demand_section",
   } as const;
 
-  it("shows a trigger button for successful manual gate tasks", () => {
+  it("shows a trigger button for successful on-demand section tasks", () => {
     renderNodeWithDagRun({
-      operator: "ManualGateOperator",
+      operator: "OnDemandSectionOperator",
       taskInstance,
     });
 
-    expect(screen.getByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).not.toBeNull();
+    expect(screen.getByRole("button", { name: RUN_ON_DEMAND_SECTION_LABEL })).not.toBeNull();
   });
 
-  it("does not show a trigger button for non-manual gate tasks", () => {
+  it("does not show a trigger button for non-on-demand section tasks", () => {
     renderNodeWithDagRun({
       operator: "BashOperator",
       taskInstance,
     });
 
-    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
+    expect(screen.queryByRole("button", { name: RUN_ON_DEMAND_SECTION_LABEL })).toBeNull();
   });
 
-  it("does not show a trigger button for unfinished manual gate tasks", () => {
+  it("does not show a trigger button for unfinished on-demand section tasks", () => {
     renderNodeWithDagRun({
-      operator: "ManualGateOperator",
+      operator: "OnDemandSectionOperator",
       taskInstance: {
         ...taskInstance,
         state: "running",
       },
     });
 
-    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
+    expect(screen.queryByRole("button", { name: RUN_ON_DEMAND_SECTION_LABEL })).toBeNull();
   });
 
-  it("does not show a trigger button for mapped manual gate tasks", () => {
+  it("does not show a trigger button for mapped on-demand section tasks", () => {
     renderNodeWithDagRun({
       isMapped: true,
-      operator: "ManualGateOperator",
+      operator: "OnDemandSectionOperator",
       taskInstance,
     });
 
-    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
+    expect(screen.queryByRole("button", { name: RUN_ON_DEMAND_SECTION_LABEL })).toBeNull();
   });
 });
 

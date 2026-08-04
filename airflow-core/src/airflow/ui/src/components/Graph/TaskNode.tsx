@@ -24,10 +24,10 @@ import { useParams } from "react-router-dom";
 
 import { TaskIcon } from "src/assets/TaskIcon";
 import {
-  isRunnableManualGate,
-  RunManualSectionAction,
-  type ManualSectionTarget,
-} from "src/components/RunManualSection";
+  isRunnableOnDemandSection,
+  RunOnDemandSectionAction,
+  type OnDemandSectionTarget,
+} from "src/components/RunOnDemandSection";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useGroups } from "src/context/groups";
@@ -98,7 +98,7 @@ export const TaskNode = ({
   const { dagId, taskId } = parseDagIdFromLabel(label);
   const displayLabel = dagId === undefined ? label : taskId;
   const displayOperator = operator ?? dagId;
-  const manualSectionTarget: ManualSectionTarget | undefined =
+  const onDemandSectionTarget: OnDemandSectionTarget | undefined =
     !isGroup && !isMapped && routeDagId !== "" && runId !== "" && taskInstance !== undefined
       ? {
           dagId: routeDagId,
@@ -218,8 +218,8 @@ export const TaskNode = ({
                 {translate("graph.taskCount", { count: childCount ?? 0 })}
               </Button>
             ) : undefined}
-            {manualSectionTarget !== undefined && isRunnableManualGate(manualSectionTarget) ? (
-              <RunManualSectionAction
+            {onDemandSectionTarget !== undefined && isRunnableOnDemandSection(onDemandSectionTarget) ? (
+              <RunOnDemandSectionAction
                 buttonProps={{
                   bg: "fg",
                   borderRadius: "full",
@@ -238,7 +238,7 @@ export const TaskNode = ({
                   zIndex: 2,
                 }}
                 onButtonClick={(event) => event.stopPropagation()}
-                target={manualSectionTarget}
+                target={onDemandSectionTarget}
               />
             ) : undefined}
             {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (

@@ -9094,13 +9094,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/runManualSection:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/runOnDemandSection:
     post:
       tags:
       - Task Instance
-      summary: Post Run Manual Section
-      description: Run the downstream section controlled by a manual gate task.
-      operationId: run_manual_section
+      summary: Post Run On Demand Section
+      description: Run the downstream section controlled by an on-demand section task.
+      operationId: run_on_demand_section
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -9128,7 +9128,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunManualSectionBody'
+              $ref: '#/components/schemas/RunOnDemandSectionBody'
       responses:
         '200':
           description: Successful Response
@@ -15383,7 +15383,7 @@ components:
 
 
         :meta private:'
-    RunManualSectionBody:
+    RunOnDemandSectionBody:
       properties:
         dry_run:
           type: boolean
@@ -15401,8 +15401,8 @@ components:
           title: Note
       additionalProperties: false
       type: object
-      title: RunManualSectionBody
-      description: Request body for running a manual-gated section.
+      title: RunOnDemandSectionBody
+      description: Request body for running an on-demand section.
     SchedulerInfoResponse:
       properties:
         status:

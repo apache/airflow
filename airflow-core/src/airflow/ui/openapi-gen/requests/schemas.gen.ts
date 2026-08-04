@@ -6426,7 +6426,7 @@ export const $ReprocessBehavior = {
 :meta private:`
 } as const;
 
-export const $RunManualSectionBody = {
+export const $RunOnDemandSectionBody = {
     properties: {
         dry_run: {
             type: 'boolean',
@@ -6453,8 +6453,8 @@ export const $RunManualSectionBody = {
     },
     additionalProperties: false,
     type: 'object',
-    title: 'RunManualSectionBody',
-    description: 'Request body for running a manual-gated section.'
+    title: 'RunOnDemandSectionBody',
+    description: 'Request body for running an on-demand section.'
 } as const;
 
 export const $SchedulerInfoResponse = {

@@ -25,8 +25,8 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { Header } from "./Header";
 
-const RUN_MANUAL_SECTION_LABEL = "dags:runAndTaskActions.manualSection.button";
-const MANUAL_SECTION_READY_TITLE = "dags:runAndTaskActions.manualSection.readyTitle";
+const RUN_ON_DEMAND_SECTION_LABEL = "dags:runAndTaskActions.onDemandSection.button";
+const ON_DEMAND_SECTION_READY_TITLE = "dags:runAndTaskActions.onDemandSection.readyTitle";
 
 vi.mock("src/components/Clear", () => ({
   ClearTaskInstanceButton: () => <button type="button">clear</button>,
@@ -64,41 +64,41 @@ const taskInstance = {
   end_date: "2026-07-23T23:01:48.000Z",
   map_index: -1,
   note: null,
-  operator: "ManualGateOperator",
-  operator_name: "ManualGateOperator",
+  operator: "OnDemandSectionOperator",
+  operator_name: "OnDemandSectionOperator",
   rendered_map_index: null,
   start_date: "2026-07-23T23:01:47.000Z",
   state: "success",
-  task_display_name: "gate",
-  task_id: "gate",
+  task_display_name: "on_demand_section",
+  task_id: "on_demand_section",
   try_number: 1,
 } as TaskInstanceResponse;
 
 const renderHeader = (overrides: Partial<TaskInstanceResponse> = {}) =>
   render(<Header taskInstance={{ ...taskInstance, ...overrides }} />, { wrapper: Wrapper });
 
-describe("TaskInstance Header manual section callout", () => {
-  it("shows a manual section callout for runnable manual gates", () => {
+describe("TaskInstance Header on-demand section callout", () => {
+  it("shows an on-demand section callout for runnable on-demand sections", () => {
     renderHeader();
 
-    expect(screen.getByText(MANUAL_SECTION_READY_TITLE)).not.toBeNull();
-    expect(screen.getAllByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toHaveLength(1);
+    expect(screen.getByText(ON_DEMAND_SECTION_READY_TITLE)).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: RUN_ON_DEMAND_SECTION_LABEL })).toHaveLength(1);
   });
 
-  it("does not show a manual section callout for non-manual tasks", () => {
+  it("does not show an on-demand section callout for other tasks", () => {
     renderHeader({
       operator: "BashOperator",
       operator_name: "BashOperator",
     });
 
-    expect(screen.queryByText(MANUAL_SECTION_READY_TITLE)).toBeNull();
-    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
+    expect(screen.queryByText(ON_DEMAND_SECTION_READY_TITLE)).toBeNull();
+    expect(screen.queryByRole("button", { name: RUN_ON_DEMAND_SECTION_LABEL })).toBeNull();
   });
 
-  it("does not show a manual section callout for unfinished manual gates", () => {
+  it("does not show an on-demand section callout for unfinished on-demand sections", () => {
     renderHeader({ state: "running" });
 
-    expect(screen.queryByText(MANUAL_SECTION_READY_TITLE)).toBeNull();
-    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
+    expect(screen.queryByText(ON_DEMAND_SECTION_READY_TITLE)).toBeNull();
+    expect(screen.queryByRole("button", { name: RUN_ON_DEMAND_SECTION_LABEL })).toBeNull();
   });
 });

@@ -28,13 +28,14 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.node import DAGNode
 
 
-class ManualGateOperator(BaseOperator, SkipMixin):
+class OnDemandSectionOperator(BaseOperator, SkipMixin):
     """
-    Skip an optional subsection by default so it can be run manually later.
+    Skip an optional subsection by default so it can be run on demand later.
 
-    A manual gate marks downstream work as optional for normal Dag runs. When the gate runs, it succeeds
-    and skips downstream tasks according to ``ignore_downstream_trigger_rules``. This keeps the Dag run from
-    waiting on optional work while preserving the graph structure for future manual execution tooling.
+    An on-demand section marks downstream work as optional for normal Dag runs. When the operator runs,
+    it succeeds and skips downstream tasks according to ``ignore_downstream_trigger_rules``. This keeps
+    the Dag run from waiting on optional work while preserving the graph structure for later on-demand
+    execution.
 
     :param label: Human-readable label for UI/API surfaces. Defaults to ``task_display_name`` or
         ``task_id`` when not provided.
@@ -55,17 +56,20 @@ class ManualGateOperator(BaseOperator, SkipMixin):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        object.__setattr__(self, "_manual_gate_text", label)
+        object.__setattr__(self, "_on_demand_section_text", label)
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
 
     @property
-    def manual_gate_label(self) -> str:
-        """Return the label future UI/API manual-run surfaces should display."""
-        return self._manual_gate_text or self.task_display_name or self.task_id
+    def on_demand_section_label(self) -> str:
+        """Return the label displayed by on-demand UI and API surfaces."""
+        return self._on_demand_section_text or self.task_display_name or self.task_id
 
     @classmethod
     def get_serialized_fields(cls) -> frozenset[str]:
-        return super().get_serialized_fields() | {"ignore_downstream_trigger_rules", "_manual_gate_text"}
+        return super().get_serialized_fields() | {
+            "ignore_downstream_trigger_rules",
+            "_on_demand_section_text",
+        }
 
     def _get_tasks_to_skip(self, context: Context) -> Iterable[DAGNode]:
         if self.ignore_downstream_trigger_rules:
@@ -78,14 +82,14 @@ class ManualGateOperator(BaseOperator, SkipMixin):
     def execute(self, context: Context) -> dict[str, str | list[str]]:
         if not self.downstream_task_ids:
             self.log.info("No downstream tasks; nothing to skip.")
-            return {"label": self.manual_gate_label, "skipped_task_ids": []}
+            return {"label": self.on_demand_section_label, "skipped_task_ids": []}
 
         tasks_to_skip = list(self._get_tasks_to_skip(context))
 
         if self.log.getEffectiveLevel() <= logging.DEBUG:
-            self.log.debug("Manual gate downstream task IDs %s", tasks_to_skip)
+            self.log.debug("On-demand section downstream task IDs %s", tasks_to_skip)
 
-        self.log.info("Skipping manual gate downstream tasks.")
+        self.log.info("Skipping downstream tasks in on-demand section.")
         if AIRFLOW_V_3_0_PLUS:
             self.skip(ti=context["ti"], tasks=tasks_to_skip)
         else:
@@ -98,6 +102,6 @@ class ManualGateOperator(BaseOperator, SkipMixin):
             )
 
         return {
-            "label": self.manual_gate_label,
+            "label": self.on_demand_section_label,
             "skipped_task_ids": sorted(task.task_id for task in tasks_to_skip),
         }

@@ -45,7 +45,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
-    RunManualSectionBody,
+    RunOnDemandSectionBody,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
@@ -310,7 +310,7 @@ def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody
     | ClearTaskInstancesBody
     | PatchTaskInstanceBody
-    | RunManualSectionBody,
+    | RunOnDemandSectionBody,
     tis: list[TI],
     user: GetUserDep,
     update_mask: list[str] | None = None,

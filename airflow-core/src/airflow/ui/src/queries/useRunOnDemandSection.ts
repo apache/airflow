@@ -25,17 +25,17 @@ import {
   UseGanttServiceGetGanttDataKeyFn,
   UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
-  useTaskInstanceServiceRunManualSection,
+  useTaskInstanceServiceRunOnDemandSection,
 } from "openapi/queries";
-import type { RunManualSectionBody, RunManualSectionResponse } from "openapi/requests/types.gen";
+import type { RunOnDemandSectionBody, RunOnDemandSectionResponse } from "openapi/requests/types.gen";
 import { createErrorToaster } from "src/utils";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
-import { useRunManualSectionDryRunKey } from "./useRunManualSectionDryRun";
+import { useRunOnDemandSectionDryRunKey } from "./useRunOnDemandSectionDryRun";
 
-export const useRunManualSection = ({
+export const useRunOnDemandSection = ({
   dagId,
   dagRunId,
   onSuccess,
@@ -53,7 +53,7 @@ export const useRunManualSection = ({
     createErrorToaster(
       error,
       {
-        params: { resourceName: translate("dags:runAndTaskActions.manualSection.resourceName") },
+        params: { resourceName: translate("dags:runAndTaskActions.onDemandSection.resourceName") },
         titleKey: "toaster.update.error",
       },
       translate,
@@ -61,11 +61,11 @@ export const useRunManualSection = ({
   };
 
   const onSuccessFn = async (
-    _: RunManualSectionResponse,
+    _: RunOnDemandSectionResponse,
     variables: {
       dagId: string;
       dagRunId: string;
-      requestBody: RunManualSectionBody;
+      requestBody: RunOnDemandSectionBody;
       taskId: string;
     },
   ) => {
@@ -74,7 +74,7 @@ export const useRunManualSection = ({
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey],
-      [useRunManualSectionDryRunKey, dagId, dagRunId, taskId],
+      [useRunOnDemandSectionDryRunKey, dagId, dagRunId, taskId],
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
@@ -89,7 +89,7 @@ export const useRunManualSection = ({
     onSuccess();
   };
 
-  return useTaskInstanceServiceRunManualSection({
+  return useTaskInstanceServiceRunOnDemandSection({
     onError,
     onSuccess: onSuccessFn,
   });

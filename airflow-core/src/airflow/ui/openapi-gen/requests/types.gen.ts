@@ -1695,9 +1695,9 @@ export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' 
 export type ReprocessBehavior = 'failed' | 'completed' | 'none';
 
 /**
- * Request body for running a manual-gated section.
+ * Request body for running an on-demand section.
  */
-export type RunManualSectionBody = {
+export type RunOnDemandSectionBody = {
     dry_run?: boolean;
     prevent_running_task?: boolean;
     note?: string | null;
@@ -4043,14 +4043,14 @@ export type PostClearTaskInstancesData = {
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
-export type RunManualSectionData = {
+export type RunOnDemandSectionData = {
     dagId: string;
     dagRunId: string;
-    requestBody: RunManualSectionBody;
+    requestBody: RunOnDemandSectionBody;
     taskId: string;
 };
 
-export type RunManualSectionResponse = TaskInstanceCollectionResponse;
+export type RunOnDemandSectionResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskGroupInstancesData = {
     dagId: string;
@@ -7088,9 +7088,9 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/runManualSection': {
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/runOnDemandSection': {
         post: {
-            req: RunManualSectionData;
+            req: RunOnDemandSectionData;
             res: {
                 /**
                  * Successful Response

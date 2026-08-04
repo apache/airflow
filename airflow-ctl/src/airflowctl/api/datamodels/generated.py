@@ -968,9 +968,9 @@ class ReprocessBehavior(str, Enum):
     NONE = "none"
 
 
-class RunManualSectionBody(BaseModel):
+class RunOnDemandSectionBody(BaseModel):
     """
-    Request body for running a manual-gated section.
+    Request body for running an on-demand section.
     """
 
     model_config = ConfigDict(
