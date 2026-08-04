@@ -1982,6 +1982,25 @@ def test_provider_sections_do_not_overlap_with_core():
     )
 
 
+@pytest.mark.parametrize(
+    ("sqlite_version_info", "expect_error"),
+    [
+        ((3, 15, 0), False),
+        ((3, 14, 9), True),
+    ],
+)
+def test_validate_sqlite3_version(sqlite_version_info, expect_error, monkeypatch):
+    """_validate_sqlite3_version compares against sqlite3.sqlite_version_info, not a parsed string."""
+    monkeypatch.setenv("AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "sqlite:////tmp/airflow.db")
+    test_conf = AirflowConfigParser()
+    with mock.patch("sqlite3.sqlite_version_info", sqlite_version_info):
+        if expect_error:
+            with pytest.raises(AirflowConfigException, match="SQLite C library too old"):
+                test_conf._validate_sqlite3_version()
+        else:
+            test_conf._validate_sqlite3_version()
+
+
 @skip_if_force_lowest_dependencies_marker
 class TestProviderConfigPriority:
     """Tests that conf.get and conf.has_option respect provider metadata and cfg fallbacks with correct priority."""
