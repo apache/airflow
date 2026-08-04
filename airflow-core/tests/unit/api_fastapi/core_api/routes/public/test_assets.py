@@ -2154,11 +2154,8 @@ class TestPostAssetMaterialize(TestAssets):
 
     @pytest.mark.parametrize("team_name", ["team_b", None])
     def test_authorizes_against_the_dags_team(self, test_client, session, team_name):
-        """The Dag is resolved from the asset, so its team must be resolved and passed too.
-
-        A team-aware auth manager distinguishes a team-scoped Dag from a global one by this field,
-        so leaving it ``None`` asks about a differently-scoped resource than the one being acted on.
-        """
+"""The Dag is resolved from the asset, so its team must be resolved and passed too — see the
+    call site's comment for why an unresolved team asks about the wrong resource."""
         recorded = []
 
         auth_manager = mock.Mock(spec=BaseAuthManager)
