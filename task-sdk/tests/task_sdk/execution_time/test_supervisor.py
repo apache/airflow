@@ -1041,7 +1041,7 @@ class TestWatchedSubprocess:
             # Simulate sending heartbeats and ensure the process gets killed after max retries
             for i in range(1, max_failed_heartbeats):
                 proc._send_heartbeat_if_needed()
-                assert proc.failed_heartbeats == i  # Increment happens after failure
+                assert proc.heartbeater.failed_heartbeats == i  # Increment happens after failure
                 mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
 
                 # Ensure the retry log is present
@@ -1066,7 +1066,7 @@ class TestWatchedSubprocess:
         # On the final failure, the process should be killed
         proc._send_heartbeat_if_needed()
 
-        assert proc.failed_heartbeats == max_failed_heartbeats
+        assert proc.heartbeater.failed_heartbeats == max_failed_heartbeats
         mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
         mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
         assert {
@@ -1603,7 +1603,7 @@ class TestWatchedSubprocessKill:
 
         # Set up a scenario where the last successful heartbeat was a long time ago
         # This will cause the heartbeat calculation to result in a negative value
-        mock_process._last_successful_heartbeat = time.time() - 100  # 100 seconds ago
+        watched_subprocess.heartbeater._last_successful_heartbeat = time.time() - 100  # 100 seconds ago
 
         # Mock process to still be alive (not exited)
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
@@ -1646,7 +1646,7 @@ class TestWatchedSubprocessKill:
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.HEARTBEAT_TIMEOUT", heartbeat_timeout)
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_interval)
 
-        watched_subprocess._last_successful_heartbeat = time.time() - heartbeat_ago
+        watched_subprocess.heartbeater._last_successful_heartbeat = time.time() - heartbeat_ago
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
 
         # Call the method and verify timeout is never less than our minimum
