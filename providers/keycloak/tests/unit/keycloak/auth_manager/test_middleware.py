@@ -239,7 +239,7 @@ class TestKeycloakJWTMiddleware:
             COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
         }
 
-        await middleware.dispatch(mock_request, call_next)
+        response = await middleware.dispatch(mock_request, call_next)
 
         auth_manager.get_user_from_token.assert_not_called()
         auth_manager.refresh_user.assert_not_called()
@@ -258,6 +258,7 @@ class TestKeycloakJWTMiddleware:
             assert not hasattr(mock_request.state, "user_authenticated_via")
 
         call_next.assert_awaited_once_with(mock_request)
+        response.set_cookie.assert_not_called()
 
     @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
     @pytest.mark.asyncio
