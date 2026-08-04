@@ -302,12 +302,7 @@ class DagFileProcessorManager(LoggingMixin):
     dag_discovery_safe_mode: bool = attrs.field(
         factory=_config_bool_factory("core", "DAG_DISCOVERY_SAFE_MODE")
     )
-    """Resolved once per process so file discovery and the deactivation scan use the same value.
-
-    When ``False`` the keyword heuristic is bypassed and every Python file is scanned -- this must
-    apply consistently to discovery (:meth:`_find_files_in_bundle`) and to the set of observed
-    filelocs (:meth:`_get_observed_filelocs`); otherwise freshly-parsed keyword-less Dags are
-    deactivated right after being parsed (issue #66104)."""
+    """Resolved once per process so file discovery and the deactivation scan use the same value."""
 
     _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=_make_execution_api)
     """API server to interact with Metadata DB"""
@@ -970,9 +965,6 @@ class DagFileProcessorManager(LoggingMixin):
             Path(x).relative_to(bundle.path)
             for x in list_py_file_paths(bundle.path, safe_mode=self.dag_discovery_safe_mode)
         ]
-        # Logging the effective safe_mode makes a misconfigured dag-processor diagnosable: a
-        # component left at the default safe_mode=True silently skips keyword-less files even
-        # when the deployment set core.dag_discovery_safe_mode=False elsewhere (issue #66104).
         self.log.info(
             "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
             len(rel_paths),
@@ -996,9 +988,7 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
-                        # Must use the same safe_mode as discovery/parsing: with a hardcoded True a
-                        # keyword-less zip member parsed under safe_mode=False would be absent here and
-                        # then deactivated immediately after being parsed (issue #66104).
+                        # Use the configured discovery safe mode
                         if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
