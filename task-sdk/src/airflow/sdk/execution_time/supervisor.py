@@ -56,6 +56,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TaskInstance,
     TaskInstanceState,
+    TIRunContext,
 )
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
@@ -205,6 +206,7 @@ STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
         SERVER_TERMINATED,
     }
 )
+
 
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
@@ -1500,11 +1502,22 @@ class ActivitySubprocess(WatchedSubprocess):
 
     ti: RuntimeTI | None = None
 
+    reported_pid: int | None = None
+    """
+    Pid to report to the server in place of the supervised process's own.
+
+    The server treats ``(hostname, pid)`` as the run's ownership token: it rejects a
+    heartbeat whose pid differs from the one ``task_instances.start`` reported, so the
+    RUNNING transition and every heartbeat read the one value seeded into
+    :attr:`Heartbeater.pid` from here. A coordinator that reports RUNNING before the
+    runtime exists passes its own pid; ``None`` uses the supervised process's.
+    """
+
     def __attrs_post_init__(self) -> None:
         self.heartbeater = Heartbeater(
             client=self.client,
             ti_id=self.id,
-            pid=self._process.pid,
+            pid=self.reported_pid if self.reported_pid is not None else self._process.pid,
             on_server_terminated=self._on_heartbeat_server_terminated,
             on_fatal_failures=self._kill_on_heartbeat_failure,
         )
@@ -1548,14 +1561,30 @@ class ActivitySubprocess(WatchedSubprocess):
             new_process_group=True,
             **kwargs,
         )
+        # We've forked, but the task won't start doing anything until we send it the StartupDetails
+        # message. But before we do that, we need to tell the server it's started (so it has the chance to
+        # tell us "no, stop!" for any reason)
+        running_since = datetime.now(tz=timezone.utc)
+        ti_context = proc._report_running(ti=what, when=running_since)
         # Tell the task process what it needs to do!
         proc._on_child_started(
             ti=what,
             dag_rel_path=dag_rel_path,
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
+            ti_context=ti_context,
+            running_since=running_since,
         )
         return proc
+
+    def _report_running(self, *, ti: TaskInstance, when: datetime) -> TIRunContext:
+        """Transition the task instance to RUNNING, killing the child if the server refuses."""
+        try:
+            return self.client.task_instances.start(ti.id, self.heartbeater.pid, when)
+        except Exception:
+            # On any error kill that subprocess!
+            self.kill(signal.SIGKILL)
+            raise
 
     def _on_child_started(
         self,
@@ -1564,27 +1593,33 @@ class ActivitySubprocess(WatchedSubprocess):
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
+        ti_context: TIRunContext,
+        running_since: datetime,
     ) -> None:
-        """Send startup message to the subprocess."""
+        """
+        Send startup message to the subprocess.
+
+        :param ti_context: Run context from the ``task_instances.start`` call that
+            already put the task in RUNNING — :meth:`_report_running` here, or an
+            earlier call by a coordinator that has to report RUNNING before it can
+            get this far. Re-reporting it would be rejected with a 409.
+        :param running_since: The timestamp that same call reported, so the task sees
+            the start date the server recorded. Reading the clock again here would
+            drift by however long the caller took to get the child talking, which for
+            a coordinator is a whole artifact resolution.
+        """
         self.ti = ti  # type: ignore[assignment]
-        try:
-            # We've forked, but the task won't start doing anything until we send it the StartupDetails
-            # message. But before we do that, we need to tell the server it's started (so it has the chance to
-            # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
-            self._should_retry = ti_context.should_retry
-            # The start call above updated last_heartbeat_at on the server.
-            self.heartbeater.record_successful_heartbeat()
-        except Exception:
-            # On any error kill that subprocess!
-            self.kill(signal.SIGKILL)
-            raise
+        # should_retry is optional in the schema; absent means "no retries left".
+        self._should_retry = bool(ti_context.should_retry)
+        # The start call that produced ti_context updated last_heartbeat_at on the server.
+        self.heartbeater.record_successful_heartbeat()
 
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
-        # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
-        # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
-        # for more context. Do not remove this without updating related comments and deferral handling.
-        start_date = ti_context.start_date or datetime.now(tz=timezone.utc)
+        # original start_date rather than using the resume time). We fall back to the transition's own
+        # timestamp otherwise. This ensures that `context["ti"].start_date` always reflects the *first* start
+        # time. See TIRunContext.start_date for more context. Do not remove this without updating related
+        # comments and deferral handling.
+        start_date = ti_context.start_date or running_since
 
         msg = StartupDetails.model_construct(
             ti=ti,

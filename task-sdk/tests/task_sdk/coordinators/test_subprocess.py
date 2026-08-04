@@ -19,22 +19,27 @@ from __future__ import annotations
 
 import contextlib
 import os
+import signal
 import socket
 import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timezone
+from http import HTTPStatus
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
+import httpx
 import psutil
 import pytest
 from uuid6 import uuid7
 
-from airflow.sdk.api.client import Client, TaskInstanceOperations
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.client import Client, ServerResponseError, TaskInstanceOperations
+from airflow.sdk.api.datamodels._generated import TaskInstance, TaskInstanceState
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
+    SubprocessStartupError,
     _accept_connections,
     _connection_owned_by_process_tree,
     _is_connection_from_process,
@@ -42,6 +47,7 @@ from airflow.sdk.coordinators._subprocess import (
     _ResourceTracker,
     _start_server,
 )
+from airflow.sdk.exceptions import TaskAlreadyRunningError
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
@@ -215,10 +221,11 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            with pytest.raises(TimeoutError, match="did not connect within timeout"):
+            with pytest.raises(SubprocessStartupError, match="did not connect within timeout") as exc_info:
                 _accept_connections({"comm": server}, {}, mock_proc, max_wait=0.05)
         finally:
             server.close()
+        assert exc_info.value.exit_code == 1
 
     def test_raises_runtime_error_if_process_exits_before_connecting(self):
         server = _start_server()
@@ -226,10 +233,47 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = 1
         mock_proc.returncode = 1
         try:
-            with pytest.raises(RuntimeError, match="process exited with 1"):
+            with pytest.raises(SubprocessStartupError, match="process exited with 1") as exc_info:
                 _accept_connections({"comm": server}, {}, mock_proc)
         finally:
             server.close()
+        assert exc_info.value.exit_code == 1
+
+    def test_early_exit_carries_the_runtime_exit_code(self):
+        server = _start_server()
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = 127
+        mock_proc.returncode = 127
+        try:
+            with pytest.raises(SubprocessStartupError) as exc_info:
+                _accept_connections({"comm": server}, {}, mock_proc)
+        finally:
+            server.close()
+        assert exc_info.value.exit_code == 127
+
+    def test_drained_output_is_logged_when_startup_fails(self, cap_structlog):
+        """A runtime that dies before connecting usually explains itself on stderr."""
+        server = _start_server()
+        drain_r, drain_w = socket.socketpair()
+        drain_w.sendall(b"Error: Could not find or load main class\n")
+        drain_w.shutdown(socket.SHUT_WR)
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        try:
+            with pytest.raises(SubprocessStartupError):
+                _accept_connections({"comm": server}, {"stderr": drain_r}, mock_proc, max_wait=0.2)
+        finally:
+            drain_r.close()
+            drain_w.close()
+            server.close()
+
+        assert {
+            "event": "Runtime output before startup failure",
+            "key": "stderr",
+            "output": "Error: Could not find or load main class\n",
+            "log_level": "error",
+        } in cap_structlog
 
     def test_returned_sockets_are_connected(self):
         """Accepted sockets should be real, usable connections."""
@@ -728,6 +772,296 @@ class TestSubprocessCoordinatorExecuteTask:
         assert result.exit_code == 0
 
 
+@attrs.define
+class _Run:
+    """What a driven `execute_task` call exposed for assertions."""
+
+    result: BaseCoordinator.ExecutionResult
+    events: list[str]
+    ti: TaskInstance
+    on_child_started: MagicMock
+
+
+class TestSubprocessCoordinatorRunningTransition:
+    """The task must read RUNNING for every bit of work the worker does on its behalf."""
+
+    def _run(self, mock_client, coordinator, *, accept=None, build=None):
+        """
+        Drive execute_task with a real (trivial) child process.
+
+        ``subprocess.Popen`` is deliberately left unpatched: patching it replaces
+        the class on the stdlib module, which breaks the ``case subprocess.Popen()``
+        cleanup in :class:`_ResourceTracker` that the failure paths below rely on.
+        """
+        ti = _make_ti()
+        comm_sock = MagicMock(spec=socket.socket)
+        logs_sock = MagicMock(spec=socket.socket)
+        events: list[str] = []
+
+        def record_build(*, what):
+            events.append("build_command")
+            if build is not None:
+                return build(what=what)
+            return list(coordinator.command), None
+
+        def default_accept(servers, drains, proc, **kw):
+            events.append("accept_connections")
+            return (
+                {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                {soc: b"" for soc in drains.values()},
+            )
+
+        mock_client.task_instances.start.side_effect = lambda *a, **kw: (
+            events.append("report_running") or mock_client.task_instances.start.return_value
+        )
+
+        with (
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=accept or default_accept,
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started") as mock_on_started,
+            patch.object(ActivitySubprocess, "wait", return_value=0),
+            patch.object(_StubSubprocessCoordinator, "_build_execute_task_command", side_effect=record_build),
+        ):
+            result = coordinator.execute_task(
+                what=ti,
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+        return _Run(result=result, events=events, ti=ti, on_child_started=mock_on_started)
+
+    def test_running_reported_before_any_preparation(self, mock_client):
+        """Artifact resolution and Dag bundle materialization happen inside _build_execute_task_command."""
+        run = self._run(mock_client, _StubSubprocessCoordinator(command=["/bin/true"]))
+        assert run.events == ["report_running", "build_command", "accept_connections"]
+
+    def test_start_date_matches_the_transition_the_server_recorded(self, mock_client):
+        """Re-reading the clock would hand the runtime a start date later than the DB's."""
+        run = self._run(mock_client, _StubSubprocessCoordinator(command=["/bin/true"]))
+        reported_when = mock_client.task_instances.start.call_args.args[2]
+        assert run.on_child_started.call_args.kwargs["running_since"] == reported_when
+
+    def test_running_reported_once_with_the_supervisor_pid(self, mock_client):
+        run = self._run(mock_client, _StubSubprocessCoordinator(command=["/bin/true"]))
+        mock_client.task_instances.start.assert_called_once()
+        reported_id, reported_pid, _ = mock_client.task_instances.start.call_args.args
+        assert reported_id == run.ti.id
+        assert reported_pid == os.getpid()
+
+    def test_heartbeat_sent_while_the_runtime_is_starting(self, mock_client, monkeypatch):
+        """Nothing else heartbeats until wait() monitors, so a slow launch looks like a zombie."""
+        monkeypatch.setattr("airflow.sdk.coordinators._subprocess.MIN_HEARTBEAT_INTERVAL", 0.01)
+        beat = threading.Event()
+        mock_client.task_instances.heartbeat.side_effect = lambda *a, **kw: beat.set()
+
+        def slow_build(*, what):
+            assert beat.wait(5), "no heartbeat arrived while preparing the launch"
+            return ["/bin/true"], None
+
+        ti = _make_ti()
+        with (
+            patch.object(_StubSubprocessCoordinator, "_build_execute_task_command", side_effect=slow_build),
+            patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock,
+        ):
+            popen_mock.side_effect = ValueError("stop once the beat is observed")
+            _StubSubprocessCoordinator(command=["/bin/true"]).execute_task(
+                what=ti,
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert mock_client.task_instances.heartbeat.call_args.args[0] == ti.id
+        assert mock_client.task_instances.heartbeat.call_args.kwargs["pid"] == os.getpid()
+
+    def test_startup_heartbeat_failure_does_not_abort_the_launch(self, mock_client, monkeypatch):
+        """Whatever broke the beat is still true once the monitor loop takes over."""
+        monkeypatch.setattr("airflow.sdk.coordinators._subprocess.MIN_HEARTBEAT_INTERVAL", 0.01)
+        attempted = threading.Event()
+
+        def explode(*a, **kw):
+            attempted.set()
+            raise RuntimeError("server down")
+
+        mock_client.task_instances.heartbeat.side_effect = explode
+        comm_sock = MagicMock(spec=socket.socket)
+        logs_sock = MagicMock(spec=socket.socket)
+
+        def slow_build(*, what):
+            assert attempted.wait(5), "the startup heartbeat never fired"
+            return ["/bin/true"], None
+
+        with (
+            patch.object(_StubSubprocessCoordinator, "_build_execute_task_command", side_effect=slow_build),
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started"),
+            patch.object(ActivitySubprocess, "wait", return_value=0),
+        ):
+            result = _StubSubprocessCoordinator(command=["/bin/true"]).execute_task(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert result.exit_code == 0
+
+    def test_startup_heartbeat_stops_once_the_server_disowns_the_run(self, mock_client, monkeypatch):
+        """No point beating on: the monitor loop's own heartbeat terminates it shortly."""
+        monkeypatch.setattr("airflow.sdk.coordinators._subprocess.MIN_HEARTBEAT_INTERVAL", 0.01)
+        disowned = threading.Event()
+
+        def gone(*a, **kw):
+            disowned.set()
+            raise ServerResponseError(
+                "running elsewhere",
+                request=httpx.Request("PATCH", "http://server/heartbeat"),
+                response=httpx.Response(HTTPStatus.CONFLICT),
+            )
+
+        mock_client.task_instances.heartbeat.side_effect = gone
+
+        def slow_build(*, what):
+            assert disowned.wait(5)
+            # Give the beat loop room to keep going if it were going to.
+            time.sleep(0.1)
+            return ["/bin/true"], None
+
+        self._run(mock_client, _StubSubprocessCoordinator(command=["/bin/true"]), build=slow_build)
+
+        assert mock_client.task_instances.heartbeat.call_count == 1
+
+    def test_handshake_failure_fails_the_task(self, mock_client):
+        def refuse(servers, drains, proc, **kw):
+            raise SubprocessStartupError("process did not connect within timeout", exit_code=3)
+
+        run = self._run(mock_client, _StubSubprocessCoordinator(command=["/bin/true"]), accept=refuse)
+
+        assert run.result.final_state == TaskInstanceState.FAILED
+        assert run.result.exit_code == 3
+        mock_client.task_instances.finish.assert_called_once()
+        assert mock_client.task_instances.finish.call_args.kwargs["id"] == run.ti.id
+        assert mock_client.task_instances.finish.call_args.kwargs["state"] == TaskInstanceState.FAILED
+        mock_client.task_instances.retry.assert_not_called()
+
+    def test_handshake_failure_retries_when_the_server_says_so(self, make_ti_context, mock_client):
+        mock_client.task_instances.start.return_value = make_ti_context(should_retry=True)
+
+        def refuse(servers, drains, proc, **kw):
+            raise SubprocessStartupError("process exited with 1 before connecting")
+
+        run = self._run(mock_client, _StubSubprocessCoordinator(command=["/bin/true"]), accept=refuse)
+
+        assert run.result.final_state == TaskInstanceState.UP_FOR_RETRY
+        mock_client.task_instances.retry.assert_called_once()
+        assert mock_client.task_instances.retry.call_args.kwargs["id"] == run.ti.id
+        mock_client.task_instances.finish.assert_not_called()
+
+    def test_command_build_failure_fails_the_task(self, mock_client):
+        """A misconfigured coordinator is a task failure now, not a run stuck in QUEUED."""
+        ti = _make_ti()
+        coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
+
+        with patch.object(
+            _StubSubprocessCoordinator,
+            "_build_execute_task_command",
+            side_effect=ValueError("no artifact found"),
+        ):
+            result = coordinator.execute_task(
+                what=ti,
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert result.final_state == TaskInstanceState.FAILED
+        assert result.exit_code == 1
+        mock_client.task_instances.finish.assert_called_once()
+
+    def test_terminal_report_failure_propagates(self, mock_client):
+        """Claiming a state the server never recorded would leave the run RUNNING forever."""
+        mock_client.task_instances.finish.side_effect = RuntimeError("server down")
+
+        with (
+            patch.object(
+                _StubSubprocessCoordinator,
+                "_build_execute_task_command",
+                side_effect=ValueError("no artifact found"),
+            ),
+            pytest.raises(RuntimeError, match="server down"),
+        ):
+            _StubSubprocessCoordinator(command=["/bin/true"]).execute_task(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+    def test_start_conflict_propagates_without_spawning(self, mock_client):
+        """A redelivered workload must be rejected before a runtime is launched."""
+        mock_client.task_instances.start.side_effect = TaskAlreadyRunningError("already running")
+
+        with (
+            patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock,
+            patch.object(_StubSubprocessCoordinator, "_build_execute_task_command") as mock_build,
+            pytest.raises(TaskAlreadyRunningError),
+        ):
+            _StubSubprocessCoordinator(command=["/bin/true"]).execute_task(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        popen_mock.assert_not_called()
+        mock_build.assert_not_called()
+
+    def test_warm_shutdown_handlers_installed_for_the_running_window(self, mock_client):
+        """A SIGTERM in the RUNNING window must not kill this process and orphan the task."""
+        handlers: list = []
+
+        def record_build(*, what):
+            handlers.append(signal.getsignal(signal.SIGTERM))
+            return ["/bin/true"], None
+
+        before = signal.getsignal(signal.SIGTERM)
+        with patch.object(
+            _StubSubprocessCoordinator,
+            "_build_execute_task_command",
+            side_effect=record_build,
+        ):
+            # Popen raises so execute_task unwinds to the ExecutionResult path without
+            # a real runtime, leaving `handlers` sampled from inside the window.
+            with patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock:
+                popen_mock.side_effect = ValueError("stop here")
+                _StubSubprocessCoordinator(command=["/bin/true"]).execute_task(
+                    what=_make_ti(),
+                    dag_rel_path="bundle",
+                    bundle_info=MagicMock(),
+                    client=mock_client,
+                    subprocess_logs_to_stdout=False,
+                )
+
+        assert handlers[0] is not before
+        assert signal.getsignal(signal.SIGTERM) is before
+
+
 class TestPopenActivitySubprocessStart:
     def _start_with_mocks(self, mock_client, *, command: list[str], schema_version=None):
         ti = _make_ti()
@@ -756,6 +1090,9 @@ class TestPopenActivitySubprocessStart:
                 dag_rel_path="bundle",
                 bundle_info=MagicMock(),
                 client=mock_client,
+                ti_context=mock_client.task_instances.start.return_value,
+                running_since=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                reported_pid=os.getpid(),
                 command=command,
                 subprocess_schema_version=schema_version,
                 subprocess_logs_to_stdout=False,
@@ -790,6 +1127,8 @@ class TestPopenActivitySubprocessStart:
                 dag_rel_path="bundle",
                 bundle_info=MagicMock(),
                 client=mock_client,
+                ti_context=mock_client.task_instances.start.return_value,
+                running_since=datetime(2026, 1, 1, tzinfo=timezone.utc),
                 command=["/bin/true"],
                 subprocess_logs_to_stdout=False,
             )
@@ -798,6 +1137,41 @@ class TestPopenActivitySubprocessStart:
         kwargs = mock_on_started.call_args.kwargs
         assert kwargs["ti"] is ti
         assert kwargs["dag_rel_path"] == "bundle"
+
+    def test_run_context_forwarded_to_on_child_started(self, mock_client):
+        """The coordinator already reported RUNNING, so start() must not do it again."""
+        ti_context = mock_client.task_instances.start.return_value
+        with (
+            patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock,
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started") as mock_on_started,
+        ):
+            popen_mock.return_value.pid = 12345
+            _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                ti_context=ti_context,
+                running_since=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                command=["/bin/true"],
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert mock_on_started.call_args.kwargs["ti_context"] is ti_context
+
+    def test_reported_pid_is_the_supervisors(self, mock_client):
+        """RUNNING is reported before the runtime exists, so heartbeats must match that pid."""
+        proc, _, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        assert proc.pid == 12345
+        assert proc.heartbeater.pid == os.getpid()
 
     @conf_vars({("logging", "logging_level"): "DEBUG"})
     def test_resolved_log_level_passed_to_subprocess_env(self, mock_client):
@@ -840,6 +1214,8 @@ class TestPopenActivitySubprocessStart:
                 dag_rel_path="bundle",
                 bundle_info=MagicMock(),
                 client=mock_client,
+                ti_context=mock_client.task_instances.start.return_value,
+                running_since=datetime(2026, 1, 1, tzinfo=timezone.utc),
                 command=["/bin/true"],
                 subprocess_logs_to_stdout=False,
             )
