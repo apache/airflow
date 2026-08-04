@@ -134,7 +134,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
   const runTypeFilter = (searchParams.get(SearchParamsKeys.RUN_TYPE) as DagRunType | null) ?? undefined;
   const triggeringUserFilter = searchParams.get(SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN) ?? undefined;
-  const runIdPatternFilter = searchParams.get(SearchParamsKeys.RUN_ID_PATTERN) ?? undefined;
   const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
 
   // --- Setters that write back to URL ---
@@ -165,7 +164,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { data: initialGridRuns } = useGridRuns({
     dagRunState: dagRunStateFilter,
     limit,
-    runIdPattern: runIdPatternFilter,
     runType: runTypeFilter,
     triggeringUser: triggeringUserFilter,
   });
@@ -291,7 +289,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                           onJumpToLatest={handleJumpToLatest}
                           runAfterGte={runAfterGte}
                           runAfterLte={runAfterLte}
-                          runIdPattern={runIdPatternFilter}
                           runType={runTypeFilter}
                           setOffset={setOffset}
                           sharedScrollContainerRef={sharedGridGanttScrollRef}
@@ -305,7 +302,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                           offset={offset}
                           runAfterGte={runAfterGte}
                           runAfterLte={runAfterLte}
-                          runIdPattern={runIdPatternFilter}
                           runType={runTypeFilter}
                           sharedScrollContainerRef={sharedGridGanttScrollRef}
                           triggeringUser={triggeringUserFilter}
@@ -329,7 +325,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                         onJumpToLatest={handleJumpToLatest}
                         runAfterGte={runAfterGte}
                         runAfterLte={runAfterLte}
-                        runIdPattern={runIdPatternFilter}
                         runType={runTypeFilter}
                         setOffset={setOffset}
                         showVersionIndicatorMode={showVersionIndicatorMode}

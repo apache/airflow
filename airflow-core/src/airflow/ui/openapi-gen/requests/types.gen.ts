@@ -178,29 +178,6 @@ export type BackfillCollectionResponse = {
 };
 
 /**
- * BackfillDagRun Collection serializer for responses.
- */
-export type BackfillDagRunCollectionResponse = {
-    backfill_dag_runs: Array<BackfillDagRunResponse>;
-    total_entries: number;
-};
-
-/**
- * Serializer for a single BackfillDagRun entry with joined DagRun state.
- */
-export type BackfillDagRunResponse = {
-    id: number;
-    backfill_id: number;
-    dag_id: string;
-    dag_run_id?: string | null;
-    logical_date: string | null;
-    partition_key: string | null;
-    sort_ordinal: number;
-    exception_reason: string | null;
-    dag_run_state?: DagRunState | null;
-};
-
-/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -1447,7 +1424,6 @@ export type MaterializeAssetBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
-    bundle_version?: string | null;
 };
 
 /**
@@ -1955,7 +1931,6 @@ export type TriggerDAGRunPostBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
-    bundle_version?: string | null;
 };
 
 /**
@@ -2904,18 +2879,6 @@ export type GetBackfillData = {
 };
 
 export type GetBackfillResponse = BackfillResponse;
-
-export type ListBackfillDagRunsData = {
-    backfillId: number;
-    limit?: number;
-    offset?: number;
-    /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
-     */
-    orderBy?: Array<(string)>;
-};
-
-export type ListBackfillDagRunsResponse = BackfillDagRunCollectionResponse;
 
 export type PauseBackfillData = {
     backfillId: number;
@@ -4482,6 +4445,7 @@ export type GetDagDeadlineAlertsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
+    versionNumber?: number | null;
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
@@ -4514,14 +4478,6 @@ export type GetDagStructureData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
-    /**
-     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     */
-    runIdPattern?: string | null;
-    /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     */
-    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
@@ -4548,14 +4504,6 @@ export type GetGridRunsData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
-    /**
-     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     */
-    runIdPattern?: string | null;
-    /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     */
-    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
@@ -5045,33 +4993,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BackfillResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/backfills/{backfill_id}/dag_runs': {
-        get: {
-            req: ListBackfillDagRunsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: BackfillDagRunCollectionResponse;
                 /**
                  * Unauthorized
                  */
