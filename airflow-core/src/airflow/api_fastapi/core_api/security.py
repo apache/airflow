@@ -27,6 +27,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt, TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -357,6 +358,12 @@ ReadableBackfillsFilterDep = Annotated[
 ]
 
 
+# The type the backfill routes declare for the `backfill_id` path parameter. Shared with
+# `requires_access_backfill` so the authorization decision parses the id exactly as the handler
+# does; see the comment there for why any divergence is a cross-Dag authorization bypass.
+_BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
+
+
 def requires_access_backfill(
     method: ResourceMethod,
 ) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
@@ -372,8 +379,14 @@ def requires_access_backfill(
         # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
-            backfill_id = int(backfill_id_raw) if backfill_id_raw is not None else None
-        except ValueError:
+            # Must parse exactly as the handler does (e.g. pydantic's lax mode coerces "1.0" to 1
+            # where int() raises), or the two can authorize and act on different backfills.
+            backfill_id = (
+                _BACKFILL_ID_ADAPTER.validate_python(backfill_id_raw) if backfill_id_raw is not None else None
+            )
+        except ValidationError:
+            # Rejected by the endpoint's parser too, so the handler cannot run: FastAPI answers
+            # 422 before it is reached. Left as None, preserving that response.
             backfill_id = None
 
         if backfill_id is not None:
@@ -381,6 +394,10 @@ def requires_access_backfill(
             dag_id = backfill.dag_id if backfill else None
 
         # Try to retrieve the dag_id from the request body (POST backfill)
+        # TODO: a backfill_id that parses but matches no row also lands here, so an unknown
+        # backfill is authorized against the body's dag_id and answers 404 where an unauthorized
+        # one answers 403 - disclosing which ids exist. Not exploitable for a cross-Dag action;
+        # tracked at https://github.com/apache/airflow/issues/71080
         if dag_id is None:
             # Not a json body, ignore
             with suppress(JSONDecodeError):
