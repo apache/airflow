@@ -222,7 +222,7 @@ def _create_group_membership_mapper(
         "config": {
             "full.path": "false",
             "id.token.claim": "false",
-            "access.token.claim": "true",
+            "access.token.claim": "false",
             "userinfo.token.claim": "false",
             "claim.name": "groups",
             "jsonType.label": "String",
