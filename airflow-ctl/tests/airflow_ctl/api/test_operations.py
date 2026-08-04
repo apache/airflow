@@ -278,6 +278,11 @@ class TestAssetsOperations:
     )
 
     dag_run_response = DAGRunResponse(
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
         dag_display_name=dag_id,
         dag_run_id=dag_id,
         dag_id=dag_id,
@@ -296,6 +301,7 @@ class TestAssetsOperations:
         note=None,
         dag_versions=[
             DagVersionResponse(
+                bundle_url=None,
                 id=uuid.uuid4(),
                 version_number=1,
                 dag_id=dag_id,
@@ -655,15 +661,17 @@ class TestConnectionsOperations:
     )
 
     connection_response = ConnectionResponse(
+        description=None,
+        team_name=None,
         connection_id=connection_id,
         conn_type=conn_type,
         host=host,
-        schema_=schema_,
+        schema=schema_,
         login=login,
         password=password,
         port=port,
         extra=extra,
-    )
+    )  # type: ignore[call-arg]
 
     connections_response = ConnectionCollectionResponse(
         connections=[connection_response],
@@ -689,7 +697,9 @@ class TestConnectionsOperations:
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.get(self.connection_id)
@@ -698,7 +708,9 @@ class TestConnectionsOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connections_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connections_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.list()
@@ -707,7 +719,9 @@ class TestConnectionsOperations:
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=self.connection)
@@ -729,7 +743,9 @@ class TestConnectionsOperations:
                 "schema": self.schema_,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=connection)
@@ -775,7 +791,9 @@ class TestConnectionsOperations:
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.delete(self.connection_id)
@@ -784,7 +802,9 @@ class TestConnectionsOperations:
     def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=self.connection)
@@ -813,7 +833,9 @@ class TestConnectionsOperations:
                 "team_name": None,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=connection)
@@ -871,6 +893,9 @@ class TestDagOperations:
     dag_id = "dag_id"
     dag_display_name = "dag_display_name"
     dag_response = DAGResponse(
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
         dag_id=dag_id,
         dag_display_name=dag_display_name,
         is_paused=False,
@@ -901,6 +926,11 @@ class TestDagOperations:
     )
 
     dag_details_response = DAGDetailsResponse(
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
+        default_args=None,
+        latest_dag_version=None,
         dag_id=dag_id,
         dag_display_name="dag_display_name",
         is_paused=False,
@@ -978,6 +1008,7 @@ class TestDagOperations:
     )
 
     dag_version_response = DagVersionResponse(
+        bundle_url=None,
         id=uuid.uuid4(),
         version_number=1,
         dag_id=dag_id,
@@ -1011,6 +1042,7 @@ class TestDagOperations:
 
     # DagRun related
     trigger_dag_run = TriggerDAGRunPostBody(
+        logical_date=None,
         conf=None,
         note=None,
     )
@@ -1018,6 +1050,11 @@ class TestDagOperations:
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
     dag_run_response = DAGRunResponse(
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
         dag_display_name=dag_run_id,
         dag_run_id=dag_run_id,
         dag_id=dag_id,
@@ -1036,6 +1073,7 @@ class TestDagOperations:
         note=None,
         dag_versions=[
             DagVersionResponse(
+                bundle_url=None,
                 id=uuid.uuid4(),
                 version_number=1,
                 dag_id=dag_id,
@@ -1175,6 +1213,11 @@ class TestDagRunOperations:
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
     dag_run_response = DAGRunResponse(
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
         dag_display_name=dag_run_id,
         dag_run_id=dag_run_id,
         dag_id=dag_id,
@@ -1193,6 +1236,7 @@ class TestDagRunOperations:
         note=None,
         dag_versions=[
             DagVersionResponse(
+                bundle_url=None,
                 id=uuid.uuid4(),
                 version_number=1,
                 dag_id=dag_id,
@@ -1387,6 +1431,7 @@ class TestPoolsOperations:
         ]
     )
     pool_response = PoolResponse(
+        team_name=None,
         name=pool_name,
         slots=1,
         description="description",
@@ -1456,6 +1501,7 @@ class TestPoolsOperations:
 
 class TestProvidersOperations:
     provider_response = ProviderResponse(
+        documentation_url=None,
         package_name="package_name",
         version="version",
         description="description",
@@ -1487,6 +1533,7 @@ class TestVariablesOperations:
         }
     )
     variable_response = VariableResponse(
+        team_name=None,
         key=key,
         value=value,
         description=description,
