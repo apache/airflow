@@ -1005,9 +1005,9 @@ def test_defer_with_unserializable_kwargs_honours_retries_and_callbacks(
     ``_defer_task`` runs ``serde_serialize`` on the deferral kwargs, which raises
     ``TypeError`` for anything it has no serializer for (a file handle, a client object,
     a lambda). That raise happens inside ``run()``'s ``except TaskDeferred`` handler, so
-    before the fix it escaped ``run()`` without evaluating retries or running callbacks --
-    the same defect as https://github.com/apache/airflow/issues/70683, reached without
-    involving the API server at all.
+    before the fix it escaped ``run()`` without evaluating retries or running callbacks,
+    skipping the retry decision and callbacks even without involving the API server at
+    all.
     """
     callbacks_run = []
 
