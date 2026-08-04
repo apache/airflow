@@ -423,21 +423,14 @@ class TestSecurityContext:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
 
     def test_disable_defaults_pod_and_container(self):
-        """
-        securityContexts.disableDefaults suppresses the chart's hard-coded runAsUser/fsGroup
-        and allowPrivilegeEscalation/capabilities defaults, e.g. for OpenShift SCC compatibility.
-        """
         docs = render_chart(
             values={
                 "securityContexts": {"disableDefaults": True},
-                "executor": "CeleryExecutor,KubernetesExecutor",
-                "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "statsd": {"enabled": True},
             },
             show_only=[
-                "templates/cleanup/cleanup-cronjob.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/api-server/api-server-deployment.yaml",
@@ -452,15 +445,26 @@ class TestSecurityContext:
             ],
         )
 
+        assert all(v is None for v in jmespath.search("[].spec.template.spec.securityContext", docs))
+        assert all(
+            v is None for v in jmespath.search("[].spec.template.spec.containers[0].securityContext", docs)
+        )
+
+    def test_disable_defaults_pod_and_container_cronjob(self):
+        docs = render_chart(
+            values={
+                "securityContexts": {"disableDefaults": True},
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "cleanup": {"enabled": True},
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
         assert jmespath.search("spec.jobTemplate.spec.template.spec.securityContext", docs[0]) is None
         assert (
             jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].securityContext", docs[0])
             is None
         )
-
-        for doc in docs[1:]:
-            assert jmespath.search("spec.template.spec.securityContext", doc) is None
-            assert jmespath.search("spec.template.spec.containers[0].securityContext", doc) is None
 
     def test_disable_defaults_gitsync_containers(self):
         docs = render_chart(
@@ -505,13 +509,11 @@ class TestSecurityContext:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        init_container_names = [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
-        ]
-        assert "volume-permissions" not in init_container_names
+        assert (
+            jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[0]) == []
+        )
 
     def test_disable_defaults_explicit_override_still_applied(self):
-        """Explicit securityContexts overrides take priority over disableDefaults."""
         ctx_value = {"runAsUser": 7000}
         docs = render_chart(
             values={
@@ -531,10 +533,9 @@ class TestSecurityContext:
         for doc in docs:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
 
-        init_container_names = [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[1])
-        ]
-        assert "volume-permissions" in init_container_names
+        assert (
+            jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[1]) != []
+        )
 
     @pytest.mark.parametrize(
         ("component_values", "show_only", "security_context_path"),
@@ -627,7 +628,6 @@ class TestSecurityContext:
     def test_disable_defaults_component_level_override_still_applied(
         self, component_values, show_only, security_context_path
     ):
-        """A component-level securityContexts override takes priority over global disableDefaults."""
         docs = render_chart(
             values={"securityContexts": {"disableDefaults": True}, **component_values},
             show_only=[show_only],
@@ -636,7 +636,6 @@ class TestSecurityContext:
         assert jmespath.search(security_context_path, docs[0]) == {"runAsUser": 8000}
 
     def test_disable_defaults_workers_volume_permissions_init_container_still_added(self):
-        """disableDefaults must not suppress the volume-permissions init container injection."""
         docs = render_chart(
             values={
                 "securityContexts": {"disableDefaults": True},
@@ -650,10 +649,9 @@ class TestSecurityContext:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        init_container_names = [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
-        ]
-        assert "volume-permissions" in init_container_names
+        assert (
+            jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[0]) != []
+        )
 
     def test_workers_overwrite_local(self):
         docs = render_chart(
