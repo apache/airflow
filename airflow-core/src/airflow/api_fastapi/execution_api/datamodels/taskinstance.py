@@ -64,6 +64,8 @@ class TIEnterRunningPayload(StrictBaseModel):
     """Process Identifier on `hostname`"""
     start_date: UtcDateTime
     """When the task started executing"""
+    external_executor_id: str | None = None
+    """Executor token for durable launch validation"""
 
 
 # Create an enum to give a nice name in the generated datamodels
@@ -286,6 +288,8 @@ class TaskInstance(BaseModel):
     map_index: int = -1
     hostname: str | None = None
     context_carrier: dict | None = None
+    external_executor_id: str | None = None
+    """Executor token for durable launch validation"""
     # The supervisor routes tasks to a coordinator by queue. The default keeps
     # hand-built instances (tests, dry runs) valid; the executor workload
     # always sends the real value.
