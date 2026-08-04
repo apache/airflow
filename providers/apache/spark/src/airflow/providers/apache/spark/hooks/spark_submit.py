@@ -335,6 +335,44 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # (and re-hit any configured Secrets Backend) on every iteration.
         self._yarn_rm_base_url: str | None = None
 
+    @property
+    def conf(self) -> dict[str, Any]:
+        """Spark configuration properties dictionary."""
+        return self._conf
+
+    @property
+    def kubernetes_driver_pod(self) -> str | None:
+        """Kubernetes driver pod name captured from submission or explicit setter."""
+        return self._kubernetes_driver_pod
+
+    @kubernetes_driver_pod.setter
+    def kubernetes_driver_pod(self, value: str | None) -> None:
+        self._kubernetes_driver_pod = value
+
+    @property
+    def yarn_application_id(self) -> str | None:
+        """YARN application ID captured from submission log output."""
+        return self._yarn_application_id
+
+    @property
+    def driver_id(self) -> str | None:
+        """Spark standalone driver ID."""
+        return self._driver_id
+
+    @driver_id.setter
+    def driver_id(self, value: str | None) -> None:
+        self._driver_id = value
+
+    @property
+    def driver_status(self) -> str | None:
+        """Spark standalone driver status."""
+        return self._driver_status
+
+    @property
+    def connection(self) -> dict[str, Any]:
+        """Resolved Spark connection extra metadata dictionary."""
+        return self._connection
+
     def _resolve_should_track_driver_status(self) -> bool:
         """
         Check if we should track the driver status.
@@ -722,7 +760,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             func = getattr(kerberos, "get_kerberos_principle")
         return func(principal)
 
-    def _run_post_submit_commands(self) -> None:
+    def run_post_submit_commands(self) -> None:
         """
         Run any post-submit shell commands configured on this hook.
 
@@ -758,6 +796,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self.log.warning("Post-submit command timed out (30s): %s", cmd)
             except Exception as exc:
                 self.log.warning("Post-submit command raised an exception: %s. Error: %s", cmd, exc)
+
+    def _run_post_submit_commands(self) -> None:
+        self.run_post_submit_commands()
 
     def submit(self, application: str = "", **kwargs: Any) -> str | None:
         """
@@ -895,7 +936,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self._last_submit_log_lines.append(line)
             self.log.info(line)
 
-    def _start_yarn_application_status_tracking(self, application_id: str) -> None:
+    def start_yarn_application_status_tracking(self, application_id: str) -> None:
         """
         Poll the YARN ResourceManager REST API until the application reaches a terminal state.
 
@@ -1061,7 +1102,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 f"{application_id}: {resp.text[:200]}"
             ) from exc
 
-    def _kill_yarn_application(self, application_id: str) -> None:
+    def kill_yarn_application(self, application_id: str) -> None:
         """PUT ``/ws/v1/cluster/apps/{id}/state`` to kill the application (best-effort)."""
         try:
             url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}/state"
@@ -1111,7 +1152,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if valid_response and not driver_found:
             self._driver_status = "UNKNOWN"
 
-    def _start_driver_status_tracking(self) -> None:
+    def start_driver_status_tracking(self) -> None:
         """
         Poll the driver based on self._driver_id to get the status.
 
@@ -1175,7 +1216,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         f"returncode = {returncode}"
                     )
 
-    def _poll_k8s_driver_via_api(self) -> str | None:
+    def poll_k8s_driver_via_api(self) -> str | None:
         """
         Poll the K8s driver pod phase until it reaches a terminal state.
 
