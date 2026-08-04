@@ -2818,6 +2818,9 @@ def create_runtime_ti(mocked_parse):
                     "run_after": run_after,  # type: ignore
                     "conf": conf,
                     "consumed_asset_events": [],
+                    # Nullable-but-required in the generated schema, so they must be
+                    # passed explicitly; guarded for older Task SDKs that lack them.
+                    **{f: None for f in ("end_date", "partition_key") if f in DagRun.model_fields},
                     **({"state": DagRunState.RUNNING} if "state" in DagRun.model_fields else {}),
                 }
             ),
