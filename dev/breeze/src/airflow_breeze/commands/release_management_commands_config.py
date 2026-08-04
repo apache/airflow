@@ -338,6 +338,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Generate constraints flags",
             "options": [
                 "--airflow-constraints-mode",
+                "--allow-pre-releases",
                 "--github-repository",
                 "--python",
                 "--use-uv",

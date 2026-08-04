@@ -1546,6 +1546,7 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
+@option_allow_pre_releases
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1553,6 +1554,7 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1597,6 +1599,7 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
+                allow_pre_releases=allow_pre_releases,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1615,6 +1618,7 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
+            allow_pre_releases=allow_pre_releases,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
