@@ -617,7 +617,6 @@ class TestTeamScopedOptionMasking(TestConfigEndpoint):
         assert response.json()["sections"][0]["options"][0]["value"] == OPTION_VALUE_SENSITIVE_HIDDEN
 
     def test_get_config_value_keeps_team_scoped_non_sensitive_option(self, test_client):
-        """An option that is not registered as sensitive stays readable under a team scoped section."""
         response = test_client.get(
             f"/config/section/{SECTION_TEAM_CORE}/option/{OPTION_KEY_PARALLELISM}",
             headers=HEADERS_JSON,
