@@ -21,7 +21,7 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
@@ -44,6 +44,8 @@ class DeferForApprovalProtocol(Protocol):
     prompt: str
     task_id: str
     defer: Any
+
+    def validate_approval_prompt(self) -> None: ...
 
 
 class LLMApprovalMixin:
@@ -70,6 +72,18 @@ class LLMApprovalMixin:
     APPROVE = "Approve"
     REJECT = "Reject"
 
+    def validate_approval_prompt(self: DeferForApprovalProtocol) -> None:
+        """Fail fast when the prompt cannot be rendered as text in the approval review body."""
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__}: require_approval=True is not supported "
+                f"with a non-string prompt (got {type(self.prompt).__name__}). "
+                "The approval review body renders the prompt as text; passing a "
+                "Sequence[UserContent] would expose object reprs (and any embedded "
+                "bytes) in the human review UI. Return a str prompt, or disable "
+                "require_approval."
+            )
+
     def defer_for_approval(
         self: DeferForApprovalProtocol,
         context: Context,
@@ -77,6 +91,7 @@ class LLMApprovalMixin:
         *,
         subject: str | None = None,
         body: str | None = None,
+        modification_schema: dict[str, Any] | None = None,
     ) -> None:
         """
         Write HITL detail, then pause the task for human review.
@@ -91,25 +106,22 @@ class LLMApprovalMixin:
             Defaults to ``"Review output for task `<task_id>`"``.
         :param body: Markdown body shown below the headline.
             Defaults to the prompt and output wrapped in a code block.
+        :param modification_schema: JSON schema for the editable ``output`` param
+            when ``allow_modifications=True``. Defaults to ``{"type": "string"}``.
+            Pass e.g. ``{"type": "string", "enum": [...]}`` to render a dropdown
+            of valid values in the review form.
         """
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
 
-        if not isinstance(self.prompt, str):
-            raise TypeError(
-                "require_approval=True is not supported with a non-string prompt. "
-                "The approval review body renders the prompt as text; passing a "
-                "Sequence[UserContent] would expose object reprs (and any embedded "
-                "bytes) in the human review UI. Return a str prompt, or disable "
-                "require_approval."
-            )
+        self.validate_approval_prompt()
 
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
-        if not isinstance(output, str):
-            # Always make string output so that when comparing in the execute_complete matches
-            output = str(output)
+        elif not isinstance(output, str):
+            # JSON round-trip: execute_complete validates the string back into output_type.
+            output = TypeAdapter(type(output)).dump_json(output).decode()
 
         ti_id = context["task_instance"].id
 
@@ -125,7 +137,7 @@ class LLMApprovalMixin:
                 "output": {
                     "value": output,
                     "description": "Edit the output before approving (optional).",
-                    "schema": {"type": "string"},
+                    "schema": modification_schema or {"type": "string"},
                 },
             }
 

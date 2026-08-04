@@ -215,15 +215,16 @@ class TestAssetManager:
     @pytest.mark.parametrize(
         ("dialect_name", "expected_helper"),
         [
-            ("postgresql", "_queue_dagruns_nonpartitioned_postgres"),
+            ("postgresql", "_queue_dagruns_nonpartitioned_conflict_update"),
             ("mysql", "_queue_dagruns_nonpartitioned_mysql"),
-            ("sqlite", "_queue_dagruns_nonpartitioned_slow_path"),
+            ("sqlite", "_queue_dagruns_nonpartitioned_conflict_update"),
         ],
     )
     def test_queue_dagruns_routes_by_dialect(self, dialect_name, expected_helper):
         """Test that _queue_dagruns routes to the dialect-appropriate queue helper."""
         dag = DagModel(dag_id="dag1")
         session = mock.MagicMock(spec=Session)
+        event = mock.MagicMock()
         with (
             mock.patch("airflow.assets.manager.get_dialect_name", return_value=dialect_name),
             mock.patch.object(AssetManager, "_queue_partitioned_dags"),
@@ -234,18 +235,25 @@ class TestAssetManager:
                 dags_to_queue={dag},
                 partition_key=None,
                 partition_date=None,
-                event=mock.MagicMock(),
+                event=event,
                 task_instance=None,
                 session=session,
             )
-        mock_helper.assert_called_once_with(1, {dag}, session)
+        if expected_helper == "_queue_dagruns_nonpartitioned_conflict_update":
+            mock_helper.assert_called_once_with(1, {dag}, event, session, dialect_name)
+        elif expected_helper == "_queue_dagruns_nonpartitioned_mysql":
+            mock_helper.assert_called_once_with(1, {dag}, event, session)
+        else:
+            raise AssertionError(f"Unexpected expected_helper: {expected_helper}")
 
     def test_queue_dagruns_nonpartitioned_mysql_builds_upsert(self):
         """Test that the MySQL queue path emits an INSERT ... ON DUPLICATE KEY UPDATE."""
         dag = DagModel(dag_id="dag1")
         session = mock.MagicMock(spec=Session)
-
-        AssetManager._queue_dagruns_nonpartitioned_mysql(asset_id=1, dags_to_queue={dag}, session=session)
+        event = AssetEvent(asset_id=1)
+        AssetManager._queue_dagruns_nonpartitioned_mysql(
+            asset_id=1, dags_to_queue={dag}, event=event, session=session
+        )
 
         stmt, values = session.execute.call_args.args
         compiled = str(stmt.compile(dialect=mysql.dialect())).upper()
@@ -274,6 +282,44 @@ class TestAssetManager:
         session.flush()
 
         # Ensure the listener was notified
+        assert len(asset_listener.changed) == 1
+        assert asset_listener.changed[0].uri == asset.uri
+
+    def test_register_asset_change_defers_notifications_to_callback_sink(
+        self, session, mock_task_instance, testing_dag_bundle, listener_manager
+    ):
+        asset_manager = AssetManager()
+        asset_listener.clear()
+        listener_manager(asset_listener)
+
+        bundle_name = "testing"
+
+        asset = Asset(uri="test://asset1", name="test_asset_1")
+        dag1 = DagModel(dag_id="dag3", bundle_name=bundle_name)
+        session.add(dag1)
+
+        asm = AssetModel(uri="test://asset1/", name="test_asset_1", group="asset")
+        session.add(asm)
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
+        session.flush()
+
+        # When a callback_sink is supplied, listener notifications are collected into it
+        # instead of firing inline, so the caller can run them after releasing the lock.
+        callback_sink: list = []
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset,
+            session=session,
+            callback_sink=callback_sink,
+        )
+        session.flush()
+
+        assert asset_listener.changed == []
+        assert callback_sink
+
+        # Running the collected callbacks fires the listeners.
+        for callback in callback_sink:
+            callback()
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
 

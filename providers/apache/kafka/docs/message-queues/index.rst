@@ -74,3 +74,47 @@ asset.
 
 For how to use the trigger, refer to the documentation of the
 :ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`
+
+.. _howto/triggers:KafkaApplyFunction:
+
+The ``apply_function``
+----------------------
+
+The ``apply_function`` is applied to every message polled from the Kafka topic(s). If it returns a truthy
+value, that value is used as the payload of the ``TriggerEvent``. Otherwise, the trigger keeps polling.
+It is required when using the Kafka queue provider, while the Kafka sensors also accept ``None``, in which
+case the raw message value (decoded as UTF-8) is used as the event payload.
+
+The function must be passed as a string in Python dot notation, for example
+``"my_package.my_module.my_function"``, not as the function object, because trigger arguments are
+serialized to the metadata database. The function is imported in the triggerer at runtime, so the module
+must be importable there, and changes to the function require a triggerer restart.
+
+Additional arguments can be passed using ``apply_function_args`` and ``apply_function_kwargs``. The message
+is always passed as the last positional argument:
+
+.. code-block:: python
+
+    # my_package/my_module.py
+    import json
+
+    from confluent_kafka import Message
+
+
+    def my_function(prefix: str, message: Message, threshold: int = 0) -> str | None:
+        val = json.loads(message.value())
+        if val["amount"] > threshold:
+            return f"{prefix}{val}"
+
+.. code-block:: python
+
+    # In your Dag file
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+
+    trigger = MessageQueueTrigger(
+        scheme="kafka",
+        topics=["my_topic"],
+        apply_function="my_package.my_module.my_function",
+        apply_function_args=["received:"],
+        apply_function_kwargs={"threshold": 100},
+    )

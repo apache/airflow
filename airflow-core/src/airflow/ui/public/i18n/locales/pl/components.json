@@ -73,6 +73,7 @@
     "lastTaskInstance_many": "Ostatnich {{count}} instancji zadania",
     "lastTaskInstance_one": "Ostatnia instancja zadania",
     "lastTaskInstance_other": "Ostatnie {{count}} instancje zadania",
+    "medianTotalDuration": "Łącznie: {{duration}}",
     "queuedDuration": "Czas oczekiwania",
     "runAfter": "Uruchom po",
     "runDuration": "Czas trwania wykonania"
@@ -153,6 +154,7 @@
     "loading": "Ładowanie informacji o Dagach...",
     "loadingFailed": "Nie udało się załadować informacji o Dagach. Spróbuj ponownie.",
     "manualRunDenied": "Ręczne uruchamianie nie jest dozwolone dla tego Daga",
+    "partitionKeyHelp": "Opcjonalne - dotyczy tylko Dagów partycjonowanych",
     "runIdHelp": "Opcjonalne - zostanie wygenerowane, jeśli nie podano",
     "selectDescription": "Wyzwól pojedyncze wykonanie",
     "selectLabel": "Pojedyncze wykonanie",

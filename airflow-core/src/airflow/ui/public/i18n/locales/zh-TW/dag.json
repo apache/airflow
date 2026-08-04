@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
     "count_one": "{{count}} 個期限",
     "count_other": "{{count}} 個期限",
     "referenceType": {
@@ -101,9 +102,6 @@
     "settings": "日誌設定",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "返回",

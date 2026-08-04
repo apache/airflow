@@ -158,6 +158,13 @@ def get_provider_info():
                         "example": None,
                         "default": "False",
                     },
+                    "running_pod_log_lines": {
+                        "description": "Number of lines read from the end of a running task's pod log when the task log\nis served through the kube API, e.g. when viewing logs of a running task in the UI.\nThe value must be greater than 0.\n",
+                        "version_added": "10.20.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "100",
+                    },
                     "pod_template_file": {
                         "description": "Path to the YAML pod file that forms the basis for KubernetesExecutor workers.\n",
                         "version_added": None,
@@ -214,6 +221,20 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "1",
+                    },
+                    "async_pod_creation": {
+                        "description": "Create worker pods concurrently within each scheduler loop instead of\nsequentially. When enabled, the ``worker_pods_creation_batch_size`` pods\ndequeued per loop are submitted to the Kubernetes API concurrently (bounded\nby ``pod_creation_max_concurrency``) using the asynchronous Kubernetes client.\nThis reduces the time the scheduler loop spends blocked on pod creation when\nper-call latency is high (network round-trip, admission webhooks). Pod\ntemplates are still built synchronously; only the create API calls are\nparallelized.\n",
+                        "version_added": "10.20.0",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "pod_creation_max_concurrency": {
+                        "description": "Maximum number of concurrent pod-creation API calls when ``async_pod_creation``\nis enabled. Bounds the burst of simultaneous requests to the Kubernetes API\nserver (and admission webhooks) to avoid tripping API priority-and-fairness or\nrate limits. Has no effect when ``async_pod_creation`` is False. When set to 0\nthe limit falls back to ``worker_pods_creation_batch_size``.\n",
+                        "version_added": "10.20.0",
+                        "type": "integer",
+                        "example": "16",
+                        "default": "0",
                     },
                     "multi_namespace_mode": {
                         "description": "Allows users to launch pods in multiple namespaces.\nWill require creating a cluster-role for the scheduler,\nor use multi_namespace_mode_namespace_list configuration.\n",

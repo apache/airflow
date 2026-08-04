@@ -44,6 +44,15 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to generate PyPI constraints (true/false)"
         required: true
         type: string
+      allow-pre-releases:
+        description: >
+          Whether the PyPI constraints may pin pre-release providers (true/false). Set when
+          constraints are cut for a release candidate, whose providers are on PyPI only as rc
+          versions. Scoped to apache-airflow-providers-* - no other package can resolve to a
+          pre-release.
+        required: false
+        default: "false"
+        type: string
       debug-resources:
         description: "Whether to run in debug mode (true/false)"
         required: true
@@ -86,7 +95,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ inputs.checkout-ref || github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
@@ -137,9 +146,14 @@ jobs:
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
+        env:
+          # Deliberately not named ALLOW_PRE_RELEASES: that is the option's own envvar, and having
+          # both paths set it would make it unclear which one is in force. Empty on a normal run,
+          # so the unquoted expansion below contributes no argument at all.
+          PRE_RELEASE_FLAG: ${{ inputs.allow-pre-releases == 'true' && '--allow-pre-releases' || '' }}
         run: |
           breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}"
+            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Check for provider downgrade alert"
         id: downgrade-alert
@@ -158,7 +172,7 @@ jobs:
           fi
       - name: "Post provider downgrade alert to Slack"
         if: always() && steps.downgrade-alert.outputs.notify == 'true'
-        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ steps.downgrade-alert.outputs.message-file }}

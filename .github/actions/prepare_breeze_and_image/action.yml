@@ -34,6 +34,12 @@ inputs:
   make-mnt-writeable-and-cleanup:
     description: 'Whether to cleanup /mnt'
     required: true
+  image-stash-ref:
+    description: >
+      Ref whose image stash to restore (empty = the per-branch one). An image built for a ref
+      other than the branch tip is stashed under a key of its own by ci-image-build.yml.
+    required: false
+    default: ""
 outputs:
   host-python-version:
     description: Python version used in host
@@ -56,10 +62,13 @@ runs:
       run: |
         echo "Checking free space!"
         df -H
-    - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
+    - name: >
+        Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}
+        ${{ inputs.image-stash-ref != '' && format('built for ref {0}', inputs.image-stash-ref) || '' }}
       uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
       with:
-        key: ${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
+        key: "${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
+          ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
         path: "/mnt/"
         only-current-branch: 'true'
         fail-on-download: 'true'
