@@ -588,6 +588,18 @@ still works but is no longer recommended.
         --sync-branch ${SYNC_BRANCH}
    ```
 
+   Note: when it reaches the constraints step, `start-rc-process` triggers the `Release
+   constraints` workflow and waits. The candidate resolves constraints of its own rather than
+   tagging the `constraints-X-Y` branch tip, and it resolves them **allowing pre-releases for the
+   providers** — the providers of the wave being voted on exist on PyPI only as `rcN` versions, so
+   constraints that refused them could not describe what a tester is asked to install. The
+   allowance is scoped to `apache-airflow-providers-*`; no other package can resolve to a
+   pre-release, so a beta of some third-party library cannot slip into what the candidate ships.
+
+   The result lands on a branch of its own (`constraints-${VERSION_RC}`) and is tagged
+   `constraints-${VERSION_RC}`. The shared `constraints-X-Y` branch is left where it was — only
+   the final release moves it.
+
    **Testing the start-rc-process command:**
    Before running the actual release command, you can safely test it using:
 
@@ -1391,9 +1403,18 @@ for a release cut before this existed:
 breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable
 ```
 
-The workflow derives the stage from `--version` alone: `3.1.3rc1` resolves with pre-releases and
-lands on `constraints-3.1.3rc1`, `3.1.3` resolves without them and commits onto `constraints-3-1`.
-There is no separate switch that could disagree with the version.
+The workflow derives the stage from `--version` alone, so there is no separate switch that could
+disagree with the version:
+
+| `--version` | Pre-releases | Lands on | Tagged |
+|---|---|---|---|
+| `3.1.3rc1` | providers only | `constraints-3.1.3rc1`, branched off `constraints-3-1` | `constraints-3.1.3rc1` |
+| `3.1.3` | none | `constraints-3-1` (commit) | `constraints-3.1.3` |
+
+"Providers only" is literal: the resolution names every `apache-airflow-providers-*` with a
+pre-release lower bound and runs under uv's `explicit` strategy, which permits a pre-release solely
+for a package marked that way. Nothing else in the dependency graph can resolve to one — which is
+why `--pre` is not used, since it would apply to the whole resolution.
 
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
