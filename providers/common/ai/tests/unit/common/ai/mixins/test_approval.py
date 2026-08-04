@@ -163,7 +163,8 @@ class TestDeferForApproval:
     def test_array_schema_passes_list_param_value(
         self, mock_upsert, mock_trigger_cls, approval_op_with_modifications, context
     ):
-        schema = {"type": "array", "enum": ["task_a", "task_b"]}
+        choices = ["task_a", "task_b"]
+        schema = {"type": "array", "items": {"type": "string", "enum": choices}, "examples": choices}
 
         approval_op_with_modifications.defer_for_approval(context, ["task_a"], modification_schema=schema)
 
@@ -340,7 +341,17 @@ class TestDeferForApproval:
             "params_input": {"output": ["task_a", 2]},
         }
 
-        with pytest.raises(HITLTriggerEventError, match="must be a string"):
+        with pytest.raises(HITLTriggerEventError, match="items must be strings, got int"):
+            approval_op_with_modifications.execute_complete({}, generated_output='["task_a"]', event=event)
+
+    def test_approved_with_cleared_output_raises(self, approval_op_with_modifications):
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "editor",
+            "params_input": {"output": None},
+        }
+
+        with pytest.raises(HITLTriggerEventError, match="must not be empty"):
             approval_op_with_modifications.execute_complete({}, generated_output='["task_a"]', event=event)
 
     def test_approved_with_unmodified_output(self, approval_op_with_modifications):

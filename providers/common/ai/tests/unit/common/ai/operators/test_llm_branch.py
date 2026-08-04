@@ -26,6 +26,8 @@ from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.sdk.definitions.param import Param
+from airflow.sdk.exceptions import ParamValidationError
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -340,9 +342,15 @@ class TestLLMBranchOperatorApproval:
         assert "Valid branches: `task_a`, `task_b`" in call_kwargs["body"]
         assert call_kwargs["params"]["output"]["schema"] == {
             "type": "array",
-            "enum": ["task_a", "task_b"],
+            "items": {"type": "string", "enum": ["task_a", "task_b"]},
+            "examples": ["task_a", "task_b"],
         }
         assert call_kwargs["params"]["output"]["value"] == ["task_a"]
+
+        schema = call_kwargs["params"]["output"]["schema"]
+        assert Param(schema=schema).resolve(["task_a"]) == ["task_a"]
+        with pytest.raises(ParamValidationError):
+            Param(schema=schema).resolve(["task_x"])
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):

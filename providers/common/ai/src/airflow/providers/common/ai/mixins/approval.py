@@ -110,9 +110,11 @@ class LLMApprovalMixin:
         :param modification_schema: JSON schema for the editable ``output`` param
             when ``allow_modifications=True``. Defaults to ``{"type": "string"}``.
             Pass e.g. ``{"type": "string", "enum": [...]}`` to render a dropdown
-            of valid values in the review form, or ``{"type": "array", "enum": [...]}``
-            to render a multi-select; a list submitted by the reviewer is returned
-            from ``execute_complete`` re-serialized as a compact JSON string.
+            of valid values in the review form, or ``{"type": "array", "items":
+            {"type": "string", "enum": [...]}, "examples": [...]}`` to render a
+            multi-select (JSON Schema forbids ``enum`` at the array level, so the
+            options come from ``examples``); a list submitted by the reviewer is
+            returned from ``execute_complete`` re-serialized as a compact JSON string.
         """
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
@@ -227,7 +229,23 @@ class LLMApprovalMixin:
         # when allow_modifications=False, bypassing the read-only approval flow.
         if getattr(self, "allow_modifications", False) and params_input:
             modified = params_input.get("output")
-            if isinstance(modified, list) and all(isinstance(item, str) for item in modified):
+            if "output" in params_input and modified is None:
+                raise HITLTriggerEventError(
+                    {
+                        "error": "Modified output must not be empty; edit it or reject instead.",
+                        "error_type": "validation",
+                    }
+                )
+            if isinstance(modified, list):
+                for item in modified:
+                    if not isinstance(item, str):
+                        raise HITLTriggerEventError(
+                            {
+                                "error": f"Modified output list items must be strings, "
+                                f"got {type(item).__name__}.",
+                                "error_type": "validation",
+                            }
+                        )
                 # Compact so an unchanged selection compares equal to generated_output
                 modified = json.dumps(modified, separators=(",", ":"))
             if modified is not None and not isinstance(modified, str):

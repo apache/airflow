@@ -121,7 +121,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```"
             )
             modification_schema = (
-                {"type": "array", "enum": choices}
+                {"type": "array", "items": {"type": "string", "enum": choices}, "examples": choices}
                 if self.allow_multiple_branches
                 else {"type": "string", "enum": choices}
             )
