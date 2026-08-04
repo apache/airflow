@@ -33,6 +33,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -247,7 +248,12 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         The id is normalised first because :meth:`build_path` maps ``_`` onto the separator
         everywhere in this backend, so ``b__c`` reaches Key Vault as ``b--c`` and would
         otherwise manufacture the team separator from an id that does not visibly contain it.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no
+        team scoped secret can exist to collide with.
         """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
         return TEAM_SEP in self.build_path("", secret_id, self.sep)
 
     def _log_refusal(self, kind: str, secret_id: str) -> None:
