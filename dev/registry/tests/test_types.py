@@ -103,6 +103,22 @@ class TestDerivedLookups:
             assert yaml_key in FLAT_LEVEL_SECTIONS
             assert FLAT_LEVEL_SECTIONS[yaml_key] == type_id
 
+    def test_every_flat_section_is_consumed_by_a_class_level_table(self):
+        # "transfers" and "task-decorators" are deliberately exempt: they are
+        # consumed by their own dedicated extraction paths rather than by
+        # CLASS_LEVEL_SECTIONS or DICT_SHAPED_CLASS_LEVEL_SECTIONS.
+        dedicated_path_exemptions = {"transfers", "task-decorators"}
+        consumed = (
+            set(CLASS_LEVEL_SECTIONS) | set(DICT_SHAPED_CLASS_LEVEL_SECTIONS) | dedicated_path_exemptions
+        )
+        assert set(FLAT_LEVEL_SECTIONS) == consumed, (
+            f"set(FLAT_LEVEL_SECTIONS) {set(FLAT_LEVEL_SECTIONS)} != consumed {consumed}. "
+            "Every flat-level section must be consumed by CLASS_LEVEL_SECTIONS or "
+            "DICT_SHAPED_CLASS_LEVEL_SECTIONS, otherwise both extractors silently skip it. "
+            "Add the new section to whichever table matches its yaml shape, or, if it is "
+            "handled by a dedicated path, add it to dedicated_path_exemptions above."
+        )
+
 
 class TestBaseClassImports:
     def test_all_entries_are_tuples(self):
