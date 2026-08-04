@@ -371,7 +371,7 @@ eleventyComputed:
         {% for module in providerModules %}
         <div id="{{ module.id or module.name }}" class="module card" data-name="{{ module.name | lower }}" data-type="{{ module.type }}" data-category="{{ module.category }}">
           <div class="icon {{ module.type }}">
-            <span>{{ module.type[0] | upper }}</span>
+            <span>{{ types | typeIcon(module.type) }}</span>
           </div>
           <div class="content">
             <h3>

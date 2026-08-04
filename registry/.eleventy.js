@@ -111,6 +111,16 @@ module.exports = function(eleventyConfig) {
       .sort((a, b) => b.count - a.count);
   });
 
+  // Looks up the curated single-letter icon for a type id from types.json, instead of
+  // deriving it from the id's first character at each render site (which reintroduces
+  // the letter collisions types.json's `icon` field was curated to avoid).
+  eleventyConfig.addFilter("typeIcon", (types, typeId) => {
+    if (!Array.isArray(types) || !typeId) return "";
+    const match = types.find((t) => t.id === typeId);
+    if (match && match.icon) return match.icon;
+    return typeId.charAt(0).toUpperCase();
+  });
+
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);
 
   return {

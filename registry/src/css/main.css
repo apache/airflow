@@ -3369,6 +3369,84 @@ main {
   border: 1px solid rgb(from var(--color-bundle) r g b / 0.3);
 }
 
+.provider-detail-page .modules .module .icon.notifier {
+  background: rgb(from var(--color-notifier) r g b / 0.2);
+  color: var(--color-notifier);
+  border: 1px solid rgb(from var(--color-notifier) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.secret {
+  background: rgb(from var(--color-secret) r g b / 0.2);
+  color: var(--color-secret);
+  border: 1px solid rgb(from var(--color-secret) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.logging {
+  background: rgb(from var(--color-logging) r g b / 0.2);
+  color: var(--color-logging);
+  border: 1px solid rgb(from var(--color-logging) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.executor {
+  background: rgb(from var(--color-executor) r g b / 0.2);
+  color: var(--color-executor);
+  border: 1px solid rgb(from var(--color-executor) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.decorator {
+  background: rgb(from var(--color-decorator) r g b / 0.2);
+  color: var(--color-decorator);
+  border: 1px solid rgb(from var(--color-decorator) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.toolset {
+  background: rgb(from var(--color-toolset) r g b / 0.2);
+  color: var(--color-toolset);
+  border: 1px solid rgb(from var(--color-toolset) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.retry_policy {
+  background: rgb(from var(--color-retry_policy) r g b / 0.2);
+  color: var(--color-retry_policy);
+  border: 1px solid rgb(from var(--color-retry_policy) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.extra_link {
+  background: rgb(from var(--color-extra_link) r g b / 0.2);
+  color: var(--color-extra_link);
+  border: 1px solid rgb(from var(--color-extra_link) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.queue {
+  background: rgb(from var(--color-queue) r g b / 0.2);
+  color: var(--color-queue);
+  border: 1px solid rgb(from var(--color-queue) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.plugin {
+  background: rgb(from var(--color-plugin) r g b / 0.2);
+  color: var(--color-plugin);
+  border: 1px solid rgb(from var(--color-plugin) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.auth_manager {
+  background: rgb(from var(--color-auth_manager) r g b / 0.2);
+  color: var(--color-auth_manager);
+  border: 1px solid rgb(from var(--color-auth_manager) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.db_manager {
+  background: rgb(from var(--color-db_manager) r g b / 0.2);
+  color: var(--color-db_manager);
+  border: 1px solid rgb(from var(--color-db_manager) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.dialect {
+  background: rgb(from var(--color-dialect) r g b / 0.2);
+  color: var(--color-dialect);
+  border: 1px solid rgb(from var(--color-dialect) r g b / 0.3);
+}
+
 .provider-detail-page .modules .module .content {
   flex: 1;
   min-width: 0;
