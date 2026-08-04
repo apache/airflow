@@ -67,7 +67,9 @@ List of upstream provider or model-serving services that this connection type
 reaches over the network (e.g. ``OpenAI``, ``AWS Bedrock``, ``Ollama``). The registry
 renders this list as a table on the provider's version page, so someone browsing the
 registry can see at a glance which external services a given connection type talks
-to.
+to. Because some hooks resolve the destination from a caller-supplied model
+identifier (for example ``PydanticAIHook``), this list is representative, not
+exhaustive -- treat it as example services, not a compatibility matrix.
 
 This is unrelated to the top-level ``integrations`` key in ``provider.yaml``, which
 describes *framework* integrations (e.g. Kubernetes, Docker) and drives the
