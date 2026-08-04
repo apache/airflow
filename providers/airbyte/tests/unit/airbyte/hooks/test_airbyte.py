@@ -262,6 +262,45 @@ class TestAirbyteHook:
             transport = client._transport_for_url(url)
             assert transport is not default_transport, f"Expected proxy transport for {scheme}"
 
+    @pytest.mark.parametrize(
+        ("hook_timeout", "extra_timeout", "expected_timeout_ms"),
+        [
+            pytest.param(None, None, None, id="default-unchanged"),
+            pytest.param(300, None, 300_000, id="hook-parameter"),
+            pytest.param(None, 120, 120_000, id="connection-extra"),
+            pytest.param(None, "60", 60_000, id="connection-extra-string"),
+            pytest.param(30.5, 120, 30_500, id="hook-parameter-overrides-extra"),
+        ],
+    )
+    def test_create_api_session_timeout(
+        self, create_connection_without_db, hook_timeout, extra_timeout, expected_timeout_ms
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="airbyte_conn_id_test_timeout",
+                conn_type=self.conn_type,
+                host=self.host,
+                port=self.port,
+                extra={"timeout": extra_timeout} if extra_timeout is not None else None,
+            )
+        )
+        hook = AirbyteHook(airbyte_conn_id="airbyte_conn_id_test_timeout", timeout=hook_timeout)
+        assert hook.airbyte_api.sdk_configuration.timeout_ms == expected_timeout_ms
+
+    @pytest.mark.parametrize("bad_timeout", ["6o", 0, -5, {"connect": 5}])
+    def test_create_api_session_invalid_timeout_extra(self, create_connection_without_db, bad_timeout):
+        create_connection_without_db(
+            Connection(
+                conn_id="airbyte_conn_id_test_bad_timeout",
+                conn_type=self.conn_type,
+                host=self.host,
+                port=self.port,
+                extra={"timeout": bad_timeout},
+            )
+        )
+        with pytest.raises(ValueError, match="Invalid Airbyte API request timeout"):
+            AirbyteHook(airbyte_conn_id="airbyte_conn_id_test_bad_timeout")
+
     def test_create_api_session_without_credentials(self):
         """Test that a session without OAuth credentials creates an unauthenticated client."""
         # The default connection (self.airbyte_conn_id) has no login/password

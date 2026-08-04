@@ -37,6 +37,10 @@ class AirbyteHook(BaseHook):
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
         connection information for Airbyte. Defaults to "airbyte_default".
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
+    :param timeout: Optional. Request timeout, in seconds, for each call to the
+        Airbyte API. Overrides the ``timeout`` key in the connection's Extra field.
+        When neither is set, the underlying HTTP client's default of 5 seconds
+        applies.
     """
 
     conn_name_attr = "airbyte_conn_id"
@@ -48,10 +52,12 @@ class AirbyteHook(BaseHook):
         self,
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
+        timeout: float | None = None,
     ) -> None:
         super().__init__()
         self.api_version: str = api_version
         self.airbyte_conn_id = airbyte_conn_id
+        self.timeout = timeout
         self.conn = self.get_conn_params(self.airbyte_conn_id)
         self.airbyte_api = self.create_api_session()
 
@@ -71,6 +77,7 @@ class AirbyteHook(BaseHook):
         conn_params["client_secret"] = conn.password
         conn_params["token_url"] = conn.schema or "v1/applications/token"
         conn_params["proxies"] = conn.extra_dejson.get("proxies", None)
+        conn_params["timeout"] = conn.extra_dejson.get("timeout", None)
 
         return conn_params
 
@@ -124,10 +131,25 @@ class AirbyteHook(BaseHook):
                 }
             client = httpx.Client(mounts=mounts)
 
+        timeout = self.timeout if self.timeout is not None else self.conn["timeout"]
+        timeout_ms: int | None = None
+        if timeout is not None:
+            try:
+                timeout_ms = int(float(timeout) * 1000)
+            except (TypeError, ValueError):
+                timeout_ms = 0
+            if timeout_ms <= 0:
+                raise ValueError(
+                    f"Invalid Airbyte API request timeout {timeout!r}: expected a positive number of "
+                    f"seconds, set via the AirbyteHook 'timeout' parameter or the 'timeout' extra of "
+                    f"connection {self.airbyte_conn_id!r}"
+                )
+
         return AirbyteAPI(
             server_url=self.conn["host"],
             security=security,
             client=client,
+            timeout_ms=timeout_ms,
         )
 
     @classmethod
