@@ -44,6 +44,15 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to generate PyPI constraints (true/false)"
         required: true
         type: string
+      allow-pre-releases:
+        description: >
+          Whether the PyPI constraints may pin pre-release providers (true/false). Set when
+          constraints are cut for a release candidate, whose providers are on PyPI only as rc
+          versions. Scoped to apache-airflow-providers-* - no other package can resolve to a
+          pre-release.
+        required: false
+        default: "false"
+        type: string
       debug-resources:
         description: "Whether to run in debug mode (true/false)"
         required: true
@@ -133,9 +142,14 @@ jobs:
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
+        env:
+          # Deliberately not named ALLOW_PRE_RELEASES: that is the option's own envvar, and having
+          # both paths set it would make it unclear which one is in force. Empty on a normal run,
+          # so the unquoted expansion below contributes no argument at all.
+          PRE_RELEASE_FLAG: ${{ inputs.allow-pre-releases == 'true' && '--allow-pre-releases' || '' }}
         run: |
           breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}"
+            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
