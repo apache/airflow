@@ -111,7 +111,9 @@ jobs:
             echo "'${VERSION}' is not a release version - expected X.Y.Z or X.Y.ZrcN." >&2
             exit 1
           fi
-          constraints_branch="constraints-$(echo "${VERSION}" | cut -d. -f1)-$(echo "${VERSION}" | cut -d. -f2)"
+          major="$(echo "${VERSION}" | cut -d. -f1)"
+          minor="$(echo "${VERSION}" | cut -d. -f2)"
+          constraints_branch="constraints-${major}-${minor}"
           echo "constraints-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
           if [[ "${VERSION}" == *rc* ]]; then
             echo "allow-pre-releases=true" >> "${GITHUB_OUTPUT}"
