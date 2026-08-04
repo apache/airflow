@@ -210,7 +210,7 @@ async def require_auth(
 CurrentTIToken: TIToken = Depends(require_auth)
 
 
-def issue_execution_token(services: Any, response: Response, sub: str) -> None:
+def issue_execution_token(services: svcs.Container, response: Response, sub: str) -> None:
     """Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header."""
     generator: JWTGenerator = services.get(JWTGenerator)
     response.headers["Refreshed-API-Token"] = generator.generate(extras={"sub": sub, "scope": "execution"})
