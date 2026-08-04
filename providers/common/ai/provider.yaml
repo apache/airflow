@@ -157,7 +157,6 @@ connection-types:
       - DeepSeek
       - Ollama
       - vLLM
-      - LM Studio
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -396,8 +395,9 @@ connection-types:
       - Anthropic
       - Groq
       - Mistral AI
-      - Ollama
       - DeepSeek
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema

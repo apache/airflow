@@ -130,7 +130,6 @@ def get_provider_info():
                     "DeepSeek",
                     "Ollama",
                     "vLLM",
-                    "LM Studio",
                 ],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
@@ -310,7 +309,15 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.langchain.LangChainHook",
                 "hook-name": "LangChain",
                 "connection-type": "langchain",
-                "external-services": ["OpenAI", "Anthropic", "Groq", "Mistral AI", "Ollama", "DeepSeek"],
+                "external-services": [
+                    "OpenAI",
+                    "Anthropic",
+                    "Groq",
+                    "Mistral AI",
+                    "DeepSeek",
+                    "Ollama",
+                    "vLLM",
+                ],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
