@@ -105,6 +105,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_airflowctl_version,
     get_task_sdk_version,
+    get_ts_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -2036,6 +2037,9 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
 
     if package_name == "task-sdk":
         return get_task_sdk_version()
+
+    if package_name == "ts-sdk":
+        return get_ts_sdk_version()
 
     if package_name == "helm-chart":
         return chart_version()
