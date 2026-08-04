@@ -25,9 +25,7 @@ import pytest
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
-from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.sdk.definitions.param import Param
-from airflow.sdk.exceptions import ParamValidationError
+from airflow.providers.common.compat.sdk import Param, ParamValidationError, TaskDeferred
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
