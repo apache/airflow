@@ -1048,7 +1048,8 @@ class TestDagFileProcessorManager:
     def test_scan_stale_dags_deactivates_zip_packaged_dags(self, session, test_zip_path):
         """
         Ensure that zip-packaged DAGs are marked inactive when the file is parsed but the
-        DagModel.last_parsed_time is not updated.
+        DagModel.last_parsed_time is not updated, testing fallback to the parent path when
+        comparing DAG.relative_fileloc to last_parsed entries.
         """
         manager = DagFileProcessorManager(
             max_runs=1,
