@@ -81,18 +81,39 @@ def import_string(dotted_path: str):
 
     Raise ImportError if the import failed.
     """
-    # TODO: Add support for nested classes. Currently, it only works for top-level classes.
     try:
         module_path, class_name = dotted_path.rsplit(".", 1)
     except ValueError:
         raise ImportError(f"{dotted_path} doesn't look like a module path")
 
-    module = import_module(module_path)
-
     try:
-        return getattr(module, class_name)
+        module = import_module(module_path)
+    except ImportError as e:
+        # Fallback for nested classes
+        parts = dotted_path.split(".")
+        # Iterate backwards to find the longest valid module path
+        for i in range(len(parts) - 1, 0, -1):
+            module_path = ".".join(parts[:i])
+            class_path = parts[i:]
+            try:
+                module = import_module(module_path)
+                break
+            except ImportError:
+                if i == 1:
+                    raise ImportError(f"{dotted_path} doesn't look like a module path") from e
+                continue
+        else:
+            raise ImportError(f"{dotted_path} doesn't look like a module path") from e
+    else:
+        class_path = [class_name]
+
+    obj = module
+    try:
+        for attr in class_path:
+            obj = getattr(obj, attr)
+        return obj
     except AttributeError:
-        raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute/class')
+        raise ImportError(f'Module "{module_path}" does not define a "{".".join(class_path)}" attribute/class')
 
 
 def qualname(o: object | Callable, use_qualname: bool = False, exclude_module: bool = False) -> str:

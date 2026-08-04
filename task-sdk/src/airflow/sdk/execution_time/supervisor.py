@@ -418,7 +418,12 @@ def _fork_main(
     - Catch un-handled exceptions and attempt to show _something_ in case of error
     - Finally, run the actual task runner code (``target`` argument, defaults to ``.task_runner:main`)
     """
-    # TODO: Make this process a session leader
+    # Make this process a session leader
+    if hasattr(os, "setsid"):
+        try:
+            os.setsid()
+        except OSError:
+            pass
 
     # Store original stderr for last-chance exception handling
     last_chance_stderr = _get_last_chance_stderr()
