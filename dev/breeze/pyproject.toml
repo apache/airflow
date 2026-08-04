@@ -48,8 +48,9 @@ dependencies = [
     "click>=8.3.0",
     "filelock>=3.13.0",
     # Capped below 4 because `flit build` has no PEP 517 isolation: the installed flit_core is
-    # the backend for every provider distribution, and 4.x corrupts their METADATA. Lift the cap
-    # per https://github.com/apache/airflow/issues/71121
+    # what builds every provider distribution, so the `flit_core==` pin they declare never
+    # applies. Adopting the 4.x backend is tracked at
+    # https://github.com/apache/airflow/issues/71121
     "flit>=3.12.0,<4",
     "flit-core>=3.12.0,<4",
     "google-api-python-client>=2.142.0",
