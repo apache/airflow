@@ -978,7 +978,14 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "airflow-logs",
-                    }
+                    },
+                    "remote_wasb_log_write_mode": {
+                        "description": 'How task logs are written to the remote blob: "block_blob" (default) downloads and\nrewrites the whole object on every upload; "append_blob" appends each new segment\ninstead using an Azure AppendBlob, avoiding that repeated download/rewrite. Opt-in,\nsince append blobs cannot be tiered to cool/archive storage by a lifecycle policy and\nare capped at 50,000 appended blocks per blob. An object already written as a block\nblob keeps using the block_blob write path even if this is set to "append_blob";\nAzure does not support changing an existing blob\'s type in place.\n',
+                        "version_added": "14.1.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "block_blob",
+                    },
                 },
             }
         },

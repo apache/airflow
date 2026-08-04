@@ -24,7 +24,7 @@ from unittest.mock import create_autospec
 
 import pytest
 from azure.core.credentials import AzureSasCredential
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import ResourceExistsError, ResourceModifiedError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
 from azure.storage.blob._models import BlobProperties
 
@@ -444,6 +444,48 @@ class TestWasbHook:
         mock_blob_client = mocked_blob_service_client.return_value.get_blob_client
         mock_blob_client.assert_called_once_with(container="mycontainer", blob="myblob")
         mock_blob_client.return_value.get_blob_properties.assert_called()
+
+    def test_get_blob_properties(self, mocked_blob_service_client):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook.get_blob_properties(container_name="mycontainer", blob_name="myblob")
+        mock_blob_client = mocked_blob_service_client.return_value.get_blob_client
+        mock_blob_client.assert_called_once_with(container="mycontainer", blob="myblob")
+        mock_blob_client.return_value.get_blob_properties.assert_called_once()
+
+    def test_create_append_blob(self, mocked_blob_service_client):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook.create_append_blob(container_name="mycontainer", blob_name="myblob")
+        mock_blob_client = mocked_blob_service_client.return_value.get_blob_client
+        mock_blob_client.assert_called_once_with(container="mycontainer", blob="myblob")
+        mock_blob_client.return_value.create_append_blob.assert_called_once()
+
+    def test_create_append_blob_is_idempotent_if_already_exists(self, mocked_blob_service_client):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        mock_blob_client = mocked_blob_service_client.return_value.get_blob_client
+        mock_blob_client.return_value.create_append_blob.side_effect = ResourceExistsError("exists")
+        hook.create_append_blob(container_name="mycontainer", blob_name="myblob")
+
+    def test_append_block_passes_position_guard(self, mocked_blob_service_client):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook.append_block(
+            container_name="mycontainer",
+            blob_name="myblob",
+            data=b"cycle 2\n",
+            offset=100,
+        )
+        mock_blob_client = mocked_blob_service_client.return_value.get_blob_client
+        mock_blob_client.assert_called_once_with(container="mycontainer", blob="myblob")
+        mock_blob_client.return_value.append_block.assert_called_once_with(
+            b"cycle 2\n", length=8, appendpos_condition=100
+        )
+
+    def test_append_block_propagates_position_mismatch(self, mocked_blob_service_client):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        mock_blob_client = mocked_blob_service_client.return_value.get_blob_client
+        mock_blob_client.return_value.append_block.side_effect = ResourceModifiedError("position mismatch")
+
+        with pytest.raises(ResourceModifiedError):
+            hook.append_block(container_name="mycontainer", blob_name="myblob", data=b"x", offset=0)
 
     @mock.patch.object(WasbHook, "get_blobs_list", return_value=["blobs"])
     def test_check_for_prefix(self, get_blobs_list):

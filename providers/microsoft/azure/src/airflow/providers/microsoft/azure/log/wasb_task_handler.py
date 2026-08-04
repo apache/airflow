@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
 import attrs
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceModifiedError
+from azure.storage.blob import BlobType
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
@@ -48,6 +49,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
     delete_local_copy: bool
 
     wasb_container: str
+    write_mode: str = "block_blob"
+
+    _MAX_APPEND_BLOCK_BYTES = 4 * 1024 * 1024
 
     processors = ()
 
@@ -74,6 +78,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
                 "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
                 "wasb_container": conf.get_mandatory_value(
                     "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
+                ),
+                "write_mode": conf.get(
+                    "azure_remote_logging", "remote_wasb_log_write_mode", fallback="block_blob"
                 ),
             }
             | io_kwargs,
@@ -222,12 +229,82 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         """
+        if append and self.write_mode == "append_blob":
+            return self._write_append_blob(log, remote_log_location)
+
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)
             if old_log:
                 sep = "" if old_log.endswith("\n") else "\n"
                 log = f"{old_log}{sep}{log}"
 
+        try:
+            self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
+        except Exception:
+            self.log.exception("Could not write logs to %s", remote_log_location)
+            return False
+        return True
+
+    def _write_append_blob(self, log: str, remote_log_location: str) -> bool:
+        """
+        Append ``log`` to an Azure AppendBlob instead of rewriting the whole object.
+
+        Each segment already ends with a newline (it comes from complete, terminator-suffixed
+        log records), so segments concatenate cleanly at the byte level with no separator
+        needed -- unlike the block-blob path, this never has to download existing content to
+        check its tail.
+
+        Falls back to the block-blob rewrite path, without converting the blob's type, if the
+        object already exists as a block blob: Azure does not support changing an existing
+        blob's type in place.
+        """
+        if not log:
+            return True
+
+        try:
+            blob_exists = self.wasb_log_exists(remote_log_location)
+            if not blob_exists:
+                self.hook.create_append_blob(self.wasb_container, remote_log_location)
+                offset = 0
+            else:
+                properties = self.hook.get_blob_properties(self.wasb_container, remote_log_location)
+                if properties.blob_type != BlobType.APPENDBLOB:
+                    self.log.info(
+                        "%s already exists as a %s; using the block-blob write path for it "
+                        "rather than converting it.",
+                        remote_log_location,
+                        properties.blob_type,
+                    )
+                    return self._write_block_blob_over_existing(log, remote_log_location)
+                offset = properties.size
+        except Exception:
+            self.log.exception("Could not prepare append blob %s", remote_log_location)
+            return False
+
+        data = log.encode("utf-8")
+        try:
+            for start in range(0, len(data), self._MAX_APPEND_BLOCK_BYTES):
+                chunk = data[start : start + self._MAX_APPEND_BLOCK_BYTES]
+                self.hook.append_block(self.wasb_container, remote_log_location, chunk, offset)
+                offset += len(chunk)
+        except ResourceModifiedError:
+            self.log.exception(
+                "Append position mismatch writing to %s. Leaving the local log intact so "
+                "this segment can be retried rather than risk writing at the wrong offset.",
+                remote_log_location,
+            )
+            return False
+        except Exception:
+            self.log.exception("Could not append logs to %s", remote_log_location)
+            return False
+        return True
+
+    def _write_block_blob_over_existing(self, log: str, remote_log_location: str) -> bool:
+        """Rewrite-the-whole-object path, used for blobs that already exist as block blobs."""
+        old_log = self.wasb_read(remote_log_location)
+        if old_log:
+            sep = "" if old_log.endswith("\n") else "\n"
+            log = f"{old_log}{sep}{log}"
         try:
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
         except Exception:
@@ -269,6 +346,10 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             wasb_container=wasb_container,
             delete_local_copy=kwargs.get(
                 "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+            ),
+            write_mode=kwargs.get(
+                "write_mode",
+                conf.get("azure_remote_logging", "remote_wasb_log_write_mode", fallback="block_blob"),
             ),
         )
 
