@@ -112,8 +112,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             choices = sorted(self.downstream_task_ids)
             chosen = branches if isinstance(branches, str) else json.dumps(branches)
             body = (
-                f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```\n\n"
-                f"Valid branches: {', '.join(f'`{c}`' for c in choices)}"
+                f"Valid branches: {', '.join(f'`{c}`' for c in choices)}\n\n"
+                f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```"
             )
             modification_schema = (
                 None if self.allow_multiple_branches else {"type": "string", "enum": choices}

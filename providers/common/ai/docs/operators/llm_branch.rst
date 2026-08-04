@@ -92,6 +92,14 @@ against the downstream task IDs before branching:
     :start-after: [START howto_operator_llm_branch_approval]
     :end-before: [END howto_operator_llm_branch_approval]
 
+Rejecting the review, or letting ``approval_timeout`` expire, **fails** the
+task (``HITLRejectException`` / ``HITLTimeoutError``), so downstream tasks
+end up ``upstream_failed`` rather than skipped.
+
+``require_approval=True`` requires a string prompt: a decorated callable
+returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
+call.
+
 ``approval_timeout`` and the rest of the approval behaviour are inherited
 from :ref:`LLMOperator <howto/operator:llm>`.
 

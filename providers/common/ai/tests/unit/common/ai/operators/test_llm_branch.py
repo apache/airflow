@@ -283,7 +283,7 @@ class TestLLMBranchOperatorApproval:
             op.execute(_make_context())
 
         call_kwargs = mock_upsert.call_args.kwargs
-        assert "Valid branches: `task_a`, `task_b`" in call_kwargs["body"]
+        assert call_kwargs["body"].startswith("Valid branches: `task_a`, `task_b`")
         assert call_kwargs["params"]["output"]["schema"] == {
             "type": "string",
             "enum": ["task_a", "task_b"],
