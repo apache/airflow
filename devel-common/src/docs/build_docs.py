@@ -661,12 +661,16 @@ def build_docs(
     all_build_errors: dict[str | None, list[DocBuildError]] = {}
     all_spelling_errors: dict[str | None, list[SpellingError]] = {}
     if priority_packages:
-        # Build priority packages
+        # Build priority packages. Never build them spellcheck-only: they are built first
+        # precisely because their inventories could not be fetched, and only a real build
+        # writes objects.inv. A spellcheck-only pre-build leaves the inventory missing, so
+        # every package referencing it fails inventory resolution and the whole docs set
+        # is rebuilt in additional full passes.
         package_build_errors, package_spelling_errors = build_docs_for_packages(
             packages_to_build=priority_packages,
             is_autobuild=autobuild,
             docs_only=docs_only,
-            spellcheck_only=spellcheck_only,
+            spellcheck_only=False,
             jobs=jobs,
             verbose=verbose,
         )
