@@ -139,11 +139,11 @@ class TestAgentEngineHookWithDefaultProjectId:
         AGENT_ENGINE_STRING.format("AgentEngineHook.get_reasoning_engine_execution_service_client"),
         autospec=True,
     )
-    def test_query_agent_engine(self, mock_get_client):
-        result = self.hook.query_agent_engine(
+    def test_query_reasoning_engine(self, mock_get_client):
+        result = self.hook.query_reasoning_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
+            reasoning_engine_id=AGENT_ENGINE_ID,
             input_data=QUERY_INPUT,
             class_method="custom_query",
             retry=mock.sentinel.retry,
@@ -171,11 +171,11 @@ class TestAgentEngineHookWithDefaultProjectId:
         AGENT_ENGINE_STRING.format("AgentEngineHook.get_reasoning_engine_execution_service_client"),
         autospec=True,
     )
-    def test_query_agent_engine_without_input_data(self, mock_get_client):
-        self.hook.query_agent_engine(
+    def test_query_reasoning_engine_without_input_data(self, mock_get_client):
+        self.hook.query_reasoning_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
+            reasoning_engine_id=AGENT_ENGINE_ID,
         )
 
         mock_get_client.return_value.query_reasoning_engine.assert_called_once_with(

@@ -165,10 +165,10 @@ class AgentEngineHook(GoogleBaseHook):
         return client.get(name=name, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def query_agent_engine(
+    def query_reasoning_engine(
         self,
         location: str,
-        agent_engine_id: str,
+        reasoning_engine_id: str,
         input_data: dict[str, Any] | None = None,
         class_method: str = "query",
         retry: Retry | _MethodDefault = DEFAULT,
@@ -180,7 +180,7 @@ class AgentEngineHook(GoogleBaseHook):
         Query an Agent Engine synchronously.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param agent_engine_id: Required. The Agent Engine ID.
+        :param reasoning_engine_id: Required. The Reasoning Engine resource ID for the Agent Engine.
         :param input_data: Optional. Input for the Agent Engine class method in JSON object format.
             Defaults to ``None``.
         :param class_method: Optional. The Agent Engine class method to invoke. Defaults to ``query``.
@@ -192,7 +192,7 @@ class AgentEngineHook(GoogleBaseHook):
             configured in the connection.
         """
         client = self.get_reasoning_engine_execution_service_client(location=location)
-        name = client.reasoning_engine_path(project_id, location, agent_engine_id)
+        name = client.reasoning_engine_path(project_id, location, reasoning_engine_id)
         request: dict[str, Any] = {"name": name, "class_method": class_method}
         if input_data is not None:
             request["input"] = input_data

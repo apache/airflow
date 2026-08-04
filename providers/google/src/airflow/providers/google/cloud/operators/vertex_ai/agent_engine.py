@@ -170,7 +170,7 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
         return result
 
 
-class RunAgentQueryOperator(GoogleCloudBaseOperator):
+class RunReasoningEngineQueryOperator(GoogleCloudBaseOperator):
     """
     Query a Vertex AI Agent Engine synchronously.
 
@@ -178,7 +178,8 @@ class RunAgentQueryOperator(GoogleCloudBaseOperator):
         belongs to.
     :param location: Required (templated). The ID of the Google Cloud location that the service
         belongs to.
-    :param agent_engine_id: Required (templated). The Agent Engine ID.
+    :param reasoning_engine_id: Required (templated). The Reasoning Engine resource ID for the
+        Agent Engine.
     :param input_data: Optional (templated). Input for the Agent Engine class method in JSON object
         format. Defaults to ``None``.
     :param class_method: Optional (templated). The Agent Engine class method to invoke. Defaults to
@@ -196,7 +197,7 @@ class RunAgentQueryOperator(GoogleCloudBaseOperator):
     template_fields = (
         "project_id",
         "location",
-        "agent_engine_id",
+        "reasoning_engine_id",
         "input_data",
         "class_method",
         "gcp_conn_id",
@@ -208,7 +209,7 @@ class RunAgentQueryOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        agent_engine_id: str,
+        reasoning_engine_id: str,
         input_data: dict[str, Any] | None = None,
         class_method: str = "query",
         retry: Retry | _MethodDefault = DEFAULT,
@@ -221,7 +222,7 @@ class RunAgentQueryOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
-        self.agent_engine_id = agent_engine_id
+        self.reasoning_engine_id = reasoning_engine_id
         self.input_data = input_data
         self.class_method = class_method
         self.retry = retry
@@ -238,18 +239,18 @@ class RunAgentQueryOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, JsonValue]:
-        self.log.info("Querying Agent Engine %s.", self.agent_engine_id)
-        response = self.hook.query_agent_engine(
+        self.log.info("Querying Agent Engine %s.", self.reasoning_engine_id)
+        response = self.hook.query_reasoning_engine(
             project_id=self.project_id,
             location=self.location,
-            agent_engine_id=self.agent_engine_id,
+            reasoning_engine_id=self.reasoning_engine_id,
             input_data=self.input_data,
             class_method=self.class_method,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.log.info("Agent Engine %s returned a response.", self.agent_engine_id)
+        self.log.info("Agent Engine %s returned a response.", self.reasoning_engine_id)
         return QueryReasoningEngineResponse.to_dict(response)
 
 
