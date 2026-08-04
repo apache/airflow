@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import certifi
-import httpx
+import httpx2 as httpx
 import pytest
 import time_machine
 import uuid6
