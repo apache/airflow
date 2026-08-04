@@ -128,7 +128,7 @@
                     ]
                 },
                 "disableDefaults": {
-                    "description": "If `true`, the chart will not set any default `securityContext` values when `securityContexts.pod` / `securityContexts.containers` (or the equivalent per-component overrides) are left empty. (Default `false` is deprecated and will change to `true` in a future release.)",
+                    "description": "If `true`, the chart will not set any default `securityContext` values when `securityContexts.pod` / `securityContexts.containers` (or the equivalent per-component overrides) are left empty. (Default `false` is deprecated and will change to `true` in a future release)",
                     "type": "boolean",
                     "default": false,
                     "x-docsSection": "Kubernetes"
