@@ -535,7 +535,7 @@ class WasbHook(BaseHook):
         self,
         container_name: str,
         local_dir: Path,
-        prefix: str = "",
+        prefix: str | None = None,
         delete_stale: bool = True,
     ) -> None:
         """Download files from an Azure Blob Storage container to a local directory."""
@@ -546,7 +546,7 @@ class WasbHook(BaseHook):
         self.check_for_variable_type("container", container, ContainerClient)
         container = cast("ContainerClient", container)
 
-        for blob in container.list_blobs(name_starts_with=prefix or None):
+        for blob in container.list_blobs(name_starts_with=prefix):
             if blob.name.endswith("/"):
                 continue
             blob_path = Path(blob.name)

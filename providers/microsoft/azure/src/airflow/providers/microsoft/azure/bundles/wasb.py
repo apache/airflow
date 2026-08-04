@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from functools import cached_property
 from pathlib import Path
 
 import structlog
@@ -61,7 +62,6 @@ class WasbDagBundle(BaseDagBundle):
             prefix=self.prefix,
             wasb_conn_id=self.wasb_conn_id,
         )
-        self._wasb_hook: WasbHook | None = None
 
     def _initialize(self):
         with self.lock():
@@ -88,11 +88,9 @@ class WasbDagBundle(BaseDagBundle):
         self._initialize()
         super().initialize()
 
-    @property
-    def wasb_hook(self):
-        if self._wasb_hook is None:
-            self._wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-        return self._wasb_hook
+    @cached_property
+    def wasb_hook(self) -> WasbHook:
+        return WasbHook(wasb_conn_id=self.wasb_conn_id)
 
     def __repr__(self):
         return (
@@ -150,5 +148,5 @@ class WasbDagBundle(BaseDagBundle):
         account_url = self.wasb_hook.blob_service_client.url
         url = f"{account_url.rstrip('/')}/{self.container_name}"
         if self.prefix:
-            url += f"/{self.prefix}"
+            return f"{url}/{self.prefix}"
         return url
