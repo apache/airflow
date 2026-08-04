@@ -505,6 +505,39 @@ This leads to the Dag being triggered indefinitely every time the trigger mechan
 When creating custom triggers, be cautious about using conditions that remain permanently true once met.
 This can unintentionally result in infinite Dag executions and overwhelm your system.
 
+Consuming Airflow event telemetry from Kafka
+--------------------------------------------
+
+The Apache Kafka provider ships a ``KafkaEventProducerPlugin`` that publishes a message to a Kafka topic
+for every Dag run and task instance state-change event. See the
+:doc:`plugin documentation <apache-airflow-providers-apache-kafka:configurations-ref>` for how a
+**Deployment Manager** enables and configures it.
+
+The plugin is aimed at operators and platform teams who want to observe or react to what an Airflow
+deployment is doing without polling its metadata database. It emits **internal Airflow telemetry** —
+the schema and contents of the published messages are produced by Airflow itself. As a Dag author or
+generally an **Operations User** you cannot change what telemetry is published to the topic, you can
+only **consume** it.
+
+It is packaged as a plugin, rather than as an operator or hook you would use inside a Dag, precisely
+because it is deployment-level telemetry. It hooks into Airflow's listener API to emit events for
+every Dag run and task instance in the deployment, so a Deployment Manager enables and configures it
+once (see the plugin documentation above), and it is not something individual **Operations Users**
+turn on or customize per Dag.
+
+Because these events land on an ordinary Kafka topic, you can consume them with the same tools you would
+use for any other Kafka stream:
+
+* An ``AssetWatcher`` backed by the
+  :doc:`Kafka message-queue trigger <apache-airflow-providers-apache-kafka:message-queues/index>`, to
+  schedule a Dag when a matching event is published (see :doc:`asset-scheduling` for the ``AssetWatcher``
+  pattern).
+* The :doc:`AwaitMessageSensor <apache-airflow-providers-apache-kafka:sensors>`, to defer a task until a
+  matching event arrives on the topic.
+* The :doc:`ConsumeFromTopicOperator <apache-airflow-providers-apache-kafka:operators/index>` or the
+  :class:`~airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook`, to read events directly from
+  within a task.
+
 Use cases for event-driven Dags
 -------------------------------
 
