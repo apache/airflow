@@ -373,6 +373,7 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
+        external_executor_id: str | None = None,
         *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
@@ -410,6 +411,8 @@ class PodGenerator:
             annotations[get_logical_date_key()] = date.isoformat()
         if run_id:
             annotations["run_id"] = run_id
+        if external_executor_id:
+            annotations["external_executor_id"] = external_executor_id
 
         main_container = k8s.V1Container(
             name="base",

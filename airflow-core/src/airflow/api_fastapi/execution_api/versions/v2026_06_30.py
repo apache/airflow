@@ -29,6 +29,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TaskInstance,
     TIAwaitingInputStatePayload,
+    TIEnterRunningPayload,
     TIRetryStatePayload,
     TIRunContext,
 )
@@ -59,6 +60,17 @@ class AddTaskInstanceQueueField(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("queue").didnt_exist,)
+
+
+class AddTaskInstanceExternalExecutorIdField(VersionChange):
+    """Add the `external_executor_id` field to task instance launch payloads."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TaskInstance).field("external_executor_id").didnt_exist,
+        schema(TIEnterRunningPayload).field("external_executor_id").didnt_exist,
+    )
 
 
 class AddAwaitingInputStatePayload(VersionChange):
