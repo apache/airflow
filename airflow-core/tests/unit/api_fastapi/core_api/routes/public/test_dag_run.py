@@ -4396,8 +4396,8 @@ class TestWaitDagRun:
 
     @pytest.mark.parametrize("team_name", ["team_b", None])
     def test_authorizes_xcom_against_the_dags_team(self, test_client, team_name):
-    """The XCom check must carry the Dag's team, matching what the route dependency above already
-    resolves — see the call site's comment for why."""
+        """The XCom check must carry the Dag's team, matching what the route dependency above already
+        resolves — see the call site's comment for why."""
         with (
             mock.patch(
                 "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
