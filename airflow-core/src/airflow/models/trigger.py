@@ -630,8 +630,8 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             for key, value in event.xcoms.items():
                 task_instance.xcom_push(key=key, value=value)
 
-    # Send the callback before handle_failure (mirrors the scheduler executor-event ordering):
-    # the callback request should reflect the retry/terminal decision derived above.
+    # Send the callback before mutating task state so it reflects the retry-vs-terminal
+    # decision derived above.
     _submit_callback_if_necessary()
 
     if should_retry:
