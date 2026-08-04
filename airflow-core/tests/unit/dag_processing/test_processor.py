@@ -842,9 +842,12 @@ class TestExecuteCallbacks:
                 msg="Message",
             )
 
-        _execute_callbacks(dagbag, [make_request("removed_dag"), make_request("a")], structlog.get_logger())
+        log = MagicMock(spec=FilteringBoundLogger)
+        _execute_callbacks(dagbag, [make_request("removed_dag"), make_request("a")], log)
 
         assert called is True
+        log.exception.assert_called_once()
+        assert log.exception.call_args.kwargs["dag_id"] == "removed_dag"
 
 
 class TestExecuteDagCallbacks:
@@ -924,9 +927,17 @@ class TestExecuteDagCallbacks:
         assert "ts" in context_received
         assert "params" in context_received
 
-    def test_execute_dag_callbacks_missing_last_ti_task_raises_value_error(self, spy_agency):
-        """A removed last_ti task surfaces as the race-condition ValueError, not a raw TaskNotFound."""
-        with DAG(dag_id="test_dag", on_failure_callback=lambda context: None) as dag:
+    def test_execute_dag_callbacks_missing_last_ti_task_falls_back_to_minimal_context(self, spy_agency):
+        """A removed last_ti task must not drop the callback; it runs with the minimal context."""
+        called = False
+        context_received = None
+
+        def on_failure(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_failure_callback=on_failure) as dag:
             BaseOperator(task_id="test_task")
 
         def fake_collect_dags(self, *args, **kwargs):
@@ -972,8 +983,15 @@ class TestExecuteDagCallbacks:
             msg="Test failure message",
         )
 
-        with pytest.raises(ValueError, match="Task 'removed_task' not found in DAG 'test_dag'"):
-            _execute_dag_callbacks(dagbag, request, structlog.get_logger())
+        _execute_dag_callbacks(dagbag, request, structlog.get_logger())
+
+        assert called is True
+        assert context_received is not None
+        assert context_received["dag"] is dag
+        assert context_received["run_id"] == "test_run"
+        assert context_received["reason"] == "Test failure message"
+        # The rich template context requires the task; the fallback has none of it
+        assert "ts" not in context_received
 
     def test_execute_dag_callbacks_without_context_from_server(self, spy_agency):
         """Test _execute_dag_callbacks falls back to simple context when context_from_server is None"""
