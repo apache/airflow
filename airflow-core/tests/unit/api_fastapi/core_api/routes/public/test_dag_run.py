@@ -4394,6 +4394,32 @@ class TestWaitDagRun:
                 user=mock.ANY,
             )
 
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_xcom_against_the_dags_team(self, test_client, team_name):
+        """The XCom check must carry the Dag's team, matching what the route dependency above already
+        resolves — see the call site's comment for why."""
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+                autospec=True,
+            ) as mock_get_auth_manager,
+            mock.patch.object(DagModel, "get_team_name", return_value=team_name, autospec=True),
+        ):
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1", "result": "task_1"},
+            )
+
+            assert response.status_code == 200
+            mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+                method="GET",
+                access_entity=DagAccessEntity.XCOM,
+                details=DagDetails(id=DAG1_ID, team_name=team_name),
+                user=mock.ANY,
+            )
+
     def test_should_respond_200_without_result_when_user_lacks_xcom_permission(self, test_client):
         """Waiting without result parameter should not require XCom permissions."""
         with mock.patch(
