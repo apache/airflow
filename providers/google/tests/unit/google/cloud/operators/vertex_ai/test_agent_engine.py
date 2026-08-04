@@ -27,8 +27,8 @@ from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
     GetAgentEngineOperator,
-    RunAgentQueryOperator,
     RunQueryJobOperator,
+    RunReasoningEngineQueryOperator,
     UpdateAgentEngineOperator,
 )
 
@@ -151,18 +151,18 @@ class TestGetAgentEngineOperator:
         )
 
 
-class TestRunAgentQueryOperator:
+class TestRunReasoningEngineQueryOperator:
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
     def test_execute(self, mock_hook, context):
         query_output = {"message": "Hello from Agent Engine"}
-        mock_hook.return_value.query_agent_engine.return_value = QueryReasoningEngineResponse(
+        mock_hook.return_value.query_reasoning_engine.return_value = QueryReasoningEngineResponse(
             output=query_output
         )
-        op = RunAgentQueryOperator(
+        op = RunReasoningEngineQueryOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
+            reasoning_engine_id=AGENT_ENGINE_ID,
             input_data=QUERY_INPUT,
             class_method="custom_query",
             retry=mock.sentinel.retry,
@@ -175,10 +175,10 @@ class TestRunAgentQueryOperator:
         result = op.execute(context=context)
 
         assert_hook_created(mock_hook)
-        mock_hook.return_value.query_agent_engine.assert_called_once_with(
+        mock_hook.return_value.query_reasoning_engine.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
+            reasoning_engine_id=AGENT_ENGINE_ID,
             input_data=QUERY_INPUT,
             class_method="custom_query",
             retry=mock.sentinel.retry,

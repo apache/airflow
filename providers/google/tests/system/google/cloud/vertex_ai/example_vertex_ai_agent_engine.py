@@ -60,8 +60,8 @@ from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
     GetAgentEngineOperator,
-    RunAgentQueryOperator,
     RunQueryJobOperator,
+    RunReasoningEngineQueryOperator,
     UpdateAgentEngineOperator,
 )
 
@@ -192,16 +192,16 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_get_agent_engine_operator]
 
-    # [START how_to_cloud_vertex_ai_run_agent_query_operator]
-    run_agent_query = RunAgentQueryOperator(
-        task_id="run_agent_query",
+    # [START how_to_cloud_vertex_ai_run_reasoning_engine_query_operator]
+    run_reasoning_engine_query = RunReasoningEngineQueryOperator(
+        task_id="run_reasoning_engine_query",
         project_id=PROJECT_ID,
         location=LOCATION,
-        agent_engine_id=AGENT_ENGINE_ID,
+        reasoning_engine_id=AGENT_ENGINE_ID,
         input_data={"input": "hello from Airflow"},
         timeout=300,
     )
-    # [END how_to_cloud_vertex_ai_run_agent_query_operator]
+    # [END how_to_cloud_vertex_ai_run_reasoning_engine_query_operator]
 
     # [START how_to_cloud_vertex_ai_run_query_job_operator]
     run_query_job = RunQueryJobOperator(
@@ -271,7 +271,7 @@ with DAG(
         [create_bucket, build_agent_image]
         >> create_agent_engine
         >> get_agent_engine
-        >> run_agent_query
+        >> run_reasoning_engine_query
         >> run_query_job
         >> run_query_job_deferrable
         >> update_agent_engine
