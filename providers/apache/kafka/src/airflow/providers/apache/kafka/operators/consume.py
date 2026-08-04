@@ -126,68 +126,72 @@ class ConsumeFromTopicOperator(BaseOperator):
         self._validate_commit_cadence_before_execute()
         consumer = self.hook.get_consumer()
 
-        if isinstance(self.apply_function, str):
-            self.apply_function = import_string(self.apply_function)
+        try:
+            if isinstance(self.apply_function, str):
+                self.apply_function = import_string(self.apply_function)
 
-        if isinstance(self.apply_function_batch, str):
-            self.apply_function_batch = import_string(self.apply_function_batch)
+            if isinstance(self.apply_function_batch, str):
+                self.apply_function_batch = import_string(self.apply_function_batch)
 
-        if self.apply_function is not None and not callable(self.apply_function):
-            raise TypeError(f"apply_function is not a callable, got {type(self.apply_function)} instead.")
-
-        if self.apply_function:
-            apply_callable = partial(
-                self.apply_function,
-                *self.apply_function_args,
-                **self.apply_function_kwargs,
-            )
-
-        if self.apply_function_batch is not None and not callable(self.apply_function_batch):
-            raise TypeError(
-                f"apply_function_batch is not a callable, got {type(self.apply_function_batch)} instead."
-            )
-
-        if self.apply_function_batch:
-            apply_callable = partial(
-                self.apply_function_batch,
-                *self.apply_function_args,
-                **self.apply_function_kwargs,
-            )
-
-        messages_left = self.max_messages or True
-
-        while self.read_to_end or (
-            messages_left > 0
-        ):  # bool(True > 0) == True in the case where self.max_messages isn't set by the user
-            if not isinstance(messages_left, bool):
-                batch_size = self.max_batch_size if messages_left > self.max_batch_size else messages_left
-            else:
-                batch_size = self.max_batch_size
-
-            msgs = consumer.consume(num_messages=batch_size, timeout=self.poll_timeout)
-            if not self.read_to_end:
-                messages_left -= len(msgs)
-
-            if not msgs:  # No messages + messages_left is being used.
-                self.log.info("Reached end of log. Exiting.")
-                break
+            if self.apply_function is not None and not callable(self.apply_function):
+                raise TypeError(f"apply_function is not a callable, got {type(self.apply_function)} instead.")
 
             if self.apply_function:
-                for m in msgs:
-                    apply_callable(m)
+                apply_callable = partial(
+                    self.apply_function,
+                    *self.apply_function_args,
+                    **self.apply_function_kwargs,
+                )
+
+            if self.apply_function_batch is not None and not callable(self.apply_function_batch):
+                raise TypeError(
+                    f"apply_function_batch is not a callable, got {type(self.apply_function_batch)} instead."
+                )
 
             if self.apply_function_batch:
-                apply_callable(msgs)
+                apply_callable = partial(
+                    self.apply_function_batch,
+                    *self.apply_function_args,
+                    **self.apply_function_kwargs,
+                )
 
-            if self.commit_cadence == "end_of_batch":
+            messages_left = self.max_messages or True
+
+            while self.read_to_end or (
+                messages_left > 0
+            ):  # bool(True > 0) == True in the case where self.max_messages isn't set by the user
+                if not isinstance(messages_left, bool):
+                    batch_size = self.max_batch_size if messages_left > self.max_batch_size else messages_left
+                else:
+                    batch_size = self.max_batch_size
+
+                msgs = consumer.consume(num_messages=batch_size, timeout=self.poll_timeout)
+                if not self.read_to_end:
+                    messages_left -= len(msgs)
+
+                if not msgs:  # No messages + messages_left is being used.
+                    self.log.info("Reached end of log. Exiting.")
+                    break
+
+                if self.apply_function:
+                    for m in msgs:
+                        apply_callable(m)
+
+                if self.apply_function_batch:
+                    apply_callable(msgs)
+
+                if self.commit_cadence == "end_of_batch":
+                    self.log.info("committing offset at %s", self.commit_cadence)
+                    consumer.commit()
+
+            if self.commit_cadence != "never":
                 self.log.info("committing offset at %s", self.commit_cadence)
                 consumer.commit()
-
-        if self.commit_cadence != "never":
-            self.log.info("committing offset at %s", self.commit_cadence)
-            consumer.commit()
-
-        consumer.close()
+        finally:
+            try:
+                consumer.close()
+            except Exception:
+                self.log.warning("Failed to close Kafka consumer", exc_info=True)
 
         return
 

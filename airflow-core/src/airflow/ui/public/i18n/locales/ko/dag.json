@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "{{reference}} 기준 {{interval}} 이내에 완료되어야 합니다",
+    "completionRuleDynamic": "{{reference}}를 기준으로 측정된 가변 시간 간격 내에 완료되어야 합니다",
     "count_one": "데드라인 {{count}}건",
     "count_other": "데드라인 {{count}}건",
     "referenceType": {
@@ -143,13 +144,7 @@
       "label": "Dag 실행 수"
     },
     "dependencies": {
-      "label": "종속성",
-      "options": {
-        "allDagDependencies": "모든 Dag 종속성",
-        "externalConditions": "외부 조건",
-        "onlyTasks": "태스크만"
-      },
-      "placeholder": "종속성"
+      "allDagDependencies": "전체 Dag 의존성"
     },
     "graphDirection": {
       "label": "그래프 방향"

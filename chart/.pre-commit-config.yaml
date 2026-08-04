@@ -95,6 +95,13 @@ repos:
         pass_filenames: false
         files: ^kustomize-overlays/.*\.(yaml|yml)$|^kustomize-overlays/.*/STATUS$
         require_serial: true
+      - id: sort-helm-values-schema-file-type-field
+        name: Sort Helm Values Schema File (type field)
+        entry: ../scripts/ci/prek/sort_helm_values_schema_file_type_field.py
+        language: python
+        pass_filenames: false
+        files: ^values\.schema\.json$
+        require_serial: true
       - id: lint-json-schema
         name: Lint chart/values.schema.json
         entry: ../scripts/ci/prek/lint_json_schema.py
