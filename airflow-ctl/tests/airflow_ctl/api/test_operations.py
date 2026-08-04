@@ -273,8 +273,6 @@ class TestBaseOperations:
 
         assert [hello.name for hello in response.hellos] == ["c", "d", "e", "f"]
 
-        assert [hello.name for hello in response.hellos] == ["c", "d", "e", "f"]
-
     @pytest.mark.parametrize("limit", [0, -1])
     def test_execute_list_rejects_non_positive_limit(self, limit):
         mock_client = Mock()
