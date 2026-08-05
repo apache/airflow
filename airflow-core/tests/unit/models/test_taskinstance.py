@@ -4105,11 +4105,9 @@ class TestMappedTaskInstanceReceiveValue:
         session.flush()
 
         with assert_queries_count(5, margin=1):
-            new_tis = list(
-                dag_run._revise_map_indexes_if_mapped(
-                    mapped_tis[0],
-                    session=session,
-                )
+            new_tis, _ = dag_run._revise_map_indexes_if_mapped(
+                mapped_tis[0],
+                session=session,
             )
         # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
         assert sorted(ti.map_index for ti in new_tis) == [3, 4]
