@@ -3378,7 +3378,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
             .group_by(DagRun.state)
         )
-        counts = dict(session.execute(stmt).all())
+        counts: dict[DagRunState, int] = {}
+        for state, count in session.execute(stmt):
+            counts[state] = int(count)
         stats.gauge("scheduler.dagruns.running", float(counts.get(DagRunState.RUNNING, 0)))
         stats.gauge("scheduler.dagruns.queued", float(counts.get(DagRunState.QUEUED, 0)))
 
