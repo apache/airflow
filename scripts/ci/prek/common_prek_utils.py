@@ -588,19 +588,30 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
     return None
 
 
-def get_all_provider_ids(exclude_suspended_providers: bool = False) -> list[str]:
+def get_all_provider_ids(
+    exclude_suspended_providers: bool = False, exclude_not_ready_providers: bool = False
+) -> list[str]:
     """
     Get all providers from the new provider structure
+
+    :param exclude_suspended_providers: skip providers whose state is ``suspended``
+    :param exclude_not_ready_providers: skip providers whose state is ``not-ready`` - those have
+        never been published, so anything describing what is installable must leave them out
     """
     all_provider_ids = []
+    excluded_states = set()
+    if exclude_suspended_providers:
+        excluded_states.add("suspended")
+    if exclude_not_ready_providers:
+        excluded_states.add("not-ready")
     for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
         if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
             continue
-        if exclude_suspended_providers:
+        if excluded_states:
             import yaml
 
             provider_info = yaml.safe_load(provider_file.read_text())
-            if provider_info.get("state") == "suspended":
+            if provider_info.get("state") in excluded_states:
                 continue
         provider_id = get_provider_id_from_path(provider_file)
         if provider_id:
