@@ -60,7 +60,12 @@ from airflow.sdk.definitions.context import (
     get_parsing_context as get_parsing_context,
 )
 from airflow.sdk.definitions.dag import DAG as DAG, dag as dag
-from airflow.sdk.definitions.decorators import setup as setup, task as task, teardown as teardown
+from airflow.sdk.definitions.decorators import (
+    result as result,
+    setup as setup,
+    task as task,
+    teardown as teardown,
+)
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
 from airflow.sdk.definitions.param import Param as Param
@@ -105,8 +110,8 @@ from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
     AssetOrTimeSchedule,
-    PartitionAtRuntime,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.sdk.definitions.timetables.events import EventsTimetable
 from airflow.sdk.definitions.timetables.interval import (
@@ -172,7 +177,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
-    "PartitionAtRuntime",
+    "PartitionedAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",

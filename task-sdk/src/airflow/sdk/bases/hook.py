@@ -88,6 +88,23 @@ class BaseHook(LoggingMixin):
         connection = cls.get_connection(conn_id)
         return connection.get_hook(hook_params=hook_params)
 
+    @classmethod
+    async def aget_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return default hook for this connection id (async version).
+
+        Use this instead of :meth:`get_hook` when calling from an async context
+        (e.g. inside ``aexecute``).  Calling the sync :meth:`get_hook` from the
+        event loop thread blocks the loop and can cause a deadlock when another
+        coroutine is concurrently communicating with the supervisor.
+
+        :param conn_id: connection id
+        :param hook_params: hook parameters
+        :return: default hook for this connection
+        """
+        connection = await cls.aget_connection(conn_id)
+        return connection.get_hook(hook_params=hook_params)
+
     def get_conn(self) -> Any:
         """Return connection for the hook."""
         raise NotImplementedError()

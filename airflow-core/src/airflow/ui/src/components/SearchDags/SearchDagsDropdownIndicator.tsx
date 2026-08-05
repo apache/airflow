@@ -20,9 +20,9 @@ import { chakraComponents } from "chakra-react-select";
 import type { DropdownIndicatorProps } from "chakra-react-select";
 import { FiSearch } from "react-icons/fi";
 
-import type { Option } from "src/utils/option";
+import type { DagSearchOption } from "src/utils/option";
 
-export const DropdownIndicator: React.FC<DropdownIndicatorProps<Option, false>> = (props) => (
+export const DropdownIndicator: React.FC<DropdownIndicatorProps<DagSearchOption, false>> = (props) => (
   <chakraComponents.DropdownIndicator {...props}>
     <FiSearch />
   </chakraComponents.DropdownIndicator>

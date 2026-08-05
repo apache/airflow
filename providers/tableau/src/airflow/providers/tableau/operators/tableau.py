@@ -66,6 +66,13 @@ class TableauOperator(BaseOperator):
     :param blocking_refresh: By default will be blocking means it will wait until it has finished.
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
+    :param timeout: maximum total time in seconds to wait for a blocking refresh to finish before
+        giving up with a ``TimeoutError``. ``None`` (the default) waits indefinitely until the job
+        leaves the PENDING state.
+    :param exponential_backoff: when ``True`` the wait between status checks grows by 50% each
+        time, starting from ``check_interval``, instead of staying fixed.
+    :param max_check_interval: maximum interval in seconds between two consecutive status checks
+        when ``exponential_backoff`` is enabled. ``None`` leaves the growth uncapped.
     :param incremental_refresh: Whether to perform an incremental refresh instead of a full refresh.
         Only applies to datasource and workbook refresh operations. Defaults to False (full refresh).
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
@@ -87,6 +94,9 @@ class TableauOperator(BaseOperator):
         site_id: str | None = None,
         blocking_refresh: bool = True,
         check_interval: float = 20,
+        timeout: float | None = None,
+        exponential_backoff: bool = False,
+        max_check_interval: float | None = None,
         incremental_refresh: bool = False,
         tableau_conn_id: str = "tableau_default",
         **kwargs,
@@ -97,6 +107,9 @@ class TableauOperator(BaseOperator):
         self.find = find
         self.match_with = match_with
         self.check_interval = check_interval
+        self.timeout = timeout
+        self.exponential_backoff = exponential_backoff
+        self.max_check_interval = max_check_interval
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
         self.incremental_refresh = incremental_refresh
@@ -163,6 +176,9 @@ class TableauOperator(BaseOperator):
                         job_id=job_id,
                         check_interval=self.check_interval,
                         target_state=TableauJobFinishCode.SUCCESS,
+                        timeout=self.timeout,
+                        exponential_backoff=self.exponential_backoff,
+                        max_check_interval=self.max_check_interval,
                     ):
                         raise TableauJobFailedException(f"The Tableau Refresh {self.resource} Job failed!")
 

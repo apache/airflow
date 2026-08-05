@@ -147,3 +147,100 @@ class TestDynamoDBHook:
         hook = DynamoDBHook(aws_conn_id="aws_default")
         waiter = hook.get_waiter("import_table")
         assert waiter is not None
+
+    @mock_aws
+    def test_get_item_returns_item(self):
+        hook = DynamoDBHook(aws_conn_id="aws_default", region_name="us-east-1")
+        hook.get_conn().create_table(
+            TableName="test_get",
+            KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "pk", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+        )
+        hook.get_conn().Table("test_get").put_item(Item={"pk": "abc", "status": "pending"})
+
+        item = hook.get_item("test_get", {"pk": "abc"})
+        assert item == {"pk": "abc", "status": "pending"}
+
+    @mock_aws
+    def test_get_item_returns_none_when_missing(self):
+        hook = DynamoDBHook(aws_conn_id="aws_default", region_name="us-east-1")
+        hook.get_conn().create_table(
+            TableName="test_get_missing",
+            KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "pk", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+        )
+        assert hook.get_item("test_get_missing", {"pk": "does-not-exist"}) is None
+
+    @mock_aws
+    def test_put_item(self):
+        hook = DynamoDBHook(aws_conn_id="aws_default", region_name="us-east-1")
+        hook.get_conn().create_table(
+            TableName="test_put",
+            KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "pk", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+        )
+        hook.put_item("test_put", {"pk": "xyz", "value": "hello"})
+        item = hook.get_item("test_put", {"pk": "xyz"})
+        assert item == {"pk": "xyz", "value": "hello"}
+
+    @mock_aws
+    def test_update_item(self):
+        hook = DynamoDBHook(aws_conn_id="aws_default", region_name="us-east-1")
+        hook.get_conn().create_table(
+            TableName="test_update",
+            KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "pk", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+        )
+        hook.put_item("test_update", {"pk": "u1", "status": "pending"})
+        updated = hook.update_item(
+            table_name="test_update",
+            key={"pk": "u1"},
+            update_expression="SET #s = :s",
+            expression_attribute_values={":s": "approved"},
+            expression_attribute_names={"#s": "status"},
+        )
+        assert updated["status"] == "approved"
+
+    @mock_aws
+    def test_delete_item(self):
+        hook = DynamoDBHook(aws_conn_id="aws_default", region_name="us-east-1")
+        hook.get_conn().create_table(
+            TableName="test_delete",
+            KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "pk", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+        )
+        hook.put_item("test_delete", {"pk": "d1", "data": "some-value"})
+        deleted = hook.delete_item("test_delete", {"pk": "d1"})
+        assert deleted == {"pk": "d1", "data": "some-value"}
+        assert hook.get_item("test_delete", {"pk": "d1"}) is None
+
+    @mock_aws
+    def test_query(self):
+        from boto3.dynamodb.conditions import Key
+
+        hook = DynamoDBHook(aws_conn_id="aws_default", region_name="us-east-1")
+        hook.get_conn().create_table(
+            TableName="test_query",
+            KeySchema=[
+                {"AttributeName": "pk", "KeyType": "HASH"},
+                {"AttributeName": "sk", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "pk", "AttributeType": "S"},
+                {"AttributeName": "sk", "AttributeType": "S"},
+            ],
+            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+        )
+        table = hook.get_conn().Table("test_query")
+        table.put_item(Item={"pk": "p1", "sk": "2024-01", "val": "a"})
+        table.put_item(Item={"pk": "p1", "sk": "2024-02", "val": "b"})
+        table.put_item(Item={"pk": "p2", "sk": "2024-01", "val": "c"})
+
+        items = hook.query(table_name="test_query", key_condition_expression=Key("pk").eq("p1"))
+        assert len(items) == 2
+        assert all(i["pk"] == "p1" for i in items)

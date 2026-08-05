@@ -57,8 +57,13 @@ Multi-Node Cluster
 ==================
 
 Airflow uses :class:`~airflow.executors.local_executor.LocalExecutor` by default. For a multi-node setup,
-you should use the :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>` or
-the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
+choose a remote executor, or a multi-executor configuration, that matches where tasks should run.
+Common choices include the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`,
+the :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`,
+Amazon provider executors such as :doc:`Batch <apache-airflow-providers-amazon:executors/batch-executor>`
+or :doc:`ECS <apache-airflow-providers-amazon:executors/ecs-executor>`, and the
+:doc:`Edge executor <apache-airflow-providers-edge3:edge_executor>`. See the
+:ref:`executor comparison <executor-types-comparison>` for the current list and trade-offs.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains

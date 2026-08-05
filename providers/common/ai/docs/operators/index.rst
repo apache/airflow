@@ -62,7 +62,7 @@ via an ``output_type`` Pydantic model.
 
 **LLMFileAnalysisOperator / @task.llm_file_analysis** — stateless, single-turn file analysis.
 Use this when the prompt should reason over file contents or multimodal attachments already chosen
-by the DAG author. The operator resolves files via ``ObjectStoragePath`` and keeps the interaction
+by the Dag author. The operator resolves files via ``ObjectStoragePath`` and keeps the interaction
 read-only.
 
 **AgentOperator / @task.agent** — multi-turn tool-calling loop. The model decides which tools to

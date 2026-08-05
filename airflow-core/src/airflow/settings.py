@@ -241,8 +241,12 @@ def load_policy_plugins(pm: pluggy.PluginManager):
 
 
 def _get_async_conn_uri_from_sync(sync_uri):
-    AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
-    """Mapping of sync scheme to async scheme."""
+    # Mapping of backend to async driver:
+    AIO_LIBS_MAPPING = {
+        "sqlite": "aiosqlite",
+        "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
+        "mysql": "aiomysql",
+    }
 
     scheme, rest = sync_uri.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
@@ -520,15 +524,16 @@ def _is_sqlite_in_memory(url: str) -> bool:
 
 def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     """Prepare SQLAlchemy engine args."""
+    use_psycopg2_tuning = SQL_ALCHEMY_CONN.startswith("postgresql+psycopg2")
     DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
         "postgresql": (
             {
                 "insertmanyvalues_page_size": 10000,
             }
             | (
-                {}
-                if _USE_PSYCOPG3
-                else {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+                {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+                if use_psycopg2_tuning
+                else {}
             )
         )
     }

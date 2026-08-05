@@ -192,15 +192,12 @@ test.describe("Dags Search", () => {
 });
 
 test.describe("Dags Status Filtering", () => {
-  test("should display status filter buttons", async ({ dagsPage }) => {
+  test("should filter Dags by run state", async ({ dagsPage }) => {
     test.slow();
     await dagsPage.navigate();
     await dagsPage.waitForDagList();
 
-    await expect(dagsPage.successFilter).toBeVisible();
-    await expect(dagsPage.failedFilter).toBeVisible();
-    await expect(dagsPage.runningFilter).toBeVisible();
-    await expect(dagsPage.queuedFilter).toBeVisible();
+    await expect(dagsPage.lastRunStateFilter).toBeVisible();
 
     await dagsPage.filterByStatus("success");
     await dagsPage.waitForDagList();

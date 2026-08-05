@@ -287,7 +287,7 @@ class ExasolHook(DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple | None] | None: ...
 
     def run(
         self,
@@ -297,7 +297,7 @@ class ExasolHook(DbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple | None] | None:
         """
         Run a command or a list of commands.
 

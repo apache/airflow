@@ -74,7 +74,7 @@ internal object TaskRunner {
     return try {
       task.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
       TaskResult.success()
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
       e.printStackTrace()
       if (request.tiContext.shouldRetry) {

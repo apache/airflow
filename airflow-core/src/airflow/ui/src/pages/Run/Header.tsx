@@ -75,7 +75,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             ? []
             : [
                 {
-                  label: translate("dagRun.mappedPartitionKey"),
+                  label: translate("dagRun.partitionKey"),
                   value: dagRun.partition_key,
                 },
               ]),

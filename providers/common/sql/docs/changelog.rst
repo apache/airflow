@@ -25,6 +25,55 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SQLBulkLoadOperator to Common SQL Provider (#69362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLColumnCheckOperator crash on non-numeric column bounds (#70895)``
+* ``Fix SQL check tolerance for negative expected values (#69736)``
+* ``Fix SQL value checks for negative expected values (#69893)``
+
+Misc
+~~~~
+
+* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
+2.0.3
+.....
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Align hook run() annotations with None-able handler results (#69230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 2.0.1
 .....
 
@@ -765,7 +814,6 @@ Misc
 .. note::
   This release of provider is only available for Airflow 2.7+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
-
 
 
 Features

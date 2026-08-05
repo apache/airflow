@@ -38,6 +38,7 @@ class EventLogResponse(BaseModel):
     event: str
     logical_date: datetime | None
     owner: str | None
+    owner_display_name: str | None
     extra: str | None
     dag_display_name: str | None = Field(
         validation_alias=AliasPath("dag_model", "dag_display_name"), default=None

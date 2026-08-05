@@ -20,7 +20,7 @@ from __future__ import annotations
 import collections.abc
 import functools
 from collections import Counter
-from collections.abc import Iterator, KeysView, Mapping, Sequence
+from collections.abc import Iterator, KeysView, Mapping
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
@@ -31,16 +31,14 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
-    from airflow.typing_compat import Unpack
 
 
 class _UpstreamTIStates(NamedTuple):
@@ -152,7 +150,7 @@ class TriggerRuleDep(BaseTIDep):
 
             return get_mapped_ti_count(task, ti.run_id, session=session)
 
-        def _iter_expansion_dependencies(task_group: SerializedMappedTaskGroup | None) -> Iterator[str]:
+        def _iter_expansion_dependencies(task_group: SerializedTaskGroup | None) -> Iterator[str]:
             if is_mapped(task):
                 for op in task.iter_mapped_dependencies():
                     yield op.task_id
@@ -177,14 +175,22 @@ class TriggerRuleDep(BaseTIDep):
                 assert task.task_group
 
             # Only the not-yet-expanded summary ti (map_index < 0) needs the broad
-            # "depend on every upstream ti" behavior, so a fast-triggered rule
-            # (ONE_SUCCESS / ONE_FAILED / ONE_DONE) does not skip it before the
-            # mapped task group has expanded (see #34023). Once the ti is expanded,
-            # each instance must depend on the upstream instance(s) that share its
-            # map index, otherwise a single upstream failure would wrongly trigger
-            # every expanded instance (see #50210).
-            if is_mapped(task.task_group) and ti.map_index < 0:
-                is_fast_triggered = task.trigger_rule in (TR.ONE_SUCCESS, TR.ONE_FAILED, TR.ONE_DONE)
+            # "depend on every upstream ti" behavior, so a rule that can be satisfied
+            # by a subset of upstreams (ONE_SUCCESS / ONE_FAILED / ONE_DONE /
+            # NONE_FAILED_MIN_ONE_SUCCESS) does not skip it before the mapped task
+            # group has expanded (see #34023, #39801). Once the ti is expanded, each
+            # instance must depend on the upstream instance(s) that share its map
+            # index, otherwise a single upstream failure would wrongly trigger every
+            # expanded instance (see #50210). The task may be nested in plain task
+            # groups inside the mapped one (see #39801), so check the closest mapped
+            # ancestor rather than only the immediate parent group.
+            if ti.map_index < 0 and task.get_closest_mapped_task_group() is not None:
+                is_fast_triggered = task.trigger_rule in (
+                    TR.ONE_SUCCESS,
+                    TR.ONE_FAILED,
+                    TR.ONE_DONE,
+                    TR.NONE_FAILED_MIN_ONE_SUCCESS,
+                )
                 if is_fast_triggered and upstream_id not in set(
                     _iter_expansion_dependencies(task_group=task.task_group)
                 ):
@@ -382,13 +388,37 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-                task_id_counts: Sequence[Row[Unpack[tuple[str, int]]]] = session.execute(  # type: ignore[type-arg]
-                    select(TaskInstance.task_id, func.count(TaskInstance.task_id))
-                    .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                    .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
-                    .group_by(TaskInstance.task_id)
-                ).all()
+                # In the simple case, `_iter_upstream_conditions` emits exactly
+                # `task_id IN (upstream_task_ids)` (the matching `get_closest_mapped_task_group()
+                # is None` branch). That predicate, and therefore the resulting counts, are
+                # identical for every downstream that shares the same set of direct upstreams, so
+                # we memoize them on the DepContext and run the query once per pass instead of
+                # once per downstream. The mapped-task-group case uses per-ti map-index predicates
+                # and is left un-memoized. The cache lives for one scheduling pass, and
+                # DagRun._get_ready_tis invalidates it for both of the things that change a mapped
+                # task's instance count mid-pass: expanding an unexpanded task, and
+                # _revise_map_indexes_if_mapped growing an already-expanded one. State-only changes
+                # (a task finishing, instances marked REMOVED) leave the row count alone, so they
+                # need no invalidation.
+                cache_key: tuple[str, str, frozenset[str]] | None = None
+                task_id_counts: list[tuple[str, int]] | None = None
+                if task.get_closest_mapped_task_group() is None:
+                    cache_key = (ti.dag_id, ti.run_id, frozenset(upstream_tasks))
+                    task_id_counts = dep_context.upstream_task_id_counts.get(cache_key)
+                if task_id_counts is None:
+                    task_id_counts = [
+                        (task_id, count)
+                        for task_id, count in session.execute(
+                            select(TaskInstance.task_id, func.count(TaskInstance.task_id))
+                            .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                            .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
+                            .group_by(TaskInstance.task_id)
+                        )
+                    ]
+                    if cache_key is not None:
+                        dep_context.upstream_task_id_counts[cache_key] = task_id_counts
+                # `task_id_counts` only contains task_ids matched by `task_id IN (upstream_tasks)`,
+                # so every key is present in `upstream_tasks`; is_setup is re-derived locally.
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 

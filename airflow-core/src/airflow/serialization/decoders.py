@@ -42,9 +42,9 @@ from airflow.serialization.definitions.deadline import (
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     WaitPolicyNotSupported,
-    WindowNotSupported,
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
+    find_registered_custom_window,
     is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
     is_core_wait_policy_import_path,
@@ -90,9 +90,28 @@ def smart_decode_trigger_kwargs(d):
     """
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    if not isinstance(d, dict) or Encoding.TYPE not in d:
+    d = _normalize_stringified_encoding_keys(d)
+    if not isinstance(d, dict):
         return d
-    return BaseSerialization.deserialize(d)
+    if Encoding.TYPE in d and Encoding.VAR in d:
+        return BaseSerialization.deserialize(d)
+    return {k: smart_decode_trigger_kwargs(v) for k, v in d.items()}
+
+
+def _normalize_stringified_encoding_keys(value):
+    if isinstance(value, list):
+        return [_normalize_stringified_encoding_keys(v) for v in value]
+    if not isinstance(value, dict):
+        return value
+
+    if str(Encoding.TYPE) in value and str(Encoding.VAR) in value:
+        return {
+            Encoding.TYPE if k == str(Encoding.TYPE) else Encoding.VAR if k == str(Encoding.VAR) else k: (
+                _normalize_stringified_encoding_keys(v)
+            )
+            for k, v in value.items()
+        }
+    return {k: _normalize_stringified_encoding_keys(v) for k, v in value.items()}
 
 
 def _decode_asset(var: dict[str, Any]):
@@ -236,17 +255,18 @@ def decode_window(var: dict[str, Any]) -> Window:
     """
     Decode a previously serialized :class:`Window`.
 
-    Only built-in windows are accepted — a tampered serialized Dag naming a
-    non-core import path is rejected up-front instead of being handed to
+    Custom windows must be registered via the ``windows`` plugin attribute;
+    unregistered import paths are rejected up-front instead of being handed to
     ``import_string``. See :func:`encode_window` for the matching encode-side
     restriction.
 
     :meta private:
     """
     importable_string = var[Encoding.TYPE]
-    if not is_core_window_import_path(importable_string):
-        raise WindowNotSupported(importable_string)
-    window_cls: type[Window] = import_string(importable_string)
+    if is_core_window_import_path(importable_string):
+        window_cls: type[Window] = import_string(importable_string)
+    else:
+        window_cls = find_registered_custom_window(importable_string)
     return window_cls.deserialize(var[Encoding.VAR])
 
 

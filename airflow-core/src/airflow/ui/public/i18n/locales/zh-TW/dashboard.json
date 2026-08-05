@@ -1,4 +1,10 @@
 {
+  "alerts": {
+    "seeLessContext": "收起",
+    "seeMoreContext": "展開",
+    "showMoreAlerts_one": "+{{count}} 則警示",
+    "showMoreAlerts_other": "+{{count}} 則警示"
+  },
   "deadlines": {
     "pending": {
       "empty": "沒有即將到期的截止期限",
