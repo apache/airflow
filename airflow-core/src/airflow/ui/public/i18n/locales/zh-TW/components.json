@@ -130,7 +130,7 @@
   "triggerDag": {
     "button": "觸發",
     "dataInterval": "資料區間",
-    "dataIntervalAuto": "依邏輯日期與時間表推斷",
+    "dataIntervalAuto": "依邏輯日期與排程規則推斷",
     "dataIntervalManual": "手動指定",
     "intervalEnd": "結束",
     "intervalStart": "開始",
