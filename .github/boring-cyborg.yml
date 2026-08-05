@@ -264,6 +264,9 @@ labelPRBasedOnFilePath:
   provider:qdrant:
     - providers/qdrant/**
 
+  provider:ray:
+    - providers/ray/**
+
   provider:redis:
     - providers/redis/**
 
