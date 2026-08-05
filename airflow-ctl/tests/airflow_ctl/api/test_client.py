@@ -216,6 +216,25 @@ class TestCredentials:
         with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
             Credentials(client_kind=cli_client).save()
 
+    @pytest.mark.parametrize("client_kind", [ClientKind.AUTH, ClientKind.NO_AUTH, None])
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_NO_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_without_token_raises_for_non_cli_client_kinds(self, mock_keyring, client_kind):
+        mock_keyring.set_password.side_effect = TypeError("password must be a string")
+
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No API token found"):
+            Credentials(api_url="http://localhost:8080", client_kind=client_kind).save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_TYPE_ERROR"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_reraises_type_error_unrelated_to_missing_token(self, mock_keyring):
+        mock_keyring.set_password.side_effect = TypeError("keyring backend blew up")
+
+        with pytest.raises(TypeError, match="keyring backend blew up"):
+            Credentials(
+                api_url="http://localhost:8080", api_token="TEST_TOKEN", client_kind=ClientKind.CLI
+            ).save()
+
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_SKIP_KEYRING"})
     @patch("airflowctl.api.client.keyring")
     def test_save_no_keyring_backend_skip_keyring(self, mock_keyring):
