@@ -68,6 +68,10 @@ class TestPsrpOperator:
     def test_empty_option_counts_as_provided(self, kwargs):
         PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, **kwargs)
 
+    def test_cmdlet_task_id_default(self):
+        operator = PsrpOperator(cmdlet="Invoke-Foo", psrp_conn_id=CONNECTION_ID)
+        assert operator.task_id == "Invoke-Foo"
+
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
     def test_command_rendering_to_empty_dispatches_as_command(self, hook_impl):
         op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}")
@@ -148,14 +152,14 @@ class TestPsrpOperator:
         assert ps.mock_calls == expected_ps_calls
 
     def test_securestring_sandboxed(self):
-        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, cmdlet="test")
+        op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet="test")
         template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
         with pytest.raises(AirflowException):
             template.render()
 
     @patch.object(BaseOperator, "get_template_env")
     def test_securestring_native(self, get_template_env):
-        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, cmdlet="test")
+        op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet="test")
         get_template_env.return_value = NativeEnvironment()
         template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
         rendered = template.render()
