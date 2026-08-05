@@ -105,6 +105,11 @@ Prefer this over the local route below. The workflow needs no buildx / qemu setu
 does not depend on your upload bandwidth, it always covers every Python version, and it runs with the
 registry credentials the CI already has, so you do not need to be logged in to `ghcr.io` as a committer.
 
+A run you start by hand is not cancelled by merges landing while it works -- it uses a concurrency
+group of its own for that reason. Starting it again for the same branch does replace the run in
+flight. Push-triggered refreshes are never cancelled either; a newer one waits for the one in
+flight to finish.
+
 The workflow definition has to exist on the branch you select, so a release branch needs the workflow
 backported before it can be refreshed there.
 

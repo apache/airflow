@@ -19,13 +19,13 @@
 name: Refresh image registry cache
 # Refreshes the CI image cache in the GitHub registry, in a run of its own.
 #
-# It has to be its own workflow rather than a job inside `ci-amd.yml` / `ci-arm.yml`, because
-# those cancel in progress on the next push and a job cannot opt out of its run being cancelled.
-# A cache refresh is the one job that must not be cancelled: with no cache the branch builds cold
-# (~20 minutes per Python version), which widens the window in which the next push cancels the
-# run, which leaves the cache missing. `v3-3-test` sat in that loop -- its `linux/amd64` cache
-# covered the default Python version alone, the single matrix entry that finished before the next
-# push killed the other four seconds later.
+# It has to be its own workflow rather than a job inside `ci-amd.yml` / `ci-arm.yml`, because a
+# job cannot opt out of its run being cancelled, and those runs are cancelled by the next push.
+# With no cache a branch builds cold (~20 minutes per Python version), which widens the window in
+# which the next push cancels the run, which leaves the cache missing. `v3-3-test` sat in that
+# loop -- its `linux/amd64` cache covered the default Python version alone, the single matrix
+# entry that finished before the next push killed the other four seconds later. Being a separate
+# workflow is what lets a manual run escape that (see the concurrency group below).
 #
 # Every Python version is refreshed in both trigger paths. That is what makes the cache useful:
 # a version with no cache entry builds from scratch on every run, whichever way it got skipped.
@@ -51,8 +51,15 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 concurrency:
-  group: refresh-image-registry-cache-${{ github.ref }}
-  cancel-in-progress: false
+  # Push runs are never cancelled -- being cancelled by the next merge is the whole failure this
+  # workflow exists to escape, so a newer one queues behind the one in flight rather than
+  # replacing it. GitHub keeps at most one run pending per group, so the queue cannot grow.
+  #
+  # Manual runs are grouped separately, which is what keeps a merge from cancelling one, and they
+  # do supersede each other: firing the workflow again for the same branch says the run in flight
+  # is not the one you want.
+  group: refresh-image-registry-cache-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' }}
 jobs:
   build-info:
     name: "Build info"
