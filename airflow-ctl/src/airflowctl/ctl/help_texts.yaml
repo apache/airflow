@@ -19,7 +19,7 @@ assets:
   get: "Retrieve an asset by its ID"
   get-by-alias: "Retrieve an asset by its alias"
   list: "List all assets"
-  list-by-alias: "List all asset aliases"
+  list-aliases: "List all asset aliases"
   create-event: "Create an event for a given asset"
   materialize: "Trigger materialization of an asset by its ID"
   get-queued-events: "List queued events for a given asset"
