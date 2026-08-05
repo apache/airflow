@@ -877,6 +877,12 @@ class TestValueCheckOperator:
         with pytest.raises(AirflowException, match="Tolerance:100.0%"):
             operator.execute(context=MagicMock())
 
+    @pytest.mark.parametrize("record", [-110, -100, -90])
+    def test_negative_pass_value_with_tolerance(self, record):
+        operator = self._construct_operator("select value from tab1 limit 1;", -100, 0.1)
+
+        operator.check_value([record])
+
 
 class TestIntervalCheckOperator:
     def _construct_operator(self, table, metric_thresholds, ratio_formula, ignore_zero):
@@ -1685,6 +1691,66 @@ class TestSQLColumnCheckOperatorBuildCheckResults:
         assert r.expected == ">=1, <=100"
         assert r.params == {"geq_to": 1, "leq_to": 100, "accept_none": True}
 
+    @pytest.mark.parametrize(
+        ("check_values", "record", "tolerance", "expected"),
+        [
+            # Negative thresholds: tolerance widens the bound outward, so a record equal to
+            # the threshold passes.
+            ({"geq_to": -1000}, -1000, 0.1, True),
+            ({"geq_to": -1000}, -1100, 0.1, True),
+            ({"geq_to": -1000}, -1101, 0.1, False),
+            ({"greater_than": -1000}, -1050, 0.1, True),
+            ({"greater_than": -1000}, -1100, 0.1, False),  # strict: equal to the widened bound fails
+            ({"leq_to": -10}, -10, 0.1, True),
+            ({"less_than": -10}, -11, 0.1, True),
+            ({"equal_to": -100}, -100, 0.1, True),
+            ({"equal_to": -100}, -110, 0.1, True),
+            ({"equal_to": -100}, -111, 0.1, False),
+            ({"geq_to": -100, "leq_to": -50}, -75, 0.1, True),
+            # Positive thresholds keep their existing bounds.
+            ({"geq_to": 1000}, 900, 0.1, True),
+            ({"geq_to": 1000}, 899, 0.1, False),
+            ({"equal_to": 100}, 110, 0.1, True),
+            ({"equal_to": 100}, 111, 0.1, False),
+            # No tolerance: exact bounds.
+            ({"geq_to": 10}, 10, None, True),
+            ({"equal_to": 5}, 6, None, False),
+        ],
+    )
+    def test_get_match_tolerance_handles_negative_thresholds(self, check_values, record, tolerance, expected):
+        op = self._make_operator({"col": {"min": {"geq_to": 1}}})
+        assert op._get_match(check_values, record, tolerance) == expected
+
+    @pytest.mark.parametrize(
+        ("check_values", "record", "expected"),
+        [
+            ({"geq_to": "2020-01-01"}, "2021-06-30", True),
+            ({"geq_to": "2020-01-01"}, "2019-12-31", False),
+            ({"greater_than": "2020-01-01"}, "2020-01-01", False),
+            ({"leq_to": "2020-01-01"}, "2019-12-31", True),
+            ({"less_than": "2020-01-01"}, "2020-01-01", False),
+            ({"equal_to": "abc"}, "abc", True),
+            ({"equal_to": "abc"}, "abcd", False),
+            (
+                {"geq_to": datetime.date(2020, 1, 1), "leq_to": datetime.date(2020, 12, 31)},
+                datetime.date(2020, 6, 30),
+                True,
+            ),
+            (
+                {"geq_to": datetime.date(2020, 1, 1), "leq_to": datetime.date(2020, 12, 31)},
+                datetime.date(2021, 1, 1),
+                False,
+            ),
+        ],
+    )
+    def test_get_match_compares_non_numeric_bounds_without_tolerance(self, check_values, record, expected):
+        op = self._make_operator({"col": {"min": {"geq_to": 1}}})
+        assert op._get_match(check_values, record) == expected
+
+    def test_get_match_equal_to_fails_cleanly_on_none_record(self):
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0}}}, accept_none=False)
+        assert op._get_match({"equal_to": 0}, None) is False
+
     def test_multiple_checks_correct_names_and_order(self):
         op = self._make_operator(
             {
@@ -2044,6 +2110,16 @@ class TestSQLValueCheckOperatorBuildCheckResults:
         assert r.check_type == "accepted_range"
         assert r.expected == ">= 4.5, <= 5.5"
         assert r.params == {"pass_value": "5", "tolerance": 0.1}
+
+    def test_negative_numeric_tolerance_produces_accepted_range(self):
+        op = self._make_operator(pass_value=-100, tolerance=0.1)
+        results = op._build_check_results([-100])
+        assert len(results) == 1
+        r = results[0]
+        assert r.success is True
+        assert r.check_type == "accepted_range"
+        assert r.expected == ">= -110.0, <= -90.0"
+        assert r.params == {"pass_value": "-100", "tolerance": 0.1}
 
     def test_non_numeric_pass_value_is_accepted_values(self):
         op = self._make_operator(pass_value="hello")

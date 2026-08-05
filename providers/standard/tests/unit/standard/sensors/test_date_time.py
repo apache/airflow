@@ -157,3 +157,35 @@ class TestDateTimeSensor:
             dag=self.dag,
         )
         assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 1, 1, tz="UTC")
+
+    def test_start_trigger_args_are_not_shared_between_tasks(self):
+        """Each task must carry its own trigger arguments.
+
+        ``start_trigger_args`` is a class attribute, so assigning through it made every task
+        built from this operator advertise the moment of whichever was constructed last.
+        """
+        first = DateTimeSensorAsync(
+            task_id="first",
+            target_time="2030-01-01T00:00:00+00:00",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        second = DateTimeSensorAsync(
+            task_id="second",
+            target_time="2040-06-06T00:00:00+00:00",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+
+        assert first.start_trigger_args is not second.start_trigger_args
+        assert first.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
+            "2030-01-01T00:00:00+00:00"
+        )
+        assert second.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
+            "2040-06-06T00:00:00+00:00"
+        )
+        # the class level template must survive untouched for the next task built from it
+        assert DateTimeSensorAsync.start_trigger_args.trigger_kwargs == {
+            "moment": "",
+            "end_from_trigger": False,
+        }
