@@ -25,18 +25,23 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.In
+import org.apache.airflow.sdk.LiteralIn
 import org.apache.airflow.sdk.MissingXComException
+import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.ArgBinding
 
 /**
- * Resolves a task's data parameters from the arg bindings the supervisor
- * delivered, and decodes their raw wire values into the declared parameter
- * types. Public so that processor-generated task classes can call it; not
- * user-facing API.
+ * Resolves a task's data parameters and decodes their raw wire values into the
+ * declared parameter types. Public so that processor-generated task classes
+ * can call it; not user-facing API.
  *
- * The bindings come from the Python `@task.stub` call site, which is also the
- * graph the scheduler ordered the run by. Flat data parameters resolve the
- * binding at their position; input-bundle fields resolve bindings by name.
+ * Runtime arg bindings from the Python Dag file win over the Java-declared
+ * wiring: for a stub task the `@task.stub` call site is the graph the
+ * scheduler ordered the run by. Flat data parameters resolve the binding at
+ * their position; input-bundle fields resolve bindings by name. Only when the
+ * supervisor sent no bindings does resolution fall back to the inputs the
+ * `@Wiring` method recorded.
  */
 object ArgValues {
   private val mapper: ObjectMapper = JsonMapper.builder().build().findAndRegisterModules()
@@ -57,8 +62,8 @@ object ArgValues {
     type: Class<T>,
     paramName: String,
   ): T {
-    val binding = bindingAt(context, client, position)
-    return decode(client.resolveBinding(binding), type) ?: throw missing(binding, paramName)
+    val resolved = resolveAt(context, client, position)
+    return decode(resolved.value, type) ?: throw resolved.missing(paramName)
   }
 
   /**
@@ -74,7 +79,15 @@ object ArgValues {
     client: Client,
     position: Int,
     type: Class<T>,
-  ): T? = decode(client.resolveBinding(bindingAt(context, client, position)), type)
+  ): T? = decode(resolveAt(context, client, position).value, type)
+
+  /**
+   * Whether the supervisor delivered TaskFlow arg bindings for this run.
+   * Generated input-bundle code branches on this: bindings bind the bundle's
+   * fields by name, the wiring fallback decodes the bundle wholesale.
+   */
+  @JvmStatic
+  fun hasRuntimeBindings(client: Client): Boolean = client.argBindings.isNotEmpty()
 
   /**
    * Resolves the runtime binding named [name] into [type] for an input-bundle
@@ -117,18 +130,54 @@ object ArgValues {
     return decode(client.resolveBinding(binding), type)
   }
 
-  private fun bindingAt(
+  /** A resolved raw value plus the error to raise when it is null. */
+  private class Resolved(
+    val value: Any?,
+    val missing: (String) -> MissingXComException,
+  )
+
+  private fun resolveAt(
     context: Context,
     client: Client,
     position: Int,
-  ): ArgBinding {
+  ): Resolved {
     val bindings = client.argBindings
-    check(position < bindings.size) {
-      "Task '${context.ti.taskId}' declares a data parameter at position $position " +
-        "but the stub call bound only ${bindings.size} argument(s)"
+    if (bindings.isNotEmpty()) {
+      check(position < bindings.size) {
+        "Task '${context.ti.taskId}' declares a data parameter at position $position " +
+          "but the stub call bound only ${bindings.size} argument(s)"
+      }
+      val binding = bindings[position]
+      return Resolved(client.resolveBinding(binding)) { missing(binding, it) }
     }
-    return bindings[position]
+    val input = inputAt(context, position)
+    return Resolved(resolveInput(input, client)) { missing(input, it) }
   }
+
+  private fun inputAt(
+    context: Context,
+    position: Int,
+  ): In<*> {
+    val inputs =
+      checkNotNull(context.taskDef?.inputs) {
+        "Task '${context.ti.taskId}' declares data parameters but has no wired inputs; " +
+          "register it through a @Wiring method"
+      }
+    check(position < inputs.size) {
+      "Task '${context.ti.taskId}' declares a data parameter at position $position " +
+        "but only ${inputs.size} input(s) are wired"
+    }
+    return inputs[position]
+  }
+
+  private fun resolveInput(
+    input: In<*>,
+    client: Client,
+  ): Any? =
+    when (input) {
+      is TaskRef<*> -> client.getXCom(taskId = input.def.id)
+      is LiteralIn<*> -> input.value
+    }
 
   private fun missing(
     binding: ArgBinding,
@@ -142,6 +191,19 @@ object ArgValues {
           "'$target' has a primitive type but the stub call bound a null literal" +
             (argName?.let { " for argument '$it'" } ?: "") +
             "; declare a boxed type (e.g. Integer instead of int) to receive null.",
+        )
+    }
+
+  private fun missing(
+    input: In<*>,
+    target: String,
+  ): MissingXComException =
+    when (input) {
+      is TaskRef<*> -> MissingXComException(input.def.id, target)
+      is LiteralIn<*> ->
+        MissingXComException(
+          "'$target' has a primitive type but its wired literal input is null; " +
+            "declare a boxed type (e.g. Integer instead of int) to receive null.",
         )
     }
 

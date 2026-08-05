@@ -32,6 +32,7 @@ bind core interfaces and apply to every language SDK, not just the Java SDK.
 - [ADR-0004](0004-dag-parsing.md): language-specific Dag file processing.
 - [ADR-0005](0005-coordinator-packaging.md): coordinator packaging, module layout, and registration.
 - [ADR-0006](0006-no-lang-sdk-source-display.md): no Lang-SDK source display for mixed-language (`@task.stub`) Dags.
+- [ADR-0007](0007-taskflow-dag-dsl.md): TaskFlow-style Dag DSL for native Java Dags.
 
 Decisions specific to a single SDK stay next to that SDK — for example, the Go SDK's bundle-format
 decisions live in [`go-sdk/adr/`](../../../go-sdk/adr).

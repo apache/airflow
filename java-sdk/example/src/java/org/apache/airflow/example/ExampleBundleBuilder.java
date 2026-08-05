@@ -30,7 +30,9 @@ public class ExampleBundleBuilder implements BundleBuilder {
     return List.of(
         InterfaceExampleBuilder.build(),
         AnnotationExampleBuilder.build(),
-        XComCastingExampleBuilder.build());
+        XComCastingExampleBuilder.build(),
+        org.apache.airflow.example.nativedag.AnnotationExampleBuilder.build(),
+        org.apache.airflow.example.nativedag.InterfaceExample.build());
   }
 
   public static void main(String[] args) {

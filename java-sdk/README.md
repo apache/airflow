@@ -649,9 +649,13 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
   not the implementation language.
 - Keep `sdk/src/main/kotlin/` (the public API surface) free of internal
   implementation details; those belong in the `execution/` sub-package.
-- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. When adding a
-  new annotation, define it in `Builder.kt`, handle it in
-  `BuilderProcessor.kt`, and add a golden-output test in
+- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
+  class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
+  from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
+  `sdk/schema/dag-schema.json`); `@Wiring` and the `In`/`TaskRef` wiring types
+  are hand-written next to the rest of the public surface in
+  `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
   the JVM process from Python beyond what `_build_execute_task_command`
@@ -673,9 +677,14 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 5. Update `airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst`
    if the change is user-visible.
 
-**Adding a new annotation**:
+**Adding a new annotation or configuration attribute**:
 
-1. Define the annotation interface in `Builder.kt`.
+1. Hand-written annotations live in `sdk/src/main/kotlin/org/apache/airflow/sdk/`
+   next to the runtime types (one package, so user code needs a single
+   `import org.apache.airflow.sdk.*`); the configuration attributes of
+   `@Builder.Dag` / `@Builder.Task` come from the Dag serialization schema via
+   `:sdk:generateDagDsl` (adjust its allowlist/exclusion rules in
+   `sdk/build.gradle.kts` when the exposed field set should change).
 2. Handle it in `BuilderProcessor.kt` — generate the appropriate code in the
    `*Builder` class.
 3. Add a test in `BuilderTest.kt` with expected generated output.
