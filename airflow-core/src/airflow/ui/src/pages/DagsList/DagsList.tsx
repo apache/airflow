@@ -221,6 +221,7 @@ const {
   OWNERS,
   PAUSED,
   TEAMS,
+  TIMETABLE_TYPE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
@@ -259,6 +260,7 @@ export const DagsList = () => {
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
   const teams = searchParams.getAll(TEAMS);
+  const timetableType = searchParams.getAll(TIMETABLE_TYPE).filter((value) => value !== "");
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -323,6 +325,7 @@ export const DagsList = () => {
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,
+    timetableType: timetableType.length > 0 ? timetableType : undefined,
   });
 
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({

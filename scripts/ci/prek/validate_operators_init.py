@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import ast
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -179,7 +180,7 @@ def _handle_constructor_statement(
     if isinstance(ctor_stmt, ast.Assign):
         if isinstance(ctor_stmt.targets[0], ast.Attribute):
             for target in ctor_stmt.targets:
-                if isinstance(target, ast.Attribute) and target.attr in template_fields:
+                if isinstance(target, ast.Attribute) and _target_name(target) in template_fields:
                     if isinstance(ctor_stmt.value, ast.IfExp) and _is_value_preserving_ternary(
                         ctor_stmt.value, target.attr
                     ):
@@ -196,10 +197,10 @@ def _handle_constructor_statement(
                         )
         elif isinstance(ctor_stmt.targets[0], ast.Tuple) and isinstance(ctor_stmt.value, ast.Tuple):
             for target, value in zip(ctor_stmt.targets[0].elts, ctor_stmt.value.elts):
-                if isinstance(target, ast.Attribute):
+                if isinstance(target, ast.Attribute) and _target_name(target) in template_fields:
                     _handle_assigned_field(assigned_template_fields, invalid_assignments, target, value)
     elif isinstance(ctor_stmt, ast.AnnAssign):
-        if isinstance(ctor_stmt.target, ast.Attribute) and ctor_stmt.target.attr in template_fields:
+        if isinstance(ctor_stmt.target, ast.Attribute) and _target_name(ctor_stmt.target) in template_fields:
             _handle_assigned_field(
                 assigned_template_fields, invalid_assignments, ctor_stmt.target, ctor_stmt.value
             )
@@ -225,11 +226,11 @@ def _handle_assigned_field(
 
 def _target_name(target: ast.expr) -> str | None:
     """
-    Resolve an assignment target to the field name it binds.
+    Resolve an assignment target — or a comparison operand — to the field name it refers to.
 
-    :param target: The assignment target node.
-    :return: The attribute name for ``self.<name>`` targets, the identifier for bare-name
-        targets, or None for anything else.
+    :param target: The node to resolve.
+    :return: The attribute name for ``self.<name>`` nodes, the identifier for bare names,
+        or None for anything else.
     """
     if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "self":
         return target.attr
@@ -254,6 +255,22 @@ def _is_super_init_call(node: ast.Call) -> bool:
     )
 
 
+def _is_none_check(node: ast.expr) -> bool:
+    """
+    Check whether an expression is an ``x is None`` / ``x is not None`` comparison.
+
+    :param node: The expression node to check.
+    :return: True if the node compares a single operand against the ``None`` literal by identity.
+    """
+    return (
+        isinstance(node, ast.Compare)
+        and len(node.ops) == 1
+        and isinstance(node.ops[0], (ast.Is, ast.IsNot))
+        and isinstance(node.comparators[0], ast.Constant)
+        and node.comparators[0].value is None
+    )
+
+
 def _is_value_preserving_ternary(value: ast.IfExp, field: str) -> bool:
     """
     Check whether a ternary keeps the field value intact when it is set.
@@ -274,11 +291,7 @@ def _is_value_preserving_ternary(value: ast.IfExp, field: str) -> bool:
         isinstance(test, ast.Compare)
         and isinstance(test.left, ast.Name)
         and test.left.id == field
-        and len(test.ops) == 1
-        and isinstance(test.ops[0], (ast.Is, ast.IsNot))
-        and len(test.comparators) == 1
-        and isinstance(test.comparators[0], ast.Constant)
-        and test.comparators[0].value is None
+        and _is_none_check(test)
     )
 
 
@@ -289,12 +302,13 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
     Sanctioned patterns are the ones the project documents as safe in a constructor:
     ``self.field = field``, ``self.field = field or <default>``, the equivalent
     value-preserving ternaries, the local rebind ``field = field or <default>``,
-    tuple assignments pairing names one-to-one, and forwarding via
-    ``super().__init__(field=field)``.
+    tuple assignments pairing names one-to-one, forwarding via
+    ``super().__init__(field=field)``, and ``field is None`` / ``field is not None``
+    provision checks.
 
     :param ctor: The constructor function node.
     :param template_fields: The template fields of the class.
-    :return: Set of ``id()``s of Name nodes participating in sanctioned patterns.
+    :return: Set of ``id()``s of nodes participating in sanctioned patterns.
     """
     sanctioned: set[int] = set()
 
@@ -325,6 +339,9 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
             for keyword in node.keywords:
                 if keyword.arg is not None and keyword.arg in template_fields:
                     mark(keyword.value, keyword.arg)
+        elif isinstance(node, ast.Compare) and _is_none_check(node):
+            # Reads whether the argument was passed, not its value — only __init__ can see that.
+            sanctioned.add(id(node.left))
     return sanctioned
 
 
@@ -375,14 +392,20 @@ def _check_constructor_field_logic(
             if node.id in template_fields and node.id in bound_names and id(node) not in sanctioned:
                 findings.setdefault(node.lineno, set()).add(node.id)
         elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
-            if isinstance(node.value, ast.Name) and node.value.id == "self" and node.attr in template_fields:
+            if (
+                isinstance(node.value, ast.Name)
+                and node.value.id == "self"
+                and node.attr in template_fields
+                and id(node) not in sanctioned
+            ):
                 findings.setdefault(node.lineno, set()).add(f"self.{node.attr}")
 
     if findings:
         console.print(
             f"{class_node.name}'s constructor applies logic to template fields. Template fields "
             f"are rendered after the constructor runs, so validation or transformation here acts "
-            f"on the un-rendered Jinja expression and should move to execute():"
+            f"on the un-rendered Jinja expression and should move to execute() "
+            f"(see contributing-docs/05_pull_requests.rst):"
         )
         for lineno in sorted(findings):
             source = source_lines[lineno - 1].strip() if lineno <= len(source_lines) else ""
@@ -392,11 +415,31 @@ def _check_constructor_field_logic(
     return len(findings)
 
 
+def _iter_nested_statements(node: ast.AST) -> Iterator[ast.stmt]:
+    """
+    Yield the statements nested inside ``node``, excluding ``node`` itself.
+
+    Nested scopes are skipped: ``self.<field> = ...`` in a function or class defined in the
+    constructor either belongs to another object or runs after rendering.
+
+    :param node: The node to descend into.
+    :return: Iterator over the nested statements.
+    """
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, ast.stmt):
+            yield child
+        yield from _iter_nested_statements(child)
+
+
 def _check_constructor_template_fields(class_node: ast.ClassDef, template_fields: list[str]) -> int:
     """
     This method checks a class's constructor for missing or invalid assignments of template fields.
     When there isn't a constructor - it assumes that the template fields are defined in the parent's
     constructor correctly.
+    Nested statements can only add invalid assignments: a branch may not run, so it cannot satisfy
+    the requirement that the field be assigned.
     TODO: Enhance this function to work with nested inheritance trees through dynamic imports.
 
     :param class_node: the AST node representing the class definition
@@ -418,6 +461,9 @@ def _check_constructor_template_fields(class_node: ast.ClassDef, template_fields
                 missing_assignments = _handle_constructor_statement(
                     template_fields, ctor_stmt, missing_assignments, invalid_assignments
                 )
+                for nested_stmt in _iter_nested_statements(ctor_stmt):
+                    _handle_parent_constructor_kwargs(template_fields, nested_stmt, [], invalid_assignments)
+                    _handle_constructor_statement(template_fields, nested_stmt, [], invalid_assignments)
 
     if init_flag and missing_assignments:
         count += len(missing_assignments)
@@ -428,6 +474,7 @@ def _check_constructor_template_fields(class_node: ast.ClassDef, template_fields
         )
         console.print(f"[red]{missing_assignments}[/red]")
 
+    invalid_assignments = sorted(set(invalid_assignments))
     if invalid_assignments:
         count += len(invalid_assignments)
         console.print(

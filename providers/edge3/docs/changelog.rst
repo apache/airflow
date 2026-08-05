@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add queue parameter to edge list-workers subcommand (#70436)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Edge3: Exit non-zero when worker admin CLI commands fail (#70112)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 3 updates (#70848)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 31 updates (#70616)``
+* ``Add team_name tagging to multi team dag metrics (#69943)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix operators declaring template_fields/template_ext as bare strings (#70916)``
+
 4.2.0
 .....
 

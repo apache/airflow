@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+1.15.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Kafka consumer not being closed on error in ConsumeFromTopicOperator (#69641)``
+* ``Fix AwaitMessageTrigger crash on tombstone messages when apply_function is unset (#69665)``
+* ``Fix KafkaBaseHook.test_connection missing oauth_cb for managed Kafka (#69507)``
+* ``Fix AwaitMessageTriggerFunctionSensor not honoring timeout (#69639)``
+* ``Validate ProduceToTopicOperator topic after rendering (#70333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.15.0
 ......
 
