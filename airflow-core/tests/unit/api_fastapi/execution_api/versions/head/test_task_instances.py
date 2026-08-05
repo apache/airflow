@@ -1268,6 +1268,75 @@ class TestTIRunState:
         mock_stats.timing.assert_called_once()
         assert mock_stats.timing.call_args.kwargs["tags"]["team_name"] == team_name
 
+    def test_ti_run_emits_no_queued_duration_for_start_from_trigger(
+        self, client, session, dag_maker, time_machine
+    ):
+        """A start_from_trigger operator is deferred straight from SCHEDULED, so the resume that the
+        next_method guard skips is its only trip through the queue and nothing is ever measured.
+        """
+        from airflow.sdk import BaseOperator
+        from airflow.triggers.base import StartTriggerArgs
+
+        class StartFromTriggerOperator(BaseOperator):
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                trigger_kwargs={},
+                next_method="execute_complete",
+                timeout=None,
+            )
+            start_from_trigger = True
+
+            def execute_complete(self):
+                pass
+
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(queued_at, tick=False)
+
+        with dag_maker(dag_id=str(uuid4()), session=session):
+            StartFromTriggerOperator(task_id="task")
+        dr = dag_maker.create_dagrun(run_id="test", logical_date=queued_at, state=DagRunState.RUNNING)
+
+        ti = dr.get_task_instance(task_id="task")
+        ti.task = dr.dag.get_task("task")
+        assert dr.schedule_tis((ti,), session=session) == 0
+        session.merge(ti)
+        session.commit()
+
+        # Read the row back rather than the in-memory TI: what ti_run sees is the persisted state,
+        # and the point of this test is that the deferral lands without the TI ever being queued.
+        state, next_method, queued_dttm = session.execute(
+            select(TaskInstance.state, TaskInstance.next_method, TaskInstance.queued_dttm).where(
+                TaskInstance.id == ti.id
+            )
+        ).one()
+        assert (state, next_method, queued_dttm) == (TaskInstanceState.DEFERRED, "execute_complete", None)
+
+        # The trigger fires and the scheduler queues it -- the first and only real queue wait.
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=State.QUEUED, queued_dttm=queued_at, queue="default")
+        )
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        assert mock_stats.timing.call_args_list == []
+
 
 class TestTIUpdateState:
     def setup_method(self):
