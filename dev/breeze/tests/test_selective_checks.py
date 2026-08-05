@@ -2697,29 +2697,12 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, gith
 
 
 # The image cache is pushed for `python-versions`, so a narrowed list leaves the remaining
-# versions with no cache at all and they build cold on every run. The two tests below pin the
-# two paths that refresh it: the canary in `additional-ci-image-checks.yml` and the standalone
-# `refresh-image-cache.yml`.
-
-
-@pytest.mark.parametrize(
-    "github_event",
-    [GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH],
-)
-def test_all_python_versions_on_scheduled_canary(github_event):
-    """Only a `push` may narrow to the default version on a text-only change; the canary may not."""
-    stderr = SelectiveChecks(
-        files=("INTHEWILD.md",),
-        commit_ref=NEUTRAL_COMMIT,
-        github_event=github_event,
-        pr_labels=(),
-        default_branch="main",
-    )
-    assert_outputs_are_printed({"python-versions": CURRENT_PYTHON_VERSIONS_AS_LIST}, str(stderr))
+# versions with no cache and they build from scratch on every run. `refresh-image-registry-cache.yml`
+# forces the label below for exactly that reason; this pins the behaviour it relies on.
 
 
 def test_all_python_versions_with_all_versions_label():
-    """`refresh-image-cache.yml` forces this label, on the event that would otherwise narrow."""
+    """Set on the event that would otherwise narrow: a text-only push."""
     stderr = SelectiveChecks(
         files=("INTHEWILD.md",),
         commit_ref=NEUTRAL_COMMIT,
