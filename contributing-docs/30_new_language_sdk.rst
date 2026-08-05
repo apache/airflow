@@ -491,6 +491,46 @@ native Dags they are *not applicable* (``n/a``) rather than unsupported.
     The SDK exposes an object-storage API (an ``ObjectStoragePath`` equivalent) usable from
     native Dag code.
 
+Compatibility matrix
+~~~~~~~~~~~~~~~~~~~~~~
+
+The dimensions above are prose; each SDK also declares them *machine-readably* so its
+documentation can state what it actually supports without anyone hand-editing a table.
+An SDK owns one hand-authored capability constant in its own source tree, and prek hooks
+propagate it outwards — nothing downstream is edited by hand:
+
+.. code-block:: text
+
+    conformance.Capabilities            <- the only file you edit
+    (java-sdk/.../conformance/Capabilities.kt)
+      |
+      |  generate: ./gradlew :sdk:dumpCapabilities
+      |  hook: check-java-sdk-capabilities-in-sync
+      v
+    java-sdk/generated/lang-sdk/capabilities.json
+      |
+      |  render: scripts/ci/prek/lang_sdk_compat_matrix.py
+      |  hook: update-java-sdk-readme-matrix
+      |
+      +--> java-sdk/README.md            (contributor-facing)
+      |
+      +--> java-sdk/sdk/module.md        (Dokka module doc -> the published API reference)
+      |
+      +--> airflow-core/docs/authoring-and-scheduling/language-sdks/index.rst
+           (consolidated cross-SDK matrix — TODO, not generated yet)
+
+Both hooks are *regenerating* checks: they rewrite the target and exit non-zero when it was
+stale, so a drifted table fails the build and the fix is to re-stage the regenerated file.
+``check-java-sdk-capabilities-in-sync`` needs a JDK and skips locally when one is missing, so
+it is only truly gated in CI.
+
+When you add a Language SDK, register it in ``LANG_SDKS`` in
+``scripts/ci/prek/lang_sdk_compat_matrix.py``, have your build emit the same
+``capabilities.json`` schema, and add the equivalent pair of hooks for your SDK. Adding or
+renaming a dimension means editing ``STATE_DIMENSIONS`` / ``CAPABILITY_DIMENSIONS`` there **and**
+the prose above in the same PR — the renderer validates every manifest against that list, so the
+two cannot drift silently.
+
 
 Testing
 -------

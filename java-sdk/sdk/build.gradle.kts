@@ -217,6 +217,13 @@ val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
     schemaFile = schemaInput
 }
 
+tasks.register<JavaExec>("dumpCapabilities") {
+    group = "airflow"
+    description = "Print the Java SDK capability manifest (conformance.Capabilities) as JSON."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("org.apache.airflow.sdk.conformance.CapabilitiesKt")
+}
+
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
     dependsOn(syncSupervisorSchema)
     description = "Generate Discriminator to wire type strings to model classes"
@@ -265,7 +272,15 @@ sourceSets {
 
 dokka {
     moduleVersion.set(project.version.toString())
+    pluginsConfiguration.html {
+        // Widens the narrow compatibility-matrix columns; see the comments in the file.
+        customStyleSheets.from(layout.projectDirectory.file("dokka/matrix.css"))
+    }
     dokkaSourceSets.configureEach {
+        // Module-level documentation, including the generated Language SDK compatibility matrix.
+        // Dokka rejects the file unless "# Module sdk" is its very first line, so module.md carries
+        // the ASF license header just below the heading instead of above it.
+        includes.from("module.md")
         // Suppress everything in 'execution' since it's implementation detail.
         perPackageOption {
             matchingRegex = """org\.apache\.airflow\.sdk\.execution.*"""
