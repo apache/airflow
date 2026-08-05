@@ -532,9 +532,9 @@ def _fail_unresumable_task_instance(
     task_instance: TaskInstance, reason: str, exc: BaseException, *, session: Session
 ) -> None:
     """
-    Route through ``__fail__`` (mirrors `Trigger.submit_failure`) so a worker fails the
-    task normally instead of leaving it stranded with no event left to resume it.
+    Route through ``__fail__`` so a worker fails the task normally instead of stranding it.
 
+    Mirrors ``Trigger.submit_failure``: without this the task is left with no event to resume it.
     Traceback goes into ``next_kwargs`` as a list -- the only channel reaching the task log --
     since ``format_exception`` returns it that way and the runtime joins it.
     """
