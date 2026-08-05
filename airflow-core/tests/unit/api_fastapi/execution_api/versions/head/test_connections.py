@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
+import sys
 from unittest import mock
 
 import pytest
 from fastapi import FastAPI, HTTPException, status
 
 from airflow.models.connection import Connection
+from airflow.process_context import override_process_context
 
 pytestmark = pytest.mark.db_test
 
@@ -96,6 +98,38 @@ class TestGetConnection:
         assert response.status_code == 200
         assert response.json() == {
             "conn_id": "test_conn2",
+            "conn_type": "http",
+            "host": "localhost",
+            "login": "root",
+            "password": "admin",
+            "schema": "https",
+            "port": 8080,
+            "extra": '{"headers": "header"}',
+        }
+
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "AIRFLOW_CONN_TEST_CONN_SERVER": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}',
+        },
+    )
+    @mock.patch.dict(
+        sys.modules,
+        {"airflow.sdk.execution_time.task_runner": mock.Mock(spec=["SUPERVISOR_COMMS"])},
+    )
+    @mock.patch(
+        "airflow.sdk.Connection.get",
+        side_effect=AssertionError(
+            "Execution API should not route through Task SDK Connection.get in server context"
+        ),
+    )
+    def test_connection_get_uses_server_path_when_supervisor_comms_exists(self, mock_sdk_get, client):
+        with override_process_context("server"):
+            response = client.get("/execution/connections/test_conn_server")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "conn_id": "test_conn_server",
             "conn_type": "http",
             "host": "localhost",
             "login": "root",
