@@ -235,6 +235,10 @@ class TestAzureKeyVaultBackend:
         assert backend.get_variable("prod__hello") == "world"
         assert backend.get_config("prod--sql_alchemy_conn") == "world"
 
+        mock_client.get_secret.assert_any_call(name="airflow-connections-prod--my-db")
+        mock_client.get_secret.assert_any_call(name="airflow-variables-prod--hello")
+        mock_client.get_secret.assert_any_call(name="airflow-config-prod--sql-alchemy-conn")
+
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):
         """
