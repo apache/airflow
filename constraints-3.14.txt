@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-05T06:40:46.185298
+# This constraints file was automatically generated on 2026-08-05T12:11:46.410162
 # via `uv pip install --resolution highest` for the "v3-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -64,7 +64,7 @@ a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2026.5.0
 aenum==3.1.17
-aiobotocore==3.8.0
+aiobotocore==3.9.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.7.1
 aiohttp-cors==0.8.1
@@ -242,8 +242,8 @@ bitarray==3.10.0
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
-boto3==1.43.46
-botocore==1.43.46
+boto3==1.43.56
+botocore==1.43.56
 cachelib==0.15.0
 cachetools==7.1.6
 cadwyn==7.0.0
@@ -312,7 +312,7 @@ gcloud-aio-auth==5.5.0
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.7.0
-genai-prices==0.1.0
+genai-prices==0.1.1
 gevent==26.7.0
 gitdb==4.0.12
 google-ads==31.2.0

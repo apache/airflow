@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-05T06:36:39.213492
+# This constraints file was automatically generated on 2026-08-05T12:08:51.449865
 # via `uv sync --resolution highest for the "v3-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -727,7 +727,7 @@ types-certifi==2021.10.8.3
 types-cffi==2.0.0.20260518
 types-croniter==6.2.4.20260711
 types-docutils==0.22.3.20260724
-types-paramiko==3.5.0.20250801
+types-paramiko==5.0.0.20260724
 types-protobuf==7.34.1.20260518
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20260716
