@@ -161,9 +161,9 @@ class TriggerDagRunOperator(ResumableJobMixin, BaseOperator):
         Airflow 3.x this requires Airflow 3.2.0+ (it relies on the task-SDK DAG state endpoint added then);
         on Airflow 3.0/3.1 setting this raises ``NotImplementedError``.
     :param deferrable: If waiting for completion, whether to defer the task until done, default is ``False``.
-    :param durable: On Airflow 3.3+ with a synchronous ``wait_for_completion`` (non-deferrable), persist the
+    :param durable: On Airflow 3.4+ with a synchronous ``wait_for_completion`` (non-deferrable), persist the
         triggered run id before polling so a worker crash mid-wait reconnects to the in-flight run on retry
-        instead of triggering a duplicate. No effect on Airflow < 3.3 or with ``deferrable=True``.
+        instead of triggering a duplicate. No effect on Airflow < 3.4 or with ``deferrable=True``.
         Default ``False``.
     :param openlineage_inject_parent_info: whether to include OpenLineage metadata about the parent task
         in the triggered DAG run's conf, enabling improved lineage tracking. The metadata is only injected
@@ -328,7 +328,7 @@ class TriggerDagRunOperator(ResumableJobMixin, BaseOperator):
                 context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
             )
 
-    # ResumableJobMixin hooks — drive the synchronous Airflow 3.3+ path through the execution-API
+    # ResumableJobMixin hooks — drive the synchronous Airflow 3.4+ path through the execution-API
     # accessors so the operator owns its execution instead of the task runner.
 
     def submit_job(self, context: Context) -> Any:

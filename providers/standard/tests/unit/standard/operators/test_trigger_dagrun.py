@@ -1422,7 +1422,7 @@ class _FakeTaskStateStore:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
 class TestTriggerDagRunOperatorOwnedExecution:
-    """Airflow 3.3+: the operator owns synchronous execution via the execution-API accessors."""
+    """Airflow 3.4+: the operator owns synchronous execution via the execution-API accessors."""
 
     @staticmethod
     def _ti(*, created: bool = True, states=None):

@@ -5400,11 +5400,11 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
-    # Force the < 3.3 task-runner path: the original-error guard below is specific to
+    # Force the < 3.4 task-runner path: the original-error guard below is specific to
     # ``_handle_trigger_dag_run`` raising inside ``run()``'s ``except`` block. On Airflow
-    # 3.3+ the operator owns execution and the send error is handled normally (covered by
+    # 3.4+ the operator owns execution and the send error is handled normally (covered by
     # test_trigger_dagrun.py), so there is no unbound-``state`` hazard to guard there.
-    @mock.patch("airflow.providers.standard.operators.trigger_dagrun.AIRFLOW_V_3_3_PLUS", False)
+    @mock.patch("airflow.providers.standard.operators.trigger_dagrun.AIRFLOW_V_3_4_PLUS", False)
     @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run_surfaces_original_error(self, create_runtime_ti, mock_supervisor_comms):
         """
@@ -5539,7 +5539,7 @@ class TestTriggerDagRunOperator:
         """A wait_for_completion trigger resolves the task to the state implied by the triggered run.
 
         Keyed by message type rather than call order so it holds for both the operator-owned
-        (Airflow 3.3+) and task-runner (< 3.3) paths; the exact call sequence is asserted in
+        (Airflow 3.4+) and task-runner (< 3.4) paths; the exact call sequence is asserted in
         test_trigger_dagrun.py.
         """
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
