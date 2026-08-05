@@ -1,0 +1,1 @@
+DAG processor no longer treats non-``.zip`` files (e.g. ``.jar``, ``.pptx``, ``.docx``, ``.xlsx``) that happen to share the underlying zip container format as potential DAG zip bundles.
