@@ -4034,3 +4034,47 @@ class TestDatabricksTaskOperator:
         expected_task_key = "test_task_key"
 
         assert expected_task_key == operator.databricks_task_key
+
+
+# Create a custom Operator that inherits from DatabricksTaskBaseOperator to test
+# the rendering of the template_fields
+class CustomDatabricksOperator(DatabricksTaskBaseOperator):
+    template_fields = ("custom_field_1",)
+
+    def __init__(self, custom_field_1, **kwargs):
+        self.custom_field_1 = custom_field_1
+        super().__init__(**kwargs)
+
+    def _get_task_base_json(self):
+        return {
+            "custom_field_1": self.custom_field_1,
+        }
+
+
+class TestDatabricksTaskBaseperator:
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_launch_job(self, mock_databricks_hook):
+        custom_operator = CustomDatabricksOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            custom_field_1="{{ custom_value }}",
+            existing_cluster_id="test_cluster_id",
+            do_xcom_push=False,
+        )
+
+        mock_hook = mock_databricks_hook.return_value
+        mock_hook.submit_run.return_value = 12345
+        mock_hook.get_run_page_url.return_value = "http://example.com/run/12345"
+
+        context = {"custom_value": "rendered_custom_value"}
+        run_id = custom_operator._launch_job(context=context)
+
+        assert run_id == 12345
+        mock_hook.submit_run.assert_called_once_with(
+            {
+                "run_name": custom_operator.databricks_task_key,
+                "custom_field_1": "rendered_custom_value",
+                "existing_cluster_id": "test_cluster_id",
+            }
+        )
+        mock_hook.get_run_page_url.assert_called_once_with(12345)
