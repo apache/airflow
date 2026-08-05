@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.13.2
+......
+
+Misc
+~~~~
+
+* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+* ``Fix template-field validation in PapermillOperator (#70435)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
+   * ``[main] Upgrade important CI environment (#68322)``
+
 3.13.1
 ......
 
