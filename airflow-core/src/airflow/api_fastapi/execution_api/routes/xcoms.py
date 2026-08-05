@@ -462,7 +462,10 @@ def set_xcom(
                 "violates unique constraint",  # PostgreSQL
             )
         ):
-            raise
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Unexpected database error: {e.orig}",
+            )
         # The savepoint was rolled back automatically; fall through to an explicit
         # UPDATE so the latest value wins.
         session.execute(
