@@ -136,13 +136,13 @@ jobs:
           java-version: '11'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a  # v4.37.1
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81  # v4.37.3
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
         if: matrix.language != 'java'
-        uses: github/codeql-action/autobuild@7188fc363630916deb702c7fdcf4e481b751f97a  # v4.37.1
+        uses: github/codeql-action/autobuild@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81  # v4.37.3
 
       - name: Build Java SDK
         if: matrix.language == 'java'
@@ -150,7 +150,7 @@ jobs:
         run: ./gradlew classes testClasses
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a  # v4.37.1
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81  # v4.37.3
         with:
           # Provide more context to the SARIF output (shows up in run.automationDetails.id field)
           category: "/language:${{matrix.language}}"

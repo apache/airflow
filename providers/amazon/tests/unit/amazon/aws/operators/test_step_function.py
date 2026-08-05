@@ -144,7 +144,7 @@ class TestStepFunctionStartExecutionOperator:
         assert op.state_machine_arn == STATE_MACHINE_ARN
         assert op.state_machine_arn == STATE_MACHINE_ARN
         assert op.name == NAME
-        assert op.input == INPUT
+        assert op.state_machine_input == INPUT
         assert op.hook.aws_conn_id == AWS_CONN_ID
         assert op.hook._region_name == REGION_NAME
         assert op.hook._verify is False

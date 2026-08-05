@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest import mock
 
 import pytest
 from moto import mock_aws
 
 from airflow.configuration import initialize_secrets_backends
-from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
+from airflow.providers.amazon.aws.secrets.systems_manager import (
+    TEAM_SEP,
+    SystemsManagerParameterStoreBackend,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -112,6 +116,7 @@ class TestSsmSecrets:
         returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres", team_name="my_team")
         assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
+    @conf_vars({("core", "multi_team"): "True"})
     @mock_aws
     def test_global_caller_cannot_access_team_scoped_connection(self):
         param = {
@@ -122,6 +127,100 @@ class TestSsmSecrets:
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
         assert ssm_backend.get_conn_value(conn_id="my_team--test_postgres") is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock_aws
+    def test_another_teams_secret_is_not_reachable(self):
+        """A caller scoped to one team must not reach another team's parameter by naming it."""
+        param = {
+            "Name": "/airflow/connections/my_team--test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_conn_value(conn_id="my_team--test_postgres", team_name="other_team") is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock_aws
+    def test_team_whose_name_extends_the_callers_is_not_reachable(self):
+        """A prefix match on the caller's own namespace is not proof of ownership."""
+        param = {
+            "Name": "/airflow/connections/my_team--prod--test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_conn_value(conn_id="my_team--prod--test_postgres", team_name="my_team") is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock_aws
+    def test_team_scoped_lookup_cannot_reach_a_longer_teams_namespace(self):
+        """The team scoped name is not safe by construction -- the id can extend it.
+
+        Team ``my_team`` asking for ``prod--test_postgres`` builds exactly the path team
+        ``my_team--prod`` builds for ``test_postgres``, so the team scoped lookup *hits*
+        another team's parameter. Refusing only the team agnostic fall-through leaves this
+        open, because the fall-through is never reached.
+        """
+        param = {
+            "Name": "/airflow/connections/my_team--prod--test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_conn_value(conn_id="prod--test_postgres", team_name="my_team") is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock_aws
+    def test_refusing_an_ambiguous_id_is_logged(self, caplog):
+        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged.
+
+        Asserted on the record's structured ``args`` rather than the rendered message, so
+        rewording the warning does not silently stop this from testing anything.
+        """
+        backend = SystemsManagerParameterStoreBackend()
+
+        assert backend.get_conn_value(conn_id="prod--test_postgres") is None
+        assert backend.get_variable(key="prod--hello") is None
+        assert backend.get_config(key="prod--sql_alchemy_conn") is None
+
+        # ``getMessage()`` rather than ``msg``: how a record carries its payload depends on the
+        # Airflow version. Here structlog renders the format args into ``msg`` before the stdlib
+        # record exists, so ``args`` is empty; on the versions the provider compat tests run
+        # against, plain stdlib logging leaves ``msg`` as the format string with the values in
+        # ``args``. ``getMessage()`` renders in both. Assert on level, logger and the refused id
+        # (the load-bearing data) rather than the wording, so rephrasing the warning is free.
+        refusals = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and r.name.endswith(type(backend).__name__)
+        ]
+        assert len(refusals) == 3
+        for refused_id in ("prod--test_postgres", "prod--hello", "prod--sql_alchemy_conn"):
+            assert sum(refused_id in r.getMessage() for r in refusals) == 1
+        assert all(TEAM_SEP in r.getMessage() for r in refusals)
+
+    @mock_aws
+    def test_ambiguous_id_resolves_when_multi_team_is_disabled(self):
+        """No team scoped parameter can exist without multi-team mode, so there is no ambiguity
+        to refuse -- an ordinary id containing the separator must resolve normally."""
+        param = {
+            "Name": "/airflow/connections/prod--test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_conn_value(conn_id="prod--test_postgres") == (
+            "postgresql://airflow:airflow@host:5432/airflow"
+        )
 
     @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
@@ -189,6 +288,7 @@ class TestSsmSecrets:
 
         assert ssm_backend.get_variable(key="hello", team_name="my_team") == "world"
 
+    @conf_vars({("core", "multi_team"): "True"})
     @mock_aws
     def test_global_caller_cannot_access_team_scoped_variable(self):
         param = {"Name": "/airflow/variables/my_team--hello", "Type": "String", "Value": "world"}

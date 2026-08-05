@@ -1017,6 +1017,15 @@ jobs:
       - name: Run Go tests
         working-directory: ./go-sdk
         run: gotestsum --format github-actions ./...
+      # Go modules have no central registry that pre-scans releases, so we scan our own
+      # dependency graph against the Go vulnerability database. govulncheck is reachability
+      # based, so it only fails on advisories that actually affect code we call. The version
+      # tag is immutable (Go modules are content-addressed via the checksum database).
+      - name: Scan Go dependencies for known vulnerabilities
+        working-directory: ./go-sdk
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+          govulncheck ./...
 
   tests-java-sdk:
     name: "Java SDK tests"
