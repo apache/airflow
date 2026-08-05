@@ -16,14 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
-import time
 from datetime import datetime, timedelta
 
 import boto3
-from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_exponential
 
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import EksCreateClusterOperator, EksDeleteClusterOperator
@@ -111,9 +108,53 @@ def run_eksctl_commands(cluster_name, ns):
     file = "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz"
     commands = f"""
         curl --silent --location "{file}" | tar xz -C /tmp &&
-        /tmp/eksctl create iamidentitymapping --cluster {cluster_name} --namespace {ns} --service-name "emr-containers" &&
-        /tmp/eksctl utils associate-iam-oidc-provider --cluster {cluster_name} --approve
+        /tmp/eksctl create iamidentitymapping --cluster {cluster_name} --namespace {ns} --service-name "emr-containers"
     """
+
+    build = subprocess.Popen(
+        commands,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    _, err = build.communicate()
+
+    if build.returncode != 0:
+        raise RuntimeError(err)
+
+
+@task
+def install_pod_identity_agent(cluster_name):
+    """Install and wait for the EKS Pod Identity Agent add-on.
+
+    Each run creates Pod Identity associations scoped to its own cluster. The
+    role's trust policy stays static.
+    """
+    log = logging.getLogger(__name__)
+    eks_client = boto3.client("eks")
+    addon_name = "eks-pod-identity-agent"
+
+    eks_client.create_addon(clusterName=cluster_name, addonName=addon_name)
+
+    waiter = eks_client.get_waiter("addon_active")
+    waiter.wait(
+        clusterName=cluster_name,
+        addonName=addon_name,
+        WaiterConfig={"Delay": 10, "MaxAttempts": 60},
+    )
+    log.info("Pod Identity Agent addon is ACTIVE on cluster %s", cluster_name)
+
+
+@task
+def create_pod_identity_role_associations(cluster_name, namespace, role_name):
+    # `emr-containers create-role-associations` is a CLI-only helper — it creates
+    # the three Pod Identity associations (client, driver, executor) that the EMR
+    # job pods use. There is no boto3 equivalent. Requires AWS CLI > 2.24.0.
+    # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html
+    commands = (
+        f"aws emr-containers create-role-associations --cluster-name {cluster_name} "
+        f"--namespace {namespace} --role-name {role_name}"
+    )
 
     build = subprocess.Popen(
         commands,
@@ -128,42 +169,10 @@ def run_eksctl_commands(cluster_name, ns):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_iam_oidc_identity_provider(cluster_name):
-    oidc_provider_issuer_url = boto3.client("eks").describe_cluster(
-        name=cluster_name,
-    )["cluster"]["identity"]["oidc"]["issuer"]
-    oidc_provider_issuer_endpoint = oidc_provider_issuer_url.replace("https://", "")
-
-    account_id = boto3.client("sts").get_caller_identity()["Account"]
-    boto3.client("iam").delete_open_id_connect_provider(
-        OpenIDConnectProviderArn=f"arn:aws:iam::{account_id}:oidc-provider/{oidc_provider_issuer_endpoint}"
-    )
-
-
-@task
-def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_name):
-    # Remove any already existing trusted entities added with "update-role-trust-policy"
-    # Prevent getting an error "Cannot exceed quota for ACLSizePerRole"
-    client = boto3.client("iam")
-    role_trust_policy = client.get_role(RoleName=role_name)["Role"]["AssumeRolePolicyDocument"]
-    # We assume if the action is sts:AssumeRoleWithWebIdentity, the statement had been added with
-    # "update-role-trust-policy". Removing it to not exceed the quota
-    role_trust_policy["Statement"] = [
-        statement
-        for statement in role_trust_policy["Statement"]
-        if statement["Action"] != "sts:AssumeRoleWithWebIdentity"
-    ]
-
-    client.update_assume_role_policy(
-        RoleName=role_name,
-        PolicyDocument=json.dumps(role_trust_policy),
-    )
-
-    # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-trust-policy.html
-    # The action "update-role-trust-policy" is not available in boto3, thus we need to do it using AWS CLI
+def delete_pod_identity_role_associations(cluster_name, namespace, role_name):
     commands = (
-        f"aws emr-containers update-role-trust-policy --cluster-name {cluster_name} "
-        f"--namespace {cluster_namespace} --role-name {role_name}"
+        f"aws emr-containers delete-role-associations --cluster-name {cluster_name} "
+        f"--namespace {namespace} --role-name {role_name}"
     )
 
     build = subprocess.Popen(
@@ -176,66 +185,6 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
 
     if build.returncode != 0:
         raise RuntimeError(err)
-
-
-@task
-def wait_for_trust_policy_propagation(cluster_name, role_name):
-    """Validate that the IAM trust policy has propagated by checking the role's
-    trust policy contains the expected OIDC provider.
-
-    Uses exponential backoff retries (up to 5 minutes) instead of a fixed sleep,
-    which avoids both wasting time when propagation is fast and failing when it's slow.
-    """
-    log = logging.getLogger(__name__)
-
-    # Determine the expected OIDC provider ARN from the EKS cluster
-    eks_client = boto3.client("eks")
-    oidc_issuer_url = eks_client.describe_cluster(name=cluster_name)["cluster"]["identity"]["oidc"]["issuer"]
-    oidc_issuer_endpoint = oidc_issuer_url.replace("https://", "")
-    account_id = boto3.client("sts").get_caller_identity()["Account"]
-    expected_oidc_provider_arn = f"arn:aws:iam::{account_id}:oidc-provider/{oidc_issuer_endpoint}"
-
-    @retry(
-        retry=retry_if_exception_type(RuntimeError),
-        wait=wait_exponential(multiplier=1, min=5, max=30),
-        stop=stop_after_delay(300),
-        reraise=True,
-    )
-    def _validate_trust_policy():
-        iam_client = boto3.client("iam")
-
-        # Verify the trust policy document contains the expected OIDC provider
-        role = iam_client.get_role(RoleName=role_name)["Role"]
-        trust_policy = role["AssumeRolePolicyDocument"]
-
-        has_oidc_statement = False
-        for statement in trust_policy.get("Statement", []):
-            if statement.get("Action") != "sts:AssumeRoleWithWebIdentity":
-                continue
-            principal = statement.get("Principal", {})
-            federated = principal.get("Federated", "")
-            if oidc_issuer_endpoint in federated:
-                has_oidc_statement = True
-                break
-
-        if not has_oidc_statement:
-            log.info(
-                "Trust policy does not yet contain OIDC provider %s, retrying...",
-                expected_oidc_provider_arn,
-            )
-            raise RuntimeError(
-                f"Trust policy for role {role_name} does not yet contain "
-                f"the expected OIDC provider: {expected_oidc_provider_arn}"
-            )
-
-        log.info("Trust policy document confirmed for role %s", role_name)
-
-    _validate_trust_policy()
-
-    # Brief buffer after IAM confirms the trust policy document — cross-service
-    # caches (EKS/EMR) may still serve the old policy for a few seconds.
-    time.sleep(15)
-    log.info("Trust policy validation complete, proceeding.")
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -332,7 +281,7 @@ with DAG(
         task_id="start_job",
         virtual_cluster_id=str(create_emr_eks_cluster.output),
         execution_role_arn=job_role_arn,
-        release_label="emr-7.0.0-latest",
+        release_label="emr-7.13.0-latest",
         job_driver=job_driver_arg,
         configuration_overrides=configuration_overrides_arg,
         name="pi.py",
@@ -385,15 +334,15 @@ with DAG(
         create_cluster_and_nodegroup,
         await_create_nodegroup,
         run_eksctl_commands(eks_cluster_name, eks_namespace),
-        update_trust_policy_execution_role(eks_cluster_name, eks_namespace, job_role_name),
-        wait_for_trust_policy_propagation(eks_cluster_name, job_role_name),
+        install_pod_identity_agent(eks_cluster_name),
+        create_pod_identity_role_associations(eks_cluster_name, eks_namespace, job_role_name),
         # TEST BODY
         create_emr_eks_cluster,
         job_starter,
         job_waiter,
         describe_pod,
         # TEST TEARDOWN
-        delete_iam_oidc_identity_provider(eks_cluster_name),
+        delete_pod_identity_role_associations(eks_cluster_name, eks_namespace, job_role_name),
         delete_virtual_cluster(str(create_emr_eks_cluster.output)),
         delete_eks_cluster,
         await_delete_eks_cluster,
