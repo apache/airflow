@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.validateTaskInput
 import kotlin.Throws
 
 /**
@@ -95,6 +96,9 @@ class DagDef(
  * @param id Task identifier, unique within a [DagDef].
  * @param definition Class that implements [Task]. Must have a public no-arg
  *    constructor.
+ * @throws IllegalArgumentException if [definition] is an [InputTask] whose
+ *    declared input cannot be bound, so that a mis-declared input fails while
+ *    the bundle is built rather than mid-run.
  *
  * @see Builder.Task
  */
@@ -102,6 +106,10 @@ class TaskDef(
   val id: String,
   val definition: Class<out Task>,
 ) {
+  init {
+    validateTaskInput(definition)
+  }
+
   internal var owner: DagDef? = null
 }
 
@@ -116,8 +124,12 @@ class TaskDef(
  * via its no-argument constructor, then calls [execute] once per task-instance
  * run.
  *
+ * Implement [InputTask] instead for a task the Python Dag file calls with
+ * TaskFlow arguments; the SDK then resolves those arguments and injects them.
+ *
  * @see Builder.Dag
  * @see Builder.Task
+ * @see InputTask
  */
 interface Task {
   /**
