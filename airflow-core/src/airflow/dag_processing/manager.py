@@ -945,7 +945,7 @@ class DagFileProcessorManager(LoggingMixin):
         observed_filelocs: set[str] = set()
         for info in present:
             abs_path = str(info.absolute_path)
-            if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
+            if abs_path.endswith(".py") or not (abs_path.lower().endswith(".zip") and zipfile.is_zipfile(abs_path)):
                 observed_filelocs.add(str(info.rel_path))
             else:
                 if TYPE_CHECKING:

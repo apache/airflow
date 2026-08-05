@@ -111,7 +111,7 @@ class PythonDagImporter(AbstractDagImporter):
         for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
             path = Path(file_path)
             try:
-                if path.is_file() and (path.suffix.lower() == ".py" or zipfile.is_zipfile(path)):
+                if path.is_file() and (path.suffix.lower() == ".py" or (path.suffix.lower() == ".zip" and zipfile.is_zipfile(path))):
                     if might_contain_dag(file_path, safe_mode):
                         yield file_path
             except Exception:
@@ -158,7 +158,7 @@ class PythonDagImporter(AbstractDagImporter):
 
         try:
             with warnings.catch_warnings(record=True) as captured_warnings:
-                if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
+                if filepath.endswith(".py") or not (filepath.lower().endswith(".zip") and zipfile.is_zipfile(filepath)):
                     modules = self._load_modules_from_file(filepath, safe_mode, result)
                 else:
                     modules = self._load_modules_from_zip(filepath, safe_mode, result)

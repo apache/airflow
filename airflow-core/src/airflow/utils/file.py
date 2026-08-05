@@ -107,7 +107,7 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
     for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
         path = Path(file_path)
         try:
-            if path.is_file() and (path.suffix == ".py" or zipfile.is_zipfile(path)):
+            if path.is_file() and (path.suffix == ".py" or (path.suffix.lower() == ".zip" and zipfile.is_zipfile(path))):
                 if might_contain_dag(file_path, safe_mode):
                     file_paths.append(file_path)
         except Exception:
@@ -150,7 +150,7 @@ def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.Zi
         with zip_file.open(file_path) as current_file:
             content = current_file.read()
     else:
-        if zipfile.is_zipfile(file_path):
+        if file_path.lower().endswith(".zip") and zipfile.is_zipfile(file_path):
             return True
         with open(file_path, "rb") as dag_file:
             content = dag_file.read()
