@@ -537,10 +537,21 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #   if-necessary fallback; without this entry the package cannot resolve and generation fails
     #   with "No solution found". Keeping it here (rather than the provider pre-release list) marks
     #   it as an always-allowed pre-release across every resolution, matching how it already ships.
+    # * opentelemetry-semantic-conventions>=0.48b0 — same story: a beta-only package, pulled in as a
+    #   hard dependency of opentelemetry-sdk (via opentelemetry-exporter-otlp and shared/observability),
+    #   so the ``--prerelease explicit`` resolution needs the same explicit mark. The floor only marks
+    #   it as a pre-release and must stay at the version paired with our ``opentelemetry-*>=1.27.0``
+    #   floor — opentelemetry-sdk exact-pins the semantic conventions version it ships with, so a
+    #   higher floor here would conflict with any sdk older than that pairing.
+    #
+    # These two are the only pre-releases in the constraints we tag, and removing the need for the
+    # exception is tracked at https://github.com/apache/airflow/issues/71176
+    #
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
         "gremlinpython>=3.8.0",
         "opentelemetry-exporter-prometheus>=0.47b0",
+        "opentelemetry-semantic-conventions>=0.48b0",
     ]
 
     # Constraints cut for a release candidate have to pin the candidates themselves - the providers
