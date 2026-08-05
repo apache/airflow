@@ -1,2 +1,1 @@
-Fix ``KubernetesExecutor`` retry attempts losing ``hostname`` and ``start_date``
-in ``task_instance_history``, which caused ``http://:8793`` log URL errors in the UI.
+Fix ``KubernetesExecutor`` retry attempts losing ``hostname`` and ``start_date`` in ``task_instance_history``, causing broken log URLs (``http://:8793``) in the UI.
