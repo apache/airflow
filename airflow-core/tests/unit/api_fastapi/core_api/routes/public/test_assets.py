@@ -1505,7 +1505,10 @@ class TestQueuedEventEndpoint(TestAssets):
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
         session.execute(delete(AssetDagRunQueue))
         session.flush()
-        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id, asset_event_id=event.id)
         session.add(adrq)
         session.commit()
         return adrq
@@ -2226,10 +2229,10 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is not None
+        assert session.scalars(select(AssetDagRunQueue)).all()
         response = test_client.delete(f"/assets/{asset.id}/queuedEvents")
         assert response.status_code == 204
-        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is None
+        assert session.scalars(select(AssetDagRunQueue)).all() == []
         check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
