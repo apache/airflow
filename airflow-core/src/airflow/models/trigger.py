@@ -532,16 +532,11 @@ def _fail_unresumable_task_instance(
     task_instance: TaskInstance, reason: str, exc: BaseException, *, session: Session
 ) -> None:
     """
-    Re-queue a task instance that cannot be resumed, so that a worker fails it.
+    Route through ``__fail__`` (mirrors `Trigger.submit_failure`) so a worker fails the
+    task normally instead of leaving it stranded with no event left to resume it.
 
-    Mirrors :meth:`Trigger.submit_failure`: the special ``__fail__`` next_method makes the worker
-    fail the task immediately, which runs its normal failure handling (retries and callbacks
-    included). Leaving the task instance parked instead would strand it there, as the event that
-    should have resumed it is already gone.
-
-    The traceback travels in ``next_kwargs`` because that is the only channel that reaches the
-    task log; the exception is otherwise only logged where this runs, which the Dag author may
-    have no access to. It has to stay the list ``format_exception`` returns -- the runtime joins it.
+    Traceback goes into ``next_kwargs`` as a list -- the only channel reaching the task log --
+    since ``format_exception`` returns it that way and the runtime joins it.
     """
     task_instance.next_method = TRIGGER_FAIL_REPR
     task_instance.next_kwargs = {
