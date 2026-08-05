@@ -33,8 +33,10 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
+import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.parseDags
 import org.apache.airflow.sdk.execution.runTask
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
@@ -180,6 +182,7 @@ class Server(
     val frame = coordinator.readMessage()
     when (val body = frame.body) {
       is StartupDetails -> runTaskAndReport(bundle, body, coordinator)
+      is DagFileParseRequest -> parseDagsAndReport(bundle, body, coordinator)
       is ErrorResponse -> throw ApiError("[${body.error}] ${body.detail}")
       else -> throw ApiError("Unexpected initial frame (id=${frame.id})")
     }
@@ -192,5 +195,13 @@ class Server(
   ) {
     val result = runTask(bundle, startup, coordinator)
     coordinator.communicate<Unit>(result)
+  }
+
+  private suspend fun parseDagsAndReport(
+    bundle: Bundle,
+    request: DagFileParseRequest,
+    coordinator: CoordinatorComm,
+  ) {
+    coordinator.communicate<Unit>(parseDags(bundle, request))
   }
 }
