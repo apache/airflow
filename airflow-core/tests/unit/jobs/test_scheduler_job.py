@@ -95,6 +95,7 @@ from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import (
@@ -1005,6 +1006,55 @@ class TestSchedulerJob:
             "scheduler.tasks.killed_externally",
             tags={"dag_id": dag_id, "task_id": ti1.task_id},
         )
+
+    @pytest.mark.parametrize("ti_state", [State.SCHEDULED, State.QUEUED])
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_process_executor_events_stale_success_between_reschedule_pokes(
+        self, mock_get_backend, ti_state, dag_maker
+    ):
+        """Stale success from an earlier poke of a reschedule-mode sensor must not read as a state mismatch."""
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+        dag_id = "test_process_executor_events_stale_success_between_reschedule_pokes"
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task1 = EmptyOperator(task_id="dummy_task")
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        # A reschedule exit leaves next_method unset and keeps the same try_number, so the reschedule
+        # row is the only thing standing between this and the externally-killed branch.
+        ti1.state = ti_state
+        ti1.next_method = None
+        ti1.queued_by_job_id = scheduler_job.id
+        ti1.try_number = 1
+        session.merge(ti1)
+        poke_end = DEFAULT_DATE + datetime.timedelta(seconds=5)
+        session.add(
+            TaskReschedule(
+                ti_id=ti1.id,
+                start_date=DEFAULT_DATE,
+                end_date=poke_end,
+                reschedule_date=poke_end + datetime.timedelta(seconds=60),
+            )
+        )
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.has_task = mock.MagicMock(spec=executor.has_task, return_value=False)
+        mock_stats.incr.reset_mock()
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == ti_state
+        self.job_runner.executor.callback_sink.send.assert_not_called()
+        mock_stats.incr.assert_called_once_with("scheduler.executor_events.processed", count=1)
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
