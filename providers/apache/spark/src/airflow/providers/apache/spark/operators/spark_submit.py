@@ -152,7 +152,7 @@ class _YarnSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     def submit_job(self, context: Context) -> str | None:
         if self.hook._conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
             raise ValueError(
-                "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts"
+                "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts "
                 "with the need to exit spark-submit immediately to persist the application ID for tracking. "
                 "Either remove the explicit conf or set durable=False."
             )
