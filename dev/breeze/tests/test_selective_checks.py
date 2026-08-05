@@ -115,6 +115,18 @@ ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity,update-uv-lock"
 
+ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
+    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
+    "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,"
+    "mypy-airflow-e2e-tests,mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,"
+    "mypy-kubernetes-tests,mypy-scripts,mypy-shared-configuration,mypy-shared-dagnode,"
+    "mypy-shared-listeners,mypy-shared-logging,mypy-shared-module_loading,"
+    "mypy-shared-observability,mypy-shared-plugins_manager,mypy-shared-providers_discovery,"
+    "mypy-shared-secrets_backend,mypy-shared-secrets_masker,mypy-shared-serialization,"
+    "mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
+    "mypy-task-sdk-integration-tests,update-uv-lock"
+)
+
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
     "check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
@@ -1109,7 +1121,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1136,9 +1148,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.ai,common.compat,common.messaging,common.sql,databricks,exasol,ftp,"
-                            "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,"
-                            "teradata] Providers[google]",
+                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
+                            "Providers[google]",
                         }
                     ]
                 ),
@@ -1181,7 +1193,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1205,9 +1217,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.ai,common.compat,common.messaging,common.sql,databricks,exasol,ftp,"
-                            "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,"
-                            "teradata] Providers[google]",
+                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
+                            "Providers[google]",
                         }
                     ]
                 ),
@@ -2046,6 +2058,33 @@ def test_provider_yaml_check_not_skipped_when_check_scripts_change(files: tuple[
 
 
 @pytest.mark.parametrize(
+    "files",
+    [
+        pytest.param(
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/_private_ui.yaml",),
+            id="private UI spec changed",
+        ),
+        pytest.param(
+            (
+                "airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml",
+            ),
+            id="simple auth manager spec changed",
+        ),
+    ],
+)
+def test_ui_compile_hooks_not_skipped_when_ui_openapi_spec_changes(files: tuple[str, ...]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+    )
+    skip_prek_hooks = str(stderr).split("skip-prek-hooks=")[1].split("\n")[0]
+    assert "ts-compile-lint-ui" not in skip_prek_hooks.split(",")
+    assert "ts-compile-lint-simple-auth-manager-ui" not in skip_prek_hooks.split(",")
+
+
+@pytest.mark.parametrize(
     ("files", "expected_outputs"),
     [
         pytest.param(
@@ -2734,6 +2773,27 @@ def test_expected_output_push(
                 "run-mypy-providers": "true",
             },
             id="OpenAPI spec change still forces the full matrix",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/_private_ui.yaml",),
+            {
+                # Rationale on the UI_OPENAPI_FILES group in selective_checks.py. One param per
+                # spec directory so each pattern of the group is pinned individually - with both
+                # files in one param, dropping either pattern would still pass via the other file.
+                "full-tests-needed": "false",
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED,
+            },
+            id="Private UI OpenAPI spec change runs the UI compile hooks without the full matrix",
+        ),
+        pytest.param(
+            (
+                "airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml",
+            ),
+            {
+                "full-tests-needed": "false",
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED,
+            },
+            id="Simple auth manager OpenAPI spec change runs the UI compile hooks",
         ),
         pytest.param(
             (

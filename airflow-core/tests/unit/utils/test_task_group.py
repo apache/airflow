@@ -1240,8 +1240,8 @@ def test_topological_group_dep_list_syntax():
         groups >> tg_a  # list-based dep — previously produced the wrong order
 
     order = [node.node_id for node in dag.task_group.topological_sort()]
-    a_idx = order.index("a")
-    assert all(order.index(f"b_{x}") < a_idx for x in range(3)), (
+    pos = {node_id: i for i, node_id in enumerate(order)}
+    assert all(pos[f"b_{x}"] < pos["a"] for x in range(3)), (
         f"Expected all b_x before a in topological order, got: {order!r}"
     )
 
@@ -1262,8 +1262,8 @@ def test_topological_sort_serialized_list_dep_between_groups():
 
     serialized = create_scheduler_dag(dag)
     order = [node.node_id for node in serialized.task_group.topological_sort()]
-    a_idx = order.index("a")
-    assert all(order.index(f"b_{x}") < a_idx for x in range(3)), (
+    pos = {node_id: i for i, node_id in enumerate(order)}
+    assert all(pos[f"b_{x}"] < pos["a"] for x in range(3)), (
         f"Expected all b_x before a in topological order, got: {order!r}"
     )
 
@@ -1289,8 +1289,9 @@ def test_topological_sort_serialized_task_level_cross_group_dep():
 
     serialized = create_scheduler_dag(dag)
     order = [node.node_id for node in serialized.task_group.topological_sort()]
+    pos = {node_id: i for i, node_id in enumerate(order)}
 
-    assert order.index("stage_b") < order.index("stage_a")
+    assert pos["stage_b"] < pos["stage_a"]
 
 
 def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(monkeypatch):

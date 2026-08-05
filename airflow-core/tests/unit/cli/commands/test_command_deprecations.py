@@ -32,6 +32,7 @@ import pytest
 
 from airflow.cli.commands import (
     asset_command,
+    backfill_command,
     config_command,
     connection_command,
     dag_command,
@@ -43,6 +44,7 @@ from airflow.cli.commands import (
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
 MIGRATED_CLI_COMMANDS = [
+    (backfill_command.create_backfill, "airflowctl backfill create"),
     (connection_command.connections_list, "airflowctl connections list"),
     (connection_command.connections_add, "airflowctl connections create"),
     (connection_command.connections_delete, "airflowctl connections delete"),
@@ -78,8 +80,12 @@ MIGRATED_CLI_COMMANDS = [
     (provider_command.providers_list, "airflowctl providers list"),
     (config_command.get_value, "airflowctl config get"),
     (config_command.show_config, "airflowctl config list"),
+    (task_command.task_failed_deps, "airflowctl tasks failed-deps"),
+    (task_command.task_state, "airflowctl tasks state"),
+    (task_command.task_list, "airflowctl tasks list"),
     (task_command.task_states_for_dag_run, "airflowctl tasks states-for-dag-run"),
     (task_command.task_clear, "airflowctl tasks clear"),
+    (task_command.task_failed_deps, "airflowctl tasks failed-deps"),
 ]
 
 

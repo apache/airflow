@@ -1304,6 +1304,10 @@ QueryDagDisplayNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
     Depends(prefix_search_param_factory(DagModel.dag_display_name, "dag_display_name_prefix_pattern")),
 ]
+QueryTimetableTypePrefixPatternSearch = Annotated[
+    _PrefixSearchParam,
+    Depends(prefix_search_param_factory(DagModel.timetable_type, "timetable_type_prefix_pattern")),
+]
 QueryBundleNameFilter = Annotated[
     FilterParam[str | None],
     Depends(filter_param_factory(DagModel.bundle_name, str | None, filter_name="bundle_name")),
@@ -1807,6 +1811,12 @@ QueryUriExactMatch = Annotated[
             ),
         )
     ),
+]
+QueryAssetGroupPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetModel.group, "group_pattern"))
+]
+QueryAssetGroupPrefixPatternSearch = Annotated[
+    _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.group, "group_prefix_pattern"))
 ]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))

@@ -22,7 +22,11 @@ from unittest import mock
 import pytest
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
+    DagAccessEntity,
+    DagDetails,
+)
 from airflow.models.log import Log
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -235,6 +239,49 @@ class TestGetEventLog(TestEventLogsEndpoint):
             details=DagDetails(id=DAG_ID, team_name=None),
             user=mock.ANY,
         )
+
+    @pytest.mark.parametrize(
+        ("can_view_all_audit_logs", "expected_status_code"),
+        [
+            pytest.param(True, 200, id="with-AUDIT_LOGS_ALL-sees-row"),
+            pytest.param(False, 403, id="without-AUDIT_LOGS_ALL-forbidden"),
+        ],
+    )
+    def test_non_dag_row_is_gated_on_audit_logs_all(
+        self, test_client, setup, can_view_all_audit_logs, expected_status_code
+    ):
+        """A row with a NULL dag_id records an operation that is not tied to a Dag -- a
+        Connection, Variable or Pool change -- so it has no per-Dag key to authorize on.
+        Visibility is gated on the dedicated ``AUDIT_LOGS_ALL`` view rather than riding on
+        Dag-level audit log access, which every viewer holds.
+        """
+        event_log_id = setup[EVENT_NORMAL].id
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_view",
+            return_value=can_view_all_audit_logs,
+        ) as mock_is_authorized_view:
+            response = test_client.get(f"/eventLogs/{event_log_id}")
+
+        assert response.status_code == expected_status_code
+        mock_is_authorized_view.assert_called_once_with(
+            access_view=AccessView.AUDIT_LOGS_ALL, user=mock.ANY, team_name=None
+        )
+
+    def test_unknown_id_stays_404_and_does_not_consult_audit_logs_all(self, test_client, setup):
+        """An id that matches no row must answer 404, not 403.
+
+        A missing row and a NULL dag_id both read back as ``None``, so the guard has to tell
+        them apart: turning an unknown id into a permission error would change the documented
+        contract of the endpoint for callers that are allowed to use it.
+        """
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_view",
+            return_value=False,
+        ) as mock_is_authorized_view:
+            response = test_client.get(f"/eventLogs/{EVENT_NON_EXISTED_ID}")
+
+        assert response.status_code == 404
+        mock_is_authorized_view.assert_not_called()
 
     @provide_session
     def test_should_return_404_for_log_without_dttm(self, test_client, *, session: Session = NEW_SESSION):  # noqa: PT028
@@ -463,3 +510,43 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_should_raises_403_forbidden(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/eventLogs")
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("can_view_all_audit_logs", "expected_events"),
+        [
+            pytest.param(
+                True,
+                [EVENT_NORMAL, EVENT_WITH_OWNER, TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+                id="with-AUDIT_LOGS_ALL-sees-non-dag-rows",
+            ),
+            pytest.param(
+                False,
+                [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+                id="without-AUDIT_LOGS_ALL-only-dag-rows",
+            ),
+        ],
+    )
+    def test_non_dag_rows_are_gated_on_audit_logs_all(
+        self, test_client, can_view_all_audit_logs, expected_events
+    ):
+        """Rows with a NULL dag_id are returned only to callers holding ``AUDIT_LOGS_ALL``.
+
+        Before this gate every caller that could read event logs at all received them, which
+        for the default auth manager is any viewer. ``EVENT_NORMAL`` and ``EVENT_WITH_OWNER``
+        carry no dag_id; the other two are bound to a Dag and stay visible either way.
+        """
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_view",
+            return_value=can_view_all_audit_logs,
+        ) as mock_is_authorized_view:
+            response = test_client.get("/eventLogs")
+
+        assert response.status_code == 200
+        resp_json = response.json()
+        # Filtered in the query, so the excluded rows are absent from the count and
+        # pagination too -- their existence does not leak through total_entries.
+        assert resp_json["total_entries"] == len(expected_events)
+        assert {event_log["event"] for event_log in resp_json["event_logs"]} == set(expected_events)
+        mock_is_authorized_view.assert_called_once_with(
+            access_view=AccessView.AUDIT_LOGS_ALL, user=mock.ANY, team_name=None
+        )

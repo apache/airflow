@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
     "count_one": "{{count}} 個期限",
     "count_other": "{{count}} 個期限",
     "referenceType": {

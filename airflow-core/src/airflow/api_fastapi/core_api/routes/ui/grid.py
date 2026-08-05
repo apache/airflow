@@ -200,6 +200,11 @@ def get_dag_structure(
     run_ids = list(session.scalars(dag_runs_select_filter))
 
     task_group_sort = get_task_group_children_getter()
+    # Built once per render and passed down, intentionally not memoized/LRU-cached: it is a
+    # derived view of a mutable task-group tree, so a cache would go stale with no invalidation
+    # and would pin the whole map for the group's lifetime, fighting the streaming/expunge below.
+    # It is released when the request returns (explicitly del-eted after the latest serdag is
+    # merged on the main path).
     latest_group_dict = latest_dag.task_group.get_task_group_dict()
     if not run_ids:
         nodes = [

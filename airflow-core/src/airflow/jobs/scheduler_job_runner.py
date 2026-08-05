@@ -28,7 +28,7 @@ import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator
 from contextlib import ExitStack
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
@@ -85,6 +85,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
@@ -134,10 +135,10 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from types import FrameType
 
-    from pendulum.datetime import DateTime
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
@@ -2640,9 +2641,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             queued_adrqs = session.scalars(
                 with_row_locks(
-                    select(AssetDagRunQueue)
-                    .where(AssetDagRunQueue.target_dag_id == dag.dag_id)
-                    .order_by(AssetDagRunQueue.created_at.desc()),
+                    select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag.dag_id),
                     of=AssetDagRunQueue,
                     skip_locked=True,
                     key_share=False,
@@ -2657,93 +2656,93 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
-            self.log.debug(
-                "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
-                dag.dag_id,
-                len(queued_adrqs),
-                triggered_date,
-            )
-            cte = (
-                select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
-                .where(
-                    DagRun.dag_id == dag.dag_id,
-                    DagRun.run_type == DagRunType.ASSET_TRIGGERED,
-                    DagRun.run_after < triggered_date,
+            referenced_event_ids = {adrq.asset_event_id for adrq in queued_adrqs}
+            event_predicate: ColumnElement[bool] = AssetEvent.id.in_(referenced_event_ids)
+            if dag.catchup:
+                # With catchup on, also consume events recorded before the Dag started
+                # scheduling on its assets/aliases, not just those with a queue row. (With catchup
+                # off only queued events are consumed.) The not-consumed filter below dedupes
+                # across runs, so no event window is needed.
+                event_predicate = or_(
+                    event_predicate,
+                    AssetEvent.asset_id.in_(
+                        select(DagScheduleAssetReference.asset_id).where(
+                            DagScheduleAssetReference.dag_id == dag.dag_id
+                        )
+                    ),
+                    AssetEvent.source_aliases.any(
+                        AssetAliasModel.scheduled_dags.any(
+                            DagScheduleAssetAliasReference.dag_id == dag.dag_id
+                        )
+                    ),
                 )
-                .cte()
-            )
-
-            # A first asset-triggered run has no previous run to floor the event window. With
-            # catchup off, floor it at when the Dag started scheduling on its assets so the
-            # backlog is skipped; with catchup on, only date.min applies and the backlog replays.
-            event_window_floor: list[Any] = [cte.c.previous_dag_run_run_after]
-            if not dag.catchup:
-                event_window_floor.append(
-                    select(func.min(DagScheduleAssetReference.created_at))
-                    .where(DagScheduleAssetReference.dag_id == dag.dag_id)
-                    .scalar_subquery()
-                )
-            event_window_floor.append(date.min)
-
             asset_events = list(
                 session.scalars(
                     select(AssetEvent)
                     .where(
-                        or_(
-                            AssetEvent.asset_id.in_(
-                                select(DagScheduleAssetReference.asset_id).where(
-                                    DagScheduleAssetReference.dag_id == dag.dag_id
-                                )
-                            ),
-                            AssetEvent.source_aliases.any(
-                                AssetAliasModel.scheduled_dags.any(
-                                    DagScheduleAssetAliasReference.dag_id == dag.dag_id
-                                )
-                            ),
+                        event_predicate,
+                        ~(
+                            select(association_table.c.event_id)
+                            .join(DagRun, DagRun.id == association_table.c.dag_run_id)
+                            .where(
+                                DagRun.dag_id == dag.dag_id,
+                                association_table.c.event_id == AssetEvent.id,
+                            )
+                            .exists()
                         ),
-                        AssetEvent.timestamp <= triggered_date,
-                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
             )
-
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
-                ),
-                logical_date=None,
-                data_interval=None,
-                run_after=triggered_date,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            team_name = (
-                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
-                if self._multi_team
-                else None
-            )
-            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
-            dag_run.consumed_asset_events.extend(asset_events)
-            self.log.info(
-                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
-                dag.dag_id,
-                dag_run.run_id,
-                len(asset_events),
-            )
-
-            # Delete only consumed ADRQ rows to avoid dropping newly queued events
-            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
-            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+            if asset_events:
+                triggered_date = timezone.coerce_datetime(max(event.timestamp for event in asset_events))
+                self.log.debug(
+                    "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+                    dag.dag_id,
+                    len(queued_adrqs),
+                    triggered_date,
+                )
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    run_after=triggered_date,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+                team_name = (
+                    self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                    if self._multi_team
+                    else None
+                )
+                stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
+                dag_run.consumed_asset_events.extend(asset_events)
+                self.log.info(
+                    "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                    dag.dag_id,
+                    dag_run.run_id,
+                    len(asset_events),
+                )
+            else:
+                self.log.info(
+                    "No DagRun created for '%s' - asset events already consumed or none found",
+                    dag.dag_id,
+                )
+            # Always delete ADRQ rows for this batch to prevent stale entries accumulating,
+            # including when all events were already consumed by a concurrent DagRun.
             result = cast(
                 "CursorResult",
                 session.execute(
                     delete(AssetDagRunQueue).where(
-                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                        tuple_(
+                            AssetDagRunQueue.target_dag_id,
+                            AssetDagRunQueue.asset_event_id,
+                        ).in_((adrq.target_dag_id, adrq.asset_event_id) for adrq in queued_adrqs)
                     )
                 ),
             )
@@ -2973,7 +2972,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     duration,
                     tags=prune_dict(
                         {
-                            "dag_id": dag_run.dag_id,
+                            **dag_run.stats_tags,
                             "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
                                 dag_run.dag_id
                             )
