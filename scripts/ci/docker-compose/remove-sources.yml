@@ -61,6 +61,7 @@ services:
       - ../../../empty:/opt/airflow/providers/common/dataquality/src
       - ../../../empty:/opt/airflow/providers/common/io/src
       - ../../../empty:/opt/airflow/providers/common/messaging/src
+      - ../../../empty:/opt/airflow/providers/common/sandbox/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/databricks/src
       - ../../../empty:/opt/airflow/providers/datadog/src
@@ -84,6 +85,7 @@ services:
       - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/influxdb/src
       - ../../../empty:/opt/airflow/providers/informatica/src
+      - ../../../empty:/opt/airflow/providers/islo/src
       - ../../../empty:/opt/airflow/providers/jdbc/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
       - ../../../empty:/opt/airflow/providers/keycloak/src

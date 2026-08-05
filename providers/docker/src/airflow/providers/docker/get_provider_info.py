@@ -34,6 +34,13 @@ def get_provider_info():
                 "tags": ["software"],
             },
             {
+                "integration-name": "Docker Sandboxes",
+                "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
+                "logo": "/docs/integration-logos/Docker.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-docker/docker-sandbox-executor.rst"],
+                "tags": ["software"],
+            },
+            {
                 "integration-name": "Docker Swarm",
                 "external-doc-url": "https://docs.docker.com/engine/swarm/",
                 "logo": "/docs/integration-logos/Docker-Swarm.png",
@@ -50,6 +57,7 @@ def get_provider_info():
         "hooks": [
             {"integration-name": "Docker", "python-modules": ["airflow.providers.docker.hooks.docker"]}
         ],
+        "executors": ["airflow.providers.docker.sandbox.executor.DockerSandboxExecutor"],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.docker.hooks.docker.DockerHook",
@@ -73,4 +81,81 @@ def get_provider_info():
         "task-decorators": [
             {"class-name": "airflow.providers.docker.decorators.docker.docker_task", "name": "docker"}
         ],
+        "config": {
+            "docker_sandbox": {
+                "description": "DockerSandboxExecutor configuration for development and end-to-end testing.",
+                "options": {
+                    "allow_non_production": {
+                        "description": "Explicitly enable the non-production DockerSandboxExecutor.",
+                        "type": "boolean",
+                        "version_added": "4.6.0",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "workspace_root": {
+                        "description": "Dedicated absolute host directory for private per-task scratch state.",
+                        "type": "string",
+                        "version_added": "4.6.0",
+                        "example": "/var/lib/airflow/docker-sandbox",
+                        "default": None,
+                    },
+                    "sbx_binary": {
+                        "description": "Path to the standalone Docker Sandboxes CLI version 0.35.0 or newer.",
+                        "type": "string",
+                        "version_added": "4.6.0",
+                        "example": "/usr/local/bin/sbx",
+                        "default": "sbx",
+                    },
+                    "default_template": {
+                        "description": "Default Docker Sandbox template containing a matching Airflow task runtime.",
+                        "type": "string",
+                        "version_added": "4.6.0",
+                        "example": "airflow-sandbox",
+                        "default": None,
+                    },
+                    "default_cpus": {
+                        "description": "Default positive virtual CPU count for each sandbox.",
+                        "type": "integer",
+                        "version_added": "4.6.0",
+                        "example": "2",
+                        "default": None,
+                    },
+                    "default_memory": {
+                        "description": "Default sandbox memory using a positive binary size such as 1024m or 8g.",
+                        "type": "string",
+                        "version_added": "4.6.0",
+                        "example": "4g",
+                        "default": None,
+                    },
+                    "default_workdir": {
+                        "description": "Default working directory inside the sandbox.",
+                        "type": "string",
+                        "version_added": "4.6.0",
+                        "example": "/opt/airflow",
+                        "default": None,
+                    },
+                    "default_timeout_seconds": {
+                        "description": "Default in-sandbox task command deadline in seconds.",
+                        "type": "integer",
+                        "version_added": "4.6.0",
+                        "example": None,
+                        "default": "3600",
+                    },
+                    "cli_timeout_seconds": {
+                        "description": "Deadline in seconds for an individual sbx control-plane command.",
+                        "type": "float",
+                        "version_added": "4.6.0",
+                        "example": None,
+                        "default": "60.0",
+                    },
+                    "launch_acceptance_timeout": {
+                        "description": "Deadline in seconds for proving that an in-sandbox supervisor accepted a launch.",
+                        "type": "float",
+                        "version_added": "4.6.0",
+                        "example": None,
+                        "default": "30.0",
+                    },
+                },
+            }
+        },
     }

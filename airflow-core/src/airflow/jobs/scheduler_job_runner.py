@@ -3088,7 +3088,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
-                    executor.revoke_task(ti=ti)
+                    if executor.revoke_task(ti=ti) is False:
+                        self.log.warning(
+                            "Task remains queued because the executor could not safely revoke it. "
+                            "task_instance=%s",
+                            ti,
+                        )
+                        continue
                     self._maybe_requeue_stuck_ti(
                         ti=ti,
                         session=session,

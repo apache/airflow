@@ -74,6 +74,7 @@ services:
       - ../../../providers/common/dataquality/tests:/opt/airflow/providers/common/dataquality/tests
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
       - ../../../providers/common/messaging/tests:/opt/airflow/providers/common/messaging/tests
+      - ../../../providers/common/sandbox/tests:/opt/airflow/providers/common/sandbox/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/databricks/tests:/opt/airflow/providers/databricks/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
@@ -97,6 +98,7 @@ services:
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/informatica/tests:/opt/airflow/providers/informatica/tests
+      - ../../../providers/islo/tests:/opt/airflow/providers/islo/tests
       - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/keycloak/tests:/opt/airflow/providers/keycloak/tests

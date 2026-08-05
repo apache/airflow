@@ -123,6 +123,9 @@ labelPRBasedOnFilePath:
   provider:common-messaging:
     - providers/common/messaging/**
 
+  provider:common-sandbox:
+    - providers/common/sandbox/**
+
   provider:common-sql:
     - providers/common/sql/**
 
@@ -191,6 +194,9 @@ labelPRBasedOnFilePath:
 
   provider:informatica:
     - providers/informatica/**
+
+  provider:islo:
+    - providers/islo/**
 
   provider:jdbc:
     - providers/jdbc/**

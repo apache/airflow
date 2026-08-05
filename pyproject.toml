@@ -200,6 +200,9 @@ apache-airflow = "airflow.__main__:main"
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
+"common.sandbox" = [
+    "apache-airflow-providers-common-sandbox>=0.1.0"
+]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.18.0"
 ]
@@ -268,6 +271,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "informatica" = [
     "apache-airflow-providers-informatica>=0.1.1"
+]
+"islo" = [
+    "apache-airflow-providers-islo>=0.1.0"
 ]
 "jdbc" = [
     "apache-airflow-providers-jdbc>=4.5.2"
@@ -447,6 +453,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-common-dataquality>=0.1.0",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-common-sandbox>=0.1.0",
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",
@@ -470,6 +477,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
+    "apache-airflow-providers-islo>=0.1.0",
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
     "apache-airflow-providers-keycloak>=0.0.1",
@@ -1160,6 +1168,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/messaging/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/messaging/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/sandbox/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/sandbox/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/sql/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/sql/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/databricks/src",
@@ -1206,6 +1216,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/informatica/src",
     "$MYPY_CONFIG_FILE_DIR/providers/informatica/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/islo/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/islo/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/src",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/src",
@@ -1471,6 +1483,7 @@ apache-airflow-providers-common-compat = false
 apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
+apache-airflow-providers-common-sandbox = false
 apache-airflow-providers-common-sql = false
 apache-airflow-providers-databricks = false
 apache-airflow-providers-datadog = false
@@ -1494,6 +1507,7 @@ apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
 apache-airflow-providers-informatica = false
+apache-airflow-providers-islo = false
 apache-airflow-providers-jdbc = false
 apache-airflow-providers-jenkins = false
 apache-airflow-providers-keycloak = false
@@ -1623,6 +1637,7 @@ apache-airflow-providers-common-compat = false
 apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
+apache-airflow-providers-common-sandbox = false
 apache-airflow-providers-common-sql = false
 apache-airflow-providers-databricks = false
 apache-airflow-providers-datadog = false
@@ -1646,6 +1661,7 @@ apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
 apache-airflow-providers-informatica = false
+apache-airflow-providers-islo = false
 apache-airflow-providers-jdbc = false
 apache-airflow-providers-jenkins = false
 apache-airflow-providers-keycloak = false
@@ -1786,6 +1802,7 @@ apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-dataquality = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-messaging = { workspace = true }
+apache-airflow-providers-common-sandbox = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-databricks = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
@@ -1809,6 +1826,7 @@ apache-airflow-providers-ibm-mq = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-informatica = { workspace = true }
+apache-airflow-providers-islo = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-keycloak = { workspace = true }
@@ -1927,6 +1945,7 @@ members = [
     "providers/common/dataquality",
     "providers/common/io",
     "providers/common/messaging",
+    "providers/common/sandbox",
     "providers/common/sql",
     "providers/databricks",
     "providers/datadog",
@@ -1950,6 +1969,7 @@ members = [
     "providers/imap",
     "providers/influxdb",
     "providers/informatica",
+    "providers/islo",
     "providers/jdbc",
     "providers/jenkins",
     "providers/keycloak",

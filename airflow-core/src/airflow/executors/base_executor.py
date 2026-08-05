@@ -581,7 +581,7 @@ class BaseExecutor(LoggingMixin):
         """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError
 
-    def revoke_task(self, *, ti: TaskInstance):
+    def revoke_task(self, *, ti: TaskInstance) -> bool | None:
         """
         Attempt to remove task from executor.
 
@@ -593,7 +593,12 @@ class BaseExecutor(LoggingMixin):
 
         It should not raise any error.
 
+        Executors may return ``False`` when they cannot yet prove that re-running the
+        task is safe. The scheduler then leaves the task queued and tries again on a
+        later heartbeat. Returning ``None`` preserves the historical success contract.
+
         :param ti: Task instance to remove
+        :return: False when revocation is not conclusively safe; otherwise True or None
         """
         raise NotImplementedError
 

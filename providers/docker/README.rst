@@ -59,5 +59,33 @@ PIP package                                 Version required
 ``python-dotenv``                           ``>=0.21.0``
 ==========================================  ==================
 
+Optional cross provider package dependencies
+--------------------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-docker[common.sandbox]
+
+
+====================================================================================================================  ==================
+Dependent package                                                                                                     Extra
+====================================================================================================================  ==================
+`apache-airflow-providers-common-sandbox <https://airflow.apache.org/docs/apache-airflow-providers-common-sandbox>`_  ``common.sandbox``
+====================================================================================================================  ==================
+
+Optional dependencies
+----------------------
+
+==================  ==================================================
+Extra               Dependencies
+==================  ==================================================
+``common.sandbox``  ``apache-airflow-providers-common-sandbox>=0.1.0``
+==================  ==================================================
+
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.9/changelog.html>`_.
