@@ -55,17 +55,17 @@ meaning of each dimension is defined in the
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
 | **Native-Dag authoring** |  |  |  |  |
-| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
-| capability: `task-args` | MUST † | n/a | – |  |
-| capability: `dag-params` | MUST † | n/a | – |  |
-| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
-| capability: `branching` | SHOULD † | n/a | – |  |
-| capability: `dag-test` | SHOULD † | n/a | – |  |
-| capability: `task-group` | MAY † | n/a | – |  |
-| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
-| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
-| capability: `asset-scheduling` | MAY † | n/a | – |  |
-| capability: `object-store` | MAY † | n/a | – |  |
+| capability: `native-dag-authoring` | SHOULD | ✓ | 3.3 |  |
+| capability: `task-args` | MUST † | ✓ | 3.3 |  |
+| capability: `dag-params` | MUST † | ✗ | – |  |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.3 |  |
+| capability: `branching` | SHOULD † | ✗ | – |  |
+| capability: `dag-test` | SHOULD † | ✗ | – |  |
+| capability: `task-group` | MAY † | ✗ | – |  |
+| capability: `dynamic-task-mapping` | MAY † | ✗ | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – |  |
+| capability: `object-store` | MAY † | ✗ | – |  |
 
 *Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
 
