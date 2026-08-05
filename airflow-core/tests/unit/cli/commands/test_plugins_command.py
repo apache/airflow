@@ -79,6 +79,7 @@ class TestPluginsCommand:
         assert info == [
             {
                 "name": "test_plugin",
+                "team_name": None,
                 "admin_views": [],
                 "macros": ["unit.plugins.test_plugin.plugin_macro"],
                 "menu_links": [],

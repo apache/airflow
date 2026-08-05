@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -43,19 +42,27 @@ import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
 import { generateDailyCalendarData } from "./calendarUtils";
-import type { CalendarScale, CalendarColorMode } from "./types";
+import type { CalendarScale, CalendarColorMode, DeadlineCounts } from "./types";
 
 type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
+  readonly deadlineMap?: Map<string, DeadlineCounts>;
   readonly scale: CalendarScale;
   readonly selectedYear: number;
   readonly timezone: string;
   readonly viewMode?: CalendarColorMode;
 };
 
-export const DailyCalendarView = ({ data, scale, selectedYear, timezone, viewMode = "total" }: Props) => {
+export const DailyCalendarView = ({
+  data,
+  deadlineMap,
+  scale,
+  selectedYear,
+  timezone,
+  viewMode = "total",
+}: Props) => {
   const { t: translate } = useTranslation("dag");
-  const dailyData = generateDailyCalendarData(data, selectedYear, timezone);
+  const dailyData = generateDailyCalendarData(data, { deadlineMap, selectedYear, timezone });
 
   const weekdays = [
     translate("calendar.weekdays.sunday"),

@@ -17,6 +17,11 @@
  * under the License.
  */
 
+import java.io.File
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
 val airflowSupervisorSchemaVersion: String by project
 
 plugins {
@@ -30,10 +35,11 @@ plugins {
     kotlin("plugin.serialization") version "2.3.0"
 }
 
-// TODO: Use a hosted file instead.
-val schemaInput = rootProject.file("../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
+val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
+val schemaInput = layout.projectDirectory.file("schema/schema.json")
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
+val schemaModelsDir = layout.buildDirectory.dir("generate-resources/main/src/main/java")
 val discriminatorDir = layout.buildDirectory.dir("generated-resources/main/src/main/kotlin")
 
 dependencies {
@@ -150,16 +156,79 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
     }
 }
 
+abstract class SyncSupervisorSchemaTask : DefaultTask() {
+    @get:Input
+    abstract val schemaVersion: Property<String>
+
+    @get:Input
+    abstract val baseUrl: Property<String>
+
+    @get:Internal
+    abstract val schemaFile: RegularFileProperty
+
+    private fun apiVersionOf(file: File): String =
+        if (file.exists()) {
+            com.fasterxml.jackson.databind
+                .ObjectMapper()
+                .readTree(file)
+                .path("api_version")
+                .asText()
+        } else {
+            ""
+        }
+
+    @TaskAction
+    fun sync() {
+        val file = schemaFile.get().asFile
+        val version = schemaVersion.get()
+        if (apiVersionOf(file) == version) {
+            logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
+            return
+        }
+        val url = "${baseUrl.get()}/$version.json"
+        logger.lifecycle("Refreshing Supervisor Schema with $url")
+        file.parentFile.mkdirs()
+        val tempTarget = Files.createTempFile(file.parentFile.toPath(), "schema", ".json")
+        try {
+            val connection =
+                URI(url).toURL().openConnection().apply {
+                    // Timeout values are arbitrary.
+                    connectTimeout = 30_000
+                    readTimeout = 30_000
+                }
+            connection.getInputStream().use { input ->
+                Files.copy(input, tempTarget, StandardCopyOption.REPLACE_EXISTING)
+            }
+            val downloaded = apiVersionOf(tempTarget.toFile())
+            if (downloaded != version) {
+                throw GradleException("Schema declares api_version='$downloaded' but expected '$version' ($url)")
+            }
+            Files.move(tempTarget, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(tempTarget)
+        }
+    }
+}
+
+val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
+    description = "Ensure the bundled Supervisor Schema is up-to-date with the Gradle property."
+    schemaVersion = airflowSupervisorSchemaVersion
+    baseUrl = schemaBaseUrl
+    schemaFile = schemaInput
+}
+
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
+    dependsOn(syncSupervisorSchema)
     description = "Generate Discriminator to wire type strings to model classes"
-    schemaFile = layout.file(provider { schemaInput })
+    schemaFile = schemaInput
     modelPackage = jsonSchemaPackage
     targetDirectory = discriminatorDir
 }
 
 tasks.register<GeneratePointersTask>("generatePointers") {
+    dependsOn(syncSupervisorSchema)
     description = "Generate pointer files for jsonSchema2Pojo"
-    schemaFile = layout.file(provider { schemaInput })
+    schemaFile = schemaInput
     targetDirectory = pointersDir
 }
 
@@ -173,11 +242,7 @@ val javadocJar by tasks.registering(Jar::class) {
 jsonSchema2Pojo {
     setSource(listOf(pointersDir.get().asFile))
     targetPackage = jsonSchemaPackage
-    targetDirectory =
-        layout.buildDirectory
-            .dir("generate-resources/main/src/main/java")
-            .get()
-            .asFile
+    targetDirectory = schemaModelsDir.get().asFile
     setAnnotationStyle("jackson")
     dateTimeType = "java.time.OffsetDateTime"
     generateBuilders = false
@@ -193,8 +258,8 @@ jsonSchema2Pojo {
 
 sourceSets {
     main {
-        java.srcDir(layout.buildDirectory.dir("generate-resources/main/src/main/java"))
-        kotlin.srcDir(discriminatorDir)
+        java.srcDir(tasks.named("generateJsonSchema2Pojo").map { schemaModelsDir })
+        kotlin.srcDir(tasks.named("generateDiscriminator").map { discriminatorDir })
     }
 }
 
@@ -218,12 +283,8 @@ tasks.named("generateJsonSchema2Pojo") {
     dependsOn("generatePointers")
 }
 
-tasks.named("compileJava") {
-    dependsOn("generateJsonSchema2Pojo")
-}
-
 tasks.named("compileKotlin") {
-    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
+    dependsOn("generateJsonSchema2Pojo")
 }
 
 tasks.named("runKtlintCheckOverMainSourceSet") {

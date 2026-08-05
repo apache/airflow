@@ -25,7 +25,16 @@ from unittest import mock
 
 import pytest
 
-from airflow.sdk import DAG, Context, Label, Param, PartitionAtRuntime, TaskGroup, dag as dag_decorator, task
+from airflow.sdk import (
+    DAG,
+    Context,
+    Label,
+    Param,
+    PartitionedAtRuntime,
+    TaskGroup,
+    dag as dag_decorator,
+    task,
+)
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.param import DagParam, ParamsDict
@@ -438,8 +447,8 @@ class TestDag:
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
-    def test_only_partition_at_runtime_has_partitioned_at_runtime_flag(self):
-        """Regression guard: across every BaseTimetable subclass, only PartitionAtRuntime sets partitioned_at_runtime=True."""
+    def test_only_partitioned_at_runtime_has_partitioned_at_runtime_flag(self):
+        """Regression guard: across every BaseTimetable subclass, only PartitionedAtRuntime sets partitioned_at_runtime=True."""
 
         def all_subclasses(cls):
             for sub in cls.__subclasses__():
@@ -447,7 +456,7 @@ class TestDag:
                 yield from all_subclasses(sub)
 
         flagged = {c for c in all_subclasses(BaseTimetable) if c.partitioned_at_runtime}
-        assert flagged == {PartitionAtRuntime}
+        assert flagged == {PartitionedAtRuntime}
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
@@ -701,6 +710,15 @@ class TestDagDecorator:
         assert isinstance(dag, DAG)
         assert dag.dag_id == "noop_pipeline"
         assert dag.fileloc == __file__
+
+    def test_bundle_name_defaults_to_none(self):
+        dag = DAG("test_dag", schedule=None)
+        assert dag.bundle_name is None
+
+    def test_bundle_name_can_be_set(self):
+        dag = DAG("test_dag", schedule=None)
+        dag.bundle_name = "my_bundle"
+        assert dag.bundle_name == "my_bundle"
 
     def test_set_dag_id(self):
         """Test that checks you can set dag_id from decorator."""

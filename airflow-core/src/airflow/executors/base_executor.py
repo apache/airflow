@@ -71,6 +71,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow._shared.logging.remote import StreamingLogResponse
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -559,6 +560,19 @@ class BaseExecutor(LoggingMixin):
         """
         return [], []
 
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        """
+        Return a streaming response for task logs.
+
+        Executors that don't implement this method raise ``NotImplementedError``; callers should
+        catch that and fall back to :meth:`get_task_log`.
+
+        :param ti: A TaskInstance object
+        :param try_number: current try_number to read log from
+        :return: StreamingLogResponse
+        """
+        raise NotImplementedError
+
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
         raise NotImplementedError
@@ -733,6 +747,7 @@ class BaseExecutor(LoggingMixin):
                 timeout=workload.timeout,
                 token=workload.token,
                 server=server,
+                team_name=workload.team_name,
             )
         raise ValueError(f"Unknown workload type: {type(workload).__name__}")
 

@@ -18,10 +18,12 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
+import { useDocumentTitle } from "src/utils";
 
 import { ErrorPage } from "./Error";
 
@@ -33,6 +35,9 @@ const SANDBOX = "allow-scripts allow-same-origin allow-forms";
 
 export const Security = () => {
   const { page } = useParams();
+  const { t: translate } = useTranslation("common");
+
+  useDocumentTitle(translate("nav.security"));
 
   const { data: authLinks, isLoading } = useAuthLinksServiceGetAuthMenus();
 

@@ -238,33 +238,19 @@ class OracleHook(DbApiHook):
         if "events" in conn.extra_dejson:
             conn_config["events"] = conn.extra_dejson.get("events")
 
-        # TODO: Replace mapping with oracledb.AuthMode enum once python-oracledb>=2.3
-        # mode = getattr(oracledb.AuthMode, conn.extra_dejson.get("mode", "").upper(), None)
-        mode = conn.extra_dejson.get("mode", "").lower()
-        if mode == "sysdba":
-            conn_config["mode"] = oracledb.AUTH_MODE_SYSDBA
-        elif mode == "sysasm":
-            conn_config["mode"] = oracledb.AUTH_MODE_SYSASM
-        elif mode == "sysoper":
-            conn_config["mode"] = oracledb.AUTH_MODE_SYSOPER
-        elif mode == "sysbkp":
-            conn_config["mode"] = oracledb.AUTH_MODE_SYSBKP
-        elif mode == "sysdgd":
-            conn_config["mode"] = oracledb.AUTH_MODE_SYSDGD
-        elif mode == "syskmt":
-            conn_config["mode"] = oracledb.AUTH_MODE_SYSKMT
-        elif mode == "sysrac":
-            conn_config["mode"] = oracledb.AUTH_MODE_SYSRAC
+        # Map the connection extra "mode"/"purity" string (e.g. "sysdba") to the
+        # matching python-oracledb AuthMode/Purity enum member by name. Compare
+        # against None explicitly: Purity.DEFAULT is 0, so a truthiness check
+        # would silently drop it.
+        if mode_name := conn.extra_dejson.get("mode"):
+            auth_mode = getattr(oracledb.AuthMode, mode_name.upper(), None)
+            if auth_mode is not None:
+                conn_config["mode"] = auth_mode
 
-        # TODO: Replace mapping with oracledb.Purity enum once python-oracledb>=2.3
-        # purity = getattr(oracledb.Purity, conn.extra_dejson.get("purity", "").upper(), None)
-        purity = conn.extra_dejson.get("purity", "").lower()
-        if purity == "new":
-            conn_config["purity"] = oracledb.PURITY_NEW
-        elif purity == "self":
-            conn_config["purity"] = oracledb.PURITY_SELF
-        elif purity == "default":
-            conn_config["purity"] = oracledb.PURITY_DEFAULT
+        if purity_name := conn.extra_dejson.get("purity"):
+            purity = getattr(oracledb.Purity, purity_name.upper(), None)
+            if purity is not None:
+                conn_config["purity"] = purity
 
         expire_time = conn.extra_dejson.get("expire_time")
         if expire_time:

@@ -98,7 +98,7 @@ To retrieve the output and execution details from an SSM command that has been e
 
 This operator is useful for:
 
-* Retrieving output from commands executed by :class:`~airflow.providers.amazon.aws.operators.ssm.SsmRunCommandOperator` in previous tasks
+* Retrieving output from commands executed by :class:`~airflow.providers.amazon.aws.operators.ssm.SsmRunCommandOperator` in upstream tasks
 * Getting output from SSM commands executed outside of Airflow
 * Inspecting command results for debugging or data processing purposes
 
@@ -108,7 +108,7 @@ To retrieve output from all instances that executed a command:
 
     get_all_output = SsmGetCommandInvocationOperator(
         task_id="get_command_output",
-        command_id='{{ ti.xcom_pull(task_ids="run_command") }}',  # From previous task
+        command_id='{{ ti.xcom_pull(task_ids="run_command") }}',  # From upstream task
     )
 
 To retrieve output from a specific instance:

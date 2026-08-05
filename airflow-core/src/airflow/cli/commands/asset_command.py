@@ -54,6 +54,7 @@ def _list_assets(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
     return assets, AssetResponse
 
 
+@deprecated_for_airflowctl("airflowctl assets list / airflowctl assets list-aliases")
 @cli_utils.action_cli
 @provide_session
 def asset_list(args, *, session: Session = NEW_SESSION) -> None:
@@ -106,6 +107,7 @@ def _detail_asset(args, *, session: Session) -> BaseModel:
     return AssetResponse.model_validate(asset)
 
 
+@deprecated_for_airflowctl("airflowctl assets get / airflowctl assets get-by-alias")
 @cli_utils.action_cli
 @provide_session
 def asset_details(args, *, session: Session = NEW_SESSION) -> None:

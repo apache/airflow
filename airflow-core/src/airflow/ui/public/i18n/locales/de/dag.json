@@ -106,11 +106,6 @@
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "Navigation: Umschalttaste+{{arrow}}",
-    "openGraphFilters": "Task-Filter: Strg+Umschalt+F",
-    "toggleGroup": "Gruppen umschalten: Leertaste"
-  },
   "notFound": {
     "back": "Zurück",
     "backToDags": "Zurück zu Dags",

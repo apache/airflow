@@ -30,8 +30,8 @@ from airflow.sdk import (
     IdentityMapper,
     MinimumCount,
     MonthWindow,
-    PartitionAtRuntime,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
     ProductMapper,
     RollupMapper,
     SegmentWindow,
@@ -44,6 +44,7 @@ from airflow.sdk import (
     WeekWindow,
     Window,
     asset,
+    get_current_context,
     task,
 )
 
@@ -160,7 +161,7 @@ regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_
 
 with DAG(
     dag_id="ingest_regional_sales",
-    schedule=PartitionAtRuntime(),
+    schedule=PartitionedAtRuntime(),
     tags=["example", "sales", "ingestion"],
 ):
     """Produce regional sales data with composite ``region|timestamp`` partition keys at runtime."""
@@ -207,7 +208,7 @@ region_raw_stats = Asset(uri="file://incoming/player-stats/by-region.csv", name=
 
 with DAG(
     dag_id="ingest_region_stats",
-    schedule=PartitionAtRuntime(),
+    schedule=PartitionedAtRuntime(),
     tags=["example", "player-stats", "regional"],
 ):
     """
@@ -217,9 +218,14 @@ with DAG(
     """
 
     @task(outlets=[region_raw_stats])
-    def ingest_region():
+    def ingest_region(dag_run=None):
         """Materialize player statistics for a single region partition."""
-        pass
+        context = get_current_context()
+        if TYPE_CHECKING:
+            assert dag_run
+        print(
+            f"dag_run partition key {dag_run.partition_key} context partition key {context['partition_key']}"
+        )
 
     ingest_region()
 
@@ -244,14 +250,14 @@ def regional_stats_breakdown():
 
 @asset(
     uri="file://incoming/player-stats/live-region.csv",
-    schedule=PartitionAtRuntime(),
+    schedule=PartitionedAtRuntime(),
     tags=["player-stats", "runtime"],
 )
 def live_region_player_stats(self, outlet_events):
     """
     Produce a single region partition whose key is decided at runtime.
 
-    This asset demonstrates PartitionAtRuntime, which records the partition key on the
+    This asset demonstrates PartitionedAtRuntime, which records the partition key on the
     emitted event with ``add_partitions`` while the task runs rather than from a timetable.
     """
     outlet_events[self].add_partitions("us")
@@ -281,7 +287,7 @@ with DAG(
 
 @asset(
     uri="file://incoming/player-stats/multi-region.csv",
-    schedule=PartitionAtRuntime(),
+    schedule=PartitionedAtRuntime(),
     tags=["player-stats", "runtime"],
 )
 def multi_region_player_stats(self, outlet_events):

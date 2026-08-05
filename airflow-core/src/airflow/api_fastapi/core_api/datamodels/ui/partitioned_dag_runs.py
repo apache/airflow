@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 
 
 class PartitionedDagRunResponse(BaseModel):
@@ -37,7 +38,7 @@ class PartitionedDagRunCollectionResponse(BaseModel):
 
     partitioned_dag_runs: list[PartitionedDagRunResponse]
     total: int
-    asset_expressions: dict[str, dict | None] | None = None
+    asset_expressions: dict[str, MaybeAssetExpression] | None = None
 
 
 class PartitionedDagRunAssetResponse(BaseModel):
@@ -75,4 +76,4 @@ class PartitionedDagRunDetailResponse(BaseModel):
     assets: list[PartitionedDagRunAssetResponse]
     total_required: int
     total_received: int
-    asset_expression: dict | None = None
+    asset_expression: MaybeAssetExpression = None

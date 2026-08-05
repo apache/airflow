@@ -317,6 +317,7 @@ class AssetEventDagRunReference(StrictBaseModel):
     source_map_index: int | None
     source_aliases: list[AssetAliasReferenceAssetEventDagRun]
     timestamp: UtcDateTime
+    partition_key: str | None = None
 
 
 class DagRun(StrictBaseModel):

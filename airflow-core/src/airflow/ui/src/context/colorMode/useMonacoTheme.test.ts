@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Monaco } from "@monaco-editor/react";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { Monaco } from "./useMonacoTheme";
 
 // `useColorMode` is the only dependency of the hook we want to test. We mock
 // it with a mutable return so individual tests can drive light/dark behaviour.

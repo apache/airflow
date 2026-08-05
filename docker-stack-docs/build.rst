@@ -477,6 +477,28 @@ Note that similarly when adding individual packages, you need to use the ``airfl
     :language: text
 
 
+Example of adding a Python venv for ``ExternalPythonOperator``
+..............................................................
+
+The following example creates a separate Python virtualenv inside the image and installs packages
+from ``requirements.txt`` into it, leaving Airflow's own Python environment untouched. This is the
+typical setup for the
+:ref:`ExternalPythonOperator <apache-airflow-providers-standard:howto/operator:externalpythonoperator>`
+(or the ``@task.external_python`` decorator), which executes tasks in a pre-existing, immutable
+Python environment. Use ``/opt/airflow/venv/bin/python`` as the operator's ``python`` argument
+to run tasks in this venv.
+
+The venv is created without ``--system-site-packages``, so the packages installed inside it
+are isolated from Airflow's own dependencies.
+
+.. exampleinclude:: docker-examples/extending/add-python-venv/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+.. exampleinclude:: docker-examples/extending/add-python-venv/requirements.txt
+    :language: text
+
 Example when writable directory is needed
 .........................................
 

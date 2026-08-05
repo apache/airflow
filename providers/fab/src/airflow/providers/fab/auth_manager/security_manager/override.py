@@ -320,6 +320,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_EDIT, RESOURCE_ASSET),
         (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL),
@@ -331,6 +332,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG_ALL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
@@ -971,7 +974,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perms = self.get_all_permissions()
 
         for dag in _iter_dags():
-            print(dag)
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = permissions.resource_name(dag.dag_id, resource_name)
                 for action_name in resource_values["actions"]:
@@ -2424,7 +2426,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
-        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
+        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
@@ -2433,6 +2435,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             claims.validate()
             return claims
 
+        log.warning("JWT token is not validated!")
         _parts = id_token.split(".")
         _payload = _parts[1] + "=" * (-len(_parts[1]) % 4)
         return json.loads(base64.urlsafe_b64decode(_payload))

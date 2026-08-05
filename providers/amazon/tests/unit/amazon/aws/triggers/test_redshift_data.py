@@ -24,6 +24,7 @@ import pytest
 from airflow.providers.amazon.aws.hooks.redshift_data import (
     ABORTED_STATE,
     FAILED_STATE,
+    RedshiftDataHook,
     RedshiftDataQueryAbortedError,
     RedshiftDataQueryFailedError,
 )
@@ -57,7 +58,20 @@ class TestRedshiftDataTrigger:
             "region_name": None,
             "botocore_config": None,
             "verify": None,
+            "cancel_on_kill": True,
         }
+
+    def test_redshift_data_trigger_serialization_cancel_on_kill_false(self):
+        """cancel_on_kill=False round-trips through serialization."""
+        trigger = RedshiftDataTrigger(
+            statement_id="uuid",
+            task_id=TEST_TASK_ID,
+            aws_conn_id=TEST_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+            cancel_on_kill=False,
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["cancel_on_kill"] is False
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -151,3 +165,70 @@ class TestRedshiftDataTrigger:
         task = [i async for i in trigger.run()]
         assert len(task) == 1
         assert TriggerEvent(expected_response) in task
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cancel_status", [True, False])
+    @mock.patch.object(RedshiftDataHook, "get_async_conn")
+    async def test_on_kill_cancels_the_statement(self, mock_get_async_conn, cancel_status):
+        """on_kill() issues CancelStatement and consumes its Status flag for both outcomes.
+
+        CancelStatement returns ``{"Status": bool}`` (False when Redshift declined, e.g. the
+        statement already finished); on_kill must read that shape without error either way.
+        """
+        mock_client = mock.AsyncMock()
+        mock_client.cancel_statement.return_value = {"Status": cancel_status}
+        mock_cm = mock.AsyncMock()
+        mock_cm.__aenter__.return_value = mock_client
+        mock_get_async_conn.return_value = mock_cm
+
+        trigger = RedshiftDataTrigger(
+            statement_id="uuid",
+            task_id=TEST_TASK_ID,
+            poll_interval=POLL_INTERVAL,
+            aws_conn_id=TEST_CONN_ID,
+        )
+        await trigger.on_kill()
+
+        mock_client.cancel_statement.assert_awaited_once_with(Id="uuid")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("cancel_on_kill", "statement_id"),
+        [
+            pytest.param(False, "uuid", id="disabled"),
+            pytest.param(True, "", id="no-statement-id"),
+        ],
+    )
+    @mock.patch.object(RedshiftDataHook, "get_async_conn")
+    async def test_on_kill_does_not_cancel(self, mock_get_async_conn, cancel_on_kill, statement_id):
+        """on_kill() is a no-op (no connection opened) when disabled or without a statement_id."""
+        trigger = RedshiftDataTrigger(
+            statement_id=statement_id,
+            task_id=TEST_TASK_ID,
+            poll_interval=POLL_INTERVAL,
+            aws_conn_id=TEST_CONN_ID,
+            cancel_on_kill=cancel_on_kill,
+        )
+        await trigger.on_kill()
+
+        mock_get_async_conn.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(RedshiftDataHook, "get_async_conn")
+    async def test_on_kill_swallows_cancel_errors(self, mock_get_async_conn):
+        """on_kill() logs and swallows exceptions raised while cancelling."""
+        mock_client = mock.AsyncMock()
+        mock_client.cancel_statement.side_effect = Exception("AWS API error")
+        mock_cm = mock.AsyncMock()
+        mock_cm.__aenter__.return_value = mock_client
+        mock_get_async_conn.return_value = mock_cm
+
+        trigger = RedshiftDataTrigger(
+            statement_id="uuid",
+            task_id=TEST_TASK_ID,
+            poll_interval=POLL_INTERVAL,
+            aws_conn_id=TEST_CONN_ID,
+        )
+        await trigger.on_kill()
+
+        mock_client.cancel_statement.assert_awaited_once_with(Id="uuid")

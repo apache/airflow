@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 tracer = trace.get_tracer(__name__)
 
 
-class ResumableJobMixin:
+class ResumableJobMixin(ABC):
     """
     Mixin for operators that submit one long-running job to an external system and poll for completion.
 
@@ -55,7 +56,7 @@ class ResumableJobMixin:
     Usage: call ``execute_resumable(context)`` from the operator's ``execute()`` when reconnection
     is supported.
 
-    Subclasses must implement the methods specific to their external system. The mixin owns
+    Subclasses must implement all the methods specific to their external system. The mixin owns
     only ``execute_resumable()`` and the task_state_store read/write logic.
 
     Example::
@@ -133,6 +134,7 @@ class ResumableJobMixin:
             stats_tags=stats_tags,
         )
 
+    @abstractmethod
     def submit_job(self, context: Context) -> JsonValue:
         """
         Submit the job to the external system. Return its external ID.
@@ -142,6 +144,7 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         """
         Query the external system for the current job status.
@@ -153,6 +156,7 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def is_job_active(self, status: str) -> bool:
         """
         Return True if the job is still running and can be reconnected to.
@@ -162,6 +166,7 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def is_job_succeeded(self, status: str) -> bool:
         """
         Return True if the job completed successfully.
@@ -171,10 +176,12 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         """Block until the job reaches a terminal state. Raise on failure."""
         raise NotImplementedError
 
+    @abstractmethod
     def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
         """Return the job result after completion. Return None if not applicable."""
         raise NotImplementedError

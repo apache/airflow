@@ -40,6 +40,7 @@ from pathlib import Path
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
     check_uv_version,
+    is_hidden_within_root,
 )
 
 CI = os.environ.get("CI")
@@ -138,7 +139,7 @@ def get_all_files(folder: str) -> list[str]:
         if (
             file.name not in ("conftest.py",)
             and not any(x.match(file.as_posix()) for x in exclude_regexps)
-            and not any(part.startswith(".") for part in file.parts)
+            and not is_hidden_within_root(file, AIRFLOW_ROOT_PATH)
         ):
             files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
     return files_to_check
