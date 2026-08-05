@@ -36,7 +36,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.deadline_alert import DeadlineAlert as DAM
-from airflow.models.serialized_dag import SerializedDagModel as SDM
+from airflow.models.serialized_dag import DagWriteMetadata, SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -693,6 +693,36 @@ class TestSerializedDagModel:
         assert metadata.dag_version is not None
         assert metadata.dag_version.version_number == 2
 
+    def test_prefetch_dag_write_metadata_latest_version_without_sdm_entry(self, dag_maker, session):
+        """When the latest DagVersion has no SDM entry, last_updated and dag_hash are None."""
+        with dag_maker("prefetch_no_sdm_dag") as dag:
+            EmptyOperator(task_id="task1")
+
+        v1 = session.scalar(select(DagVersion).where(DagVersion.dag_id == dag.dag_id))
+        assert v1 is not None
+        assert v1.version_number == 1
+
+        # v1 has an SDM entry (written by dag_maker); create v2 directly without one.
+        v2 = DagVersion.write_dag(
+            dag_id=dag.dag_id,
+            bundle_name="dag_maker",
+            bundle_version="v2",
+            session=session,
+        )
+        session.flush()
+
+        assert v2.version_number == 2
+
+        result = SDM._prefetch_dag_write_metadata([dag.dag_id], session=session)
+        metadata = result[dag.dag_id]
+
+        assert metadata.dag_version is not None
+        assert metadata.dag_version.version_number == 2
+        assert metadata.dag_version.dag_id == dag.dag_id
+        assert metadata.dag_version.bundle_version == "v2"
+        assert metadata.last_updated is None
+        assert metadata.dag_hash is None
+
     def test_new_dag_version_created_when_bundle_name_changes_and_hash_unchanged(self, dag_maker, session):
         """Test that new dag_version is created if bundle_name changes but DAG is unchanged."""
         # Create and write initial DAG
@@ -884,8 +914,7 @@ class TestSerializedDagModel:
         self, dag_maker, session
     ):
         """
-        Test that dynamic DAG update gracefully handles case where SerializedDagModel doesn't exist.
-        This adds the serialized dag entry
+        Test that dynamic DAG update creates a SerializedDagModel if it doesn't exist.
         """
         with dag_maker(dag_id="test_missing_serdag", serialized=True, session=session) as dag:
             EmptyOperator(task_id="task1")
@@ -913,7 +942,7 @@ class TestSerializedDagModel:
         # Verify no SerializedDagModel exists
         assert SDM.get("test_missing_serdag", session=session) is None
 
-        # Try to update - should create the serialized dag
+        # Try to update - should create a new serialized dag row under the latest DagVersion
         result = SDM.write_dag(
             dag=lazy_dag,
             bundle_name="test_bundle",
@@ -923,9 +952,186 @@ class TestSerializedDagModel:
         )
         session.commit()
 
-        serialized_dag = session.scalar(select(SDM).where(SDM.dag_id == "test_missing_serdag").limit(1))
-        assert serialized_dag is not None
         assert result is True
+        latest_version = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_missing_serdag")
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        assert latest_version is not None
+        serialized_dag = SDM.get("test_missing_serdag", session=session)
+        assert serialized_dag is not None
+        assert serialized_dag.dag_version_id == latest_version.id
+
+    def test_write_dag_returns_false_when_update_finds_no_serialized_row(self, dag_maker, session):
+        """
+        Test that write_dag returns False when the UPDATE path finds no serialized row.
+
+        This exercises the rowcount == 0 branch: _prefetched carries a non-None dag_hash
+        (so the dynamic-update UPDATE path is taken), but the SDM row has been deleted
+        between prefetch and execution, so the UPDATE affects 0 rows.
+        """
+        with dag_maker(dag_id="test_rowcount_zero", serialized=True, session=session) as dag:
+            EmptyOperator(task_id="task1")
+
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        SDM.write_dag(
+            dag=lazy_dag,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            session=session,
+        )
+        session.commit()
+
+        dag_version = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_rowcount_zero")
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        assert dag_version is not None
+
+        # Build prefetched metadata that looks like the SDM row exists (non-None hash),
+        # then delete the actual row so the UPDATE finds nothing.
+        stale_hash = session.scalar(select(SDM.dag_hash).where(SDM.dag_id == "test_rowcount_zero"))
+        assert stale_hash is not None
+        session.execute(delete(SDM).where(SDM.dag_id == "test_rowcount_zero"))
+        session.commit()
+
+        prefetched = DagWriteMetadata(
+            last_updated=None,
+            dag_hash=stale_hash,
+            dag_version=dag_version,
+        )
+        # Change the dag so the hash differs, forcing the dynamic-update branch.
+        from airflow.sdk.definitions.dag import DAG as SdkDAG
+
+        new_dag_obj = SdkDAG(dag_id="test_rowcount_zero", schedule=None)
+        with new_dag_obj:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        new_lazy = LazyDeserializedDAG.from_dag(new_dag_obj)
+
+        result = SDM.write_dag(
+            dag=new_lazy,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            min_update_interval=None,
+            session=session,
+            _prefetched=prefetched,
+        )
+
+        assert result is False
+        assert SDM.get("test_rowcount_zero", session=session) is None
+
+    def test_latest_dag_version_with_no_serialized_row_and_changed_hash_heals(self, dag_maker, session):
+        """
+        v1 has a serialized row, v2 is a bare DagVersion (no serialized row), and
+        the incoming Dag hash differs from v1's. The v2 dag should be serialized successfully
+        """
+        with dag_maker(dag_id="test_v2_bare_changed_hash", serialized=True, session=session) as dag:
+            EmptyOperator(task_id="task1")
+
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        SDM.write_dag(dag=lazy_dag, bundle_name="test_bundle", bundle_version=None, session=session)
+        session.commit()
+
+        # Create a bare v2 DagVersion with no corresponding serialized row.
+        DagVersion.write_dag(dag_id="test_v2_bare_changed_hash", bundle_name="test_bundle", session=session)
+        session.commit()
+
+        v2 = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_v2_bare_changed_hash")
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        assert v2 is not None
+        assert v2.version_number == 2
+
+        # A changed dag produces a different hash — bypasses the unchanged-hash short-circuit.
+        from airflow.sdk.definitions.dag import DAG as SdkDAG
+
+        changed_dag = SdkDAG(dag_id="test_v2_bare_changed_hash", schedule=None)
+        with changed_dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        changed_lazy = LazyDeserializedDAG.from_dag(changed_dag)
+
+        result = SDM.write_dag(
+            dag=changed_lazy,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            min_update_interval=None,
+            session=session,
+        )
+        session.commit()
+
+        assert result is True
+        # The code falls through to DagVersion.write_dag, creating a new v3 with the serialized
+        # row attached to it — v2 stays bare. Assert the latest version now has a serialized row.
+        latest = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_v2_bare_changed_hash")
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        assert latest is not None
+        assert latest.version_number == 3
+        assert session.scalar(select(SDM).where(SDM.dag_version_id == latest.id)) is not None
+
+    def test_latest_dag_version_with_no_serialized_row_and_unchanged_hash_heals(self, dag_maker, session):
+        """
+        v1 has a serialized row, v2 is a bare DagVersion (no serialized row), and
+        the incoming Dag hash matches v1's. The v2 dag should be serialized successfully
+        """
+        with dag_maker(dag_id="test_v2_bare_unchanged_hash", serialized=True, session=session) as dag:
+            EmptyOperator(task_id="task1")
+
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        SDM.write_dag(dag=lazy_dag, bundle_name="test_bundle", bundle_version=None, session=session)
+        session.commit()
+
+        v1_hash = session.scalar(select(SDM.dag_hash).where(SDM.dag_id == "test_v2_bare_unchanged_hash"))
+        assert v1_hash is not None
+
+        # Create a bare v2 DagVersion with no corresponding serialized row.
+        DagVersion.write_dag(dag_id="test_v2_bare_unchanged_hash", bundle_name="test_bundle", session=session)
+        session.commit()
+
+        v2 = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_v2_bare_unchanged_hash")
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        assert v2 is not None
+        assert v2.version_number == 2
+
+        # Same dag — same hash as v1. Without the fix the prefetch returns v1's hash (inner
+        # join excludes v2), the unchanged-hash guard fires, and v2 never gets a serialized row.
+        result = SDM.write_dag(
+            dag=lazy_dag,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            min_update_interval=None,
+            session=session,
+        )
+        session.commit()
+
+        assert result is True
+        # The code falls through to DagVersion.write_dag, creating a new v3 with the serialized
+        # row attached to it — v2 stays bare. Assert the latest version now has a serialized row.
+        latest = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_v2_bare_unchanged_hash")
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        assert latest is not None
+        assert latest.version_number == 3
+        assert session.scalar(select(SDM).where(SDM.dag_version_id == latest.id)) is not None
 
     def test_dynamic_dag_update_success(self, dag_maker, session):
         """
