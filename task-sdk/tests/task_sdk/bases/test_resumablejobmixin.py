@@ -235,6 +235,17 @@ class TestResumeOnRetryDisabled:
         assert op.durable is True
 
 
+class TestAbsentContext:
+    """Operators are executed with a ``None`` context by provider tests asserting validation errors."""
+
+    @pytest.mark.parametrize("durable", [True, False])
+    def test_submits_when_context_is_none(self, durable):
+        op = ConcreteResumableOperator(task_id="test_task", durable=durable)
+
+        assert op.execute_resumable(None) == "result-of-job-001"
+        assert op.submitted_ids == ["job-001"]
+
+
 class TestExternalIdKey:
     def test_custom_key_used_for_storage_and_retrieval(self):
         class CustomKeyOp(ConcreteResumableOperator):
