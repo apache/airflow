@@ -32,6 +32,7 @@ from shutil import copyfile
 from time import time
 from typing import Any, NamedTuple
 
+import yaml
 from packaging.version import Version, parse
 from rich.syntax import Syntax
 
@@ -611,6 +612,61 @@ def bump_version(v: Version, index: int) -> Version:
     )
 
 
+def _get_config_options(provider_yaml_content: str) -> dict[str, str | None]:
+    provider_yaml = yaml.safe_load(provider_yaml_content)
+    return {
+        f"{section_name}.{option_name}": option.get("version_added")
+        for section_name, section in (provider_yaml.get("config") or {}).items()
+        for option_name, option in (section.get("options") or {}).items()
+    }
+
+
+def _verify_version_added_fields(provider_id: str, previous_version: str, new_version: str) -> None:
+    """
+    Fails the release preparation if a config option declares a ``version_added`` it never shipped in.
+
+    Contributors have to guess ``version_added`` while writing the change, and the guess goes stale
+    when a release is cut before the PR merges. Nothing revalidates it afterwards, so the wrong value
+    reaches the published configuration reference. This runs at release preparation because that is
+    the only point where the version actually being released is known.
+
+    :param provider_id: provider package
+    :param previous_version: version released before this one
+    :param new_version: version being released
+    """
+    provider_yaml_path = get_provider_yaml(provider_id)
+    previous_tag = get_version_tag(previous_version, provider_id)
+    relative_yaml_path = provider_yaml_path.relative_to(AIRFLOW_ROOT_PATH)
+    result = run_command(
+        ["git", "show", f"{previous_tag}:{relative_yaml_path}"],
+        cwd=AIRFLOW_ROOT_PATH,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode:
+        # The tag is missing for a first release, and the path differs for a provider that moved
+        # between releases. Neither is a reason to block a release.
+        return
+    released_options = _get_config_options(result.stdout)
+    wrong_options = {
+        option_name: version_added
+        for option_name, version_added in _get_config_options(provider_yaml_path.read_text()).items()
+        # A null is left alone because the schema types version_added as nullable.
+        if option_name not in released_options and version_added is not None and version_added != new_version
+    }
+    if not wrong_options:
+        return
+    console_print(
+        f"[error]Wrong version_added in {provider_yaml_path}.[/]\n"
+        f"[error]These options do not exist in {previous_version}, so they first ship in "
+        f"{new_version}:[/]"
+    )
+    for option_name, version_added in wrong_options.items():
+        console_print(f"[error]  {option_name}: has {version_added}, expected {new_version}[/]")
+    sys.exit(1)
+
+
 def _update_version_in_provider_yaml(
     provider_id: str, type_of_change: TypeOfChange, min_airflow_version_bump: bool = False
 ) -> tuple[bool, bool, str]:
@@ -648,6 +704,7 @@ def _update_version_in_provider_yaml(
     )
     provider_yaml_path.write_text(updated_provider_yaml_content)
     console_print(f"[special]Bumped version to {v}\n")
+    _verify_version_added_fields(provider_id, previous_version=version, new_version=str(v))
     return with_breaking_changes, maybe_with_new_features, original_provider_yaml_content
 
 

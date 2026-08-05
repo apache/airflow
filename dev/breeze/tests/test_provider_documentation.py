@@ -21,6 +21,7 @@ import string
 from pathlib import Path
 
 import pytest
+import yaml
 
 from airflow_breeze.prepare_providers.provider_documentation import (
     NEEDS_LLM_CLASSIFICATION,
@@ -33,7 +34,9 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _find_insertion_index_for_version,
     _get_change_from_line,
     _get_changes_classified,
+    _get_config_options,
     _get_git_log_command,
+    _verify_version_added_fields,
     classification_result,
     classify_change_deterministically,
     get_most_impactful_change,
@@ -303,7 +306,7 @@ def test_classify_changes_automatically(
         for description in descriptions
     ]
 
-    for i in range(0, len(changes)):
+    for i in range(len(changes)):
         SHORT_HASH_TO_TYPE_DICT[changes[i].short_hash] = type_of_change[i]
 
     classified_changes = _get_changes_classified(
@@ -532,3 +535,59 @@ def test_classify_change_deterministically(files_class, subject, expected):
         classification, reason = classify_change_deterministically("amazon", _make_change(subject))
     assert classification == expected
     assert reason, "a non-empty reason must always be returned"
+
+
+def _provider_yaml_with(version_added: str | None, include_new_option: bool = True) -> str:
+    options: dict[str, dict] = {"worker_pods_creation_batch_size": {"version_added": "10.1.0"}}
+    if include_new_option:
+        options["async_pod_creation"] = {"version_added": version_added}
+    return yaml.dump({"config": {"kubernetes_executor": {"options": options}}})
+
+
+@pytest.mark.parametrize(
+    ("version_added", "git_returncode", "should_fail"),
+    [
+        pytest.param("10.21.0", 0, False, id="declares_the_version_being_released"),
+        pytest.param("10.20.0", 0, True, id="declares_a_version_it_never_shipped_in"),
+        pytest.param("10.22.0", 0, True, id="declares_a_version_that_does_not_exist_yet"),
+        pytest.param(None, 0, False, id="null_is_allowed_by_the_schema"),
+        pytest.param("10.20.0", 1, False, id="no_tag_to_compare_against"),
+    ],
+)
+def test_verify_version_added_fields(tmp_path, version_added, git_returncode, should_fail):
+    from unittest import mock
+
+    provider_yaml_path = tmp_path / "provider.yaml"
+    provider_yaml_path.write_text(_provider_yaml_with(version_added))
+    previous_release = _provider_yaml_with(None, include_new_option=False)
+
+    with (
+        mock.patch(
+            "airflow_breeze.prepare_providers.provider_documentation.get_provider_yaml",
+            return_value=provider_yaml_path,
+        ),
+        mock.patch(
+            "airflow_breeze.prepare_providers.provider_documentation.AIRFLOW_ROOT_PATH",
+            tmp_path,
+        ),
+        mock.patch(
+            "airflow_breeze.prepare_providers.provider_documentation.run_command",
+            return_value=mock.Mock(returncode=git_returncode, stdout=previous_release),
+        ),
+    ):
+        if should_fail:
+            with pytest.raises(SystemExit):
+                _verify_version_added_fields("cncf.kubernetes", "10.20.0", "10.21.0")
+        else:
+            _verify_version_added_fields("cncf.kubernetes", "10.20.0", "10.21.0")
+
+
+def test_get_config_options_reads_version_added():
+    assert _get_config_options(_provider_yaml_with("10.21.0")) == {
+        "kubernetes_executor.worker_pods_creation_batch_size": "10.1.0",
+        "kubernetes_executor.async_pod_creation": "10.21.0",
+    }
+
+
+def test_get_config_options_without_a_config_section():
+    assert _get_config_options(yaml.dump({"package-name": "apache-airflow-providers-cncf-kubernetes"})) == {}
