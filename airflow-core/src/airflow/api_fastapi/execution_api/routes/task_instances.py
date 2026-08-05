@@ -249,12 +249,15 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
-        # The scheduler refreshes queued_dttm every time it queues a task, so utcnow() - queued_dttm
-        # is a meaningful queue wait for first runs and retries alike (a retry is a new try that
-        # genuinely waited in the queue) -- mirroring the legacy emit in emit_state_change_metric,
-        # which fired on every transition to RUNNING. Only resumes from deferral are skipped,
-        # identified by next_method (the trigger sets it on resume), to avoid re-emitting within the
-        # same try. queued_dttm is None only in rare races and test setups.
+        # Aims at one sample per try: the scheduler refreshes queued_dttm on every queueing, so a
+        # retry measures its own wait, while a resume from deferral is the same try continuing and
+        # is skipped via next_method (set on the DEFERRED transition, left in place until resume).
+        # Two known gaps in that reading: an operator with start_from_trigger=True is deferred
+        # straight from SCHEDULED without ever being queued, so the resume leg skipped here is its
+        # only real wait and it goes unmeasured; and this disagrees with task.scheduled_duration on
+        # retries, which emit_state_change_metric skips because the previous attempt's end_date is
+        # still on the row when the scheduler queues the TI.
+        # queued_dttm is None only in rare races and test setups.
         emit_queued_duration = ti.queued_dttm is not None and ti.next_method is None
 
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
