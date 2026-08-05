@@ -124,6 +124,24 @@ class TestClient:
         assert err.value.args == ("Client error message: {'detail': 'Not found'}",)
 
     @pytest.mark.parametrize(
+        "content_type",
+        [
+            pytest.param("application/json; charset=utf-8", id="charset-parameter"),
+            pytest.param("application/json ; charset=utf-8", id="space-before-parameter"),
+            pytest.param("Application/JSON", id="uppercase-media-type"),
+        ],
+    )
+    def test_error_parsing_normalizes_json_media_type(self, content_type):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"detail": "Not found"}, headers={"content-type": content_type})
+
+        client = Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
+
+        with pytest.raises(ServerResponseError) as err:
+            client.get("http://error")
+        assert err.value.args == ("Client error message: {'detail': 'Not found'}",)
+
+    @pytest.mark.parametrize(
         ("status_code", "expected_message"),
         [
             pytest.param(404, "Client error message: {'detail': 'boom'}", id="client-error"),

@@ -112,7 +112,8 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.status_code < 400:
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if media_type != "application/json":
             return None
 
         # httpx runs response event hooks before it reads the body, so the body has to be
