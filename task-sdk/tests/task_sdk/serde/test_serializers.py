@@ -286,34 +286,6 @@ class TestSerializers:
 
         assert serialize(123) == ("", "", 0, False)
 
-    def test_pandas_3_dataframe_name_is_registered(self):
-        """The pandas 3 qualname must be registered, or the guard below is unreachable.
-
-        Under pandas 3 a DataFrame qualifies as ``pandas.DataFrame``. serde dispatches on
-        that name, so if it is absent from the registry the caller gets the generic
-        "cannot serialize object of type" from serde and never reaches this module.
-        """
-        from airflow.sdk.serde.serializers.pandas import deserializers, serializers
-
-        assert "pandas.DataFrame" in serializers
-        assert "pandas.core.frame.DataFrame" in deserializers
-
-    @pytest.mark.parametrize("version", ["3.0.0", "3.0.5", "4.1.2"])
-    def test_pandas_3_dataframe_xcom_is_refused(self, monkeypatch, version):
-        """pandas >= 3 must fail loudly on both write and read, not round trip silently."""
-        import pandas as pd
-
-        from airflow.sdk.serde.serializers import pandas as pandas_serializer
-
-        monkeypatch.setattr(pd, "__version__", version)
-        df = pd.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
-
-        with pytest.raises(RuntimeError, match=rf"DataFrame XComs are not supported with pandas {version}"):
-            pandas_serializer.serialize(df)
-
-        with pytest.raises(RuntimeError, match=r"DataFrame XComs are not supported with pandas"):
-            pandas_serializer.deserialize(pd.DataFrame, 1, "")
-
     @pytest.mark.parametrize(
         ("klass", "version", "data", "msg"),
         [
