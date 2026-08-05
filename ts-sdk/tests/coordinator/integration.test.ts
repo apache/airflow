@@ -579,4 +579,39 @@ describe("coordinator runtime integration", () => {
     const setXComReqs = result.runtimeRequests.filter((r) => r.type === "SetXCom");
     expect(setXComReqs).toHaveLength(0);
   });
+
+  it("surfaces hasMappedDependants=true on TaskContext when the server sets it", async () => {
+    let observedCtx: unknown = null;
+    registerTask({ dagId: "test_dag", taskId: "mapped_producer" }, async ({ ctx }) => {
+      observedCtx = ctx;
+      return ["a", "b", "c"];
+    });
+
+    const responder: Responder = (msgType) => (msgType === "SetXCom" ? { body: null } : null);
+
+    const result = await driveSupervisor(
+      makeStartupDetails("mapped_producer", "test_dag", "r1", {
+        has_mapped_dependants: true,
+        max_tries: 1,
+      }),
+      responder,
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observedCtx).toMatchObject({ hasMappedDependants: true });
+  });
+
+  it("defaults hasMappedDependants to false when the server omits it", async () => {
+    let observedCtx: unknown = null;
+    registerTask({ dagId: "test_dag", taskId: "plain_task" }, async ({ ctx }) => {
+      observedCtx = ctx;
+    });
+
+    const result = await driveSupervisor(
+      makeStartupDetails("plain_task", "test_dag", "r1", { max_tries: 1 }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observedCtx).toMatchObject({ hasMappedDependants: false });
+  });
 });
