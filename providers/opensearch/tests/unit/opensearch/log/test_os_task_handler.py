@@ -20,6 +20,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import os
 import re
 from io import StringIO
 from pathlib import Path
@@ -786,6 +787,126 @@ class TestOpensearchRemoteLogIO:
         self.opensearch_io.upload(log_file, ti=None)
 
 
+class TestOpensearchRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "delete_local_logs"): "True",
+            ("opensearch", "host"): "https://opensearch.example.com:9200",
+            ("opensearch", "port"): "9201",
+            ("opensearch", "username"): "admin",
+            ("opensearch", "password"): "secret",
+            ("opensearch", "write_stdout"): "True",
+            ("opensearch", "write_to_os"): "True",
+            ("opensearch", "json_format"): "True",
+            ("opensearch", "target_index"): "my-logs",
+            ("opensearch", "host_field"): "host.name",
+            ("opensearch", "offset_field"): "log.offset",
+            ("opensearch", "log_id_template"): "{dag_id}-{task_id}-{run_id}",
+        }
+    )
+    def test_from_config(self):
+        subject = OpensearchRemoteLogIO.from_config()
+
+        assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+        assert subject.host == "https://opensearch.example.com:9200"
+        assert subject.port == 9201
+        assert subject.username == "admin"
+        assert subject.password == "secret"
+        assert subject.write_stdout is True
+        assert subject.write_to_opensearch is True
+        assert subject.json_format is True
+        assert subject.target_index == "my-logs"
+        assert subject.host_field == "host.name"
+        assert subject.offset_field == "log.offset"
+        assert subject.log_id_template == "{dag_id}-{task_id}-{run_id}"
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "delete_local_logs"): "False",
+            ("opensearch", "host"): "https://opensearch.example.com:9200",
+            ("opensearch", "username"): "admin",
+            ("opensearch", "password"): "secret",
+            ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true, "max_bytes": 1024}',
+        }
+    )
+    def test_from_config_ignores_remote_task_handler_kwargs(self):
+        """Unlike the object-storage backends, OpenSearch does not merge IO kwargs (legacy parity)."""
+        subject = OpensearchRemoteLogIO.from_config()
+
+        # ``delete_local_copy`` stays at the ``[logging] delete_local_logs`` value.
+        assert subject.delete_local_copy is False
+        # ``max_bytes`` belongs to FileTaskHandler and must not reach the IO class.
+        assert not hasattr(subject, "max_bytes")
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("opensearch", "host"): "https://opensearch.example.com:9201",
+            ("opensearch", "port"): "",
+            ("opensearch", "username"): "admin",
+            ("opensearch", "password"): "secret",
+        }
+    )
+    def test_from_config_defaults_port_when_unset(self):
+        """An unset port falls back to 9200 (legacy intent) rather than the host URL's port."""
+        subject = OpensearchRemoteLogIO.from_config()
+
+        assert subject.port == 9200
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            OpensearchRemoteLogIO.from_config()
+
+    def test_provider_registers_opensearch_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("opensearch")
+
+        assert info is not None
+        assert info.classpath == "airflow.providers.opensearch.log.os_task_handler.OpensearchRemoteLogIO"
+
+    @pytest.mark.parametrize(
+        "manager_classpath",
+        [
+            pytest.param("airflow.providers_manager.ProvidersManager", id="core"),
+            pytest.param(
+                "airflow.sdk.providers_manager_runtime.ProvidersManagerTaskRuntime", id="task-runtime"
+            ),
+        ],
+    )
+    @conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "opensearch://",
+            ("opensearch", "host"): "https://opensearch.example.com:9200",
+            ("opensearch", "username"): "admin",
+            ("opensearch", "password"): "secret",
+        }
+    )
+    def test_resolve_remote_task_log_uses_provider_dispatch_not_local_settings(self, manager_classpath):
+        factory = pytest.importorskip("airflow._shared.logging.factory")
+        from airflow._shared.module_loading import import_string
+        from airflow.configuration import conf
+
+        with patch.object(factory, "discover_remote_log_handler", autospec=True) as legacy_discover:
+            remote_task_log, _ = factory.resolve_remote_task_log(
+                conf=conf,
+                providers_manager=import_string(manager_classpath)(),
+                import_string=import_string,
+            )
+
+        assert isinstance(remote_task_log, OpensearchRemoteLogIO)
+        legacy_discover.assert_not_called()
+
+
 class TestFormatErrorDetail:
     def test_returns_none_for_empty(self):
         assert _format_error_detail(None) is None
@@ -879,8 +1000,14 @@ class TestBuildStructuredLogFields:
         assert result["level"] == "ERROR"
         assert "levelname" not in result
 
-    def test_at_timestamp_mapped_to_timestamp(self):
+    def test_at_timestamp_mapped_to_timestamp_if_no_timestamp_present(self):
         hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z"}
+        result = _build_log_fields(hit)
+        assert result["timestamp"] == "2024-01-01T00:00:00Z"
+        assert "@timestamp" not in result
+
+    def test_at_timestamp_not_included_if_timestamp_present(self):
+        hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z", "timestamp": "2024-01-01T00:00:00Z"}
         result = _build_log_fields(hit)
         assert result["timestamp"] == "2024-01-01T00:00:00Z"
         assert "@timestamp" not in result

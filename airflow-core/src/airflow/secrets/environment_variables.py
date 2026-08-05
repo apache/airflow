@@ -20,19 +20,24 @@
 from __future__ import annotations
 
 import os
-import re
 
 from airflow.secrets import BaseSecretsBackend
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 
+# Separates the team name from the secret id in a team namespaced environment variable
+# name: AIRFLOW_CONN__<TEAM>___<ID>.
+TEAM_SEP = "___"
+
 
 class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
-        if self._is_team_specific_accessed_as_global(conn_id, team_name):
+        if TEAM_SEP in conn_id:
+            # An id containing the separator could collide with another team's namespace
+            # even on the scoped lookup below, so it must be refused before either runs.
             return None
 
         if team_name and (
@@ -51,7 +56,8 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        if self._is_team_specific_accessed_as_global(key, team_name):
+        if TEAM_SEP in key:
+            # Same collision risk as get_conn_value, see its code comment.
             return None
 
         if team_name and (
@@ -61,7 +67,3 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
             return team_var
 
         return os.environ.get(VAR_ENV_PREFIX + key.upper())
-
-    @staticmethod
-    def _is_team_specific_accessed_as_global(secret_id: str, team_name: str | None = None) -> bool:
-        return team_name is None and bool(re.fullmatch(r"_[^_]+___.+", secret_id))
