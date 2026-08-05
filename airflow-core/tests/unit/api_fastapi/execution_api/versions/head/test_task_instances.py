@@ -1214,6 +1214,60 @@ class TestTIRunState:
         assert response.status_code == 200
         mock_stats.timing.assert_not_called()
 
+    def test_ti_run_queued_duration_metric_is_tagged_with_team_name(
+        self, client, session, dag_maker, time_machine
+    ):
+        """The team tag has to be pinned with multi-team on: with it off both the metric and any
+        expectation derived from stats_tags omit the key, so they would agree for the wrong reason.
+        """
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(queued_at, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=queued_at, state=DagRunState.RUNNING, start_date=queued_at
+        )
+        ti = dr.get_task_instance(task_id="task")
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=State.QUEUED, queued_dttm=queued_at, queue="default")
+        )
+
+        bundle_name = f"bundle-{dag_id}"
+        team_name = f"team-{dag_id[:8]}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(Team(name=team_name))
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+                response = client.patch(
+                    f"/execution/task-instances/{ti.id}/run",
+                    json={
+                        "state": "running",
+                        "hostname": "random-hostname",
+                        "unixname": "random-unixname",
+                        "pid": 100,
+                        "start_date": run_at.isoformat(),
+                    },
+                )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once()
+        assert mock_stats.timing.call_args.kwargs["tags"]["team_name"] == team_name
+
 
 class TestTIUpdateState:
     def setup_method(self):
