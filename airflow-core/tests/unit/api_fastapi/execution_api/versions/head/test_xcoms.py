@@ -662,7 +662,7 @@ class TestXComsDeleteEndpoint:
         response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}", params=params)
 
         assert response.status_code == 200
-        assert response.json() == {"count": expected_deleted}
+        assert response.json() == expected_deleted
 
         xcoms = session.scalars(
             select(XComModel).where(XComModel.dag_id == ti.dag_id, XComModel.run_id == ti.run_id)
@@ -670,21 +670,12 @@ class TestXComsDeleteEndpoint:
         assert len(xcoms) == expected_remaining
 
         if task_id == "t1" and key is None:
-            assert not any(xcom.task_id == "t1" for xcom in xcoms)
             assert all(xcom.task_id == "t2" for xcom in xcoms)
-
-            remaining_keys = {xcom.key for xcom in xcoms}
-            assert remaining_keys == {"xcom_1", "xcom_3"}
+            assert {xcom.key for xcom in xcoms} == {"xcom_1", "xcom_3"}
 
         elif task_id is None and key == "xcom_3":
-            assert not any(xcom.key == "xcom_3" for xcom in xcoms)
-            assert all(xcom.key != "xcom_3" for xcom in xcoms)
-
-            remaining_tasks = {xcom.task_id for xcom in xcoms}
-            assert remaining_tasks == {"t1", "t2"}
-
-            remaining_keys = {xcom.key for xcom in xcoms}
-            assert remaining_keys == {"xcom_1", "xcom_2"}
+            assert {xcom.task_id for xcom in xcoms} == {"t1", "t2"}
+            assert {xcom.key for xcom in xcoms} == {"xcom_1", "xcom_2"}
 
     def test_xcom_bulk_delete_by_map_index(self, client, dag_maker, session):
         """Test XCom bulk deletion by map_index."""
@@ -721,7 +712,7 @@ class TestXComsDeleteEndpoint:
         )
 
         assert response.status_code == 200
-        assert response.json() == {"count": 2}
+        assert response.json() == 2
 
         remaining = session.scalars(
             select(XComModel.map_index).where(
@@ -729,6 +720,87 @@ class TestXComsDeleteEndpoint:
             )
         ).all()
         assert set(remaining) == {1}
+
+    def test_xcom_bulk_delete_only_targets_requested_run(self, client, dag_maker, session):
+        """Bulk delete removes only the targeted run's XComs and leaves other runs intact."""
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="task")
+
+        target_run = dag_maker.create_dagrun(
+            run_id="target", logical_date=timezone.parse("2024-01-01T00:00:00Z")
+        )
+        other_run = dag_maker.create_dagrun(
+            run_id="other", logical_date=timezone.parse("2024-01-02T00:00:00Z")
+        )
+
+        target_ti = target_run.get_task_instance("task")
+        other_ti = other_run.get_task_instance("task")
+
+        target_ti.xcom_push(key="k", value='"v"', session=session)
+        other_ti.xcom_push(key="k", value='"v"', session=session)
+        session.commit()
+
+        response = client.delete(f"/execution/xcoms/{target_ti.dag_id}/{target_ti.run_id}")
+
+        assert response.status_code == 200
+        assert response.json() == 1
+
+        remaining = session.scalars(select(XComModel.run_id).where(XComModel.dag_id == "dag")).all()
+        assert remaining == ["other"]
+
+    def test_xcom_bulk_delete_preserves_dag_result_by_default(self, client, dag_maker, session):
+        """Bulk delete keeps dag_result rows unless include_dag_result is set."""
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(run_id="test")
+        ti = dag_run.get_task_instance("task")
+
+        session.add_all(
+            [
+                XComModel(
+                    key="scratch",
+                    value='"v"',
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                ),
+                XComModel(
+                    key="return_value",
+                    value='"result"',
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    dag_result=True,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}")
+        assert response.status_code == 200
+        assert response.json() == 1
+
+        remaining = session.scalars(select(XComModel).where(XComModel.dag_run_id == ti.dag_run.id)).all()
+        assert len(remaining) == 1
+        assert remaining[0].dag_result is True
+
+        response = client.delete(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}", params={"include_dag_result": True}
+        )
+        assert response.status_code == 200
+        assert response.json() == 1
+
+        remaining = session.scalars(select(XComModel).where(XComModel.dag_run_id == ti.dag_run.id)).all()
+        assert remaining == []
+
+    def test_xcom_bulk_delete_missing_run_returns_zero(self, client):
+        """Bulk delete for a nonexistent Dag run is a no-op that returns 0."""
+        response = client.delete("/execution/xcoms/does_not_exist/nonexistent_run")
+
+        assert response.status_code == 200
+        assert response.json() == 0
 
 
 class TestXComTeamAccess:
@@ -787,6 +859,10 @@ class TestXComTeamAccess:
     @staticmethod
     def _url(dag_id, key="k"):
         return f"/execution/xcoms/{dag_id}/run1/task/{key}"
+
+    @staticmethod
+    def _bulk_url(dag_id):
+        return f"/execution/xcoms/{dag_id}/run1"
 
     def test_multi_team_disabled_allows_cross_team(self, client, exec_app, session, dag_maker):
         """With multi-team disabled, the check is a no-op even across teams."""
@@ -879,3 +955,30 @@ class TestXComTeamAccess:
 
         assert forbidden.status_code == 403, forbidden.json()
         assert allowed.status_code == 200, allowed.json()
+
+    def test_same_team_bulk_delete_allowed(self, client, exec_app, session, dag_maker):
+        """A task may bulk delete XCom within its own team."""
+        dag_id = f"dag_{uuid4().hex}"
+        dag_run, ti = self._make_dag(session, dag_maker, dag_id, "team_a")
+        self._insert_xcom(session, dag_run, dag_id, key="existing", value="v")
+        self._authenticate_as(exec_app, ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.delete(self._bulk_url(dag_id))
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == 1
+
+    def test_cross_team_bulk_delete_forbidden(self, client, exec_app, session, dag_maker):
+        """A task cannot bulk delete another team's XCom."""
+        _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
+        target_dag = f"tgt_{uuid4().hex}"
+        target_dr, _ = self._make_dag(session, dag_maker, target_dag, "team_b")
+        self._insert_xcom(session, target_dr, target_dag)
+        self._authenticate_as(exec_app, requester_ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.delete(self._bulk_url(target_dag))
+
+        assert response.status_code == 403, response.json()
+        assert response.json()["detail"]["reason"] == "access_denied"

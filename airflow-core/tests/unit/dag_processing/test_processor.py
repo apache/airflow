@@ -2235,10 +2235,10 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
+            "XComDeleteCountResult",
             # AIP-103 task/asset store results — worker-only responses to the above messages.
             "TaskStateStoreResult",
             "AssetStateStoreResult",
-            "XComDeleteCountResult",
         }
 
         supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager

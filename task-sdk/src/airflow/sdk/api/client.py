@@ -666,9 +666,10 @@ class XComOperations:
         task_id: str | None = None,
         key: str | None = None,
         map_index: int | None = None,
+        include_dag_result: bool = False,
     ) -> XComDeleteCountResult:
         """Bulk delete XCom values via the API server."""
-        params: dict[str, str | int] = {}
+        params: dict[str, str | int | bool] = {}
 
         if map_index is not None:
             params["map_index"] = map_index
@@ -676,9 +677,11 @@ class XComOperations:
             params["task_id"] = task_id
         if key is not None:
             params["key"] = key
+        if include_dag_result:
+            params["include_dag_result"] = include_dag_result
 
         resp = self.client.delete(url=f"xcoms/{dag_id}/{run_id}", params=params)
-        return XComDeleteCountResult(count=resp.json()["count"])
+        return XComDeleteCountResult(count=resp.json())
 
     def get_sequence_item(
         self,
