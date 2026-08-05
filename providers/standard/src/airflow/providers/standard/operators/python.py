@@ -76,6 +76,16 @@ from airflow.utils.file import get_unique_dag_module_name
 
 log = logging.getLogger(__name__)
 
+
+def has_execute_tasks_new_python_interpreter_serialization_support() -> bool:
+    try:
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    except ImportError:
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    return "execute_tasks_new_python_interpreter" in SerializedBaseOperator.get_serialized_fields()
+
+
 if TYPE_CHECKING:
     from typing import Literal
 
@@ -211,9 +221,10 @@ class PythonOperator(BaseAsyncOperator):
     @classmethod
     def get_serialized_fields(cls):
         if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(
-                super().get_serialized_fields() | {"execute_tasks_new_python_interpreter"}
-            )
+            serialized_fields = super().get_serialized_fields()
+            if has_execute_tasks_new_python_interpreter_serialization_support():
+                serialized_fields = serialized_fields | {"execute_tasks_new_python_interpreter"}
+            cls.__serialized_fields = frozenset(serialized_fields)
         return cls.__serialized_fields
 
     @property
