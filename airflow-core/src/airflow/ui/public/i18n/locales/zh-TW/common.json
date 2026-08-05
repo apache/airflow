@@ -86,6 +86,7 @@
   "dagRun_one": "Dag 執行",
   "dagRun_other": "Dag 執行",
   "dagRunId": "Dag 執行 ID",
+  "dagRunState": "Dag 執行狀態",
   "dagWarnings": "Dag 警告 / 錯誤",
   "defaultToGraphView": "預設使用圖形檢視",
   "defaultToGridView": "預設使用網格檢視",
@@ -288,6 +289,9 @@
   },
   "showDetailsPanel": "顯示詳細資訊",
   "signedInAs": "登入身分：",
+  "slot": "配額",
+  "slot_one": "配額",
+  "slot_other": "配額",
   "source": {
     "hide": "隱藏來源",
     "hotkey": "s",
