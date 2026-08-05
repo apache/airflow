@@ -61,6 +61,7 @@ jobs:
       "pierrejeambrun",
       "potiuk",
       "utkarsharma2",
+      "vatsrahul1001",
       "vincbeck",
       ]'), github.event.sender.login)
     outputs:
