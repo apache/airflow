@@ -61,6 +61,7 @@ jobs:
       "pierrejeambrun",
       "potiuk",
       "utkarsharma2",
+      "vatsrahul1001",
       "vincbeck",
       ]'), github.event.sender.login)
     outputs:
@@ -179,6 +180,10 @@ jobs:
       # Only the PyPI constraints are what a release ships; the other modes serve CI, and
       # regenerating them here would move them for reasons unrelated to the release.
       generate-no-providers-constraints: "false"
+      # A release pins the providers as published on PyPI, so nothing is built from the sources
+      # here: a locally built provider wheel would answer the resolution and then be left out of
+      # the constraints, which is exactly the version the release needed pinned.
+      pypi-providers-only: "true"
       allow-pre-releases: ${{ needs.build-info.outputs.allow-pre-releases }}
       debug-resources: "false"
       checkout-ref: ${{ inputs.ref }}
@@ -232,13 +237,15 @@ jobs:
       - name: "Push ${{ needs.build-info.outputs.target-branch }}"
         working-directory: "constraints"
         shell: bash
-        run: git push origin "${TARGET_BRANCH}"
+        # Qualify as refs/heads/ -- for a release candidate the branch and the tag share a name
+        # (both constraints-<VERSION>), so a bare refspec is ambiguous ("matches more than one").
+        run: git push origin "refs/heads/${TARGET_BRANCH}"
       - name: "Tag constraints-${{ inputs.version }}"
         working-directory: "constraints"
         shell: bash
         run: |
           git tag -a "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
-          git push origin "constraints-${VERSION}"
+          git push origin "refs/tags/constraints-${VERSION}"
       - name: "Summary"
         shell: bash
         run: |
