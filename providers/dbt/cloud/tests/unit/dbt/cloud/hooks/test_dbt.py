@@ -1118,9 +1118,7 @@ class TestDbtCloudHook:
         with patch.object(hook.log, "error") as mock_log_error:
             hook.log_job_run_failure_details(run_id=RUN_ID, account_id=account_id, job_run=job_run)
 
-        mock_log_error.assert_any_call(
-            "dbt Cloud job run %s ended with status %s.", RUN_ID, "ERROR"
-        )
+        mock_log_error.assert_any_call("dbt Cloud job run %s ended with status %s.", RUN_ID, "ERROR")
         mock_log_error.assert_any_call("dbt Cloud job run %s: %s", RUN_ID, "Run failed")
         mock_log_error.assert_any_call(
             "dbt Cloud failed step — %s",
@@ -1207,9 +1205,7 @@ class TestDbtCloudHook:
                 with pytest.raises(DbtCloudJobRunException):
                     hook.wait_for_job_run_status(**config)
                 if expected_output == "exception":
-                    mock_log_failure_details.assert_called_once_with(
-                        run_id=RUN_ID, account_id=None
-                    )
+                    mock_log_failure_details.assert_called_once_with(run_id=RUN_ID, account_id=None)
                 else:
                     mock_log_failure_details.assert_not_called()
 
