@@ -18,8 +18,6 @@
  */
 import { Badge, Button, HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
@@ -29,11 +27,9 @@ import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { renderDuration } from "src/utils/datetimeUtils";
+import { translateCompletionRule } from "src/utils/deadlines";
 
 import { DeadlineStatusModal } from "./DeadlineStatusModal";
-
-dayjs.extend(duration);
-dayjs.extend(relativeTime);
 
 type DeadlineStatusProps = {
   readonly dagId: string;
@@ -84,12 +80,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       <VStack alignItems="flex-start" gap={0.5}>
         {(alertData?.deadline_alerts ?? []).map((deadlineAlert) => (
           <Text fontSize="xs" key={deadlineAlert.id}>
-            {translate("deadlineAlerts.completionRule", {
-              interval: dayjs.duration(deadlineAlert.interval, "seconds").humanize(),
-              reference: translate(`deadlineAlerts.referenceType.${deadlineAlert.reference_type}`, {
-                defaultValue: deadlineAlert.reference_type,
-              }),
-            })}
+            {translateCompletionRule(translate, deadlineAlert)}
           </Text>
         ))}
       </VStack>
@@ -156,6 +147,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
   }
 
   const alert = dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
+  const completionRule = translateCompletionRule(translate, alert);
   const deadlineTime = dayjs(dl.deadline_time);
 
   let actualDurationLabel: string | undefined;
@@ -185,14 +177,9 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
           </Text>
         )}
       </HStack>
-      {alert === undefined ? undefined : (
+      {completionRule === undefined ? undefined : (
         <Text color="fg.muted" fontSize="xs">
-          {translate("deadlineAlerts.completionRule", {
-            interval: dayjs.duration(alert.interval, "seconds").humanize(),
-            reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-              defaultValue: alert.reference_type,
-            }),
-          })}
+          {completionRule}
         </Text>
       )}
       <HStack gap={1}>

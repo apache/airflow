@@ -89,12 +89,8 @@ class PapermillOperator(BaseOperator):
         super().__init__(**kwargs)
         self.parameters = parameters
 
-        if not input_nb:
-            raise ValueError("Input notebook is not specified")
         self.input_nb = input_nb
 
-        if not output_nb:
-            raise ValueError("Output notebook is not specified")
         self.output_nb = output_nb
 
         self.kernel_name = kernel_name
@@ -105,6 +101,10 @@ class PapermillOperator(BaseOperator):
         self.nbconvert_args = nbconvert_args
 
     def execute(self, context: Context):
+        if not self.input_nb:
+            raise ValueError("Input notebook is not specified")
+        if not self.output_nb:
+            raise ValueError("Output notebook is not specified")
         if not isinstance(self.input_nb, NoteBook):
             self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)
         if not isinstance(self.output_nb, NoteBook):

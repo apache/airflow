@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
 if TYPE_CHECKING:
@@ -82,7 +82,7 @@ class LocalFilesystemToADLSOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         if "**" in self.local_path:
-            raise AirflowException("Recursive glob patterns using `**` are not supported")
+            raise ValueError("Recursive glob patterns using `**` are not supported")
         if not self.extra_upload_options:
             self.extra_upload_options = {}
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)

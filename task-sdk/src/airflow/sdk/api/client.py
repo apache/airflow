@@ -720,7 +720,7 @@ class TaskStateStoreOperations:
     def get(self, ti_id: uuid.UUID, key: str) -> TaskStateStoreResponse | ErrorResponse:
         """Get a task store value from the API server."""
         try:
-            resp = self.client.get(f"store/ti/{ti_id}/{key}")
+            resp = self.client.get(f"store/ti/{ti_id}/{quote(key, safe='')}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug("Task store key not found", ti_id=ti_id, key=key)
@@ -731,12 +731,12 @@ class TaskStateStoreOperations:
     def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
         """Set a task store value via the API server."""
         body = TaskStateStorePutBody(value=value, expires_at=expires_at)
-        self.client.put(f"store/ti/{ti_id}/{key}", content=body.model_dump_json())
+        self.client.put(f"store/ti/{ti_id}/{quote(key, safe='')}", content=body.model_dump_json())
         return OKResponse(ok=True)
 
     def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
         """Delete a single task store key via the API server."""
-        self.client.delete(f"store/ti/{ti_id}/{key}")
+        self.client.delete(f"store/ti/{ti_id}/{quote(key, safe='')}")
         return OKResponse(ok=True)
 
     def clear(self, ti_id: uuid.UUID) -> OKResponse:
@@ -858,6 +858,8 @@ class AssetEventOperations:
         before: datetime | None = None,
         ascending: bool = True,
         limit: int | None = None,
+        partition_key: str | None = None,
+        partition_key_regexp_pattern: str | None = None,
         extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
@@ -869,6 +871,10 @@ class AssetEventOperations:
         common_params["ascending"] = ascending
         if limit is not None:
             common_params["limit"] = limit
+        if partition_key is not None:
+            common_params["partition_key"] = partition_key
+        if partition_key_regexp_pattern is not None:
+            common_params["partition_key_regexp_pattern"] = partition_key_regexp_pattern
         extra_params: list[tuple[str, str]] = []
         if extra:
             extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]

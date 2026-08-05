@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "22.2.2"
+version = "22.3.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -134,9 +134,18 @@ dependencies = [
     # See https://github.com/looker-open-source/sdk-codegen/issues/1518
     "looker-sdk>=22.4.0,!=24.18.0",
     "pandas-gbq>=0.7.0",
-    'pandas>=2.1.2; python_version <"3.13"',
-    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
-    'pandas>=2.3.3; python_version >="3.14"',
+    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
+    # round trip; capped until pandas 3 support lands.
+    # Tracked at https://github.com/apache/airflow/pull/70558
+    'pandas>=2.1.2,<3; python_version <"3.13"',
+    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
+    # round trip; capped until pandas 3 support lands.
+    # Tracked at https://github.com/apache/airflow/pull/70558
+    'pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"',
+    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
+    # round trip; capped until pandas 3 support lands.
+    # Tracked at https://github.com/apache/airflow/pull/70558
+    'pandas>=2.3.3,<3; python_version >="3.14"',
     "proto-plus>=1.26.0",
     # Used to write parquet files by BaseSqlToGCSOperator
     "pyarrow>=18.0.0; python_version < '3.14'",
@@ -277,8 +286,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
