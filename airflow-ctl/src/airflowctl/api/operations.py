@@ -632,6 +632,8 @@ class DagRunOperations(BaseOperations):
         logical_date_gte: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
         order_by: str | None = None,
+        *,
+        suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
         List dag runs (at most `limit` results).
@@ -645,6 +647,7 @@ class DagRunOperations(BaseOperations):
             logical_date_gte: Filter dag runs with a logical date greater than or equal to this value.
             logical_date_lte: Filter dag runs with a logical date less than or equal to this value.
             order_by: Order the results by the specified field.
+            suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
@@ -661,7 +664,11 @@ class DagRunOperations(BaseOperations):
         )
 
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns",
+                params=params,
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
