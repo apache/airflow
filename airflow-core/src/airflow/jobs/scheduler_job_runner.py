@@ -3358,16 +3358,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _emit_dag_runs_metric(self, *, session: Session = NEW_SESSION) -> None:
-        stmt = (
-            select(DagRun.dag_id, DagRun.state, func.count().label("count"))
-            .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
-            .group_by(DagRun.dag_id, DagRun.state)
-        )
-        for dag_id, state, count in session.execute(stmt).all():
-            metric_name = (
-                "scheduler.dagruns.running" if state == DagRunState.RUNNING else "scheduler.dagruns.queued"
+        if conf.getboolean("scheduler", "dagrun_metrics_per_dag_id"):
+            stmt = (
+                select(DagRun.dag_id, DagRun.state, func.count().label("count"))
+                .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
+                .group_by(DagRun.dag_id, DagRun.state)
             )
-            stats.gauge(metric_name, float(count), tags={"dag_id": dag_id})
+            for dag_id, state, count in session.execute(stmt).all():
+                metric_name = (
+                    "scheduler.dagruns.running"
+                    if state == DagRunState.RUNNING
+                    else "scheduler.dagruns.queued"
+                )
+                stats.gauge(metric_name, float(count), tags={"dag_id": dag_id})
+            return
+
+        stmt = (
+            select(DagRun.state, func.count().label("count"))
+            .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
+            .group_by(DagRun.state)
+        )
+        counts = dict(session.execute(stmt).all())
+        stats.gauge("scheduler.dagruns.running", float(counts.get(DagRunState.RUNNING, 0)))
+        stats.gauge("scheduler.dagruns.queued", float(counts.get(DagRunState.QUEUED, 0)))
 
     @provide_session
     def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:

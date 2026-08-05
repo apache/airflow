@@ -159,6 +159,16 @@ def _get_legacy_stat_name_and_tags(
         return _none
 
     required_vars = stat_from_registry.get("name_variables", [])
+
+    # tags=None means this call opted out of tagging (e.g. an untagged aggregate
+    # behind a config flag), so skip the legacy name instead of raising.
+    # Example: ``scheduler.dagruns.running`` uses legacy
+    # ``scheduler.dagruns.running.{dag_id}``; when emitted as an aggregate with
+    # ``tags=None``, we do not try to format ``{dag_id}``. An empty dict still
+    # raises below since that means tags were expected but missing.
+    if required_vars and tags is None:
+        return _none
+
     provided_vars = set(tags.keys()) if tags else set()
     missing_vars = set(required_vars) - provided_vars
     # If there are specified variables in the YAML file that haven't been provided in the tags param.
