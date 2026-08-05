@@ -148,7 +148,16 @@ class TaskInstanceHistory(Base):
             if column.name == "task_instance_id":
                 setattr(self, column.name, ti.id)
                 continue
-            setattr(self, column.name, getattr(ti, column.name))
+            value = getattr(ti, column.name)
+            if column.name == "hostname" and value == "":
+                # TaskInstance initialises hostname to "" (not None) in __init__,
+                # so when a pod is killed before the task-sdk can call the execution
+                # API, the DB row still holds an empty string.  Store NULL in history
+                # instead so callers can distinguish "hostname was never reported"
+                # from a real hostname, and so the log-URL builder avoids
+                # constructing http://:8793/… for those earlier failed attempts.
+                value = None
+            setattr(self, column.name, value)
 
         if state:
             self.state = state
