@@ -35,6 +35,7 @@ from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.models.trigger import handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -255,6 +256,72 @@ def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected
 
     with assert_queries_count(expected_query_count, session=session):
         Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+
+
+@pytest.mark.parametrize(
+    "stored_next_kwargs",
+    [
+        # Decoding blows up: serde rejects the class name, and the BaseSerialization fallback then
+        # trips over the missing legacy keys.
+        pytest.param(
+            {"__classname__": "not.allowed.Thing", "__version__": 1, "__data__": {}},
+            id="undecodable",
+        ),
+        # Decodes cleanly, but not into a dict: legacy encoding of a bare datetime.
+        pytest.param({"__type": "datetime", "__var": 1735689600.0}, id="not-a-dict"),
+    ],
+)
+def test_handle_event_submit_fails_task_with_unusable_next_kwargs(
+    session, create_task_instance, stored_next_kwargs
+):
+    """
+    Tests that stored kwargs which cannot be turned into a dict fail the task instance instead of
+    raising out of ``handle_event_submit``. Its callers walk every waiting task instance in one
+    pass, so one unusable payload must not abort them.
+    """
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = stored_next_kwargs
+    session.flush()
+
+    handle_event_submit(TriggerEvent("payload"), task_instance=task_instance, session=session)
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "__fail__"
+    assert task_instance.trigger_id is None
+    assert "event" not in task_instance.next_kwargs
+    assert "stored next_kwargs could not be decoded" in task_instance.next_kwargs["error"]
+    # The traceback reaches the task log only through next_kwargs, and the runtime joins the list.
+    assert isinstance(task_instance.next_kwargs["traceback"], list)
+
+
+def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_serialized(
+    session, create_task_instance
+):
+    """A payload serde cannot encode is reported as such, not as unreadable stored kwargs.
+
+    Blaming the stored kwargs would point the Dag author at database state that was never the
+    problem.
+    """
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = {}
+    session.flush()
+
+    # serde refuses any dict carrying its reserved keys, at any depth.
+    handle_event_submit(
+        TriggerEvent({"__classname__": "anything"}), task_instance=task_instance, session=session
+    )
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "__fail__"
+    assert "event payload could not be serialized" in task_instance.next_kwargs["error"]
 
 
 def test_submit_failure(session, create_task_instance):
