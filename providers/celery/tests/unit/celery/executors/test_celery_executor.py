@@ -23,7 +23,9 @@ import os
 import signal
 import sys
 from datetime import timedelta
+from pathlib import Path
 from unittest import mock
+from uuid import UUID
 
 # Leave this it is used by the test worker.
 import celery.contrib.testing.tasks  # noqa: F401
@@ -1112,8 +1114,8 @@ def execute_task_workload_json() -> str:
 
     workload = workloads.ExecuteTask(
         ti=workloads.TaskInstance(
-            id="00000000-0000-0000-0000-000000000001",
-            dag_version_id="00000000-0000-0000-0000-000000000002",
+            id=UUID("00000000-0000-0000-0000-000000000001"),
+            dag_version_id=UUID("00000000-0000-0000-0000-000000000002"),
             task_id="test_task",
             dag_id="test_dag",
             run_id="test_run",
@@ -1123,7 +1125,7 @@ def execute_task_workload_json() -> str:
             queue="default",
             priority_weight=1,
         ),
-        dag_rel_path="test_dag.py",
+        dag_rel_path=Path("test_dag.py"),
         bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
         token="test-token",
         log_path="test.log",

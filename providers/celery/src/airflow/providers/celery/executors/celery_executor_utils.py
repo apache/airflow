@@ -297,9 +297,7 @@ def _execute_workload_pre_3_3(input: str) -> None:
             subprocess_logs_to_stdout = _celery_task_logs_to_stdout_override()
             if subprocess_logs_to_stdout is None:
                 # No run_workload() to apply the core default on this pre-3.3 path, so resolve it here.
-                subprocess_logs_to_stdout = conf.getboolean(
-                    "logging", "task_logs_to_stdout", fallback=False
-                )
+                subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                 ti=workload.ti,  # type: ignore[arg-type]
