@@ -29,9 +29,13 @@ from ci.prek.common_prek_utils import (
     get_provider_id_from_path,
     initialize_breeze_prek,
     insert_documentation,
+    is_hidden_within_root,
     pre_process_mypy_files,
     read_airflow_version,
     read_allowed_kubernetes_versions,
+    read_allowed_python_major_minor_versions,
+    read_current_mysql_versions,
+    read_current_postgres_versions,
     read_default_python_major_minor_version_for_images,
     resolve_github_token,
     retrieve_gh_token,
@@ -168,6 +172,21 @@ class TestPreProcessMypyFiles:
         files = [PROVIDERS_AMAZON_S3_PATH]
         result = pre_process_mypy_files(files)
         assert PROVIDERS_AMAZON_S3_PATH in result
+
+
+class TestIsHiddenWithinRoot:
+    @pytest.mark.parametrize(
+        ("relative_path", "expected"),
+        [
+            ("airflow-core/src/airflow/models/dag.py", False),
+            (".build/mypy-venvs/foo.py", True),
+            ("airflow-core/.venv/lib/foo.py", True),
+            (".hidden.py", True),
+        ],
+    )
+    def test_only_components_below_root_count(self, tmp_path, relative_path, expected):
+        root = tmp_path / ".claude" / "worktrees"
+        assert is_hidden_within_root(root / relative_path, root) is expected
 
 
 class TestGetImportsFromFile:
@@ -368,6 +387,43 @@ class TestReadDefaultPythonMajorMinorVersionForImages:
         assert len(parts) == 2
         assert parts[0].isdigit()
         assert parts[1].isdigit()
+
+
+class TestReadAllowedPythonMajorMinorVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_allowed_python_major_minor_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_versions_look_like_major_minor(self):
+        for version in read_allowed_python_major_minor_versions():
+            parts = version.split(".")
+            assert len(parts) == 2, f"Version {version!r} should be major.minor"
+            assert parts[0].isdigit()
+            assert parts[1].isdigit()
+
+
+class TestReadCurrentPostgresVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_current_postgres_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_versions_are_numeric_major_versions(self):
+        for version in read_current_postgres_versions():
+            assert version.isdigit(), f"Postgres version {version!r} should be a numeric major version"
+
+
+class TestReadCurrentMysqlVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_current_mysql_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_reads_annotated_assignment(self):
+        # MYSQL_LTS_RELEASES is an annotated assignment (``NAME: list[str] = [...]``);
+        # the reader must handle it, so its value must show up here.
+        assert "8.4" in read_current_mysql_versions()
 
 
 class TestConsoleDiff:

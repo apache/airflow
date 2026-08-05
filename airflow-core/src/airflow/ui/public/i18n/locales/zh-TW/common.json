@@ -8,6 +8,7 @@
     "Variables": "變數"
   },
   "allOperators": "所有任務操作器",
+  "allTeams": "所有團隊",
   "appearance": {
     "appearance": "外觀",
     "darkMode": "深色模式",
@@ -57,7 +58,8 @@
     "owner": "擁有者",
     "params": "參數",
     "schedule": "排程",
-    "tags": "標籤"
+    "tags": "標籤",
+    "team": "團隊"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -324,6 +326,7 @@
     "from": "從",
     "maxActiveRuns": "最大活躍執行數",
     "noTagsFound": "找不到標籤",
+    "noTeamsFound": "找不到團隊",
     "tagMode": {
       "all": "全部",
       "any": "任何"

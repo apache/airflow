@@ -34,6 +34,15 @@
       "error": "Error al limpiar {{type}}",
       "title": "Limpiar {{type}}"
     },
+    "clearAllMapped": {
+      "button": "Limpiar Todas las Tareas Mapeadas",
+      "buttonTooltip": "Presiona shift+c para limpiar todas las instancias de tarea mapeadas",
+      "title": "Limpiar Todas las Instancias de Tarea Mapeadas"
+    },
+    "confirmationDialog": {
+      "description": "La tarea está actualmente en estado {{state}}, iniciada por el usuario {{user}} a las {{time}}. \nEl usuario no puede limpiar esta tarea hasta que termine de ejecutarse o hasta que desmarque la opción \"Evitar reejecución si la tarea está en ejecución\" en el diálogo de limpiar tarea.",
+      "title": "No Se Puede Limpiar la Instancia de Tarea"
+    },
     "delete": {
       "button": "Eliminar {{type}}",
       "dialog": {
@@ -61,6 +70,7 @@
       "future": "Futuro",
       "onlyFailed": "Limpiar solo tareas fallidas",
       "past": "Pasado",
+      "preventRunningTasks": "Evitar reejecución si la tarea está en ejecución",
       "queueNew": "Poner en cola nuevas tareas",
       "runOnLatestVersion": "Ejecutar en la última versión del bundle",
       "upstream": "Upstream"

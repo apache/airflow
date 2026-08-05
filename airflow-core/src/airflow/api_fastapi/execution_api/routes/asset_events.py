@@ -23,6 +23,11 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.parameters import (
+    BaseParam,
+    QueryAssetEventPartitionKeyFilter,
+    QueryAssetEventPartitionKeyRegex,
+)
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
@@ -41,13 +46,23 @@ router = APIRouter(
 
 
 def _get_asset_events_through_sql_clauses(
-    *, join_clause, where_clause, session: SessionDep, ascending: bool = True, limit: int | None = None
+    *,
+    join_clause,
+    where_clause,
+    session: SessionDep,
+    ascending: bool = True,
+    limit: int | None = None,
+    filters: list[BaseParam] | None = None,
 ) -> AssetEventsResponse:
     order_by_clause = AssetEvent.timestamp.asc() if ascending else AssetEvent.timestamp.desc()
     asset_events_query = select(AssetEvent).join(join_clause).where(where_clause).order_by(order_by_clause)
-    if limit is not None:
+    for filter_ in filters or []:
+        asset_events_query = filter_.to_orm(asset_events_query)
+    if limit:
         asset_events_query = asset_events_query.limit(limit)
-    asset_events = session.scalars(asset_events_query)
+    # A regexp partition-key filter bounds the query runtime automatically (its dependency applies
+    # apply_regex_query_timeout to this request's session), so no explicit wrapping is needed here.
+    asset_events = session.scalars(asset_events_query).all()
     return AssetEventsResponse.model_validate(
         {
             "asset_events": [
@@ -96,6 +111,8 @@ def get_asset_event_by_asset_name_uri(
     name: Annotated[str | None, Query(description="The name of the Asset")],
     uri: Annotated[str | None, Query(description="The URI of the Asset")],
     session: SessionDep,
+    partition_key: QueryAssetEventPartitionKeyFilter,
+    partition_key_regexp_pattern: QueryAssetEventPartitionKeyRegex,
     after: Annotated[UtcDateTime | None, Query(description="The start of the time range")] = None,
     before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
     ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
@@ -136,6 +153,7 @@ def get_asset_event_by_asset_name_uri(
         session=session,
         ascending=ascending,
         limit=limit,
+        filters=[partition_key, partition_key_regexp_pattern],
     )
 
 
@@ -143,6 +161,8 @@ def get_asset_event_by_asset_name_uri(
 def get_asset_event_by_asset_alias(
     name: Annotated[str, Query(description="The name of the Asset Alias")],
     session: SessionDep,
+    partition_key: QueryAssetEventPartitionKeyFilter,
+    partition_key_regexp_pattern: QueryAssetEventPartitionKeyRegex,
     after: Annotated[UtcDateTime | None, Query(description="The start of the time range")] = None,
     before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
     ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
@@ -169,4 +189,5 @@ def get_asset_event_by_asset_alias(
         session=session,
         ascending=ascending,
         limit=limit,
+        filters=[partition_key, partition_key_regexp_pattern],
     )

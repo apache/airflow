@@ -1142,6 +1142,8 @@ class GetAssetEventByAsset(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    partition_key: str | None = None
+    partition_key_regexp_pattern: str | None = None
     extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAsset"] = "GetAssetEventByAsset"
 
@@ -1152,6 +1154,8 @@ class GetAssetEventByAssetAlias(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    partition_key: str | None = None
+    partition_key_regexp_pattern: str | None = None
     extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAssetAlias"] = "GetAssetEventByAssetAlias"
 
