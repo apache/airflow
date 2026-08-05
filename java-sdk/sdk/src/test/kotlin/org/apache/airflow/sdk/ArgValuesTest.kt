@@ -23,8 +23,10 @@ package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.internal.ArgValues
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -150,6 +152,28 @@ internal class ArgValuesTest {
   }
 
   @Test
+  @DisplayName("Should prefer the runtime binding at the position over the Java wiring")
+  fun shouldPreferRuntimeBinding() {
+    val context = contextWiredWith(listOf(In.value(9L)))
+    val (client, transport) = clientWith(listOf(mapOf("kind" to "literal", "name" to "value", "value" to 5L)))
+
+    val resolved = ArgValues.requiredInput(context, client, 0, Integer::class.java, "value")
+
+    assertEquals(5, resolved.toInt())
+    assertEquals(emptyList<Pair<String, Int?>>(), transport.pulls)
+  }
+
+  @Test
+  @DisplayName("Should fall back to the Java wiring without runtime bindings")
+  fun shouldFallBackToWiring() {
+    val context = contextWiredWith(listOf(In.value(9L)))
+    val (client, _) = clientWith(null)
+
+    assertFalse(ArgValues.hasRuntimeBindings(client))
+    assertEquals(9, ArgValues.requiredInput(context, client, 0, Integer::class.java, "value").toInt())
+  }
+
+  @Test
   @DisplayName("Should fail fast when the stub call bound fewer arguments than declared")
   fun shouldFailOnArityMismatch() {
     val (client, _) = clientWith(listOf(mapOf("kind" to "literal", "name" to "only", "value" to 1L)))
@@ -187,6 +211,7 @@ internal class ArgValuesTest {
         xcoms = mapOf("upstream" to 0.5),
       )
 
+    assertTrue(ArgValues.hasRuntimeBindings(client))
     assertEquals("emea", ArgValues.optionalNamed(client, "region_code", String::class.java))
     assertEquals(0.5, ArgValues.requiredNamed(client, "threshold", java.lang.Double::class.java, "threshold"))
   }

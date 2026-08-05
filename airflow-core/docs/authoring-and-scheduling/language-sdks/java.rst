@@ -160,10 +160,18 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
    * - Annotation
      - Purpose
    * - ``@Builder.Dag(id = "...")``
-     - Marks the class as a task container.  The ``id`` must match the ``dag_id`` in the Python Dag.
+     - Marks the class as a task container.  For a stub-backed Dag the ``id`` must match the
+       ``dag_id`` in the Python Dag.  Further attributes (``schedule``, ``description``, ``tags``,
+       ``catchup``, …) mirror the Dag serialization schema and configure the Dag itself; only
+       attributes written explicitly are applied.  See :ref:`java-sdk/native-dags`.
    * - ``@Builder.Task(id = "...")``
-     - Marks a method as a task implementation.  The ``id`` must match the ``@task.stub`` function
-       name in the Python Dag.  If ``id`` is omitted the method name is used.
+     - Marks a method as a task implementation.  For a stub-backed Dag the ``id`` must match the
+       ``@task.stub`` function name in the Python Dag.  If ``id`` is omitted the method name is
+       used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) mirror the Dag
+       serialization schema; only attributes written explicitly are applied.
+   * - ``@Wiring``
+     - Marks the static method that declares the task graph in Java, TaskFlow-style.  Only needed
+       for a Dag that has no Python stub file.  See :ref:`java-sdk/native-dags`.
    * - ``TaskInput`` / ``@ArgName("...")``
      - Marks a class as a task's input bundle, so keyword arguments bind by name instead of by
        position: each public field receives the binding whose name matches it (the ``@ArgName``
@@ -205,7 +213,9 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``; both carry a fluent
+``config(key, value)`` whose keys are Dag serialization schema property names, and ``TaskDef`` also
+carries ``dependsOn(...)`` for declaring edges between task definitions.
 
 .. code-block:: java
 
@@ -241,9 +251,12 @@ Register tasks manually in a ``BundleBuilder``:
     public class MyBundle implements BundleBuilder {
       @Override
       public Iterable<DagDef> getDags() {
+        var fetch = new TaskDef("fetch", FetchTask.class).config("retries", 2);
+        var process = new TaskDef("process", ProcessTask.class).dependsOn(fetch);
         var dag = new DagDef("my_dag")
-            .addTask("fetch", FetchTask.class)
-            .addTask("process", ProcessTask.class);
+            .config("schedule", "@daily")
+            .addTask(fetch)
+            .addTask(process);
         return List.of(dag);
       }
     }
@@ -353,6 +366,81 @@ so argument names stay confined to the ``@ArgName``-tagged bundle fields.
 An ``InputTask`` whose type argument is not a concrete, supported ``TaskInput`` fails when the
 ``Bundle`` is built, rather than mid-run.  Plain ``Task`` remains the right interface for a task the
 Dag file calls with no arguments.
+
+.. _java-sdk/native-dags:
+
+Native Java Dags
+----------------
+
+A Dag can also be authored entirely in Java, with no Python stub file: the annotations (or the
+``TaskDef`` / ``DagDef`` objects) carry the configuration, and Java declares the graph.
+
+Wiring the graph with ``@Wiring``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The annotation processor generates a ``<ClassName>Ref`` twin class whose methods mirror the
+``@Builder.Task`` methods: the injected ``Client`` and ``Context`` parameters are dropped, each data
+parameter takes an ``In<T>`` input, and the return value becomes a ``TaskRef<T>``.  A static
+``@Wiring`` method receives the twin and calls it — calling a twin registers the task, and passing
+one twin's result into another feeds the upstream's output into the downstream's parameter *and*
+wires the dependency edge.  The call graph is the task graph, and ``javac`` type-checks it:
+
+.. code-block:: java
+
+    @Builder.Dag(
+        id = "java_etl",
+        schedule = "@daily",
+        description = "Pure-Java Dag, no Python stub file",
+        tags = {"example", "java-sdk"})
+    public class EtlPipeline {
+
+      @Builder.Task(id = "extract", retries = 2)
+      public long extract() {
+        return 42L;
+      }
+
+      @Builder.Task(id = "transform")
+      public long transform(long extracted) {
+        return extracted * 2;
+      }
+
+      @Builder.Task(id = "load")
+      public void load(long transformed) {
+        // implement task logic
+      }
+
+      @Wiring
+      static void depends(EtlPipelineRef f) {
+        f.load(f.transform(f.extract()));
+      }
+    }
+
+Every ``@Builder.Task`` method must be invoked in the wiring method; a task the wiring missed fails
+at Dag-parse time.  ``In.value(...)`` wires an inline literal where no upstream feeds a parameter.
+The wiring method is optional — a class without one registers every task with no Java-side edges,
+which is the shape for stub-backed tasks whose graph the Python Dag file owns.
+
+.. note::
+
+   Runtime argument bindings win over Java-declared wiring.  When the supervisor delivers bindings
+   for a run (see :ref:`java-sdk/arg-binding`), the binding at a parameter's position is what the
+   task receives, because for a stub task the Python call site is the graph the scheduler ordered
+   the run by.  Wired inputs are the fallback, which is what a native Java Dag always uses.
+
+Configuration attributes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``@Builder.Dag`` and ``@Builder.Task`` configuration attributes, and the keys accepted by
+``DagDef.config`` and ``TaskDef.config``, are generated from Airflow's Dag serialization schema, so
+they carry the same names and types as their Python counterparts.  Annotation attributes are
+``camelCase`` (``retryDelay``); ``config`` keys are the verbatim schema names (``"retry_delay"``).
+Only attributes written explicitly at the use site are applied, so Airflow's own defaults still
+apply to everything left out.
+
+Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT5M"``,
+``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
+``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
+fails the build (annotations) or Dag parsing (``config``).
 
 .. _java-sdk/logging:
 

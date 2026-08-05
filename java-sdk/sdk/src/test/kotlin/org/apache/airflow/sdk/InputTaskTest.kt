@@ -133,6 +133,32 @@ internal class InputTaskTest {
   }
 
   @Test
+  @DisplayName("Should decode a bundle wholesale from its wired input when no bindings arrive")
+  fun shouldDecodeBundleFromWiredInput() {
+    // A native Dag has no stub call site, so there are no argument names to
+    // bind by: the input the @Wiring method fed this task decodes into the
+    // bundle by field name.
+    val context = contextWiredWith(listOf(In.value(mapOf("region" to "emea", "threshold" to 0.5))))
+    val (client, _) = clientWith(null)
+    val task = Summarize()
+
+    task.execute(context, client)
+
+    val input = requireNotNull(task.received)
+    assertEquals("emea", input.region)
+    assertEquals(0.5, input.threshold)
+  }
+
+  @Test
+  @DisplayName("Should fail when the input wired to a bundle resolves to nothing")
+  fun shouldRejectNullWiredBundle() {
+    val context = contextWiredWith(listOf(In.value<Map<String, Any?>>(null)))
+    val (client, _) = clientWith(null)
+
+    assertThrows(MissingXComException::class.java) { Summarize().execute(context, client) }
+  }
+
+  @Test
   @DisplayName("Should resolve the input type a superclass declared")
   fun shouldResolveInheritedInputType() {
     val (client, _) = clientWith(NAMED_BINDINGS, xcoms = mapOf("upstream" to 0.5))
