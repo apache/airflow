@@ -115,7 +115,7 @@ Java entry point
 
     public class Main implements BundleBuilder {
       @Override
-      public Iterable<Dag> getDags() {
+      public Iterable<DagDef> getDags() {
         return List.of(SalesPipelineBuilder.build());  // SalesPipelineBuilder generated at compile time
       }
 
@@ -203,7 +203,7 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
 
 .. code-block:: java
 
@@ -224,10 +224,10 @@ Register tasks manually in a ``BundleBuilder``:
 
     public class MyBundle implements BundleBuilder {
       @Override
-      public Iterable<Dag> getDags() {
-        var dag = new Dag("my_dag");
-        dag.addTask("fetch", FetchTask.class);
-        dag.addTask("process", ProcessTask.class);
+      public Iterable<DagDef> getDags() {
+        var dag = new DagDef("my_dag")
+            .addTask(new TaskDef("fetch", FetchTask.class))
+            .addTask(new TaskDef("process", ProcessTask.class));
         return List.of(dag);
       }
     }
