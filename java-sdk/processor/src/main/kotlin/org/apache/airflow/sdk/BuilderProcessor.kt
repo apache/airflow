@@ -25,18 +25,21 @@ import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
+import com.squareup.javapoet.ParameterizedTypeName
 import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
-import java.util.Optional
+import org.apache.airflow.sdk.internal.ArgValues
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
+import javax.lang.model.element.VariableElement
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
@@ -57,9 +60,11 @@ import javax.tools.Diagnostic
  * - A static `build()` method that constructs the [DagDef] and registers those
  *   inner classes as [TaskDef]s.
  *
- * [Builder.XCom]-annotated parameters are resolved via `client.getXCom` in the
- * generated `execute` body, with the result cast to the parameter's declared
- * type. Non-`void` return values are forwarded to `client.setXCom`.
+ * In the generated `execute` body, a task's data parameters resolve through
+ * [ArgValues] against the arg bindings the supervisor delivered for the run:
+ * flat parameters by their position among the data parameters, [TaskInput]
+ * bundle fields by wire name. Non-`void` return values are forwarded to
+ * `client.setXCom`.
  */
 @SupportedAnnotationTypes("org.apache.airflow.sdk.Builder.Dag")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
@@ -102,23 +107,22 @@ class BuilderProcessor : AbstractProcessor() {
       MethodSpec
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .returns(ClassName.get(DagDef::class.java))
-        .addStatement($$"var dag = new $T($S)", ClassName.get(DagDef::class.java), ann.id.ifBlank { el.simpleName })
+        .returns(DAG_DEF_TYPE)
+        .addStatement($$"var dag = new $T($S)", DAG_DEF_TYPE, ann.id.ifBlank { el.simpleName })
 
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
 
-      val ann = inner.getAnnotation(Builder.Task::class.java) ?: continue
+      val taskAnn = inner.getAnnotation(Builder.Task::class.java) ?: continue
       val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
 
-      val task = buildTask(innerName, inner, el)
-      builderClass.addType(task.spec)
+      builderClass.addType(buildTask(innerName, inner, el))
 
       buildMethod.addStatement(
         $$"dag.addTask(new $T($S, $L.class))",
-        ClassName.get(TaskDef::class.java),
-        ann.id.ifBlank { inner.simpleName },
+        TASK_DEF_TYPE,
+        taskAnn.id.ifBlank { inner.simpleName },
         innerName,
       )
     }
@@ -132,40 +136,44 @@ class BuilderProcessor : AbstractProcessor() {
     name: String,
     inner: ExecutableElement,
     parent: TypeElement,
-  ): BuildTaskResult {
-    val clientType = ClassName.get(Client::class.java)
-    val contextType = ClassName.get(Context::class.java)
-
+  ): TypeSpec {
     val executeSpec =
       MethodSpec
         .methodBuilder("execute")
         .addAnnotation(Override::class.java)
         .addModifiers(Modifier.PUBLIC)
         .returns(TypeName.VOID)
-        .addParameter(contextType, "context")
-        .addParameter(clientType, "client")
+        .addParameter(CONTEXT_TYPE, "context")
+        .addParameter(CLIENT_TYPE, "client")
         .addException(Exception::class.java)
 
-    val required = mutableListOf<RequiredXCom>()
+    val dataParams = collectDataParams(inner)
+    val dataByName = dataParams.associateBy { it.name }
     val innerArgs =
       with(processingEnv) {
         inner.parameters.joinToString { param ->
-          val anno = param.getAnnotation(Builder.XCom::class.java)
           val type = param.asType()
           when {
-            anno != null ->
-              param.simpleName.toString().also {
-                required += RequiredXCom(type, it, anno.task.ifBlank { it })
-              }
-            isType(type, clientType) -> "client"
-            isType(type, contextType) -> "context"
-            else -> throw IllegalArgumentException("Unsupported task parameter '${param.simpleName}' with type: $type")
+            isType(type, CLIENT_TYPE) -> "client"
+            isType(type, CONTEXT_TYPE) -> "context"
+            else -> dataByName.getValue(param.simpleName.toString()).name
           }
         }
       }
-    required.forEach {
-      executeSpec.addStatement($$"var $L = $L", it.paramName, xcomAccess(it))
+
+    dataParams.forEach { param ->
+      val paramType = TypeName.get(param.type)
+      val fields = param.bundleFields
+      if (fields == null) {
+        executeSpec.addStatement($$"$T $L = $L", paramType, param.name, positionalAccess(param))
+      } else {
+        executeSpec.addStatement($$"$T $L = new $T()", paramType, param.name, paramType)
+        fields.forEach { field ->
+          executeSpec.addStatement($$"$L.$L = $L", param.name, field.fieldName, namedAccess(field))
+        }
+      }
     }
+
     if (inner.returnType.kind == TypeKind.VOID) {
       $$"new $T().$L($L)"
     } else {
@@ -179,80 +187,154 @@ class BuilderProcessor : AbstractProcessor() {
       )
     }
 
-    val spec =
-      TypeSpec
-        .classBuilder(name)
-        .addSuperinterface(Task::class.java)
-        .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
-        .addMethod(executeSpec.build())
-        .build()
-    return BuildTaskResult(spec)
+    return TypeSpec
+      .classBuilder(name)
+      .addSuperinterface(Task::class.java)
+      .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
+      .addMethod(executeSpec.build())
+      .build()
+  }
+
+  /**
+   * Collects the task method's data parameters — every parameter the SDK does
+   * not inject — in declaration order. A parameter's index in the returned
+   * list is the position it binds at: Java parameter names are not API, so
+   * renaming one must never rebind an input.
+   */
+  private fun collectDataParams(method: ExecutableElement): List<DataParam> {
+    val params = mutableListOf<DataParam>()
+    with(processingEnv) {
+      for (param in method.parameters) {
+        val type = param.asType()
+        if (isType(type, CLIENT_TYPE) || isType(type, CONTEXT_TYPE)) continue
+        val bundleFields = if (isTaskInput(type)) collectBundleFields(method, param) else null
+        params += DataParam(type, param.simpleName.toString(), params.size, bundleFields)
+      }
+    }
+    val bundles = params.filter { it.bundleFields != null }
+    require(bundles.size <= 1) {
+      "Task method '${method.simpleName}' declares more than one TaskInput parameter: " +
+        bundles.joinToString { "'${it.name}'" }
+    }
+    bundles.singleOrNull()?.let { bundle ->
+      require(params.size == 1) {
+        "Task method '${method.simpleName}' declares TaskInput parameter '${bundle.name}' and other data " +
+          "parameters; a TaskInput bundle owns the whole named-argument surface, so it must be the only one"
+      }
+    }
+    return params
+  }
+
+  private fun ProcessingEnvironment.isTaskInput(type: TypeMirror): Boolean {
+    val marker = elementUtils.getTypeElement(TASK_INPUT_TYPE.canonicalName()) ?: return false
+    return !type.kind.isPrimitive && typeUtils.isAssignable(type, marker.asType())
+  }
+
+  /**
+   * Introspects a [TaskInput] bundle class: every public non-static non-final
+   * field receives the binding named by its [ArgName] value, or by its
+   * verbatim field name.
+   */
+  private fun ProcessingEnvironment.collectBundleFields(
+    method: ExecutableElement,
+    param: VariableElement,
+  ): List<BundleField> {
+    val bundleType =
+      typeUtils.asElement(param.asType()) as? TypeElement
+        ?: throw IllegalArgumentException(
+          "TaskInput parameter '${param.simpleName}' of task method '${method.simpleName}' has no class type",
+        )
+    val hasNoArgConstructor =
+      bundleType.enclosedElements
+        .filterIsInstance<ExecutableElement>()
+        .any { it.kind == ElementKind.CONSTRUCTOR && it.parameters.isEmpty() && Modifier.PUBLIC in it.modifiers }
+    require(hasNoArgConstructor) {
+      "TaskInput class ${bundleType.simpleName} needs a public no-argument constructor"
+    }
+    return bundleType.enclosedElements
+      .filterIsInstance<VariableElement>()
+      .filter { it.kind == ElementKind.FIELD && Modifier.STATIC !in it.modifiers }
+      .map { field ->
+        require(Modifier.PUBLIC in field.modifiers && Modifier.FINAL !in field.modifiers) {
+          "TaskInput field ${bundleType.simpleName}.${field.simpleName} must be public and non-final " +
+            "so the generated code can assign its binding"
+        }
+        BundleField(
+          type = field.asType(),
+          fieldName = field.simpleName.toString(),
+          wireName = field.getAnnotation(ArgName::class.java)?.value ?: field.simpleName.toString(),
+        )
+      }
   }
 }
+
+/**
+ * One data parameter of a task method, positioned among its peers.
+ * [bundleFields] is non-null for a [TaskInput] bundle parameter.
+ */
+private class DataParam(
+  val type: TypeMirror,
+  val name: String,
+  val position: Int,
+  val bundleFields: List<BundleField>?,
+)
+
+/** One public field of a [TaskInput] bundle class, with its wire name. */
+private class BundleField(
+  val type: TypeMirror,
+  val fieldName: String,
+  val wireName: String,
+)
+
+private val DAG_DEF_TYPE = ClassName.get(DagDef::class.java)
+private val TASK_DEF_TYPE = ClassName.get(TaskDef::class.java)
+private val CLIENT_TYPE = ClassName.get(Client::class.java)
+private val CONTEXT_TYPE = ClassName.get(Context::class.java)
+private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
+private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
 
 private fun ProcessingEnvironment.isType(
   t: TypeMirror,
   c: ClassName,
 ): Boolean = typeUtils.isSameType(t, elementUtils.getTypeElement(c.canonicalName()).asType())
 
-private data class RequiredXCom(
-  val paramType: TypeMirror,
-  val paramName: String,
-  val taskId: String,
-)
-
-private val NUMBER_ACCESSORS: Map<TypeName, String> =
-  buildMap {
-    mapOf(
-      TypeName.BYTE to "byteValue",
-      TypeName.SHORT to "shortValue",
-      TypeName.INT to "intValue",
-      TypeName.LONG to "longValue",
-      TypeName.FLOAT to "floatValue",
-      TypeName.DOUBLE to "doubleValue",
-    ).forEach { (primitive, accessor) ->
-      put(primitive, accessor)
-      put(primitive.box(), accessor)
-    }
-  }
-
-private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
-  val type = TypeName.get(xcom.paramType)
-  val accessor = NUMBER_ACCESSORS[type]
-  val number = ClassName.get(Number::class.java)
-  val optional = ClassName.get(Optional::class.java)
-  // A primitive parameter cannot hold null, so fail with a clear error instead of an
-  // opaque NullPointerException while unboxing when the XCom is absent.
-  val value =
-    if (type.isPrimitive) {
-      CodeBlock.of(
-        $$"$T.ofNullable(client.getXCom($S)).orElseThrow(() -> new $T($S, $S))",
-        optional,
-        xcom.taskId,
-        ClassName.get(MissingXComException::class.java),
-        xcom.taskId,
-        xcom.paramName,
-      )
-    } else {
-      CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
-    }
-  // Wire integers decode to Long and floats to Double, so a direct (Integer)/(Float)
-  // cast throws ClassCastException; widen via Number instead.
-  return when {
-    accessor == null -> CodeBlock.of($$"($T) $L", if (type.isPrimitive) type.box() else type, value)
-    type.isPrimitive -> CodeBlock.of($$"(($T) $L).$L()", number, value, accessor)
-    else ->
-      CodeBlock.of(
-        $$"$T.ofNullable(($T) $L).map($T::$L).orElse(null)",
-        optional,
-        number,
-        value,
-        number,
-        accessor,
-      )
+/**
+ * Emits the resolve-and-decode expression for one flat data parameter, bound
+ * at its position. A primitive parameter cannot hold null, so it fails with a
+ * clear [MissingXComException] when the binding resolves to nothing; boxed and
+ * reference parameters receive null instead.
+ */
+private fun positionalAccess(param: DataParam): CodeBlock {
+  val type = TypeName.get(param.type)
+  return if (type.isPrimitive) {
+    CodeBlock.of(
+      $$"$T.requiredInput(context, client, $L, $T.class, $S)",
+      ARG_VALUES_TYPE,
+      param.position,
+      type.box(),
+      param.name,
+    )
+  } else {
+    val raw = (type as? ParameterizedTypeName)?.rawType ?: type
+    val call = CodeBlock.of($$"$T.optionalInput(context, client, $L, $T.class)", ARG_VALUES_TYPE, param.position, raw)
+    if (type is ParameterizedTypeName) CodeBlock.of($$"($T) $L", type, call) else call
   }
 }
 
-private data class BuildTaskResult(
-  val spec: TypeSpec,
-)
+/** Emits the resolve-and-decode expression for one bundle field, bound by wire name. */
+private fun namedAccess(field: BundleField): CodeBlock {
+  val type = TypeName.get(field.type)
+  return if (type.isPrimitive) {
+    CodeBlock.of(
+      $$"$T.requiredNamed(client, $S, $T.class, $S)",
+      ARG_VALUES_TYPE,
+      field.wireName,
+      type.box(),
+      field.fieldName,
+    )
+  } else {
+    val raw = (type as? ParameterizedTypeName)?.rawType ?: type
+    val call = CodeBlock.of($$"$T.optionalNamed(client, $S, $T.class)", ARG_VALUES_TYPE, field.wireName, raw)
+    if (type is ParameterizedTypeName) CodeBlock.of($$"($T) $L", type, call) else call
+  }
+}
