@@ -144,13 +144,7 @@
       "label": "Dag 執行次數"
     },
     "dependencies": {
-      "label": "相依性 (Dependencies)",
-      "options": {
-        "allDagDependencies": "所有 Dag 相依性",
-        "externalConditions": "外部條件",
-        "onlyTasks": "僅限任務"
-      },
-      "placeholder": "相依性 (Dependencies)"
+      "allDagDependencies": "所有 Dag 相依性"
     },
     "graphDirection": {
       "label": "圖表方向"
