@@ -26,6 +26,11 @@ from airflow.secrets.environment_variables import (
     EnvironmentVariablesBackend,
 )
 
+from tests_common.test_utils.config import conf_vars
+
+# The team scoping rules only apply in multi-team mode -- see ``_names_a_team_namespace``.
+multi_team_enabled = conf_vars({("core", "multi_team"): "True"})
+
 # A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names may contain
 # underscores (they are validated against ``^[a-zA-Z0-9_-]{3,50}$``), so both shapes are exercised.
 TEAM_NAMES = ["team_a", "teama"]
@@ -59,6 +64,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
+    @multi_team_enabled
     def test_team_scoped_secret_is_not_resolved_without_a_team_scope(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -68,6 +74,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
+    @multi_team_enabled
     def test_team_scoped_secret_is_not_resolved_for_another_team(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -77,6 +84,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
+    @multi_team_enabled
     def test_team_scoped_secret_is_resolved_for_its_own_team(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -86,6 +94,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
+    @multi_team_enabled
     def test_id_spelling_out_a_team_namespace_is_never_resolved(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -100,6 +109,7 @@ class TestEnvironmentVariablesBackendTeamScope:
         assert lookup(env_prefix, method, team_scoped_id(team_name), team_name) is None
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    @multi_team_enabled
     def test_team_whose_name_extends_the_callers_is_not_readable(self, monkeypatch, env_prefix, method):
         """A team name may contain the ``___`` separator, so one team's namespace can start with another's.
 
@@ -119,6 +129,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
+    @multi_team_enabled
     def test_team_scoped_secret_wins_over_the_team_agnostic_one(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -130,6 +141,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", [None, *TEAM_NAMES])
+    @multi_team_enabled
     def test_team_agnostic_secret_is_resolved_for_any_team_scope(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -138,6 +150,7 @@ class TestEnvironmentVariablesBackendTeamScope:
         assert lookup(env_prefix, method, SECRET_ID, team_name) == GLOBAL_VALUE
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    @multi_team_enabled
     def test_a_bare_id_containing_the_separator_is_not_resolved(self, monkeypatch, env_prefix, method):
         """The scoped lookup can build another team's variable name from a *bare* id.
 
@@ -153,6 +166,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", [None, *TEAM_NAMES])
+    @multi_team_enabled
     def test_an_id_containing_the_separator_is_refused_in_every_scope(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -167,6 +181,7 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
+    @multi_team_enabled
     def test_the_owning_team_cannot_reach_a_separator_bearing_id_either(
         self, monkeypatch, env_prefix, method, team_name
     ):
@@ -182,7 +197,24 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", [None, *TEAM_NAMES])
+    @multi_team_enabled
     def test_unset_secret_is_not_resolved(self, monkeypatch, env_prefix, method, team_name):
         monkeypatch.delenv(env_prefix + SECRET_ID.upper(), raising=False)
 
         assert lookup(env_prefix, method, SECRET_ID, team_name) is None
+
+
+class TestEnvironmentVariablesBackendWithoutMultiTeam:
+    """Without multi-team mode there is no team namespace for an id to be confused with."""
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    def test_an_id_containing_the_separator_is_resolved(self, monkeypatch, env_prefix, method):
+        """An ordinary id that happens to carry the separator is a plain secret, not an ambiguity.
+
+        No team scoped secret can be read while multi-team is off, so the id has one reading and
+        refusing it only makes a set secret look missing.
+        """
+        secret_id = f"prod{TEAM_SEP}dbconn"
+        monkeypatch.setenv(env_prefix + secret_id.upper(), GLOBAL_VALUE)
+
+        assert lookup(env_prefix, method, secret_id, None) == GLOBAL_VALUE

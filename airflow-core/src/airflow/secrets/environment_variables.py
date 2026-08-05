@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 
+from airflow.configuration import conf
 from airflow.secrets import BaseSecretsBackend
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
@@ -35,9 +36,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
-        if TEAM_SEP in conn_id:
-            # An id containing the separator could collide with another team's namespace
-            # even on the scoped lookup below, so it must be refused before either runs.
+        if self._names_a_team_namespace(conn_id):
             return None
 
         if team_name and (
@@ -56,8 +55,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        if TEAM_SEP in key:
-            # Same collision risk as get_conn_value, see its code comment.
+        if self._names_a_team_namespace(key):
             return None
 
         if team_name and (
@@ -67,3 +65,21 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
             return team_var
 
         return os.environ.get(VAR_ENV_PREFIX + key.upper())
+
+    @staticmethod
+    def _names_a_team_namespace(secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` could resolve into some team's namespace.
+
+        A team specific secret lives under ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. An id carrying
+        the separator can build that name for a team other than the caller's -- on the team scoped
+        lookup as much as on the team agnostic one, since a team name may itself contain the
+        separator -- and nothing in the string says which reading was meant. Such an id is refused
+        in every scope rather than resolved to one of its readings.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no team
+        scoped secret can be read and an id carrying the separator has only one meaning.
+        """
+        if not conf.getboolean("core", "multi_team"):
+            return False
+        return TEAM_SEP in secret_id
