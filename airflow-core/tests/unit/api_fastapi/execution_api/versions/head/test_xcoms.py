@@ -631,7 +631,7 @@ class TestXComsSetEndpoint:
                 XComModel.key == "concurrent_key",
             )
         )
-        assert stored == '"updated"', f"Expected '"updated"' but got {stored!r}"
+        assert stored == '"updated"', f"Expected '\"updated\"' but got {stored!r}"
 
     def test_xcom_set_fk_integrity_error_propagates(self, client, create_task_instance, session):
         """
