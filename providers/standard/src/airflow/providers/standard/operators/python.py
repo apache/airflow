@@ -83,7 +83,10 @@ def has_execute_tasks_new_python_interpreter_serialization_support() -> bool:
     except ImportError:
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    return "execute_tasks_new_python_interpreter" in SerializedBaseOperator.get_serialized_fields()
+    get_serialized_fields = getattr(SerializedBaseOperator, "get_serialized_fields", None)
+    if get_serialized_fields is None:
+        return False
+    return "execute_tasks_new_python_interpreter" in get_serialized_fields()
 
 
 if TYPE_CHECKING:

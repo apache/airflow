@@ -90,7 +90,10 @@ if TYPE_CHECKING:
 
 
 def has_execute_tasks_new_python_interpreter_serialization_support() -> bool:
-    return "execute_tasks_new_python_interpreter" in SerializedBaseOperator.get_serialized_fields()
+    get_serialized_fields = getattr(SerializedBaseOperator, "get_serialized_fields", None)
+    if get_serialized_fields is None:
+        return False
+    return "execute_tasks_new_python_interpreter" in get_serialized_fields()
 
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[6]
