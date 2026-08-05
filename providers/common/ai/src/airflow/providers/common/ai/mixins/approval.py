@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
@@ -109,7 +110,11 @@ class LLMApprovalMixin:
         :param modification_schema: JSON schema for the editable ``output`` param
             when ``allow_modifications=True``. Defaults to ``{"type": "string"}``.
             Pass e.g. ``{"type": "string", "enum": [...]}`` to render a dropdown
-            of valid values in the review form.
+            of valid values in the review form, or ``{"type": "array", "items":
+            {"type": "string", "enum": [...]}, "examples": [...]}`` to render a
+            multi-select (JSON Schema forbids ``enum`` at the array level, so the
+            options come from ``examples``); a list submitted by the reviewer is
+            returned from ``execute_complete`` re-serialized as a compact JSON string.
         """
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
@@ -117,6 +122,7 @@ class LLMApprovalMixin:
 
         self.validate_approval_prompt()
 
+        raw_output = output
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
         elif not isinstance(output, str):
@@ -133,9 +139,17 @@ class LLMApprovalMixin:
 
         hitl_params: dict[str, dict[str, Any]] = {}
         if self.allow_modifications:
+            # The multi-select rendered for an array schema needs the list, not its JSON string
+            param_value: Any = output
+            if (
+                modification_schema is not None
+                and modification_schema.get("type") == "array"
+                and isinstance(raw_output, list)
+            ):
+                param_value = raw_output
             hitl_params = {
                 "output": {
-                    "value": output,
+                    "value": param_value,
                     "description": "Edit the output before approving (optional).",
                     "schema": modification_schema or {"type": "string"},
                 },
@@ -215,13 +229,33 @@ class LLMApprovalMixin:
         # when allow_modifications=False, bypassing the read-only approval flow.
         if getattr(self, "allow_modifications", False) and params_input:
             modified = params_input.get("output")
+            if "output" in params_input and modified is None:
+                raise HITLTriggerEventError(
+                    {
+                        "error": "Modified output must not be empty; edit it or reject instead.",
+                        "error_type": "validation",
+                    }
+                )
+            if isinstance(modified, list):
+                for item in modified:
+                    if not isinstance(item, str):
+                        raise HITLTriggerEventError(
+                            {
+                                "error": f"Modified output list items must be strings, "
+                                f"got {type(item).__name__}.",
+                                "error_type": "validation",
+                            }
+                        )
+                # Compact so an unchanged selection compares equal to generated_output
+                modified = json.dumps(modified, separators=(",", ":"))
             if modified is not None and not isinstance(modified, str):
                 # On the awaiting_input path nothing upstream schema-validates params_input
                 # (HITLTrigger did on the legacy path), so enforce the string contract here
                 # rather than returning a non-string as the task's output.
                 raise HITLTriggerEventError(
                     {
-                        "error": f"Modified output must be a string, got {type(modified).__name__}.",
+                        "error": f"Modified output must be a string or a list of strings, "
+                        f"got {type(modified).__name__}.",
                         "error_type": "validation",
                     }
                 )
