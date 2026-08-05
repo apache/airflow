@@ -22,6 +22,7 @@ import pytest
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import ModelRequestParameters
 
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX as P
 from airflow.providers.common.ai.durable.caching_model import CachingModel
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
@@ -82,7 +83,7 @@ class TestCachingModelCacheHit:
 
         assert result is sample_response
         mock_model.request.assert_not_called()
-        mock_storage.load_model_response.assert_called_once_with("model_step_0")
+        mock_storage.load_model_response.assert_called_once_with(f"{P}model_step_0")
 
     @pytest.mark.asyncio
     async def test_advances_counter_on_cache_hit(self, mock_model, mock_storage, counter, sample_response):
@@ -105,7 +106,7 @@ class TestCachingModelCacheMiss:
         assert result is sample_response
         mock_model.request.assert_called_once()
         mock_storage.save_model_response.assert_called_once_with(
-            "model_step_0", sample_response, fingerprint=request_fingerprint()
+            f"{P}model_step_0", sample_response, fingerprint=request_fingerprint()
         )
 
     @pytest.mark.asyncio
@@ -119,7 +120,7 @@ class TestCachingModelCacheMiss:
         await caching.request([], None, ModelRequestParameters())
 
         keys = [call[0][0] for call in mock_storage.save_model_response.call_args_list]
-        assert keys == ["model_step_0", "model_step_1"]
+        assert keys == [f"{P}model_step_0", f"{P}model_step_1"]
 
 
 class TestCachingModelReplayVerification:
@@ -139,7 +140,7 @@ class TestCachingModelReplayVerification:
         mock_model.request.assert_called_once()
         assert counter.replayed_model == 0
         mock_storage.save_model_response.assert_called_once_with(
-            "model_step_0", sample_response, fingerprint=request_fingerprint()
+            f"{P}model_step_0", sample_response, fingerprint=request_fingerprint()
         )
 
     @pytest.mark.asyncio

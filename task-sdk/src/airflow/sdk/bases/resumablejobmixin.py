@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
 
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk.bases.operator import BaseOperatorMeta
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -31,7 +33,7 @@ if TYPE_CHECKING:
 tracer = trace.get_tracer(__name__)
 
 
-class ResumableJobMixin:
+class ResumableJobMixin(ABC):
     """
     Mixin for operators that submit one long-running job to an external system and poll for completion.
 
@@ -51,7 +53,7 @@ class ResumableJobMixin:
     Usage: call ``execute_resumable(context)`` from the operator's ``execute()`` when reconnection
     is supported.
 
-    Subclasses must implement the methods specific to their external system. The mixin owns
+    Subclasses must implement all the methods specific to their external system. The mixin owns
     only ``execute_resumable()`` and the task_state_store read/write logic.
 
     Example::
@@ -90,6 +92,14 @@ class ResumableJobMixin:
     # Renaming this on a deployed operator breaks in-flight retries — the old key is already stored.
     external_id_key: str = "remote_job_id"
 
+    # The mixin is not a BaseOperator subclass, but _apply_defaults is only ever called on concrete
+    # operators that are BaseOperator subclasses. That is a runtime MRO guarantee not visible in the static
+    # type signature here and hence we need the type ignore.
+    @BaseOperatorMeta._apply_defaults  # type: ignore[type-var]
+    def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.durable = durable
+
     def execute_resumable(self, context: Context) -> Any:
         """
         Core of the resumable execution logic. Call this from execute() when reconnection is supported.
@@ -107,6 +117,11 @@ class ResumableJobMixin:
         Closing this window would require atomic "submit + persist", which is not possible across
         an external system boundary.
         """
+        if not self.durable:
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
         stats_tags = {"operator": type(self).__name__}
         # The task is team-scoped in multi-team deployments; surface team_name on the
         # resumable_job metrics via the running task instance's stats tags (omitted when
@@ -114,6 +129,7 @@ class ResumableJobMixin:
         ti = context.get("ti")
         if ti is not None and (team_name := ti.stats_tags.get("team_name")):
             stats_tags["team_name"] = team_name
+
         reconnect_to: Any = None
         already_succeeded_id: Any = None
 
@@ -194,6 +210,7 @@ class ResumableJobMixin:
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)
 
+    @abstractmethod
     def submit_job(self, context: Context) -> JsonValue:
         """
         Submit the job to the external system. Return its external ID.
@@ -203,6 +220,7 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         """
         Query the external system for the current job status.
@@ -214,6 +232,7 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def is_job_active(self, status: str) -> bool:
         """
         Return True if the job is still running and can be reconnected to.
@@ -223,6 +242,7 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def is_job_succeeded(self, status: str) -> bool:
         """
         Return True if the job completed successfully.
@@ -232,10 +252,12 @@ class ResumableJobMixin:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         """Block until the job reaches a terminal state. Raise on failure."""
         raise NotImplementedError
 
+    @abstractmethod
     def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
         """Return the job result after completion. Return None if not applicable."""
         raise NotImplementedError

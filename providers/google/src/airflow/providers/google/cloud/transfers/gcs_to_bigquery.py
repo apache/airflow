@@ -196,6 +196,7 @@ class GCSToBigQueryOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "bucket",
         "source_objects",
+        "schema_fields",
         "schema_object",
         "schema_object_bucket",
         "destination_project_dataset_table",
@@ -203,6 +204,7 @@ class GCSToBigQueryOperator(BaseOperator):
         "src_fmt_configs",
         "extra_config",
     )
+    template_fields_renderers = {"schema_fields": "json"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#f0eee4"
     operator_extra_links = (BigQueryTableLink(),)
@@ -362,6 +364,7 @@ class GCSToBigQueryOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
+            use_legacy_sql=False,
         )
         self.hook = hook
         self.source_format = self.source_format.upper()
@@ -513,6 +516,7 @@ class GCSToBigQueryOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
+            use_legacy_sql=False,
         )
         if self.max_id_key:
             self.log.info("Selecting the MAX value from BigQuery column %r...", self.max_id_key)
@@ -854,6 +858,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 location=self.location,
                 impersonation_chain=self.impersonation_chain,
+                use_legacy_sql=False,
             )
 
         project_id = self.project_id or self.hook.project_id

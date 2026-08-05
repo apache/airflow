@@ -23,7 +23,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.operators.jira import JiraOperator
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 from tests_common.test_utils.compat import connection_as_json
 

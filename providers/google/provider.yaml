@@ -30,12 +30,15 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1781642052
+source-date-epoch: 1785633505
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 22.3.0
+  - 22.2.2
+  - 22.2.1
   - 22.2.0
   - 22.1.0
   - 22.0.0
@@ -614,6 +617,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
       - airflow.providers.google.cloud.operators.vertex_ai.feature_store
       - airflow.providers.google.cloud.operators.vertex_ai.ray
+      - airflow.providers.google.cloud.operators.vertex_ai.agent_engine
   - integration-name: Google Data Studio
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -649,6 +653,9 @@ sensors:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.sensors.bigtable
+  - integration-name: Google Cloud SQL
+    python-modules:
+      - airflow.providers.google.cloud.sensors.cloud_sql
   - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_composer
@@ -900,6 +907,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
       - airflow.providers.google.cloud.hooks.vertex_ai.feature_store
+      - airflow.providers.google.cloud.hooks.vertex_ai.agent_engine
       - airflow.providers.google.cloud.hooks.vertex_ai.ray
   - integration-name: Google Data Studio
     python-modules:
@@ -1198,6 +1206,10 @@ connection-types:
         schema:
           type: ["boolean", "null"]
           default: false
+      quota_project_id:
+        label: "Quota Project ID"
+        schema:
+          type: ["string", "null"]
   - hook-class-name: airflow.providers.google.cloud.hooks.spanner.SpannerHook
     connection-type: gcpspanner
   - hook-class-name: airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
@@ -1277,6 +1289,10 @@ connection-types:
         schema:
           type: ["boolean", "null"]
           default: false
+      quota_project_id:
+        label: "Quota Project ID"
+        schema:
+          type: ["string", "null"]
       use_legacy_sql:
         label: "Use Legacy SQL"
         schema:
@@ -1475,6 +1491,12 @@ auth-backends:
 logging:
   - airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler
   - airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler
+
+remote-logging:
+  - classpath: airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO
+    scheme: gs
+  - classpath: airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO
+    scheme: stackdriver
 
 queues:
   - airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer

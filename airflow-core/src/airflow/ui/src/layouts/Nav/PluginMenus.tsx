@@ -53,6 +53,11 @@ export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResp
   // A single remaining item is promoted to the toolbar to avoid a one-item submenu.
   const showRemainingInMenu = remainingItems.length >= 2;
 
+  // Only internal routes (backed by url_route) can match the current pathname; external views never do.
+  const remainingPaths = remainingItems
+    .filter((navItem) => navItem.url_route !== undefined && navItem.url_route !== null)
+    .map((navItem) => `plugin/${navItem.url_route}`);
+
   return (
     <>
       {promotedItems.map((navItem) => (
@@ -61,7 +66,7 @@ export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResp
       {showRemainingInMenu ? (
         <Menu.Root positioning={{ placement: "right" }}>
           <Menu.Trigger>
-            <NavButton as={Box} icon={LuPlug} title={translate("nav.plugins")} />
+            <NavButton as={Box} icon={LuPlug} title={translate("nav.plugins")} to={remainingPaths} />
           </Menu.Trigger>
           <Menu.Content>
             {remainingButtons.map((navItem) => (

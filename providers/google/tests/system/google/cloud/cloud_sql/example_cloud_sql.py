@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSObjectCreateAclEntryOperator,
 )
+from airflow.providers.google.cloud.sensors.cloud_sql import CloudSQLNoOperationInProgressSensor
 
 try:
     from airflow.sdk import TriggerRule
@@ -228,6 +229,15 @@ with DAG(
     )
     # [END howto_operator_cloudsql_import_gcs_permissions]
 
+    # Cloud SQL serializes admin operations per instance, so wait until the export above has
+    # finished (no operation in progress) before submitting the import to avoid a 409.
+    # [START howto_sensor_cloudsql_no_operation_in_progress]
+    sql_wait_no_operation_task = CloudSQLNoOperationInProgressSensor(
+        instance=INSTANCE_NAME,
+        task_id="sql_wait_no_operation_task",
+    )
+    # [END howto_sensor_cloudsql_no_operation_in_progress]
+
     # [START howto_operator_cloudsql_import]
     sql_import_task = CloudSQLImportInstanceOperator(
         body=import_body, instance=INSTANCE_NAME, task_id="sql_import_task"
@@ -288,6 +298,7 @@ with DAG(
         >> sql_export_task
         >> sql_export_def_task
         >> sql_gcp_add_object_permission_task
+        >> sql_wait_no_operation_task
         >> sql_import_task
         >> sql_instance_clone
         >> sql_db_delete_task

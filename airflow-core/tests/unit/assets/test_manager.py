@@ -25,11 +25,13 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import (
     AssetAliasModel,
@@ -44,6 +46,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
 from airflow.models.team import Team
+from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 from airflow.partition_mappers.window import WeekWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -64,13 +67,22 @@ pytestmark = pytest.mark.db_test
 pytest.importorskip("pydantic", minversion="2.0.0")
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def clear_assets():
     from tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield
     clear_db_assets()
+
+
+@pytest.fixture
+def clear_teams():
+    from tests_common.test_utils.db import clear_db_teams
+
+    clear_db_teams()
+    yield
+    clear_db_teams()
 
 
 @pytest.fixture
@@ -125,7 +137,6 @@ class TestAssetManager:
         asm = AssetModel(uri="test://asset1/", name="test_asset_uri", group="asset")
         session.add(asm)
         asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
-        session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)
@@ -138,7 +149,6 @@ class TestAssetManager:
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
 
-    @pytest.mark.usefixtures("clear_assets")
     def test_register_asset_change_with_alias(
         self, session, dag_maker, mock_task_instance, testing_dag_bundle
     ):
@@ -161,7 +171,6 @@ class TestAssetManager:
             DagScheduleAssetAliasReference(alias_id=asam.id, dag_id=dag.dag_id)
             for dag in (consumer_dag_1, consumer_dag_2)
         ]
-        session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         asset = Asset(uri="test://asset1", name="test_asset_uri")
@@ -187,7 +196,6 @@ class TestAssetManager:
         asset = Asset(uri="test://asset1", name="never_consumed")
         asm = AssetModel(uri="test://asset1/", name="never_consumed", group="asset")
         session.add(asm)
-        session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)
@@ -199,6 +207,92 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+    def test_register_asset_change_is_atomic_on_caller_session(self, session, mock_task_instance):
+        """The AssetEvent is written on the caller's session: visible before commit, gone after rollback.
+
+        Under the old side-session behaviour the event was committed independently and would be
+        orphaned if the caller's transaction rolled back. Registration is now atomic with the caller.
+        """
+        asset_manager = AssetManager()
+
+        asset = Asset(uri="test://atomic1", name="atomic_asset")
+        asm = AssetModel(uri="test://atomic1/", name="atomic_asset", group="asset")
+        session.add(asm)
+        session.flush()
+
+        event = asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset, session=session
+        )
+        session.flush()
+
+        # The event is written on the caller's session and carries a real id before any commit.
+        assert event is not None
+        assert event.id is not None
+        event_id = event.id
+        assert session.get(AssetEvent, event_id) is not None
+
+        # Rolling back the caller's transaction discards the event -> no orphan row.
+        session.rollback()
+        assert session.get(AssetEvent, event_id) is None
+
+    def test_queue_dagruns_calls_nonpartitioned_helper(self):
+        """`_queue_dagruns` delegates non-partitioned dags to the single non-partitioned helper."""
+        dag = DagModel(dag_id="dag1")
+        session = mock.MagicMock(spec=Session)
+        event = mock.MagicMock()
+        with (
+            mock.patch.object(AssetManager, "_queue_partitioned_dags"),
+            mock.patch.object(AssetManager, "_queue_dagruns_nonpartitioned") as mock_helper,
+        ):
+            AssetManager._queue_dagruns(
+                asset_id=1,
+                dags_to_queue={dag},
+                partition_key=None,
+                partition_date=None,
+                event=event,
+                task_instance=None,
+                session=session,
+            )
+        mock_helper.assert_called_once_with(1, {dag}, event, session)
+
+    @pytest.mark.parametrize("dialect_name", ["postgresql", "sqlite"])
+    def test_queue_dagruns_nonpartitioned_insert_or_ignore(self, dialect_name):
+        """On postgres/sqlite the helper emits INSERT ... ON CONFLICT DO NOTHING referencing the event."""
+        dag = DagModel(dag_id="dag1")
+        session = mock.MagicMock(spec=Session)
+        event = AssetEvent(asset_id=1)
+        event.id = 99
+        with mock.patch("airflow.assets.manager.get_dialect_name", return_value=dialect_name):
+            AssetManager._queue_dagruns_nonpartitioned(
+                asset_id=1, dags_to_queue={dag}, event=event, session=session
+            )
+
+        stmt, values = session.execute.call_args.args
+        dialect = {"postgresql": postgresql.dialect(), "sqlite": sqlite.dialect()}[dialect_name]
+        compiled = str(stmt.compile(dialect=dialect)).upper()
+        assert "ON CONFLICT" in compiled
+        assert "DO NOTHING" in compiled
+        # One ADRQ row is inserted per (dag, event), carrying the denormalized asset_id
+        # plus the referenced asset_event_id.
+        assert values == [{"asset_id": 1, "target_dag_id": "dag1", "asset_event_id": 99}]
+
+    def test_queue_dagruns_nonpartitioned_upsert_noop_on_mysql(self):
+        """On MySQL the helper upserts with a no-op ON DUPLICATE KEY UPDATE (scoped to duplicate
+        keys, unlike INSERT IGNORE) referencing the triggering event."""
+        dag = DagModel(dag_id="dag1")
+        session = mock.MagicMock(spec=Session)
+        event = AssetEvent(asset_id=1)
+        event.id = 99
+        with mock.patch("airflow.assets.manager.get_dialect_name", return_value="mysql"):
+            AssetManager._queue_dagruns_nonpartitioned(
+                asset_id=1, dags_to_queue={dag}, event=event, session=session
+            )
+
+        stmt, values = session.execute.call_args.args
+        compiled = str(stmt.compile(dialect=mysql.dialect())).upper()
+        assert "ON DUPLICATE KEY UPDATE ASSET_ID = ASSET_DAG_RUN_QUEUE.ASSET_ID" in compiled
+        assert values == [{"asset_id": 1, "target_dag_id": "dag1", "asset_event_id": 99}]
 
     def test_register_asset_change_notifies_asset_listener(
         self, session, mock_task_instance, testing_dag_bundle, listener_manager
@@ -222,6 +316,44 @@ class TestAssetManager:
         session.flush()
 
         # Ensure the listener was notified
+        assert len(asset_listener.changed) == 1
+        assert asset_listener.changed[0].uri == asset.uri
+
+    def test_register_asset_change_defers_notifications_to_callback_sink(
+        self, session, mock_task_instance, testing_dag_bundle, listener_manager
+    ):
+        asset_manager = AssetManager()
+        asset_listener.clear()
+        listener_manager(asset_listener)
+
+        bundle_name = "testing"
+
+        asset = Asset(uri="test://asset1", name="test_asset_1")
+        dag1 = DagModel(dag_id="dag3", bundle_name=bundle_name)
+        session.add(dag1)
+
+        asm = AssetModel(uri="test://asset1/", name="test_asset_1", group="asset")
+        session.add(asm)
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
+        session.flush()
+
+        # When a callback_sink is supplied, listener notifications are collected into it
+        # instead of firing inline, so the caller can run them after releasing the lock.
+        callback_sink: list = []
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset,
+            session=session,
+            callback_sink=callback_sink,
+        )
+        session.flush()
+
+        assert asset_listener.changed == []
+        assert callback_sink
+
+        # Running the collected callbacks fires the listeners.
+        for callback in callback_sink:
+            callback()
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
 
@@ -260,6 +392,7 @@ class TestAssetManager:
             try:
                 return AssetManager._get_or_create_apdr(
                     target_key="test_partition_key",
+                    target_partition_date=None,
                     target_dag=testing_dag,
                     rollup_fingerprint=rollup_fingerprint,
                     asset_id=asm.id,
@@ -281,6 +414,164 @@ class TestAssetManager:
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_suppresses_conflicting_partition_date(self, session):
+        """Two events resolving the same target key to different dates → suppress to None.
+
+        Rather than an order-dependent first-event-wins, conflicting carried dates produce a
+        deterministic ``None`` so the consumer DagRun is not stamped with a wrong, unstable date.
+        """
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_pd_conflict", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
+
+        first = AssetManager._get_or_create_apdr(
+            target_key="2026-05-20",
+            target_partition_date=timezone.parse("2026-05-20T00:00:00"),
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        assert first.partition_date == timezone.parse("2026-05-20T00:00:00")
+
+        # A second contributing event resolves the same key to a DIFFERENT date.
+        second = AssetManager._get_or_create_apdr(
+            target_key="2026-05-20",
+            target_partition_date=timezone.parse("2026-05-21T00:00:00"),
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        assert second.id == first.id  # same pending APDR
+        assert second.partition_date is None  # conflict suppressed, deterministic
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_keeps_agreeing_partition_date(self, session):
+        """A later event carrying the same (or no) date does not trip the conflict suppression."""
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_pd_agree", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
+        source_date = timezone.parse("2026-05-20T00:00:00")
+
+        kwargs = dict(
+            target_key="2026-05-20",
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        first = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
+        # Same date agrees → kept.
+        same = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
+        assert same.id == first.id
+        assert same.partition_date == source_date
+        # A None-carrying event (e.g. a temporal mapper, resolved by the scheduler) is not a
+        # conflict → the existing date is kept.
+        with_none = AssetManager._get_or_create_apdr(target_partition_date=None, **kwargs)
+        assert with_none.id == first.id
+        assert with_none.partition_date == source_date
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_adopts_date_when_existing_is_none(self, session):
+        """An APDR created with no date adopts a later event's carried date (not dropped)."""
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_pd_adopt", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
+        source_date = timezone.parse("2026-05-20T00:00:00")
+
+        kwargs = dict(
+            target_key="2026-05-20",
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        # First event carries no date (e.g. producer had no partition_date).
+        first = AssetManager._get_or_create_apdr(target_partition_date=None, **kwargs)
+        assert first.partition_date is None
+        # A later identity event carries a real date → adopted, not silently dropped.
+        adopted = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
+        assert adopted.id == first.id
+        assert adopted.partition_date == source_date
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_recovers_after_conflict(self, session):
+        """Once a conflict has suppressed the date to None, a later event re-adopts a date."""
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_pd_recover", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
+        date_1 = timezone.parse("2026-05-20T00:00:00")
+        date_2 = timezone.parse("2026-05-21T00:00:00")
+
+        kwargs = dict(
+            target_key="2026-05-20",
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        first = AssetManager._get_or_create_apdr(target_partition_date=date_1, **kwargs)
+        assert first.partition_date == date_1
+        # Conflicting date suppresses to None.
+        conflicted = AssetManager._get_or_create_apdr(target_partition_date=date_2, **kwargs)
+        assert conflicted.partition_date is None
+        # A subsequent event re-adopts (suppression is not permanently sticky).
+        recovered = AssetManager._get_or_create_apdr(target_partition_date=date_2, **kwargs)
+        assert recovered.id == first.id
+        assert recovered.partition_date == date_2
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_carry_partition_date_failure_degrades_to_none(self, session, dag_maker, mock_task_instance):
+        """A mapper whose carry_partition_date raises must not abort the write.
+
+        The consumer is still queued via partition_key; only the carried partition_date is lost
+        (set to None), mirroring how a to_downstream failure is caught and handled in the loop.
+        """
+        _clear_partition_db()
+
+        asset_def = Asset(uri="s3://bucket/carry_raise", name="carry_raise")
+        with dag_maker(
+            dag_id="carry_raise_consumer",
+            schedule=PartitionedAssetTimetable(
+                assets=asset_def,
+                partition_mapper_config={asset_def: IdentityMapper()},
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        with (
+            mock.patch.object(IdentityMapper, "carry_partition_date", side_effect=RuntimeError("boom")),
+            mock.patch("airflow.assets.manager.log") as mock_log,
+        ):
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_def,
+                session=session,
+                partition_key="2026-05-20",
+                partition_date=timezone.parse("2026-05-20T00:00:00"),
+            )
+            session.flush()
+
+        # Write not aborted: the consumer is still queued...
+        apdr = session.scalar(select(AssetPartitionDagRun))
+        assert apdr is not None
+        # ...but the failed carry degraded to None instead of propagating.
+        assert apdr.partition_date is None
+        mock_log.exception.assert_called_once()
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")
@@ -324,10 +615,10 @@ class TestAssetManager:
         # partition-at-runtime Dag so its run can carry a ``partition_key`` that
         # the emitted ``AssetEvent`` inherits.
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk import PartitionAtRuntime
+        from airflow.sdk import PartitionedAtRuntime
 
         with dag_maker(
-            dag_id="stamp-producer", schedule=PartitionAtRuntime(), session=session
+            dag_id="stamp-producer", schedule=PartitionedAtRuntime(), session=session
         ) as producer_dag:
             from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -377,7 +668,6 @@ class TestAssetManager:
         # Link the Stale Dag to the Asset
         asm.scheduled_dags = [DagScheduleAssetReference(dag_id=stale_dag.dag_id)]
 
-        session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         # Register the asset change
@@ -392,7 +682,7 @@ class TestAssetManager:
         queued_id = session.scalar(select(AssetDagRunQueue.target_dag_id))
         assert queued_id == "stale_dag"
 
-    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_partitioned_asset_event_does_not_trigger_non_partitioned_dag(self, session, mock_task_instance):
         """partitioned asset events (events with partition key) must not queue non-partition-aware Dags."""
         asm = AssetModel(uri="test://asset/", name="test_asset", group="asset")
@@ -402,7 +692,6 @@ class TestAssetManager:
         )
         session.add(dag)
         asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag.dag_id)]
-        session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         AssetManager.register_asset_change(
@@ -426,7 +715,7 @@ class TestAssetManager:
             pytest.param(6, True, id="one_over_cap_trips"),
         ],
     )
-    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_partition_fan_out_cap(self, session, dag_maker, mock_task_instance, cap, expect_trip):
         """The ``[scheduler] partition_mapper_max_downstream_keys`` cap gates fan-out.
 
@@ -483,7 +772,7 @@ class TestAssetManager:
         assert error_call.kwargs["cap_source"] == f"[scheduler] partition_mapper_max_downstream_keys={cap}"
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "100"})
-    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_partition_fanout_per_mapper_override_stricter_than_global_trips(
         self, session, dag_maker, mock_task_instance
     ):
@@ -530,7 +819,7 @@ class TestAssetManager:
         assert error_call.kwargs["cap_source"] == "max_downstream_keys=3"
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "3"})
-    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_partition_fanout_per_mapper_override_looser_than_global_permits(
         self, session, dag_maker, mock_task_instance
     ):
@@ -574,7 +863,7 @@ class TestAssetManager:
         )
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "1"})
-    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_partition_fanout_per_mapper_at_cap_is_allowed(self, session, dag_maker, mock_task_instance):
         """Per-mapper max_downstream_keys=7 with a 7-key fanout: exactly at cap is allowed.
 
@@ -613,7 +902,7 @@ class TestAssetManager:
         )
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "1"})
-    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_partition_fanout_per_mapper_one_over_cap_trips(self, session, dag_maker, mock_task_instance):
         """Per-mapper max_downstream_keys=6 with a 7-key fanout: one over cap trips the guard.
 
@@ -678,6 +967,7 @@ def _make_asset_model(
 
 
 class TestAssetMetricsTeamName:
+    @pytest.mark.usefixtures("clear_teams")
     @pytest.mark.parametrize(
         ("multi_team", "expect_team_tag"),
         [

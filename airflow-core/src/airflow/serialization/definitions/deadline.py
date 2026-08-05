@@ -207,6 +207,7 @@ class SerializedReferenceModels:
             from sqlalchemy import func, select, text
 
             from airflow.models import DagRun
+            from airflow.utils.state import DagRunState
 
             dag_id = kwargs["dag_id"]
 
@@ -222,9 +223,17 @@ class SerializedReferenceModels:
             else:
                 raise ValueError(f"Unsupported database dialect: {dialect}")
 
+            # Only SUCCESSFUL runs represent a "normal" runtime. A run that failed fast or hung
+            # before failing would otherwise skew the average and produce a misleading deadline
+            # (too short -> spurious misses, or too long -> real slowness never trips it).
             query = (
                 select(duration_expr)
-                .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+                .filter(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == DagRunState.SUCCESS,
+                    DagRun.start_date.isnot(None),
+                    DagRun.end_date.isnot(None),
+                )
                 .order_by(DagRun.logical_date.desc())
                 .limit(self.max_runs)
             )

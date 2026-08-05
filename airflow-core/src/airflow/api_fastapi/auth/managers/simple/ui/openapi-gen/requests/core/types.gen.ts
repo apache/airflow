@@ -80,7 +80,7 @@ export interface Config {
   requestValidator?: (data: unknown) => Promise<unknown>;
   /**
    * A function transforming response data before it's returned. This is useful
-   * for post-processing data, e.g. converting ISO strings into Date objects.
+   * for post-processing data, e.g., converting ISO strings into Date objects.
    */
   responseTransformer?: (data: unknown) => Promise<unknown>;
   /**
@@ -90,6 +90,12 @@ export interface Config {
    */
   responseValidator?: (data: unknown) => Promise<unknown>;
 }
+
+/**
+ * Arbitrary metadata passed through the `meta` request option.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ClientMeta {}
 
 type IsExactlyNeverOrNeverUndefined<T> = [T] extends [never]
   ? true

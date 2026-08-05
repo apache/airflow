@@ -75,6 +75,7 @@ class KubernetesJob(NamedTuple):
     command: Sequence[str]
     kube_executor_config: Any
     pod_template_file: str | None
+    kube_image: str | None = None
 
 
 ALL_NAMESPACES = "ALL_NAMESPACES"

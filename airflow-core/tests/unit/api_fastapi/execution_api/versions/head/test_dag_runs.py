@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 import pytest
@@ -322,6 +323,31 @@ class TestDagRunTrigger:
         child_run = session.scalars(select(DagRun).where(DagRun.run_id == child_run_id)).one()
         assert child_run.triggering_user_name == parent_triggering_user_name
 
+    def test_trigger_dag_run_value_error(self, client, session, dag_maker):
+        """Test that error is raised when a DAG Run has ValueError."""
+
+        dag_id = "test_trigger_dag_run_value_error"
+        run_id = "manual__{test_run_id}"
+        logical_date = timezone.datetime(2026, 5, 22)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat()},
+        )
+
+        detail_message = response.json()["detail"]["message"]
+        detail_reason = response.json()["detail"]["reason"]
+
+        pattern = r"The run_id provided '.*' does not match regex pattern '.*' or '.*'"
+        assert re.search(pattern, detail_message)
+        assert detail_reason == "value_error"
+        assert response.status_code == 400
+
 
 class TestDagRunClear:
     def setup_method(self):
@@ -452,6 +478,7 @@ class TestDagRunDetail:
             "end_date": "2025-12-13T00:00:00Z",
             "logical_date": None,
             "partition_key": None,
+            "partition_date": None,
             "run_after": "2025-12-13T00:00:00Z",
             "run_id": "previous",
             "run_type": "manual",

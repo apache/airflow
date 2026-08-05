@@ -30,6 +30,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from sqlalchemy.orm import Session
 
 
@@ -121,3 +123,18 @@ class DagBundleModel(Base, LoggingMixin):
         return session.scalar(
             select(Team.name).join(DagBundleModel.teams).where(DagBundleModel.name == bundle_name)
         )
+
+    @staticmethod
+    @provide_session
+    def get_team_names(
+        bundle_names: Collection[str], *, session: Session = NEW_SESSION
+    ) -> dict[str, str | None]:
+        """Return a mapping of bundle name to team name (None for bundles not mapped to a team)."""
+        if not bundle_names:
+            return {}
+        rows = session.execute(
+            select(DagBundleModel.name, Team.name)
+            .join(DagBundleModel.teams)
+            .where(DagBundleModel.name.in_(bundle_names))
+        ).all()
+        return {name: team_name for name, team_name in rows}

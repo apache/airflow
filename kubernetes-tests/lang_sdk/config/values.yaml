@@ -1,0 +1,74 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Helm overrides for the lang-SDK KubernetesExecutor system test. Applied with
+# `helm ... -f` by `breeze k8s setup-lang-sdk-test` (which also renders the
+# pod-template image placeholders and creates the lang-sdk-aws-conn secret).
+---
+executor: KubernetesExecutor
+
+# A global AWS connection pointing at the in-cluster localstack S3, used by the
+# dag-processor (to pull the Python stub Dag bundle) and by the artifact
+# init-containers. Sourced from the secret the breeze command creates.
+extraEnv: |
+  - name: AIRFLOW_CONN_AWS_LOCALSTACK
+    valueFrom:
+      secretKeyRef:
+        name: lang-sdk-aws-conn
+        key: uri
+
+# The KubernetesExecutor lives in the scheduler and reads each coordinator's
+# pod_template_file from disk, so mount the rendered templates (configmap created
+# by the breeze command) into the scheduler at the path referenced below.
+scheduler:
+  extraVolumes:
+    - name: lang-sdk-pod-templates
+      configMap:
+        name: lang-sdk-pod-templates
+  extraVolumeMounts:
+    - name: lang-sdk-pod-templates
+      readOnly: true
+      mountPath: /opt/airflow/lang_sdk/pod_templates
+
+# Serve BOTH the baked-in example Dags (dags-folder) and the lang-SDK stub Dag pulled from the
+# localstack "dags" bucket. This must be additive: the standard KubernetesExecutor tests share this
+# run and trigger example Dags, so dropping dags-folder marks them stale and their runs 404.
+# Configure it here (dagProcessor.dagBundleConfigList) rather than overriding
+# config.dag_processor.dag_bundle_config_list directly -- the chart renders the config from this and
+# it is the recommended, drift-safe path.
+dagProcessor:
+  dagBundleConfigList:
+    - name: dags-folder
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs: {}
+    - name: lang-sdk-dags
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
+      kwargs:
+        bucket_name: "dags"
+        aws_conn_id: "aws_localstack"
+
+config:
+  # Route the golang/java queues to their coordinators, each carrying an
+  # extra.pod_template_file (the worktree-1 feature) so the worker pod is
+  # launched from a coordinator-specific template that stages the artifact and,
+  # for Java, runs on the JVM-bearing image.
+  sdk:
+    # Single-line JSON: airflow.cfg is an ini file, so a value with embedded
+    # newlines would break the rendered configmap.
+    # yamllint disable-line rule:line-length
+    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["/opt/airflow/artifacts/go-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"jars_root": ["/opt/airflow/artifacts/java-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}}'
+    queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk"}'

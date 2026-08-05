@@ -78,6 +78,15 @@ class TestGetTaskState:
         assert response.status_code == 404
         assert "Task instance" in response.json()["detail"]["message"]
 
+    def test_get_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+        client.put(_api_url(ti.id, "spark/job_id"), json={"value": "spark_001"})
+
+        response = client.get(_api_url(ti.id, "spark/job_id"))
+
+        assert response.status_code == 200
+        assert response.json() == {"value": "spark_001"}
+
 
 class TestPutTaskState:
     def test_put_creates_row(self, client: TestClient, create_task_instance: CreateTaskInstance):
@@ -203,6 +212,14 @@ class TestPutTaskState:
 
         assert response.status_code == 404
 
+    def test_put_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+
+        response = client.put(_api_url(ti.id, "spark/job_id"), json={"value": "spark_001"})
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "spark/job_id")).json() == {"value": "spark_001"}
+
 
 class TestDeleteTaskState:
     def test_delete_removes_key(self, client: TestClient, create_task_instance: CreateTaskInstance):
@@ -230,6 +247,15 @@ class TestDeleteTaskState:
 
         assert client.get(_api_url(ti.id, "job_id")).status_code == 404
         assert client.get(_api_url(ti.id, "checkpoint")).json() == {"value": "b"}
+
+    def test_delete_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+        client.put(_api_url(ti.id, "spark/job_id"), json={"value": "spark_001"})
+
+        response = client.delete(_api_url(ti.id, "spark/job_id"))
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "spark/job_id")).status_code == 404
 
 
 class TestClearTaskState:
@@ -295,25 +321,6 @@ class TestClearTaskState:
                 ).all()
             )
             assert remaining_indices == [0, 1]
-
-    def test_clear_with_all_map_indices_query_param_wipes_fleet(
-        self, client: TestClient, create_task_instance: CreateTaskInstance
-    ):
-        """Clear with ?all_map_indices=true wipes state for every mapped instance."""
-        ti = create_task_instance(map_index=2)
-        self._seed_fleet_rows(ti, (0, 1, 2))
-
-        response = client.delete(_api_url(ti.id), params={"all_map_indices": "true"})
-
-        assert response.status_code == 204
-        with create_session() as session:
-            remaining = session.scalars(
-                select(TaskStateStoreModel).where(
-                    TaskStateStoreModel.dag_id == ti.dag_id,
-                    TaskStateStoreModel.task_id == ti.task_id,
-                )
-            ).all()
-            assert remaining == []
 
 
 class TestTiSelfEnforcement:

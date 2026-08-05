@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -137,3 +138,71 @@ class TestDatabricksPartitionSensor:
             AirflowException, match=rf"Specified partition\(s\): {partitions} were not found."
         ):
             self.partition_sensor.poke(context={})
+
+    def _make_sensor(self, **kwargs):
+        return DatabricksPartitionSensor(
+            task_id=TASK_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            sql_warehouse_name=DEFAULT_SQL_WAREHOUSE,
+            table_name=DEFAULT_TABLE,
+            schema=DEFAULT_SCHEMA,
+            catalog=DEFAULT_CATALOG,
+            partitions=DEFAULT_PARTITION,
+            **kwargs,
+        )
+
+    def test_query_tags_defaults(self):
+        sensor = self._make_sensor()
+        assert sensor.query_tags == {}
+        assert sensor.include_airflow_query_tags is True
+
+    def test_query_tags_in_template_fields(self):
+        assert "query_tags" in DatabricksPartitionSensor.template_fields
+
+    def test_query_tags_stored(self):
+        sensor = self._make_sensor(query_tags={"team": "data"})
+        assert sensor.query_tags == {"team": "data"}
+
+    def test_poke_sets_query_tags_on_hook(self):
+        sensor = self._make_sensor(query_tags={"env": "test"}, include_airflow_query_tags=False)
+        with patch.object(sensor, "_check_table_partitions", return_value=[True]):
+            sensor.poke(context=None)
+        assert sensor._get_hook.query_tags == {"env": "test"}
+
+    def test_poke_no_tags_when_disabled_and_no_custom(self):
+        sensor = self._make_sensor(include_airflow_query_tags=False)
+        with patch.object(sensor, "_check_table_partitions", return_value=[True]):
+            sensor.poke(context=None)
+        assert sensor._get_hook.query_tags is None
+
+    def test_poke_includes_airflow_tags_from_context(self):
+        sensor = self._make_sensor(query_tags={"custom": "value"})
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index"])
+        mock_ti.dag_id = "my_dag"
+        mock_ti.task_id = "my_task"
+        mock_ti.run_id = "run_1"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+        mock_context = {"ti": mock_ti}
+
+        with patch.object(sensor, "_check_table_partitions", return_value=[True]):
+            sensor.poke(context=mock_context)
+
+        tags = sensor._get_hook.query_tags
+        assert tags is not None
+        assert tags["airflow_dag_id"] == "my_dag"
+        assert tags["custom"] == "value"
+
+    def test_custom_tags_override_airflow_tags(self):
+        sensor = self._make_sensor(query_tags={"airflow_dag_id": "overridden"})
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index"])
+        mock_ti.dag_id = "original"
+        mock_ti.task_id = "t"
+        mock_ti.run_id = "r"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+
+        with patch.object(sensor, "_check_table_partitions", return_value=[True]):
+            sensor.poke(context={"ti": mock_ti})
+
+        assert sensor._get_hook.query_tags["airflow_dag_id"] == "overridden"

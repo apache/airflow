@@ -18,9 +18,14 @@
  */
 import { describe, expect, it } from "vitest";
 
-import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
+import type { CalendarDeadlineResponse, CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
-import { calculateDataBounds, calculateRunCounts, createCalendarScale } from "./calendarUtils";
+import {
+  buildDeadlineDateMap,
+  calculateDataBounds,
+  calculateRunCounts,
+  createCalendarScale,
+} from "./calendarUtils";
 import type { RunCounts } from "./types";
 
 const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
@@ -339,5 +344,61 @@ describe("createCalendarScale", () => {
 
     expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, total: 1 })).toEqual(lowIntensityFailedColor);
     expect(scale.getColor({ ...EMPTY_COUNTS, failed: 10, total: 10 })).toEqual(highIntensityFailedColor);
+  });
+});
+
+const buildDeadline = (date: string, missed: boolean, count = 1): CalendarDeadlineResponse => ({
+  count,
+  date,
+  missed,
+});
+
+describe("buildDeadlineDateMap", () => {
+  it("returns an empty map for empty input", () => {
+    expect(buildDeadlineDateMap([], "UTC", "daily")).toEqual(new Map());
+  });
+
+  it("maps a missed deadline to the correct daily key", () => {
+    const map = buildDeadlineDateMap([buildDeadline("2026-04-08T10:00:00Z", true, 2)], "UTC", "daily");
+
+    expect(map.get("2026-04-08")).toEqual({ missed: 2, pending: 0 });
+  });
+
+  it("maps a pending deadline to the correct daily key", () => {
+    const map = buildDeadlineDateMap([buildDeadline("2026-04-08T10:00:00Z", false, 3)], "UTC", "daily");
+
+    expect(map.get("2026-04-08")).toEqual({ missed: 0, pending: 3 });
+  });
+
+  it("accumulates counts for multiple deadlines on the same day", () => {
+    const map = buildDeadlineDateMap(
+      [
+        buildDeadline("2026-04-08T10:00:00Z", true, 1),
+        buildDeadline("2026-04-08T14:00:00Z", false, 2),
+        buildDeadline("2026-04-08T20:00:00Z", true, 3),
+      ],
+      "UTC",
+      "daily",
+    );
+
+    expect(map.get("2026-04-08")).toEqual({ missed: 4, pending: 2 });
+  });
+
+  it("uses an hourly key for hourly granularity", () => {
+    const map = buildDeadlineDateMap([buildDeadline("2026-04-08T10:30:00Z", true, 1)], "UTC", "hourly");
+
+    expect(map.get("2026-04-08T10")).toEqual({ missed: 1, pending: 0 });
+    expect(map.get("2026-04-08")).toBeUndefined();
+  });
+
+  it("respects timezone when grouping by day", () => {
+    const map = buildDeadlineDateMap(
+      [buildDeadline("2026-04-08T01:00:00Z", true, 1)],
+      "America/New_York",
+      "daily",
+    );
+
+    expect(map.get("2026-04-07")).toEqual({ missed: 1, pending: 0 });
+    expect(map.get("2026-04-08")).toBeUndefined();
   });
 });

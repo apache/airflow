@@ -30,6 +30,7 @@ services:
       - ../../../empty:/opt/airflow/providers/akeyless/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/amazon/src
+      - ../../../empty:/opt/airflow/providers/anthropic/src
       - ../../../empty:/opt/airflow/providers/apache/beam/src
       - ../../../empty:/opt/airflow/providers/apache/cassandra/src
       - ../../../empty:/opt/airflow/providers/apache/drill/src
@@ -57,6 +58,7 @@ services:
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/ai/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
+      - ../../../empty:/opt/airflow/providers/common/dataquality/src
       - ../../../empty:/opt/airflow/providers/common/io/src
       - ../../../empty:/opt/airflow/providers/common/messaging/src
       - ../../../empty:/opt/airflow/providers/common/sql/src

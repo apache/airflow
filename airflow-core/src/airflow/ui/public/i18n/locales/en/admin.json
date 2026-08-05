@@ -13,7 +13,7 @@
     "title": "Airflow Configuration"
   },
   "connections": {
-    "add": "Add Connection",
+    "add": "Add $t(connections.connection_one)",
     "columns": {
       "connectionId": "Connection ID",
       "connectionType": "Connection Type",
@@ -27,9 +27,9 @@
       "deleteConnection_other": "Delete {{count}} connections",
       "firstConfirmMessage_one": "You are about to delete the following connection:",
       "firstConfirmMessage_other": "You are about to delete the following connections:",
-      "title": "Delete Connection"
+      "title": "Delete $t(connections.connection_one)"
     },
-    "edit": "Edit Connection",
+    "edit": "Edit $t(connections.connection_one)",
     "form": {
       "connectionIdRequired": "Connection ID is required",
       "connectionIdRequirement": "Connection ID cannot contain only spaces",
@@ -47,14 +47,14 @@
       "learnMore": "These are resolved at runtime and are not visible in the UI.",
       "title": "No connection found!"
     },
-    "searchPlaceholder": "Search Connections",
-    "test": "Test Connection",
+    "searchPlaceholder": "Search $t(connections.connection_other)",
+    "test": "Test $t(connections.connection_one)",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
     "testError": {
-      "title": "Test Connection Failed"
+      "title": "Test $t(connections.connection_one) Failed"
     },
     "testSuccess": {
-      "title": "Test Connection Successful"
+      "title": "Test $t(connections.connection_one) Successful"
     },
     "typeMeta": {
       "error": "Failed to retrieve Connection Type Meta",
@@ -107,13 +107,13 @@
     "searchPlaceholder": "Search by file"
   },
   "pools": {
-    "add": "Add Pool",
+    "add": "Add $t(pools.pool_one)",
     "deferredSlotsIncluded": "Deferred Slots Included",
     "delete": {
-      "title": "Delete Pool",
+      "title": "Delete $t(pools.pool_one)",
       "warning": "This will remove all metadata related to the pool and may affect tasks using this pool."
     },
-    "edit": "Edit Pool",
+    "edit": "Edit $t(pools.pool_one)",
     "form": {
       "checkbox": "Check to include deferred tasks when calculating open pool slots",
       "description": "Description",
@@ -126,7 +126,7 @@
     "noPoolsFound": "No pools found",
     "pool_one": "Pool",
     "pool_other": "Pools",
-    "searchPlaceholder": "Search Pools",
+    "searchPlaceholder": "Search $t(pools.pool_other)",
     "sort": {
       "asc": "Name (A-Z)",
       "desc": "Name (Z-A)",
@@ -140,19 +140,19 @@
     }
   },
   "variables": {
-    "add": "Add Variable",
+    "add": "Add $t(variables.variable_one)",
     "columns": {
       "isEncrypted": "Is Encrypted"
     },
     "delete": {
-      "deleteVariable_one": "Delete 1 Variable",
-      "deleteVariable_other": "Delete {{count}} Variables",
+      "deleteVariable_one": "Delete 1 $t(variables.variable_one)",
+      "deleteVariable_other": "Delete {{count}} $t(variables.variable_other)",
       "firstConfirmMessage_one": "You are about to delete the following variable:",
       "firstConfirmMessage_other": "You are about to delete the following variables:",
-      "title": "Delete Variable",
+      "title": "Delete $t(variables.variable_one)",
       "tooltip": "Delete selected variables"
     },
-    "edit": "Edit Variable",
+    "edit": "Edit $t(variables.variable_one)",
     "form": {
       "invalidJson": "Invalid JSON",
       "keyMaxLength": "Key can contain a maximum of 250 characters",
@@ -177,6 +177,7 @@
           "title": "Skip"
         }
       },
+      "parsingFile": "Parsing file...",
       "title": "Import Variables",
       "upload": "Upload a JSON File",
       "uploadPlaceholder": "Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...})"

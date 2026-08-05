@@ -93,6 +93,8 @@ SAMPLE_SIZE = 600
 PREPROCESS_SCRIPT_TEMPLATE = dedent("""
     import numpy as np
     import pandas as pd
+    import json
+    import os
 
     def main():
         # Load the dataset from {input_path}/input.csv, split it into train/test
@@ -111,6 +113,13 @@ PREPROCESS_SCRIPT_TEMPLATE = dedent("""
         # Write the splits to disk
         data_train.to_csv('{output_path}/train.csv', index=False, header=False)
         data_test.to_csv('{output_path}/test.csv', index=False, header=False)
+
+        # Write evaluation metrics for output_files_to_xcom testing
+        evaluation_dir = '{output_path}/evaluation'
+        os.makedirs(evaluation_dir, exist_ok=True)
+        metrics = {{"metrics": {{"mse": {{"value": 5.332878}}, "rmse": {{"value": 2.309302}}}}}}
+        with open(os.path.join(evaluation_dir, 'evaluation.json'), 'w') as f:
+            json.dump(metrics, f)
 
         print('Preprocessing Done.')
 
@@ -294,7 +303,16 @@ def set_up(env_id, role_arn):
                         "S3UploadMode": "EndOfJob",
                     },
                     "AppManaged": False,
-                }
+                },
+                {
+                    "OutputName": "evaluation",
+                    "S3Output": {
+                        "S3Uri": f"s3://{bucket_name}/{env_id}/evaluation",
+                        "LocalPath": f"{processing_local_output_path}/evaluation",
+                        "S3UploadMode": "EndOfJob",
+                    },
+                    "AppManaged": False,
+                },
             ]
         },
         "ProcessingResources": {
@@ -306,6 +324,14 @@ def set_up(env_id, role_arn):
         },
         "RoleArn": role_arn,
     }
+
+    output_files_to_xcom_config = [
+        {
+            "result_name": "EvaluationReport",
+            "output_name": "evaluation",
+            "file_name": "evaluation.json",
+        }
+    ]
 
     training_data_source = {
         "CompressionType": "None",
@@ -444,6 +470,7 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="raw_data_s3_key", value=raw_data_s3_key)
     ti.xcom_push(key="ecr_repository_name", value=ecr_repository_name)
     ti.xcom_push(key="processing_config", value=processing_config)
+    ti.xcom_push(key="output_files_to_xcom_config", value=output_files_to_xcom_config)
     ti.xcom_push(key="processing_job_name", value=processing_job_name)
     ti.xcom_push(key="input_data_uri", value=input_data_uri)
     ti.xcom_push(key="output_data_uri", value=f"s3://{bucket_name}/{training_output_s3_key}")
@@ -601,6 +628,27 @@ with DAG(
     )
     # [END howto_sensor_sagemaker_processing]
 
+    # [START howto_operator_sagemaker_processing_output_files]
+    preprocess_with_output_files = SageMakerProcessingOperator(
+        task_id="preprocess_with_output_files",
+        config=test_setup["processing_config"],
+        output_files_to_xcom=test_setup["output_files_to_xcom_config"],
+    )
+    # [END howto_operator_sagemaker_processing_output_files]
+
+    @task
+    def validate_output_files(xcom_result):
+        """Verify output files were read from S3 and included in XCom."""
+        assert "OutputFiles" in xcom_result, (
+            f"OutputFiles missing from XCom. Got keys: {list(xcom_result.keys())}"
+        )
+        evaluation_report = xcom_result["OutputFiles"]["EvaluationReport"]
+        assert "metrics" in evaluation_report, f"metrics key missing. Got: {evaluation_report}"
+        assert evaluation_report["metrics"]["mse"]["value"] == 5.332878
+        assert evaluation_report["metrics"]["rmse"]["value"] == 2.309302
+
+    validate_pf = validate_output_files(preprocess_with_output_files.output)
+
     # [START howto_operator_sagemaker_training]
     train_model = SageMakerTrainingOperator(
         task_id="train_model",
@@ -704,6 +752,8 @@ with DAG(
         create_experiment,
         preprocess_raw_data,
         await_preprocess,
+        preprocess_with_output_files,
+        validate_pf,
         train_model,
         await_training,
         create_model,

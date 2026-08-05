@@ -30,6 +30,7 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
+from airflow.utils.process_utils import set_component_mp_start_method
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
@@ -58,6 +59,7 @@ def triggerer_run(
     queues: set[str] | None = None,
     team_name: str | None = None,
 ):
+    set_component_mp_start_method("triggerer")
     with _serve_logs(skip_serve_logs):
         triggerer_job_runner = TriggererJobRunner(
             job=Job(heartrate=triggerer_heartrate), capacity=capacity, queues=queues, team_name=team_name
