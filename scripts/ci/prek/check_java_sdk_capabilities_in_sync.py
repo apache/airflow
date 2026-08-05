@@ -41,7 +41,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from lang_sdk_compat_matrix import AIRFLOW_ROOT_PATH, validate_capabilities
+from lang_sdk_compat_matrix import AIRFLOW_ROOT_PATH, CapabilitiesDoc, validate_capabilities
 
 JAVA_SDK = AIRFLOW_ROOT_PATH / "java-sdk"
 GRADLEW = JAVA_SDK / "gradlew"
@@ -49,11 +49,11 @@ GRADLE_PROPERTIES = JAVA_SDK / "gradle.properties"
 CAPABILITIES_JSON = JAVA_SDK / "generated" / "lang-sdk" / "capabilities.json"
 
 
-def canonical(data: dict) -> str:
-    return json.dumps(data, indent=2) + "\n"
+def format_canonical_json(doc: CapabilitiesDoc) -> str:
+    return json.dumps(doc, indent=2) + "\n"
 
 
-def gradle_schema_version() -> str | None:
+def read_gradle_schema_version() -> str | None:
     """The ``airflowSupervisorSchemaVersion`` from gradle.properties (source of truth for the JAR)."""
     for line in GRADLE_PROPERTIES.read_text().splitlines():
         key, sep, value = line.partition("=")
@@ -62,7 +62,7 @@ def gradle_schema_version() -> str | None:
     return None
 
 
-def generate() -> dict:
+def generate_manifest() -> CapabilitiesDoc:
     """Run the Gradle dump task and parse the capability manifest it prints."""
     completed = subprocess.run(
         [str(GRADLEW), "-q", "-p", "java-sdk", ":sdk:dumpCapabilities"],
@@ -72,16 +72,18 @@ def generate() -> dict:
         check=True,
     )
     out = completed.stdout
-    # Gradle may prepend warnings; the manifest is the JSON object in the output.
-    start, end = out.find("{"), out.rfind("}")
-    if start == -1 or end == -1:
+    # Gradle may prepend warnings, so decode the first complete JSON value rather than slicing to
+    # the last "}" — a stray brace in surrounding output would make that span the wrong text.
+    start = out.find("{")
+    if start == -1:
         raise ValueError(f"no JSON object found in dumpCapabilities output:\n{out}")
-    return json.loads(out[start : end + 1])
+    doc, _ = json.JSONDecoder().raw_decode(out[start:])
+    return doc
 
 
 def main() -> int:
     if not GRADLEW.exists() or shutil.which("java") is None:
-        if os.environ.get("CI"):
+        if "CI" in os.environ:
             print("ERROR: java/gradlew is required in CI but was not found.")
             return 1
         print(
@@ -90,13 +92,13 @@ def main() -> int:
         )
         return 0
     try:
-        generated = generate()
+        generated = generate_manifest()
     except (subprocess.CalledProcessError, ValueError) as error:
         detail = getattr(error, "stderr", None) or str(error)
         print(f"ERROR: could not run `:sdk:dumpCapabilities`:\n{detail}")
         return 1
     validate_capabilities(generated, source=":sdk:dumpCapabilities", expected_sdk="java")
-    gradle_version = gradle_schema_version()
+    gradle_version = read_gradle_schema_version()
     if gradle_version is not None and generated["supervisor_schema_version"] != gradle_version:
         print(
             f"ERROR: supervisor_schema_version mismatch — the Kotlin constant emits "
@@ -110,7 +112,7 @@ def main() -> int:
         print("OK: java-sdk/generated/lang-sdk/capabilities.json is in sync with conformance.Capabilities.")
         return 0
     CAPABILITIES_JSON.parent.mkdir(parents=True, exist_ok=True)
-    CAPABILITIES_JSON.write_text(canonical(generated))
+    CAPABILITIES_JSON.write_text(format_canonical_json(generated))
     print(
         "ERROR: java-sdk/generated/lang-sdk/capabilities.json was stale and has been regenerated from "
         "conformance.Capabilities. Re-stage the file."

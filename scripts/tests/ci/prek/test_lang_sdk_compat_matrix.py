@@ -99,6 +99,17 @@ class TestValidateCapabilities:
         with pytest.raises(matrix.CapabilitiesError, match="supervisor_schema_version must be a string"):
             matrix.validate_capabilities(_doc(supervisor_schema_version=123), source="test")
 
+    def test_unsupported_entry_carrying_since_raises(self):
+        doc = _doc()
+        doc["capabilities"]["branching"] = _entry(False, since="3.3")
+        with pytest.raises(matrix.CapabilitiesError, match="not supported but carries since"):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_supported_entry_without_since_passes(self):
+        doc = _doc()
+        doc["states"]["success"] = _entry(True, since=None)
+        matrix.validate_capabilities(doc, source="test")
+
 
 class TestRenderMarkdownTable:
     def test_rows_cover_every_dimension(self):
@@ -126,6 +137,21 @@ class TestRenderMarkdownTable:
         for cap in matrix.CAPABILITY_DIMENSIONS:
             if cap.gated:
                 assert f"| capability: `{cap.name}` | {cap.tier} † | {matrix.NA_MARK} |" in rendered
+
+    def test_gated_capabilities_resolve_to_their_own_mark_once_the_gate_is_supported(self):
+        doc = _doc()
+        doc["capabilities"]["branching"] = _entry(False, note="no branch construct")
+        rendered = "".join(matrix.render_markdown_table(doc))
+        gated = [cap for cap in matrix.CAPABILITY_DIMENSIONS if cap.gated]
+        assert gated, "expected at least one gated capability"
+        # With the gate supported, a gated capability reports its real support, never n/a.
+        for cap in gated:
+            if cap.name != "branching":
+                assert (
+                    f"| capability: `{cap.name}` | {cap.tier} † | {matrix.SUPPORTED_MARK} | 3.3 |" in rendered
+                )
+        assert f"| capability: `branching` | SHOULD † | {matrix.UNSUPPORTED_MARK} |" in rendered
+        assert matrix.NA_MARK not in rendered.replace(matrix.LEGEND, "")
 
     def test_pipe_in_note_is_escaped(self):
         doc = _doc()

@@ -22,9 +22,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+// This model exists only to emit the build-time manifest, so it is deliberately `internal`: it is
+// not part of the SDK's published surface, and keeping it out means changing the manifest schema
+// never becomes a source/binary compatibility concern for SDK users.
+
 /** Support for a single Language SDK conformance dimension. */
 @Serializable
-data class CapabilityEntry(
+internal data class CapabilityEntry(
   val supported: Boolean,
   val since: String? = null,
   val note: String = "",
@@ -32,7 +36,7 @@ data class CapabilityEntry(
 
 /** The machine-readable capability manifest serialised to java-sdk/generated/lang-sdk/capabilities.json. */
 @Serializable
-data class Document(
+internal data class CapabilityManifest(
   val sdk: String,
   @SerialName("supervisor_schema_version") val supervisorSchemaVersion: String,
   @SerialName("min_airflow_version") val minAirflowVersion: String,
@@ -57,8 +61,8 @@ private fun no(note: String = ""): CapabilityEntry = CapabilityEntry(supported =
  * The runtime terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it does not
  * yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.
  */
-val Capabilities: Document =
-  Document(
+internal val Capabilities: CapabilityManifest =
+  CapabilityManifest(
     sdk = "java",
     supervisorSchemaVersion = SUPERVISOR_SCHEMA_VERSION,
     minAirflowVersion = MIN_AIRFLOW_VERSION,
@@ -102,7 +106,7 @@ val Capabilities: Document =
   )
 
 /** Print the capability manifest as JSON on stdout; wired to the `:sdk:dumpCapabilities` Gradle task. */
-fun main() {
+internal fun main() {
   val json =
     Json {
       prettyPrint = true

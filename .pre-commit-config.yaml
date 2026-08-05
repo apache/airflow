@@ -292,7 +292,9 @@ repos:
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/conformance/.*\.kt$|
           ^java-sdk/sdk/build\.gradle\.kts$|
           ^java-sdk/gradle\.properties$|
-          ^java-sdk/generated/lang-sdk/capabilities\.json$
+          ^java-sdk/generated/lang-sdk/capabilities\.json$|
+          ^scripts/ci/prek/check_java_sdk_capabilities_in_sync\.py$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$
         pass_filenames: false
         require_serial: true
       - id: update-java-sdk-readme-matrix

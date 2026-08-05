@@ -118,6 +118,8 @@ class LangSdk(TypedDict):
 # writes its manifest to generated/lang-sdk/capabilities.json under the SDK root (a generated
 # artifact kept out of the hand-authored source tree). Only the Java SDK publishes one so far; the
 # Go and TypeScript entries record where theirs go when those runtimes declare their capabilities.
+# Because of that, `capabilities_json` is a declared location and not a promise the file exists — a
+# consumer walking the whole registry must check `.exists()` before calling load_capabilities().
 LANG_SDKS: list[LangSdk] = [
     {
         "id": "go",
@@ -214,6 +216,14 @@ def _validate_entries(entries: object, *, expected: set[str], kind: str, source:
             raise CapabilitiesError(f"{source}: {kind}.{name} must be an object with a boolean 'supported'")
         if not isinstance(entry.get("since", None), (str, type(None))):
             raise CapabilitiesError(f"{source}: {kind}.{name}.since must be a string or null")
+        if not entry["supported"] and entry.get("since") is not None:
+            # "Since" means "supported since"; carrying one while unsupported is contradictory and
+            # would silently render as the not-supported placeholder. Supported *without* a version
+            # stays legal — an SDK may not know which release first shipped a dimension.
+            raise CapabilitiesError(
+                f"{source}: {kind}.{name} is not supported but carries since="
+                f"{entry['since']!r}; drop the version or mark it supported"
+            )
         if not isinstance(entry.get("note", ""), str):
             raise CapabilitiesError(f"{source}: {kind}.{name}.note must be a string")
 
