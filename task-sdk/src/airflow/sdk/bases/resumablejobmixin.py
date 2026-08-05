@@ -115,14 +115,14 @@ class ResumableJobMixin(ABC):
         # The task is team-scoped in multi-team deployments; surface team_name on the
         # resumable_job metrics via the running task instance's stats tags (omitted when
         # not multi-team or the task has no team).
-        ti = context.get("ti")
+        ti = context.get("ti") if context is not None else None
         if ti is not None and (team_name := ti.stats_tags.get("team_name")):
             stats_tags["team_name"] = team_name
 
         return resume_or_submit(
             durable=self.durable,
             external_id_key=self.external_id_key,
-            task_state_store=context.get("task_state_store"),
+            task_state_store=context.get("task_state_store") if context is not None else None,
             submit=lambda: self.submit_job(context),
             get_status=lambda external_id: self.get_job_status(external_id, context),
             is_active=self.is_job_active,
