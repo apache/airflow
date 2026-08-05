@@ -800,7 +800,7 @@ def trigger_dag_run(
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=triggered_by,
-            triggering_user_name=user.get_name(),
+            triggering_user_name=user.get_display_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             bundle_version=body.bundle_version,
@@ -869,7 +869,10 @@ def wait_dag_run_until_finished(
     if not get_auth_manager().is_authorized_dag(
         method="GET",
         access_entity=DagAccessEntity.XCOM,
-        details=DagDetails(id=dag_id),
+        # The route dependency above already authorizes RUN access with the Dag's team resolved;
+        # this second, XCom-specific check has to resolve it the same way, or the two checks ask
+        # a team-aware auth manager about differently-scoped resources.
+        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
         user=user,
     ):
         if result_task_ids:

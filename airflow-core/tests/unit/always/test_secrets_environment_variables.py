@@ -21,9 +21,12 @@ import pytest
 
 from airflow.secrets.environment_variables import (
     CONN_ENV_PREFIX,
+    TEAM_SEP,
     VAR_ENV_PREFIX,
     EnvironmentVariablesBackend,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 # A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names may contain
 # underscores (they are validated against ``^[a-zA-Z0-9_-]{3,50}$``), so both shapes are exercised.
@@ -55,6 +58,11 @@ def lookup(env_prefix: str, method: str, secret_id: str, team_name: str | None) 
 
 class TestEnvironmentVariablesBackendTeamScope:
     """A team specific secret must only be resolvable for the team it is stored for."""
+
+    @pytest.fixture(autouse=True)
+    def _multi_team_enabled(self):
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
@@ -137,8 +145,63 @@ class TestEnvironmentVariablesBackendTeamScope:
         assert lookup(env_prefix, method, SECRET_ID, team_name) == GLOBAL_VALUE
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    def test_a_bare_id_containing_the_separator_is_not_resolved(self, monkeypatch, env_prefix, method):
+        """The scoped lookup can build another team's variable name from a *bare* id.
+
+        Caller in ``team_a`` supplies ``prod___dbconn``. The team scoped lookup builds
+        ``<PREFIX>_TEAM_A___PROD___DBCONN`` -- byte-identical to what team ``team_a___prod``
+        builds for its own id ``dbconn``. That lookup **hits**, so refusing only the team
+        agnostic fall-through never sees this: the fall-through is never reached.
+        """
+        target_team, target_id = "team_a___prod", "dbconn"
+        monkeypatch.setenv(team_env_var(env_prefix, target_team, target_id), TEAM_VALUE)
+
+        assert lookup(env_prefix, method, f"prod{TEAM_SEP}{target_id}", "team_a") is None
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    @pytest.mark.parametrize("team_name", [None, *TEAM_NAMES])
+    def test_an_id_containing_the_separator_is_refused_in_every_scope(
+        self, monkeypatch, env_prefix, method, team_name
+    ):
+        """One rule, applied the same way with or without a team scope.
+
+        An id carrying the separator cannot be resolved unambiguously in either direction, so
+        there is no scope in which it is safe to look up.
+        """
+        monkeypatch.setenv(env_prefix + f"A{TEAM_SEP}B".upper(), GLOBAL_VALUE)
+
+        assert lookup(env_prefix, method, f"a{TEAM_SEP}b", team_name) is None
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    @pytest.mark.parametrize("team_name", TEAM_NAMES)
+    def test_the_owning_team_cannot_reach_a_separator_bearing_id_either(
+        self, monkeypatch, env_prefix, method, team_name
+    ):
+        """Documents the cost of the rule, so a future change does not reintroduce the hole.
+
+        A team's *own* secret whose id contains the separator is unreachable too. That is
+        deliberate: the string it builds is the same one another team's name could build, and
+        nothing in it says which reading is intended.
+        """
+        monkeypatch.setenv(team_env_var(env_prefix, team_name, f"prod{TEAM_SEP}dbconn"), TEAM_VALUE)
+
+        assert lookup(env_prefix, method, f"prod{TEAM_SEP}dbconn", team_name) is None
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", [None, *TEAM_NAMES])
     def test_unset_secret_is_not_resolved(self, monkeypatch, env_prefix, method, team_name):
         monkeypatch.delenv(env_prefix + SECRET_ID.upper(), raising=False)
 
         assert lookup(env_prefix, method, SECRET_ID, team_name) is None
+
+
+class TestEnvironmentVariablesBackendMultiTeamDisabled:
+    """No team scoped variable can exist without multi-team mode, so there is no ambiguity
+    to refuse -- an ordinary id containing the separator must resolve normally."""
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    def test_ambiguous_id_resolves_when_multi_team_is_disabled(self, monkeypatch, env_prefix, method):
+        secret_id = f"prod{TEAM_SEP}{SECRET_ID}"
+        monkeypatch.setenv(env_prefix + secret_id.upper(), GLOBAL_VALUE)
+
+        assert lookup(env_prefix, method, secret_id, None) == GLOBAL_VALUE

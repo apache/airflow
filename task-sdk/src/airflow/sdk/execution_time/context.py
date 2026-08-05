@@ -325,7 +325,12 @@ def _mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -
     if isinstance(val, str):
         mask_secret(val, key)
     elif isinstance(val, dict):
+        # Masked by the dict's own inner key names, which is what ``add_mask`` uses.
         mask_secret(val)
+    elif isinstance(val, list):
+        # Pass the Variable's key so list elements inherit the Variable's sensitivity
+        # instead of being added to the global mask patterns.
+        mask_secret(val, key)
     return val
 
 

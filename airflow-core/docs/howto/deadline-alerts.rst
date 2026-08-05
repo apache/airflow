@@ -420,6 +420,10 @@ references for specific integrations like calendars or other data sources. To do
 a class that inherits from BaseDeadlineReference, add the ``@deadline_reference`` decorator, and
 implement an ``_evaluate_with()`` method.
 
+The decorator may be used with or without parentheses. Used bare, or with empty parentheses, the
+reference is evaluated when a new Dag run is created; pass a ``DeadlineReference.TYPES`` value to
+choose a different time.
+
 
 **Creating a Custom Reference**
 
@@ -522,6 +526,9 @@ followed by a more urgent escalation if the Dag is still running.
 **Important Notes:**
 
 * **Timezone Awareness**: Always return timezone-aware datetime objects.
+* **No-argument Construction**: Custom references are instantiated during registration, so they must be
+  constructible with no arguments. If your reference takes parameters, decorate it with ``@dataclass``
+  and give every field a default value.
 * **Plugin Placement**: One convenient place for custom references is in the plugins directory.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
 * **Required Parameters**: ``required_kwargs`` declares which Dag run context values Airflow should

@@ -66,9 +66,11 @@ mainClass: providers-page
       <li class="provider-item"
           data-lifecycle="{{ lcDisplay }}"
           data-name="{{ provider.name | lower }}"
+          data-id="{{ provider.id | lower }}"
           data-downloads="{{ provider.pypi_downloads.monthly }}"
           data-updated="{{ provider.last_updated or '' }}"
-          data-categories="{{ cats | join(',') }}">
+          data-categories="{{ cats | join(',') }}"
+          data-integrations="{{ (provider.categories or []) | selectattr('name') | join(',', 'name') | lower }}">
         {% include "provider-card.njk" %}
       </li>
       {% endfor %}
