@@ -46,7 +46,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
-    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 if AIRFLOW_V_3_1_PLUS:
@@ -121,7 +121,7 @@ class TestDagRunOperator:
             ti.get_dagrun_state.side_effect = states
         return ti
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     def test_trigger_dagrun_with_run_after(self):
         """The operator triggers via the execution-API accessor, deriving the run id from run_after."""
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
@@ -156,7 +156,7 @@ class TestDagRunOperator:
             assert triggered_run_id.rsplit("_", 1)[0] == expected_run_id
             assert task.trigger_run_id.rsplit("_", 1)[0] == expected_run_id  # run_id is saved as attribute
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     def test_trigger_dagrun(self):
         """The operator triggers via the execution-API accessor with a generated run id and note."""
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
@@ -213,7 +213,7 @@ class TestDagRunOperator:
         expected_url = f"{base_url}dags/{TRIGGERED_DAG_ID}/runs/test_run_id"
         assert link == expected_url, f"Expected {expected_url}, but got {link}"
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     def test_trigger_dagrun_pushes_extra_link_xcom_before_exception(self):
         """
         Eagerly push the "Triggered DAG" extra-link URL so the UI button is available
@@ -242,7 +242,7 @@ class TestDagRunOperator:
             value=expected_url,
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     def test_trigger_dagrun_custom_run_id(self):
         task = TriggerDagRunOperator(
             task_id="test_task",
@@ -257,7 +257,7 @@ class TestDagRunOperator:
         assert ti.trigger_dag_run.call_args.args[1] == "custom_run_id"
         assert task.trigger_run_id == "custom_run_id"
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     def test_trigger_dagrun_with_logical_date(self):
         """Test TriggerDagRunOperator with custom logical_date."""
         task = TriggerDagRunOperator(
@@ -422,7 +422,7 @@ class TestDagRunOperator:
 
         mock_ti.get_dag.assert_called_once_with(TRIGGERED_DAG_ID)
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     def test_trigger_dagrun_proceeds_when_target_dag_is_not_paused(self):
         task = TriggerDagRunOperator(
             task_id="test_task",
@@ -438,7 +438,7 @@ class TestDagRunOperator:
         assert mock_ti.trigger_dag_run.call_args.args[0] == TRIGGERED_DAG_ID
         mock_ti.get_dag.assert_called_once_with(TRIGGERED_DAG_ID)
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     def test_trigger_dagrun_with_str_conf(self):
         """
         Test TriggerDagRunOperator conf is proper json string formatted
@@ -473,7 +473,7 @@ class TestDagRunOperator:
                 task.execute(context={})
 
     @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     @mock.patch(f"{TRIGGER_OP_PATH}.safe_inject_openlineage_properties_into_dagrun_conf")
     def test_trigger_dagrun_conf_openlineage_injection_disabled_with_explicit_false_arg(
         self, mock_inject, original_conf
@@ -495,7 +495,7 @@ class TestDagRunOperator:
             # Conf should remain unchanged
             assert ti.trigger_dag_run.call_args.kwargs["conf"] == original_conf
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
     def test_trigger_dagrun_conf_openlineage_injection_disabled_when_ol_not_accessible(
         self, mock_is_accessible
@@ -519,7 +519,7 @@ class TestDagRunOperator:
             # Conf should remain unchanged when OL is unavailable
             assert ti.trigger_dag_run.call_args.kwargs["conf"] == original_conf
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     @pytest.mark.parametrize(
         ("provider_version", "should_modify"),
         [
@@ -585,7 +585,7 @@ class TestDagRunOperator:
             RuntimeError("Runtime issue"),
         ],
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
     def test_trigger_dagrun_conf_openlineage_injection_preserves_conf_on_exception(
         self, mock_is_accessible, exception
@@ -615,7 +615,7 @@ class TestDagRunOperator:
             assert mock_ti.trigger_dag_run.call_args.kwargs["conf"] == original_conf
 
     @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
     @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
     @mock.patch(f"{OL_UTILS_PATH}._get_openlineage_parent_info")
     def test_trigger_dagrun_conf_openlineage_injection_valid_data(
@@ -1420,7 +1420,7 @@ class _FakeTaskStateStore:
         self._store[key] = value
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Operator-owned execution path requires Airflow 3.4+")
 class TestTriggerDagRunOperatorOwnedExecution:
     """Airflow 3.3+: the operator owns synchronous execution via the execution-API accessors."""
 

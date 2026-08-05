@@ -47,7 +47,7 @@ from airflow.providers.standard.utils.openlineage import safe_inject_openlineage
 from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
-    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
     BaseOperator,
     is_arg_set,
 )
@@ -305,8 +305,8 @@ class TriggerDagRunOperator(ResumableJobMixin, BaseOperator):
                 if dag_model.is_paused:
                     raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
-        if AIRFLOW_V_3_3_PLUS and not self.deferrable:
-            # On Airflow 3.3+ the operator owns its synchronous execution through the execution-API
+        if AIRFLOW_V_3_4_PLUS and not self.deferrable:
+            # On Airflow 3.4+ the operator owns its synchronous execution through the execution-API
             # accessors (ti.trigger_dag_run / ti.get_dagrun_state) and ResumableJobMixin, rather than
             # handing the trigger and wait off to the task runner via DagRunTriggerException.
             self._parsed_logical_date = parsed_logical_date
