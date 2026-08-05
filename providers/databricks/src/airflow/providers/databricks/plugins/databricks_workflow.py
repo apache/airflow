@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
@@ -31,9 +31,10 @@ from airflow.providers.common.compat.sdk import (
     BaseOperatorLink,
     TaskGroup,
     XCom,
+    conf,
 )
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -389,15 +390,14 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            if ti_key is None:
+            if not AIRFLOW_V_3_1_PLUS or ti_key is None:
+                # The Airflow-3 repair backend requires 3.1+ (see DatabricksWorkflowPlugin).
                 return ""
-            metadata = _get_launch_metadata_v3(operator, ti_key)
-            if not metadata:
+            launch_task_id = _get_launch_task_id_v3(operator, ti_key)
+            if not launch_task_id:
                 return ""
             # The set of failed tasks is resolved from the live Databricks run by the endpoint.
-            return _build_repair_url(
-                ti_key.dag_id, ti_key.run_id, metadata.conn_id, metadata.run_id, repair_all=True
-            )
+            return _build_repair_url(ti_key.dag_id, ti_key.run_id, launch_task_id, repair_all=True)
 
         if not ti_key:
             ti = get_task_instance(operator, dttm)
@@ -497,17 +497,17 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            if ti_key is None:
+            if not AIRFLOW_V_3_1_PLUS or ti_key is None:
+                # The Airflow-3 repair backend requires 3.1+ (see DatabricksWorkflowPlugin).
                 return ""
-            metadata = _get_launch_metadata_v3(operator, ti_key)
-            if not metadata:
+            launch_task_id = _get_launch_task_id_v3(operator, ti_key)
+            if not launch_task_id:
                 return ""
             return _build_repair_url(
                 ti_key.dag_id,
                 ti_key.run_id,
-                metadata.conn_id,
-                metadata.run_id,
-                tasks_to_repair=[operator.databricks_task_key],
+                launch_task_id,
+                task_id=operator.task_id,
             )
 
         if not ti_key:
@@ -556,54 +556,54 @@ REPAIR_URL_PREFIX = "/databricks/workflow/repair"
 def _build_repair_url(
     dag_id: str,
     run_id: str,
-    databricks_conn_id: str,
-    databricks_run_id: int,
+    launch_task_id: str,
     *,
     repair_all: bool = False,
-    tasks_to_repair: list[str] | None = None,
+    task_id: str | None = None,
 ) -> str:
-    """Build the URL to the Airflow-3 FastAPI repair endpoint for a workflow run."""
-    from urllib.parse import quote, urlencode
+    """
+    Build the URL to the Airflow-3 FastAPI repair confirmation page for a workflow run.
 
-    from airflow.configuration import conf
+    The URL carries only Airflow identifiers: the run's launch ``task_id`` (from which the
+    endpoint reads the trusted ``WorkflowRunMetadata`` XCom) and, for a single-task repair, the
+    target ``task_id``. The Databricks connection, run id, and task keys are never placed in the
+    link — the endpoint derives them server-side, so the request cannot point the repair at an
+    arbitrary connection or Databricks run.
+    """
+    from urllib.parse import urlencode
 
-    query: dict[str, Any] = {
-        "databricks_conn_id": databricks_conn_id,
-        "databricks_run_id": databricks_run_id,
-    }
+    query: dict[str, Any] = {"launch_task_id": launch_task_id}
     if repair_all:
         query["repair_all"] = "true"
-    if tasks_to_repair:
-        query["tasks_to_repair"] = ",".join(tasks_to_repair)
+    if task_id:
+        query["task_id"] = task_id
 
     base_url = conf.get("api", "base_url", fallback="").rstrip("/")
-    return f"{base_url}{REPAIR_URL_PREFIX}/{dag_id}/{quote(run_id, safe='')}?{urlencode(query)}"
+    return (
+        f"{base_url}{REPAIR_URL_PREFIX}/{quote(dag_id, safe='')}/{quote(run_id, safe='')}?{urlencode(query)}"
+    )
 
 
-def _get_launch_metadata_v3(operator: BaseOperator, ti_key: TaskInstanceKey) -> Any:
+def _get_launch_task_id_v3(operator: BaseOperator, ti_key: TaskInstanceKey) -> str | None:
     """
-    Read the launch task's ``WorkflowRunMetadata`` (conn_id, job_id, run_id) from XCom.
+    Resolve the ``task_id`` of the workflow's launch task for an extra-link render.
 
-    Uses only the public XCom API keyed by ``ti_key`` — no metadata-DB access — which is the
-    only mechanism available to extra links on Airflow 3.
+    The link only needs to name the launch task; the repair endpoint reads that task's trusted
+    ``WorkflowRunMetadata`` XCom server-side. Returns ``None`` when the operator is not part of a
+    Databricks workflow task group (so the link is not rendered).
     """
     task_group = operator.task_group
     if not task_group:
         return None
-    if ".launch" not in ti_key.task_id:
-        launch_task_id = get_launch_task_id(task_group)
-        ti_key = _get_launch_task_key(ti_key, task_id=launch_task_id)
-    result = XCom.get_value(ti_key=ti_key, key="return_value")
-    if not result:
-        return None
-    from airflow.providers.databricks.operators.databricks_workflow import WorkflowRunMetadata
-
-    return WorkflowRunMetadata(**result)
+    if ".launch" in ti_key.task_id:
+        return ti_key.task_id
+    return get_launch_task_id(task_group)
 
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_1_PLUS:
     from fastapi import Depends, FastAPI, HTTPException, Request
-    from fastapi.responses import RedirectResponse
+    from fastapi.responses import HTMLResponse, RedirectResponse
+    from markupsafe import escape
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
     from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
@@ -639,8 +639,45 @@ if AIRFLOW_V_3_0_PLUS:
             raise HTTPException(status_code=403, detail="Not authorized to repair runs of this Dag.")
         return user
 
+    def _serialized_task_key(dag_id: str, task: Any) -> str:
+        """
+        Reproduce an operator's ``databricks_task_key`` from a serialized task.
+
+        Serialized tasks don't expose the operator property, so mirror its default: an explicit key
+        if one was set, else ``md5(dag_id__task_id)``.
+        """
+        import hashlib
+
+        return (
+            getattr(task, "databricks_task_key", None)
+            or hashlib.md5(f"{dag_id}__{task.task_id}".encode()).hexdigest()
+        )
+
+    def _read_launch_metadata(dag_id: str, run_id: str, launch_task_id: str, session) -> Any:
+        """
+        Read the launch task's trusted ``WorkflowRunMetadata`` XCom (conn_id, job_id, run_id).
+
+        The Databricks connection and run id come from here — never from the request — so a crafted
+        link cannot redirect the repair at an arbitrary connection or Databricks run.
+        """
+        from airflow.models.xcom import XComModel
+        from airflow.providers.databricks.operators.databricks_workflow import WorkflowRunMetadata
+
+        result = session.scalars(
+            XComModel.get_many(
+                run_id=run_id,
+                key="return_value",
+                task_ids=launch_task_id,
+                dag_ids=dag_id,
+                limit=1,
+            )
+        ).first()
+        if result is None:
+            raise HTTPException(status_code=404, detail="Databricks workflow run metadata not found.")
+        return WorkflowRunMetadata(**XComModel.deserialize_value(result))
+
     def _clear_repaired_and_downstream(
-        dag_id: str, run_id: str, task_keys: list[str], logger: logging.Logger
+        dag, run_id: str, task_ids: list[str], session, logger: logging.Logger
     ) -> None:
         """
         Clear the repaired tasks' instances and their downstream instances for this run.
@@ -649,88 +686,118 @@ if AIRFLOW_V_3_0_PLUS:
         their downstream lets the upstream-failed dependents resume deterministically when the
         repaired Databricks sub-runs succeed — without clearing the whole Dag.
         """
-        import hashlib
-
         from sqlalchemy import select
 
-        from airflow.models.serialized_dag import SerializedDagModel
         from airflow.models.taskinstance import clear_task_instances
-        from airflow.utils.session import create_session
 
-        with create_session() as session:
-            dag = SerializedDagModel.get_dag(dag_id, session=session)
-            if dag is None:
-                raise HTTPException(status_code=404, detail=f"Dag {dag_id} not found.")
+        target_task_ids: set[str] = set(task_ids)
+        for task_id in task_ids:
+            target_task_ids.update(dag.get_task(task_id).get_flat_relative_ids(upstream=False))
 
-            # Serialized tasks don't expose the operator's ``databricks_task_key`` property, so
-            # reproduce its default: an explicit key if present, else md5(dag_id__task_id).
-            key_to_task_id = {}
-            for task in dag.tasks:
-                task_key = (
-                    getattr(task, "databricks_task_key", None)
-                    or hashlib.md5(f"{dag_id}__{task.task_id}".encode()).hexdigest()
-                )
-                key_to_task_id[task_key] = task.task_id
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)).one()
+        tis_to_clear = [ti for ti in dr.get_task_instances(session=session) if ti.task_id in target_task_ids]
+        logger.info("Clearing %s task instances after Databricks repair", len(tis_to_clear))
+        clear_task_instances(tis_to_clear, session)
 
-            repaired_task_ids = [key_to_task_id[k] for k in task_keys if k in key_to_task_id]
-            target_task_ids: set[str] = set(repaired_task_ids)
-            for task_id in repaired_task_ids:
-                target_task_ids.update(dag.get_task(task_id).get_flat_relative_ids(upstream=False))
-
-            dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)).one()
-            tis_to_clear = [
-                ti for ti in dr.get_task_instances(session=session) if ti.task_id in target_task_ids
-            ]
-            logger.info("Clearing %s task instances after Databricks repair", len(tis_to_clear))
-            clear_task_instances(tis_to_clear, session)
-            session.commit()
+    def _repair_confirmation_page(dag_id: str, run_id: str, action: str, summary: str) -> HTMLResponse:
+        """Render the read-only confirmation page whose form issues the state-changing POST."""
+        return HTMLResponse(
+            "<!doctype html><html><head><title>Repair Databricks workflow</title></head><body>"
+            "<h2>Repair Databricks workflow tasks</h2>"
+            f"<p>Dag <b>{escape(dag_id)}</b>, run <b>{escape(run_id)}</b>.</p>"
+            f"<p>{escape(summary)}</p>"
+            f'<form method="post" action="{escape(action)}">'
+            '<button type="submit">Repair</button></form>'
+            "</body></html>"
+        )
 
     @repair_app.get("/{dag_id}/{run_id}")
+    def repair_databricks_workflow_confirm(
+        dag_id: str,
+        run_id: str,
+        request: Request,
+        launch_task_id: str,
+        task_id: str | None = None,
+        repair_all: bool = False,
+        _user=Depends(_require_dag_run_edit),
+    ):
+        """Render a read-only confirmation page; the repair itself happens on the POST below."""
+        run_id = unquote(run_id)
+        summary = (
+            "This will repair all failed tasks of the run and resume their downstream tasks."
+            if repair_all
+            else f"This will repair task '{task_id}' and resume its downstream tasks."
+        )
+        # Same-site relative action; SameSite=Lax on the auth cookie means a cross-site POST cannot
+        # carry it, so moving the mutation to POST is what protects it from CSRF.
+        action = f"{request.url.path}?{request.url.query}"
+        return _repair_confirmation_page(dag_id, run_id, action, summary)
+
+    @repair_app.post("/{dag_id}/{run_id}")
     def repair_databricks_workflow(
         dag_id: str,
         run_id: str,
-        databricks_conn_id: str,
-        databricks_run_id: int,
-        tasks_to_repair: str | None = None,
+        launch_task_id: str,
+        task_id: str | None = None,
         repair_all: bool = False,
         _user=Depends(_require_dag_run_edit),
     ):
         """Repair failed Databricks tasks for a workflow run and resume the Airflow run."""
         run_id = unquote(run_id)
-        from airflow.configuration import conf
 
-        base_url = conf.get("api", "base_url", fallback="").rstrip("/")
-        return_url = f"{base_url}/dags/{dag_id}/runs/{run_id}"
+        # Redirect to a same-site relative path with the identifiers percent-encoded, so the
+        # target can never be steered to another host or scheme (CodeQL open-redirect).
+        return_url = f"/dags/{quote(dag_id, safe='')}/runs/{quote(run_id, safe='')}"
 
-        # Databricks API calls can fail (e.g. expired/invalid connection token); surface a clear
-        # error to the UI instead of a bare 500.
-        try:
-            hook = DatabricksHook(databricks_conn_id=databricks_conn_id)
+        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            dag = SerializedDagModel.get_dag(dag_id, session=session)
+            if dag is None:
+                raise HTTPException(status_code=404, detail="Dag not found.")
+
+            metadata = _read_launch_metadata(dag_id, run_id, launch_task_id, session)
+
             if repair_all:
-                task_keys = hook.get_run_failed_task_keys(databricks_run_id)
-            elif tasks_to_repair:
-                task_keys = tasks_to_repair.split(",")
+                repaired_task_ids: list[str] = []  # resolved from live Databricks state below
             else:
-                task_keys = []
+                if task_id is None or not dag.has_task(task_id):
+                    raise HTTPException(status_code=404, detail="Task not found in Dag.")
+                repaired_task_ids = [task_id]
 
-            if not task_keys:
-                log.info("No failed Databricks tasks to repair for run %s", databricks_run_id)
-                return RedirectResponse(return_url, status_code=303)
+            # Databricks API calls can fail (e.g. expired/invalid connection token); surface a
+            # generic error to the UI without leaking the upstream exception text.
+            try:
+                if repair_all:
+                    hook = DatabricksHook(databricks_conn_id=metadata.conn_id)
+                    task_keys = hook.get_run_failed_task_keys(metadata.run_id)
+                    key_to_task_id = {_serialized_task_key(dag_id, t): t.task_id for t in dag.tasks}
+                    repaired_task_ids = [key_to_task_id[k] for k in task_keys if k in key_to_task_id]
+                else:
+                    task_keys = [_serialized_task_key(dag_id, dag.get_task(repaired_task_ids[0]))]
 
-            log.info("Repairing Databricks run %s tasks %s", databricks_run_id, task_keys)
-            _repair_task(
-                databricks_conn_id=databricks_conn_id,
-                databricks_run_id=databricks_run_id,
-                tasks_to_repair=task_keys,
-                logger=log,
-            )
-        except HTTPException:
-            raise
-        except Exception as e:
-            log.exception("Databricks repair failed for run %s", databricks_run_id)
-            raise HTTPException(status_code=502, detail=f"Databricks repair request failed: {e}") from e
+                if not task_keys:
+                    log.info("No failed Databricks tasks to repair for run %s", metadata.run_id)
+                    return RedirectResponse(return_url, status_code=303)
 
-        _clear_repaired_and_downstream(dag_id, run_id, task_keys, log)
+                log.info("Repairing Databricks run %s tasks %s", metadata.run_id, task_keys)
+                _repair_task(
+                    databricks_conn_id=metadata.conn_id,
+                    databricks_run_id=metadata.run_id,
+                    tasks_to_repair=task_keys,
+                    logger=log,
+                )
+            except HTTPException:
+                raise
+            except Exception:
+                log.exception("Databricks repair failed for run %s", metadata.run_id)
+                raise HTTPException(status_code=502, detail="Databricks repair request failed.")
+
+            # Clear only after a successful repair call, so a failed repair leaves state untouched.
+            _clear_repaired_and_downstream(dag, run_id, repaired_task_ids, session, log)
+            session.commit()
+
         return RedirectResponse(return_url, status_code=303)
 
 
@@ -751,8 +818,10 @@ class DatabricksWorkflowPlugin(AirflowPlugin):
         WorkflowJobRunLink(),
     ]
 
-    if AIRFLOW_V_3_0_PLUS:
-        # Airflow 3: repair is served by a FastAPI sub-application on the API server.
+    if AIRFLOW_V_3_1_PLUS:
+        # Airflow 3.1+: repair is served by a FastAPI sub-application on the API server. The app
+        # relies on cookie-or-bearer auth resolution (`resolve_user_from_token`) that is only
+        # available from 3.1, so on 3.0.x the repair backend and its links are not registered.
         fastapi_apps = [
             {
                 "app": repair_app,
@@ -760,7 +829,7 @@ class DatabricksWorkflowPlugin(AirflowPlugin):
                 "url_prefix": REPAIR_URL_PREFIX,
             }
         ]
-    else:
+    elif not AIRFLOW_V_3_0_PLUS:
         # Airflow 2.x: repair is served by a Flask-AppBuilder view.
         repair_databricks_view = RepairDatabricksTasks()
         repair_databricks_package = {

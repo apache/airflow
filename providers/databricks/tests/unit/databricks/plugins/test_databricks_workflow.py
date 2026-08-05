@@ -44,7 +44,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.providers.databricks.plugins.databricks_workflow import (
@@ -296,9 +296,9 @@ def test_appbuilder_views_airflow2(plugin):
     assert repair_view.default_view == "repair"
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
+@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow-3 repair backend requires 3.1+")
 class TestDatabricksWorkflowPluginAirflow3:
-    """Test Databricks Workflow Plugin functionality specific to Airflow 3.x."""
+    """Test Databricks Workflow Plugin functionality specific to Airflow 3.1+."""
 
     def test_plugin_operator_extra_links_include_repair(self):
         """All three extra links (incl. repair) are registered in Airflow 3.x."""
@@ -312,7 +312,7 @@ class TestDatabricksWorkflowPluginAirflow3:
         }
 
     def test_plugin_registers_fastapi_repair_app(self):
-        """Repair is served by a FastAPI app (not Flask-AppBuilder) in Airflow 3.x."""
+        """Repair is served by a FastAPI app (not Flask-AppBuilder) in Airflow 3.1+."""
         plugin = DatabricksWorkflowPlugin()
 
         assert not getattr(plugin, "appbuilder_views", [])
@@ -322,58 +322,60 @@ class TestDatabricksWorkflowPluginAirflow3:
         assert app["app"] is not None
 
     def test_build_repair_url_single_task(self):
-        url = _build_repair_url("my_dag", "run 1", "databricks_default", 999, tasks_to_repair=["abc", "def"])
-        assert url.startswith(f"{REPAIR_URL_PREFIX}/my_dag/run%201") or REPAIR_URL_PREFIX in url
-        assert "databricks_conn_id=databricks_default" in url
-        assert "databricks_run_id=999" in url
-        assert "tasks_to_repair=abc%2Cdef" in url
+        """The URL carries only Airflow identifiers — never the Databricks conn/run/task keys."""
+        url = _build_repair_url("my_dag", "run 1", "grp.launch", task_id="grp.nb")
+        assert f"{REPAIR_URL_PREFIX}/my_dag/run%201" in url
+        assert "launch_task_id=grp.launch" in url
+        assert "task_id=grp.nb" in url
         assert "repair_all" not in url
+        assert "databricks_conn_id" not in url
+        assert "databricks_run_id" not in url
 
     def test_build_repair_url_repair_all(self):
-        url = _build_repair_url("my_dag", "run1", "databricks_default", 999, repair_all=True)
+        url = _build_repair_url("my_dag", "run1", "grp.launch", repair_all=True)
         assert "repair_all=true" in url
-        assert "tasks_to_repair" not in url
+        assert "launch_task_id=grp.launch" in url
+        assert "&task_id=" not in url
 
     def test_repair_single_task_link_uses_endpoint_url(self):
-        """The single-task repair link points at the FastAPI endpoint, built from XCom only."""
+        """The single-task repair link points at the FastAPI endpoint, naming Airflow ids only."""
         link = WorkflowJobRepairSingleTaskLink()
-        operator = Mock(databricks_task_key="abc123")
+        operator = Mock(task_id="grp.nb")
         ti_key = TaskInstanceKey(dag_id="my_dag", task_id="grp.nb", run_id="run1", try_number=1)
-        metadata = Mock(conn_id="databricks_default", run_id=555)
         with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow._get_launch_metadata_v3",
-            return_value=metadata,
+            "airflow.providers.databricks.plugins.databricks_workflow._get_launch_task_id_v3",
+            return_value="grp.launch",
         ):
             url = link.get_link(operator, ti_key=ti_key)
         assert REPAIR_URL_PREFIX in url
-        assert "tasks_to_repair=abc123" in url
-        assert "databricks_run_id=555" in url
+        assert "launch_task_id=grp.launch" in url
+        assert "task_id=grp.nb" in url
 
     def test_repair_all_link_uses_endpoint_url(self):
         link = WorkflowJobRepairAllFailedLink()
         operator = Mock()
         ti_key = TaskInstanceKey(dag_id="my_dag", task_id="grp.nb", run_id="run1", try_number=1)
-        metadata = Mock(conn_id="databricks_default", run_id=555)
         with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow._get_launch_metadata_v3",
-            return_value=metadata,
+            "airflow.providers.databricks.plugins.databricks_workflow._get_launch_task_id_v3",
+            return_value="grp.launch",
         ):
             url = link.get_link(operator, ti_key=ti_key)
         assert REPAIR_URL_PREFIX in url
         assert "repair_all=true" in url
+        assert "launch_task_id=grp.launch" in url
 
-    def test_repair_link_returns_empty_without_metadata(self):
-        """When the launch XCom isn't available yet, the link renders empty (no crash)."""
+    def test_repair_link_returns_empty_without_launch_task(self):
+        """When the launch task can't be resolved, the link renders empty (no crash)."""
         link = WorkflowJobRepairSingleTaskLink()
         ti_key = TaskInstanceKey(dag_id="my_dag", task_id="grp.nb", run_id="run1", try_number=1)
         with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow._get_launch_metadata_v3",
+            "airflow.providers.databricks.plugins.databricks_workflow._get_launch_task_id_v3",
             return_value=None,
         ):
-            assert link.get_link(Mock(databricks_task_key="x"), ti_key=ti_key) == ""
+            assert link.get_link(Mock(task_id="grp.nb"), ti_key=ti_key) == ""
 
-    def test_repair_endpoint_calls_repair_and_clear(self):
-        """The FastAPI endpoint resolves failed tasks, repairs, clears, and redirects."""
+    def test_get_confirmation_page_does_not_mutate(self):
+        """GET renders a read-only confirmation form and never repairs or clears."""
         from fastapi.testclient import TestClient
 
         from airflow.providers.databricks.plugins import databricks_workflow as m
@@ -381,48 +383,104 @@ class TestDatabricksWorkflowPluginAirflow3:
         m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
         try:
             with (
-                patch.object(m, "DatabricksHook") as mock_hook,
                 patch.object(m, "_repair_task") as mock_repair,
                 patch.object(m, "_clear_repaired_and_downstream") as mock_clear,
             ):
-                mock_hook.return_value.get_run_failed_task_keys.return_value = ["k1", "k2"]
                 client = TestClient(m.repair_app)
                 resp = client.get(
                     "/my_dag/run1",
-                    params={
-                        "databricks_conn_id": "databricks_default",
-                        "databricks_run_id": 999,
-                        "repair_all": "true",
-                    },
+                    params={"launch_task_id": "grp.launch", "repair_all": "true"},
                     follow_redirects=False,
                 )
-            assert resp.status_code == 303
-            assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["k1", "k2"]
-            mock_clear.assert_called_once()
+            assert resp.status_code == 200
+            assert "<form" in resp.text
+            assert 'method="post"' in resp.text
+            mock_repair.assert_not_called()
+            mock_clear.assert_not_called()
         finally:
             m.repair_app.dependency_overrides.clear()
 
-    def test_repair_endpoint_returns_502_on_databricks_error(self):
-        """A Databricks/hook failure surfaces as a clean 502, not a bare 500."""
+    def test_confirmation_page_escapes_identifiers(self):
+        """Untrusted path/query identifiers are HTML-escaped on the confirmation page."""
         from fastapi.testclient import TestClient
 
         from airflow.providers.databricks.plugins import databricks_workflow as m
 
         m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
         try:
-            with patch.object(m, "DatabricksHook") as mock_hook:
-                mock_hook.return_value.get_run_failed_task_keys.side_effect = Exception("Invalid Token")
-                client = TestClient(m.repair_app, raise_server_exceptions=False)
-                resp = client.get(
+            client = TestClient(m.repair_app)
+            resp = client.get(
+                "/my_dag/run1",
+                params={"launch_task_id": "grp.launch", "task_id": "<script>x</script>"},
+                follow_redirects=False,
+            )
+            assert resp.status_code == 200
+            assert "<script>x</script>" not in resp.text
+            assert "&lt;script&gt;" in resp.text
+        finally:
+            m.repair_app.dependency_overrides.clear()
+
+    def test_post_repairs_clears_and_redirects(self):
+        """POST resolves failed tasks from live Databricks state, repairs, clears, and redirects."""
+        from fastapi.testclient import TestClient
+
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+
+        m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
+        dag = Mock()
+        task = Mock(task_id="grp.nb", databricks_task_key="k1")
+        dag.tasks = [task]
+        dag.dag_id = "my_dag"
+        try:
+            with (
+                patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
+                patch("airflow.utils.session.create_session"),
+                patch.object(m, "_read_launch_metadata", return_value=Mock(conn_id="c", run_id=999)),
+                patch.object(m, "DatabricksHook") as mock_hook,
+                patch.object(m, "_repair_task") as mock_repair,
+                patch.object(m, "_clear_repaired_and_downstream") as mock_clear,
+            ):
+                mock_hook.return_value.get_run_failed_task_keys.return_value = ["k1"]
+                client = TestClient(m.repair_app)
+                resp = client.post(
                     "/my_dag/run1",
-                    params={
-                        "databricks_conn_id": "databricks_default",
-                        "databricks_run_id": 1,
-                        "repair_all": "true",
-                    },
+                    params={"launch_task_id": "grp.launch", "repair_all": "true"},
+                    follow_redirects=False,
+                )
+            assert resp.status_code == 303
+            assert resp.headers["location"] == "/dags/my_dag/runs/run1"
+            assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["k1"]
+            assert mock_repair.call_args.kwargs["databricks_run_id"] == 999
+            mock_clear.assert_called_once()
+        finally:
+            m.repair_app.dependency_overrides.clear()
+
+    def test_post_returns_502_on_databricks_error_without_leaking_detail(self):
+        """A Databricks/hook failure surfaces as a clean 502 that does not echo the exception."""
+        from fastapi.testclient import TestClient
+
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+
+        m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
+        dag = Mock(dag_id="my_dag", tasks=[])
+        try:
+            with (
+                patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
+                patch("airflow.utils.session.create_session"),
+                patch.object(m, "_read_launch_metadata", return_value=Mock(conn_id="c", run_id=1)),
+                patch.object(m, "DatabricksHook") as mock_hook,
+                patch.object(m, "_clear_repaired_and_downstream") as mock_clear,
+            ):
+                mock_hook.return_value.get_run_failed_task_keys.side_effect = Exception("secret token abc")
+                client = TestClient(m.repair_app, raise_server_exceptions=False)
+                resp = client.post(
+                    "/my_dag/run1",
+                    params={"launch_task_id": "grp.launch", "repair_all": "true"},
                     follow_redirects=False,
                 )
             assert resp.status_code == 502
+            assert "secret token abc" not in resp.text
+            mock_clear.assert_not_called()
         finally:
             m.repair_app.dependency_overrides.clear()
 
