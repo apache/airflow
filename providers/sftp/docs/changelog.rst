@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+6.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix encrypted private keys in async SFTP hook (#70858)``
+
+Misc
+~~~~
+
+* ``Support Paramiko 5 (#69712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 6.0.0
 .....
 

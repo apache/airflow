@@ -183,7 +183,16 @@ class TestCallbackHandleRequest:
             client_mock=ClientMock(
                 method_path="connections.get",
                 args=("test_conn",),
-                response=ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+                response=ConnectionResult(
+                    conn_id="test_conn",
+                    conn_type="mysql",
+                    host=None,
+                    schema=None,
+                    login=None,
+                    password=None,
+                    port=None,
+                    extra=None,
+                ),  # type: ignore[call-arg]
             ),
         ),
         RequestCase(
@@ -192,7 +201,16 @@ class TestCallbackHandleRequest:
             client_mock=ClientMock(
                 method_path="connections.get",
                 args=("test_conn",),
-                response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="secret"),
+                response=ConnectionResult(
+                    conn_id="test_conn",
+                    conn_type="mysql",
+                    password="secret",
+                    host=None,
+                    schema=None,
+                    login=None,
+                    port=None,
+                    extra=None,
+                ),  # type: ignore[call-arg]
             ),
             mask_secret_args=("secret",),
         ),

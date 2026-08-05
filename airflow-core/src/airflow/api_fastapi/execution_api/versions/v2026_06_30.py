@@ -114,9 +114,9 @@ class AddTaskAndAssetStateStoreEndpoints(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
-        endpoint("/store/ti/{task_instance_id}/{key}", ["GET"]).didnt_exist,
-        endpoint("/store/ti/{task_instance_id}/{key}", ["PUT"]).didnt_exist,
-        endpoint("/store/ti/{task_instance_id}/{key}", ["DELETE"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key:path}", ["GET"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key:path}", ["PUT"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key:path}", ["DELETE"]).didnt_exist,
         endpoint("/store/ti/{task_instance_id}", ["DELETE"]).didnt_exist,
         endpoint("/store/asset/by-name/value", ["GET"]).didnt_exist,
         endpoint("/store/asset/by-name/value", ["PUT"]).didnt_exist,

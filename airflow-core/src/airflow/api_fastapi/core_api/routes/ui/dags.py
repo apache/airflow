@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import func, literal, select, union_all
+from sqlalchemy import false, func, literal, select, union_all
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -52,6 +53,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryPendingActionsFilter,
     QueryTagsFilter,
     QueryTeamsFilter,
+    QueryTimetableTypePrefixPatternSearch,
     SortParam,
     filter_param_factory,
 )
@@ -61,11 +63,11 @@ from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightRespo
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGRunStateCountsResponse,
     DAGsRunStateCountsCollectionResponse,
+    DagTimetableTypeCollectionResponse,
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.routes.ui.dashboard import STATE_COUNT_CAP
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
     ReadableDagsFilterDep,
@@ -79,6 +81,9 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
+
+# Per-dag run counts read at most this many rows per state; the UI shows "N+" at the cap.
+STATE_COUNT_CAP = 1000
 
 
 @dags_router.get(
@@ -130,6 +135,10 @@ def get_dags(
     is_favorite: QueryFavoriteFilter,
     has_asset_schedule: QueryHasAssetScheduleFilter,
     asset_dependency: QueryAssetDependencyFilter,
+    timetable_type: Annotated[
+        FilterParam[list[str] | None],
+        Depends(filter_param_factory(DagModel.timetable_type, list[str], FilterOptionEnum.IN)),
+    ],
     has_pending_actions: QueryPendingActionsFilter,
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
@@ -165,6 +174,7 @@ def get_dags(
             is_favorite,
             has_asset_schedule,
             asset_dependency,
+            timetable_type,
             has_pending_actions,
             readable_dags_filter,
             bundle_name,
@@ -272,6 +282,40 @@ def get_dags(
     return DAGWithLatestDagRunsCollectionResponse(
         total_entries=total_entries,
         dags=list(dag_runs_by_dag_id.values()),
+    )
+
+
+@dags_router.get(
+    "/timetable_types",
+    dependencies=[Depends(requires_access_dag(method="GET"))],
+    operation_id="get_dag_timetable_types_ui",
+)
+def get_dag_timetable_types(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    timetable_type_prefix_pattern: QueryTimetableTypePrefixPatternSearch,
+    readable_dags_filter: ReadableDagsFilterDep,
+    session: SessionDep,
+) -> DagTimetableTypeCollectionResponse:
+    """Get timetable types used by readable Dags."""
+    query = (
+        select(DagModel.timetable_type)
+        .where(DagModel.is_stale == false(), DagModel.timetable_type != "")
+        .group_by(DagModel.timetable_type)
+    )
+    timetable_types_select, total_entries = paginated_select(
+        statement=query,
+        filters=[timetable_type_prefix_pattern, readable_dags_filter],
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    timetable_types: Sequence[str] = session.scalars(
+        timetable_types_select.order_by(DagModel.timetable_type)
+    ).all()
+    return DagTimetableTypeCollectionResponse(
+        timetable_types=list(timetable_types),
+        total_entries=total_entries,
     )
 
 

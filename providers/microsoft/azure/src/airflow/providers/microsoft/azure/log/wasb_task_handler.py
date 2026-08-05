@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import os
 import shutil
 from functools import cached_property
@@ -50,6 +51,34 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
+    @classmethod
+    def from_config(cls) -> WasbRemoteLogIO:
+        """Build the remote log IO from Airflow logging configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "remote_base": conf.get_mandatory_value("logging", "remote_base_log_folder").removeprefix(
+                    "wasb://"
+                ),
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+                "wasb_container": conf.get_mandatory_value(
+                    "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
+                ),
+            }
+            | io_kwargs,
+        )
+
     def upload(self, path: str | os.PathLike, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
         path = Path(path)
@@ -66,6 +95,8 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
+            elif has_uploaded:
+                local_loc.write_text("")
 
     @cached_property
     def hook(self):
@@ -193,7 +224,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         """
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)
-            log = f"{old_log}\n{log}" if old_log else log
+            if old_log:
+                sep = "" if old_log.endswith("\n") else "\n"
+                log = f"{old_log}{sep}{log}"
 
         try:
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)

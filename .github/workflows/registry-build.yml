@@ -55,11 +55,30 @@ on:  # yamllint disable-line rule:truthy
         required: false
         type: string
         default: "3.12"
-      ci-image-already-built:
-        description: "Caller has already built and stashed the CI image for this run"
+      checkout-ref:
+        description: >
+          Ref the registry is built from. Defaults to the branch tip; a release publish passes the
+          tag it is publishing so the extraction reads those sources rather than main's.
+        required: false
+        type: string
+        default: ""
+      # `github.event_name` inside a called workflow reports the *caller's* event, never
+      # `workflow_call`, so it cannot distinguish the two entry points. An input declared
+      # only here can: it defaults to true when called and is undefined (falsy) on a
+      # `workflow_dispatch`. Callers must not pass it.
+      is-workflow-call:
+        description: "Internal: always true on the workflow_call path, do not pass explicitly"
         required: false
         type: boolean
-        default: false
+        default: true
+      image-stash-ref:
+        description: >
+          Ref whose CI image stash to use (empty = the per-branch one). Set it to whatever the
+          caller passed to ci-image-build.yml, which stashes an image built for a ref under a
+          key of its own rather than in the branch-wide stash.
+        required: false
+        type: string
+        default: ""
     secrets:
       DOCS_AWS_ACCESS_KEY_ID:
         required: true
@@ -71,57 +90,14 @@ permissions:
   packages: read
 
 jobs:
-  build-ci-image:
-    name: "Build CI image"
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      packages: write
-    # Skipped when the caller stashed an image for this run; a standalone dispatch has no
-    # such image and still builds its own.
-    if: >
-      (inputs.ci-image-already-built != true) && (
-      github.event_name == 'workflow_call' ||
-      contains(fromJSON('[
-        "ashb",
-        "bugraoz93",
-        "eladkal",
-        "ephraimbuddy",
-        "jedcunningham",
-        "jscheffl",
-        "kaxil",
-        "pierrejeambrun",
-        "shahar1",
-        "potiuk",
-        "uranusjr",
-        "utkarsharma2",
-        "vincbeck"
-        ]'), github.event.sender.login))
-    with:
-      runners: '["ubuntu-22.04"]'
-      platform: "linux/amd64"
-      push-image: "false"
-      upload-image-artifact: "true"
-      # Kept so a standalone registry dispatch reuses the mount cache its last run left behind.
-      upload-mount-cache-artifact: "true"
-      python-versions: ${{ format('["{0}"]', inputs.python-version) }}
-      branch: "main"
-      constraints-branch: "constraints-main"
-      use-uv: "true"
-      upgrade-to-newer-dependencies: "false"
-      docker-cache: "registry"
-      disable-airflow-repo-cache: "false"
-
   build-and-publish-registry:
     timeout-minutes: 45
     name: "Build & Publish Registry"
-    needs: [build-ci-image]
-    # `build-ci-image` is skipped when the caller stashed the image, so this cannot simply
-    # inherit its result — but it must keep enforcing the same committer allowlist that
-    # skipping that job used to enforce for us on a dispatch.
+    # On a dispatch this enforces the committer allowlist below; on the `workflow_call` path the
+    # caller has already gated on its own allowlist, so this must not re-check it against a
+    # second, separately-maintained copy.
     if: >
-      !cancelled() && needs.build-ci-image.result != 'failure' && (
-      github.event_name == 'workflow_call' ||
+      inputs.is-workflow-call ||
       contains(fromJSON('[
         "ashb",
         "bugraoz93",
@@ -136,7 +112,7 @@ jobs:
         "uranusjr",
         "utkarsharma2",
         "vincbeck"
-        ]'), github.event.sender.login))
+        ]'), github.event.sender.login)
     runs-on: ubuntu-latest
     env:
       SCARF_ANALYTICS: "false"
@@ -151,24 +127,51 @@ jobs:
       REGISTRY_CACHE_CONTROL: public, max-age=300
     permissions:
       contents: read
+      # The image is built here now, so this job reads the ghcr registry build cache itself.
+      packages: read
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+          # Empty means the branch tip; a release publish passes the tag it is publishing, so the
+          # extraction reads the sources being released rather than whatever main holds.
+          ref: ${{ inputs.checkout-ref }}
           # Tags drive the phantom-version filter in extract_metadata.py
           # (only versions with a real `providers-<id>/<ver>` tag are
           # treated as released). Without this, the filter silently
           # falls back to `versions[0]` and ships phantom versions.
           fetch-tags: true
 
-      - name: "Prepare breeze & CI image"
-        uses: ./.github/actions/prepare_breeze_and_image
+      # A local action is read from the workspace, not from the ref the workflow itself runs from,
+      # so an action added after the checked-out ref was cut is simply absent. Checking the
+      # workflow's own version out alongside supplies the definition; the image is still built
+      # from the sources checked out above.
+      - name: "Checkout the workflow version for its actions"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: workflow-version
+
+      - name: "Make /mnt writeable and cleanup"
+        run: ./scripts/ci/make_mnt_writeable.sh
+      - name: "Free up disk space"
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          python-version: "${{ inputs.python-version }}"
+
+      # Built in this job rather than handed over by one of its own: the image has a single
+      # consumer, so a separate job could only export it and import it straight back. It is still
+      # stashed under this ref, so the next run for the same ref seeds its build from it.
+      - name: "Build CI image linux/amd64:${{ inputs.python-version }}"
+        uses: ./workflow-version/.github/actions/build_ci_image_with_cache
         with:
           python: "${{ inputs.python-version }}"
           platform: "linux/amd64"
-          use-uv: "true"
-          make-mnt-writeable-and-cleanup: "true"
+          image-stash-ref: "${{ inputs.image-stash-ref }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: "Install AWS CLI v2"
         run: |

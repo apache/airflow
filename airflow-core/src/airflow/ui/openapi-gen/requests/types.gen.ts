@@ -2207,6 +2207,7 @@ export type BaseNodeResponse = {
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
+    asset_condition_type?: 'or-gate' | 'and-gate' | null;
 };
 
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
@@ -2408,6 +2409,14 @@ export type DagRunStatsResponse = {
 };
 
 /**
+ * Timetable types used by Dags.
+ */
+export type DagTimetableTypeCollectionResponse = {
+    timetable_types: Array<(string)>;
+    total_entries: number;
+};
+
+/**
  * Dashboard DAG Stats serializer for responses.
  */
 export type DashboardDagStatsResponse = {
@@ -2481,7 +2490,6 @@ export type EdgeResponse = {
     target_id: string;
     is_setup_teardown?: boolean | null;
     label?: string | null;
-    is_source_asset?: boolean | null;
 };
 
 /**
@@ -2578,7 +2586,8 @@ export type GridTISummaries = {
 export type HistoricalMetricDataResponse = {
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
-    state_count_limit: number;
+    dag_run_counts_are_lower_bounds?: boolean;
+    task_instance_counts_are_lower_bounds?: boolean;
 };
 
 /**
@@ -2644,12 +2653,12 @@ export type NodeResponse = {
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
+    asset_condition_type?: 'or-gate' | 'and-gate' | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     tooltip?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
-    asset_condition_type?: 'or-gate' | 'and-gate' | null;
     ui_color?: string | null;
     ui_fgcolor?: string | null;
 };
@@ -2979,6 +2988,51 @@ export type DeleteDagAssetQueuedEventData = {
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
+
+export type GetAssetsUiData = {
+    dagIds?: Array<(string)>;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    groupPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    groupPrefixPattern?: string | null;
+    lastAssetEventTimestampGt?: string | null;
+    lastAssetEventTimestampGte?: string | null;
+    lastAssetEventTimestampLt?: string | null;
+    lastAssetEventTimestampLte?: string | null;
+    limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    namePrefixPattern?: string | null;
+    offset?: number;
+    onlyActive?: boolean;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, group, created_at, updated_at, last_asset_event_timestamp`
+     */
+    orderBy?: Array<(string)>;
+    /**
+     * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
+     */
+    uri?: Array<(string)>;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    uriPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    uriPrefixPattern?: string | null;
+};
+
+export type GetAssetsUiResponse = AssetCollectionResponse;
 
 export type NextRunAssetsData = {
     dagId: string;
@@ -3550,9 +3604,21 @@ export type GetDagsUiData = {
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
+    timetableType?: Array<(string)>;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDagTimetableTypesUiData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    timetableTypePrefixPattern?: string | null;
+};
+
+export type GetDagTimetableTypesUiResponse = DagTimetableTypeCollectionResponse;
 
 export type GetLatestRunInfoData = {
     dagId: string;
@@ -4607,6 +4673,7 @@ export type GetDagDeadlineAlertsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
+    versionNumber?: number | null;
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
@@ -4614,7 +4681,6 @@ export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
 export type StructureDataData = {
     dagId: string;
     depth?: number | null;
-    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string | null;
@@ -5091,6 +5157,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/assets': {
+        get: {
+            req: GetAssetsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetCollectionResponse;
                 /**
                  * Validation Error
                  */
@@ -6412,6 +6493,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGWithLatestDagRunsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/timetable_types': {
+        get: {
+            req: GetDagTimetableTypesUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagTimetableTypeCollectionResponse;
                 /**
                  * Validation Error
                  */
@@ -7987,6 +8083,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8506,10 +8606,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: StructureDataResponse;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

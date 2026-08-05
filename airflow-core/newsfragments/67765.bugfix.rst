@@ -1,0 +1,1 @@
+Add the ``run_type`` tag to the ``dagrun.duration.failed`` metric emitted when a Dag run times out, making it consistent with the same metric emitted on normal Dag run completion.
