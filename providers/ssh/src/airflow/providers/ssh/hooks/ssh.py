@@ -444,7 +444,10 @@ class SSHHook(BaseHook):
                 key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
                 # Test it actually works. If Paramiko loads an openssh generated key, sometimes it will
                 # happily load it as the wrong type, only to fail when actually used.
-                key.sign_ssh_data(b"")
+                if key.get_name() == "ssh-rsa":
+                    key.sign_ssh_data(b"", algorithm="rsa-sha2-512")
+                else:
+                    key.sign_ssh_data(b"")
                 return key
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue

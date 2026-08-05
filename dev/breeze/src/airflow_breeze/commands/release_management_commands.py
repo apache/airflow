@@ -256,7 +256,7 @@ MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
 PR_REFERENCE_PATTERN = re.compile(r"#([0-9]+)")
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)(?![0-9])")
 # Release-management commits (provider documentation / release preparation) are pure
 # release-process noise: they are not user-facing changes and existing providers already
 # exclude them (the release tooling parks them in the changelog's excluded section). Match
@@ -1548,6 +1548,7 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
+@option_allow_pre_releases
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1555,6 +1556,7 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1599,6 +1601,7 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
+                allow_pre_releases=allow_pre_releases,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1617,6 +1620,7 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
+            allow_pre_releases=allow_pre_releases,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,

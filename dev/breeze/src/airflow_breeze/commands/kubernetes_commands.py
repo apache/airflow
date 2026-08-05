@@ -2593,7 +2593,9 @@ def _lang_sdk_build_go_bundle(
 
     go_example's go.mod ``replace``s go-sdk by relative path, so the build runs in a scratch
     workspace mirroring the repo layout with ``upstream_go_sdk`` at ``<workspace>/go-sdk``,
-    letting the unmodified directive resolve against the upstream copy.
+    letting the unmodified directive resolve against the upstream copy. The scratch go_example is
+    re-tidied before packing so its go.sum reconciles to that upstream go-sdk (which may differ from
+    the in-repo go-sdk its committed go.sum was tidied against).
     """
     go_dir = staging / "go-artifacts"
     go_dir.mkdir(parents=True, exist_ok=True)
@@ -2611,12 +2613,20 @@ def _lang_sdk_build_go_bundle(
 
     # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker. The package built is
     # the current dir (".") because go_example is its own module.
+    #
+    # go_example's go.sum is tidied against the in-repo go-sdk, but the bundle is built against the
+    # upstream-main go-sdk copied in above. When a branch changes go-sdk's dependency graph those two
+    # go-sdks differ, and Go refuses to build on the resulting go.sum drift. Re-tidy the scratch copy
+    # first so the build reconciles to whichever go-sdk it is actually compiled against; the committed
+    # go.sum is untouched and stays guarded by the check-go-example-mod-tidy prek hook.
     if native:
         get_console(output=output).print("[info]Building Go bundle with the host Go toolchain")
+        go_env = {**os.environ, "CGO_ENABLED": "0"}
+        run_command(["go", "mod", "tidy"], cwd=example_path, env=go_env, output=output, check=True)
         run_command(
             ["go", "tool", "airflow-go-pack", "--output", str(output_bin), "."],
             cwd=example_path,
-            env={**os.environ, "CGO_ENABLED": "0"},
+            env=go_env,
             output=output,
             check=True,
         )
@@ -2628,26 +2638,30 @@ def _lang_sdk_build_go_bundle(
         # the real go_example's gitignored cache dir so the caches persist across scratch workspaces.
         (LANG_SDK_GO_EXAMPLE_PATH / ".home").mkdir(parents=True, exist_ok=True)
         get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
+        docker_base = [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            uid_gid,
+            "-e",
+            f"HOME={go_example_ctr}/.home",
+            "-e",
+            "USER=airflow",
+            "-e",
+            "CGO_ENABLED=0",
+            "-v",
+            f"{workspace}:/repo",
+            "-v",
+            f"{LANG_SDK_GO_EXAMPLE_PATH / '.home'}:{go_example_ctr}/.home",
+            "-w",
+            go_example_ctr,
+            LANG_SDK_GO_BUILDER_IMAGE,
+        ]
+        run_command([*docker_base, "go", "mod", "tidy"], output=output, check=True)
         run_command(
             [
-                "docker",
-                "run",
-                "--rm",
-                "--user",
-                uid_gid,
-                "-e",
-                f"HOME={go_example_ctr}/.home",
-                "-e",
-                "USER=airflow",
-                "-e",
-                "CGO_ENABLED=0",
-                "-v",
-                f"{workspace}:/repo",
-                "-v",
-                f"{LANG_SDK_GO_EXAMPLE_PATH / '.home'}:{go_example_ctr}/.home",
-                "-w",
-                go_example_ctr,
-                LANG_SDK_GO_BUILDER_IMAGE,
+                *docker_base,
                 "go",
                 "tool",
                 "airflow-go-pack",

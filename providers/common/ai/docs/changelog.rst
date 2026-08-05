@@ -36,13 +36,22 @@ Changelog
     to 1.2.0 or newer; if you cannot, stay on ``common.ai`` 0.6.0. Installations that do not use
     the ``skills`` extra are unaffected.
 
+.. note::
+    ``SQLToolset(allowed_tables=...)`` now fails closed: ``COPY`` in any form, and any function
+    sqlglot cannot type, are refused before the query runs. This closes a bypass where
+    ``pg_read_file()``, ``query_to_xml()`` and ``COPY ... FROM PROGRAM`` reached data and files
+    outside ``allowed_tables``. Project UDFs and a few common builtins such as
+    ``json_build_object`` are also not recognized; pass them in the new ``allowed_functions``
+    argument to permit them. The database role remains the real security boundary.
+
 Features
 ~~~~~~~~
 
-* ``Add AWS services toolset for agents to access 1000+ APIs (#70087)``
 * ``Add pydantic-ai capability matrix references doc to Common AI (#69887)``
 * ``Support excluding files from 'common.ai' Agent Skills discovery (#69924)``
 * ``Use task state store for 'common.ai' durable execution on Airflow 3.3+ (#68926)``
+* ``Support '.txt' files in 'LLMFileAnalysisOperator' (#70431)``
+* ``Support cloud URI globs in DocumentLoaderOperator (#70299)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -56,11 +65,17 @@ Bug Fixes
 * ``Reject unsupported require_approval in LLM branch and schema compare operators (#70069)``
 * ``Fix '@task.llm_branch' import failure on Task SDK-only workers (#70068)``
 * ``Fix common.ai durable execution skipping Toolset-capability tools (#69881)``
+* ``Redact secrets from LLMRetryPolicy classification prompts (#70229)``
+* ``Validate common AI tool-call arguments to enable pydantic-ai retries (#70096)``
+* ``Validate template fields after rendering in common.ai operators (#70338)``
 
 Misc
 ~~~~
 
 * ``Add dataclasses-json floor to common.ai llamaindex extra (#69755)``
+* ``Add a Retry Policies category to the provider registry (#70499)``
+* ``Mark asserts under 'TYPE_CHECKING' in 'DocumentLoaderOperator' (#70378)``
+* ``Mark KubernetesPodOperator and AgentOperator as durable capable (#70289)``
 
 Doc-only
 ~~~~~~~~
@@ -72,6 +87,7 @@ Doc-only
 * ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
 * ``Add an Examples entry point to the common.ai provider docs (#69650)``
 * ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+* ``Document the sql extra required for LLMSQLQueryOperator (#70564)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -79,7 +95,12 @@ Doc-only
    * ``Add toolset as a provider module category (#70122)``
    * ``[main] Upgrade important CI environment (#69694)``
    * ``Guard code_mode example DAG on SQLToolset import (#69677)``
-
+   * ``Add AWS services toolset for agents to access 1000+ APIs (#70087)``
+   * ``Fix flaky secrets masking test in LLMRetryPolicy (#70823)``
+   * ``Revert AWS services toolset for common AI provider (#70695)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Mark common.ai provider as not ready for release (#70481)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
 
 0.6.0
 .....
