@@ -179,6 +179,10 @@ jobs:
       # Only the PyPI constraints are what a release ships; the other modes serve CI, and
       # regenerating them here would move them for reasons unrelated to the release.
       generate-no-providers-constraints: "false"
+      # A release pins the providers as published on PyPI, so nothing is built from the sources
+      # here: a locally built provider wheel would answer the resolution and then be left out of
+      # the constraints, which is exactly the version the release needed pinned.
+      pypi-providers-only: "true"
       allow-pre-releases: ${{ needs.build-info.outputs.allow-pre-releases }}
       debug-resources: "false"
       checkout-ref: ${{ inputs.ref }}
