@@ -25,6 +25,7 @@ import time_machine
 from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -1324,6 +1325,71 @@ class TestGetAssetEventsExtraFilter(TestAssets):
         assert response.json()["total_entries"] == expected_count
 
 
+class TestGetAssetEventsExtraFilterSpecialKeys(TestAssets):
+    """
+    Keys containing JSON-path metacharacters must be matched literally on every backend.
+
+    PostgreSQL (``@>``) and MySQL (``JSON_CONTAINS``) compare keys literally by containment.
+    The SQLite fallback builds a ``json_extract`` path from the key, where an unquoted ``.``
+    or ``[`` is interpreted as path navigation instead — silently missing literal dotted keys
+    and wrongly matching nested objects.
+    """
+
+    @pytest.fixture
+    def _setup(self, session):
+        self.create_assets(num=1, session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={"spark.executor.memory": "4g"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r1",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={"spark": {"executor": {"memory": "4g"}}},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r2",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={"partitions[0]": "2024-01-01"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r3",
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            # Matches only the event whose extra has the literal dotted key,
+            # not the one nesting the same path as objects.
+            ({"extra": "spark.executor.memory=4g"}, 1),
+            ({"extra": "partitions[0]=2024-01-01"}, 1),
+            ({"extra": "spark.executor.memory=8g"}, 0),
+        ],
+    )
+    def test_extra_filter_metacharacter_keys_match_literally(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.usefixtures("_setup")
+    def test_extra_filter_dotted_key_matches_the_literal_key_event(self, test_client):
+        response = test_client.get("/assets/events", params={"extra": "spark.executor.memory=4g"})
+        assert response.status_code == 200
+        assert [e["source_run_id"] for e in response.json()["asset_events"]] == ["r1"]
+
+
 class TestGetAssetEndpoint(TestAssets):
     @provide_session
     def test_should_respond_200(self, test_client, *, session):
@@ -1439,7 +1505,10 @@ class TestQueuedEventEndpoint(TestAssets):
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
         session.execute(delete(AssetDagRunQueue))
         session.flush()
-        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id, asset_event_id=event.id)
         session.add(adrq)
         session.commit()
         return adrq
@@ -1801,6 +1870,16 @@ class TestPostAssetMaterialize(TestAssets):
         session.commit()
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_materialize_records_triggering_user_display_name(self, mock_display_name, test_client):
+        response = test_client.post("/assets/1/materialize")
+        assert response.status_code == 200
+        assert response.json()["triggering_user_name"] == "Jane Doe"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 200
@@ -1827,6 +1906,7 @@ class TestPostAssetMaterialize(TestAssets):
             "triggering_user_name": "test",
             "conf": {},
             "note": None,
+            "team_name": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2075,6 +2155,33 @@ class TestPostAssetMaterialize(TestAssets):
         assert dag_run.partition_key == "2025-06-01T00:00:00"
         assert dag_run.partition_date == timezone.datetime(2025, 6, 1)
 
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_against_the_dags_team(self, test_client, session, team_name):
+        """The Dag is resolved from the asset, so its team must be resolved and passed too — see the
+        call site's comment for why an unresolved team asks about the wrong resource."""
+        recorded = []
+
+        auth_manager = mock.Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_dag.side_effect = lambda **kw: recorded.append(kw) or True
+
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager",
+                return_value=auth_manager,
+            ),
+            mock.patch.object(
+                DagModel, "get_team_name", return_value=team_name, autospec=True
+            ) as mock_get_team_name,
+        ):
+            test_client.post("/assets/1/materialize")
+
+        assert len(recorded) == 1, "expected exactly one authorization check"
+        details = recorded[0]["details"]
+        assert details.id == self.DAG_ASSET1_ID
+        assert details.team_name == team_name
+        # resolved for the Dag the asset led to, not for some other Dag
+        mock_get_team_name.assert_called_once_with(self.DAG_ASSET1_ID, session=mock.ANY)
+
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
@@ -2122,10 +2229,10 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is not None
+        assert session.scalars(select(AssetDagRunQueue)).all()
         response = test_client.delete(f"/assets/{asset.id}/queuedEvents")
         assert response.status_code == 204
-        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is None
+        assert session.scalars(select(AssetDagRunQueue)).all() == []
         check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):

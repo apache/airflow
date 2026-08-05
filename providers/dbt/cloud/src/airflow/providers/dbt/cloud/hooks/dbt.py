@@ -41,7 +41,7 @@ from airflow.providers.http.hooks.http import HttpHook
 if TYPE_CHECKING:
     from requests.models import PreparedRequest, Response
 
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 DBT_CAUSE_MAX_LENGTH = 255
 
@@ -254,12 +254,13 @@ class DbtCloudHook(HttpHook):
 
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
         """Get Headers, tenants from the connection details."""
+        conn = await self._resolve_connection_async()
         headers: dict[str, Any] = {}
-        tenant = self._get_tenant_domain(self.connection)
+        tenant = self._get_tenant_domain(conn)
         package_name, provider_version = _get_provider_info()
         headers["User-Agent"] = f"{package_name}-v{provider_version}"
         headers["Content-Type"] = "application/json"
-        headers["Authorization"] = f"Token {self.connection.password}"
+        headers["Authorization"] = f"Token {conn.password}"
         return headers, tenant
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
@@ -307,7 +308,8 @@ class DbtCloudHook(HttpHook):
         endpoint = f"{account_id}/runs/{run_id}/"
         headers, tenant = await self.get_headers_tenants_from_connection()
         url, params = self.get_request_url_params(tenant, endpoint, include_related)
-        proxies = self._get_proxies(self.connection) or {}
+        conn = await self._resolve_connection_async()
+        proxies = self._get_proxies(conn) or {}
         proxy = proxies.get("https") if proxies and url.startswith("https") else proxies.get("http")
         extra_request_args = {}
 
@@ -341,13 +343,40 @@ class DbtCloudHook(HttpHook):
         job_run_status: int = response["data"]["status"]
         return job_run_status
 
+    @staticmethod
+    def _require_password(conn: Connection) -> Connection:
+        if not conn.password:
+            raise AirflowException("An API token is required to connect to dbt Cloud.")
+        return conn
+
     @cached_property
     def connection(self) -> Connection:
-        _connection = self.get_connection(self.dbt_cloud_conn_id)
-        if not _connection.password:
-            raise AirflowException("An API token is required to connect to dbt Cloud.")
+        """
+        Resolve and cache the dbt Cloud connection (sync).
 
-        return _connection  # type: ignore[return-value]
+        Do not read this property from async code running inside the triggerer's
+        event loop — it calls the synchronous ``get_connection()``, whose secret-masking
+        step raises ``RuntimeError`` when invoked from a thread that's already running an
+        event loop. Use ``_resolve_connection_async()`` instead; it shares this property's
+        cache slot so the connection is still only looked up once per hook instance
+        regardless of which path is used first.
+        """
+        return self._require_password(self.get_connection(self.dbt_cloud_conn_id))
+
+    async def _resolve_connection_async(self) -> Connection:
+        """
+        Resolve and cache the dbt Cloud connection (async).
+
+        Shares the ``connection`` cached_property's cache slot so a connection
+        fetched from either the sync or async path is not looked up twice on
+        the same hook instance, and so the async path never touches the sync
+        ``get_connection()``/``mask_secret()`` path from inside a running
+        event loop (which raises in the triggerer).
+        """
+        if "connection" not in self.__dict__:
+            conn = await get_async_connection(self.dbt_cloud_conn_id)
+            self.__dict__["connection"] = self._require_password(conn)
+        return self.__dict__["connection"]
 
     def get_conn(self, *args, **kwargs) -> Session:
         tenant = self._get_tenant_domain(self.connection)

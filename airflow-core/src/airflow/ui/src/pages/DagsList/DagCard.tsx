@@ -16,20 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Grid, GridItem, HStack, Spinner } from "@chakra-ui/react";
+import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
-import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
-import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { Stat } from "src/components/Stat";
-import { TogglePause } from "src/components/TogglePause";
-import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink, Tooltip } from "src/components/ui";
+import { useNearViewport } from "src/hooks/useNearViewport";
+import { useConfig } from "src/queries/useConfig";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
@@ -45,6 +43,8 @@ type Props = {
 export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCountLimit }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
+  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>();
 
   const refetchInterval = useAutoRefresh({});
 
@@ -54,7 +54,10 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
       borderRadius={8}
       borderWidth={1}
       data-testid="dag-card"
+      minHeight="140px"
+      onFocusCapture={showContent}
       overflow="hidden"
+      ref={ref}
     >
       <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={1}>
         <HStack>
@@ -65,29 +68,30 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
           </Tooltip>
           <DagTags tags={dag.tags} />
         </HStack>
-        <HStack gap={1}>
-          <NeedsReviewBadge pendingActions={dag.pending_actions} />
-          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
-          <TriggerDAGButton
-            allowedRunTypes={dag.allowed_run_types}
-            dagDisplayName={dag.dag_display_name}
-            dagId={dag.dag_id}
-            isPaused={dag.is_paused}
-          />
-          <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
-          <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
+        <HStack data-testid="dag-card-actions" gap={1} minHeight="32px">
+          {isNearViewport ? <DagCardActions dag={dag} /> : undefined}
         </HStack>
       </Flex>
-      <Grid gap={1} px={3} py={2} templateColumns="repeat(4, 1fr)" templateRows="auto auto">
+      <Grid
+        gap={1}
+        px={3}
+        py={2}
+        templateColumns={multiTeamEnabled ? "repeat(5, 1fr)" : "repeat(4, 1fr)"}
+        templateRows="auto auto"
+      >
         <GridItem gridColumn={1} gridRow={1}>
           <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
-            <Schedule
-              assetExpression={dag.asset_expression}
-              dagId={dag.dag_id}
-              timetableDescription={dag.timetable_description}
-              timetablePartitioned={dag.timetable_partitioned}
-              timetableSummary={dag.timetable_summary}
-            />
+            {isNearViewport ? (
+              <Schedule
+                assetExpression={dag.asset_expression}
+                dagId={dag.dag_id}
+                timetableDescription={dag.timetable_description}
+                timetablePartitioned={dag.timetable_partitioned}
+                timetableSummary={dag.timetable_summary}
+              />
+            ) : (
+              <Text fontSize="sm">{dag.timetable_summary}</Text>
+            )}
           </Stat>
         </GridItem>
         <GridItem gridColumn={2} gridRow={1}>
@@ -118,22 +122,39 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
             ) : undefined}
           </Stat>
         </GridItem>
+        {multiTeamEnabled ? (
+          <GridItem gridColumn={4} gridRow={1}>
+            <Stat label={translate("dagDetails.team")}>
+              {dag.team_name === undefined || dag.team_name === null ? undefined : (
+                <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name)}`}>
+                  {dag.team_name}
+                </RouterLink>
+              )}
+            </Stat>
+          </GridItem>
+        ) : undefined}
         <GridItem
           alignItems="flex-end"
           display="flex"
-          gridColumn={4}
+          gridColumn={multiTeamEnabled ? 5 : 4}
           gridRow="1 / 3"
           justifyContent="flex-end"
         >
-          <RecentRuns latestRuns={dag.latest_dag_runs} />
+          <Box minHeight="65px">
+            {isNearViewport ? <RecentRuns latestRuns={dag.latest_dag_runs} /> : undefined}
+          </Box>
         </GridItem>
         <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
-          <DagRunStateCounts
-            counts={runStateCounts}
-            dagId={dag.dag_id}
-            isLoading={runStateCountsLoading}
-            stateCountLimit={stateCountLimit}
-          />
+          <Box minHeight="22px">
+            {isNearViewport ? (
+              <DagRunStateCounts
+                counts={runStateCounts}
+                dagId={dag.dag_id}
+                isLoading={runStateCountsLoading}
+                stateCountLimit={stateCountLimit}
+              />
+            ) : undefined}
+          </Box>
         </GridItem>
       </Grid>
     </Box>

@@ -386,11 +386,29 @@ def load_resumable_job_mixin() -> type | None:
 
 
 def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
-    """Return True if a class fully implements ResumableJobMixin's crash-recovery contract.
+    """Return True if a class implements durable/crash-safe execution.
 
-    Inheriting the mixin is not sufficient: a complete override is inert unless
-    execute() actually calls execute_resumable().
+    Two ways to qualify:
+    1. A class-level `__supports_durable_execution = True`
+    declaration (for operators that implement this directly against
+    task_state_store, without ResumableJobMixin -- e.g. KubernetesPodOperator,
+    AgentOperator).
+    2. Genuinely implementing ResumableJobMixin's contract.
+
+    The first path deliberately looks up the class prefixed attribute
+    (`_{ClassName}__supports_durable_execution`) rather than a fixed string.
+    A subclass that overrides execute() itself (e.g. SparkKubernetesOperator)
+    may not preserve the parent's task_state_store reconnect behavior, so the
+    declaration must not be inherited -- only the exact class that wrote
+    `__supports_durable_execution` in its own body qualifies this way.
+
+    Inheriting the mixin alone is not sufficient for the second path: a
+    complete override is inert unless execute() actually calls
+    execute_resumable().
     """
+    if getattr(cls, f"_{cls.__name__}__supports_durable_execution", None) is True:
+        return True
+
     if resumable_mixin is None or resumable_mixin not in cls.__mro__:
         return False
 

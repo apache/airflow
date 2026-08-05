@@ -53,5 +53,15 @@
     "id": "decorator",
     "label": "Decorators",
     "icon": "@"
+  },
+  {
+    "id": "toolset",
+    "label": "Toolsets",
+    "icon": "U"
+  },
+  {
+    "id": "retry_policy",
+    "label": "Retry Policies",
+    "icon": "R"
   }
 ]
