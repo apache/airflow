@@ -103,7 +103,7 @@ class TestDbtCloudJobRunSensor:
         with pytest.raises(DbtCloudJobRunException, match=error_message):
             self.sensor.poke({})
 
-        mock_log_failure_details.assert_called_once_with(run_id=RUN_ID, account_id=None)
+        mock_log_failure_details.assert_called_once_with(run_id=RUN_ID, account_id=ACCOUNT_ID)
 
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor.defer")
