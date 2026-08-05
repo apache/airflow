@@ -462,6 +462,11 @@
           "default": null,
           "title": "Map Index"
         },
+        "include_dag_result": {
+          "default": false,
+          "title": "Include Dag Result",
+          "type": "boolean"
+        },
         "type": {
           "const": "BulkDeleteXCom",
           "default": "BulkDeleteXCom",

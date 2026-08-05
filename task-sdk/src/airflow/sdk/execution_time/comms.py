@@ -973,6 +973,7 @@ class BulkDeleteXCom(BaseModel):
     task_id: str | None = None
     key: str | None = None
     map_index: int | None = None
+    include_dag_result: bool = False
     type: Literal["BulkDeleteXCom"] = "BulkDeleteXCom"
 
 

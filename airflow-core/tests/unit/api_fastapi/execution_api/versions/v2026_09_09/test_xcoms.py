@@ -17,14 +17,19 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+import pytest
+
+pytestmark = pytest.mark.db_test
 
 
-class AddXComBulkDeleteEndpoint(VersionChange):
-    """Add XCom bulk delete endpoint."""
+@pytest.fixture
+def old_ver_client(client):
+    """Last released execution API before the XCom bulk delete endpoint was added."""
+    client.headers["Airflow-API-Version"] = "2026-06-30"
+    return client
 
-    description = __doc__
 
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/xcoms/{dag_id}/{run_id}", ["DELETE"]).didnt_exist,
-    )
+def test_xcom_bulk_delete_endpoint_not_available_in_previous_version(old_ver_client):
+    response = old_ver_client.delete("/execution/xcoms/dag_id/run_id")
+
+    assert response.status_code == 404

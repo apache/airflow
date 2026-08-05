@@ -97,6 +97,7 @@ from airflow.sdk.execution_time.comms import (
     UpdateHITLDetail,
     VariableKeysResult,
     VariableResult,
+    XComDeleteCountResult,
     XComResult,
     _new_encoder,
     _RequestFrame,
@@ -377,7 +378,8 @@ ToTriggerRunner = Annotated[
     | AssetStateStoreResult
     | HITLDetailResponseResult
     | ErrorResponse
-    | OKResponse,
+    | OKResponse
+    | XComDeleteCountResult,
     Field(discriminator="type"),
 ]
 """

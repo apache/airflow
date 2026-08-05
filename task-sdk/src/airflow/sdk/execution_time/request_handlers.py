@@ -201,7 +201,9 @@ def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | Non
 
 def handle_bulk_delete_xcom(client: Client, msg: BulkDeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Bulk delete XCom values."""
-    resp = client.xcoms.delete_all(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+    resp = client.xcoms.delete_all(
+        msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_dag_result
+    )
     return resp, {}
 
 

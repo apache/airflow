@@ -14,17 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from cadwyn import VersionChange, endpoint
-
-
-class AddXComBulkDeleteEndpoint(VersionChange):
-    """Add XCom bulk delete endpoint."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/xcoms/{dag_id}/{run_id}", ["DELETE"]).didnt_exist,
-    )

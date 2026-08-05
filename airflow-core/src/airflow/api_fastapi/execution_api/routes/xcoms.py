@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -33,6 +34,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
@@ -486,7 +488,7 @@ def delete_xcom(
 
 @router.delete(
     "/{dag_id}/{run_id}",
-    description="Bulk delete Xcom values.",
+    description="Bulk delete XCom values.",
 )
 def bulk_delete_xcoms(
     session: SessionDep,
@@ -495,12 +497,17 @@ def bulk_delete_xcoms(
     task_id: Annotated[str | None, Query()] = None,
     key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query()] = None,
-):
-    """Bulk delete Xcom values."""
-    query = delete(XComModel).where(
-        XComModel.dag_id == dag_id,
-        XComModel.run_id == run_id,
-    )
+    include_dag_result: Annotated[bool, Query()] = False,
+) -> int:
+    """Bulk delete XCom values."""
+    dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    if dag_run_id is None:
+        return 0
+
+    query = delete(XComModel).where(XComModel.dag_run_id == dag_run_id)
+
+    if not include_dag_result:
+        query = query.where(XComModel.dag_result.isnot(True))
 
     if task_id is not None:
         query = query.where(XComModel.task_id == task_id)
@@ -511,7 +518,5 @@ def bulk_delete_xcoms(
     if map_index is not None:
         query = query.where(XComModel.map_index == map_index)
 
-    result = session.execute(query)
-    count = getattr(result, "rowcount", 0)
-
-    return {"count": count}
+    result = cast("CursorResult", session.execute(query))
+    return result.rowcount

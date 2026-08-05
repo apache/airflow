@@ -2034,7 +2034,7 @@ REQUEST_TEST_CASES = [
         ),
         client_mock=ClientMock(
             method_path="xcoms.delete_all",
-            args=("test_dag", "test_run", None, None, None),
+            args=("test_dag", "test_run", None, None, None, False),
             response=XComDeleteCountResult(count=5),
         ),
         expected_body={"count": 5, "type": "XComDeleteCountResult"},
@@ -2044,7 +2044,7 @@ REQUEST_TEST_CASES = [
         message=BulkDeleteXCom(dag_id="test_dag", run_id="test_run", task_id="t1"),
         client_mock=ClientMock(
             method_path="xcoms.delete_all",
-            args=("test_dag", "test_run", "t1", None, None),
+            args=("test_dag", "test_run", "t1", None, None, False),
             response=XComDeleteCountResult(count=3),
         ),
         expected_body={"count": 3, "type": "XComDeleteCountResult"},
@@ -2054,11 +2054,21 @@ REQUEST_TEST_CASES = [
         message=BulkDeleteXCom(dag_id="test_dag", run_id="test_run", task_id="t1", map_index=0),
         client_mock=ClientMock(
             method_path="xcoms.delete_all",
-            args=("test_dag", "test_run", "t1", None, 0),
+            args=("test_dag", "test_run", "t1", None, 0, False),
             response=XComDeleteCountResult(count=1),
         ),
         expected_body={"count": 1, "type": "XComDeleteCountResult"},
         test_id="bulk_delete_xcoms_with_map_index",
+    ),
+    RequestTestCase(
+        message=BulkDeleteXCom(dag_id="test_dag", run_id="test_run", include_dag_result=True),
+        client_mock=ClientMock(
+            method_path="xcoms.delete_all",
+            args=("test_dag", "test_run", None, None, None, True),
+            response=XComDeleteCountResult(count=2),
+        ),
+        expected_body={"count": 2, "type": "XComDeleteCountResult"},
+        test_id="bulk_delete_xcoms_with_dag_result",
     ),
     RequestTestCase(
         message=RetryTask(

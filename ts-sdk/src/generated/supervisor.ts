@@ -77,6 +77,7 @@ export type RunId1 = string;
 export type TaskId = string | null;
 export type Key = string | null;
 export type MapIndex = number | null;
+export type IncludeDagResult = boolean;
 export type Type6 = "BulkDeleteXCom";
 export type Name4 = string;
 export type Version = string | null;
@@ -775,6 +776,7 @@ export interface BulkDeleteXCom {
   task_id?: TaskId;
   key?: Key;
   map_index?: MapIndex;
+  include_dag_result?: IncludeDagResult;
   type?: Type6;
 }
 /**

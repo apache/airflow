@@ -1123,6 +1123,12 @@ class TestXCOMOperations:
             ),
             pytest.param({"map_index": -1}, {"map_index": "-1"}, id="non-mapped-only"),
             pytest.param({"map_index": 0}, {"map_index": "0"}, id="single-map-index"),
+            pytest.param(
+                {"include_dag_result": True},
+                {"include_dag_result": "true"},
+                id="include-dag-result",
+            ),
+            pytest.param({"include_dag_result": False}, {}, id="dag-result-false-omitted"),
         ],
     )
     def test_xcom_delete_all_success(self, kwargs, expected_params):
@@ -1130,7 +1136,7 @@ class TestXCOMOperations:
             if request.url.path == "/xcoms/dag_id/run_id":
                 assert request.method == "DELETE"
                 assert request.url.params == httpx.QueryParams(expected_params)
-                return httpx.Response(status_code=200, json={"count": 2})
+                return httpx.Response(status_code=200, json=2)
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
