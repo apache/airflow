@@ -144,7 +144,7 @@ class TestLLMClassifyDecisions:
         mock_agent = _make_mock_agent("auth", should_retry=False)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
-        policy = LLMRetryPolicy(llm_conn_id="test", redactor=lambda s: s)
+        policy = LLMRetryPolicy(llm_conn_id="test", redactor=None)
         policy.evaluate(
             ConnectionError(f"could not authenticate with password {secret_value}"),
             try_number=1,
@@ -193,9 +193,7 @@ class TestLLMClassifyDecisions:
         mock_agent = _make_mock_agent("data", should_retry=False)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
-        policy = LLMRetryPolicy(
-            llm_conn_id="test", redactor=lambda s: s, max_exception_length=max_exception_length
-        )
+        policy = LLMRetryPolicy(llm_conn_id="test", redactor=None, max_exception_length=max_exception_length)
         policy.evaluate(ValueError("x" * message_length), try_number=1, max_tries=3)
 
         prompt = mock_agent.run_sync.call_args[0][0]

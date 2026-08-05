@@ -68,12 +68,6 @@ DEFAULT_INSTRUCTIONS = (
 )
 
 
-def _mask_secrets(value: str) -> str:
-    """Default redactor: Airflow's secrets masker."""
-    # redact() is typed for arbitrary containers; a str in always yields a str out.
-    return cast("str", redact(value))
-
-
 class ErrorClassification(BaseModel):
     """Structured LLM output for error classification."""
 
@@ -115,8 +109,8 @@ class LLMRetryPolicy(RetryPolicy):
         secrets masker (:func:`~airflow.sdk.log.redact`), which only masks
         values already registered via ``mask_secret()``. Pass a custom
         callable to replace the default masking entirely -- for example to
-        redact free-text PII the secrets masker cannot see, or
-        ``lambda s: s`` to disable redaction altogether.
+        redact free-text PII the secrets masker cannot see -- or
+        ``redactor=None`` to disable redaction altogether.
     :param max_exception_length: Maximum number of characters of the
         (already redacted) exception message included in the prompt. Longer
         messages are truncated with a trailing ``"... (truncated)"`` marker.
@@ -135,9 +129,10 @@ class LLMRetryPolicy(RetryPolicy):
         task's connections). This does **not** perform general-purpose PII
         detection and will not catch arbitrary sensitive strings that were
         never registered as secrets -- for free-text PII (emails, customer
-        names, etc.) supply your own ``redactor``. You are still responsible
-        for confirming that your task's exception messages are safe to send
-        to a third-party LLM provider.
+        names, etc.) supply your own ``redactor``, or pass ``redactor=None``
+        to disable redaction altogether. You are still responsible for
+        confirming that your task's exception messages are safe to send to
+        a third-party LLM provider.
     """
 
     def __init__(
@@ -148,7 +143,8 @@ class LLMRetryPolicy(RetryPolicy):
         fallback_rules: list[RetryRule] | None = None,
         timeout: float = 30.0,
         *,
-        redactor: Callable[[str], str] | None = None,
+        # redact() is typed for arbitrary containers; a str in always yields a str out.
+        redactor: Callable[[str], str] | None = lambda message: cast("str", redact(message)),
         max_exception_length: int = 4096,
     ) -> None:
         if max_exception_length <= 0:
@@ -158,7 +154,7 @@ class LLMRetryPolicy(RetryPolicy):
         self.instructions = instructions or DEFAULT_INSTRUCTIONS
         self.fallback_rules = fallback_rules
         self.timeout = timeout
-        self.redactor: Callable[[str], str] = redactor or _mask_secrets
+        self.redactor: Callable[[str], str] | None = redactor
         self.max_exception_length = max_exception_length
 
     def evaluate(
@@ -193,7 +189,7 @@ class LLMRetryPolicy(RetryPolicy):
         )
 
         # Redact before truncating -- truncating first could cut a registered secret in half.
-        message = self.redactor(str(exception))
+        message = self.redactor(str(exception)) if self.redactor is not None else str(exception)
         if len(message) > self.max_exception_length:
             message = f"{message[: self.max_exception_length]}... (truncated)"
         prompt = (

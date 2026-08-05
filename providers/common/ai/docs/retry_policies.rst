@@ -169,7 +169,7 @@ Parameters
        detection and will not catch arbitrary sensitive strings that were
        never registered as secrets. Passing a custom callable **replaces**
        the default masker entirely rather than stacking on top of it; pass
-       ``lambda s: s`` to disable redaction altogether.
+       ``None`` to disable redaction altogether.
    * - ``max_exception_length``
      - 4096
      - Maximum number of characters of the (already redacted) exception
@@ -209,11 +209,11 @@ known-secret masking too:
 
 To disable redaction entirely (for example, if you are certain your
 exception messages contain no sensitive data and need the raw text for
-accurate classification), pass a no-op callable:
+accurate classification), pass ``redactor=None``:
 
 .. code-block:: python
 
-    LLMRetryPolicy(llm_conn_id="pydanticai_default", redactor=lambda s: s)
+    LLMRetryPolicy(llm_conn_id="pydanticai_default", redactor=None)
 
 Local LLM support
 -----------------
