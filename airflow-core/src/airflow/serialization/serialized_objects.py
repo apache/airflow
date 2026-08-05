@@ -41,7 +41,7 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow._shared.module_loading import import_string, qualname
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
@@ -240,6 +240,31 @@ def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     if priority_weight_strategy_class is None:
         raise _PriorityWeightStrategyNotRegistered(var)
     return priority_weight_strategy_class()
+
+
+# Builtin exceptions a BASE_EXC_SER node can rebuild into. A user defined subclass
+# (e.g. a custom KeyError) serializes to a name absent here and won't round-trip --
+# unchanged from before, since builtins never held it either.
+_DESERIALIZABLE_BUILTIN_EXCEPTIONS: dict[str, type[BaseException]] = {
+    "KeyError": KeyError,
+    "AttributeError": AttributeError,
+}
+
+
+def _resolve_airflow_exception(exc_cls_name: str) -> type[AirflowException]:
+    """
+    Resolve a stored ``AirflowException`` name without importing it.
+
+    Read via ``vars()`` rather than ``getattr`` -- a module's deprecation-shim
+    ``__getattr__`` can still import on access -- which also lets pre-3.2.0 blobs
+    naming the old ``airflow.exceptions`` path keep resolving.
+    """
+    module_name, _, attr_name = exc_cls_name.rpartition(".")
+    module = sys.modules.get(module_name)
+    exc_cls = vars(module).get(attr_name) if module is not None else None
+    if not (isinstance(exc_cls, type) and issubclass(exc_cls, AirflowException)):
+        raise DeserializationError(f"Refusing to deserialize unknown exception class {exc_cls_name!r}")
+    return exc_cls
 
 
 def _encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
@@ -664,9 +689,14 @@ class BaseSerialization:
             kwargs = deser["kwargs"]
             del deser
             if type_ == DAT.AIRFLOW_EXC_SER:
-                exc_cls = import_string(exc_cls_name)
+                exc_cls: type[BaseException] = _resolve_airflow_exception(exc_cls_name)
             else:
-                exc_cls = import_string(f"builtins.{exc_cls_name}")
+                builtin_exc_cls = _DESERIALIZABLE_BUILTIN_EXCEPTIONS.get(exc_cls_name)
+                if builtin_exc_cls is None:
+                    raise DeserializationError(
+                        f"Refusing to deserialize unsupported builtin exception {exc_cls_name!r}"
+                    )
+                exc_cls = builtin_exc_cls
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
