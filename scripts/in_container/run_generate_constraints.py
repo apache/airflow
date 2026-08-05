@@ -459,6 +459,30 @@ def get_all_active_provider_distributions(python_version: str | None = None) -> 
     ]
 
 
+def get_not_ready_provider_source_paths(python_version: str | None = None) -> list[str]:
+    """
+    Get local source paths of the ``not-ready`` providers that ``apache-airflow[all]`` requires.
+
+    ``[all]`` depends on every non-suspended provider, but ``not-ready`` providers are never
+    published to PyPI, so a PyPI-only resolution cannot satisfy them and fails with "No solution
+    found". The release path (``pypi-providers-only``) resolves from PyPI and skips building
+    providers into ``dist`` first, so these have nowhere to resolve from; installing them from local
+    source keeps the resolution solvable. ``pip freeze`` renders a path install as a
+    ``@ file://...`` line, which ``freeze_distributions_to_file`` already drops, so a not-ready
+    provider never lands in the released constraints file.
+    """
+    all_provider_dependencies = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
+    return [
+        f"./providers/{provider.replace('.', '/')}"
+        for provider in all_provider_dependencies.keys()
+        if all_provider_dependencies[provider]["state"] == "not-ready"
+        and (
+            python_version is None
+            or python_version not in all_provider_dependencies[provider]["excluded-python-versions"]
+        )
+    ]
+
+
 def build_provider_pre_release_requirements(python_version: str) -> list[str]:
     """Requirements that let only the providers resolve to a pre-release.
 
@@ -577,6 +601,9 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             f"apache-airflow-core[all]=={AIRFLOW_CORE_VERSION}",
             f"apache-airflow-task-sdk=={AIRFLOW_TASK_SDK_VERSION}",
             "./airflow-ctl",
+            # not-ready providers are required by [all] but never published to PyPI - build them
+            # from local source so the resolution is solvable (they are dropped from the file below).
+            *get_not_ready_provider_source_paths(config_params.python),
             *additional_constraints_for_highest_resolution,
             *pre_release_requirements,
             *pre_release_strategy,

@@ -148,3 +148,37 @@ class TestBuildProviderPreReleaseRequirements:
         m.build_provider_pre_release_requirements("3.14")
 
         assert seen == ["3.14"]
+
+
+class TestGetNotReadyProviderSourcePaths:
+    """Only ``not-ready`` providers are built from local source; they are never on PyPI."""
+
+    @pytest.fixture
+    def dependencies_file(self, tmp_path, monkeypatch):
+        path = tmp_path / "provider_dependencies.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "amazon": {"state": "ready", "excluded-python-versions": []},
+                    "ibm.mq": {"state": "not-ready", "excluded-python-versions": []},
+                    "common.dataquality": {"state": "not-ready", "excluded-python-versions": []},
+                    "apache.beam": {"state": "suspended", "excluded-python-versions": []},
+                    "legacy.thing": {"state": "not-ready", "excluded-python-versions": ["3.10"]},
+                }
+            )
+        )
+        monkeypatch.setattr(m, "GENERATED_PROVIDER_DEPENDENCIES_FILE", path)
+        return path
+
+    def test_returns_only_not_ready_providers_as_source_paths(self, dependencies_file):
+        assert m.get_not_ready_provider_source_paths("3.12") == [
+            "./providers/ibm/mq",
+            "./providers/common/dataquality",
+            "./providers/legacy/thing",
+        ]
+
+    def test_excludes_provider_not_supported_on_the_python_version(self, dependencies_file):
+        assert m.get_not_ready_provider_source_paths("3.10") == [
+            "./providers/ibm/mq",
+            "./providers/common/dataquality",
+        ]
