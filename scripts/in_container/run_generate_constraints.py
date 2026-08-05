@@ -530,9 +530,17 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #   resolver might choose to downgrade gremlinpython to an older version,
     #   which in turn might downgrade tinkerpop provider. Having gremlinpython>=3.8.0 ensures
     #   that the resolver will not downgrade the provider.
+    # * opentelemetry-exporter-prometheus>=0.47b0 — this package only ever publishes beta versions
+    #   (airflow-core requires ``>=0.47b0`` and released constraints already pin a beta, e.g.
+    #   ``==0.65b0``). For a release candidate the resolution runs with ``--prerelease explicit``,
+    #   which permits a pre-release only for a package some requirement marks as such and drops the
+    #   if-necessary fallback; without this entry the package cannot resolve and generation fails
+    #   with "No solution found". Keeping it here (rather than the provider pre-release list) marks
+    #   it as an always-allowed pre-release across every resolution, matching how it already ships.
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
         "gremlinpython>=3.8.0",
+        "opentelemetry-exporter-prometheus>=0.47b0",
     ]
 
     # Constraints cut for a release candidate have to pin the candidates themselves - the providers
