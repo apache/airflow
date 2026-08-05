@@ -381,13 +381,18 @@ labelPRBasedOnFilePath:
       - ^main$
 
   # Apply to PRs touching airflow-ctl code so the release manager notices when a
-  # fix should land on the airflow-ctl/v0-1-test maintenance branch.
-  # Scoped to PRs targeting `main` only.
+  # fix should land on the airflow-ctl/v0-1-test maintenance branch. Also covers
+  # PRs opened directly against the release branches themselves (e.g. the
+  # main->v0-1-test and v0-1-test->v0-1-stable sync PRs) — those are exactly
+  # where branch-specific paths like .pre-commit-config.yaml have drifted
+  # silently in the past (see #71096).
   backport-to-airflow-ctl/v0-1-test:
     paths:
       - airflow-ctl/**/*
     targetBranchFilter:
       - ^main$
+      - ^airflow-ctl/v0-1-test$
+      - ^airflow-ctl/v0-1-stable$
 
   kind:documentation:
     - airflow-core/docs/**/*
