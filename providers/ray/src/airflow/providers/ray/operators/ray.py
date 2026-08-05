@@ -21,7 +21,6 @@ from datetime import timedelta
 from functools import cached_property
 from typing import Any
 
-from kubernetes.client.exceptions import ApiException
 from ray.job_submission import JobStatus
 
 from airflow.providers.ray.constants import TERMINAL_JOB_STATUSES
@@ -58,7 +57,7 @@ class SetupRayCluster(BaseOperator):
         self.gpu_device_plugin_yaml = gpu_device_plugin_yaml
         self.update_if_exists = update_if_exists
 
-    @property
+    @cached_property
     def hook(self) -> RayHook:
         """Lazily initialize and return the RayHook."""
         return RayHook(conn_id=self.conn_id)
@@ -101,7 +100,7 @@ class DeleteRayCluster(BaseOperator):
         self.ray_cluster_yaml = ray_cluster_yaml
         self.gpu_device_plugin_yaml = gpu_device_plugin_yaml
 
-    @property
+    @cached_property
     def hook(self) -> RayHook:
         """Lazily initialize and return the RayHook."""
         return RayHook(conn_id=self.conn_id)
@@ -202,7 +201,7 @@ class SubmitRayJob(BaseOperator):
         This method is called when the task is externally killed. It ensures that the associated
         Ray job is also terminated to avoid orphaned jobs.
         """
-        if hasattr(self, "hook") and self.job_id:
+        if self.job_id:
             self.log.info("Deleting Ray job %s due to task kill.", self.job_id)
             self.hook.delete_ray_job(self.dashboard_url, self.job_id)
         self._delete_cluster()
@@ -261,12 +260,15 @@ class SubmitRayJob(BaseOperator):
                     gpu_device_plugin_yaml=self.gpu_device_plugin_yaml,
                     update_if_exists=self.update_if_exists,
                 )
-            except ApiException as e:
+            except Exception:
                 self.log.info("Unable to setup the Ray cluster using %s", self.ray_cluster_yaml)
                 self.log.exception("Exception details")
                 self.log.info("Trying to delete any parts of the RayCluster that may have been spun up...")
-                self._delete_cluster()
-                raise e
+                try:
+                    self._delete_cluster()
+                except Exception:
+                    self.log.exception("Unable to clean up the partially created Ray cluster")
+                raise
         else:
             self.log.info("Skipping setting up a Ray cluster because no `ray_cluster_yaml` was given.")
 
@@ -291,46 +293,70 @@ class SubmitRayJob(BaseOperator):
         :return: The job ID of the submitted Ray job.
         """
         self.log.info("::group:: (SubmitJob 1/5) Setup Cluster")
+        if self.ray_cluster_yaml and not self.wait_for_completion:
+            raise RayAirflowException(
+                "wait_for_completion must be enabled when SubmitRayJob manages the Ray cluster lifecycle"
+            )
         self._setup_cluster(context=context)
         self.log.info("::endgroup::")
 
-        self.log.info("::group:: (SubmitJob 2/5) Identify Dashboard URL")
-        self.dashboard_url = self._get_dashboard_url(context)
-        self.log.info("::endgroup::")
+        try:
+            self.log.info("::group:: (SubmitJob 2/5) Identify Dashboard URL")
+            self.dashboard_url = self._get_dashboard_url(context)
+            self.log.info("::endgroup::")
 
-        self.log.info("::group:: (SubmitJob 3/5) Submit job")
-        self.log.info("Ray job with id %s submitted", self.job_id)
-        self.job_id = self.hook.submit_ray_job(
-            dashboard_url=self.dashboard_url,
-            entrypoint=self.entrypoint,
-            runtime_env=self.runtime_env,
-            entrypoint_num_cpus=self.num_cpus,
-            entrypoint_num_gpus=self.num_gpus,
-            entrypoint_memory=self.memory,
-            entrypoint_resources=self.ray_resources,
-        )
-        self.log.info("::endgroup::")
+            self.log.info("::group:: (SubmitJob 3/5) Submit job")
+            self.job_id = self.hook.submit_ray_job(
+                dashboard_url=self.dashboard_url,
+                entrypoint=self.entrypoint,
+                runtime_env=self.runtime_env,
+                entrypoint_num_cpus=self.num_cpus,
+                entrypoint_num_gpus=self.num_gpus,
+                entrypoint_memory=self.memory,
+                entrypoint_resources=self.ray_resources,
+            )
+            self.log.info("Ray job with id %s submitted", self.job_id)
+            self.log.info("::endgroup::")
 
-        self.log.info("::group:: (SubmitJob 4/5) Wait for completion")
-        if self.wait_for_completion:
+            if not self.wait_for_completion:
+                return self.job_id
+
+            self.log.info("::group:: (SubmitJob 4/5) Wait for completion")
             current_status = self.hook.get_ray_job_status(self.dashboard_url, self.job_id)
             self.log.info("Current job status for %s is: %s", self.job_id, current_status)
 
-            if current_status not in TERMINAL_JOB_STATUSES:
-                self.log.info("Deferring the polling to RayJobTrigger...")
-                self.defer(
-                    trigger=RayJobTrigger(
-                        job_id=self.job_id,
-                        conn_id=self.conn_id,
-                        xcom_dashboard_url=self.dashboard_url,
-                        ray_cluster_yaml=self.ray_cluster_yaml,
-                        gpu_device_plugin_yaml=self.gpu_device_plugin_yaml,
-                        poll_interval=self.poll_interval,
-                        fetch_logs=self.fetch_logs,
-                    ),
-                    method_name="execute_complete",
-                    timeout=self._job_timeout(),
-                )
+        except Exception:
+            try:
+                self._delete_cluster()
+            except Exception:
+                self.log.exception("Unable to clean up the Ray cluster after job submission failed")
+            raise
+
+        if current_status in TERMINAL_JOB_STATUSES:
+            self.execute_complete(
+                context,
+                {
+                    "status": current_status,
+                    "message": f"Job {self.job_id} completed with status {current_status}",
+                    "job_id": self.job_id,
+                },
+            )
+            return self.job_id
+
+        self.log.info("Deferring the polling to RayJobTrigger...")
+        self.defer(
+            trigger=RayJobTrigger(
+                job_id=self.job_id,
+                conn_id=self.conn_id,
+                xcom_dashboard_url=self.dashboard_url,
+                ray_cluster_yaml=self.ray_cluster_yaml,
+                gpu_device_plugin_yaml=self.gpu_device_plugin_yaml,
+                poll_interval=self.poll_interval,
+                fetch_logs=self.fetch_logs,
+            ),
+            method_name="execute_complete",
+            timeout=self._job_timeout(),
+        )
 
         return self.job_id
 
@@ -357,6 +383,8 @@ class SubmitRayJob(BaseOperator):
         self.log.info("Ray job %s execution not completed successfully...", self.job_id)
         if job_status in (JobStatus.FAILED, JobStatus.STOPPED):
             msg = f"Job {self.job_id} {job_status.lower()}: {event['message']}"
+        elif job_status == "EXCEPTION":
+            msg = f"Unable to monitor job {self.job_id}: {event['message']}"
         else:
             msg = f"Encountered unexpected state `{job_status}` for job_id `{self.job_id}`"
 

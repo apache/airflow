@@ -162,10 +162,10 @@ class TestRayHook:
         mock_job_client.assert_called_once_with(
             address=dashboard_url,
             create_cluster_if_needed=False,
-            cookies=None,
-            metadata=None,
+            cookies={},
+            metadata={},
             headers={},
-            verify=False,
+            verify=True,
         )
         mock_client_instance.get_job_logs.assert_called_once_with(job_id=job_id)
 
@@ -304,24 +304,14 @@ class TestRayHook:
 
         assert lb_details is None
 
-    @patch("airflow.providers.ray.hooks.ray.RayHook.log")
     @patch("airflow.providers.ray.hooks.ray.subprocess.run")
-    def test_run_command_exception(self, mock_subprocess_run, mock_log, ray_hook):
+    def test_run_command_exception(self, mock_subprocess_run, ray_hook):
         mock_subprocess_run.side_effect = subprocess.CalledProcessError(
             returncode=1, cmd="test command", output="test output", stderr="test error"
         )
 
-        stdout, stderr = ray_hook._run_command(["test", "command"])
-
-        assert stdout is None
-        assert stderr is None
-
-        mock_log.error.assert_any_call(
-            "An error occurred while executing the command: %s", mock_subprocess_run.side_effect
-        )
-        mock_log.error.assert_any_call("Return code: %s", 1)
-        mock_log.error.assert_any_call("Standard Output: %s", "test output")
-        mock_log.error.assert_any_call("Standard Error: %s", "test error")
+        with pytest.raises(RayAirflowException, match="Command 'test' failed: test error"):
+            ray_hook._run_command(["test", "command"])
 
         mock_subprocess_run.assert_called_once_with(
             ["test", "command"],
@@ -344,6 +334,8 @@ class TestRayHook:
 
         assert "install output" in stdout
         assert stderr == ""
+        helm_command = mock_subprocess_run.call_args_list[-1].args[0]
+        assert "--kubeconfig" not in helm_command
 
     @patch("airflow.providers.ray.hooks.ray.KubernetesHook.get_connection")
     @patch("airflow.providers.ray.hooks.ray.KubernetesHook.__init__")
@@ -668,7 +660,6 @@ class TestRayHook:
         mock_setup_load_balancer.assert_called_once()
 
     @patch("airflow.providers.ray.hooks.ray.RayHook._validate_yaml_file")
-    @patch("airflow.providers.ray.hooks.ray.RayHook.uninstall_kuberay_operator")
     @patch("airflow.providers.ray.hooks.ray.RayHook.load_yaml_content")
     @patch("airflow.providers.ray.hooks.ray.RayHook.get_custom_object")
     @patch("airflow.providers.ray.hooks.ray.RayHook.delete_custom_object")
@@ -681,7 +672,6 @@ class TestRayHook:
         mock_delete_custom_object,
         mock_get_custom_object,
         mock_load_yaml_content,
-        mock_uninstall_kuberay_operator,
         mock_validate_yaml_file,
         ray_hook,
     ):
@@ -703,19 +693,16 @@ class TestRayHook:
         mock_get_daemon_set.assert_called_once()
         mock_delete_daemon_set.assert_called_once()
         mock_delete_custom_object.assert_called_once()
-        mock_uninstall_kuberay_operator.assert_called_once()
 
     @patch("airflow.providers.ray.hooks.ray.RayHook._validate_yaml_file")
     @patch("airflow.providers.ray.hooks.ray.RayHook._delete_ray_cluster_crd")
-    @patch("airflow.providers.ray.hooks.ray.RayHook.uninstall_kuberay_operator")
     def test_delete_ray_cluster_without_gpu_plugin(
-        self, mock_uninstall_kuberay_operator, mock_delete_ray_cluster_crd, mock_validate_yaml_file, ray_hook
+        self, mock_delete_ray_cluster_crd, mock_validate_yaml_file, ray_hook
     ):
         ray_hook.delete_ray_cluster(ray_cluster_yaml="test.yaml", gpu_device_plugin_yaml="")
 
         mock_validate_yaml_file.assert_called_once_with("test.yaml")
         mock_delete_ray_cluster_crd.assert_called_once_with(ray_cluster_yaml="test.yaml")
-        mock_uninstall_kuberay_operator.assert_called_once_with()
 
     @patch("airflow.providers.ray.hooks.ray.JobSubmissionClient")
     def test_ray_client_exception(self, mock_job_client, ray_hook):

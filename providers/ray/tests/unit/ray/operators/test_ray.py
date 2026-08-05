@@ -313,6 +313,7 @@ class TestSubmitRayJob:
             (JobStatus.PENDING, "defer"),
             (JobStatus.RUNNING, "defer"),
             (JobStatus.SUCCEEDED, None),
+            (JobStatus.FAILED, "raise"),
         ],
     )
     @patch("airflow.providers.ray.operators.ray.SubmitRayJob._setup_cluster")
@@ -333,6 +334,9 @@ class TestSubmitRayJob:
             with patch.object(operator, "defer") as mock_defer:
                 operator.execute(context)
                 mock_defer.assert_called_once()
+        elif expected_action == "raise":
+            with pytest.raises(RayAirflowException, match="failed"):
+                operator.execute(context)
         else:
             result = operator.execute(context)
             assert result == "test_job_id"
@@ -531,7 +535,9 @@ class TestSubmitRayJob:
         side_effect=RuntimeError("Job submission failed"),
     )
     @patch("airflow.providers.ray.operators.ray.SubmitRayJob.hook")
-    def test_execute_exception_handling(self, mock_hook, mock_delete, mock_setup, context):
+    def test_execute_exception_handling(
+        self, mock_hook, mock_submit_ray_job, mock_delete, mock_setup, context
+    ):
         operator = SubmitRayJob(
             task_id="test_task",
             conn_id="test_conn",
@@ -544,6 +550,20 @@ class TestSubmitRayJob:
             operator.execute(context)
 
         assert str(exc_info.value) == "Job submission failed"
+        mock_delete.assert_called_once_with()
+
+    def test_execute_rejects_managed_cluster_without_wait(self, context):
+        operator = SubmitRayJob(
+            task_id="test_task",
+            conn_id="test_conn",
+            entrypoint="python script.py",
+            runtime_env={},
+            ray_cluster_yaml="cluster.yaml",
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(RayAirflowException, match="wait_for_completion must be enabled"):
+            operator.execute(context)
 
     @patch("airflow.providers.ray.operators.ray.SubmitRayJob._delete_cluster")
     @patch(

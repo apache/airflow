@@ -22,8 +22,6 @@ from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from kubernetes.client.exceptions import ApiException
-
 from airflow.providers.ray.constants import TERMINAL_JOB_STATUSES
 from airflow.providers.ray.hooks.ray import RayHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -115,11 +113,15 @@ class RayJobTrigger(BaseTrigger):
             self.log.info("No Ray cluster YAML provided, skipping cluster deletion")
 
     async def _poll_status(self) -> None:
-        self._job_status = self.hook.get_ray_job_status(self.dashboard_url, self.job_id)
+        self._job_status = await asyncio.to_thread(
+            self.hook.get_ray_job_status, self.dashboard_url, self.job_id
+        )
         while self._job_status not in TERMINAL_JOB_STATUSES:
             self.log.info("Status of job %s is: %s", self.job_id, self._job_status)
             await asyncio.sleep(self.poll_interval)
-            self._job_status = self.hook.get_ray_job_status(self.dashboard_url, self.job_id)
+            self._job_status = await asyncio.to_thread(
+                self.hook.get_ray_job_status, self.dashboard_url, self.job_id
+            )
 
     async def _stream_logs(self) -> None:
         """Streams logs from the Ray job in real-time."""
@@ -147,7 +149,7 @@ class RayJobTrigger(BaseTrigger):
             if self.fetch_logs:
                 tasks.append(self._stream_logs())
             await asyncio.gather(*tasks)
-        except ApiException as e:
+        except Exception as e:
             error_msg = str(e)
             self.log.info("::endgroup::")
             self.log.error("::group:: Trigger unable to poll job status")

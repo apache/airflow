@@ -35,9 +35,12 @@ Configure a connection
 
 Create a connection with connection type ``Ray``.
 
-For a provider-managed KubeRay cluster, configure either ``Kubeconfig path`` or
-``Kubeconfig (JSON format)``, along with the Kubernetes namespace and optional cluster context.
-The two kubeconfig options are mutually exclusive.
+For a provider-managed KubeRay cluster, use in-cluster authentication or configure either
+``Kubeconfig path`` or ``Kubeconfig (JSON format)``, along with the Kubernetes namespace and
+optional cluster context. The two kubeconfig options are mutually exclusive.
+
+The provider installs or upgrades the namespace-wide KubeRay operator when creating a cluster.
+Cluster deletion leaves this shared controller installed so concurrent Ray workloads are not disrupted.
 
 For an existing Ray cluster, configure ``Ray dashboard URL``. You can additionally provide
 cookies, metadata, headers, and TLS verification settings. The ``RAY_ADDRESS`` environment

@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from kubernetes.client.exceptions import ApiException
 from ray.job_submission import JobStatus
 
 from airflow.providers.ray.triggers.ray import RayJobTrigger
@@ -218,7 +217,7 @@ class TestRayJobTrigger:
     @pytest.mark.asyncio
     @patch(
         "airflow.providers.ray.triggers.ray.RayJobTrigger.hook.get_ray_job_status",
-        side_effect=ApiException("Failed to get job."),
+        side_effect=RuntimeError("Failed to get job."),
     )
     @patch("airflow.providers.ray.triggers.ray.RayJobTrigger.hook")
     @patch("airflow.providers.ray.triggers.ray.RayJobTrigger.cleanup")
@@ -229,7 +228,7 @@ class TestRayJobTrigger:
         assert event == TriggerEvent(
             {
                 "status": "EXCEPTION",
-                "message": "(Failed to get job.)\nReason: None\n",
+                "message": "Failed to get job.",
                 "job_id": "test_job_id",
             }
         )

@@ -77,7 +77,7 @@ connection-types:
         label: Verify TLS
         schema:
           type: [boolean, 'null']
-          default: false
+          default: true
       kube_config_path:
         label: Kubeconfig path
         schema:

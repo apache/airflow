@@ -53,7 +53,7 @@ def get_provider_info():
                     "headers": {"label": "Headers", "schema": {"type": ["string", "null"]}},
                     "verify": {
                         "label": "Verify TLS",
-                        "schema": {"type": ["boolean", "null"], "default": False},
+                        "schema": {"type": ["boolean", "null"], "default": True},
                     },
                     "kube_config_path": {"label": "Kubeconfig path", "schema": {"type": ["string", "null"]}},
                     "kube_config": {

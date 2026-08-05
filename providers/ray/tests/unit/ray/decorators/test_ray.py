@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -138,6 +138,23 @@ class TestRayDecoratedOperator:
         assert operator.entrypoint == "python script.py"
         assert "working_dir" in operator.runtime_env
 
+    @patch("builtins.open", new_callable=mock_open)
+    @patch.object(
+        _RayDecoratedOperator, "_extract_function_body", return_value="def dummy_callable():\n    pass"
+    )
+    @patch("airflow.providers.ray.decorators.ray.SubmitRayJob.execute", return_value="success")
+    def test_execute_argument_free_function_writes_valid_call(
+        self, mock_super_execute, mock_extract_function_body, mock_file
+    ):
+        def dummy_callable():
+            pass
+
+        operator = _RayDecoratedOperator(task_id="test_task", config={}, python_callable=dummy_callable)
+
+        operator.execute(MagicMock(spec=Context))
+
+        mock_file().write.assert_any_call("\n\n# Execute the function\ndummy_callable()\n")
+
     @patch("airflow.providers.ray.decorators.ray.SubmitRayJob.execute")
     def test_execute_with_entrypoint(self, mock_super_execute):
         config = {
@@ -185,14 +202,9 @@ class TestRayDecoratedOperator:
             return "dummy"
         """
         )
-        assert (
-            function_body
-            == """def dummy_callable():
-    return "dummy"
-"""
-        )
+        assert function_body == 'def dummy_callable():\n    return "dummy"'
 
-    def test_extract_function_body_invalid_body(self):
+    def test_extract_function_body_with_aliased_decorator(self):
         config = {}
 
         @ray.task()
@@ -201,14 +213,13 @@ class TestRayDecoratedOperator:
 
         operator = _RayDecoratedOperator(task_id="test_task", config=config, python_callable=dummy_callable)
 
-        with pytest.raises(RayAirflowException) as exc_info:
-            operator._extract_function_body(
-                """@ray_decorator.task()
+        function_body = operator._extract_function_body(
+            """@ray_decorator.task()
             def dummy_callable():
                 return "dummy"
             """
-            )
-        assert str(exc_info.value) == "Unable to parse this body. Expects the `@ray.task` decorator."
+        )
+        assert function_body == 'def dummy_callable():\n    return "dummy"'
 
     def test_extract_function_body_empty_body(self):
         config = {}
@@ -221,7 +232,7 @@ class TestRayDecoratedOperator:
 
         with pytest.raises(RayAirflowException) as exc_info:
             operator._extract_function_body("""@ray.task()""")
-        assert str(exc_info.value) == "Failed to extract Ray pipeline code decorated with @ray.task"
+        assert str(exc_info.value) == "Failed to extract the decorated Ray task function"
 
 
 class TestRayTaskDecorator:

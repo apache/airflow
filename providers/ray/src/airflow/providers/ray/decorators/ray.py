@@ -121,9 +121,9 @@ class _RayDecoratedOperator(DecoratedOperator, SubmitRayJob):  # type: ignore[mi
                 function_body = self._extract_function_body(full_source)
 
                 # Prepare the function call
-                args_str = ", ".join(repr(arg) for arg in self.op_args)
-                kwargs_str = ", ".join(f"{k}={repr(v)}" for k, v in self.op_kwargs.items())
-                call_str = f"{self.python_callable.__name__}({args_str}, {kwargs_str})"
+                call_args = [*(repr(arg) for arg in self.op_args)]
+                call_args.extend(f"{key}={value!r}" for key, value in self.op_kwargs.items())
+                call_str = f"{self.python_callable.__name__}({', '.join(call_args)})"
 
                 # Write the script with function definition and call
                 script_filename = os.path.join(temp_dir, "script.py")
@@ -141,29 +141,20 @@ class _RayDecoratedOperator(DecoratedOperator, SubmitRayJob):  # type: ignore[mi
             return result
 
     def _extract_function_body(self, source: str) -> str:
-        """Extract the function, excluding only the ray.task decorator."""
+        """Extract the decorated function without its decorators."""
         self.log.info(r"Ray pipeline intended to be executed: \n %s", source)
-        if "@ray.task" not in source:
-            raise RayAirflowException("Unable to parse this body. Expects the `@ray.task` decorator.")
-        lines = source.split("\n")
-        # TODO: Review the current approach, that is quite hacky.
-        # It feels a mistake to have a user-facing module named the same as the official ray SDK.
-        # In particular, the decorator is working in a very artificial way, where ray means two different things
-        # at the scope of the task definition (Astro Ray Provider decorator) and inside the decorated method (Ray SDK)
-        # Find the line where the ray.task decorator is
-        # Additionally, if users imported the ray decorator as "from airflow.providers.ray.decorators.ray import ray as ray_decorator
-        # The following will stop working.
-        ray_task_line = next(
-            (i for i, line in enumerate(lines) if re.match(r"^\s*@ray\.task", line.strip())), -1
+        lines = source.splitlines()
+        function_line = next(
+            (
+                index
+                for index, line in enumerate(lines)
+                if re.match(r"^(?:async\s+def|def)\s+", line.lstrip())
+            ),
+            None,
         )
-
-        # Include everything except the ray.task decorator line
-        body = "\n".join(lines[:ray_task_line] + lines[ray_task_line + 1 :])
-
-        if not body:
-            raise RayAirflowException("Failed to extract Ray pipeline code decorated with @ray.task")
-        # Dedent the body
-        return textwrap.dedent(body)
+        if function_line is None:
+            raise RayAirflowException("Failed to extract the decorated Ray task function")
+        return textwrap.dedent("\n".join(lines[function_line:])).rstrip()
 
 
 class ray:

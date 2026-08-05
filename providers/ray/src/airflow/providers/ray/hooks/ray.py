@@ -23,7 +23,9 @@ import socket
 import subprocess
 import tempfile
 import time
+import weakref
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 import requests
@@ -36,6 +38,12 @@ from airflow.providers.ray.exceptions import RayAirflowException
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
+
+
+def _remove_temporary_kubeconfig(path: str) -> None:
+    """Remove a temporary kubeconfig if it still exists."""
+    with suppress(FileNotFoundError):
+        os.unlink(path)
 
 
 class RayHook(KubernetesHook):  # type: ignore
@@ -70,14 +78,16 @@ class RayHook(KubernetesHook):  # type: ignore
         self.address = self._get_field("address") or os.getenv("RAY_ADDRESS")
         self.log.info("Ray cluster address is: %s", self.address)
         self.create_cluster_if_needed = False
-        self.cookies = self._get_field("cookies")
-        self.metadata = self._get_field("metadata")
+        self.cookies = json.loads(self._get_field("cookies") or "{}")
+        self.metadata = json.loads(self._get_field("metadata") or "{}")
         self.headers = json.loads(self._get_field("headers") or "{}")
-        self.verify = self._get_field("verify") or False
+        verify = self._get_field("verify")
+        self.verify = verify if isinstance(verify, bool) else str(verify).lower() not in {"false", "0"}
         self.ray_client_instance: JobSubmissionClient | None = None
 
         self.namespace = self.get_namespace() or self.DEFAULT_NAMESPACE
         self.kubeconfig: str | None = None
+        self._kubeconfig_finalizer: weakref.finalize | None = None
         self.in_cluster: bool | None = None
         self.client_configuration = None
         self.config_file = None
@@ -127,6 +137,9 @@ class RayHook(KubernetesHook):  # type: ignore
                 temp_config.write(kubeconfig_content.encode())
                 temp_config.flush()
                 self.kubeconfig = temp_config.name
+                self._kubeconfig_finalizer = weakref.finalize(
+                    self, _remove_temporary_kubeconfig, self.kubeconfig
+                )
                 config.load_kube_config(config_file=self.kubeconfig, context=cluster_context)
 
     def ray_client(self, dashboard_url: str | None = None) -> JobSubmissionClient:
@@ -230,7 +243,7 @@ class RayHook(KubernetesHook):  # type: ignore
         :param path_or_link: The file path or URL of the YAML content.
         :return: The loaded YAML content.
         """
-        if path_or_link.startswith("http"):
+        if path_or_link.startswith(("http://", "https://")):
             response = requests.get(path_or_link)
             response.raise_for_status()
             return yaml.safe_load(response.text)
@@ -558,7 +571,6 @@ class RayHook(KubernetesHook):  # type: ignore
             self.log.info("::group:: Delete Ray Cluster")
             self._delete_ray_cluster_crd(ray_cluster_yaml=ray_cluster_yaml)
             self.log.info("::endgroup::")
-            self.uninstall_kuberay_operator()
         except Exception as e:
             self.log.error("Error deleting Ray cluster: %s", e)
             raise RayAirflowException(f"Failed to delete Ray cluster: {e}")
@@ -582,12 +594,9 @@ class RayHook(KubernetesHook):  # type: ignore
             self.log.info("Standard Output: %s", result.stdout)
             self.log.info("Standard Error: %s", result.stderr)
             return result.stdout, result.stderr
-        except subprocess.CalledProcessError as e:
-            self.log.error("An error occurred while executing the command: %s", e)
-            self.log.error("Return code: %s", e.returncode)
-            self.log.error("Standard Output: %s", e.stdout)
-            self.log.error("Standard Error: %s", e.stderr)
-            return None, None
+        except (OSError, subprocess.CalledProcessError) as e:
+            stderr = getattr(e, "stderr", None)
+            raise RayAirflowException(f"Command {command[0]!r} failed: {stderr or e}") from e
 
     def install_kuberay_operator(
         self, version: str = "1.0.0", env: dict[str, str] | None = None
@@ -599,29 +608,28 @@ class RayHook(KubernetesHook):  # type: ignore
         :param env: Optional dictionary of environment variables.
         :return: A tuple containing the installation output and error (if any).
         """
+        helm_install_command = [
+            "helm",
+            "upgrade",
+            "--install",
+            "kuberay-operator",
+            "kuberay/kuberay-operator",
+            "--version",
+            version,
+            "--create-namespace",
+            "--namespace",
+            self.namespace,
+        ]
+        if self.kubeconfig:
+            helm_install_command.extend(["--kubeconfig", self.kubeconfig])
         commands = [
             ["helm", "repo", "add", "kuberay", "https://ray-project.github.io/kuberay-helm/"],
             ["helm", "repo", "update"],
-            [
-                "helm",
-                "upgrade",
-                "--install",
-                "kuberay-operator",
-                "kuberay/kuberay-operator",
-                "--version",
-                version,
-                "--create-namespace",
-                "--namespace",
-                self.namespace,
-                "--kubeconfig",
-                str(self.kubeconfig),
-            ],
+            helm_install_command,
         ]
         result: tuple[str | None, str | None] = ("", "")
         for command in commands:
             result = self._run_command(command, env)
-            if result == (None, None):
-                break
         return result
 
     def uninstall_kuberay_operator(self) -> tuple[str | None, str | None]:
@@ -630,17 +638,10 @@ class RayHook(KubernetesHook):  # type: ignore
 
         :return: A tuple containing the uninstallation output and error (if any).
         """
-        return self._run_command(
-            [
-                "helm",
-                "uninstall",
-                "kuberay-operator",
-                "--namespace",
-                self.namespace,
-                "--kubeconfig",
-                str(self.kubeconfig),
-            ]
-        )
+        command = ["helm", "uninstall", "kuberay-operator", "--namespace", self.namespace]
+        if self.kubeconfig:
+            command.extend(["--kubeconfig", self.kubeconfig])
+        return self._run_command(command)
 
     def get_daemon_set(self, name: str) -> client.V1DaemonSet | None:
         """
