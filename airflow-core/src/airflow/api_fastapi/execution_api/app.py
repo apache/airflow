@@ -334,9 +334,10 @@ def get_extra_schemas() -> dict[str, dict]:
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
     from airflow.executors.workloads import BundleInfo
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.task.state import TerminalTIState
     from airflow.task.trigger_rule import TriggerRule
     from airflow.task.weight_rule import WeightRule
-    from airflow.utils.state import TaskInstanceState, TerminalTIState
+    from airflow.utils.state import TaskInstanceState
 
     return {
         "TaskInstance": TaskInstance.model_json_schema(),

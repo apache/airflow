@@ -55,7 +55,8 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.state.metastore import MetastoreBackend
-from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
+from airflow.task.state import TerminalTIState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (

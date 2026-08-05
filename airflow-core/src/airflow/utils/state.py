@@ -17,7 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from enum import Enum
+from importlib import import_module
+
+# Aliased so the public names stay out of this module's namespace and keep resolving
+# through the deprecation shim in ``__getattr__`` below.
+from airflow.task.state import (
+    IntermediateTIState as _IntermediateTIState,
+    TerminalTIState as _TerminalTIState,
+)
 
 
 class CallbackState(str, Enum):
@@ -29,34 +38,6 @@ class CallbackState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-class TerminalTIState(str, Enum):
-    """States that a Task Instance can be in that indicate it has reached a terminal state."""
-
-    SUCCESS = "success"
-    FAILED = "failed"
-    SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
-    UPSTREAM_FAILED = "upstream_failed"
-    REMOVED = "removed"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-class IntermediateTIState(str, Enum):
-    """States that a Task Instance can be in that indicate it is not yet in a terminal or running state."""
-
-    SCHEDULED = "scheduled"
-    QUEUED = "queued"
-    RESTARTING = "restarting"
-    UP_FOR_RETRY = "up_for_retry"
-    UP_FOR_RESCHEDULE = "up_for_reschedule"
-    DEFERRED = "deferred"
-    AWAITING_INPUT = "awaiting_input"
 
     def __str__(self) -> str:
         return self.value
@@ -74,21 +55,21 @@ class TaskInstanceState(str, Enum):
     # Use None instead if need this state.
 
     # Set by the scheduler
-    REMOVED = TerminalTIState.REMOVED  # Task vanished from DAG before it ran
-    SCHEDULED = IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
+    REMOVED = _TerminalTIState.REMOVED  # Task vanished from DAG before it ran
+    SCHEDULED = _IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
 
     # Set by the task instance itself
-    QUEUED = IntermediateTIState.QUEUED  # Executor has enqueued the task
+    QUEUED = _IntermediateTIState.QUEUED  # Executor has enqueued the task
     RUNNING = "running"  # Task is executing
-    SUCCESS = TerminalTIState.SUCCESS  # Task completed
-    RESTARTING = IntermediateTIState.RESTARTING  # External request to restart (e.g. cleared when running)
-    FAILED = TerminalTIState.FAILED  # Task errored out
-    UP_FOR_RETRY = IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
-    UP_FOR_RESCHEDULE = IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
-    UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
-    SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
-    DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
-    AWAITING_INPUT = IntermediateTIState.AWAITING_INPUT  # Parked waiting for human input (HITL)
+    SUCCESS = _TerminalTIState.SUCCESS  # Task completed
+    RESTARTING = _IntermediateTIState.RESTARTING  # External request to restart (e.g. cleared when running)
+    FAILED = _TerminalTIState.FAILED  # Task errored out
+    UP_FOR_RETRY = _IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
+    UP_FOR_RESCHEDULE = _IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
+    UPSTREAM_FAILED = _TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
+    SKIPPED = _TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
+    DEFERRED = _IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
+    AWAITING_INPUT = _IntermediateTIState.AWAITING_INPUT  # Parked waiting for human input (HITL)
 
     def __str__(self) -> str:
         return self.value
@@ -235,19 +216,24 @@ class State:
     """
 
 
+_MOVED_ATTRIBUTES = {
+    "IntermediateTIState": "airflow.task.state.IntermediateTIState",
+    "JobState": "airflow.jobs.job.JobState",
+    "TerminalTIState": "airflow.task.state.TerminalTIState",
+}
+
+
 def __getattr__(name: str):
     """Provide backward compatibility for moved classes."""
-    if name == "JobState":
-        import warnings
+    target = _MOVED_ATTRIBUTES.get(name)
+    if target is None:
+        raise AttributeError(f"module 'airflow.utils.state' has no attribute '{name}'")
 
-        from airflow.jobs.job import JobState
-
-        warnings.warn(
-            "The `airflow.utils.state.JobState` attribute is deprecated and will be removed in a future version. "
-            "Please use `airflow.jobs.job.JobState` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return JobState
-
-    raise AttributeError(f"module 'airflow.utils.state' has no attribute '{name}'")
+    warnings.warn(
+        f"The `airflow.utils.state.{name}` attribute is deprecated and will be removed in a future "
+        f"version. Please use `{target}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    module_name, attribute_name = target.rsplit(".", 1)
+    return getattr(import_module(module_name), attribute_name)

@@ -90,9 +90,10 @@ from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
+from airflow.task.state import TerminalTIState
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
-from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update

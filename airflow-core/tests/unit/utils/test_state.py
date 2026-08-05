@@ -17,14 +17,17 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from importlib import import_module
 
 import pytest
 from sqlalchemy import select
 
+import airflow.utils.state
 from airflow.models.dagrun import DagRun
 from airflow.sdk import DAG
+from airflow.task.state import IntermediateTIState, TerminalTIState
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, IntermediateTIState, State, TaskInstanceState, TerminalTIState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -139,3 +142,19 @@ class TestTaskInstanceStates:
             f"All terminal states ({all_terminal_states}) except excluded ones ({excluded_states}) "
             f"should be classified as either failed or success ({classified_states})"
         )
+
+
+@pytest.mark.parametrize(
+    ("name", "target"),
+    [
+        ("IntermediateTIState", "airflow.task.state.IntermediateTIState"),
+        ("JobState", "airflow.jobs.job.JobState"),
+        ("TerminalTIState", "airflow.task.state.TerminalTIState"),
+    ],
+)
+def test_moved_attributes_are_still_importable(name, target):
+    module_name, attribute_name = target.rsplit(".", 1)
+    expected = getattr(import_module(module_name), attribute_name)
+
+    with pytest.warns(DeprecationWarning, match=rf"`airflow\.utils\.state\.{name}` attribute is deprecated"):
+        assert getattr(airflow.utils.state, name) is expected
