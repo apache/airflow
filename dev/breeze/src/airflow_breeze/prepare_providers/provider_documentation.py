@@ -402,6 +402,39 @@ def _print_changes_table(changes_table):
     console_print(syntax)
 
 
+def _resolve_existing_version_tag(version_tag: str) -> str:
+    """Return the tag to diff a released version against.
+
+    While a provider release vote is in progress only the ``rcN`` tags exist; the
+    final tag is pushed once the vote passes. Fall back to the newest rc tag in
+    that window so documentation preparation keeps working.
+    """
+    result = run_command(
+        ["git", "rev-parse", version_tag],
+        cwd=AIRFLOW_ROOT_PATH,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if result.returncode == 0:
+        return version_tag
+    result = run_command(
+        ["git", "tag", "--list", f"{version_tag}rc*", "--sort=-version:refname"],
+        cwd=AIRFLOW_ROOT_PATH,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    rc_tags = result.stdout.split()
+    if not rc_tags:
+        return version_tag
+    console_print(
+        f"[warning]The tag {version_tag} does not exist yet (release vote likely in progress). "
+        f"Using {rc_tags[0]} instead.[/]"
+    )
+    return rc_tags[0]
+
+
 def _get_all_changes_for_package(
     provider_id: str,
     base_branch: str,
@@ -511,7 +544,7 @@ def _get_all_changes_for_package(
     current_version = provider_details.versions[0]
     list_of_list_of_changes: list[list[Change]] = []
     for version in provider_details.versions[1:]:
-        version_tag = get_version_tag(version, provider_id)
+        version_tag = _resolve_existing_version_tag(get_version_tag(version, provider_id))
         result = run_command(
             _get_git_log_command(
                 providers_folder_paths_for_git_commit_retrieval, next_version_tag, version_tag
