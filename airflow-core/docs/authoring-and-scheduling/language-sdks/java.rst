@@ -188,15 +188,18 @@ Save the task implementations as
       }
 
       @Builder.Task(id = "transform")
-      public long transform(@Builder.XCom(task = "extract") long recordCount) {
+      public long transform(long recordCount) {
         return recordCount * 2;
       }
     }
 
 .. note::
 
-  See how both ``transform`` in Python and Java need to have an argument to accept upstream XCom. The
-  Python one is needed to declare dependency, and the Java one is needed to actually retrieve the value.
+  The graph is declared once, in the Python Dag file: ``transform(extract())`` feeds the upstream's
+  return value into the downstream's parameter by calling tasks like functions. The supervisor sends
+  the resulting *argument bindings* to the Java runtime, and each Java data parameter receives
+  whatever the Python call site bound at its position — an upstream task's XCom or an inline
+  literal. See :ref:`java-sdk/arg-binding`.
 
 Add the Java entry point
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -311,12 +314,18 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
    * - ``@Builder.Task(id = "...")``
      - Marks a method as a task implementation.  The ``id`` must match the ``@task.stub`` function
        name in the Python Dag.  If ``id`` is omitted the method name is used.
-   * - ``@Builder.XCom(task = "...")``
-     - Injects the ``return_value`` XCom from the named upstream task as a method parameter.
-       The parameter type must be compatible with the stored value (see :ref:`java-sdk/types`).
+   * - ``TaskInput`` / ``@ArgName("...")``
+     - Marks a class as a task's input, so keyword arguments bind by name instead of by position:
+       each public field receives the argument whose name matches it, ignoring case and
+       underscores.  ``@ArgName`` pins a name the match cannot reach.
+       See :ref:`java-sdk/arg-binding`.
+
+Besides the annotations, a task method may declare a ``Client`` and a ``Context`` parameter in any
+position; the SDK injects both.  Every other parameter is a *data parameter* and receives an
+argument bound by the Python ``@task.stub`` call site.
 
 The annotation processor generates a ``<ClassName>Builder`` class that wires up the task
-registry and handles XCom injection automatically.
+registry and resolves data parameters and XCom pushes automatically.
 
 .. code-block:: java
 
@@ -331,10 +340,7 @@ registry and handles XCom injection automatically.
       }
 
       @Builder.Task(id = "process")
-      public long process(
-        Client client,
-        @Builder.XCom(task = "fetch") String fetched
-      ) {
+      public long process(Client client, String fetched) {
         var threshold = (String) client.getVariable("process_threshold");
         // implement task logic
         return count;
@@ -376,18 +382,25 @@ task log.
       }
     }
 
+Implement ``InputTask<I>`` instead when the Python Dag calls the stub with TaskFlow arguments: the SDK
+resolves them from the call site and passes them in.  The type argument is a ``TaskInput`` whose public
+fields declare what the task expects.  See :ref:`java-sdk/arg-binding`.
+
 Register tasks manually in a ``BundleBuilder``. A task class can be top-level like ``FetchTask``, or
 nested ``static`` class like ``ProcessTask``:
 
 .. code-block:: java
 
     public class MyBundle implements BundleBuilder {
-      public static class ProcessTask implements Task {
+      public static class ProcessInput implements TaskInput {
+        public String fetched;
+      }
+
+      public static class ProcessTask implements InputTask<ProcessInput> {
         @Override
-        public void execute(Context context, Client client) throws Exception {
-          var fetched = (String) client.getXCom("fetch");
+        public void execute(Context context, Client client, ProcessInput input) throws Exception {
           // implement task logic
-          client.setXCom(fetched);
+          client.setXCom(input.fetched);
         }
       }
 
@@ -410,6 +423,117 @@ call it. Set ``airflowBundle.mainClass`` to the class that provides ``main``. Fr
 use the same ``./gradlew bundle`` command and deploy the resulting ``build/bundle/`` directory in the same way.
 
 See the `Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__ for more details.
+
+.. _java-sdk/arg-binding:
+
+Binding stub arguments
+~~~~~~~~~~~~~~~~~~~~~~
+
+Calling a ``@task.stub`` TaskFlow-style in the Python Dag is what declares the graph, and the
+supervisor delivers the resulting argument bindings to the Java runtime with every task run.  A
+binding carries either an upstream task's ``return_value`` XCom or an inline literal written at the
+call site.
+
+Positional binding
+^^^^^^^^^^^^^^^^^^
+
+A task method's data parameters bind **by position**, in declaration order — the injected ``Client``
+and ``Context`` parameters do not take up a position.  Java parameter names are not part of the API,
+so renaming one in an IDE never rebinds an input.
+
+.. code-block:: python
+
+    @task.stub(queue="java")
+    def score(rows, threshold): ...
+
+
+    score(load_rows(), 0.75)
+
+.. code-block:: java
+
+    @Builder.Task(id = "score")
+    public long score(Client client, long rows, double threshold) {
+      // rows      <- the load_rows XCom (position 0)
+      // threshold <- the literal 0.75   (position 1)
+    }
+
+A primitive parameter cannot hold ``null``, so the task fails with ``MissingXComException`` when its
+binding resolves to nothing; declare a boxed type (``Long``, ``Double``, …) to receive ``null``
+instead.  Declaring more data parameters than the call site bound also fails the task, rather than
+running it with missing inputs.
+
+A parameter whose type has type arguments keeps them: declare ``List<Double>`` and every element
+arrives as a ``Double``, whatever the wire values were.  Nothing extra is needed at the call site —
+the generated code carries the declared type through the decode.
+
+Named binding with a ``TaskInput``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To bind keyword arguments by name, declare a class implementing ``TaskInput``.  Each of its public
+non-final fields receives the argument whose name matches it, **ignoring case and underscores**, so
+the stub's ``snake_case`` arguments reach ``camelCase`` Java fields with nothing declared.  That is
+the same fold the Go and TypeScript SDKs apply, so one Python signature binds identically in every
+SDK.
+
+The class needs a public no-argument constructor.  A reference field the call site did not bind stays
+``null``, so a ``TaskInput`` need not cover every argument; a primitive field fails the task instead,
+since it cannot hold ``null``.  No two fields may claim argument names that differ only in case or
+underscores, and two *arguments* that collide that way bind only to a field that names one of them
+exactly — the SDK refuses to guess rather than hand a field the wrong value.
+
+.. code-block:: python
+
+    @task.stub(queue="java")
+    def score(region_code, threshold): ...
+
+
+    score(region_code="emea", threshold=load_threshold())
+
+.. code-block:: java
+
+    public static class ScoreInput implements TaskInput {
+      // Pinned so the field can be called region. Or drop the annotation and
+      // write: public String regionCode;
+      @ArgName("region_code")
+      public String region;
+
+      public double threshold; // binds threshold
+    }
+
+    @Builder.Task(id = "score")
+    public long score(Client client, ScoreInput input) { ... }
+
+Reach for ``@ArgName`` when the argument name is not a legal or usable Java identifier — a Python
+keyword such as ``class``, say — or when the field should read differently from the argument.  A
+pinned name is matched as written, with no folding.
+
+A task method declares flat data parameters **or** one ``TaskInput``, never both, so field names and
+flat positions cannot shift each other.  Mixing them, or declaring two, fails the build.
+
+Binding in the interface-based API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A task written against the interface has no parameter list to bind, so it declares its input as the
+type argument of ``InputTask<I>`` instead — the same ``TaskInput`` an annotated task would declare,
+binding the same way:
+
+.. code-block:: java
+
+    public class ScoreTask implements InputTask<ScoreInput> {
+      @Override
+      public void execute(Context context, Client client, ScoreInput input) throws Exception {
+        // input.region, input.threshold
+      }
+    }
+
+A ``TaskInput`` is the only way an interface task receives bound values; there is no positional form.
+A positional read is safe in the code the annotation processor writes, because it type-checks each
+position against the method signature it serves, and is the wrong thing to ask of code a person
+writes and later reads.  A call site with a single argument is worth the one-field class.
+
+An ``InputTask`` whose type argument is not a concrete ``TaskInput`` fails when the bundle is built,
+rather than mid-run.  Plain ``Task`` remains the right interface for a task the Dag file
+calls with no arguments.
 
 .. _java-sdk/logging:
 
@@ -607,13 +731,13 @@ represented as Java objects when read back via ``getXCom``.
 
    ``char`` and ``Character`` are not supported.  JSON has no single-character type, so a
    character value is stored as a JSON string (or a number) and is read back as one of the
-   Java types in the table above.  Declaring ``char`` or ``Character`` as an
-   ``@Builder.XCom`` parameter compiles, but reading a pushed value fails at runtime with a
-   ``ClassCastException``.  Use ``String`` instead.
+   Java types in the table above.  Declaring ``char`` or ``Character`` as a data parameter
+   compiles, but binding a value to it fails at runtime with a ``ClassCastException``.  Use
+   ``String`` instead.
 
 .. note::
 
-   An ``@Builder.XCom`` parameter that reads a value which was never pushed resolves to
+   A data parameter whose binding resolves to a value that was never pushed receives
    ``null``.  A boxed parameter (``Integer``, ``Long``, ``Boolean``, …) receives ``null``
    safely, but a primitive parameter (``int``, ``long``, ``boolean``, …) cannot represent
    ``null`` and the task fails with ``MissingXComException``.  Declare the parameter with a

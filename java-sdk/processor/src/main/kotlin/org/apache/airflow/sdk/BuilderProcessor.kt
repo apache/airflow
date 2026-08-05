@@ -25,18 +25,24 @@ import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
+import com.squareup.javapoet.ParameterizedTypeName
 import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
-import java.util.Optional
+import org.apache.airflow.sdk.internal.ArgValues
+import org.apache.airflow.sdk.internal.TaskArgs
+import org.apache.airflow.sdk.internal.TypeRef
+import org.apache.airflow.sdk.internal.foldArgName
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
+import javax.lang.model.element.VariableElement
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
@@ -57,9 +63,11 @@ import javax.tools.Diagnostic
  * - A static `build()` method that constructs the [DagDef] and registers those
  *   inner classes as [TaskDef]s.
  *
- * [Builder.XCom]-annotated parameters are resolved via `client.getXCom` in the
- * generated `execute` body, with the result cast to the parameter's declared
- * type. Non-`void` return values are forwarded to `client.setXCom`.
+ * In the generated `execute` body, a task's data parameters resolve against the
+ * arg bindings the supervisor delivered for the run: flat parameters through
+ * [TaskArgs], by their position among the data parameters, and [TaskInput]
+ * [TaskInput] fields through [ArgValues], by argument name. Non-`void` return values are
+ * forwarded to `client.setXCom`.
  */
 @SupportedAnnotationTypes("org.apache.airflow.sdk.Builder.Dag")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
@@ -102,23 +110,22 @@ class BuilderProcessor : AbstractProcessor() {
       MethodSpec
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .returns(ClassName.get(DagDef::class.java))
-        .addStatement($$"var dag = new $T($S)", ClassName.get(DagDef::class.java), ann.id.ifBlank { el.simpleName })
+        .returns(DAG_DEF_TYPE)
+        .addStatement($$"var dag = new $T($S)", DAG_DEF_TYPE, ann.id.ifBlank { el.simpleName })
 
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
 
-      val ann = inner.getAnnotation(Builder.Task::class.java) ?: continue
+      val taskAnn = inner.getAnnotation(Builder.Task::class.java) ?: continue
       val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
 
-      val task = buildTask(innerName, inner, el)
-      builderClass.addType(task.spec)
+      builderClass.addType(buildTask(innerName, inner, el))
 
       buildMethod.addStatement(
         $$"dag.addTask(new $T($S, $L.class))",
-        ClassName.get(TaskDef::class.java),
-        ann.id.ifBlank { inner.simpleName },
+        TASK_DEF_TYPE,
+        taskAnn.id.ifBlank { inner.simpleName },
         innerName,
       )
     }
@@ -132,40 +139,50 @@ class BuilderProcessor : AbstractProcessor() {
     name: String,
     inner: ExecutableElement,
     parent: TypeElement,
-  ): BuildTaskResult {
-    val clientType = ClassName.get(Client::class.java)
-    val contextType = ClassName.get(Context::class.java)
-
+  ): TypeSpec {
     val executeSpec =
       MethodSpec
         .methodBuilder("execute")
         .addAnnotation(Override::class.java)
         .addModifiers(Modifier.PUBLIC)
         .returns(TypeName.VOID)
-        .addParameter(contextType, "context")
-        .addParameter(clientType, "client")
+        .addParameter(CONTEXT_TYPE, "context")
+        .addParameter(CLIENT_TYPE, "client")
         .addException(Exception::class.java)
 
-    val required = mutableListOf<RequiredXCom>()
+    val dataParams = collectDataParams(inner)
+    val dataByName = dataParams.associateBy { it.name }
     val innerArgs =
       with(processingEnv) {
         inner.parameters.joinToString { param ->
-          val anno = param.getAnnotation(Builder.XCom::class.java)
           val type = param.asType()
           when {
-            anno != null ->
-              param.simpleName.toString().also {
-                required += RequiredXCom(type, it, anno.task.ifBlank { it })
-              }
-            isType(type, clientType) -> "client"
-            isType(type, contextType) -> "context"
-            else -> throw IllegalArgumentException("Unsupported task parameter '${param.simpleName}' with type: $type")
+            isType(type, CLIENT_TYPE) -> "client"
+            isType(type, CONTEXT_TYPE) -> "context"
+            else -> dataByName.getValue(param.simpleName.toString()).name
           }
         }
       }
-    required.forEach {
-      executeSpec.addStatement($$"var $L = $L", it.paramName, xcomAccess(it))
+
+    val argsLocal = generateSequence("args") { "${it}_" }.first { name -> dataParams.none { it.name == name } }
+    if (dataParams.any { !it.isTaskInput }) {
+      executeSpec.addStatement($$"$T $L = $T.of(context, client)", TASK_ARGS_TYPE, argsLocal, TASK_ARGS_TYPE)
     }
+    dataParams.forEach { param ->
+      val paramType = TypeName.get(param.type)
+      if (param.isTaskInput) {
+        executeSpec.addStatement(
+          $$"$T $L = $T.bindInput(context, client, $T.class)",
+          paramType,
+          param.name,
+          ARG_VALUES_TYPE,
+          paramType,
+        )
+      } else {
+        executeSpec.addStatement($$"$T $L = $L", paramType, param.name, positionalAccess(argsLocal, param))
+      }
+    }
+
     if (inner.returnType.kind == TypeKind.VOID) {
       $$"new $T().$L($L)"
     } else {
@@ -179,80 +196,141 @@ class BuilderProcessor : AbstractProcessor() {
       )
     }
 
-    val spec =
-      TypeSpec
-        .classBuilder(name)
-        .addSuperinterface(Task::class.java)
-        .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
-        .addMethod(executeSpec.build())
-        .build()
-    return BuildTaskResult(spec)
+    return TypeSpec
+      .classBuilder(name)
+      .addSuperinterface(Task::class.java)
+      .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
+      .addMethod(executeSpec.build())
+      .build()
+  }
+
+  /**
+   * Collects the task method's data parameters — every parameter the SDK does
+   * not inject — in declaration order. A parameter's index in the returned
+   * list is the position it binds at: Java parameter names are not API, so
+   * renaming one must never rebind an input.
+   */
+  private fun collectDataParams(method: ExecutableElement): List<DataParam> {
+    val params = mutableListOf<DataParam>()
+    with(processingEnv) {
+      for (param in method.parameters) {
+        val type = param.asType()
+        if (isType(type, CLIENT_TYPE) || isType(type, CONTEXT_TYPE)) continue
+        val declaresTaskInput = isTaskInput(type)
+        if (declaresTaskInput) validateTaskInput(method, param)
+        params += DataParam(type, param.simpleName.toString(), params.size, declaresTaskInput)
+      }
+    }
+    val inputs = params.filter { it.isTaskInput }
+    require(inputs.size <= 1) {
+      "Task method '${method.simpleName}' declares more than one TaskInput parameter: " +
+        inputs.joinToString { "'${it.name}'" }
+    }
+    inputs.singleOrNull()?.let { input ->
+      require(params.size == 1) {
+        "Task method '${method.simpleName}' declares TaskInput parameter '${input.name}' and other data " +
+          "parameters; a TaskInput owns the whole named-argument surface, so it must be the only one"
+      }
+    }
+    return params
+  }
+
+  private fun ProcessingEnvironment.isTaskInput(type: TypeMirror): Boolean {
+    val marker = elementUtils.getTypeElement(TASK_INPUT_TYPE.canonicalName()) ?: return false
+    return !type.kind.isPrimitive && typeUtils.isAssignable(type, marker.asType())
+  }
+
+  /**
+   * Checks at compile time that a [TaskInput] class can be populated at
+   * runtime: [ArgValues.bindInput] assigns each public non-static non-final
+   * field the argument it claims, by its [ArgName] value or by its own name
+   * folded. Two fields whose names fold alike are rejected here rather than
+   * at run time, since neither could be reached.
+   */
+  private fun ProcessingEnvironment.validateTaskInput(
+    method: ExecutableElement,
+    param: VariableElement,
+  ) {
+    val inputType =
+      typeUtils.asElement(param.asType()) as? TypeElement
+        ?: throw IllegalArgumentException(
+          "TaskInput parameter '${param.simpleName}' of task method '${method.simpleName}' has no class type",
+        )
+    val hasNoArgConstructor =
+      inputType.enclosedElements
+        .filterIsInstance<ExecutableElement>()
+        .any { it.kind == ElementKind.CONSTRUCTOR && it.parameters.isEmpty() && Modifier.PUBLIC in it.modifiers }
+    require(hasNoArgConstructor) {
+      "TaskInput class ${inputType.simpleName} needs a public no-argument constructor"
+    }
+    val claimed = mutableMapOf<String, String>()
+    inputType.enclosedElements
+      .filterIsInstance<VariableElement>()
+      .filter { it.kind == ElementKind.FIELD && Modifier.STATIC !in it.modifiers }
+      .forEach { field ->
+        require(Modifier.PUBLIC in field.modifiers && Modifier.FINAL !in field.modifiers) {
+          "TaskInput field ${inputType.simpleName}.${field.simpleName} must be public and non-final " +
+            "so the SDK can assign its binding"
+        }
+        val argName = field.getAnnotation(ArgName::class.java)?.value ?: field.simpleName.toString()
+        val previous = claimed.put(foldArgName(argName), field.simpleName.toString())
+        require(previous == null) {
+          "TaskInput fields ${inputType.simpleName}.$previous and ${inputType.simpleName}.${field.simpleName} " +
+            "claim argument names that differ only in case or underscores, which the fold cannot tell " +
+            "apart; rename one of them"
+        }
+      }
   }
 }
+
+/**
+ * One data parameter of a task method, positioned among its peers.
+ * [isTaskInput] marks a [TaskInput] parameter, which binds by field name
+ * instead.
+ */
+private class DataParam(
+  val type: TypeMirror,
+  val name: String,
+  val position: Int,
+  val isTaskInput: Boolean,
+)
+
+private val DAG_DEF_TYPE = ClassName.get(DagDef::class.java)
+private val TASK_DEF_TYPE = ClassName.get(TaskDef::class.java)
+private val CLIENT_TYPE = ClassName.get(Client::class.java)
+private val CONTEXT_TYPE = ClassName.get(Context::class.java)
+private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
+private val TASK_ARGS_TYPE = ClassName.get(TaskArgs::class.java)
+private val TYPE_REF_TYPE = ClassName.get(TypeRef::class.java)
+private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
 
 private fun ProcessingEnvironment.isType(
   t: TypeMirror,
   c: ClassName,
 ): Boolean = typeUtils.isSameType(t, elementUtils.getTypeElement(c.canonicalName()).asType())
 
-private data class RequiredXCom(
-  val paramType: TypeMirror,
-  val paramName: String,
-  val taskId: String,
-)
-
-private val NUMBER_ACCESSORS: Map<TypeName, String> =
-  buildMap {
-    mapOf(
-      TypeName.BYTE to "byteValue",
-      TypeName.SHORT to "shortValue",
-      TypeName.INT to "intValue",
-      TypeName.LONG to "longValue",
-      TypeName.FLOAT to "floatValue",
-      TypeName.DOUBLE to "doubleValue",
-    ).forEach { (primitive, accessor) ->
-      put(primitive, accessor)
-      put(primitive.box(), accessor)
-    }
-  }
-
-private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
-  val type = TypeName.get(xcom.paramType)
-  val accessor = NUMBER_ACCESSORS[type]
-  val number = ClassName.get(Number::class.java)
-  val optional = ClassName.get(Optional::class.java)
-  // A primitive parameter cannot hold null, so fail with a clear error instead of an
-  // opaque NullPointerException while unboxing when the XCom is absent.
-  val value =
-    if (type.isPrimitive) {
-      CodeBlock.of(
-        $$"$T.ofNullable(client.getXCom($S)).orElseThrow(() -> new $T($S, $S))",
-        optional,
-        xcom.taskId,
-        ClassName.get(MissingXComException::class.java),
-        xcom.taskId,
-        xcom.paramName,
-      )
+/**
+ * Emits the read for one flat data parameter, bound at its position. A
+ * primitive parameter cannot hold null, so `require` fails with a clear
+ * [MissingXComException] when the binding resolves to nothing; boxed and
+ * reference parameters take `get` and receive null instead.
+ *
+ * A parameter whose declared type has type arguments reads through [TypeRef]
+ * so its element type survives the decode — a cast cannot express
+ * `List<String>`, and erasure would let one succeed over a list of numbers
+ * and fail much later at the first element read.
+ */
+private fun positionalAccess(
+  argsLocal: String,
+  param: DataParam,
+): CodeBlock {
+  val type = TypeName.get(param.type)
+  val reader = if (type.isPrimitive) "require" else "get"
+  val target =
+    if (type is ParameterizedTypeName) {
+      CodeBlock.of($$"new $T<$T>() {}", TYPE_REF_TYPE, type)
     } else {
-      CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
+      CodeBlock.of($$"$T.class", type.box())
     }
-  // Wire integers decode to Long and floats to Double, so a direct (Integer)/(Float)
-  // cast throws ClassCastException; widen via Number instead.
-  return when {
-    accessor == null -> CodeBlock.of($$"($T) $L", if (type.isPrimitive) type.box() else type, value)
-    type.isPrimitive -> CodeBlock.of($$"(($T) $L).$L()", number, value, accessor)
-    else ->
-      CodeBlock.of(
-        $$"$T.ofNullable(($T) $L).map($T::$L).orElse(null)",
-        optional,
-        number,
-        value,
-        number,
-        accessor,
-      )
-  }
+  return CodeBlock.of($$"$L.$L($L, $L)", argsLocal, reader, param.position, target)
 }
-
-private data class BuildTaskResult(
-  val spec: TypeSpec,
-)
