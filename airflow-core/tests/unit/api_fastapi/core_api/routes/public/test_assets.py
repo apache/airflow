@@ -25,6 +25,7 @@ import time_machine
 from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -1741,6 +1742,33 @@ class TestPostAssetMaterialize(TestAssets):
         assert dag_run is not None
         assert dag_run.partition_key == "2025-06-01T00:00:00"
         assert dag_run.partition_date == timezone.datetime(2025, 6, 1)
+
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_against_the_dags_team(self, test_client, session, team_name):
+        """The Dag is resolved from the asset, so its team must be resolved and passed too — see the
+        call site's comment for why an unresolved team asks about the wrong resource."""
+        recorded = []
+
+        auth_manager = mock.Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_dag.side_effect = lambda **kw: recorded.append(kw) or True
+
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager",
+                return_value=auth_manager,
+            ),
+            mock.patch.object(
+                DagModel, "get_team_name", return_value=team_name, autospec=True
+            ) as mock_get_team_name,
+        ):
+            test_client.post("/assets/1/materialize")
+
+        assert len(recorded) == 1, "expected exactly one authorization check"
+        details = recorded[0]["details"]
+        assert details.id == self.DAG_ASSET1_ID
+        assert details.team_name == team_name
+        # resolved for the Dag the asset led to, not for some other Dag
+        mock_get_team_name.assert_called_once_with(self.DAG_ASSET1_ID, session=mock.ANY)
 
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
