@@ -18,10 +18,14 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import os
+import pty
+import select
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -132,7 +136,7 @@ class TestBuildPosixWrapperCommand:
         assert wrapper is not None
 
     def test_runs_in_own_process_group(self):
-        """The job launches under setsid (when available); $! is the leader PID/PGID."""
+        """The job launches under setsid (when available) and self-reports its PGID."""
         paths = RemoteJobPaths(job_id="test_job", remote_os="posix")
         wrapper = build_posix_wrapper_command("/path/to/script.sh", paths)
 
@@ -140,8 +144,11 @@ class TestBuildPosixWrapperCommand:
         assert "command -v setsid" in wrapper
         assert "setsid bash -c" in wrapper
         assert "nohup bash -c" in wrapper
-        # Leader PID recorded synchronously by the launcher ($! == PGID under setsid)
-        assert 'echo -n $! > "$pid_file"' in wrapper
+        # The job self-reports its own pid ($$ == PGID after setsid), which is correct
+        # even when setsid(1) forks under job control -- unlike the launcher's $!.
+        assert 'echo -n "$$" > "' in wrapper
+        # Launcher must NOT record $! (would be the short-lived setsid parent on a fork).
+        assert 'echo -n $! > "$pid_file"' not in wrapper
 
 
 class TestBuildWindowsWrapperCommand:
@@ -230,7 +237,7 @@ class TestKillCommands:
     def test_posix_kill_signals_process_group_then_falls_back(self):
         """POSIX kill targets the process group first, then a single PID as fallback."""
         cmd = build_posix_kill_command("/tmp/pid")
-        assert "cat '/tmp/pid'" in cmd
+        assert "cat /tmp/pid" in cmd
         # Negative PID => signal the whole process group (kills the job's children too)
         assert 'kill -TERM -"$p"' in cmd
         # Fallback for jobs that are not group leaders (host without setsid)
@@ -262,42 +269,162 @@ class TestPosixKillBehaviour:
 
     Regression test for the orphaned-process bug: killing only the recorded PID left the
     user command (and its children) running, so the exit_code file was never written and
-    the trigger timed out. The job now runs in its own process group and the kill signals
-    the group.
+    the trigger timed out. The job runs in its own process group and self-reports that
+    group's PGID, so the kill signals the whole group even when setsid(1) forks.
     """
+
+    def _marker(self, tag: str) -> str:
+        # Unique per (test, xdist worker): CI runs these with ``-n auto`` (default
+        # ``load`` distribution), so sibling tests can execute concurrently in separate
+        # workers against the same OS process table. A shared literal would let one
+        # test's ``pgrep -f`` / ``pkill -f`` match or kill another's job. os.getpid()
+        # differs per worker; the tag differs per test.
+        return f"sleep 9{tag}{os.getpid()}"
 
     @staticmethod
     def _group_alive(pgid: int) -> bool:
         # pgrep -g matches by process-group id; rc 0 => at least one member alive.
         return subprocess.run(["pgrep", "-g", str(pgid)], capture_output=True, check=False).returncode == 0
 
-    def test_kill_terminates_whole_job_tree(self, tmp_path):
-        paths = RemoteJobPaths(job_id="killtree", remote_os="posix", base_dir=str(tmp_path / "jobs"))
-        # `sleep 300` runs as a child of the wrapper subshell -> the tree the old kill orphaned.
-        # Run under bash, which is the remote login shell this operator requires (the wrapper
-        # uses `set -o pipefail`); the kill is run the same way below.
-        wrapper = build_posix_wrapper_command("sleep 300", paths)
-        subprocess.run(["bash", "-c", wrapper], check=True, capture_output=True, text=True)
+    @staticmethod
+    def _job_running(marker: str) -> bool:
+        return subprocess.run(["pgrep", "-f", marker], capture_output=True, check=False).returncode == 0
 
-        # The launcher records $! synchronously, so the pid file is present on return.
+    @staticmethod
+    def _pgid_of(pid: str) -> str:
+        return subprocess.run(
+            ["ps", "-o", "pgid=", "-p", pid], capture_output=True, text=True, check=False
+        ).stdout.strip()
+
+    def _await_recorded_pid(self, paths) -> int:
+        # The job writes its pid asynchronously (the launcher does not wait), so poll.
         pid_path = Path(paths.pid_file)
-        assert pid_path.exists(), "job never wrote its pid file"
-        pid_text = pid_path.read_text().strip()
-        assert pid_text, "pid file is empty"
-        pgid = int(pid_text)
+        deadline = time.monotonic() + 5
+        pid_text = ""
+        while time.monotonic() < deadline:
+            pid_text = pid_path.read_text().strip() if pid_path.exists() else ""
+            if pid_text:
+                break
+            time.sleep(0.02)
+        # Say which half failed. The wrapper creates the job dir and log file before it
+        # backgrounds anything, so their absence means the launcher never got that far,
+        # while an empty job dir means the job was launched and then died before its first
+        # statement. A bare "no pid file" cannot tell those apart.
+        job_dir = Path(paths.job_dir)
+        state = (
+            f"job dir holds {sorted(p.name for p in job_dir.iterdir())}"
+            if job_dir.exists()
+            else "job dir was never created (launcher did not run)"
+        )
+        assert pid_text, f"job never wrote its pid file; {state}"
+        return int(pid_text)
 
+    @staticmethod
+    def _run_bash_mc_under_pty(
+        script: str,
+        marker: bytes,
+        detached: Callable[[], bool] | None = None,
+        timeout: float = 8.0,
+    ) -> None:
+        """Run ``bash -mc script`` under a pty we own so job control genuinely activates
+        (bash silently disables ``-m`` without a controlling terminal). Read until the
+        marker, NOT to EOF: the detached job inherits the pty slave as its stdin, so EOF
+        would not arrive until the job itself exits (the full sleep runtime).
+
+        The marker only says the launcher returned, which it does the moment it puts
+        ``setsid`` in the background - before that child has forked, called setsid(2) and
+        exec'd into the job. Closing the master hangs the pty up, and the launcher is the
+        session leader here (``pty.fork`` gives it the pty as controlling terminal), so a
+        hangup inside that window can take the job down with the session before it runs its
+        first statement. ``detached``, when given, is polled until the job has proven it
+        left the session (it records its own pid), and only then do we hang up.
+        """
+        pid, fd = pty.fork()
+        if pid == 0:
+            try:
+                os.execvp("bash", ["bash", "-mc", script])
+            except OSError:
+                os._exit(127)  # never fall through as a duplicate pytest process
         try:
-            assert self._group_alive(pgid), "job tree should be running before kill"
-
-            subprocess.run(["bash", "-c", build_posix_kill_command(paths.pid_file)], check=True)
-
-            deadline = time.monotonic() + 5
-            while time.monotonic() < deadline and self._group_alive(pgid):
-                time.sleep(0.05)
-            assert not self._group_alive(pgid), "kill left part of the job tree running"
+            deadline = time.monotonic() + timeout
+            buf = b""
+            seen = False
+            while time.monotonic() < deadline:
+                r, _, _ = select.select([fd], [], [], 0.2)
+                if fd in r:
+                    try:
+                        chunk = os.read(fd, 4096)
+                    except OSError:
+                        break
+                    if not chunk:
+                        break
+                    buf += chunk
+                    if marker in buf:
+                        seen = True
+                        break
+            # Without this the launcher timing out is indistinguishable from the job dying:
+            # both surface later as an empty pid file.
+            assert seen, f"launcher never emitted {marker!r} within {timeout}s (got {buf!r})"
+            while detached is not None and time.monotonic() < deadline and not detached():
+                time.sleep(0.02)
         finally:
-            # Belt-and-suspenders: never leave a stray `sleep 300` behind if an assert fails.
+            os.close(fd)  # hangs up the pty; the launcher (not the detached job) exits
+            with contextlib.suppress(ChildProcessError):
+                os.waitpid(pid, 0)  # reap the launcher so it does not linger as a zombie
+
+    def _assert_kill_tears_down(self, paths, pgid: int, marker: str) -> None:
+        try:
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and not self._group_alive(pgid):
+                time.sleep(0.02)
+            assert self._group_alive(pgid), "job group should be running before kill"
+            subprocess.run(["bash", "-c", build_posix_kill_command(paths.pid_file)], check=True)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and self._job_running(marker):
+                time.sleep(0.05)
+            assert not self._job_running(marker), "kill left the job running (orphaned)"
+        finally:
             subprocess.run(["bash", "-c", f"kill -9 -{pgid} 2>/dev/null || true"], check=False)
+            subprocess.run(["bash", "-c", f"pkill -9 -f '{marker}' 2>/dev/null || true"], check=False)
+
+    def test_kill_terminates_whole_job_tree(self, tmp_path):
+        """Default path (no job control): the job self-reports its PGID and the kill
+        signals the whole group."""
+        marker = self._marker("1")
+        paths = RemoteJobPaths(job_id="killtree", remote_os="posix", base_dir=str(tmp_path / "jobs"))
+        wrapper = build_posix_wrapper_command(marker, paths)
+        subprocess.run(["bash", "-c", wrapper], check=True, capture_output=True, text=True)
+        pgid = self._await_recorded_pid(paths)
+        self._assert_kill_tears_down(paths, pgid, marker)
+
+    def test_kill_terminates_whole_job_tree_under_job_control(self, tmp_path):
+        """With job control on, setsid(1) forks and the launcher's ``$!`` would name the
+        short-lived setsid parent, not the job -- the condition the old wrapper orphaned
+        the job under. Force it deterministically via a real controlling terminal and
+        assert the recorded pid IS the job's true PGID and the kill reaches the job."""
+        marker = self._marker("2")
+        paths = RemoteJobPaths(job_id="killtree_jc", remote_os="posix", base_dir=str(tmp_path / "jobs"))
+        wrapper = build_posix_wrapper_command(marker, paths)
+        pid_path = Path(paths.pid_file)
+        self._run_bash_mc_under_pty(
+            wrapper + "\necho SUBMIT_DONE\n",
+            b"SUBMIT_DONE",
+            # Hang up only once the job is up (pid file written), so the pgrep below sees a
+            # started job. The job survives the hangup regardless: the wrapper detaches its
+            # stdin from the terminal, so the setsid session never adopts the pty.
+            detached=lambda: pid_path.exists() and bool(pid_path.read_text().strip()),
+        )
+        pgid = self._await_recorded_pid(paths)
+
+        job_pids = subprocess.run(
+            ["pgrep", "-f", marker], capture_output=True, text=True, check=False
+        ).stdout.split()
+        assert job_pids, "job never started"
+        true_pgid = self._pgid_of(job_pids[0])
+        # Core regression assertion: recorded pid == the job's real PGID. Under the old
+        # $!-based wrapper this differs (setsid forked) and on_kill orphans the job.
+        assert str(pgid) == true_pgid, f"recorded pid {pgid} is not the job PGID {true_pgid}"
+        self._assert_kill_tears_down(paths, pgid, marker)
 
 
 class TestCleanupCommands:
@@ -326,3 +453,54 @@ class TestCleanupCommands:
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_windows_cleanup_command("C:\\temp\\other_dir")
+
+    def test_posix_cleanup_accepts_custom_base_dir(self):
+        """Test POSIX cleanup accepts job dirs under a custom base directory."""
+        cmd = build_posix_cleanup_command("/data/airflow-jobs/job_123", base_dir="/data/airflow-jobs")
+        assert "rm -rf" in cmd
+        assert "/data/airflow-jobs/job_123" in cmd
+
+    def test_windows_cleanup_accepts_custom_base_dir(self):
+        """Test Windows cleanup accepts job dirs under a custom base directory."""
+        cmd = build_windows_cleanup_command("D:\\airflow-jobs\\job_123", base_dir="D:\\airflow-jobs")
+        assert "powershell.exe" in cmd
+
+    def test_posix_cleanup_custom_base_dir_rejects_outside_paths(self):
+        """With a custom base dir, paths outside it (even the default) are rejected."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_posix_cleanup_command("/tmp/airflow-ssh-jobs/job_123", base_dir="/data/airflow-jobs")
+
+    def test_windows_cleanup_custom_base_dir_rejects_outside_paths(self):
+        """With a custom base dir, paths outside it (even the default) are rejected."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_windows_cleanup_command("$env:TEMP\\airflow-ssh-jobs\\job_123", base_dir="D:\\airflow-jobs")
+
+
+class TestPosixPathQuoting:
+    """A shell metacharacter in remote_base_dir must stay data, never become a command."""
+
+    @staticmethod
+    def _builders(paths):
+        return {
+            "wrapper": lambda: build_posix_wrapper_command("true", paths),
+            "cleanup": lambda: build_posix_cleanup_command(paths.job_dir),
+            "kill": lambda: build_posix_kill_command(paths.pid_file),
+            "log_tail": lambda: build_posix_log_tail_command(paths.log_file, 0, 64),
+            "file_size": lambda: build_posix_file_size_command(paths.log_file),
+            "completion": lambda: build_posix_completion_check_command(paths.exit_code_file),
+        }
+
+    @pytest.mark.parametrize(
+        "builder",
+        ["wrapper", "cleanup", "kill", "log_tail", "file_size", "completion"],
+    )
+    def test_single_quote_in_base_dir_does_not_execute(self, builder, tmp_path):
+        marker = tmp_path / "injected"
+        # The prefix keeps job_dir under POSIX_DEFAULT_BASE_DIR so _validate_job_dir passes.
+        base_dir = f"/tmp/airflow-ssh-jobs/x'; touch {marker}; :'"
+        paths = RemoteJobPaths(job_id="job_123", remote_os="posix", base_dir=base_dir)
+
+        cmd = self._builders(paths)[builder]()
+        subprocess.run(["sh", "-c", cmd], capture_output=True, check=False)
+
+        assert not marker.exists()

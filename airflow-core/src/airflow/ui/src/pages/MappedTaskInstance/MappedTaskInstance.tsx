@@ -24,12 +24,16 @@ import { useParams } from "react-router-dom";
 import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
+import { useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
 
 export const MappedTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
+
+  useDocumentTitle(taskId);
+
   // Pass the run state so the summaries stream keeps auto-refreshing while the run is running;
   // without it the Header and Details tab would freeze on the first fetch.
   const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {

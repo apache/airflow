@@ -191,6 +191,7 @@
           "title": "Pomiń"
         }
       },
+      "parsingFile": "Przetwarzanie pliku...",
       "title": "Importuj zmienne",
       "upload": "Prześlij plik JSON",
       "uploadPlaceholder": "Prześlij plik JSON zawierający zmienne (np. {\"key\": \"value\", ...})"

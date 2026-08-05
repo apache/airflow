@@ -54,7 +54,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
-- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
+- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`
 <!-- END generated-commands, please keep comment here to allow auto update -->
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
@@ -158,7 +158,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
-- Do not use `caplog` in tests, prefer checking logic and not log output.
+- Do not assert on raw log text (`caplog.text` for example), these are legacy string matching APIs planned for removal. Structured assertions via `caplog` (which resolves to `cap_structlog` under structlog) are fine and preferred: `"event name" in caplog` or `{"event": ..., "field": ...} in caplog`.
 
 ## Output conventions
 
@@ -470,9 +470,9 @@ including the `@<github-handle>` in the `Drafted-by: … reviewed by
 message — and replying within a thread to people already actively
 participating in that same PR/issue discussion.
 
-## apache-steward framework
+## apache-magpie framework
 
-This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
 framework via the snapshot mechanism. The framework provides the
 `pr-management-*` skills (triage, code-review, stats, mentor); they are
 gitignored symlinks into the `.apache-magpie/` snapshot directory.
@@ -482,12 +482,21 @@ invocable. Run `/magpie-setup` (or follow
 [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
 it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
 contributor-facing summary of the adoption + setup flow lives in the
-[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
+[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 
 Adopter-specific modifications to framework-skill workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
 the snapshot directly. Framework changes go via PR to
-[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+[`apache/magpie`](https://github.com/apache/magpie).
+
+### Reviewing pull requests
+
+With apache-magpie installed locally, use the
+`magpie-pr-management-code-review` skill for PR code review. It posts
+findings as **inline review comments** anchored to `file:line`, presented
+**individually for accept/skip** before anything is submitted — prefer it
+over an ad-hoc review pass or a generic review command. A body-only review
+is the explicit opt-out (`inline:off`).
 
 ## Boundaries
 

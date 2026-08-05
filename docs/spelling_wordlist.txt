@@ -24,7 +24,9 @@ AdsInsights
 adsinsights
 afterall
 agentcore
+AgentDetails
 agentic
+AgentVersionDetails
 ai
 aio
 aiobotocore
@@ -121,6 +123,7 @@ auditable
 Auth
 auth
 authenticator
+Authentik
 Authlib
 authMechanism
 authorised
@@ -399,6 +402,7 @@ dataprep
 Dataproc
 dataproc
 DataprocDiagnoseClusterOperator
+dataquality
 DataScan
 dataScans
 Dataset
@@ -448,6 +452,9 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
+DeleteAgentResponse
+DeleteAgentVersionResponse
 delim
 deliverability
 deltalake
@@ -518,6 +525,7 @@ downstreams
 dp
 dq
 Drillbit
+driverless
 dropdown
 druidHook
 ds
@@ -592,7 +600,9 @@ EOL
 equest
 errno
 errored
+esbuild
 eslint
+ESM
 ETag
 etag
 etl
@@ -746,6 +756,7 @@ Grpc
 gRPC
 grpc
 gsuite
+gte
 Gunicorn
 gunicorn
 gz
@@ -939,6 +950,7 @@ KerberosClient
 keycloak
 Keyfile
 keyfile
+keyless
 KeyManagementServiceClient
 keyring
 keyspace
@@ -1013,7 +1025,9 @@ Logstash
 logstash
 longblob
 lookups
+loopback
 lshift
+lte
 lxml
 m-NCUs
 machineTypes
@@ -1036,6 +1050,7 @@ maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
+MCP
 md
 mem
 memcached
@@ -1044,6 +1059,7 @@ memorystore
 memray
 Mesos
 mesos
+MessageBatch
 metaclass
 metadatabase
 metadataStores
@@ -1163,6 +1179,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OPA
 OpenAI
 openai
 openapi
@@ -1214,6 +1231,7 @@ paramiko
 Params
 params
 parsers
+passthrough
 passwd
 pathlib
 pathType
@@ -1306,6 +1324,8 @@ proto
 Protobuf
 protobuf
 provisioner
+proxied
+proxies
 psql
 psrp
 psycopg
@@ -1408,7 +1428,10 @@ req
 reqs
 requeue
 requeued
+requeues
+requeuing
 reserialize
+Reserializing
 resetdb
 resizable
 ResourceRequirements
@@ -1596,6 +1619,7 @@ StatsD
 statsd
 stderr
 stdin
+stdlib
 stdout
 StorageClass
 storages
@@ -1603,6 +1627,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+StreamingLogResponse
 strftime
 Stringified
 stringified

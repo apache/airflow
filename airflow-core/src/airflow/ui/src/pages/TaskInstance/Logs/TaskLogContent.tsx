@@ -29,7 +29,7 @@ import type { ParsedLogEntry } from "src/queries/useLogs";
 import { HighlightedText } from "./HighlightedText";
 import { ScrollToButton } from "./ScrollToButton";
 import { useLogGroups } from "./useLogGroups";
-import { getHighlightColor, scrollToBottom, scrollToTop } from "./utils";
+import { getHighlightColor, isSelectionWithin, scrollToBottom, scrollToTop } from "./utils";
 
 export type TaskLogContentProps = {
   readonly currentMatchLineIndex?: number;
@@ -43,8 +43,10 @@ export type TaskLogContentProps = {
   readonly wrap: boolean;
 };
 
-// How close to the bottom (in px) before we consider the user "at the bottom"
-const SCROLL_BOTTOM_THRESHOLD = 100;
+// How close to the very end (in px) the user must be for the log to keep
+// following new lines. Small so that scrolling up even a little to read
+// stops the follow; returning to the end resumes it.
+const SCROLL_BOTTOM_THRESHOLD = 40;
 
 export const TaskLogContent = ({
   currentMatchLineIndex,
@@ -62,12 +64,14 @@ export const TaskLogContent = ({
 
   const {
     expandedGroups,
-    originalToVisibleIndex,
+    lineNumberToVisibleIndex,
     toggleGroup,
     visibleCurrentMatchIndex,
     visibleItems,
     visibleSearchMatchIndices,
   } = useLogGroups({ currentMatchLineIndex, expanded, parsedLogs, searchMatchIndices });
+
+  const hashVisibleIndex = hash === "" ? undefined : lineNumberToVisibleIndex.get(Number(hash));
 
   const isAtBottomRef = useRef<boolean>(true);
   const prevVisibleCountRef = useRef<number>(0);
@@ -106,23 +110,22 @@ export const TaskLogContent = ({
     }
     const isFirstLoad = prevVisibleCountRef.current === 0;
     const hasNewLines = visibleItems.length > prevVisibleCountRef.current;
+    // Pause following while the user is selecting text in the log — scrolling
+    // would move the text out from under the cursor and clear the selection.
+    const isSelecting = isSelectionWithin(document.getSelection(), parentRef.current);
 
-    if ((isFirstLoad || (hasNewLines && isAtBottomRef.current)) && !location.hash) {
+    if ((isFirstLoad || (hasNewLines && isAtBottomRef.current && !isSelecting)) && !location.hash) {
       rowVirtualizer.scrollToIndex(visibleItems.length - 1, { align: "end" });
     }
     prevVisibleCountRef.current = visibleItems.length;
   }, [visibleItems.length, rowVirtualizer]);
 
   useLayoutEffect(() => {
-    if (location.hash && !isLoading) {
-      const hashVisibleIndex = originalToVisibleIndex.get(Number(hash) - 1);
-
-      if (hashVisibleIndex !== undefined) {
-        rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
-      }
+    if (location.hash && !isLoading && hashVisibleIndex !== undefined) {
+      rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
     }
     // React Compiler auto-memoizes; safe to include in deps
-  }, [isLoading, rowVirtualizer, hash, visibleItems, originalToVisibleIndex]);
+  }, [isLoading, rowVirtualizer, visibleItems, hashVisibleIndex]);
 
   useLayoutEffect(() => {
     if (visibleCurrentMatchIndex !== undefined && !isLoading) {
@@ -209,7 +212,7 @@ export const TaskLogContent = ({
                     _rtl={{ left: "auto", right: 0 }}
                     bgColor={getHighlightColor({
                       currentMatchLineIndex: visibleCurrentMatchIndex,
-                      hash,
+                      hashIndex: hashVisibleIndex,
                       index: virtualRow.index,
                       searchMatchIndices: visibleSearchMatchIndices,
                     })}
@@ -257,7 +260,7 @@ export const TaskLogContent = ({
                   _rtl={{ left: "auto", right: 0 }}
                   bgColor={getHighlightColor({
                     currentMatchLineIndex: visibleCurrentMatchIndex,
-                    hash,
+                    hashIndex: hashVisibleIndex,
                     index: virtualRow.index,
                     searchMatchIndices: visibleSearchMatchIndices,
                   })}

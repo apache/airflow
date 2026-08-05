@@ -196,7 +196,7 @@ def update_hitl_detail(
     if isinstance(user_id, int):
         # FabAuthManager (ab_user) store user id as integer, but common interface is string type
         user_id = str(user_id)
-    hitl_user = HITLUser(id=user_id, name=user_name)
+    hitl_user = HITLUser(id=user_id, name=user.get_display_name())
     if hitl_detail_model.assigned_users:
         # Convert assigned_users list to set of user IDs for authorization check
         assigned_user_ids = {assigned_user["id"] for assigned_user in hitl_detail_model.assigned_users}
@@ -243,8 +243,6 @@ def update_hitl_detail(
             task_instance=locked_ti,
             session=session,
         )
-
-    session.commit()
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 

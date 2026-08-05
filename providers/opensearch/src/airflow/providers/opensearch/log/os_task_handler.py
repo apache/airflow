@@ -36,6 +36,7 @@ import attrs
 import pendulum
 from opensearchpy import OpenSearch, helpers
 from opensearchpy.exceptions import NotFoundError
+from pydantic import ValidationError
 from sqlalchemy import select
 
 import airflow.logging_config as alc
@@ -49,6 +50,7 @@ from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRF
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -70,6 +72,8 @@ else:
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
+
+logger = logging.getLogger(__name__)
 
 
 def _format_error_detail(error_detail: Any) -> str | None:
@@ -100,11 +104,11 @@ def _format_error_detail(error_detail: Any) -> str | None:
 
 def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter an OpenSearch hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
-    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS}
 
-    # Map @timestamp to timestamp
-    if "@timestamp" in fields and "timestamp" not in fields:
-        fields["timestamp"] = fields.pop("@timestamp")
+    # Map @timestamp to timestamp but not include `@timestamp` in log fields
+    if "@timestamp" in hit_dict and "timestamp" not in fields:
+        fields["timestamp"] = hit_dict["@timestamp"]
 
     # Map levelname to level
     if "levelname" in fields and "level" not in fields:
@@ -118,6 +122,29 @@ def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     if "error_detail" in fields and not fields["error_detail"]:
         fields.pop("error_detail")
     return fields
+
+
+def _safe_build_structured_log_message(hit_dict: dict[str, Any]) -> StructuredLogMessage:
+    """
+    Build a StructuredLogMessage from a stored OpenSearch hit, tolerating malformed fields.
+
+    A single malformed stored log entry (for example a non-string ``event`` produced by
+    logging a list or dict as the sole message argument) must not fail the entire
+    log-fetch request. Fall back to a stringified event, mirroring the fallback used for
+    unparsable raw log lines in ``_log_stream_to_parsed_log_stream``.
+    """
+    fields = _build_log_fields(hit_dict)
+    try:
+        return StructuredLogMessage(**fields)
+    except ValidationError:
+        logger.debug(
+            "Failed to parse stored log entry into StructuredLogMessage; falling back to "
+            "stringified event. Offending fields: %s",
+            fields,
+        )
+        return StructuredLogMessage(
+            event=str(fields.get("event", hit_dict)), timestamp=fields.get("timestamp")
+        )
 
 
 def getattr_nested(obj, item, default):
@@ -550,6 +577,16 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
+        # In Airflow 3 logs reach OpenSearch only after the task finishes, so a running task has
+        # nothing to read there yet. Defer to the base handler for live worker/executor logs, as
+        # S3/GCS do.
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and ti.try_number == try_number
+            and ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        ):
+            return super()._read(ti, try_number, metadata)  # type: ignore[return-value]
+
         if not metadata:
             # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
@@ -625,7 +662,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
                 # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(**_build_log_fields(hit.to_dict()))
+                    _safe_build_structured_log_message(hit.to_dict())
                     for hits in logs_by_host.values()
                     for hit in hits
                 ]
@@ -835,6 +872,44 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
     )
 
     processors = ()
+
+    @classmethod
+    def from_config(cls) -> OpensearchRemoteLogIO:
+        """
+        Build the remote log IO from Airflow logging and ``[opensearch]`` configuration.
+
+        The ``opensearch://`` value in ``[logging] remote_base_log_folder`` is only a routing
+        marker, so every connection and behaviour parameter is read from the ``[opensearch]``
+        section here.
+
+        This does not merge ``[logging] remote_task_handler_kwargs`` IO-kwargs, matching the
+        legacy behavior for OpenSearch.
+        """
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # ``[opensearch] port`` declares an empty-string default, so the key is always present and
+        # ``conf.getint`` raises on ``int("")`` instead of falling back to 9200.
+        port = conf.get("opensearch", "port", fallback="")
+        return cls(
+            base_log_folder=os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            host=conf.get("opensearch", "host", fallback=""),
+            port=int(port) if port else 9200,
+            username=conf.get_mandatory_value("opensearch", "username"),
+            password=conf.get_mandatory_value("opensearch", "password"),
+            write_stdout=conf.getboolean("opensearch", "write_stdout"),
+            write_to_opensearch=conf.getboolean("opensearch", "write_to_os"),
+            json_format=conf.getboolean("opensearch", "json_format"),
+            target_index=conf.get_mandatory_value("opensearch", "target_index"),
+            host_field=conf.get_mandatory_value("opensearch", "host_field"),
+            offset_field=conf.get_mandatory_value("opensearch", "offset_field"),
+            log_id_template=conf.get("opensearch", "log_id_template", fallback="")
+            or "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
 
     def __attrs_post_init__(self):
         self.host = _format_url(self.host)

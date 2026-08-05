@@ -235,7 +235,6 @@ class TriggerDagRunOperator(ResumableJobMixin, BaseOperator):
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.note = note
         self.deferrable = deferrable
-        logical_date = _validate_datetime_param("logical_date", logical_date)
         run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
         self.run_after = run_after
@@ -248,6 +247,7 @@ class TriggerDagRunOperator(ResumableJobMixin, BaseOperator):
             )
 
     def execute(self, context: Context):
+        _validate_datetime_param("logical_date", self.logical_date)
         if self.logical_date is NOTSET:
             if self.run_after is not NOTSET:
                 parsed_logical_date = None

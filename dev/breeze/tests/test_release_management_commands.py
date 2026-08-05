@@ -21,10 +21,15 @@ from types import SimpleNamespace
 
 import pytest
 
+from airflow_breeze.commands import release_management_commands
 from airflow_breeze.commands.release_management_commands import (
+    ISSUE_MATCH_IN_BODY,
     _ensure_default_python_for_reproducible_client,
     _is_initial_provider_release,
     _should_include_provider_in_issue,
+    get_commented_out_prs_from_provider_changelogs,
+    get_package_version_possibly_from_stable_txt,
+    get_prs_for_package,
     get_prs_from_git_log_for_new_provider,
     get_suffix_from_package_in_dist,
     is_package_in_dist,
@@ -97,6 +102,73 @@ def test_get_prs_from_git_log_for_new_provider(monkeypatch):
     prs = get_prs_from_git_log_for_new_provider("clickhousedb")
 
     assert prs == [68400, 68345, 67999, 67080]
+
+
+def test_get_prs_for_package_extracts_multiple_prs_per_line(tmp_path: Path, monkeypatch):
+    changelog = tmp_path / "changelog.rst"
+    changelog.write_text(
+        "\n".join(
+            [
+                "1.15.0",
+                "......",
+                "",
+                "Features",
+                "~~~~~~~~",
+                "",
+                "* ``Add Kafka Event Producer publishing DagRun and TaskInstance state-change events (#68082, #70014)``",
+                "* ``Add Amazon MSK IAM (OAUTHBEARER) support to Apache Kafka provider (#69427)``",
+                "",
+                ".. Below changes are excluded from the changelog. Move them to",
+                "   appropriate section above if needed. Do not delete the lines(!):",
+                "   * ``Release prep commit (#99999)``",
+                "",
+                "1.14.0",
+                "......",
+            ]
+        )
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_details",
+        lambda provider_id: SimpleNamespace(changelog_path=changelog),
+    )
+
+    prs = get_prs_for_package("apache.kafka", current_release_version="1.15.0")
+
+    assert prs == [68082, 70014, 69427]
+
+
+def test_get_commented_out_prs_extracts_multiple_prs_per_line(tmp_path: Path, monkeypatch):
+    changelog = tmp_path / "changelog.rst"
+    changelog.write_text(
+        "\n".join(
+            [
+                "1.15.0",
+                "......",
+                "",
+                "Features",
+                "~~~~~~~~",
+                "",
+                "* ``Visible change (#11111)``",
+                "",
+                ".. Below changes are excluded from the changelog. Move them to",
+                "   appropriate section above if needed. Do not delete the lines(!):",
+                "   * ``Internal change (#22222, #33333)``",
+                "",
+            ]
+        )
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_distributions_metadata",
+        lambda: {"apache.kafka": {}},
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_details",
+        lambda provider_id: SimpleNamespace(changelog_path=changelog),
+    )
+
+    prs = get_commented_out_prs_from_provider_changelogs()
+
+    assert prs == [22222, 33333]
 
 
 @pytest.mark.parametrize(
@@ -202,3 +274,38 @@ def test_is_package_in_dist(dist_files: list[str], package: str, expected: bool)
 )
 def test_get_suffix_from_package_in_dist(dist_files: list[str], package: str, expected: str | None):
     assert get_suffix_from_package_in_dist(dist_files, package) == expected
+
+
+@pytest.mark.parametrize(
+    ("stable_txt_content", "expected_version"),
+    [
+        # No stable.txt staged (docs not built for this ref) -> None, not an error
+        (None, None),
+        ("0.1.0\n", "0.1.0"),
+    ],
+)
+def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
+    tmp_path: Path, monkeypatch, stable_txt_content: str | None, expected_version: str | None
+):
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_ROOT_PATH", tmp_path)
+    if stable_txt_content is not None:
+        stable_txt = tmp_path / "generated" / "_build" / "docs" / "java-sdk" / "stable.txt"
+        stable_txt.parent.mkdir(parents=True)
+        stable_txt.write_text(stable_txt_content)
+    assert get_package_version_possibly_from_stable_txt("java-sdk") == expected_version
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("Some description closes: #12345 and more text", [12345]),
+        # reference at the very end of the body (e.g. "Fixes #53843" as the last line)
+        ("Generated-by: some agent Fixes #53843", [53843]),
+        ("related: #111, also see #222", [111, 222]),
+        ("adjacent references see #111 #222", [111, 222]),
+        ("no references here", []),
+        ("PR#123 without space is not a reference", []),
+    ],
+)
+def test_issue_match_in_body(body: str, expected: list[int]):
+    assert [int(m.group(1)) for m in ISSUE_MATCH_IN_BODY.finditer(body)] == expected

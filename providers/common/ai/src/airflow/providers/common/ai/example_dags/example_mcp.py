@@ -91,3 +91,44 @@ example_mcp_multiple_servers()
 #           MCPToolset(StdioTransport(command="uvx", args=["mcp-run-python"])),
 #       ],
 #   )
+
+
+# ---------------------------------------------------------------------------
+# 4. Stdio server with a minted secret in the subprocess environment
+# ---------------------------------------------------------------------------
+# For local stdio MCP servers that read credentials from their own environment
+# (e.g. a server that needs a Splunk API key), pass env_provider instead of
+# storing the secret in the connection's static Extra.env. It is resolved at
+# task-execution time -- never baked into the serialized DAG -- and merged
+# over Extra.env, with env_provider's keys winning on conflicts. Here the
+# secret lives in a *different* connection (the Splunk one, not this MCP
+# server's own connection) -- something a static Extra.env cannot express.
+
+
+# [START howto_toolset_mcp_env_provider]
+def _mint_splunk_env() -> dict[str, str]:
+    from airflow.providers.common.compat.sdk import BaseHook
+
+    password = BaseHook.get_connection("splunk_default").password
+    if not password:
+        raise ValueError("splunk_default connection has no password set")
+    return {"SPLUNK_API_KEY": password}
+
+
+@dag(tags=["example"])
+def example_mcp_stdio_env_provider():
+    """Use a stdio MCP server whose subprocess needs a secret from another connection."""
+    AgentOperator(
+        task_id="stdio_env_agent",
+        prompt="Investigate the ticket and summarize findings.",
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a support triage agent with access to MCP tools.",
+        toolsets=[
+            MCPToolset(mcp_conn_id="spacefarer_mcp", env_provider=_mint_splunk_env),
+        ],
+    )
+
+
+# [END howto_toolset_mcp_env_provider]
+
+example_mcp_stdio_env_provider()

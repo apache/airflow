@@ -444,6 +444,9 @@ class Timetable(Protocol):
 
         :param last_automated_data_interval: The data interval of the associated
             DAG's last scheduled or backfilled run (manual runs not considered).
+            This is only ``None`` when the Dag is being scheduled for the first
+            time, which happens when the Dag processor first parses the Dag --
+            before any Dag run exists.
         :param restriction: Restriction to apply when scheduling the DAG run.
             See documentation of :class:`TimeRestriction` for details.
 

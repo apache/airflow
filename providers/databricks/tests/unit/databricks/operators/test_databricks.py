@@ -1718,6 +1718,23 @@ class TestDatabricksSubmitRunOperatorDurable:
         task_store.set.assert_not_called()
         assert op.run_id == RUN_ID
 
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnects_to_blocked_run_without_resubmitting(self, db_mock_class):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
+        )
+        db_mock = db_mock_class.return_value
+        # A gated run sits in BLOCKED; the durable retry must reconnect and wait, not resubmit.
+        db_mock.get_run.side_effect = [self._state("BLOCKED"), self._state("TERMINATED", "SUCCESS")]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.submit_run.assert_not_called()
+        task_store.set.assert_not_called()
+        assert op.run_id == RUN_ID
+
     @mock.patch("airflow.providers.databricks.operators.databricks._handle_databricks_operator_execution")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_already_succeeded_pushes_xcoms_without_polling(self, db_mock_class, mock_poll):
@@ -1846,6 +1863,8 @@ class TestDatabricksSubmitRunOperatorDurable:
             ("PENDING:", True),
             ("QUEUED:", True),
             ("TERMINATING:", True),
+            ("BLOCKED:", True),
+            ("WAITING_FOR_RETRY:", True),
             ("TERMINATED:SUCCESS", False),
             ("TERMINATED:FAILED", False),
             ("SKIPPED:", False),
@@ -1962,6 +1981,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_with_json_string_and_templated_named_parameters(self, db_mock_class):
         op = DatabricksRunNowOperator(
+            durable=False,
             task_id=TASK_ID,
             json='{"job_id": "1", "notebook_params": {"source": "json"}, "jar_params": ["json"]}',
             job_id="{{ params.job_id }}",
@@ -1991,7 +2011,7 @@ class TestDatabricksRunNowOperator:
             r"Type \<(type|class) \'datetime.datetime\'\> used "
             r"for parameter json\[test\] is not a number or a string"
         )
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json, durable=False)
         with pytest.raises(AirflowException, match=exception_message):
             op.execute(None)
 
@@ -2005,6 +2025,7 @@ class TestDatabricksRunNowOperator:
         into the ``json`` template field, so a retry / deferral-resume re-renders from the original
         template instead of a clobbered dict."""
         op = DatabricksRunNowOperator(
+            durable=False,
             task_id=TASK_ID,
             job_id=JOB_ID,
             json={"notebook_params": {"a": "b"}},
@@ -2036,7 +2057,7 @@ class TestDatabricksRunNowOperator:
     def test_exec_invalid_payload_fails_before_api_call(self, db_mock_class, kwargs):
         """An invalid payload type must fail before ``find_job_id_by_name`` / ``cancel_all_runs`` /
         ``run_now`` touch the Databricks API."""
-        op = DatabricksRunNowOperator(task_id=TASK_ID, json={"bad": datetime.now()}, **kwargs)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, json={"bad": datetime.now()}, **kwargs, durable=False)
         db_mock = db_mock_class.return_value
 
         with pytest.raises(AirflowException, match="is not a number or a string"):
@@ -2089,6 +2110,7 @@ class TestDatabricksRunNowOperator:
         ``_handle_databricks_operator_execution`` -- the only path that reads ``operator._merged_json`` --
         so a regression there (e.g. the attribute being unset) fails loudly instead of passing CI."""
         op = DatabricksRunNowOperator(
+            durable=False,
             task_id=TASK_ID,
             job_id=JOB_ID,
             json={"job_parameters": {"k": "v"}},
@@ -2114,7 +2136,7 @@ class TestDatabricksRunNowOperator:
         Test the execute function in case where the run is successful.
         """
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run, durable=False)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
@@ -2148,7 +2170,7 @@ class TestDatabricksRunNowOperator:
         Test the execute function in case where the run failed.
         """
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run, durable=False)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
@@ -2182,7 +2204,7 @@ class TestDatabricksRunNowOperator:
         Test the execute function in case where the run failed.
         """
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run, durable=False)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = mock_dict(
@@ -2238,7 +2260,7 @@ class TestDatabricksRunNowOperator:
         Test the execute function in case where the run failed.
         """
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run, durable=False)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = mock_dict(
@@ -2315,7 +2337,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_wait_for_termination(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run, durable=False)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
@@ -2347,7 +2369,9 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_no_wait_for_termination(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, wait_for_termination=False, json=run)
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID, job_id=JOB_ID, wait_for_termination=False, json=run, durable=False
+        )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
 
@@ -2379,17 +2403,17 @@ class TestDatabricksRunNowOperator:
     def test_init_exception_with_job_name_and_job_id(self, db_mock_class):
         exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
 
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME, durable=False)
         with pytest.raises(AirflowException, match=exception_message):
             op.execute(None)
 
         run = {"job_id": JOB_ID, "job_name": JOB_NAME}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, json=run, durable=False)
         with pytest.raises(AirflowException, match=exception_message):
             op.execute(None)
 
         run = {"job_id": JOB_ID}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME, durable=False)
         with pytest.raises(AirflowException, match=exception_message):
             op.execute(None)
 
@@ -2398,6 +2422,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_exception_with_rendered_job_name_and_job_id(self, db_mock_class):
         op = DatabricksRunNowOperator(
+            durable=False,
             task_id=TASK_ID,
             json='{"job_id": "42", "job_name": "job-name"}',
         )
@@ -2412,7 +2437,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_with_job_name(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run, durable=False)
         db_mock = db_mock_class.return_value
         db_mock.find_job_id_by_name.return_value = JOB_ID
         db_mock.run_now.return_value = RUN_ID
@@ -2445,7 +2470,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_failure_if_job_id_not_found(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run, durable=False)
         db_mock = db_mock_class.return_value
         db_mock.find_job_id_by_name.return_value = None
 
@@ -2459,7 +2484,12 @@ class TestDatabricksRunNowOperator:
     def test_cancel_previous_runs(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(
-            task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=True, wait_for_termination=False, json=run
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            cancel_previous_runs=True,
+            wait_for_termination=False,
+            json=run,
         )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -2493,7 +2523,12 @@ class TestDatabricksRunNowOperator:
     def test_no_cancel_previous_runs(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(
-            task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=False, wait_for_termination=False, json=run
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            cancel_previous_runs=False,
+            wait_for_termination=False,
+            json=run,
         )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -2532,6 +2567,7 @@ class TestDatabricksRunNowOperator:
         }
 
         op = DatabricksRunNowOperator(
+            durable=False,
             task_id=TASK_ID,
             json=run,
             cancel_previous_runs=True,
@@ -2853,6 +2889,7 @@ class TestDatabricksRunNowOperator:
         (regression test for GH-39002).
         """
         op = DatabricksRunNowOperator(
+            durable=False,
             task_id=TASK_ID,
             job_id=JOB_ID,
             params={"env": "prod", "batch_size": 100},
@@ -2873,6 +2910,7 @@ class TestDatabricksRunNowOperator:
         not override it.
         """
         op = DatabricksRunNowOperator(
+            durable=False,
             task_id=TASK_ID,
             job_id=JOB_ID,
             json={"job_parameters": {"explicit": "value"}},
@@ -2886,6 +2924,227 @@ class TestDatabricksRunNowOperator:
 
         actual = db_mock.run_now.call_args.args[0]
         assert actual["job_parameters"] == {"explicit": "value"}
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+class TestDatabricksRunNowOperatorDurable:
+    @staticmethod
+    def _context(task_store=None):
+        ctx: dict = {"ti": MagicMock(stats_tags={})}
+        if task_store is not None:
+            ctx["task_state_store"] = task_store
+        return ctx
+
+    @staticmethod
+    def _state(lifecycle: str, result: str = ""):
+        return {"state": {"life_cycle_state": lifecycle, "result_state": result, "state_message": ""}}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_persists_run_id_to_task_state_store_on_fresh_submit(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+
+        op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnects_to_active_run_without_resubmitting(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        # status check sees the stored run still RUNNING, the poll then sees it finish.
+        db_mock.get_run.side_effect = [self._state("RUNNING"), self._state("TERMINATED", "SUCCESS")]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_not_called()
+        task_store.set.assert_not_called()
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnects_to_blocked_run_without_resubmitting(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        # A gated run sits in BLOCKED; the durable retry must reconnect and wait, not resubmit.
+        db_mock.get_run.side_effect = [self._state("BLOCKED"), self._state("TERMINATED", "SUCCESS")]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_not_called()
+        task_store.set.assert_not_called()
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnect_with_job_name_resolves_job_id_for_repair(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = JOB_ID
+        db_mock.get_run.side_effect = [self._state("RUNNING"), self._state("TERMINATED", "SUCCESS")]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        # The reconnect rebuilds the payload and resolves job_name -> job_id so repair_run has it,
+        # without resubmitting the run.
+        db_mock.run_now.assert_not_called()
+        db_mock.find_job_id_by_name.assert_called_once_with(JOB_NAME)
+        assert op._merged_json["job_id"] == JOB_ID
+        assert "job_name" not in op._merged_json
+
+    @mock.patch("airflow.providers.databricks.operators.databricks._handle_databricks_operator_execution")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_already_succeeded_pushes_xcoms_without_polling(self, db_mock_class, mock_poll):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+        ti = MagicMock(stats_tags={})
+
+        op.execute({"ti": ti, "task_state_store": task_store})
+
+        # No duplicate run and no poll loop, but the run xcoms are still pushed for parity.
+        db_mock.run_now.assert_not_called()
+        mock_poll.assert_not_called()
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        ti.xcom_push.assert_any_call(key="run_id", value=RUN_ID)
+        ti.xcom_push.assert_any_call(key="run_page_url", value=RUN_PAGE_URL)
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_fresh_submit_pushes_run_xcoms_exactly_once(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+        ti = MagicMock(stats_tags={})
+
+        op.execute({"ti": ti, "task_state_store": task_store})
+
+        # Poll helper pushes run_id + run_page_url; get_job_result must not push them again.
+        assert ti.xcom_push.call_count == 2
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_resubmits_when_stored_run_in_terminal_failure(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run.side_effect = [
+            self._state("TERMINATED", "FAILED"),
+            self._state("TERMINATED", "SUCCESS"),
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = 999
+
+        op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_resubmits_when_stored_run_no_longer_exists(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        # the stored run's history has expired -> get_run 404s; the fresh run then polls to success.
+        db_mock.get_run.side_effect = [
+            DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
+            self._state("TERMINATED", "SUCCESS"),
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = 999
+
+        op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_durable_false_never_touches_task_state_store(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, durable=False)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+        task_store = MagicMock(spec_set=["get", "set"])
+
+        op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_called_once()
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_durable_true_submits_fresh_missing_task_state_store(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(self._context())  # no task_state_store in context
+
+        db_mock.run_now.assert_called_once()
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_get_job_status_encodes_life_cycle_and_result(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.get_run.return_value = self._state("TERMINATED", "SUCCESS")
+
+        assert op.get_job_status(RUN_ID, {}) == "TERMINATED:SUCCESS"
+
+    @pytest.mark.parametrize(
+        ("status", "expected"),
+        [
+            ("RUNNING:", True),
+            ("PENDING:", True),
+            ("QUEUED:", True),
+            ("TERMINATING:", True),
+            ("BLOCKED:", True),
+            ("WAITING_FOR_RETRY:", True),
+            ("TERMINATED:SUCCESS", False),
+            ("TERMINATED:FAILED", False),
+            ("SKIPPED:", False),
+            ("INTERNAL_ERROR:", False),
+            ("NOT_FOUND:", False),
+        ],
+    )
+    def test_is_job_active(self, status, expected):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        assert op.is_job_active(status) is expected
+
+    @pytest.mark.parametrize(
+        ("status", "expected"),
+        [
+            ("TERMINATED:SUCCESS", True),
+            ("TERMINATED:FAILED", False),
+            ("RUNNING:", False),
+            ("SKIPPED:", False),
+        ],
+    )
+    def test_is_job_succeeded(self, status, expected):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        assert op.is_job_succeeded(status) is expected
 
 
 class TestDatabricksSQLStatementsOperator:

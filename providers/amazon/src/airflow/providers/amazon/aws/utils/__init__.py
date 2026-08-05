@@ -22,13 +22,53 @@ import re
 from datetime import datetime, timezone
 from enum import Enum
 from importlib import metadata
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+import tenacity
+from botocore.exceptions import ClientError
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
 from airflow.version import version
 
+if TYPE_CHECKING:
+    from airflow.sdk.types import Logger
+
 log = logging.getLogger(__name__)
+
+# AWS briefly rejects a delete call with ResourceInUseException while the target resource is still
+# settling from a prior operation (e.g. EKS finalizing a nodegroup removal before the cluster can be
+# deleted). Retry with exponential backoff (1s, 2s, 4s, ... capped at RESOURCE_IN_USE_RETRY_MAX_WAIT
+# per wait) until RESOURCE_IN_USE_RETRY_TIMEOUT elapses, then give up and re-raise. This rides out the
+# settling window without hanging a genuinely wedged resource for long.
+RESOURCE_IN_USE_RETRY_TIMEOUT = 300
+RESOURCE_IN_USE_RETRY_MAX_WAIT = 60
+
+
+def is_resource_in_use_error(exception: BaseException) -> bool:
+    """Return True if the exception is a transient AWS ``ResourceInUseException``."""
+    return (
+        isinstance(exception, ClientError)
+        and exception.response.get("Error", {}).get("Code") == "ResourceInUseException"
+    )
+
+
+def build_resource_in_use_retry_args(logger: Logger | logging.Logger) -> dict[str, Any]:
+    """
+    Build tenacity arguments for retrying a call on a transient ``ResourceInUseException``.
+
+    Shared by synchronous operators (``tenacity.Retrying``) and deferrable triggers
+    (``tenacity.AsyncRetrying``) so both back off identically. ``reraise=True`` keeps the
+    original error as the task failure once the retry timeout is exhausted. Accepts either an
+    Airflow structlog logger (``self.log``) or a stdlib ``logging.Logger`` (module-level helpers).
+    """
+    return {
+        "retry": tenacity.retry_if_exception(is_resource_in_use_error),
+        "wait": tenacity.wait_exponential(max=RESOURCE_IN_USE_RETRY_MAX_WAIT),
+        "stop": tenacity.stop_after_delay(RESOURCE_IN_USE_RETRY_TIMEOUT),
+        "before_sleep": tenacity.before_sleep_log(logger, logging.WARNING),
+        "reraise": True,
+    }
 
 
 def trim_none_values(obj: dict):

@@ -88,6 +88,36 @@ class TestKerberos:
                     "test-principal",
                 ],
             ),
+            (
+                {("kerberos", "include_renewal_lifetime"): "False"},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-k",
+                    "-t",
+                    "keytab",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "test-principal",
+                ],
+            ),
+            (
+                {("kerberos", "include_renewal_lifetime"): "True"},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-k",
+                    "-t",
+                    "keytab",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "test-principal",
+                ],
+            ),
         ],
     )
     @mock.patch("time.sleep", return_value=None)

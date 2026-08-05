@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable perfectionist/sort-objects */
 import {
   createSystem,
@@ -382,6 +381,12 @@ const defaultAirflowTheme: ThemingConfig = {
     },
     switch: {
       slots: [],
+      base: {
+        control: {
+          shadow: "inset 0 0 0px 1px var(--shadow-color)",
+          shadowColor: { _dark: "gray.500", _light: "gray.400" },
+        },
+      },
       defaultVariants: { size: "sm" } as Record<string, string>,
     },
     // size="sm" gives px/py:2 on cell and columnHeader vs px/py:3 for "md".

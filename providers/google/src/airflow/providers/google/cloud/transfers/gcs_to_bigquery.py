@@ -196,6 +196,7 @@ class GCSToBigQueryOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "bucket",
         "source_objects",
+        "schema_fields",
         "schema_object",
         "schema_object_bucket",
         "destination_project_dataset_table",
@@ -203,6 +204,7 @@ class GCSToBigQueryOperator(BaseOperator):
         "src_fmt_configs",
         "extra_config",
     )
+    template_fields_renderers = {"schema_fields": "json"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#f0eee4"
     operator_extra_links = (BigQueryTableLink(),)
