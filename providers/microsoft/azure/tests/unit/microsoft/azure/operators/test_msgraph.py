@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, Context
+from airflow.providers.common.compat.sdk import AirflowException, Context, timezone
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 
@@ -38,11 +38,6 @@ from unit.microsoft.azure.test_utils import (
     mock_response,
     patch_hook_and_request_adapter,
 )
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef]
 
 
 class TestMSGraphAsyncOperator:

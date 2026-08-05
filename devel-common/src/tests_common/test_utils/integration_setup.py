@@ -38,7 +38,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 try:
     from airflow.sdk import timezone
 except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
+    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined] # noqa: TID251
 
 log = logging.getLogger(__name__)
 

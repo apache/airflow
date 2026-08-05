@@ -26,15 +26,15 @@ import pytest
 
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
 from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsTaskHandler
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
-DEFAULT_DATE = datetime(2020, 8, 10)
+DEFAULT_DATE = timezone.datetime(2020, 8, 10)
 
 
 class TestHdfsTaskHandler:
