@@ -28,6 +28,7 @@ import pygments
 from pygments.lexers.configs import IniLexer
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.configuration import AIRFLOW_CONFIG, ConfigModifications, conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import should_use_colors
@@ -35,6 +36,7 @@ from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
+@deprecated_for_airflowctl("airflowctl config list")
 @providers_configuration_loaded
 def show_config(args):
     """Show current application configuration."""
@@ -63,6 +65,7 @@ def show_config(args):
     print(code)
 
 
+@deprecated_for_airflowctl("airflowctl config get")
 @providers_configuration_loaded
 def get_value(args):
     """Get one value from configuration."""
@@ -1013,13 +1016,12 @@ def update_config(args) -> None:
             continue
         conf_section = change.config.section.lower()
         conf_option = change.config.option.lower()
-        full_key = f"{conf_section}.{conf_option}"
 
         if update_sections_lower is not None and conf_section not in update_sections_lower:
             continue
-        if update_options_lower is not None and full_key not in update_options_lower:
+        if update_options_lower is not None and conf_option not in update_options_lower:
             continue
-        if conf_section in ignore_sections_lower or full_key in ignore_options_lower:
+        if conf_section in ignore_sections_lower or conf_option in ignore_options_lower:
             continue
 
         if conf_section not in config_dict or conf_option not in config_dict[conf_section]:

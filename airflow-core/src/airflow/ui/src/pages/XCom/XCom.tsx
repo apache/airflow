@@ -32,6 +32,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import AddXComButton from "./AddXComButton";
@@ -150,6 +151,9 @@ const getColumns = ({
 export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
   const { t: translate } = useTranslation(["browse", "common"]);
+
+  // Only the standalone list page owns the tab title; the task-instance tab inherits that page's title.
+  useDocumentTitle(dagId === "~" ? translate("common:browse.xcoms") : undefined);
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;

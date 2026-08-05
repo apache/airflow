@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import secrets
+import shlex
 import string
 import subprocess
 
@@ -41,13 +42,15 @@ def generate_encrypted_file_with_openssl(file_path: str, password: str, out_file
         "-salt",
         "-pbkdf2",
         "-pass",
-        f"pass:{password}",
+        "stdin",
         "-in",
         file_path,
         "-out",
         out_file,
     ]
-    subprocess.run(cmd, check=True)
+    # Pass the passphrase on stdin rather than the command line so it is not
+    # visible in the local host's process list (ps).
+    subprocess.run(cmd, input=f"{password}\n".encode(), check=True)
 
 
 def decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, bteq_command_str):
@@ -55,7 +58,7 @@ def decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, bteq_co
     quoted_password = shell_quote_single(password)
 
     decrypt_cmd = (
-        f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:{quoted_password} -in {remote_enc_file} | "
+        f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:{quoted_password} -in {shlex.quote(remote_enc_file)} | "
         + bteq_command_str
     )
     # Clear password to prevent lingering sensitive data

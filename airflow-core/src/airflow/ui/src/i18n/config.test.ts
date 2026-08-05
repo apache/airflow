@@ -33,7 +33,7 @@ type LanguageUtils = { getBestMatchFromCodes: (codes: ReadonlyArray<string>) => 
 const resolveLanguage = async (navigatorLanguages: ReadonlyArray<string>): Promise<string> => {
   const instance = createInstance();
 
-  await instance.init({ ...i18nBaseOptions, initImmediate: false, resources: {} });
+  await instance.init({ ...i18nBaseOptions, resources: {} });
 
   const languageUtils = instance.services.languageUtils as LanguageUtils;
 

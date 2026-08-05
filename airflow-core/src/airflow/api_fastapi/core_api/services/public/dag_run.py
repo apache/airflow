@@ -57,6 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.taskinstance import TaskInstance
@@ -193,9 +194,17 @@ def patch_dag_run_state(
 ) -> None:
     """Set a Dag Run's state (success/queued/failed), firing the matching listener hooks."""
     if state == DagRunMutableStates.SUCCESS:
-        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        _, killed_tis = set_dag_run_state_to_success(
+            dag=dag, run_id=dag_run.run_id, commit=True, session=session
+        )
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.SUCCESS)
         try:
-            get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+            if dag_run.dag is None:
+                dag_run.dag = dag
+            get_listener_manager().hook.on_dag_run_success(
+                dag_run=dag_run,
+                msg=f"Dag Run's state was manually set to `{DagRunMutableStates.SUCCESS.value}`.",
+            )
         except Exception:
             log.exception("error calling listener")
     elif state == DagRunMutableStates.QUEUED:
@@ -204,16 +213,26 @@ def patch_dag_run_state(
         # Not notifying on queued - only notifying on RUNNING, which happens in the scheduler.
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
     elif state == DagRunMutableStates.FAILED:
-        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        _, killed_tis = set_dag_run_state_to_failed(
+            dag=dag, run_id=dag_run.run_id, commit=True, session=session
+        )
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.FAILED)
         try:
-            get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+            if dag_run.dag is None:
+                dag_run.dag = dag
+            get_listener_manager().hook.on_dag_run_failed(
+                dag_run=dag_run,
+                msg=f"Dag Run's state was manually set to `{DagRunMutableStates.FAILED.value}`.",
+            )
         except Exception:
             log.exception("error calling listener")
 
 
 def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
-    """Set or update a Dag Run's note."""
-    if dag_run.dag_run_note is None:
+    """Set, update, or clear a Dag Run's note. An empty note removes it so the run is left without a note."""
+    if note == "":
+        dag_run.dag_run_note = None
+    elif dag_run.dag_run_note is None:
         dag_run.note = (note, user.get_id())
     else:
         dag_run.dag_run_note.content = note

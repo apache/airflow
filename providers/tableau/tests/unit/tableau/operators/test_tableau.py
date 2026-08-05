@@ -87,7 +87,7 @@ class TestTableauOperator:
         def mock_hook_exit(exc_type, exc_val, exc_tb):
             mock_signed_in[0] = False
 
-        def mock_wait_for_state(job_id, target_state, check_interval):
+        def mock_wait_for_state(job_id, target_state, check_interval, **kwargs):
             if not mock_signed_in[0]:
                 raise Exception("Not signed in")
 
@@ -109,7 +109,12 @@ class TestTableauOperator:
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
-            job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
+            job_id=job_id,
+            check_interval=20,
+            target_state=TableauJobFinishCode.SUCCESS,
+            timeout=None,
+            exponential_backoff=False,
+            max_check_interval=None,
         )
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
@@ -152,7 +157,7 @@ class TestTableauOperator:
         def mock_hook_exit(exc_type, exc_val, exc_tb):
             mock_signed_in[0] = False
 
-        def mock_wait_for_state(job_id, target_state, check_interval):
+        def mock_wait_for_state(job_id, target_state, check_interval, **kwargs):
             if not mock_signed_in[0]:
                 raise Exception("Not signed in")
 
@@ -170,7 +175,12 @@ class TestTableauOperator:
         mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
-            job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
+            job_id=job_id,
+            check_interval=20,
+            target_state=TableauJobFinishCode.SUCCESS,
+            timeout=None,
+            exponential_backoff=False,
+            max_check_interval=None,
         )
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
@@ -372,7 +382,7 @@ class TestTableauOperator:
         def mock_hook_exit(exc_type, exc_val, exc_tb):
             mock_signed_in[0] = False
 
-        def mock_wait_for_state(job_id, target_state, check_interval):
+        def mock_wait_for_state(job_id, target_state, check_interval, **kwargs):
             if not mock_signed_in[0]:
                 raise Exception("Not signed in")
             return True
@@ -394,7 +404,12 @@ class TestTableauOperator:
         mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=True)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
-            job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
+            job_id=job_id,
+            check_interval=20,
+            target_state=TableauJobFinishCode.SUCCESS,
+            timeout=None,
+            exponential_backoff=False,
+            max_check_interval=None,
         )
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
@@ -487,3 +502,31 @@ class TestTableauOperator:
         # Verify that refresh was called WITHOUT the incremental parameter
         mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert job_id == mock_tableau_hook.server.datasources.refresh.return_value.id
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_blocking_refresh_forwards_wait_for_state_options(self, mock_tableau_hook):
+        """timeout/exponential_backoff/max_check_interval should be forwarded to wait_for_state."""
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.wait_for_state = Mock(return_value=True)
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+
+        operator = TableauOperator(
+            find="ds_2",
+            resource="datasources",
+            check_interval=5,
+            timeout=300,
+            exponential_backoff=True,
+            max_check_interval=120,
+            **self.kwargs,
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.wait_for_state.assert_called_once_with(
+            job_id=job_id,
+            check_interval=5,
+            target_state=TableauJobFinishCode.SUCCESS,
+            timeout=300,
+            exponential_backoff=True,
+            max_check_interval=120,
+        )

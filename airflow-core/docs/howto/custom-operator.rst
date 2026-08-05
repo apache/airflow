@@ -132,16 +132,20 @@ The ``execute`` gets called only during a Dag run.
 
 User interface
 --------------
-Airflow also allows the developer to control how the operator shows up in the Dag UI.
-Override ``ui_color`` to change the background color of the operator in UI.
-Override ``ui_fgcolor`` to change the color of the label.
+Airflow also allows the developer to control how the operator shows up in the Dag graph view.
+Override ``ui_color`` to change the node's fill color and ``ui_fgcolor`` to change its label color.
+Each accepts a raw color (a hex code or a CSS color name) or a `Chakra <https://www.chakra-ui.com/docs/theming/colors>`__
+theme token: a palette token such as ``blue.500``, or a **semantic token** such as ``brand.solid``
+that is defined in the UI theme and adapts to light and dark mode. Theme tokens -- including any
+added through a custom UI theme -- resolve through a theme-controlled CSS variable, so they stay
+legible across color modes.
 Override ``custom_operator_name`` to change the displayed name to something other than the classname.
 
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
-            ui_color = "#ff0000"
-            ui_fgcolor = "#000000"
+            ui_color = "blue.500"  # a Chakra palette token
+            ui_fgcolor = "brand.contrast"  # a semantic token that adapts to light and dark mode
             custom_operator_name = "Howdy"
             # ...
 
@@ -331,6 +335,22 @@ Therefore, the following example is invalid:
 
             def __init__(self, foo) -> None:
                 self.foo = foo.lower()  # assignment should be only self.foo = foo
+
+4. Checking whether an argument was *passed* is allowed in the constructor — ``execute()`` cannot
+tell a supplied field from a missing one, because a field can be ``None`` after rendering. Write it
+as ``is None`` / ``is not None``, never as a truthiness test. Anything that inspects the *value*
+still belongs in ``execute()``:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = ("foo", "bar")
+
+            def __init__(self, foo=None, bar=None) -> None:
+                if foo is None and bar is None:  # allowed: asks what was passed
+                    raise ValueError("Either 'foo' or 'bar' must be provided")
+                self.foo = foo
+                self.bar = bar
 
 When an operator inherits from a base operator and does not have a constructor defined on its own, the limitations above
 do not apply. However, the templated fields must be set properly in the parent according to those limitations.

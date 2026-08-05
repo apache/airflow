@@ -57,7 +57,7 @@ Any model identifier accepted by
 works out of the box. Common identifiers:
 
 - ``openai:gpt-4o``, ``openai:gpt-4o-mini`` -- requires ``langchain-openai``
-- ``anthropic:claude-3-7-sonnet`` -- requires ``langchain-anthropic``
+- ``anthropic:claude-sonnet-5`` -- requires ``langchain-anthropic``
 - ``groq:llama-3.3-70b-versatile`` -- requires ``langchain-groq``
 - ``mistralai:mistral-large-latest`` -- requires ``langchain-mistralai``
 - ``ollama:llama3`` -- requires ``langchain-ollama`` (point ``host`` at the Ollama URL)

@@ -138,6 +138,7 @@ def render_chart(
     chart_dir=None,
     kubernetes_version=DEFAULT_KUBERNETES_VERSION,
     namespace=None,
+    api_versions=None,
 ):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
@@ -161,6 +162,8 @@ def render_chart(
             "--namespace",
             namespace,
         ]
+        for api_version in api_versions or []:
+            command.extend(["--api-versions", api_version])
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])

@@ -1,0 +1,11 @@
+Custom graph colors return via ``ui_color`` and ``ui_fgcolor``
+
+The ``ui_color`` and ``ui_fgcolor`` attributes on operators and TaskGroups color the graph view
+again -- the node fill from ``ui_color`` and the operator label from ``ui_fgcolor``, as they did in
+Airflow 2. They were silently ignored since Airflow 3.0.
+
+The value can be a raw color (a hex code like ``#e8b7e4`` or a CSS name) or a Chakra theme token --
+a palette token such as ``blue.500`` or a semantic token such as ``brand.solid`` that adapts to
+light and dark mode (including tokens added through custom UI theming); a token resolves through a
+theme-controlled CSS variable. The node border keeps reflecting the task-instance run state; the
+custom color is applied to the fill and label only.

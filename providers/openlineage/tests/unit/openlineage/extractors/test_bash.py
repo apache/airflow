@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
-from unittest.mock import patch
 
 from openlineage.client.facet_v2 import source_code_job
 
@@ -40,13 +39,11 @@ with DAG(
     bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag)
 
 
-@patch("airflow.providers.openlineage.conf.is_source_enabled")
-def test_extract_operator_bash_command_disabled(mocked_source_enabled):
-    mocked_source_enabled.return_value = False
+def test_extract_operator_bash_command_disabled():
     operator = BashOperator(task_id="taskid", bash_command="exit 0;", env={"A": "1"}, append_env=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
-        result = BashExtractor(operator).extract()
+        result = BashExtractor(operator, source_code_enabled=False).extract()
     assert "sourceCode" not in result.job_facets
     assert "unknownSourceAttribute" in result.run_facets
     unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
@@ -58,13 +55,11 @@ def test_extract_operator_bash_command_disabled(mocked_source_enabled):
     assert "task_id" in unknown_items[0]["properties"]
 
 
-@patch("airflow.providers.openlineage.conf.is_source_enabled")
-def test_extract_operator_bash_command_enabled(mocked_source_enabled):
-    mocked_source_enabled.return_value = True
+def test_extract_operator_bash_command_enabled():
     operator = BashOperator(task_id="taskid", bash_command="exit 0;", env={"A": "1"}, append_env=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
-        result = BashExtractor(operator).extract()
+        result = BashExtractor(operator, source_code_enabled=True).extract()
     assert result.job_facets["sourceCode"] == source_code_job.SourceCodeJobFacet("bash", "exit 0;")
     assert "unknownSourceAttribute" in result.run_facets
     unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]

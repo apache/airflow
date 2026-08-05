@@ -77,16 +77,29 @@ class AirflowJulHandler : Handler() {
 
   companion object {
     /**
-     * Install an [AirflowJulHandler] on the root logger.
+     * Route java.util.logging through Airflow by installing a single
+     * [AirflowJulHandler] on the root logger. Call this in the Dag bundle's
+     * `main` method before you create the [org.apache.airflow.sdk.Bundle]
+     * object; repeated calls are idempotent.
      *
-     * This is a convenience method to install the handler on all loggers if
-     * you choose to do this programmatically (rather than with a properties
-     * file). You should typically do it in the Dag bundle's `main` method
-     * before you create the [org.apache.airflow.sdk.Bundle] object.
+     * By default it first removes the root logger's existing handlers, notably
+     * the JDK's [java.util.logging.ConsoleHandler], which would otherwise also
+     * write each record to stderr that Airflow captures separately as
+     * `task.stderr` at ERROR level. Pass `clean = false` to instead add the
+     * handler alongside existing ones (e.g. your own
+     * [java.util.logging.FileHandler]); none of them must write to stderr, or
+     * task logs are duplicated. For full control, use a `logging.properties`
+     * file.
+     *
+     * @param clean remove the root logger's existing handlers first (default `true`).
      */
     @JvmStatic
-    fun install() {
+    @JvmOverloads
+    fun setup(clean: Boolean = true) {
       val root = Logger.getLogger("")
+      if (clean) {
+        root.handlers.forEach { root.removeHandler(it) }
+      }
       if (root.handlers.none { it is AirflowJulHandler }) {
         root.addHandler(AirflowJulHandler())
       }
