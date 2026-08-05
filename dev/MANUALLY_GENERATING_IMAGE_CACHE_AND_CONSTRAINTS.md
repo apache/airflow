@@ -25,8 +25,9 @@
 - [Automated image cache and constraints refreshing in CI](#automated-image-cache-and-constraints-refreshing-in-ci)
 - [Manually refreshing the image cache](#manually-refreshing-the-image-cache)
   - [Why we need to update image cache manually](#why-we-need-to-update-image-cache-manually)
-  - [Prerequisites](#prerequisites)
-  - [How to refresh the image cache](#how-to-refresh-the-image-cache)
+  - [How to refresh the image cache via the CI workflow (recommended)](#how-to-refresh-the-image-cache-via-the-ci-workflow-recommended)
+  - [Prerequisites for refreshing locally](#prerequisites-for-refreshing-locally)
+  - [How to refresh the image cache locally](#how-to-refresh-the-image-cache-locally)
   - [Is it safe to refresh the image cache?](#is-it-safe-to-refresh-the-image-cache)
   - [What the command does](#what-the-command-does)
 - [Manually generating constraint files](#manually-generating-constraint-files)
@@ -69,17 +70,17 @@ rebuilding of [Breeze](./breeze/doc/README.rst) images for development purpose. 
 * The latest [constraints](/contributing-docs/13_airflow_dependencies_and_extras.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
   `canary` build.
 
-* The [images](breeze/doc/ci/02_images.md) in `ghcr.io` registry are refreshed early at the beginning of the
-  `canary` build. This is done twice during the canary build:
-   * By the `Push Early Image Cache` job that is run at the beginning of the `canary` build. This cover the
-     case when there are new dependencies added or Dockerfile/scripts change. Thanks to that step, subsequent
-     PRs will be faster when they use the new Dockerfile/script. Those jobs **might fail** occasionally,
-     if the latest PR added some conflicting dependencies with current constraints. This is not a problem
-     and when it happens, it will be fixed by the next step.
-   * By the `Push Image Cache` job that is run at the end of the `canary` build. This covers the case when
-     cache is also refreshed after than `main` build succeeds after the new constraints are pushed. This
-     step makes sure that constraints are committed and pushed just before the cache is refreshed, so
-     there is no problem with conflicting dependencies.
+* The [images](breeze/doc/ci/02_images.md) in `ghcr.io` registry are refreshed by the `Push Image Cache`
+  job at the end of the `canary` build, once the tests have passed. Running it last is what makes the
+  constraints and the cache agree: the constraints are committed and pushed just before the cache is
+  refreshed from them.
+
+* Branches that are built on `push` rather than by the scheduled `canary` -- the release-prep
+  (`vX-Y-test`) and providers branches -- are refreshed by the
+  [`Refresh image registry cache`](../.github/workflows/refresh-image-registry-cache.yml) workflow
+  instead. It runs on its own rather than inside the CI run, because the CI run is cancelled by the
+  next push and a cache refresh that keeps being cancelled never lands. It covers every Python version
+  on both platforms, and it is the same workflow you run by hand (see below).
 
 
 # Manually refreshing the image cache
@@ -87,14 +88,35 @@ rebuilding of [Breeze](./breeze/doc/README.rst) images for development purpose. 
 ## Why we need to update image cache manually
 
 Sometimes, when we have a problem with our CI running and flakiness of GitHub Actions runners or our
-tests, the refresh might not be triggered. This has been mitigated by "Push Early Image Cache" job added in
-our CI, but there are other reasons you might want to refresh the cache. Sometimes we want to refresh the
+tests, the refresh might not be triggered. Sometimes we want to refresh the
 image cache in `vX_Y_test` branch (following our convention of branch names `vX_Y_test` branch is the branch
 used to release all `X.Y.*` versions of airflow) before we attempt to push a change there.
 There are no PRs happening in this branch, so manual refresh before we make a PR might speed up the PR build.
 Or sometimes we just refreshed the constraints (see below) and we want the cache to include those.
 
-## Prerequisites
+## How to refresh the image cache via the CI workflow (recommended)
+
+Run the [`Refresh image registry cache`](../.github/workflows/refresh-image-registry-cache.yml) workflow
+from the Actions tab, selecting the branch whose cache you want to refresh in GitHub's branch dropdown --
+the cache is namespaced per branch, so the branch you pick is the namespace written to. The `platform`
+input refreshes `linux/amd64`, `linux/arm64`, or both (the default).
+
+Prefer this over the local route below. The workflow needs no buildx / qemu setup on your machine, it
+does not depend on your upload bandwidth, it always covers every Python version, and it runs with the
+registry credentials the CI already has, so you do not need to be logged in to `ghcr.io` as a committer.
+
+A run you start by hand is not cancelled by merges landing while it works -- it uses a concurrency
+group of its own for that reason. Starting it again for the same branch does replace the run in
+flight. Push-triggered refreshes are never cancelled either; a newer one waits for the one in
+flight to finish.
+
+The workflow definition has to exist on the branch you select, so a release branch needs the workflow
+backported before it can be refreshed there.
+
+## Prerequisites for refreshing locally
+
+The rest of this chapter describes refreshing the cache from your own machine. It is a fallback for when
+the workflow cannot be used at all -- it is slower, and easy to get subtly wrong.
 
 Note that in order to refresh images you have to not only have `buildx` command installed for docker,
 but you should also make sure that you have the buildkit builder configured and set.
@@ -146,7 +168,7 @@ docker buildx ls
        airflow_cache1    tcp://127.0.0.1:2375
 ```
 
-## How to refresh the image cache
+## How to refresh the image cache locally
 
 The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for all
 python version is as simple as running the [refresh_images.sh](refresh_images.sh) script which will
@@ -217,11 +239,17 @@ and you need to be sure what you are doing, but you can always do it manually if
 ## How to refresh constraints via the CI workflow (recommended)
 
 The easiest way to refresh the constraints - for example to pick up newly released
-providers/dependencies from PyPI just before promoting an RC - is to trigger the
-[`Update constraints`](../.github/workflows/update-constraints-on-push.yml) workflow manually
-instead of running the `breeze` commands locally. The workflow runs exactly the same steps
-that run automatically when `uv.lock` changes, builds the CI images, generates all constraint
-flavours and commits/pushes them to the matching `constraints-*` branch.
+providers/dependencies from PyPI just before promoting an RC - is to run the
+[`Refresh constraints`](../.github/workflows/refresh-constraints.yml) workflow instead of
+running the `breeze` commands locally. It runs exactly the same steps that run automatically
+when `uv.lock` changes (it calls that workflow), builds the CI images, and commits/pushes to the
+matching `constraints-*` branch.
+
+It refreshes **all three constraint flavours**, not only the PyPI one:
+`constraints-source-providers-X.Y.txt` (providers from the sources, which is what CI and Breeze
+install), `constraints-no-providers-X.Y.txt` (core alone) and `constraints-X.Y.txt` (providers as
+published on PyPI, which is what users install). Refreshing only the PyPI flavour would leave CI
+and Breeze pinned to the older versions, so the three would disagree about the same dependency.
 
 The manual run is always launched from `main` and takes a `ref` input that selects the
 commit-ish (branch, tag or commit hash) whose sources the constraints are refreshed from. You
@@ -236,18 +264,21 @@ workflow); the automatic `uv.lock`-push runs are not restricted.
 
 To run it:
 
-1. Go to the [`Update constraints`](https://github.com/apache/airflow/actions/workflows/update-constraints-on-push.yml)
+![Run the Refresh constraints workflow](images/update_constraints_run_workflow.png)
+
+1. Go to the [`Refresh constraints`](https://github.com/apache/airflow/actions/workflows/refresh-constraints.yml)
    workflow in the Actions tab.
 2. Click **Run workflow** and keep the branch set to `main` (this is where the workflow runs
    from - it is not the branch whose constraints get refreshed).
-3. In the **ref** field, enter the commit-ish to refresh constraints from - for example
-   `v3-3-test`, `v3-3-stable`, `constraints-3-3`, an RC tag, or a commit hash. The matching
-   `constraints-X-Y` branch to push to is derived automatically from that ref's
+3. In the **Repo reference to refresh constraints from** field, enter the ref to refresh
+   constraints from - for example `v3-3-test`, `v3-3-stable`, `constraints-3-3`, an RC tag, or a
+   commit hash. Leave it empty to refresh the branch you run from (`main` -> `constraints-main`).
+   The matching `constraints-X-Y` branch to push to is derived automatically from that ref's
    `dev/breeze/src/airflow_breeze/branch_defaults.py`, so pointing at anything on the 3.3 line
    refreshes `constraints-3-3`.
-4. Keep **Re-resolve to the newest matching dependencies** enabled (the default) so the run
-   picks up the latest released providers/dependencies from PyPI. Disable it only if you want
-   to regenerate constraints strictly from that ref's `uv.lock` without upgrading.
+4. Keep **Upgrade deps to newest from PyPI** enabled (the default) so the run picks up the
+   latest released providers/dependencies from PyPI. Disable it only if you want to regenerate
+   constraints strictly from that ref's `uv.lock` without upgrading.
 5. Once the run finishes, verify the new commit on the matching constraints branch
    (for example `constraints-3-3` for a 3.3 refresh):
 
