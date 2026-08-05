@@ -41,9 +41,10 @@ The two processes talk over a socket, and the Supervisor is the only side that e
 task JWT or talks to the *Execution API* — the user's code never sees the token and never touches the
 database.
 
-The same runtime can also run *in-process* (a single Python process, no fork, no sockets, no HTTP) for
-``dag.test()`` and local runs. The diagram below contrasts the two paths and marks where each Python process
-lives:
+The same runtime can also run *in-process* (a single Python process, no fork, no HTTP) for
+``dag.test()`` and local runs. A supervisor socket is still set up, because operators such as
+``PythonVirtualenvOperator`` spawn their own child process that has to reconnect to ask for Connections
+and Variables. The diagram below contrasts the two paths and marks where each Python process lives:
 
 .. image:: images/diagram_task_sdk_execution_architecture.png
 
