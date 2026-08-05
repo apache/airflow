@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-04T03:09:13.874734
+# This constraints file was automatically generated on 2026-08-05T06:10:16.744725
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.3
 MarkupSafe==3.0.3
-PyAthena==3.35.3
+PyAthena==3.35.4
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -195,7 +195,7 @@ backports.zstd==1.6.0
 bcrypt==5.0.0
 beautifulsoup4==4.15.0
 billiard==4.2.4
-bitarray==3.9.2
+bitarray==3.10.0
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
@@ -228,7 +228,7 @@ confluent-kafka==2.15.0
 crcmod-plus==2.3.1
 cron_descriptor==2.1.0
 croniter==6.2.4
-cryptography==49.0.0
+cryptography==50.0.0
 curlify==3.0.0
 databricks-sql-connector==4.4.0
 datadog==0.53.0
@@ -373,7 +373,7 @@ influxdb-client==1.50.0
 influxdb3-python==0.20.0
 invoke==3.0.3
 ipykernel==7.3.0
-ipython==9.15.0
+ipython==9.16.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 isoduration==20.11.0
@@ -451,7 +451,7 @@ nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
 numpy==2.5.1
 oauthlib==3.3.1
-openai==2.51.0
+openai==2.52.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.52.0
@@ -478,7 +478,7 @@ outcome==1.3.0.post0
 packaging==26.2
 pagerduty==7.0.0
 pandas-gbq==0.35.0
-pandas==2.3.3
+pandas==3.0.5
 pandocfilters==1.5.1
 papermill==2.7.0
 paramiko==5.0.0
@@ -511,7 +511,7 @@ ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
 py-spy==0.4.2
-pyOpenSSL==26.3.0
+pyOpenSSL==22.0.0
 pyarrow==25.0.0
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
@@ -519,9 +519,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.21.0
+pydantic-ai-slim==2.22.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.21.0
+pydantic-graph==2.22.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -541,7 +541,7 @@ pyspnego==0.12.1
 python-arango==8.3.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.5.0
+python-discovery==1.5.1
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -595,7 +595,7 @@ smart_open==8.0.1
 smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
-snowflake-connector-python==4.7.1
+snowflake-connector-python==4.0.0
 snowflake-snowpark-python==1.54.0
 snowflake-sqlalchemy==1.11.0
 sortedcontainers==2.4.0
@@ -615,7 +615,7 @@ svcs==26.1.0
 tableauserverclient==0.41
 tabulate==0.10.0
 tenacity==9.1.4
-teradatasql==20.0.0.63
+teradatasql==20.0.0.64
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 text-unidecode==1.3
@@ -629,7 +629,7 @@ tokenizers==0.23.1
 tomlkit==0.15.1
 tornado==6.5.7
 tqdm==4.70.0
-traitlets==5.15.1
+traitlets==5.16.0
 trino==0.338.0
 truststore==0.10.4
 typer==0.27.0
@@ -644,7 +644,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.12.0
+uv==0.12.1
 uvicorn==0.52.0
 uvloop==0.22.1
 validators==0.35.0
