@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-05T06:10:22.307270
+# This constraints file was automatically generated on 2026-08-05T11:56:01.694145
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -67,7 +67,7 @@ adbc-driver-postgresql==1.12.0
 adbc-driver-sqlite==1.12.0
 adlfs==2026.5.0
 aenum==3.1.17
-aiobotocore==3.8.0
+aiobotocore==3.9.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.7.1
 aiohttp-cors==0.8.1
@@ -205,8 +205,8 @@ bitarray==3.10.0
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
-boto3==1.43.46
-botocore==1.43.46
+boto3==1.43.56
+botocore==1.43.56
 cachelib==0.14.0
 cachetools==7.1.6
 cadwyn==7.0.0
@@ -277,7 +277,7 @@ gcloud-aio-auth==5.5.0
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.7.0
-genai-prices==0.1.0
+genai-prices==0.1.1
 geomet==1.1.0
 gevent==26.7.0
 gitdb==4.0.12
@@ -499,8 +499,8 @@ pinecone==9.1.0
 pinotdb==9.1.2
 platformdirs==4.11.0
 pluggy==1.6.0
-polars-runtime-32==1.42.1
-polars==1.42.1
+polars-runtime-32==1.43.2
+polars==1.43.2
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
