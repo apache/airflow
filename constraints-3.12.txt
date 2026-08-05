@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-05T11:57:58.066590
+# This constraints file was automatically generated on 2026-08-05T14:56:42.821717
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -119,7 +119,6 @@ apache-airflow-providers-discord==3.12.3
 apache-airflow-providers-facebook==3.9.5
 apache-airflow-providers-ftp==3.15.2
 apache-airflow-providers-github==2.11.3
-apache-airflow-providers-google==22.1.0
 apache-airflow-providers-grpc==3.9.5
 apache-airflow-providers-http==6.0.5
 apache-airflow-providers-influxdb==2.11.0
@@ -145,6 +144,7 @@ apache-airflow-providers-segment==3.9.5
 apache-airflow-providers-sendgrid==4.2.4
 apache-airflow-providers-singularity==3.9.4
 apache-airflow-providers-slack==9.10.2
+apache-airflow-providers-snowflake==6.15.0
 apache-airflow-providers-sqlite==4.3.3
 apache-airflow-providers-tableau==5.6.0
 apache-airflow-providers-vertica==4.4.0
@@ -284,7 +284,7 @@ google-api-python-client==2.198.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
 google-auth==2.56.2
-google-cloud-aiplatform==1.148.1
+google-cloud-aiplatform==1.163.0
 google-cloud-alloydb==0.11.0
 google-cloud-appengine-logging==1.10.0
 google-cloud-audit-log==0.6.0
@@ -330,7 +330,7 @@ google-cloud-videointelligence==2.20.0
 google-cloud-vision==3.15.0
 google-cloud-workflows==1.23.0
 google-crc32c==1.8.0
-google-genai==1.75.0
+google-genai==2.16.0
 google-resumable-media==2.10.0
 googleapis-common-protos==1.75.0
 graphviz==0.21
@@ -369,7 +369,7 @@ ibmcloudant==0.11.9
 idna==3.18
 ijson==3.4.0.post0
 immutabledict==4.3.1
-importlib_metadata==9.0.0
+importlib_metadata==8.9.0
 importlib_resources==7.1.0
 impyla==0.24.0
 inflection==0.5.1
@@ -409,7 +409,7 @@ lazy-object-proxy==1.12.0
 libcst==1.9.0
 limits==5.8.0
 linkify-it-py==2.1.0
-litellm==1.82.6
+litellm==1.85.7
 lockfile==0.12.2
 logfire-api==4.39.0
 looker_sdk==26.12.0
