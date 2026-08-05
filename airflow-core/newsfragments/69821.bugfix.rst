@@ -1,0 +1,1 @@
+Deferrable tasks that fail via a trigger-emitted ``TaskFailedEvent`` now respect retries: if the task has retries remaining it goes ``up_for_retry`` and runs ``on_retry_callback``, instead of always failing terminally and running ``on_failure_callback``.
