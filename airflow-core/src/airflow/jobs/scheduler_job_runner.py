@@ -3511,8 +3511,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 num_resolved = 0
                 num_failed = 0
+                num_unresumable = 0
                 for ti in timed_out_tis:
                     hitl_detail = ti.hitl_detail
+                    resuming = True
                     if hitl_detail is not None and hitl_detail.responded_at is not None:
                         # A response landed just before the deadline; resume with it.
                         handle_event_submit(
@@ -3520,7 +3522,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             task_instance=ti,
                             session=session,
                         )
-                        num_resolved += 1
                     elif hitl_detail is not None and hitl_detail.defaults is not None:
                         # Apply the configured defaults as the response, then resume to success.
                         hitl_detail.chosen_options = list(hitl_detail.defaults)
@@ -3536,7 +3537,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             task_instance=ti,
                             session=session,
                         )
-                        num_resolved += 1
                     else:
                         # No defaults and no response: resume into execute_complete with a timeout
                         # failure event so the operator raises HITLTimeoutError (matching the old
@@ -3552,16 +3552,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             task_instance=ti,
                             session=session,
                         )
+                        resuming = False
+
+                    # ``handle_event_submit`` routes a task instance it could not process to
+                    # ``__fail__`` instead of resuming it. That is neither of the outcomes the
+                    # branches above intended, so it is counted on its own rather than being
+                    # reported as resolved.
+                    if ti.next_method == TRIGGER_FAIL_REPR:
+                        num_unresumable += 1
+                    elif resuming:
+                        num_resolved += 1
+                    else:
                         num_failed += 1
 
                 # Flush within the retry block so both branches persist consistently (the defaults
                 # branch already flushes via handle_event_submit; the fail branch relies on this).
                 session.flush()
-                if num_resolved or num_failed:
+                if num_resolved or num_failed or num_unresumable:
                     self.log.info(
-                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed",
+                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed, "
+                        "%i could not be resumed",
                         num_resolved,
                         num_failed,
+                        num_unresumable,
                     )
 
     # [START find_and_purge_task_instances_without_heartbeats]
