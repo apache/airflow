@@ -442,11 +442,7 @@
                         "description": "Class name that implements the decorator",
                         "type": "string"
                     }
-                },
-                "required": [
-                    "name",
-                    "class-name"
-                ]
+                }
             }
         },
         "plugins": {
@@ -463,19 +459,12 @@
                         "type": "string",
                         "description": "Class to instantiate the plugin"
                     }
-                },
-                "required": [
-                    "name",
-                    "plugin-class"
-                ]
+                }
             }
         },
         "queues": {
             "type": "array",
-            "description": "Message queue provider class names",
-            "items": {
-                "type": "string"
-            }
+            "description": "Message queue provider class names"
         }
     },
     "definitions": {
