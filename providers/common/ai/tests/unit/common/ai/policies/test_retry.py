@@ -184,6 +184,7 @@ class TestLLMClassifyDecisions:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_custom_redactor_replaces_masker_instead_of_stacking(self, mock_hook_cls):
         """A custom redactor replaces the secrets masker entirely -- it is not applied on top."""
+        reset_secrets_masker()
         secret_value = "super-secret-conn-password"
         mask_secret(secret_value)
 
@@ -239,6 +240,7 @@ class TestLLMClassifyDecisions:
         The secret sits right at the truncation boundary: truncating first would slice
         it in half so the masker could no longer recognize and mask it.
         """
+        reset_secrets_masker()
         secret_value = "super-secret-conn-password"
         mask_secret(secret_value)
         max_exception_length = 20
