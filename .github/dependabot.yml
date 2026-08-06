@@ -257,3 +257,17 @@ updates:
       uv-dependency-updates:
         patterns:
           - "*"
+
+  - package-ecosystem: "gomod"
+    cooldown:
+      default-days: 14
+    directory: "/go-sdk"
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    open-pull-requests-limit: 0
+    groups:
+      3-3-go-sdk-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
