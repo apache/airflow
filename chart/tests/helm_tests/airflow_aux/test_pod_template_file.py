@@ -1403,7 +1403,7 @@ class TestPodTemplateFile:
 
         assert (
             jmespath.search(
-                "spec.template.spec.containers[?name=='base'] | [0].volumeMounts[?name=='kerberos-ccache'] | [0].readOnly",
+                "spec.containers[?name=='base'] | [0].volumeMounts[?name=='kerberos-ccache'] | [0].readOnly",
                 docs[0],
             )
             == readonly_cache
