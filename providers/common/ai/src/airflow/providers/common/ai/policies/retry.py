@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-__all__ = ["ErrorClassification", "LLMRetryPolicy", "default_redactor"]
+__all__ = ["ErrorClassification", "LLMRetryPolicy", "redact_registered_secrets"]
 
 DEFAULT_INSTRUCTIONS = (
     "You are an error classifier for a data pipeline system. "
@@ -81,8 +81,8 @@ class ErrorClassification(BaseModel):
     """Brief explanation of the classification decision."""
 
 
-def default_redactor(message: str) -> str:
-    """Redactor used when no custom ``redactor`` is supplied to :class:`LLMRetryPolicy`."""
+def redact_registered_secrets(message: str) -> str:
+    """Mask values registered via ``mask_secret()``; the default ``redactor`` for :class:`LLMRetryPolicy`."""
     # redact() is typed for arbitrary containers; a str in always yields a str out.
     return cast("str", redact(message))
 
@@ -112,7 +112,7 @@ class LLMRetryPolicy(RetryPolicy):
         decision path fast even when the provider is degraded.
     :param redactor: Callable applied to the exception's string representation
         before it is added to the classification prompt. Defaults to
-        :func:`~airflow.providers.common.ai.policies.retry.default_redactor`,
+        :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`,
         which only masks values already registered via ``mask_secret()``.
         Pass a custom callable to replace the default masking entirely --
         for example to redact free-text PII the secrets masker cannot see.
@@ -136,7 +136,7 @@ class LLMRetryPolicy(RetryPolicy):
         the failing task put in the exception message — connection strings,
         credential fragments, PII, or other secrets. By default
         ``_classify()`` runs the message through
-        :func:`~airflow.providers.common.ai.policies.retry.default_redactor`
+        :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`
         via ``redactor``, which masks values already registered via
         ``mask_secret()`` (for example, connection passwords Airflow
         captured while resolving the failing task's connections). This does
@@ -176,7 +176,7 @@ class LLMRetryPolicy(RetryPolicy):
         self.fallback_rules = fallback_rules
         self.timeout = timeout
         self.redactor: Callable[[str], str] | None = (
-            None if not redact_exception else redactor if redactor is not None else default_redactor
+            None if not redact_exception else redactor if redactor is not None else redact_registered_secrets
         )
         self.redact_exception = redact_exception
         self.max_exception_length = max_exception_length

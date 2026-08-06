@@ -160,7 +160,7 @@ Parameters
      - 30.0
      - Max seconds to wait for the LLM response before falling back.
    * - ``redactor``
-     - None (uses ``default_redactor``)
+     - None (uses ``redact_registered_secrets``)
      - Callable ``(str) -> str`` applied to the exception's string
        representation before it is added to the classification prompt. The
        default only masks values already registered via ``mask_secret()``
@@ -190,20 +190,20 @@ email addresses, customer names, account numbers -- that were never
 registered as secrets. If your task's exception messages can contain that
 kind of data, supply your own ``redactor`` callable. It **replaces** the
 default masker rather than running in addition to it, so combine your own
-logic with :func:`~airflow.providers.common.ai.policies.retry.default_redactor`
+logic with :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`
 yourself if you still want known-secret masking too:
 
 .. code-block:: python
 
     import re
 
-    from airflow.providers.common.ai.policies.retry import default_redactor
+    from airflow.providers.common.ai.policies.retry import redact_registered_secrets
 
     EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 
 
     def redact_emails_and_secrets(message: str) -> str:
-        return default_redactor(EMAIL_RE.sub("<email>", message))
+        return redact_registered_secrets(EMAIL_RE.sub("<email>", message))
 
 
     llm_policy = LLMRetryPolicy(

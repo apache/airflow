@@ -28,6 +28,7 @@ pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy 
 from airflow.providers.common.ai.policies.retry import (
     ErrorClassification,
     LLMRetryPolicy,
+    redact_registered_secrets,
 )
 from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
@@ -46,6 +47,18 @@ def _make_mock_agent(category, should_retry, delay=0, reasoning="test"):
     mock_agent = MagicMock()
     mock_agent.run_sync.return_value = mock_result
     return mock_agent
+
+
+@pytest.mark.enable_redact
+def test_redact_registered_secrets_masks_only_registered_values():
+    """Docs tell Dag authors to import and wrap this, so both the name and its narrow scope are contracts."""
+    reset_secrets_masker()
+    mask_secret("super-secret-conn-password")
+
+    assert (
+        redact_registered_secrets("contact user@example.com with super-secret-conn-password")
+        == "contact user@example.com with ***"
+    )
 
 
 class TestLLMClassifyDecisions:
