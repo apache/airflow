@@ -2259,6 +2259,13 @@ def finalize(
     for oe in task.operator_extra_links:
         try:
             link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
+            # A static link returns a constant URL from get_link() directly at
+            # render time (see SerializedBaseOperator.get_extra_links), so its
+            # value is never read back from XCom. Skip the metadata-DB write for
+            # these links -- this is what makes static_url actually bypass XCom.
+            if getattr(oe, "static_url", None) is not None:
+                log.debug("Skipping xcom push for static operator extra link", xcom_key=xcom_key)
+                continue
             log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
             _xcom_push_to_db(ti, key=xcom_key, value=link)
         except Exception:

@@ -2657,6 +2657,43 @@ class TestRuntimeTaskInstance:
                 map_index=runtime_ti.map_index,
             )
 
+    def test_task_run_with_static_operator_extra_link_skips_xcom(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine
+    ):
+        """A static operator extra link (``static_url`` set) must not be persisted to XCom.
+
+        The render path (``SerializedBaseOperator.get_extra_links``) resolves the URL by
+        calling ``get_link()`` directly, so a constant ``static_url`` is never read back
+        from XCom. ``finalize()`` therefore skips the metadata-DB write for such links.
+        """
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        class StaticLink(BaseOperatorLink):
+            name = "static"
+            static_url = "https://airflow.apache.org/docs"
+
+        class DummyStaticLinkOperator(BaseOperator):
+            operator_extra_links = (StaticLink(),)
+
+            def execute(self, context):
+                pass
+
+        task = DummyStaticLinkOperator(task_id="task_with_static_extra_link")
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        run(runtime_ti, context=context, log=mock.MagicMock())
+
+        with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TaskInstanceState.SUCCESS,
+                context=runtime_ti.get_template_context(),
+            )
+            mock_xcom_set.assert_not_called()
+
     def test_task_failed_with_operator_extra_links(
         self, create_runtime_ti, mock_supervisor_comms, time_machine
     ):
