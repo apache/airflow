@@ -73,8 +73,6 @@ the Dag argument.
     moves off the FAB auth manager and leaves ``access_control`` on its Dags stops enforcing those grants,
     and does so without raising an error.
 
-To migrate, move the grants into the policy source your auth manager consults, and make the per-Dag
-decision in ``is_authorized_dag``, which every auth manager implements. ``filter_authorized_dag_ids`` and
-``get_authorized_dag_ids`` answer list views over that same policy. Both have working default
-implementations built on ``is_authorized_dag``, so overriding them is a performance concern rather than a
-correctness one.
+To migrate, move the grants into the policy source your auth manager consults. The
+:doc:`/core-concepts/auth-manager/index` guide covers how a custom auth manager should express
+Dag-level access.
