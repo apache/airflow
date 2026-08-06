@@ -2002,6 +2002,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 for dr in dag_runs:
                     if team := dr_team_mapping.get(dr.dag_id):
                         dr._team_name = team
+            dag_runs_examined = len(dag_runs)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -2052,6 +2053,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             guard.commit()
 
+        stats.gauge("scheduler.dag_runs.examined", dag_runs_examined)
+        stats.gauge("scheduler.executor.open_slots", total_free_executor_slots)
+        self.log.info(
+            "Scheduling loop summary | dag_runs_examined=%d queued_tis=%d open_executor_slots=%d",
+            dag_runs_examined,
+            num_queued_tis,
+            total_free_executor_slots,
+        )
         return num_queued_tis
 
     def _warn_unreachable_asset_partition(
@@ -3644,6 +3653,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         else:
             dag_id_to_team_name = {}
 
+        stats.gauge("scheduler.tasks.heartbeat_timeout", len(task_instances_without_heartbeats))
         for ti in task_instances_without_heartbeats:
             # The scan locked this row (FOR UPDATE / skip_locked), but revalidate against the
             # committed state before emitting any side effect: a worker can commit a terminal state
@@ -3724,11 +3734,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
             )
+            _heartbeat_age_secs = (
+                (timezone.utcnow() - ti.last_heartbeat_at).total_seconds() if ti.last_heartbeat_at else None
+            )
+            _task_running_secs = (
+                (timezone.utcnow() - ti.start_date).total_seconds() if ti.start_date else None
+            )
             self.log.error(
                 "Detected a task instance without a heartbeat: %s "
+                "heartbeat_age_seconds=%s hostname=%s pid=%s task_running_seconds=%s "
                 "(See https://airflow.apache.org/docs/apache-airflow/"
                 "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
                 request,
+                f"{_heartbeat_age_secs:.1f}" if _heartbeat_age_secs is not None else "unknown",
+                ti.hostname or "unknown",
+                ti.pid or "unknown",
+                f"{_task_running_secs:.1f}" if _task_running_secs is not None else "unknown",
             )
             self.executor.send_callback(request)
 
