@@ -49,7 +49,6 @@ require (
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/evanphx/go-hclog-slog v0.0.0-20240717231540-be48fc4c4df5
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.4.0

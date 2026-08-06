@@ -64,9 +64,9 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-oracle = false
 apache-airflow-providers-mysql = false
-apache-airflow-providers-teradata = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-microsoft-mssql = false
+apache-airflow-providers-teradata = false
 apache-airflow-providers-jdbc = false
 apache-airflow-helm-chart = false
 apache-airflow-providers-anthropic = false
@@ -1032,7 +1032,6 @@ all = [
     { name = "apache-airflow-providers-cohere" },
     { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "apache-airflow-providers-common-dataquality" },
     { name = "apache-airflow-providers-common-io" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
@@ -1054,7 +1053,6 @@ all = [
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64'" },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-influxdb" },
     { name = "apache-airflow-providers-informatica" },
@@ -1217,9 +1215,6 @@ common-ai = [
 common-compat = [
     { name = "apache-airflow-providers-common-compat" },
 ]
-common-dataquality = [
-    { name = "apache-airflow-providers-common-dataquality" },
-]
 common-io = [
     { name = "apache-airflow-providers-common-io" },
 ]
@@ -1296,9 +1291,6 @@ hashicorp = [
 ]
 http = [
     { name = "apache-airflow-providers-http" },
-]
-ibm-mq = [
-    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64'" },
 ]
 imap = [
     { name = "apache-airflow-providers-imap" },
@@ -1632,8 +1624,6 @@ requires-dist = [
     { name = "apache-airflow-providers-common-ai", marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", marker = "extra == 'all'", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
-    { name = "apache-airflow-providers-common-dataquality", marker = "extra == 'all'", editable = "providers/common/dataquality" },
-    { name = "apache-airflow-providers-common-dataquality", marker = "extra == 'common-dataquality'", editable = "providers/common/dataquality" },
     { name = "apache-airflow-providers-common-io", marker = "extra == 'all'", editable = "providers/common/io" },
     { name = "apache-airflow-providers-common-io", marker = "extra == 'common-io'", editable = "providers/common/io" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'all'", editable = "providers/common/messaging" },
@@ -1680,8 +1670,6 @@ requires-dist = [
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'hashicorp'", editable = "providers/hashicorp" },
     { name = "apache-airflow-providers-http", marker = "extra == 'all'", editable = "providers/http" },
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'all'", editable = "providers/ibm/mq" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'ibm-mq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'all'", editable = "providers/imap" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-influxdb", marker = "extra == 'all'", editable = "providers/influxdb" },
@@ -1792,7 +1780,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.29" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-dataquality", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -1901,8 +1889,8 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.37.2" },
     { name = "click", specifier = ">=8.3.0" },
     { name = "filelock", specifier = ">=3.13.0" },
-    { name = "flit", specifier = ">=3.12.0" },
-    { name = "flit-core", specifier = ">=3.12.0" },
+    { name = "flit", specifier = ">=3.12.0,<4" },
+    { name = "flit-core", specifier = ">=3.12.0,<4" },
     { name = "gitpython", specifier = ">=3.1.40" },
     { name = "google-api-python-client", specifier = ">=2.142.0" },
     { name = "google-auth-httplib2", specifier = ">=0.2.0" },
@@ -2712,7 +2700,7 @@ requires-dist = [
     { name = "types-deprecated", marker = "extra == 'mypy'", specifier = ">=1.2.9.20240311" },
     { name = "types-docutils", marker = "extra == 'mypy'", specifier = ">=0.21.0.20240704" },
     { name = "types-markdown", marker = "extra == 'mypy'", specifier = ">=3.6.0.20240316" },
-    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402,<5.0.0" },
+    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402" },
     { name = "types-protobuf", marker = "extra == 'mypy'", specifier = ">=5.26.0.20240422" },
     { name = "types-pymysql", marker = "extra == 'mypy'", specifier = ">=1.1.0.20240425" },
     { name = "types-python-dateutil", marker = "extra == 'mypy'", specifier = ">=2.9.0.20240316" },
@@ -3180,9 +3168,9 @@ requires-dist = [
     { name = "jsonpath-ng", specifier = ">=1.5.3" },
     { name = "lxml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=6.0.0" },
     { name = "marshmallow", specifier = ">=3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
     { name = "pyathena", specifier = ">=3.10.0" },
     { name = "python3-saml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.16.0" },
     { name = "redshift-connector", specifier = ">=2.1.3" },
@@ -3488,9 +3476,9 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.14'", specifier = ">=1.12.1" },
     { name = "hdfs", extras = ["avro", "dataframe", "kerberos"], marker = "python_full_version < '3.12'", specifier = ">=2.5.4" },
     { name = "hdfs", extras = ["avro", "dataframe", "kerberos"], marker = "python_full_version >= '3.12'", specifier = ">=2.7.3" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
 ]
 
 [package.metadata.requires-dev]
@@ -3578,9 +3566,9 @@ requires-dist = [
     { name = "hmsclient", specifier = ">=0.1.0" },
     { name = "jmespath", specifier = ">=0.7.0" },
     { name = "kerberos", marker = "sys_platform != 'win32' and extra == 'gssapi'", specifier = ">=1.3.0" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyhive", extras = ["hive-pure-sasl"], specifier = ">=0.7.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
     { name = "winkerberos", marker = "sys_platform == 'win32' and extra == 'gssapi'", specifier = ">=0.7.0" },
@@ -4763,9 +4751,9 @@ requires-dist = [
     { name = "datafusion", marker = "extra == 'datafusion'", specifier = ">=50.0.0,<52.0.0" },
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "more-itertools", specifier = ">=9.0.0" },
-    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3,<3" },
-    { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
+    { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "pyiceberg-core", marker = "extra == 'pyiceberg-core'", specifier = ">=0.8.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
@@ -4877,9 +4865,9 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.9.0" },
     { name = "mergedeep", specifier = ">=1.3.4" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
     { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
@@ -5241,9 +5229,9 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyexasol", specifier = ">=0.26.0,<2" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
@@ -5759,9 +5747,9 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "immutabledict", specifier = ">=4.2.0" },
     { name = "looker-sdk", specifier = ">=22.4.0,!=24.18.0" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pandas-gbq", specifier = ">=0.7.0" },
     { name = "plyvel", marker = "python_full_version < '3.13' and extra == 'leveldb'", specifier = ">=1.5.1" },
     { name = "proto-plus", specifier = ">=1.26.0" },
@@ -7085,9 +7073,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "ipykernel", specifier = ">=6.29.4" },
     { name = "nbconvert", specifier = ">=7.16.1" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "papermill", extras = ["all"], specifier = ">=2.6.0" },
     { name = "scrapbook", extras = ["all"], specifier = ">=0.5.0" },
 ]
@@ -7253,9 +7241,9 @@ requires-dist = [
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "asyncpg", marker = "extra == 'asyncpg'", specifier = ">=0.30.0" },
-    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "psycopg", extras = ["binary"], marker = "python_full_version < '3.14'", specifier = ">=3.2.9" },
     { name = "psycopg", extras = ["binary"], marker = "python_full_version >= '3.14'", specifier = ">=3.3.3" },
@@ -7326,9 +7314,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "presto-python-client", specifier = ">=0.8.4" },
     { name = "psycopg2-binary", marker = "python_full_version < '3.13'", specifier = ">=2.9.9" },
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
@@ -7459,9 +7447,9 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "simple-salesforce", specifier = ">=1.0.0" },
 ]
 
@@ -7788,6 +7776,7 @@ dependencies = [
     { name = "apache-airflow-providers-common-sql" },
     { name = "pandas" },
     { name = "pyarrow" },
+    { name = "pyopenssl" },
     { name = "setuptools" },
     { name = "snowflake-connector-python" },
     { name = "snowflake-snowpark-python", marker = "python_full_version < '3.14'" },
@@ -7824,12 +7813,13 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
     { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
+    { name = "pyopenssl", specifier = ">=22.1.0" },
     { name = "setuptools", specifier = ">=80.0.0,<9999" },
     { name = "snowflake-connector-python", specifier = ">=3.17.0" },
     { name = "snowflake-snowpark-python", marker = "python_full_version < '3.12'", specifier = ">=1.17.0,<9999" },
@@ -8159,9 +8149,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "trino", specifier = ">=0.319.0" },
 ]
 provides-extras = ["google", "openlineage"]
@@ -8297,9 +8287,9 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "httpx", specifier = ">=0.25.0" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
     { name = "weaviate-client", specifier = ">=4.16.0,!=4.16.7" },
 ]
 
@@ -9070,9 +9060,9 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
