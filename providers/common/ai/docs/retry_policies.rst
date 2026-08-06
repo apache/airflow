@@ -160,7 +160,7 @@ Parameters
      - 30.0
      - Max seconds to wait for the LLM response before falling back.
    * - ``redactor``
-     - Airflow's secrets masker
+     - None (uses ``default_redactor``)
      - Callable ``(str) -> str`` applied to the exception's string
        representation before it is added to the classification prompt. The
        default only masks values already registered via ``mask_secret()``
@@ -168,8 +168,13 @@ Parameters
        failing task's connections) -- it is not general-purpose PII
        detection and will not catch arbitrary sensitive strings that were
        never registered as secrets. Passing a custom callable **replaces**
-       the default masker entirely rather than stacking on top of it; pass
-       ``None`` to disable redaction altogether.
+       the default masker entirely rather than stacking on top of it.
+   * - ``redact_exception``
+     - True
+     - Whether to redact the exception's string representation before it is
+       added to the classification prompt. Set to ``False`` to disable
+       redaction entirely. Raises ``ValueError`` at construction time if
+       combined with an explicit ``redactor``.
    * - ``max_exception_length``
      - 4096
      - Maximum number of characters of the (already redacted) exception
@@ -185,20 +190,20 @@ email addresses, customer names, account numbers -- that were never
 registered as secrets. If your task's exception messages can contain that
 kind of data, supply your own ``redactor`` callable. It **replaces** the
 default masker rather than running in addition to it, so combine your own
-logic with :func:`~airflow.sdk.log.redact` yourself if you still want
-known-secret masking too:
+logic with :func:`~airflow.providers.common.ai.policies.retry.default_redactor`
+yourself if you still want known-secret masking too:
 
 .. code-block:: python
 
     import re
 
-    from airflow.sdk.log import redact
+    from airflow.providers.common.ai.policies.retry import default_redactor
 
     EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 
 
     def redact_emails_and_secrets(message: str) -> str:
-        return redact(EMAIL_RE.sub("<email>", message))
+        return default_redactor(EMAIL_RE.sub("<email>", message))
 
 
     llm_policy = LLMRetryPolicy(
@@ -209,11 +214,11 @@ known-secret masking too:
 
 To disable redaction entirely (for example, if you are certain your
 exception messages contain no sensitive data and need the raw text for
-accurate classification), pass ``redactor=None``:
+accurate classification), pass ``redact_exception=False``:
 
 .. code-block:: python
 
-    LLMRetryPolicy(llm_conn_id="pydanticai_default", redactor=None)
+    LLMRetryPolicy(llm_conn_id="pydanticai_default", redact_exception=False)
 
 Local LLM support
 -----------------

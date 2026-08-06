@@ -144,7 +144,7 @@ class TestLLMClassifyDecisions:
         mock_agent = _make_mock_agent("auth", should_retry=False)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
-        policy = LLMRetryPolicy(llm_conn_id="test", redactor=None)
+        policy = LLMRetryPolicy(llm_conn_id="test", redact_exception=False)
         policy.evaluate(
             ConnectionError(f"could not authenticate with password {secret_value}"),
             try_number=1,
@@ -153,6 +153,32 @@ class TestLLMClassifyDecisions:
 
         prompt = mock_agent.run_sync.call_args[0][0]
         assert secret_value in prompt
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_explicit_redactor_none_still_applies_default_masking(self, mock_hook_cls):
+        """redactor=None means "use the default masker" -- the same as omitting it."""
+        reset_secrets_masker()
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test", redactor=None)
+        policy.evaluate(
+            ConnectionError(f"could not authenticate with password {secret_value}"),
+            try_number=1,
+            max_tries=3,
+        )
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert secret_value not in prompt
+        assert "***" in prompt
+
+    def test_redact_exception_false_with_explicit_redactor_raises(self):
+        with pytest.raises(ValueError, match="redactor must not be set when redact_exception=False"):
+            LLMRetryPolicy(llm_conn_id="test", redact_exception=False, redactor=lambda message: message)
 
     @pytest.mark.enable_redact
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
@@ -193,7 +219,9 @@ class TestLLMClassifyDecisions:
         mock_agent = _make_mock_agent("data", should_retry=False)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
-        policy = LLMRetryPolicy(llm_conn_id="test", redactor=None, max_exception_length=max_exception_length)
+        policy = LLMRetryPolicy(
+            llm_conn_id="test", redact_exception=False, max_exception_length=max_exception_length
+        )
         policy.evaluate(ValueError("x" * message_length), try_number=1, max_tries=3)
 
         prompt = mock_agent.run_sync.call_args[0][0]

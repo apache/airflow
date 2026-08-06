@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-__all__ = ["ErrorClassification", "LLMRetryPolicy"]
+__all__ = ["ErrorClassification", "LLMRetryPolicy", "default_redactor"]
 
 DEFAULT_INSTRUCTIONS = (
     "You are an error classifier for a data pipeline system. "
@@ -81,6 +81,12 @@ class ErrorClassification(BaseModel):
     """Brief explanation of the classification decision."""
 
 
+def default_redactor(message: str) -> str:
+    """Redactor used when no custom ``redactor`` is supplied to :class:`LLMRetryPolicy`."""
+    # redact() is typed for arbitrary containers; a str in always yields a str out.
+    return cast("str", redact(message))
+
+
 class LLMRetryPolicy(RetryPolicy):
     """
     Retry policy that uses an LLM to classify errors and decide retry behaviour.
@@ -105,12 +111,19 @@ class LLMRetryPolicy(RetryPolicy):
         (e.g. 600s for Anthropic) is much longer; this keeps the retry
         decision path fast even when the provider is degraded.
     :param redactor: Callable applied to the exception's string representation
-        before it is added to the classification prompt. Defaults to Airflow's
-        secrets masker (:func:`~airflow.sdk.log.redact`), which only masks
-        values already registered via ``mask_secret()``. Pass a custom
-        callable to replace the default masking entirely -- for example to
-        redact free-text PII the secrets masker cannot see -- or
-        ``redactor=None`` to disable redaction altogether.
+        before it is added to the classification prompt. Defaults to
+        :func:`~airflow.providers.common.ai.policies.retry.default_redactor`,
+        which only masks values already registered via ``mask_secret()``.
+        Pass a custom callable to replace the default masking entirely --
+        for example to redact free-text PII the secrets masker cannot see.
+        To disable masking altogether, use ``redact_exception=False`` --
+        not ``redactor=None``.
+    :param redact_exception: Whether to redact the exception's string
+        representation before it is added to the classification prompt.
+        Defaults to ``True``. Set to ``False`` to send the raw exception
+        text as-is. Passing ``redact_exception=False`` together with
+        an explicit ``redactor`` raises ``ValueError`` at construction time,
+        since the two settings would otherwise conflict silently.
     :param max_exception_length: Maximum number of characters of the
         (already redacted) exception message included in the prompt. Longer
         messages are truncated with a trailing ``"... (truncated)"`` marker.
@@ -122,17 +135,18 @@ class LLMRetryPolicy(RetryPolicy):
         etc.) as part of the classification prompt, so it may leak whatever
         the failing task put in the exception message — connection strings,
         credential fragments, PII, or other secrets. By default
-        ``_classify()`` runs the message through Airflow's secrets masker
-        (:func:`~airflow.sdk.log.redact`) via ``redactor``, which masks
-        values already registered via ``mask_secret()`` (for example,
-        connection passwords Airflow captured while resolving the failing
-        task's connections). This does **not** perform general-purpose PII
-        detection and will not catch arbitrary sensitive strings that were
-        never registered as secrets -- for free-text PII (emails, customer
-        names, etc.) supply your own ``redactor``, or pass ``redactor=None``
-        to disable redaction altogether. You are still responsible for
-        confirming that your task's exception messages are safe to send to
-        a third-party LLM provider.
+        ``_classify()`` runs the message through
+        :func:`~airflow.providers.common.ai.policies.retry.default_redactor`
+        via ``redactor``, which masks values already registered via
+        ``mask_secret()`` (for example, connection passwords Airflow
+        captured while resolving the failing task's connections). This does
+        **not** perform general-purpose PII detection and will not catch
+        arbitrary sensitive strings that were never registered as secrets --
+        for free-text PII (emails, customer names, etc.) supply your own
+        ``redactor``, or pass ``redact_exception=False`` to disable
+        redaction altogether. You are still responsible for confirming that
+        your task's exception messages are safe to send to a third-party
+        LLM provider.
     """
 
     def __init__(
@@ -143,18 +157,28 @@ class LLMRetryPolicy(RetryPolicy):
         fallback_rules: list[RetryRule] | None = None,
         timeout: float = 30.0,
         *,
-        # redact() is typed for arbitrary containers; a str in always yields a str out.
-        redactor: Callable[[str], str] | None = lambda message: cast("str", redact(message)),
+        redactor: Callable[[str], str] | None = None,
+        redact_exception: bool = True,
         max_exception_length: int = 4096,
     ) -> None:
         if max_exception_length <= 0:
             raise ValueError(f"max_exception_length must be a positive integer, got {max_exception_length}")
+        if not redact_exception and redactor is not None:
+            raise ValueError(
+                "redactor must not be set when redact_exception=False -- passing an explicit "
+                "redactor while also disabling redaction is contradictory. Either drop "
+                "redact_exception=False to keep using redactor, or drop redactor to disable "
+                "redaction entirely."
+            )
         self.llm_conn_id = llm_conn_id
         self.model_id = model_id
         self.instructions = instructions or DEFAULT_INSTRUCTIONS
         self.fallback_rules = fallback_rules
         self.timeout = timeout
-        self.redactor: Callable[[str], str] | None = redactor
+        self.redactor: Callable[[str], str] | None = (
+            None if not redact_exception else redactor if redactor is not None else default_redactor
+        )
+        self.redact_exception = redact_exception
         self.max_exception_length = max_exception_length
 
     def evaluate(
