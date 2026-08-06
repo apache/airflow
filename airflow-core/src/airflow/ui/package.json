@@ -63,7 +63,7 @@
     "react-icons": "^5.7.0",
     "react-innertext": "^1.1.5",
     "react-markdown": "^10.1.0",
-    "react-resizable-panels": "^3.0.6",
+    "react-resizable-panels": "^4.12.2",
     "react-router-dom": "^7.18.1",
     "react-syntax-highlighter": "^16.1.1",
     "rehype-katex": "^7.0.1",
