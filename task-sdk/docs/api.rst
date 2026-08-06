@@ -246,6 +246,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.RollupMapper
 
+.. autoapiclass:: airflow.sdk.RerunPolicy
+
 .. autoapiclass:: airflow.sdk.WaitForAll
 
 .. autoapiclass:: airflow.sdk.MinimumCount
