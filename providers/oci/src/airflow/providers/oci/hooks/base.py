@@ -225,10 +225,12 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
     def test_connection(self) -> tuple[bool, str]:
         """Test OCI credentials against the Identity service."""
         try:
-            oci = _get_oci_sdk()
+            _get_oci_sdk()
+            from oci.identity import IdentityClient
+
             config, signer = self.get_oci_config()
             client_kwargs = {"signer": signer} if signer is not None else {}
-            oci.identity.IdentityClient(config=config, **client_kwargs).list_regions()
+            IdentityClient(config=config, **client_kwargs).list_regions()
         except Exception as e:
             return False, f"{type(e).__name__} error occurred while testing connection: {e}"
         return True, "Connection successfully tested"

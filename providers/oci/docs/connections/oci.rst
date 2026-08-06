@@ -26,13 +26,11 @@ uses the ``oracle`` connection type and the ``oracledb`` driver.
 
 The OCI Python SDK transitively depends on the LGPL-licensed ``crc32c`` package. Under the
 `ASF third-party licensing policy <https://www.apache.org/legal/resolved.html#category-x>`__,
-this Category X dependency must remain optional. Install OCI support explicitly through either
-the Airflow or provider extra before using this connection or its service hooks:
+this Category X dependency must remain optional. Install OCI support explicitly through the
+provider extra before using this connection or its service hooks:
 
 .. code-block:: bash
 
-    pip install 'apache-airflow[oci]'
-    # or
     pip install 'apache-airflow-providers-oci[oci]'
 
 The default connection ID is ``oci_default``.

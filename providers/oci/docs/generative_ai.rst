@@ -22,7 +22,7 @@ OCI Generative AI Hosted Applications
 `OCI Python SDK <https://docs.oracle.com/en-us/iaas/tools/python/latest/>`__ to manage
 `Hosted Applications and deployments
 <https://docs.oracle.com/en-us/iaas/Content/generative-ai/agents.htm#deployments>`__.
-Install ``apache-airflow[oci]`` or ``apache-airflow-providers-oci[oci]`` before using the hook.
+Install ``apache-airflow-providers-oci[oci]`` before using the hook.
 Configure an
 :ref:`OCI connection <howto/connection:oci>` for API key authentication or optional
 connection-scoped defaults.

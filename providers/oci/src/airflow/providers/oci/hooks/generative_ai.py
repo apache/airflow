@@ -40,4 +40,7 @@ class OciGenerativeAIHook(OciBaseHook["GenerativeAiClient"]):
     hook_name = "OCI Generative AI"
 
     def _get_client_class(self) -> Callable[..., GenerativeAiClient]:
-        return _get_oci_sdk().generative_ai.GenerativeAiClient
+        _get_oci_sdk()
+        from oci.generative_ai import GenerativeAiClient
+
+        return GenerativeAiClient

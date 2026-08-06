@@ -21,7 +21,7 @@ name: Oracle Cloud Infrastructure (OCI)
 description: |
     `Oracle Cloud Infrastructure <https://www.oracle.com/cloud/>`__ integrations.
 
-state: ready
+state: not-ready
 lifecycle: incubation
 source-date-epoch: 1785967200
 

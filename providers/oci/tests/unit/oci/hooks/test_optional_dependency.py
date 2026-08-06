@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from textwrap import dedent
@@ -52,4 +53,38 @@ def test_hook_modules_import_without_optional_oci_sdk():
             ),
         ],
         check=True,
+    )
+
+
+def test_hooks_support_selective_oci_service_imports():
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            dedent(
+                """
+                import oci
+
+                assert not hasattr(oci, "generative_ai")
+                assert not hasattr(oci, "identity")
+
+                from airflow.providers.oci.hooks.base import OciBaseHook
+                from airflow.providers.oci.hooks.generative_ai import OciGenerativeAIHook
+
+                assert OciGenerativeAIHook()._get_client_class().__module__.startswith(
+                    "oci.generative_ai"
+                )
+
+                hook = OciBaseHook()
+                hook.get_oci_config = lambda: ({}, None)
+                success, message = hook.test_connection()
+
+                assert not success
+                assert "AttributeError" not in message
+                assert hasattr(oci, "identity")
+                """
+            ),
+        ],
+        check=True,
+        env={**os.environ, "OCI_PYTHON_SDK_NO_SERVICE_IMPORTS": "True"},
     )
