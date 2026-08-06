@@ -25,6 +25,8 @@
   var extraDepsList = document.getElementById('extra-deps-list');
   var extrasDataEl = document.getElementById('extras-data');
   var moduleSearch = document.getElementById('module-search');
+  var durableOnlyFilter = document.getElementById('durable-only-filter');
+  var deferrableOnlyFilter = document.getElementById('deferrable-only-filter');
   var moduleTabs = document.querySelectorAll('.module-tab');
   var categoryBtns = document.querySelectorAll('.category-btn');
   var moduleItems = document.querySelectorAll('.modules .module');
@@ -47,6 +49,8 @@
   var currentType = 'all';
   var currentCategory = '';
   var currentSearch = '';
+  var currentDurableOnly = false;
+  var currentDeferrableOnly = false;
 
   function updateInstallCommand() {
     var version = versionSelect ? versionSelect.value : '';
@@ -137,12 +141,16 @@
       var name = item.dataset.name || '';
       var type = item.dataset.type || '';
       var category = item.dataset.category || '';
+      var durable = item.dataset.durable === 'true';
+      var deferrable = item.dataset.deferrable === 'true';
 
       var matchesType = currentType === 'all' || type === currentType;
       var matchesCategory = !currentCategory || category === currentCategory;
       var matchesSearch = !currentSearch || name.includes(currentSearch.toLowerCase());
+      var matchesDurable = !currentDurableOnly || durable;
+      var matchesDeferrable = !currentDeferrableOnly || deferrable;
 
-      item.style.display = (matchesType && matchesCategory && matchesSearch) ? '' : 'none';
+      item.style.display = (matchesType && matchesCategory && matchesSearch && matchesDurable && matchesDeferrable) ? '' : 'none';
     });
   }
 
@@ -173,6 +181,20 @@
         currentSearch = e.target.value.trim();
         filterModules();
       }, 150);
+    });
+  }
+
+  if (durableOnlyFilter) {
+    durableOnlyFilter.addEventListener('change', function(e) {
+      currentDurableOnly = e.target.checked;
+      filterModules();
+    });
+  }
+
+  if (deferrableOnlyFilter) {
+    deferrableOnlyFilter.addEventListener('change', function(e) {
+      currentDeferrableOnly = e.target.checked;
+      filterModules();
     });
   }
 
