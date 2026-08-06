@@ -8213,6 +8213,58 @@ class TestSchedulerJob:
         assert ti.next_method == "execute_complete"
         assert ti.next_kwargs["event"]["error_type"] == "timeout"
 
+    def test_awaiting_input_timeout_sweep_survives_unusable_next_kwargs(self, dag_maker):
+        """The sweep finishes its batch even when one task's stored kwargs cannot be read."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_bad_kwargs",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr_bad = dag_maker.create_dagrun()
+        dr_good = dag_maker.create_dagrun(
+            run_id="good", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+        )
+        ti_bad = dr_bad.get_task_instance("dummy1", session=session)
+        ti_good = dr_good.get_task_instance("dummy1", session=session)
+        for ti in (ti_bad, ti_good):
+            ti.state = State.AWAITING_INPUT
+            ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+            ti.next_method = "execute_complete"
+            ti.next_kwargs = {}
+        # Stored kwargs that no longer decode into a dict (here: a class name that is not allowed
+        # for deserialization, which the legacy fallback cannot read either).
+        ti_bad.next_kwargs = {"__classname__": "not.allowed.Thing", "__version__": 1, "__data__": {}}
+        session.add(
+            HITLDetail(
+                ti_id=ti_good.id,
+                options=["Approve", "Reject"],
+                subject="approve?",
+                defaults=["Approve"],
+                multiple=False,
+                params={},
+            )
+        )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        mock_log = mock.MagicMock(spec=logging.Logger)
+        with mock.patch.object(SchedulerJobRunner, "log", mock_log):
+            self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.refresh(ti_bad)
+        session.refresh(ti_good)
+        assert ti_bad.state == State.SCHEDULED
+        assert ti_bad.next_method == "__fail__"
+        assert "error" in ti_bad.next_kwargs
+        assert ti_good.state == State.SCHEDULED
+        assert ti_good.next_method == "execute_complete"
+        assert ti_good.next_kwargs["event"]["chosen_options"] == ["Approve"]
+        # The one it could not resume is reported as such rather than counted as resolved.
+        assert mock_log.info.call_args.args[1:] == (1, 0, 1)
+
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
