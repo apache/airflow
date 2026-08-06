@@ -1928,18 +1928,20 @@ export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient
 * Get all deadline alerts defined on a Dag.
 * @param data The data for the request.
 * @param data.dagId
+* @param data.versionNumber
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: QueryClient, { dagId, limit, offset, orderBy }: {
+export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: QueryClient, { dagId, limit, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy }) });
+  versionNumber?: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) });
 /**
 * Structure Data
 * Get Structure Data.

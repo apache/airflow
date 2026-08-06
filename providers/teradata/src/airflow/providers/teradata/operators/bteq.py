@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 from airflow.providers.teradata.utils.bteq_util import (
@@ -75,7 +76,7 @@ class BteqOperator(BaseOperator):
     :param timeout_rc: Return code to use if the BTEQ execution fails due to a timeout. To allow DAG execution to continue after a timeout, include this value in `bteq_quit_rc`. If not specified, a timeout will raise an exception and stop the DAG.
     """
 
-    template_fields = "sql"
+    template_fields: Sequence[str] = ("sql",)
     ui_color = "#ff976d"
 
     def __init__(

@@ -543,6 +543,26 @@ class TestGcpSqlHookDefaultProjectId:
         get_method.assert_called_once_with(project="gcp-project", operation="operation_id")
         execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    def test_list_operations(self, mock_get_conn):
+        operations_method = mock_get_conn.return_value.operations
+        list_method = operations_method.return_value.list
+        execute_method = list_method.return_value.execute
+        execute_method.return_value = {
+            "items": [
+                {"name": "op1", "status": "DONE", "targetId": "my-instance"},
+                {"name": "op2", "status": "RUNNING", "targetId": "other-instance"},
+            ]
+        }
+
+        result = self.cloudsql_hook.list_operations(project_id="gcp-project", instance="my-instance")
+
+        # Only operations whose targetId matches the instance are returned.
+        assert result == [{"name": "op1", "status": "DONE", "targetId": "my-instance"}]
+        operations_method.assert_called_once()
+        list_method.assert_called_once_with(project="gcp-project", instance="my-instance", maxResults=None)
+        execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
+
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.build")
     def test_get_conn_obj_caching(self, mock_build):
         self.cloudsql_hook._authorize = mock.MagicMock()

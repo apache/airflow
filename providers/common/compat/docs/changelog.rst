@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Gate audit log rows not tied to a Dag on a dedicated AccessView (#70759)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.17.0
 ......
 

@@ -56,7 +56,10 @@ from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.providers.common.compat.security.access_view import IMPORT_ERRORS_ALL_ACCESS_VIEW
+from airflow.providers.common.compat.security.access_view import (
+    AUDIT_LOGS_ALL_ACCESS_VIEW,
+    IMPORT_ERRORS_ALL_ACCESS_VIEW,
+)
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -65,6 +68,7 @@ from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
+    RESOURCE_AUDIT_LOG_ALL,
     RESOURCE_BACKFILL,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -148,10 +152,13 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.WEBSITE: RESOURCE_WEBSITE,
 }
 
-# ``AccessView.IMPORT_ERRORS_ALL`` only exists on core >= 3.4.0; the compat shim
-# yields ``None`` on older core so this provider still imports there.
+# ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` only exist on
+# core >= 3.4.0; the compat shim yields ``None`` on older core so this provider still
+# imports there.
 if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
+if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[AUDIT_LOGS_ALL_ACCESS_VIEW] = RESOURCE_AUDIT_LOG_ALL
 
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,

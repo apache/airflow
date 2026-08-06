@@ -1928,18 +1928,20 @@ export const useDeadlinesServiceGetDeadlinesSuspense = <TData = Common.Deadlines
 * Get all deadline alerts defined on a Dag.
 * @param data The data for the request.
 * @param data.dagId
+* @param data.versionNumber
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDeadlinesServiceGetDagDeadlineAlertsSuspense = <TData = Common.DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy }: {
+export const useDeadlinesServiceGetDagDeadlineAlertsSuspense = <TData = Common.DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy }) as TData, ...options });
+  versionNumber?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
 /**
 * Structure Data
 * Get Structure Data.
