@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ElasticsearchRemoteLogIO.from_config and register elasticsearch scheme (#70525)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Do not show @timestamp in logs in UI (#70790)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify Elasticsearch remote-logging scheme needs Airflow 3.3.0+ (#70920)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 6.8.1
 .....
 

@@ -68,11 +68,6 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
-        # target_state is a template field; validate the rendered value here, not in __init__.
-        if self.target_state not in self.VALID_STATES:
-            raise ValueError(
-                f"Invalid target_state: {self.target_state}. Must be one of {sorted(self.VALID_STATES)}"
-            )
         hook = AzureComputeHook(azure_conn_id=self.azure_conn_id)
         current_state = hook.get_power_state(self.resource_group_name, self.vm_name)
         self.log.info("VM %s power state: %s", self.vm_name, current_state)
@@ -85,6 +80,10 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
         In deferrable mode, the polling is deferred to the triggerer. Otherwise
         the sensor waits synchronously.
         """
+        if self.target_state not in self.VALID_STATES:
+            raise ValueError(
+                f"Invalid target_state: {self.target_state}. Must be one of {sorted(self.VALID_STATES)}"
+            )
         if not self.deferrable:
             super().execute(context=context)
         else:

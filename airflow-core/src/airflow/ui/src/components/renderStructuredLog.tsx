@@ -26,7 +26,7 @@ import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/req
 import AnsiRenderer from "src/components/AnsiRenderer";
 import Time from "src/components/Time";
 import { urlRegex } from "src/constants/urlRegex";
-import { LogLevel, logLevelColorMapping } from "src/utils/logs";
+import { isUserCodeFrame, LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Frame = {
   filename: string;
@@ -255,11 +255,21 @@ const renderStructuredLogImpl = ({
           return `    ${translate("components:logs.file")} ${frame.filename}, ${translate("components:logs.location", { line: frame.lineno, name: frame.name })}\n`;
         }
 
+        // Highlight user-code frames (DAG bundle, plugins, local files) in the info blue,
+        // and leave installed-package frames in the normal text color, so the frame the
+        // error actually came from stands out from the framework frames around it.
+        const userCode = isUserCodeFrame(frame.filename);
+
         return (
           <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
             {translate("components:logs.file")}{" "}
-            <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
-            {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
+            <chakra.span
+              color={userCode ? "fg.info" : undefined}
+              data-frame-source={userCode ? "user" : "library"}
+            >
+              {JSON.stringify(frame.filename)}
+            </chakra.span>
+            , {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
           </chakra.p>
         );
       });

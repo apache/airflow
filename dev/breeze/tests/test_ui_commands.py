@@ -25,6 +25,7 @@ from airflow_breeze.commands.ui_commands import (
     compare_keys,
     expand_plural_keys,
     flatten_keys,
+    get_locale_files,
     get_plural_base,
 )
 
@@ -273,6 +274,22 @@ class TestCompareKeys:
             # Previously these could be falsely flagged as unused.
             assert "dagWarnings.error_few" not in summary["test.json"].unused_keys.get("pl", [])
             assert "dagWarnings.error_many" not in summary["test.json"].unused_keys.get("pl", [])
+        finally:
+            ui_commands.LOCALES_DIR = original_locales_dir
+
+
+class TestGetLocaleFiles:
+    def test_hidden_directories_are_not_treated_as_locales(self, tmp_path):
+        (tmp_path / "en").mkdir()
+        (tmp_path / "en" / "common.json").write_text(json.dumps({"greeting": "Hello"}))
+        (tmp_path / ".claude" / ".cc-writes").mkdir(parents=True)
+
+        import airflow_breeze.commands.ui_commands as ui_commands
+
+        original_locales_dir = ui_commands.LOCALES_DIR
+        ui_commands.LOCALES_DIR = tmp_path
+        try:
+            assert get_locale_files() == [LocaleFiles(locale="en", files=["common.json"])]
         finally:
             ui_commands.LOCALES_DIR = original_locales_dir
 

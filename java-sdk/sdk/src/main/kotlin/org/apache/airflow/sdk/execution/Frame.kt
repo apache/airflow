@@ -28,6 +28,12 @@ import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.msgpack.core.MessagePack
 import java.io.ByteArrayOutputStream
 
+data class RawFrame(
+  val id: Int,
+  val rawBody: Any?,
+  val rawError: Any?,
+)
+
 object Frame {
   private val mapper =
     ObjectMapper().apply {
@@ -43,7 +49,7 @@ object Frame {
     body: Any,
   ): ByteArray = encodeFrame(id, body)
 
-  fun decode(bytes: ByteArray): IncomingFrame {
+  fun decodeRaw(bytes: ByteArray): RawFrame {
     val unpacker = MessagePack.newDefaultUnpacker(bytes)
     val headerSize = unpacker.unpackArrayHeader()
     check(headerSize >= 1) { "Unexpected Task SDK frame arity $headerSize" }
@@ -53,8 +59,14 @@ object Frame {
     val rawError = if (headerSize >= 3) unpacker.unpackAny() else null
     unpacker.close()
 
-    val body = decodeMessage(rawError) ?: decodeMessage(rawBody)
-    return IncomingFrame(id, body)
+    return RawFrame(id, rawBody, rawError)
+  }
+
+  fun decodeBody(raw: RawFrame): Any? = decodeMessage(raw.rawError) ?: decodeMessage(raw.rawBody)
+
+  fun decode(bytes: ByteArray): IncomingFrame {
+    val raw = decodeRaw(bytes)
+    return IncomingFrame(raw.id, decodeBody(raw))
   }
 
   fun lengthPrefix(length: Int) =

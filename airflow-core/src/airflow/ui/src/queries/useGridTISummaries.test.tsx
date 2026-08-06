@@ -26,6 +26,8 @@ import {
   useGridServiceGetGridRunsKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
+import type { TaskInstanceState } from "openapi/requests";
+import { useAutoRefresh } from "src/utils";
 
 import { useGridTiSummariesStream } from "./useGridTISummaries";
 
@@ -256,5 +258,96 @@ describe("useGridTiSummariesStream", () => {
 
     // The state should NOT be updated with the aborted stream's value
     expect(result.current.summariesByRunId.get("run_1")).toBeUndefined();
+  });
+
+  it("re-streams one final time when runs finish before the next interval tick", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          gcTime: Infinity,
+          staleTime: Infinity,
+        },
+      },
+    });
+    const wrapper = createWrapper(queryClient);
+
+    vi.mocked(useAutoRefresh).mockReturnValue(3000);
+
+    const runningChunk = `${JSON.stringify({ run_id: "run_1", state: "running", task_id: "task_1" })}\n`;
+    const successChunk = `${JSON.stringify({ run_id: "run_1", state: "success", task_id: "task_1" })}\n`;
+
+    mockFetch
+      .mockResolvedValueOnce(createMockResponse([runningChunk]))
+      .mockResolvedValueOnce(createMockResponse([successChunk]));
+
+    const { rerender, result } = renderHook(
+      ({ states }: { states: Array<TaskInstanceState> }) =>
+        useGridTiSummariesStream({ dagId: "dag_1", runIds: ["run_1"], states }),
+      { initialProps: { states: ["running"] as Array<TaskInstanceState> }, wrapper },
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(result.current.summariesByRunId.get("run_1")).toEqual({
+      run_id: "run_1",
+      state: "running",
+      task_id: "task_1",
+    });
+
+    // The run reaches a terminal state before the 3s interval ever ticks
+    rerender({ states: ["success"] as Array<TaskInstanceState> });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.current.summariesByRunId.get("run_1")).toEqual({
+      run_id: "run_1",
+      state: "success",
+      task_id: "task_1",
+    });
+
+    // No interval remains armed once the runs are terminal
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not re-stream when runs are already terminal on mount", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          gcTime: Infinity,
+          staleTime: Infinity,
+        },
+      },
+    });
+    const wrapper = createWrapper(queryClient);
+
+    vi.mocked(useAutoRefresh).mockReturnValue(3000);
+
+    mockFetch.mockImplementation(() => Promise.resolve(createMockResponse([])));
+
+    renderHook(
+      () =>
+        useGridTiSummariesStream({
+          dagId: "dag_1",
+          runIds: ["run_1"],
+          states: ["success"] as Array<TaskInstanceState>,
+        }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

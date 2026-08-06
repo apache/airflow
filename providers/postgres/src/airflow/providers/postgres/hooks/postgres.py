@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Literal, NoReturn, Protocol, TypeAlias, c
 from more_itertools import chunked
 
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowOptionalProviderFeatureException,
     Connection,
     conf,
@@ -189,7 +188,7 @@ class PostgresHook(DbApiHook):
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
-            raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
+            raise TypeError("The parameter 'sqlalchemy_query' must be of type dict!")
         if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
         return URL.create(
@@ -222,9 +221,7 @@ class PostgresHook(DbApiHook):
             if _cursor == "namedtuplecursor":
                 return namedtuple_row
             if _cursor == "realdictcursor":
-                raise AirflowException(
-                    "realdictcursor is not supported with psycopg3. Use dictcursor instead."
-                )
+                raise ValueError("realdictcursor is not supported with psycopg3. Use dictcursor instead.")
             valid_cursors = "dictcursor, namedtuplecursor"
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 

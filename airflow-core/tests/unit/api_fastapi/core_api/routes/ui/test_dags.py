@@ -136,6 +136,20 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 previous_run_after = dag_run["run_after"]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("query_params", "expected_ids"),
+        [
+            ({"timetable_type": ["CronTriggerTimetable"], "exclude_stale": False}, [DAG3_ID]),
+            ({"timetable_type": ["NullTimetable"], "exclude_stale": False}, [DAG1_ID, DAG2_ID]),
+        ],
+    )
+    def test_timetable_type_filter(self, test_client: TestClient, query_params, expected_ids):
+        response = test_client.get("/dags", params=query_params)
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == expected_ids
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize("state", ["queued", "running", "failed", "success"])
     def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session, state):
         # Give DAG1 an older run in the probed state while its latest run ends in a
@@ -494,6 +508,85 @@ class TestGetDagRuns(TestPublicDagEndpoint):
 _PARENT_DAG1_FAILED = 1  # via ``dag_maker.create_dagrun(state=FAILED)``
 _PARENT_DAG3_FAILED = 1  # via ``_create_deactivated_paused_dag``
 _PARENT_DAG3_SUCCESS = 1  # via ``_create_deactivated_paused_dag``
+
+
+class TestGetDagTimetableTypes(TestPublicDagEndpoint):
+    @pytest.fixture(autouse=True)
+    def setup_timetable_types(self, session):
+        session.get(DagModel, DAG1_ID).timetable_type = "CronTriggerTimetable"
+        session.get(DagModel, DAG2_ID).timetable_type = "example.CustomTimetable"
+        session.get(DagModel, DAG3_ID).timetable_type = "StaleOnlyTimetable"
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("query_params", "expected_types", "expected_total_entries"),
+        [
+            ({}, ["CronTriggerTimetable", "example.CustomTimetable"], 2),
+            ({"limit": 1}, ["CronTriggerTimetable"], 2),
+            ({"offset": 1}, ["example.CustomTimetable"], 2),
+            (
+                {"timetable_type_prefix_pattern": "example"},
+                ["example.CustomTimetable"],
+                1,
+            ),
+            ({"timetable_type_prefix_pattern": "missing"}, [], 0),
+        ],
+    )
+    def test_get_dag_timetable_types(
+        self,
+        test_client,
+        query_params,
+        expected_types,
+        expected_total_entries,
+    ):
+        response = test_client.get("/dags/timetable_types", params=query_params)
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "timetable_types": expected_types,
+            "total_entries": expected_total_entries,
+        }
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_only_returns_types_from_readable_dags(
+        self,
+        mock_get_authorized_dag_ids,
+        test_client,
+    ):
+        mock_get_authorized_dag_ids.return_value = {DAG2_ID}
+
+        response = test_client.get("/dags/timetable_types")
+
+        mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        assert response.json() == {
+            "timetable_types": ["example.CustomTimetable"],
+            "total_entries": 1,
+        }
+
+    def test_excludes_blank_timetable_types(self, test_client, session):
+        session.get(DagModel, DAG1_ID).timetable_type = ""
+        session.commit()
+
+        response = test_client.get("/dags/timetable_types")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "timetable_types": ["example.CustomTimetable"],
+            "total_entries": 1,
+        }
+
+    def test_returns_distinct_timetable_types(self, test_client, session):
+        session.get(DagModel, DAG2_ID).timetable_type = "CronTriggerTimetable"
+        session.commit()
+
+        response = test_client.get("/dags/timetable_types")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "timetable_types": ["CronTriggerTimetable"],
+            "total_entries": 1,
+        }
 
 
 class TestGetDagRunStateCounts(TestPublicDagEndpoint):

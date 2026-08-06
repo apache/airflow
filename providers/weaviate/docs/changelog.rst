@@ -20,6 +20,27 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix WeaviateIngestOperator input_data validation before rendering (#70326)``
+
+Misc
+~~~~
+
+* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix duplicated and incorrect words in documentation (#70868)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.4.0
 .....
 

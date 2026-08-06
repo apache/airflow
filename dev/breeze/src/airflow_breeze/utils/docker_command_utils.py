@@ -26,6 +26,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from functools import lru_cache
 from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
@@ -700,6 +701,84 @@ def fix_ownership_using_docker(quiet: bool = True):
         ]
     )
     run_command(cmd, text=True, check=False, quiet=quiet)
+
+
+IMAGE_PULL_ATTEMPTS = 5
+IMAGE_PULL_BACKOFF_SECONDS = 15
+
+
+def get_images_to_pull(compose_project_name: str, env: dict[str, str], skip_images: set[str]) -> list[str]:
+    """
+    Returns third-party images of the compose project that are not available locally yet.
+
+    :param compose_project_name: name of the docker compose project
+    :param env: environment variables to resolve the compose files with
+    :param skip_images: images that should never be pulled (the locally built CI/PROD image)
+    """
+    result = run_command(
+        ["docker", "compose", "--project-name", compose_project_name, "config", "--images"],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    images_to_pull = []
+    for image in dict.fromkeys(line.strip() for line in result.stdout.splitlines() if line.strip()):
+        if image in skip_images:
+            continue
+        image_present = run_command(
+            ["docker", "image", "inspect", image],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if image_present.returncode != 0:
+            images_to_pull.append(image)
+    return images_to_pull
+
+
+def pull_images_with_retries(
+    compose_project_name: str,
+    env: dict[str, str],
+    skip_images: set[str] | None = None,
+    attempts: int = IMAGE_PULL_ATTEMPTS,
+) -> bool:
+    """
+    Pulls the third-party images the compose project needs, retrying with a growing backoff.
+
+    Registries (Docker Hub in particular) regularly time out or throttle CI runners. Left to
+    `docker compose run`, a single such blip fails the whole test job before any test executes,
+    and recovering from it costs a full re-run of the suite. Pulling up front instead retries
+    the operation that actually failed.
+
+    :param compose_project_name: name of the docker compose project
+    :param env: environment variables to resolve the compose files with
+    :param skip_images: images that should never be pulled (the locally built CI/PROD image)
+    :param attempts: how many times to attempt pulling each image
+
+    :return: True if every image needed is available locally
+    """
+    images = get_images_to_pull(compose_project_name, env, skip_images or set())
+    if not images:
+        return True
+    console_print(f"[info]Pulling {len(images)} image(s) before running the tests: {' '.join(images)}[/]")
+    all_pulled = True
+    for image in images:
+        for attempt in range(1, attempts + 1):
+            if run_command(["docker", "pull", image], env=env, check=False).returncode == 0:
+                break
+            if attempt == attempts:
+                console_print(f"[warning]Could not pull {image} in {attempts} attempts.[/]")
+                all_pulled = False
+                break
+            backoff = IMAGE_PULL_BACKOFF_SECONDS * attempt
+            console_print(
+                f"[warning]Failed to pull {image} (attempt {attempt}/{attempts}). Retrying in {backoff}s.[/]"
+            )
+            time.sleep(backoff)
+    return all_pulled
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
