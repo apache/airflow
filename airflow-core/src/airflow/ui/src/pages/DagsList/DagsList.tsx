@@ -257,7 +257,9 @@ export const DagsList = () => {
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
-  const withinHours = searchParams.get(DAG_RUN_STATE_WITHIN_HOURS);
+  const withinHoursParam = Number(searchParams.get(DAG_RUN_STATE_WITHIN_HOURS));
+  const withinHours =
+    Number.isFinite(withinHoursParam) && withinHoursParam > 0 ? withinHoursParam : undefined;
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
@@ -316,7 +318,7 @@ export const DagsList = () => {
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     dagRunState,
-    dagRunStateWithinHours: Boolean(dagRunState) && withinHours !== null ? Number(withinHours) : undefined,
+    dagRunStateWithinHours: Boolean(dagRunState) ? withinHours : undefined,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,
