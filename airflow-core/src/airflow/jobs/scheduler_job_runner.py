@@ -1231,6 +1231,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         pending_callbacks = session.scalars(
             select(ExecutorCallback)
+            .options(selectinload(ExecutorCallback.dag_run))
             .where(ExecutorCallback.type == CallbackType.EXECUTOR)
             .where(ExecutorCallback.state == CallbackState.PENDING)
             .order_by(ExecutorCallback.priority_weight.desc())
@@ -1250,24 +1251,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Can't happen since we queried ExecutorCallback, but satisfies mypy.
                     continue
 
-                # TODO: Add dagrun_id as a proper ORM foreign key on the callback table instead of storing in data dict.
-                #       This would eliminate this reconstruction step. For now, all ExecutorCallbacks
-                #       are expected to have dag_run_id set in their data dict (e.g., by Deadline.handle_miss).
-                if not isinstance(callback.data, dict) or "dag_run_id" not in callback.data:
-                    self.log.error(
-                        "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
-                        "This indicates a bug in callback creation. Skipping callback.",
-                        callback.id,
-                    )
-                    continue
-
-                dag_run_id = callback.data["dag_run_id"]
-                dag_run = session.get(DagRun, dag_run_id)
-
+                dag_run = callback.dag_run
                 if dag_run is None:
                     self.log.warning(
                         "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
-                        dag_run_id,
+                        callback.dagrun_id,
                         callback.id,
                     )
                     continue

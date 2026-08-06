@@ -262,9 +262,9 @@ class Deadline(Base):
         elif isinstance(self.callback, ExecutorCallback):
             data = callback_data_with_context()
             data["deadline_id"] = str(self.id)
-            data["dag_run_id"] = str(self.dagrun.id)
             data["dag_id"] = self.dagrun.dag_id
             self.callback.data = data
+            self.callback.dagrun_id = self.dagrun.id
 
             self.callback.state = CallbackState.PENDING
             session.add(self.callback)

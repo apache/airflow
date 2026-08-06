@@ -678,7 +678,7 @@ class TestSchedulerJob:
                 deadline_alert_id=None,
             ).callback
             callback.state = state
-            callback.data["dag_run_id"] = dag_run.id
+            callback.dagrun_id = dag_run.id
             callback.data["dag_id"] = dag_run.dag_id
             return callback
 
