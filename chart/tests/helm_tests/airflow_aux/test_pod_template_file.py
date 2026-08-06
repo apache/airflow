@@ -1343,6 +1343,52 @@ class TestPodTemplateFile:
             "allowPrivilegeEscalation": False
         }
 
+    @pytest.mark.parametrize(
+        ("override", "expected"),
+        [
+            (
+                {},
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 5,
+                    "initialDelaySeconds": 0,
+                    "periodSeconds": 10,
+                    "failureThreshold": 6,
+                },
+            ),
+            (
+                {
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 12,
+                    "periodSeconds": 13,
+                    "failureThreshold": 14,
+                },
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 12,
+                    "periodSeconds": 13,
+                    "failureThreshold": 14,
+                },
+            ),
+            ({"enabled": False}, None),
+        ],
+        ids=["default", "custom", "disabled"],
+    )
+    def test_kerberos_sidecar_startup_probe(self, override, expected):
+        docs = render_chart(
+            values={
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True, "startupProbe": override}}}
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert (
+            jmespath.search("spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0])
+            == expected
+        )
+
     def test_kerberos_init_container_default(self):
         docs = render_chart(
             show_only=["templates/pod-template-file.yaml"],
