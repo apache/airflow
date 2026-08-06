@@ -64,6 +64,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
 from airflow.listeners.listener import get_listener_manager
@@ -837,7 +838,7 @@ class TestSchedulerJob:
                 deadline_alert_id=None,
             ).callback
             callback.state = state
-            callback.data["dag_run_id"] = dag_run.id
+            callback.dagrun_id = dag_run.id
             callback.data["dag_id"] = dag_run.dag_id
             return callback
 
@@ -866,6 +867,43 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
         assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
+
+    @pytest.mark.parametrize(
+        ("dagrun_id", "expected_event"),
+        [
+            (None, "Executor callback is missing dagrun_id."),
+            (123, "Could not find DagRun for executor callback. DagRun may have been deleted."),
+        ],
+    )
+    def test_enqueue_executor_callbacks_logs_missing_dagrun_reference(
+        self, dagrun_id, expected_event, caplog
+    ):
+        def test_callback():
+            pass
+
+        callback = ExecutorCallback(
+            SyncCallback(test_callback),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            dag_id="test_callback_missing_dagrun_reference",
+        )
+        callback.id = uuid4()
+        callback.state = CallbackState.PENDING
+        callback.dagrun_id = dagrun_id
+
+        session = MagicMock()
+        session.scalars.return_value.all.return_value = [callback]
+
+        executor = MockExecutor()
+        executor.queue_workload = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
+        self.job_runner._executor_to_workloads = MagicMock(return_value={executor: [callback]})
+
+        self.job_runner._enqueue_executor_callbacks(session)
+
+        assert {"event": expected_event, "callback_id": callback.id} in caplog
+        executor.queue_workload.assert_not_called()
+        assert callback.state == CallbackState.PENDING
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -4690,7 +4728,7 @@ class TestSchedulerJob:
         self.job_runner._do_scheduling(session)
 
         callback = (
-            session.scalars(select(DbCallbackRequest).order_by(DbCallbackRequest.id.desc()))
+            session.scalars(select(DbCallbackRequest).order_by(DbCallbackRequest.id.desc()).limit(1))
             .first()
             .get_callback_request()
         )
@@ -5331,17 +5369,23 @@ class TestSchedulerJob:
         assert len(task_instances_list) == 2
 
         ti0 = session.scalars(
-            select(TaskInstance).where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t0")
+            select(TaskInstance)
+            .where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t0")
+            .limit(1)
         ).first()
         assert ti0.state == State.SCHEDULED
 
         ti1 = session.scalars(
-            select(TaskInstance).where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t1")
+            select(TaskInstance)
+            .where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t1")
+            .limit(1)
         ).first()
         assert ti1.state == State.QUEUED
 
         ti2 = session.scalars(
-            select(TaskInstance).where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t2")
+            select(TaskInstance)
+            .where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t2")
+            .limit(1)
         ).first()
         assert ti2.state == State.QUEUED
 
@@ -5539,10 +5583,12 @@ class TestSchedulerJob:
         do_schedule()
         with create_session() as session:
             ti = session.scalars(
-                select(TaskInstance).where(
+                select(TaskInstance)
+                .where(
                     TaskInstance.dag_id == "test_retry_still_in_executor",
                     TaskInstance.task_id == "test_retry_handling_op",
                 )
+                .limit(1)
             ).first()
         assert ti is not None, "Task not created by scheduler"
 
@@ -6681,7 +6727,7 @@ class TestSchedulerJob:
         self.job_runner._create_dag_runs([dag_model], session)
         self.job_runner._start_queued_dagruns(session)
 
-        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id)).first()
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id).limit(1)).first()
         # Assert dr state is running
         assert dr.state == State.RUNNING
 
@@ -7165,6 +7211,7 @@ class TestSchedulerJob:
                 .join(TaskInstance.dag_run)
                 .where(TaskInstance.state != State.SUCCESS)
                 .order_by(DagRun.logical_date)
+                .limit(1)
             ).first()
             if ti:
                 ti.state = State.SUCCESS
@@ -11355,7 +11402,7 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
 
         # Verify SerializedDAG has max_active_runs=1
         dag_run_1 = session.scalars(
-            select(DagRun).where(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date)
+            select(DagRun).where(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date).limit(1)
         ).first()
         assert dag_run_1 is not None
         serialized_dag = self.job_runner.scheduler_dag_bag.get_dag_for_run(dag_run_1, session=session)
