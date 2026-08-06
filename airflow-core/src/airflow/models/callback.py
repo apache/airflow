@@ -160,6 +160,11 @@ class Callback(Base, BaseWorkload):
     # Creation time of the callback
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
+    dagrun_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("dag_run.id", ondelete="CASCADE"), nullable=True
+    )
+    dag_run = relationship("DagRun", back_populates="callbacks")
+
     # Used for callbacks of type CallbackType.TRIGGERER
     trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
@@ -171,6 +176,7 @@ class Callback(Base, BaseWorkload):
             postgresql_where=trigger_id.is_not(None),
             sqlite_where=trigger_id.is_not(None),
         ),
+        Index("callback_dagrun_id_idx", dagrun_id, unique=False),
     )
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
