@@ -28,6 +28,7 @@ from sqlalchemy.engine import Row
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from airflow._shared.timezones import timezone
+from airflow._shared.timezones.timezone import convert_to_utc, make_aware, make_naive
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarDeadlineCollectionResponse,
@@ -215,14 +216,19 @@ class CalendarService:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime, int] = collections.Counter()
 
+        cron_timetable = cast("CronMixin", dag.timetable)
+        tz = cron_timetable._timezone
         dates_iter: Iterator[datetime | None] = croniter(
-            cast("CronMixin", dag.timetable)._expression,
-            start_time=last_data_interval.end,
+            cron_timetable._expression,
+            start_time=make_naive(last_data_interval.end, tz),
             ret_type=datetime,
         )
 
-        for dt in dates_iter:
-            if dt is None or dt.year != year:
+        for naive_dt in dates_iter:
+            if naive_dt is None:
+                break
+            dt = convert_to_utc(make_aware(naive_dt, tz))
+            if dt.year != year:
                 break
             if dag.end_date and dt > dag.end_date:
                 break
