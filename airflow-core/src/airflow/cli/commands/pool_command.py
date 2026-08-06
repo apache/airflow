@@ -27,9 +27,21 @@ from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.exceptions import PoolNotFound
+from airflow.models.pool import Pool
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+
+def check_include_deferred_choice_allowed(include_deferred: bool) -> str | None:
+    """Return an error message when an explicit ``include_deferred`` choice conflicts with the cluster config."""
+    override = Pool.get_include_deferred_override()
+    if override is not None and include_deferred != override:
+        return (
+            f"include_deferred is fixed to {override} for all pools by the [core] pool_include_deferred "
+            "configuration and cannot be set per pool."
+        )
+    return None
 
 
 def _show_pools(pools, output):
@@ -75,6 +87,9 @@ def pool_get(args):
 @providers_configuration_loaded
 def pool_set(args):
     """Create new pool with a given name and slots."""
+    # --include-deferred is a store-true flag, so only a passed flag is an explicit choice
+    if args.include_deferred and (error := check_include_deferred_choice_allowed(True)):
+        raise SystemExit(error)
     api_client = get_current_api_client()
     api_client.create_pool(
         name=args.pool,
@@ -136,6 +151,12 @@ def pool_import_helper(filepath):
     failed = []
     for k, v in pools_json.items():
         if isinstance(v, dict) and "slots" in v and "description" in v:
+            if "include_deferred" in v and (
+                error := check_include_deferred_choice_allowed(bool(v["include_deferred"]))
+            ):
+                print(f"Pool {k}: {error}")
+                failed.append(k)
+                continue
             pools.append(
                 api_client.create_pool(
                     name=k,

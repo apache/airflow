@@ -46,6 +46,12 @@ descendants.
 Note that if tasks are not given a pool, they are assigned to a default pool ``default_pool``, which is
 initialized with 128 slots and can be modified through the UI or CLI (but cannot be removed).
 
+Whether deferred tasks occupy pool slots is normally decided per pool via its ``include_deferred`` flag.
+A Deployment Manager can instead fix this behavior for the whole cluster with
+:ref:`config:core__pool_include_deferred`. When that option is set to ``True`` or ``False``, the configured
+value applies to every pool (including pre-existing pools, regardless of their stored flag), and attempts
+to explicitly set a conflicting ``include_deferred`` value when creating or updating a pool are rejected.
+
 Using multiple pool slots
 -------------------------
 

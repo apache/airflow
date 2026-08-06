@@ -463,6 +463,18 @@ core:
       type: integer
       example: ~
       default: "128"
+    pool_include_deferred:
+      description: |
+        Cluster-wide setting for the ``include_deferred`` flag of pools. When left empty (the default),
+        each pool keeps its own ``include_deferred`` value, configurable per pool via the UI, API or CLI.
+        When set to ``True`` or ``False``, the configured value is used for **every** pool (including
+        pre-existing pools, whatever their stored value) when calculating occupied slots, and users can
+        no longer choose the flag per pool: attempts to explicitly set a conflicting ``include_deferred``
+        value when creating or updating a pool are rejected.
+      version_added: 3.4.0
+      type: string
+      example: "True"
+      default: ""
     max_map_length:
       description: |
         The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a

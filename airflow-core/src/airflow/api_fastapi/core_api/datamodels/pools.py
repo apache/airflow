@@ -24,6 +24,7 @@ from pydantic import BeforeValidator, Field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.configuration import conf
+from airflow.models.pool import Pool
 
 
 def _call_function(function: Callable[[], int]) -> int:
@@ -33,6 +34,19 @@ def _call_function(function: Callable[[], int]) -> int:
     Used for the BeforeValidator to get the actual values from the bound method.
     """
     return function()
+
+
+def _apply_include_deferred_override(value: bool) -> bool:
+    override = Pool.get_include_deferred_override()
+    return value if override is None else override
+
+
+def _reject_conflicting_include_deferred(value: bool, override: bool) -> None:
+    if value != override:
+        raise ValueError(
+            f"include_deferred is fixed to {override} for all pools by the [core] pool_include_deferred "
+            "configuration and cannot be set per pool. Please contact your administrator."
+        )
 
 
 PoolSlots = Annotated[
@@ -58,6 +72,9 @@ def _sanitize_open_slots(value) -> int:
 
 class PoolResponse(BasePool):
     """Pool serializer for responses."""
+
+    # Report the effective value: the cluster-wide config value takes precedence over the stored column
+    include_deferred: Annotated[bool, BeforeValidator(_apply_include_deferred_override)]
 
     occupied_slots: Annotated[int, BeforeValidator(_call_function)]
     running_slots: Annotated[int, BeforeValidator(_call_function)]
@@ -92,6 +109,13 @@ class PoolPatchBody(StrictBaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def enforce_include_deferred_override(self) -> PoolPatchBody:
+        override = Pool.get_include_deferred_override()
+        if override is not None and self.include_deferred is not None:
+            _reject_conflicting_include_deferred(self.include_deferred, override)
+        return self
+
 
 class PoolBody(BasePool, StrictBaseModel):
     """Pool serializer for post bodies."""
@@ -107,4 +131,14 @@ class PoolBody(BasePool, StrictBaseModel):
             raise ValueError(
                 "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
             )
+        return self
+
+    @model_validator(mode="after")
+    def enforce_include_deferred_override(self) -> PoolBody:
+        override = Pool.get_include_deferred_override()
+        if override is None:
+            return self
+        if "include_deferred" in self.model_fields_set:
+            _reject_conflicting_include_deferred(self.include_deferred, override)
+        self.include_deferred = override
         return self
