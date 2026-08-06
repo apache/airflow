@@ -29,7 +29,12 @@ import type { ParsedLogEntry } from "src/queries/useLogs";
 
 import { HighlightedText } from "./HighlightedText";
 import { ScrollToButton } from "./ScrollToButton";
-import { getSelectionPinnedRows, mergePinnedIndexes } from "./logSelection";
+import {
+  extractSelectedLogText,
+  getEntryText,
+  getSelectionPinnedRows,
+  mergePinnedIndexes,
+} from "./logSelection";
 import { useLogGroups } from "./useLogGroups";
 import { getHighlightColor, isSelectionWithin, scrollToBottom, scrollToTop } from "./utils";
 
@@ -124,6 +129,36 @@ export const TaskLogContent = ({
 
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
   }, []);
+
+  useEffect(() => {
+    const handleCopy = (event: ClipboardEvent) => {
+      const container = parentRef.current;
+      const selection = document.getSelection();
+
+      if (!container || !selection || !event.clipboardData) {
+        return;
+      }
+      const text = extractSelectedLogText({
+        container,
+        getRowText: (index) => {
+          const entry = visibleItems[index]?.entry;
+
+          return entry ? getEntryText(entry) : "";
+        },
+        selection,
+      });
+
+      if (text === undefined) {
+        return;
+      }
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", text);
+    };
+
+    document.addEventListener("copy", handleCopy);
+
+    return () => document.removeEventListener("copy", handleCopy);
+  }, [visibleItems]);
 
   useLayoutEffect(() => {
     if (visibleItems.length === 0) {
