@@ -28,18 +28,11 @@ The :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodE
 executes a command in a running container of an existing Kubernetes Pod. It does not create,
 restart, or delete the target Pod.
 
-.. code-block:: python
-
-    from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
-
-    run_command = KubernetesPodExecOperator(
-        task_id="run_command",
-        pod_name="existing-worker",
-        namespace="default",
-        container_name="worker",
-        command=["python", "-m", "worker.run_job"],
-        kubernetes_conn_id="kubernetes_default",
-    )
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_pod_exec.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_k8s_pod_exec]
+    :end-before: [END howto_operator_k8s_pod_exec]
 
 Commands are executed directly rather than through a shell. Include a shell explicitly when using
 pipes, redirects, variable expansion, or other shell features.
