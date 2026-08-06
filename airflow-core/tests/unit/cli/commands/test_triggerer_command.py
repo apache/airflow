@@ -127,6 +127,7 @@ class TestTriggererCommand:
         mock_triggerer_job_runner.assert_called_once_with(
             job=mock.ANY, capacity=mock.ANY, queues=None, team_name="team_a"
         )
+        assert mock_triggerer_job_runner.call_args.kwargs["job"].team_name == "team_a"
 
     @conf_vars({("core", "multi_team"): "False"})
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")

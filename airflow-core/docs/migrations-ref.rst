@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``b2f1a9c7d4e0`` (head) | ``7a98f1b7dbd3`` | ``3.4.0``         | Reference the asset event from asset_dag_run_queue (consume- |
+| ``f8c2a1d94e03`` (head) | ``b2f1a9c7d4e0`` | ``3.4.0``         | Add team_name and bundle_names scope columns to job table.   |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``b2f1a9c7d4e0``        | ``7a98f1b7dbd3`` | ``3.4.0``         | Reference the asset event from asset_dag_run_queue (consume- |
 |                         |                  |                   | by-reference).                                               |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``7a98f1b7dbd3``        | ``c4e7a1f9b2d0`` | ``3.4.0``         | Add index on asset_event (asset_id, partition_key).          |
