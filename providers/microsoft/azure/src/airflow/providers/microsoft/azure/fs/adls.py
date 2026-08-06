@@ -30,22 +30,23 @@ if TYPE_CHECKING:
 schemes = ["abfs", "abfss", "adl"]
 
 
-def _account_name_from_host(host: str | None) -> str | None:
+def _bare_account_name_from_host(host: str | None) -> str | None:
+    """
+    Return the storage account name when the host is a bare account name, else ``None``.
+
+    A bare host such as ``mystorageaccount`` is the ADLS account name itself. A full host
+    like ``mystorageaccount.dfs.core.windows.net`` (or anything with a scheme, port or path)
+    is an endpoint and should keep the ``account_url`` handling instead.
+    """
     if not host:
         return None
 
-    parsed_url = urlparse(host if "://" in host else f"//{host}")
-    hostname = parsed_url.hostname
-    if not hostname:
-        return None
-
-    return hostname.split(".", 1)[0]
-
-
-def _storage_account_name_from_host(host: str | None) -> str | None:
-    account_name = _account_name_from_host(host)
-    if account_name and account_name == host:
-        return account_name
+    # urlparse().hostname is already lowercased, so compare against a lowercased host to keep
+    # the check case-insensitive (Azure account names are lowercase anyway). The dot guard
+    # keeps full endpoints like "acct.dfs.core.windows.net" out of the account_name path.
+    hostname = urlparse(host if "://" in host else f"//{host}").hostname
+    if hostname and "." not in hostname and hostname == host.lower():
+        return hostname
     return None
 
 
@@ -70,13 +71,16 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
     # mirror handling of custom field "client_secret_auth_config" from extras. Ignore if missing as AzureBlobFileSystem can handle.
     tenant_id = get_field(conn_id=conn_id, conn_type=conn_type, extras=extras, field_name="tenant_id")
     options: dict[str, Any] = {}
-    account_name = _storage_account_name_from_host(conn.host)
-    # Preserve account_url for existing WASB, full URL, and custom endpoint connections.
-    # ADLS Active Directory connections use login as client_id, so bare hosts are account names.
+    account_name = _bare_account_name_from_host(conn.host)
     if conn_type == "adls" and account_name:
+        # An ADLS Active Directory connection uses ``login`` as the client_id, so a bare host
+        # is the storage account name rather than part of an account URL.
         options["account_name"] = account_name
     elif conn_type != "adls" or conn.host or not tenant_id:
+        # WASB, full-URL, and custom-endpoint connections keep the historical account_url path.
         options["account_url"] = parse_blob_account_url(conn.host, conn.login)
+    # Otherwise (adls + no host + a tenant_id) neither account_name nor account_url is set, so
+    # adlfs falls back to DefaultAzureCredential using the client_id/secret assembled below.
 
     login = conn.login or ""
     password = conn.password or ""

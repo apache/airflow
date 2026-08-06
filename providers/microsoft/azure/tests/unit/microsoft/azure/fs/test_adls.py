@@ -158,6 +158,25 @@ def mocked_blob_file_system():
             },
         ),
         (
+            # A mixed-case bare host is still an account name; urlparse lowercases it.
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="MyAccount",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "myaccount",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
             Connection(
                 conn_id="testconn",
                 conn_type="adls",
