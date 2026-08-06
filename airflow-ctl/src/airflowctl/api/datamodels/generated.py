@@ -2368,8 +2368,15 @@ class DAGRunCollectionResponse(BaseModel):
     total_entries: Annotated[
         int | None,
         Field(
-            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
             title="Total Entries",
+        ),
+    ] = None
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
         ),
     ] = None
     next_cursor: Annotated[
@@ -2491,8 +2498,15 @@ class TaskInstanceCollectionResponse(BaseModel):
     total_entries: Annotated[
         int | None,
         Field(
-            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
             title="Total Entries",
+        ),
+    ] = None
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
         ),
     ] = None
     next_cursor: Annotated[
