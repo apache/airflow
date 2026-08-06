@@ -3629,7 +3629,19 @@ export const $DAGRunCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
@@ -6576,7 +6588,19 @@ export const $TaskInstanceCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
