@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import itertools
+import importlib
 import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
@@ -320,4 +321,4 @@ def __getattr__(name: str):
         DeprecationWarning,
         stacklevel=2,
     )
-    return getattr(__import__(modpath), name)
+    return getattr(importlib.import_module(modpath), name)
