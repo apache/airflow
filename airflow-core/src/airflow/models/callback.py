@@ -26,7 +26,7 @@ from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
@@ -136,9 +136,16 @@ class Callback(Base, BaseWorkload):
     # Creation time of the callback
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
+    dagrun_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("dag_run.id", ondelete="CASCADE"), nullable=True
+    )
+    dag_run = relationship("DagRun", back_populates="callbacks")
+
     # Used for callbacks of type CallbackType.TRIGGERER
-    trigger_id: Mapped[int] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
+
+    __table_args__ = (Index("callback_dagrun_id_idx", dagrun_id, unique=False),)
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
         """
