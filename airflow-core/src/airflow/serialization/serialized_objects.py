@@ -1760,6 +1760,11 @@ class DagSerialization(BaseSerialization):
             if dag.has_on_failure_callback:
                 serialized_dag["has_on_failure_callback"] = True
 
+            # Likewise only stored when True. On a Python Dag this is derived from the presence of
+            # @task.stub tasks; a Lang-SDK producer sets it on its own Dag instead.
+            if dag.is_mixed_language_dag:
+                serialized_dag["is_mixed_language_dag"] = True
+
             # TODO: Move this logic to a better place -- ideally before serializing contents of default_args.
             #   There is some duplication with this and SerializedBaseOperator.partial_kwargs serialization.
             #   Ideally default_args goes through same logic as fields of SerializedBaseOperator.
@@ -1885,6 +1890,8 @@ class DagSerialization(BaseSerialization):
             dag.has_on_success_callback = True
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
+
+        dag.is_mixed_language_dag = encoded_dag.get("is_mixed_language_dag") is True
 
         dag.deadline = encoded_dag.get("deadline")
 
@@ -2306,6 +2313,10 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     @property
     def timetable(self) -> Timetable:
         return decode_timetable(self.data["dag"]["timetable"])
+
+    @property
+    def is_mixed_language_dag(self) -> bool:
+        return self.data["dag"].get("is_mixed_language_dag") is True
 
     @property
     def has_task_concurrency_limits(self) -> bool:
