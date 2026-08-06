@@ -658,6 +658,42 @@ def test__tags_mutable():
     assert test_dag.tags == expected_tags
 
 
+class _FakeStubOperator(BaseOperator):
+    """Stands in for providers.standard's ``@task.stub``, which task-sdk must not import."""
+
+    is_stub = True
+
+
+@pytest.mark.parametrize(
+    ("task_classes", "expected"),
+    [
+        pytest.param([], False, id="no-tasks"),
+        pytest.param([BaseOperator], False, id="python-only"),
+        pytest.param([_FakeStubOperator], True, id="stub-only"),
+        pytest.param([BaseOperator, _FakeStubOperator], True, id="mixed"),
+        pytest.param([_FakeStubOperator, _FakeStubOperator], True, id="several-stubs"),
+    ],
+)
+def test_is_mixed_language_dag_derived_from_stub_tasks(task_classes, expected):
+    with DAG(dag_id="derived") as test_dag:
+        for i, task_class in enumerate(task_classes):
+            task_class(task_id=f"task_{i}")
+
+    assert test_dag.is_mixed_language_dag is expected
+
+
+def test_is_mixed_language_dag_cannot_be_set():
+    """It is derived from the Dag's tasks, so no author-facing way to set it may exist."""
+    with pytest.raises(TypeError, match="is_mixed_language_dag"):
+        DAG(dag_id="rejected", is_mixed_language_dag=True)
+
+    test_dag = DAG(dag_id="not_settable")
+    with pytest.raises(AttributeError, match="can not be set"):
+        test_dag.is_mixed_language_dag = True
+
+    assert test_dag.is_mixed_language_dag is False
+
+
 def test_create_dag_while_active_context():
     """Test that we can safely create a Dag whilst a Dag is activated via ``with dag1:``."""
     with DAG(dag_id="simple_dag"):
