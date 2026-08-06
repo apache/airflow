@@ -18,7 +18,7 @@
  */
 
 import { SUPERVISOR_API_VERSION } from "./protocol.js";
-import { listRegisteredTasks, type TaskRegistration } from "../sdk/registry.js";
+import { defaultRegistry, type RegisteredDag } from "../sdk/registry.js";
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
@@ -27,18 +27,20 @@ export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
 
 /** Bundle manifest fields only the built bundle itself knows: the schema
  *  version it was compiled against and the Dag/task pairs it registered.
- *  `airflow-ts-pack` runs `node bundle.mjs --airflow-metadata` to read this. */
+ *  Registered Dags without tasks appear with an empty `tasks` list so
+ *  `airflow-ts-pack` (which runs `node bundle.mjs --airflow-metadata` to
+ *  read this) can reject them instead of silently dropping them. */
 export interface BundleManifest {
   supervisor_schema_version: string;
   dags: Record<string, { tasks: string[] }>;
 }
 
 export function buildBundleManifest(
-  registrations: readonly TaskRegistration[] = listRegisteredTasks(),
+  registeredDags: readonly RegisteredDag[] = defaultRegistry.listDags(),
 ): BundleManifest {
   const dags: BundleManifest["dags"] = {};
-  for (const { dagId, taskId } of registrations) {
-    (dags[dagId] ??= { tasks: [] }).tasks.push(taskId);
+  for (const { dagId, tasks } of registeredDags) {
+    dags[dagId] = { tasks: [...tasks] };
   }
   return { supervisor_schema_version: SUPERVISOR_API_VERSION, dags };
 }
