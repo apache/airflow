@@ -180,6 +180,89 @@ class TestSqlAlchemyUtils:
             assert returned_value == query
             query.with_for_update.assert_not_called()
 
+    @staticmethod
+    def _mysql_bind(banner: str):
+        """Build a bind whose server reports ``banner`` from ``SELECT VERSION()``."""
+
+        class _Dialect:
+            name = "mysql"
+            supports_for_update_of = True
+
+        conn = mock.MagicMock()
+        conn.exec_driver_sql.return_value.scalar.return_value = banner
+        engine = mock.MagicMock()
+        engine.dialect = _Dialect()
+        engine.connect.return_value.__enter__.return_value = conn
+        bind = mock.MagicMock()
+        bind.dialect = engine.dialect
+        bind.engine = engine
+        return bind, engine
+
+    @pytest.mark.parametrize(
+        ("banner", "expected_skip_locked"),
+        [
+            pytest.param("8.0.11-TiDB-v8.5.1", False, id="tidb-ignores-skip-locked"),
+            pytest.param("8.0.11-tidb-v7.5.0", False, id="tidb-lowercase-banner"),
+            pytest.param("8.4.0", True, id="mysql-84"),
+            pytest.param("8.0.39-0ubuntu0.22.04.1", True, id="mysql-80"),
+        ],
+    )
+    def test_with_row_locks_skip_locked_only_when_server_honors_it(self, banner, expected_skip_locked):
+        """TiDB accepts SKIP LOCKED and discards it, so we must not send it there."""
+        query = mock.Mock()
+        bind, _ = self._mysql_bind(banner)
+        session = mock.Mock()
+        session.bind = bind
+        session.get_bind.return_value = bind
+
+        with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", True):
+            with_row_locks(query=query, session=session, skip_locked=True)
+
+        expected = {"key_share": True}
+        if expected_skip_locked:
+            expected["skip_locked"] = True
+        query.with_for_update.assert_called_once_with(**expected)
+
+    def test_with_row_locks_probes_the_server_version_once(self):
+        query = mock.Mock()
+        bind, engine = self._mysql_bind("8.0.11-TiDB-v8.5.1")
+        session = mock.Mock()
+        session.bind = bind
+        session.get_bind.return_value = bind
+
+        with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", True):
+            for _ in range(3):
+                with_row_locks(query=query, session=session, skip_locked=True)
+
+        assert engine.connect.call_count == 1
+
+    def test_with_row_locks_does_not_probe_non_mysql_dialects(self):
+        query = mock.Mock()
+        bind, engine = self._mysql_bind("irrelevant")
+        bind.dialect.name = engine.dialect.name = "postgresql"
+        session = mock.Mock()
+        session.bind = bind
+        session.get_bind.return_value = bind
+
+        with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", True):
+            with_row_locks(query=query, session=session, skip_locked=True)
+
+        engine.connect.assert_not_called()
+        query.with_for_update.assert_called_once_with(skip_locked=True, key_share=True)
+
+    def test_with_row_locks_keeps_skip_locked_when_version_probe_fails(self):
+        query = mock.Mock()
+        bind, engine = self._mysql_bind("8.4.0")
+        engine.connect.side_effect = RuntimeError("connection gone")
+        session = mock.Mock()
+        session.bind = bind
+        session.get_bind.return_value = bind
+
+        with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", True):
+            with_row_locks(query=query, session=session, skip_locked=True)
+
+        query.with_for_update.assert_called_once_with(skip_locked=True, key_share=True)
+
     def test_prohibit_commit(self):
         with prohibit_commit(self.session) as guard:
             self.session.execute(text("SELECT 1"))

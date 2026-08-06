@@ -24,6 +24,7 @@ import json
 import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
+from weakref import WeakKeyDictionary
 
 from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
@@ -38,12 +39,13 @@ from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, MutableMapping
 
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
     from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
+    from sqlalchemy.engine import Engine
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
@@ -518,6 +520,43 @@ def nulls_first(col: ColumnElement, session: Session) -> ColumnElement:
 
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
+_SKIP_LOCKED_IGNORED_BY = ("tidb",)
+
+_skip_locked_support: MutableMapping[Engine, bool] = WeakKeyDictionary()
+
+
+def _honors_skip_locked(engine: Engine) -> bool:
+    """
+    Whether the server actually skips locked rows when asked to.
+
+    TiDB parses ``SKIP LOCKED``, silently drops it, and emits no warning
+    (https://github.com/pingcap/tidb/issues/18207). Callers use ``SKIP LOCKED``
+    to claim work exclusively, so a server that ignores it hands the same rows
+    to every scheduler at once instead of failing.
+    """
+    cached = _skip_locked_support.get(engine)
+    if cached is not None:
+        return cached
+
+    honored = True
+    if engine.dialect.name == "mysql":
+        try:
+            with engine.connect() as conn:
+                banner = str(conn.exec_driver_sql("SELECT VERSION()").scalar() or "").lower()
+        except Exception:
+            log.debug("Could not read the server version banner; assuming SKIP LOCKED works", exc_info=True)
+            banner = ""
+        if any(name in banner for name in _SKIP_LOCKED_IGNORED_BY):
+            honored = False
+            log.warning(
+                "Database server reports as %r, which accepts SKIP LOCKED but does not honor it. "
+                "Falling back to plain FOR UPDATE so concurrent schedulers cannot claim the same "
+                "rows. Schedulers will block on each other instead of skipping ahead.",
+                banner,
+            )
+    _skip_locked_support[engine] = honored
+    return honored
+
 
 def with_row_locks(
     query: Select,
@@ -557,13 +596,14 @@ def with_row_locks(
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
+    bind = session.bind
     if dialect_name == "mysql" and not getattr(
-        session.bind.dialect if session.bind else None, "supports_for_update_of", False
+        bind.dialect if bind else None, "supports_for_update_of", False
     ):
         return query
     if nowait:
         kwargs["nowait"] = True
-    if skip_locked:
+    if skip_locked and (bind is None or _honors_skip_locked(bind.engine)):
         kwargs["skip_locked"] = True
     if key_share:
         kwargs["key_share"] = True
