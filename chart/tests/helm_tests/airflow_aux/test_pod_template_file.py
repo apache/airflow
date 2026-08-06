@@ -1101,6 +1101,9 @@ class TestPodTemplateFile:
         )
 
         assert jmespath.search("metadata.labels", docs[0]) == {
+            "app.kubernetes.io/component": "worker",
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/part-of": "airflow",
             "label1": "value1",
             "label2": "value2",
             "release": "release-name",

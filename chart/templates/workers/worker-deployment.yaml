@@ -63,6 +63,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- include "airflow.standardLabels" (dict "root" . "component" "worker") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -108,6 +109,7 @@ spec:
         {{- if ne .Values.workers.celery.name "default" }}
         worker-set: {{ .Values.workers.celery.name }}
         {{- end }}
+        {{- include "airflow.standardPodLabels" (dict "root" . "component" "worker") | nindent 8 }}
         {{- if or .Values.labels .Values.workers.celery.labels }}
           {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
