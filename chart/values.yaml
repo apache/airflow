@@ -609,8 +609,6 @@ kerberos:
 # Airflow Worker Config
 workers:
   celery:
-    # Should the kerberos-ccache mount be readonly for Celery Workers
-    readonlyKerberosCache: true
     # Number of Airflow Celery workers
     replicas: 1
 
@@ -863,6 +861,9 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # Should the kerberos-ccache mount be readonly for Celery Workers
+    readonlyKerberosCache: true
+
     # Resource configuration for Airflow Celery workers
     resources: {}
     #  limits:
@@ -1110,8 +1111,10 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-    # Resource configuration for pods created with pod-template-file
+    # Should the kerberos-ccache mount be readonly for Celery Workers
     readonlyKerberosCache: true
+
+    # Resource configuration for pods created with pod-template-file
     resources: {}
     #  limits:
     #   cpu: 100m
