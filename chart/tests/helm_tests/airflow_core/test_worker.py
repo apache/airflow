@@ -924,17 +924,11 @@ class TestWorker:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "test-release"]}}}
 
-    @pytest.parametrize("reaonly_cache", [False, True])
+    @pytest.mark.parametrize("reaonly_cache", [False, True])
     def test_kerberos_readonly_cache(self, readonly_cache: bool):
         docs = render_chart(
             name="test-release",
-            values={
-                "workers": {
-                    "celery": {
-                        "readonlyKerberosCache": readonly_cache
-                    }
-                }
-            },
+            values={"workers": {"celery": {"readonlyKerberosCache": readonly_cache}}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
