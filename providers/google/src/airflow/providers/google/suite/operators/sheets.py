@@ -34,9 +34,12 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
 
     :param spreadsheet: an instance of Spreadsheet
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param drive_id: Shared Drive ID where the spreadsheet should be created.
         This is useful when using a service account, since service accounts
-        do not have personal Drive storage. (templated)
+        do not have personal Drive storage.
+        When drive_id is set, only spreadsheet["properties"]["title"] is used.
+        All other properties are ignored. (templated)
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
