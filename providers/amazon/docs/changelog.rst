@@ -52,11 +52,11 @@ Bug Fixes
 * ``Strip GlueDataQualityOperator ruleset after rendering (#70331)``
 * ``Move template-field validation/transformation out of init for Amazon Bedrock operators (#70306)``
 * ``Move template-field validation out of init for Amazon DataSync operator (#70324)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Keep S3DeleteObjectsOperator validation in __init__, narrow to ValueError (#70359)``
 * ``Rename StepFunctionStartExecutionOperator's input field to match its constructor argument (#70544)``
 * ``Fix mypy arg-type error in Redshift Data get_primary_keys (#70677)``
@@ -77,6 +77,10 @@ Doc-only
    * ``Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#70705)``
    * ``Wait for vector index to stabilize in 'example_bedrock_retrieve_and_generate' (#70649)``
    * ``Fix flaky Glue OpenLineage test that calls the real AWS endpoint (#70500)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+   * ``Add support for pandas 3 based xcoms in airflow (#71103)``
+   * ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
 
 9.33.0
 ......
