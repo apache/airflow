@@ -2270,8 +2270,11 @@ paths:
         **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
         from the response).
 
-        When `cursor` is provided, `offset` is ignored and `total_entries` is not
-        returned.
+        When `cursor` is provided, `offset` is ignored and `total_entries` is capped
+        at
+
+        `total_entries_limit` (a value equal to that limit means at least that many
+        runs match).
 
         ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
         is ``null``
@@ -8181,13 +8184,16 @@ paths:
         **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
         from the response).
 
-        When `cursor` is provided, `offset` is ignored and `total_entries` is not
-        returned.
+        When `cursor` is provided, `offset` is ignored and `total_entries` is capped
+        at
 
-        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
-        is ``null``
+        `total_entries_limit` (a value equal to that limit means at least that many
+        task instances
 
-        on the first page.'
+        match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is
+
+        ``null`` on the first page.'
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
@@ -13416,8 +13422,16 @@ components:
           - type: integer
           - type: 'null'
           title: Total Entries
-          description: Total number of matching items. Populated for offset pagination,
-            ``null`` when using cursor pagination.
+          description: Number of matching items. For offset pagination this is the
+            exact total. For cursor pagination it is capped at ``total_entries_limit``;
+            a value equal to that limit means at least that many items match.
+        total_entries_limit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Total Entries Limit
+          description: Cap applied to ``total_entries`` under cursor pagination. ``null``
+            for offset pagination, where ``total_entries`` is exact.
         next_cursor:
           anyOf:
           - type: string
@@ -15428,8 +15442,16 @@ components:
           - type: integer
           - type: 'null'
           title: Total Entries
-          description: Total number of matching items. Populated for offset pagination,
-            ``null`` when using cursor pagination.
+          description: Number of matching items. For offset pagination this is the
+            exact total. For cursor pagination it is capped at ``total_entries_limit``;
+            a value equal to that limit means at least that many items match.
+        total_entries_limit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Total Entries Limit
+          description: Cap applied to ``total_entries`` under cursor pagination. ``null``
+            for offset pagination, where ``total_entries`` is exact.
         next_cursor:
           anyOf:
           - type: string

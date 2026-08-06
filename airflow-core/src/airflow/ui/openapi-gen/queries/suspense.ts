@@ -341,7 +341,8 @@ export const useDagRunServiceGetDagRunSuspense = <TData = Common.DagRunServiceGe
 * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 *
 * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-* When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+* When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+* `total_entries_limit` (a value equal to that limit means at least that many runs match).
 * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
 * on the first page.
 * @param data The data for the request.
@@ -1105,9 +1106,10 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <TData = Comm
 * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 *
 * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-* When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
-* ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
-* on the first page.
+* When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+* `total_entries_limit` (a value equal to that limit means at least that many task instances
+* match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is
+* ``null`` on the first page.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
