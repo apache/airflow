@@ -313,10 +313,17 @@ Airflow has two sets of timetables for cron and delta schedules:
 
 In Airflow 3, a bare cron string such as ``@daily`` in ``schedule=`` resolves to
 CronTriggerTimetable_ by default (``[scheduler] create_cron_data_intervals`` is
-``False``). A bare ``timedelta`` resolves to DeltaTriggerTimetable_ when
-``[scheduler] create_delta_data_intervals`` is ``False``. Set either flag to
-``True``, or pass an explicit data-interval timetable class, to get contiguous
-windows instead.
+``False``). A bare ``timedelta`` resolves to DeltaTriggerTimetable_ by default
+(``[scheduler] create_delta_data_intervals`` is also ``False``). Pass an explicit
+data-interval timetable class, or set ``create_cron_data_intervals`` to ``True``,
+to get contiguous windows instead.
+
+.. note::
+
+    ``[scheduler] create_delta_data_intervals`` is intended to control timedelta
+    schedules independently, but is not currently consulted. Those schedules
+    follow ``create_cron_data_intervals`` as well, so setting only
+    ``create_delta_data_intervals=True`` still yields DeltaTriggerTimetable_.
 
 - A trigger timetable (CronTriggerTimetable_ or DeltaTriggerTimetable_) represents
   each run as a point in time: by default ``data_interval_start`` and
@@ -345,7 +352,7 @@ of the contiguous window. ``logical_date`` is ``data_interval_start`` for both
 kinds.
 
 *Catchup* behavior
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 By default, ``catchup`` is ``False`` (Airflow config
 ``[scheduler] catchup_by_default``). Missed scheduled run times between
@@ -359,10 +366,11 @@ scheduled run time:
 - For a data-interval timetable, the most recently completed interval whose end
   is not after "now".
 
-If you set ``catchup=True``, the scheduler creates a Dag run for every scheduled
-run time (or completed interval) between ``start_date`` and "now" that has not
-yet run (or has been cleared). Runs are created in chronological order and may
-run concurrently up to the Dag's ``max_active_runs`` (defaulted from :ref:`config:core__max_active_runs_per_dag`).
+If you set ``catchup=True``, the scheduler creates Dag runs from the latest
+automated run (or ``start_date`` if none) forward to "now", one scheduled run
+time (or completed interval) at a time in chronological order. Those runs may
+execute concurrently up to the Dag's ``max_active_runs`` (defaulted from
+:ref:`config:core__max_active_runs_per_dag`).
 
 Catchup also applies when you pause a Dag for a period and then re-enable it.
 
@@ -376,7 +384,9 @@ The time when a Dag run is triggered
 Both trigger and data interval timetables can create the first Dag run
 immediately when ``catchup=False`` and ``start_date`` is in the past. What
 differs is *which* run is selected and how ``logical_date`` / ``run_id`` are
-derived.
+derived. Without a ``start_date`` (optional when ``catchup=False``), a trigger
+timetable with the default ``run_immediately=False`` waits for the next future
+tick instead — midnight on February 1st in the example below.
 
 ``logical_date`` is always ``data_interval_start``. The timestamp embedded in
 ``run_id`` comes from ``run_after`` (when the run is eligible to start). For a
