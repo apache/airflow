@@ -113,8 +113,9 @@ class TestKubernetesPodExecOperator:
         ("do_xcom_push", "expected_result"),
         [(False, None), (True, "hello\nworld\n")],
     )
+    @mock.patch(f"{MODULE}.KubernetesPodExecOperator.log", spec=["info", "warning"])
     @mock.patch(f"{MODULE}.kubernetes_stream", autospec=True)
-    def test_execute(self, kubernetes_stream_mock, do_xcom_push, expected_result, caplog):
+    def test_execute(self, kubernetes_stream_mock, log_mock, do_xcom_push, expected_result):
         operator, hook = create_operator(
             namespace="test-namespace",
             container_name="main",
@@ -144,9 +145,13 @@ class TestKubernetesPodExecOperator:
         exec_client.read_stderr.assert_called_once_with()
         exec_client.close.assert_called_once_with()
         assert operator._exec_client is None
-        assert "[stdout] hello" in caplog
-        assert "[stdout] world" in caplog
-        assert "[stderr] warning" in caplog
+        log_mock.info.assert_has_calls(
+            [
+                mock.call("[%s] %s", "stdout", "hello"),
+                mock.call("[%s] %s", "stdout", "world"),
+            ]
+        )
+        log_mock.warning.assert_called_once_with("[%s] %s", "stderr", "warning")
 
     @pytest.mark.parametrize(
         ("namespace", "hook_namespace", "expected_namespace"),
