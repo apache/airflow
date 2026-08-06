@@ -705,7 +705,7 @@ Misc
 .....
 
 .. note::
-This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 7.1.0
 .....
