@@ -19,6 +19,43 @@
 .. contents:: Table of Contents
     :depth: 2
 
+.. _howto/operator:KubernetesPodExecOperator:
+
+KubernetesPodExecOperator
+=========================
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`
+executes a command in a running container of an existing Kubernetes Pod. It does not create,
+restart, or delete the target Pod.
+
+.. code-block:: python
+
+    from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
+
+    run_command = KubernetesPodExecOperator(
+        task_id="run_command",
+        pod_name="existing-worker",
+        namespace="default",
+        container_name="worker",
+        command=["python", "-m", "worker.run_job"],
+        kubernetes_conn_id="kubernetes_default",
+    )
+
+Commands are executed directly rather than through a shell. Include a shell explicitly when using
+pipes, redirects, variable expansion, or other shell features.
+Standard output and standard error are streamed to the task log. Set ``do_xcom_push=True`` to
+also return standard output through XCom.
+
+The target Pod and container must already be running. When ``container_name`` is omitted, the
+operator uses the ``kubectl.kubernetes.io/default-container`` annotation when present, or the
+first container otherwise. API-visible static Pods are supported through their mirror Pod name;
+components that are not exposed by the Kubernetes API cannot be targeted. The Kubernetes connection
+requires ``get`` access to ``pods`` and ``pods/exec``; see :doc:`kubernetes_rbac`.
+
+If the task or its worker stops while the command is running, Airflow closes the exec connection
+but does not modify the target Pod. Kubernetes cannot always determine whether a command completed
+before a connection failure, so configure task retries only when the command is safe to repeat.
+
 .. _howto/operator:kubernetespodoperator:
 
 KubernetesPodOperator
