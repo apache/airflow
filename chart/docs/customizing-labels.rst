@@ -24,6 +24,24 @@ Customizing Pod Labels
 The Helm Chart allows you to customize labels for your Airflow objects. You can set global labels that apply to all objects and pods defined in the chart,
 as well as component-specific labels for individual Airflow components.
 
+Default Labels
+~~~~~~~~~~~~~~
+
+Resources managed directly by the Airflow chart include the following Kubernetes-recommended labels by default:
+
+.. code-block:: yaml
+
+   app.kubernetes.io/part-of: airflow
+   app.kubernetes.io/instance: <Helm release name>
+   helm.sh/chart: <chart name>-<chart version>
+   app.kubernetes.io/managed-by: <Helm release service>
+
+Resources with a component label also include ``app.kubernetes.io/component`` with the same value. Pod templates include
+``app.kubernetes.io/part-of``, ``app.kubernetes.io/instance``, and ``app.kubernetes.io/component``.
+
+The chart retains its legacy ``tier``, ``component``, ``release``, ``chart``, and ``heritage`` labels for backwards
+compatibility. Existing workload and service selectors continue to use the legacy labels.
+
 Global Labels
 ~~~~~~~~~~~~~
 

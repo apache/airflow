@@ -36,6 +36,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- include "airflow.standardLabels" (dict "root" . "component" "otel-collector") | nindent 4 }}
     {{- if or .Values.labels .Values.otelCollector.labels }}
       {{- mustMerge .Values.otelCollector.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
@@ -58,6 +59,7 @@ spec:
         tier: airflow
         component: otel-collector
         release: {{ .Release.Name }}
+        {{- include "airflow.standardPodLabels" (dict "root" . "component" "otel-collector") | nindent 8 }}
         {{- if or .Values.labels .Values.otelCollector.labels }}
           {{- mustMerge .Values.otelCollector.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}

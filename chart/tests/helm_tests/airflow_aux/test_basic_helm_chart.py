@@ -292,6 +292,7 @@ class TestBaseChartTest:
             (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
             (f"{release_name}-airflow-triggerer", "ServiceAccount", "triggerer"),
             (f"{release_name}-airflow-dag-processor", "ServiceAccount", "dag-processor"),
+            (f"{release_name}-jwt-secret", "Secret", "api-server"),
             (f"{release_name}-broker-url", "Secret", "redis"),
             (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
             (f"{release_name}-cleanup-role", "Role", None),
@@ -325,6 +326,7 @@ class TestBaseChartTest:
             (f"{release_name}-run-airflow-migrations", "Job", "run-airflow-migrations"),
             (f"{release_name}-scheduler", "Deployment", "scheduler"),
             (f"{release_name}-scheduler-policy", "NetworkPolicy", "airflow-scheduler-policy"),
+            (f"{release_name}-statsd", "ConfigMap", "config"),
             (f"{release_name}-statsd", "Deployment", "statsd"),
             (f"{release_name}-statsd", "Service", "statsd"),
             (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
@@ -332,6 +334,8 @@ class TestBaseChartTest:
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
             (f"{release_name}-triggerer", "StatefulSet", "triggerer"),
+            (f"{release_name}-triggerer", "Service", "triggerer"),
+            (f"{release_name}-triggerer-policy", "NetworkPolicy", "airflow-triggerer-policy"),
             (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
@@ -340,8 +344,14 @@ class TestBaseChartTest:
             (f"{release_name}-airflow-api-server", "ServiceAccount", "api-server"),
             (f"{release_name}-api-secret-key", "Secret", "api-server"),
             (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
+            (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             (f"{release_name}-class1", "PriorityClass", None),
         ]
+
+        if "KubernetesExecutor" in executor:
+            kind_names_tuples.append(
+                (f"{release_name}-airflow-worker-kubernetes", "ServiceAccount", "worker")
+            )
 
         cleanup_kubernetes_executor_only_objects = {
             (f"{release_name}-airflow-cleanup", "ServiceAccount"),
@@ -352,6 +362,10 @@ class TestBaseChartTest:
 
         for k8s_object_name, kind, component in kind_names_tuples:
             expected_labels = {
+                "app.kubernetes.io/instance": release_name,
+                "app.kubernetes.io/managed-by": "Helm",
+                "app.kubernetes.io/part-of": "airflow",
+                "helm.sh/chart": mock.ANY,
                 "label1": "value1",
                 "label2": "value2",
                 "tier": "airflow",
@@ -360,6 +374,7 @@ class TestBaseChartTest:
                 "chart": mock.ANY,
             }
             if component:
+                expected_labels["app.kubernetes.io/component"] = component
                 expected_labels["component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
@@ -409,6 +424,9 @@ class TestBaseChartTest:
         ]
         for k8s_object_name, component in kind_names_tuples:
             expected_labels = {
+                "app.kubernetes.io/component": component,
+                "app.kubernetes.io/instance": release_name,
+                "app.kubernetes.io/part-of": "airflow",
                 "label1": "value1",
                 "label2": "value2",
                 "tier": "airflow",

@@ -37,6 +37,43 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{/*
+Sanitize a value for use as a Kubernetes label value.
+*/}}
+{{- define "airflow.labelValue" -}}
+  {{- . | toString | replace "+" "_" | trunc 63 | trimAll "-_." -}}
+{{- end }}
+
+{{/*
+Kubernetes recommended labels for chart resources.
+*/}}
+{{- define "airflow.standardLabels" -}}
+  {{- $root := .root -}}
+  {{- $labels := dict
+    "app.kubernetes.io/instance" (include "airflow.labelValue" $root.Release.Name)
+    "app.kubernetes.io/managed-by" (include "airflow.labelValue" $root.Release.Service)
+    "app.kubernetes.io/part-of" "airflow"
+    "helm.sh/chart" (include "airflow.labelValue" (printf "%s-%s" $root.Chart.Name $root.Chart.Version))
+  -}}
+  {{- with .component }}
+    {{- $_ := set $labels "app.kubernetes.io/component" (include "airflow.labelValue" .) -}}
+  {{- end }}
+  {{- toYaml $labels -}}
+{{- end }}
+
+{{/*
+Kubernetes recommended labels for chart-managed pods.
+*/}}
+{{- define "airflow.standardPodLabels" -}}
+  {{- $root := .root -}}
+  {{- $labels := dict
+    "app.kubernetes.io/component" (include "airflow.labelValue" (required "component is required for standard pod labels" .component))
+    "app.kubernetes.io/instance" (include "airflow.labelValue" $root.Release.Name)
+    "app.kubernetes.io/part-of" "airflow"
+  -}}
+  {{- toYaml $labels -}}
+{{- end }}
+
 {{- define "airflow.serviceAccountName" -}}
   {{ if .Values.fullnameOverride }}
     {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
