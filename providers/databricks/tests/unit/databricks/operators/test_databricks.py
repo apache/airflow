@@ -2028,7 +2028,7 @@ class TestDatabricksRunNowOperator:
             durable=False,
             task_id=TASK_ID,
             job_id=JOB_ID,
-            json={"notebook_params": {"a": "b"}},
+            json={"idempotency_token": "token_123"},
             params={"env": "prod"},
         )
         op.render_template_fields(context={"ds": DATE})
@@ -2924,6 +2924,62 @@ class TestDatabricksRunNowOperator:
 
         actual = db_mock.run_now.call_args.args[0]
         assert actual["job_parameters"] == {"explicit": "value"}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_run_now_does_not_inject_airflow_params_when_forward_dag_params_is_false(self, db_mock_class):
+        """
+        When ``forward_dag_params`` is False, the operator's ``params`` should
+        not be forwarded as ``job_parameters``.
+        """
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            forward_dag_params=False,
+            params={"env": "prod", "batch_size": 100},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.run_now.call_args.args[0]
+        assert "job_parameters" not in actual
+
+    @pytest.mark.parametrize(
+        ("slot_param", "slot_val"),
+        [
+            ("notebook_params", {"foo": "bar"}),
+            ("python_params", ["foo", "bar"]),
+            ("jar_params", ["foo", "bar"]),
+            ("spark_submit_params", ["--class", "Foo"]),
+            ("python_named_params", {"foo": "bar"}),
+            ("dbt_commands", ["dbt deps", "dbt run"]),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_run_now_skips_param_injection_with_legacy_param_slots(self, db_mock_class, slot_param, slot_val):
+        """
+        When any legacy param slot (notebook_params, etc.) is set, auto-injection of ``self.params``
+        into ``job_parameters`` must be skipped because the Databricks API rejects combining them.
+        """
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            params={"env": "prod"},
+            **{slot_param: slot_val},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.run_now.call_args.args[0]
+        assert slot_param in actual
+        assert "job_parameters" not in actual
 
 
 @pytest.mark.skipif(
