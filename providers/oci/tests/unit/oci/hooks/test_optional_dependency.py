@@ -57,6 +57,7 @@ def test_hook_modules_import_without_optional_oci_sdk():
 
 
 def test_hooks_support_selective_oci_service_imports():
+    pytest.importorskip("oci")
     subprocess.run(
         [
             sys.executable,
