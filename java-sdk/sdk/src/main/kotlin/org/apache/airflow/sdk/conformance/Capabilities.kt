@@ -49,7 +49,10 @@ private const val MIN_AIRFLOW_VERSION = "3.3"
 // Keep in sync with airflowSupervisorSchemaVersion in java-sdk/gradle.properties.
 private const val SUPERVISOR_SCHEMA_VERSION = "2026-06-16"
 
-private fun yes(note: String = ""): CapabilityEntry = CapabilityEntry(supported = true, since = MIN_AIRFLOW_VERSION, note = note)
+private fun yes(
+  note: String = "",
+  since: String = MIN_AIRFLOW_VERSION,
+): CapabilityEntry = CapabilityEntry(supported = true, since = since, note = note)
 
 private fun no(note: String = ""): CapabilityEntry = CapabilityEntry(supported = false, since = null, note = note)
 
