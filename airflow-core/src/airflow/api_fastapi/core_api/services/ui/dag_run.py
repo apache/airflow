@@ -35,7 +35,9 @@ def compute_duration_stats(durations: list[float]) -> DurationStats | None:
     if not durations:
         return None
 
-    sorted_d = sorted(durations)
+    # On Postgres 14+, DagRun.duration comes back as Decimal (EXTRACT(epoch ...) returns
+    # numeric); coerce to float so the percentile interpolation below (Decimal * float) works.
+    sorted_d = sorted(float(d) for d in durations)
 
     counts = Counter(round(d) for d in sorted_d)
     max_count = max(counts.values())

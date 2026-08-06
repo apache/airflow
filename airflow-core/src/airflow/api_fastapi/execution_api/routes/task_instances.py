@@ -21,7 +21,7 @@ import contextlib
 import itertools
 import json
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn, cast
 from uuid import UUID
 
@@ -450,8 +450,9 @@ def ti_update_state(
         data["_rendered_map_index"] = data.pop("rendered_map_index")
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
+    asset_callbacks: Sequence[Callable[[], None]] = ()
     try:
-        query, updated_state = _create_ti_state_update_query_and_update_state(
+        query, updated_state, asset_callbacks = _create_ti_state_update_query_and_update_state(
             ti_patch_payload=ti_patch_payload,
             task_instance_id=task_instance_id,
             session=session,
@@ -468,6 +469,7 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
+        session.rollback()
         ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
@@ -528,6 +530,12 @@ def ti_update_state(
                     run_id=run_id,
                     task_id=task_id,
                 )
+
+    # Release the task_instance row lock before running listener callbacks.
+    session.commit()
+
+    for callback in asset_callbacks:
+        callback()
 
 
 def _emit_task_span(ti, state):
@@ -626,7 +634,8 @@ def _create_ti_state_update_query_and_update_state(
     session: SessionDep,
     dag_bag: DagBagDep,
     dag_id: str,
-) -> tuple[Update, TaskInstanceState]:
+) -> tuple[Update, TaskInstanceState, Sequence[Callable[[], None]]]:
+    asset_callbacks: Sequence[Callable[[], None]] = ()
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
@@ -657,7 +666,7 @@ def _create_ti_state_update_query_and_update_state(
             query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
-                TI.register_asset_changes_in_db(
+                asset_callbacks = TI.register_asset_changes_in_db(
                     ti,
                     ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
@@ -768,7 +777,7 @@ def _create_ti_state_update_query_and_update_state(
                 ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
                 if ti is not None:
                     _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
-                return query, TaskInstanceState.FAILED
+                return query, TaskInstanceState.FAILED, ()
 
         actual_start_date = timezone.utcnow()
         session.add(
@@ -790,7 +799,7 @@ def _create_ti_state_update_query_and_update_state(
     else:
         raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")
 
-    return query, updated_state
+    return query, updated_state, asset_callbacks
 
 
 @ti_id_router.patch(

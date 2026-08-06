@@ -18,11 +18,15 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest.mock import Mock
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.core_api.routes.ui.deadlines import get_dag_deadline_alerts
+from airflow.models.dag_version import DagVersion
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
@@ -475,6 +479,16 @@ class TestGetDeadlines:
 class TestGetDagDeadlineAlerts:
     """Tests for GET /dags/{dag_id}/deadlineAlerts."""
 
+    def test_limits_serialized_dag_lookup(self):
+        session = Mock()
+        session.scalar.return_value = None
+
+        with pytest.raises(HTTPException, match=f"Dag with id {DAG_ID} was not found"):
+            get_dag_deadline_alerts(DAG_ID, session, limit=100, offset=0, order_by=Mock())
+
+        statement = session.scalar.call_args.args[0]
+        assert "LIMIT 1" in str(statement.compile(compile_kwargs={"literal_binds": True}))
+
     def test_returns_deadline_alerts_for_dag(self, test_client):
         """Returns all deadline alerts defined on the DAG."""
         response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
@@ -508,6 +522,59 @@ class TestGetDagDeadlineAlerts:
     def test_should_response_404_for_nonexistent_dag(self, test_client):
         response = test_client.get("/dags/nonexistent_dag/deadlineAlerts")
         assert response.status_code == 404
+
+    def _make_two_versions_with_alerts(self, dag_maker, session):
+        """Seed a Dag with two serialized versions, each carrying a distinct alert."""
+        dag_id = "dag_versioned_alerts"
+        with dag_maker(dag_id, serialized=True, session=session):
+            EmptyOperator(task_id="task")
+        dag_maker.sync_dagbag_to_db()
+        # A structural change forces a new serialized version.
+        with dag_maker(dag_id, serialized=True, session=session):
+            EmptyOperator(task_id="task")
+            EmptyOperator(task_id="task2")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        rows = session.execute(
+            select(SerializedDagModel, DagVersion.version_number)
+            .join(DagVersion, SerializedDagModel.dag_version_id == DagVersion.id)
+            .where(SerializedDagModel.dag_id == dag_id)
+        ).all()
+        serdag_by_version = {version_number: serdag for serdag, version_number in rows}
+        for version_number, serdag in serdag_by_version.items():
+            session.add(
+                DeadlineAlert(
+                    serialized_dag_id=serdag.id,
+                    name=f"v{version_number}_alert",
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
+                    interval=3600.0,
+                    callback_def={"path": _CALLBACK_PATH},
+                )
+            )
+        session.commit()
+        return dag_id
+
+    @pytest.mark.parametrize(
+        ("params", "expected_alert"),
+        [
+            pytest.param({}, "v2_alert", id="default_returns_latest_version"),
+            pytest.param({"version_number": 1}, "v1_alert", id="older_version"),
+            pytest.param({"version_number": 2}, "v2_alert", id="latest_version"),
+        ],
+    )
+    def test_version_number_scopes_alerts(self, test_client, dag_maker, session, params, expected_alert):
+        dag_id = self._make_two_versions_with_alerts(dag_maker, session)
+        response = test_client.get(f"/dags/{dag_id}/deadlineAlerts", params=params)
+        assert response.status_code == 200
+        data = response.json()
+        assert [alert["name"] for alert in data["deadline_alerts"]] == [expected_alert]
+
+    def test_unknown_version_number_returns_404(self, test_client, dag_maker, session):
+        dag_id = self._make_two_versions_with_alerts(dag_maker, session)
+        response = test_client.get(f"/dags/{dag_id}/deadlineAlerts", params={"version_number": 999})
+        assert response.status_code == 404
+        assert response.json()["detail"] == f"Dag with id {dag_id} and version number 999 was not found"
 
     @pytest.mark.parametrize("order_by", ["interval", "-interval"])
     def test_order_by_interval_is_rejected(self, test_client, order_by):
