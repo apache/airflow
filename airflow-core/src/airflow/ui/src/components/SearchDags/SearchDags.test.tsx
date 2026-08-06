@@ -18,7 +18,7 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Dispatch, SetStateAction } from "react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation, useMatches, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DagService } from "openapi/requests/services.gen";
@@ -27,6 +27,12 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import type { DagSearchOption } from "src/utils/option";
 
 import { SearchDags } from "./SearchDags";
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const original = await importOriginal();
+
+  return { ...(original as object), useMatches: vi.fn() };
+});
 
 const { loadedOption, selectedOption } = vi.hoisted<{
   loadedOption: { current: DagSearchOption | undefined };
@@ -71,23 +77,32 @@ vi.mock("chakra-react-select", () => ({
 
 const LocationDisplay = () => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
 
-  return <output data-testid="location">{pathname}</output>;
+  return (
+    <>
+      <output data-testid="location">{pathname}</output>
+      <button onClick={() => void navigate(-1)} type="button">
+        Back
+      </button>
+      <button onClick={() => void navigate(1)} type="button">
+        Forward
+      </button>
+    </>
+  );
 };
 
 const renderSearch = ({
   initialEntry,
   setIsOpen = vi.fn(),
-  tabValues = ["", "runs", "tasks", "calendar", "backfills", "events", "code", "details"],
 }: {
   initialEntry: string;
   setIsOpen?: Dispatch<SetStateAction<boolean>>;
-  tabValues?: Array<string>;
 }) => {
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <SearchDags setIsOpen={setIsOpen} tabValues={tabValues} />
+        <SearchDags setIsOpen={setIsOpen} />
         <LocationDisplay />
       </MemoryRouter>
     </BaseWrapper>,
@@ -100,6 +115,24 @@ describe("SearchDags", () => {
   beforeEach(() => {
     loadedOption.current = undefined;
     selectedOption.current = { ...selectedOption.current, isBackfillable: true };
+    vi.mocked(useMatches).mockReturnValue([
+      {
+        data: undefined,
+        handle: { entity: "dag" },
+        id: "dag",
+        loaderData: undefined,
+        params: { dagId: "old_dag" },
+        pathname: "/dags/old_dag",
+      },
+      {
+        data: undefined,
+        handle: { entity: "dag", tab: "details" },
+        id: "dag-details",
+        loaderData: undefined,
+        params: { dagId: "old_dag" },
+        pathname: "/dags/old_dag/details",
+      },
+    ]);
   });
 
   afterEach(() => {
@@ -116,6 +149,16 @@ describe("SearchDags", () => {
   });
 
   it("resets to the Dag overview from a deeper entity route", () => {
+    vi.mocked(useMatches).mockReturnValue([
+      {
+        data: undefined,
+        handle: { entity: "task" },
+        id: "task",
+        loaderData: undefined,
+        params: { dagId: "old_dag", runId: "run_1", taskId: "task_1" },
+        pathname: "/dags/old_dag/runs/run_1/tasks/task_1/details",
+      },
+    ]);
     renderSearch({ initialEntry: "/dags/old_dag/runs/run_1/tasks/task_1/details" });
 
     fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
@@ -124,6 +167,24 @@ describe("SearchDags", () => {
   });
 
   it("preserves the backfills tab for a backfillable Dag", () => {
+    vi.mocked(useMatches).mockReturnValue([
+      {
+        data: undefined,
+        handle: { entity: "dag" },
+        id: "dag",
+        loaderData: undefined,
+        params: { dagId: "old_dag" },
+        pathname: "/dags/old_dag",
+      },
+      {
+        data: undefined,
+        handle: { entity: "dag", tab: "backfills" },
+        id: "dag-backfills",
+        loaderData: undefined,
+        params: { dagId: "old_dag" },
+        pathname: "/dags/old_dag/backfills",
+      },
+    ]);
     renderSearch({ initialEntry: "/dags/old_dag/backfills" });
 
     fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
@@ -175,6 +236,24 @@ describe("SearchDags", () => {
     };
 
     vi.spyOn(DagService, "getDagsUi").mockResolvedValue(response);
+    vi.mocked(useMatches).mockReturnValue([
+      {
+        data: undefined,
+        handle: { entity: "dag" },
+        id: "dag",
+        loaderData: undefined,
+        params: { dagId: "old_dag" },
+        pathname: "/dags/old_dag",
+      },
+      {
+        data: undefined,
+        handle: { entity: "dag", tab: "backfills" },
+        id: "dag-backfills",
+        loaderData: undefined,
+        params: { dagId: "old_dag" },
+        pathname: "/dags/old_dag/backfills",
+      },
+    ]);
     renderSearch({ initialEntry: "/dags/old_dag/backfills" });
 
     fireEvent.click(screen.getByRole("button", { name: "Load Dags" }));
@@ -182,5 +261,42 @@ describe("SearchDags", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag");
+  });
+
+  it("preserves nested plugin routes", () => {
+    vi.mocked(useMatches).mockReturnValue([
+      {
+        data: undefined,
+        handle: { entity: "dag" },
+        id: "dag",
+        loaderData: undefined,
+        params: { dagId: "old_dag" },
+        pathname: "/dags/old_dag",
+      },
+      {
+        data: undefined,
+        handle: { entity: "dag", tab: "plugin" },
+        id: "dag-plugin",
+        loaderData: undefined,
+        params: { "*": "nested/detail/42", dagId: "old_dag", page: "test" },
+        pathname: "/dags/old_dag/plugin/test/nested/detail/42",
+      },
+    ]);
+    renderSearch({ initialEntry: "/dags/old_dag/plugin/test/nested/detail/42" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+
+    expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag/plugin/test/nested/detail/42");
+  });
+
+  it("keeps browser back and forward history after switching Dags", () => {
+    renderSearch({ initialEntry: "/dags/old_dag/details" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByTestId("location").textContent).toBe("/dags/old_dag/details");
+
+    fireEvent.click(screen.getByRole("button", { name: "Forward" }));
+    expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag/details");
   });
 });

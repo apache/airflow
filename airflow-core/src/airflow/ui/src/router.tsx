@@ -185,21 +185,22 @@ export const routerConfig = [
       pluginRoute,
       {
         children: [
-          { element: <Overview />, index: true },
-          { element: <DagRuns />, path: "runs" },
-          { element: <Tasks />, path: "tasks" },
-          { element: <Calendar />, path: "calendar" },
+          { element: <Overview />, handle: { entity: "dag", tab: "" }, index: true },
+          { element: <DagRuns />, handle: { entity: "dag", tab: "runs" }, path: "runs" },
+          { element: <Tasks />, handle: { entity: "dag", tab: "tasks" }, path: "tasks" },
+          { element: <Calendar />, handle: { entity: "dag", tab: "calendar" }, path: "calendar" },
           // The Required Actions tab is now a button + modal; this keeps old /required_actions
           // deep links alive by rendering the overview, where the route sync opens the modal.
           { element: <Overview />, path: "required_actions" },
-          { element: <Backfills />, path: "backfills" },
+          { element: <Backfills />, handle: { entity: "dag", tab: "backfills" }, path: "backfills" },
           { element: <Backfills />, path: "backfills/:backfillId" },
-          { element: <Events />, path: "events" },
-          { element: <Code />, path: "code" },
-          { element: <DagDetails />, path: "details" },
-          pluginRoute,
+          { element: <Events />, handle: { entity: "dag", tab: "events" }, path: "events" },
+          { element: <Code />, handle: { entity: "dag", tab: "code" }, path: "code" },
+          { element: <DagDetails />, handle: { entity: "dag", tab: "details" }, path: "details" },
+          { ...pluginRoute, handle: { entity: "dag", tab: "plugin" } },
         ],
         element: <Dag />,
+        handle: { entity: "dag" },
         path: "dags/:dagId",
       },
       {

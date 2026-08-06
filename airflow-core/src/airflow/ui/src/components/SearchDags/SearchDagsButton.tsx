@@ -28,7 +28,7 @@ import { getMetaKey } from "src/utils";
 
 import { SearchDags } from "./SearchDags";
 
-export const SearchDagsButton = ({ tabValues }: { readonly tabValues: Array<string> }) => {
+export const SearchDagsButton = () => {
   const { t: translate } = useTranslation("dags");
   const [isOpen, setIsOpen] = useState(false);
   const metaKey = getMetaKey();
@@ -57,7 +57,7 @@ export const SearchDagsButton = ({ tabValues }: { readonly tabValues: Array<stri
       </Button>
       <Dialog.Root onOpenChange={onOpenChange} open={isOpen} size="sm">
         <Dialog.Content>
-          <SearchDags setIsOpen={setIsOpen} tabValues={tabValues} />
+          <SearchDags setIsOpen={setIsOpen} />
         </Dialog.Content>
       </Dialog.Root>
     </Box>

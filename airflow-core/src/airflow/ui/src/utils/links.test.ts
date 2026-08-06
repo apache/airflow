@@ -29,56 +29,62 @@ import {
   getTaskInstanceLink,
 } from "./links";
 
+const getDagMatches = (tab: string) => [
+  { handle: { entity: "dag" }, pathname: "/dags/example" },
+  { handle: { entity: "dag", tab }, pathname: `/dags/example${tab === "" ? "" : `/${tab}`}` },
+];
+
 describe("getDagAdditionalPath", () => {
-  const tabValues = [
-    "",
-    "runs",
-    "tasks",
-    "calendar",
-    "backfills",
-    "events",
-    "code",
-    "details",
-    "plugin/test",
-    "plugin/test/nested",
-  ];
+  it.each(["", "runs", "tasks", "calendar", "backfills", "events", "code", "details"])(
+    "preserves the %s Dag tab",
+    (tab) => {
+      expect(getDagAdditionalPath(getDagMatches(tab))).toBe(tab === "" ? "" : `/${tab}`);
+    },
+  );
 
-  it.each([
-    "runs",
-    "tasks",
-    "calendar",
-    "backfills",
-    "events",
-    "code",
-    "details",
-    "plugin/test",
-    "plugin/test/nested",
-  ])("preserves the %s Dag tab", (tab) => {
-    expect(getDagAdditionalPath(`/dags/example/${tab}`, tabValues)).toBe(`/${tab}`);
-  });
-
-  it("preserves a nested plugin route using the longest matching visible plugin tab", () => {
-    expect(getDagAdditionalPath("/dags/example/plugin/test/nested/detail/42", tabValues)).toBe(
-      "/plugin/test/nested/detail/42",
-    );
+  it("preserves a nested plugin route from its matched pathname", () => {
+    expect(
+      getDagAdditionalPath([
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        {
+          handle: { entity: "dag", tab: "plugin" },
+          pathname: "/dags/example/plugin/test/nested/detail/42",
+        },
+      ]),
+    ).toBe("/plugin/test/nested/detail/42");
   });
 
   it.each([
-    "/dags/example",
-    "/dags/example/",
-    "/dags/example/required_actions",
-    "/dags/example/unknown",
-    "/dags/example/runs/run_1",
-    "/dags/example/tasks/task_1",
-    "/dags/example/tasks/group/group_1",
-    "/dags/example/runs/run_1/tasks/task_1/details",
-    "/dags/example/plugin/testing/nested",
-  ])("does not preserve a non-tab route from %s", (pathname) => {
-    expect(getDagAdditionalPath(pathname, tabValues)).toBe("");
-  });
-
-  it("supports URL-encoded Dag IDs", () => {
-    expect(getDagAdditionalPath("/dags/my%20dag/details", tabValues)).toBe("/details");
+    { matches: [] },
+    { matches: [{ handle: { entity: "asset" }, pathname: "/assets/1" }] },
+    { matches: [{ handle: { entity: "task" }, pathname: "/dags/example/tasks/task_1" }] },
+    { matches: [{ handle: { entity: "dag" }, pathname: "/dags/example" }] },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: { entity: "dag", tab: 42 }, pathname: "/dags/example/details" },
+      ],
+    },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: undefined, pathname: "/dags/example/unknown" },
+      ],
+    },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: { entity: "dag", tab: "details" }, pathname: "/dags/another/details" },
+      ],
+    },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: { entity: "dag", tab: "details" }, pathname: "/dags/example-other/details" },
+      ],
+    },
+  ])("does not preserve unmatched or non-Dag routes", (matches) => {
+    expect(getDagAdditionalPath(matches.matches)).toBe("");
   });
 });
 

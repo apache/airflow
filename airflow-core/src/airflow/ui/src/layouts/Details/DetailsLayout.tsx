@@ -227,7 +227,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
             <DagBreadcrumb />
           </Flex>
           <Flex gap={1}>
-            <SearchDagsButton tabValues={tabs.map((tab) => tab.value)} />
+            <SearchDagsButton />
             {dag === undefined ? undefined : (
               <TriggerDAGButton
                 allowedRunTypes={dag.allowed_run_types}

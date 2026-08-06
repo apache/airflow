@@ -22,7 +22,7 @@ import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useMatches, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
@@ -46,20 +46,18 @@ const formatOptionLabel = (option: DagSearchOption) => (
 
 export const SearchDags = ({
   setIsOpen,
-  tabValues,
 }: {
   readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  readonly tabValues: Array<string>;
 }) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
-  const { pathname } = useLocation();
+  const matches = useMatches();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
 
   const onSelect = (selected: SingleValue<DagSearchOption>) => {
     if (selected) {
-      const additionalPath = getDagAdditionalPath(pathname, tabValues);
+      const additionalPath = getDagAdditionalPath(matches);
       const targetPath = additionalPath === "/backfills" && !selected.isBackfillable ? "" : additionalPath;
 
       setIsOpen(false);
