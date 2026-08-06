@@ -51,10 +51,30 @@ replacement available from Airflow core:
 
 * ``airflow.security.permissions.ACTION_*`` --> ``airflow.api_fastapi.auth.managers.base_auth_manager.ResourceMethod``
 * ``airflow.security.permissions.RESOURCE_*`` --> ``airflow.api_fastapi.auth.managers.models.resource_details``
-* ``DAG.access_control`` --> Dag-level permissions should be handled by the chosen Auth Manager's ``filter_authorized_dag_ids`` method.
 
 If you maintain a custom :doc:`/core-concepts/auth-manager/index` which relies on the deprecated module, it is
 recommended you refer to the ``SimpleAuthManager``'s `source code <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/api_fastapi/auth/managers/simple/simple_auth_manager.py>`_
 as an example for how you might use the ``ResourceMethod`` and ``resource_details`` components.
 
 If you rely on custom role definitions based off the deprecated module, you should refer to the documentation of the auth manager your system uses.
+
+Migrating ``DAG.access_control``
+--------------------------------
+
+Unlike the components above, ``DAG.access_control`` has no drop-in replacement. It was an input to the
+FAB auth manager rather than an authorization mechanism of its own: at parse time its contents were
+expanded into that manager's permission tables, and authorization then read those tables rather than
+the Dag argument.
+
+.. warning::
+    Airflow only reads ``DAG.access_control`` when the configured auth manager is the
+    :doc:`apache-airflow-providers-fab:auth-manager/index`. Under any other auth manager the argument is
+    parsed and serialized but never consulted, so it neither grants nor denies access. A deployment that
+    moves off the FAB auth manager and leaves ``access_control`` on its Dags stops enforcing those grants,
+    and does so without raising an error.
+
+To migrate, move the grants into the policy source your auth manager consults, and make the per-Dag
+decision in ``is_authorized_dag``, which every auth manager implements. ``filter_authorized_dag_ids`` and
+``get_authorized_dag_ids`` answer list views over that same policy. Both have working default
+implementations built on ``is_authorized_dag``, so overriding them is a performance concern rather than a
+correctness one.
