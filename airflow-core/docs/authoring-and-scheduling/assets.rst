@@ -874,6 +874,55 @@ missing" — and is equivalent to ``MinimumCount(2)`` for a three-member window.
 Pass :class:`~airflow.sdk.WaitForAll` explicitly when you want to document intent
 rather than relying on the default.
 
+Rerun policies
+~~~~~~~~~~~~~~
+
+.. versionadded:: 3.4.0
+
+Once a window is satisfied the downstream Dag run fires and the window is materialized.
+If an upstream partition that run already consumed is later cleared and re-run, a fresh
+asset event arrives for a window that has already fired.
+:class:`~airflow.sdk.RollupMapper` accepts an optional ``rerun_policy`` argument that
+decides what happens to that event.
+
+* :class:`~airflow.sdk.RerunPolicy` ``.HOLD`` (the default) queues a provisional run and
+  re-evaluates the window through the wait policy, just as the first materialization did
+  — under ``WaitForAll`` the whole window has to re-materialize before the Dag run fires
+  again, while ``MinimumCount`` can fire once its threshold is met again.
+* ``RerunPolicy.REFRESH`` re-fires the downstream Dag run right away so it reprocesses
+  with the corrected data. Neither the wait policy nor the Dag's schedule condition is
+  re-evaluated.
+* ``RerunPolicy.IGNORE`` drops the late event — nothing is queued and the downstream Dag
+  run does not re-fire.
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        DayWindow,
+        PartitionedAssetTimetable,
+        RerunPolicy,
+        RollupMapper,
+        StartOfHourMapper,
+    )
+
+    with DAG(
+        dag_id="daily_sales_summary",
+        schedule=PartitionedAssetTimetable(
+            assets=hourly_sales,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=DayWindow(),
+                rerun_policy=RerunPolicy.REFRESH,
+            ),
+        ),
+        catchup=False,
+    ):
+        ...
+
+``HOLD`` is how a rollup behaved before ``rerun_policy`` existed, so leaving it unset
+keeps existing Dags unchanged.
+
 .. _segment-categorical-rollup:
 
 Segment (categorical) rollup

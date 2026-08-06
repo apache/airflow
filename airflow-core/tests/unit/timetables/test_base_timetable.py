@@ -19,7 +19,19 @@ from __future__ import annotations
 import pytest
 
 from airflow._shared.module_loading import qualname
-from airflow.timetables.simple import NullTimetable
+from airflow.sdk import (
+    Asset,
+    DayWindow,
+    HourWindow,
+    IdentityMapper,
+    RerunPolicy,
+    RollupMapper,
+    StartOfHourMapper,
+)
+from airflow.sdk.definitions.asset import AssetNameRef, AssetUriRef
+from airflow.serialization.encoders import encode_partition_mapper
+from airflow.timetables.base import Timetable, compute_rollup_fingerprint
+from airflow.timetables.simple import NullTimetable, PartitionedAssetTimetable
 
 
 def test_builtin_timetable_type_name_returns_class_name():
@@ -31,11 +43,10 @@ def test_builtin_timetable_type_name_returns_class_name():
 
 def test_custom_timetable_type_name_returns_qualname():
     """Custom/user-defined timetables should return the full import path (qualname)."""
+
     # Define a custom timetable class that inherits from Timetable so it uses
     # the default property implementation. Its module will not start with
     # "airflow.timetables." so type_name should be the qualname.
-    from airflow.timetables.base import Timetable
-
     class CustomTimetable(Timetable):
         pass
 
@@ -53,17 +64,11 @@ def test_custom_timetable_type_name_returns_qualname():
 
 def test_compute_rollup_fingerprint_non_partitioned_returns_empty():
     """Non-partitioned timetables return an empty dict."""
-    from airflow.timetables.base import compute_rollup_fingerprint
-
     assert compute_rollup_fingerprint(NullTimetable()) == {}
 
 
 def test_compute_rollup_fingerprint_stable_across_calls():
     """Same timetable produces identical fingerprints on repeated calls."""
-    from airflow.sdk import Asset, HourWindow, RollupMapper, StartOfHourMapper
-    from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import PartitionedAssetTimetable
-
     tt = PartitionedAssetTimetable(
         assets=Asset(name="asset-a"),
         default_partition_mapper=RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow()),
@@ -73,10 +78,6 @@ def test_compute_rollup_fingerprint_stable_across_calls():
 
 def test_compute_rollup_fingerprint_keys_sorted():
     """Keys are sorted, making the dict stable regardless of asset order."""
-    from airflow.sdk import Asset, HourWindow, RollupMapper, StartOfHourMapper
-    from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import PartitionedAssetTimetable
-
     asset_a = Asset(name="asset-a")
     asset_b = Asset(name="asset-b")
 
@@ -96,10 +97,6 @@ def test_compute_rollup_fingerprint_keys_sorted():
 
 def test_compute_rollup_fingerprint_window_change_produces_different_fingerprint():
     """Changing window (Hour → Day) produces a different fingerprint."""
-    from airflow.sdk import Asset, DayWindow, HourWindow, RollupMapper, StartOfHourMapper
-    from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import PartitionedAssetTimetable
-
     asset_1 = Asset(name="asset-1")
     tt_hour = PartitionedAssetTimetable(
         assets=asset_1,
@@ -114,12 +111,51 @@ def test_compute_rollup_fingerprint_window_change_produces_different_fingerprint
     assert fp_hour != fp_day
 
 
+def test_compute_rollup_fingerprint_excludes_rerun_policy():
+    """
+    Changing only ``rerun_policy`` must NOT change the fingerprint.
+
+    ``rerun_policy`` governs post-fire behavior, not which upstream keys a window
+    requires. If it fed the fingerprint, a policy-only edit would discard in-flight
+    APDRs, and upgrading from a version that pre-dates the key would invalidate
+    every pending partition run (stored fingerprints lack the key).
+    """
+    asset_1 = Asset(name="asset-1")
+
+    def fingerprint(policy):
+        tt = PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(), window=HourWindow(), rerun_policy=policy
+            ),
+        )
+        return compute_rollup_fingerprint(tt)
+
+    fingerprints = [fingerprint(policy) for policy in RerunPolicy]
+    assert all(fp == fingerprints[0] for fp in fingerprints)
+    assert "rerun_policy" not in str(fingerprints[0])
+
+
+def test_compute_rollup_fingerprint_non_rollup_mapper_unaffected():
+    """
+    A non-rollup partition mapper is fingerprinted unchanged.
+
+    The ``rerun_policy`` exclusion is gated on ``is_rollup``, so a non-rollup
+    mapper (which never carries ``rerun_policy``) is passed through untouched —
+    this also guards against the exclusion ever stripping a same-named field
+    from some other mapper.
+    """
+    asset_1 = Asset(name="asset-1")
+    mapper = IdentityMapper()
+    tt = PartitionedAssetTimetable(assets=asset_1, default_partition_mapper=mapper)
+
+    fp = compute_rollup_fingerprint(tt)
+    # The entry is the full encoded mapper, identical to encoding it directly.
+    assert fp[f"{asset_1.name}|{asset_1.uri}"] == encode_partition_mapper(mapper)
+
+
 def test_compute_rollup_fingerprint_multi_asset_all_keys_present():
     """All assets appear as keys in the fingerprint."""
-    from airflow.sdk import Asset, HourWindow, RollupMapper, StartOfHourMapper
-    from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import PartitionedAssetTimetable
-
     assets = [Asset(name=f"asset-{i}") for i in range(3)]
     condition = assets[0]
     for a in assets[1:]:
@@ -157,11 +193,6 @@ def test_compute_rollup_fingerprint_multi_asset_all_keys_present():
 )
 def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
     """Keys follow the ``{name}|{uri}`` format for full assets and ``{name}|`` / ``|{uri}`` for refs."""
-    from airflow.sdk import Asset, HourWindow, RollupMapper, StartOfHourMapper
-    from airflow.sdk.definitions.asset import AssetNameRef, AssetUriRef
-    from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import PartitionedAssetTimetable
-
     kind, name, uri = asset_or_ref
     if kind == "asset":
         asset_input = Asset(name=name, uri=uri)
