@@ -584,6 +584,27 @@ class TestGetAssetsUi:
         assert last_asset_event["id"] == latest_event_id
         assert last_asset_event["timestamp"] == "2024-01-02T00:00:00Z"
 
+    def test_last_asset_event_breaks_timestamp_tie_by_highest_id(self, test_client, session):
+        asset = AssetModel(name="tied_timestamp", uri="s3://bucket/tied_timestamp", group="asset")
+        session.add(asset)
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        tied_timestamp = pendulum.datetime(2024, 1, 1)
+        lower_id_event = AssetEvent(asset_id=asset.id, timestamp=tied_timestamp)
+        higher_id_event = AssetEvent(asset_id=asset.id, timestamp=tied_timestamp)
+        session.add_all([lower_id_event, higher_id_event])
+        session.flush()
+        higher_id_event_id = higher_id_event.id
+        session.commit()
+
+        assert higher_id_event_id > lower_id_event.id
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        last_asset_event = response.json()["assets"][0]["last_asset_event"]
+        assert last_asset_event["id"] == higher_id_event_id
+
     def test_sort_by_group(self, test_client, session):
         billing = AssetModel(name="billing_asset", uri="s3://bucket/billing_sort", group="billing")
         marketing = AssetModel(name="marketing_asset", uri="s3://bucket/marketing_sort", group="marketing")
