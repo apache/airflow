@@ -238,7 +238,7 @@ class BaseOperations:
                 raw = fill_missing_fields(json.loads(content), data_model)
                 return data_model.model_validate(raw)  # type: ignore[union-attr]
 
-        self.response = self.client.get(path, params=shared_params)
+        self.response = self.client.get(path, params={**shared_params, "offset": offset})
         first_pass = safe_validate(self.response.content)
         total_entries = first_pass.total_entries  # type: ignore[attr-defined]
         if total_entries < limit:

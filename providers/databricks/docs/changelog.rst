@@ -26,6 +26,28 @@
 Changelog
 ---------
 
+7.18.1
+......
+
+Misc
+~~~~
+
+* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+* ``Review and update constraint dependencies (#70652)``
+* ``Validate DatabricksSQLStatementsSensor statement fields after rendering (#70340)``
+* ``Validate DatabricksCopyIntoOperator template fields after rendering (#70339)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+* ``Clarify Databricks retry_delay uses exponential backoff (#68622)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore Dag-parse-time validation for Databricks Repos operator arguments (#70551)``
+   * ``Validate Databricks Repos operators' template fields after rendering (#70341)``
+
 7.18.0
 ......
 
