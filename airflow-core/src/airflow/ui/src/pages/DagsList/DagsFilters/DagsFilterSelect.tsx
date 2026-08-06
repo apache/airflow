@@ -94,7 +94,7 @@ export const DagsFilterSelect = ({
         value={values.map((value) => ({ label: value, value }))}
       />
       {hasError ? (
-        <HStack data-testid={`${ariaLabel}-suggestions-error`} role="alert">
+        <HStack role="alert">
           <Field.ErrorText>{translate("filters.suggestionsError")}</Field.ErrorText>
           {onRetry === undefined ? undefined : (
             <Button onClick={onRetry} size="xs" variant="outline">

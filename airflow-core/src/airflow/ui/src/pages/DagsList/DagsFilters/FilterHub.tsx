@@ -148,7 +148,7 @@ const FilterHubContent = ({ contentRef, editingFacet, model }: FilterHubContentP
               options={[
                 {
                   dataTestId: "hub-needs-review-all",
-                  label: translate("dags:filters.favorite.all"),
+                  label: translate("dags:filters.needsReviewAll"),
                   value: "all",
                 },
                 {

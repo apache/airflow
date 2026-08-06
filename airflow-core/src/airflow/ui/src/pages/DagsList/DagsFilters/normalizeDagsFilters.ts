@@ -32,7 +32,8 @@ const {
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const booleanValues = new Set(["all", "false", "true"]);
-const positiveBooleanValues = new Set(["all", "true"]);
+const favoriteValues = new Set(["false", "true"]);
+const needsReviewValues = new Set(["true"]);
 const runStateValues = new Set(["failed", "queued", "running", "success"]);
 const tagMatchModes = new Set(["all", "any"]);
 
@@ -61,8 +62,8 @@ export const getNormalizedDagsFilterSearchParams = (searchParams: URLSearchParam
 
   normalizeSingleValue(normalized, DAG_RUN_STATE, runStateValues);
   normalizeSingleValue(normalized, LAST_DAG_RUN_STATE, runStateValues);
-  normalizeSingleValue(normalized, FAVORITE, booleanValues);
-  normalizeSingleValue(normalized, NEEDS_REVIEW, positiveBooleanValues);
+  normalizeSingleValue(normalized, FAVORITE, favoriteValues);
+  normalizeSingleValue(normalized, NEEDS_REVIEW, needsReviewValues);
   normalizeSingleValue(normalized, PAUSED, booleanValues);
   normalizeMultiValue(normalized, TAGS);
   normalizeMultiValue(normalized, OWNERS);

@@ -27,7 +27,7 @@
     "lastRunState": "Last run",
     "moreSuggestionsAvailable": "More suggestions available. Scroll to load more.",
     "needsReview": "Required action",
-    "needsReviewFalse": "No required action",
+    "needsReviewAll": "All",
     "noTimetableTypesFound": "No timetable types found",
     "ownershipGroup": "Ownership",
     "paused": {

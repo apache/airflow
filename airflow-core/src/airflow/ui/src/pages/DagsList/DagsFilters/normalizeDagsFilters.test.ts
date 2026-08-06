@@ -50,4 +50,14 @@ describe("getNormalizedDagsFilterSearchParams", () => {
     expect(normalized.getAll("last_dag_run_state")).toEqual(["success"]);
     expect(normalized.get("tags_match_mode")).toBe("all");
   });
+
+  it("drops no-op all values while preserving the meaningful paused override", () => {
+    const normalized = getNormalizedDagsFilterSearchParams(
+      new URLSearchParams("favorite=all&needs_review=all&paused=all"),
+    );
+
+    expect(normalized.get("favorite")).toBeNull();
+    expect(normalized.get("needs_review")).toBeNull();
+    expect(normalized.get("paused")).toBe("all");
+  });
 });

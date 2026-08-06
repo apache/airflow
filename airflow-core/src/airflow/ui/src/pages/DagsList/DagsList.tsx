@@ -262,7 +262,7 @@ export const DagsList = () => {
   const dagRunState = normalizedFilterParams.get(DAG_RUN_STATE) as DagRunState;
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = normalizedFilterParams.get(NEEDS_REVIEW);
-  const owners = getUniqueSearchParamValues(searchParams, OWNERS);
+  const owners = getUniqueSearchParamValues(normalizedFilterParams, OWNERS);
   const teams = getUniqueSearchParamValues(normalizedFilterParams, TEAMS);
   const timetableType = getUniqueSearchParamValues(normalizedFilterParams, TIMETABLE_TYPE);
 

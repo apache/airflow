@@ -138,6 +138,7 @@ describe("FilterHub", () => {
     fireEvent.click(screen.getByTestId("hub-filter-trigger"));
 
     expect(await screen.findByText("common:dagDetails.schedule")).toBeInTheDocument();
+    expect(screen.getByTestId("hub-needs-review-all")).toHaveTextContent("dags:filters.needsReviewAll");
   });
 
   it("restores focus to the edited chip when the disclosure closes", async () => {
