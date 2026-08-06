@@ -22,7 +22,6 @@ import importlib
 import inspect
 import sys
 from collections.abc import AsyncIterator
-from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -33,6 +32,7 @@ from requests.structures import CaseInsensitiveDict
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.http.auth_helpers import deserialize_auth_type, serialize_auth_type
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -43,21 +43,6 @@ else:
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
-
-
-def serialize_auth_type(auth: str | type | None) -> str | None:
-    if auth is None:
-        return None
-    if isinstance(auth, str):
-        return auth
-    return f"{auth.__module__}.{auth.__qualname__}"
-
-
-def deserialize_auth_type(path: str | None) -> type | None:
-    if path is None:
-        return None
-    module_path, cls_name = path.rsplit(".", 1)
-    return getattr(import_module(module_path), cls_name)
 
 
 class HttpResponseSerializer:
