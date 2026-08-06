@@ -40,6 +40,20 @@ describe("ButtonGroupToggle", () => {
     expect(screen.getByText("Paused")).toBeInTheDocument();
   });
 
+  it("exposes the selected option with pressed-button semantics", () => {
+    const { rerender } = render(<ButtonGroupToggle onChange={vi.fn()} options={options} value="all" />, {
+      wrapper: BaseWrapper,
+    });
+
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Active" })).toHaveAttribute("aria-pressed", "false");
+
+    rerender(<ButtonGroupToggle onChange={vi.fn()} options={options} value="active" />);
+
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Active" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("calls onChange when clicking a button", () => {
     const onChange = vi.fn();
 

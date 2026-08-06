@@ -22,19 +22,27 @@ import { useTranslation } from "react-i18next";
 import { DagsFilterSelect } from "./DagsFilterSelect";
 
 type Props = {
+  readonly hasError?: boolean;
+  readonly hasNextPage?: boolean;
+  readonly isLoading?: boolean;
   readonly onChange: (timetableTypes: Array<string>) => void;
   readonly onInputChange: (value: string) => void;
   readonly onMenuScrollToBottom: () => void;
   readonly onMenuScrollToTop: () => void;
+  readonly onRetry?: () => void;
   readonly timetableTypes: Array<string>;
   readonly values: Array<string>;
 };
 
 export const TimetableTypeFilter = ({
+  hasError,
+  hasNextPage,
+  isLoading,
   onChange,
   onInputChange,
   onMenuScrollToBottom,
   onMenuScrollToTop,
+  onRetry,
   timetableTypes,
   values,
 }: Props) => {
@@ -44,11 +52,15 @@ export const TimetableTypeFilter = ({
     <Box flex="0 1 300px" maxWidth="100%" width="300px">
       <DagsFilterSelect
         ariaLabel={translate("filters.timetableType")}
+        hasError={hasError}
+        hasNextPage={hasNextPage}
+        isLoading={isLoading}
         noOptionsMessage={translate("filters.noTimetableTypesFound")}
         onChange={onChange}
         onInputChange={onInputChange}
         onMenuScrollToBottom={onMenuScrollToBottom}
         onMenuScrollToTop={onMenuScrollToTop}
+        onRetry={onRetry}
         options={timetableTypes}
         placeholder={translate("filters.timetableType")}
         values={values}

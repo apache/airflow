@@ -33,6 +33,7 @@ type AdvancedSearchProps = Omit<AdvancedSearchToggleProps, "size">;
 
 type Props = {
   readonly advancedSearch?: AdvancedSearchProps;
+  readonly ariaLabel?: string;
   readonly defaultValue: string;
   readonly hotkeyDisabled?: boolean;
   readonly onChange: (value: string) => void;
@@ -41,6 +42,7 @@ type Props = {
 
 export const SearchBar = ({
   advancedSearch,
+  ariaLabel,
   defaultValue,
   hotkeyDisabled = false,
   onChange,
@@ -73,6 +75,7 @@ export const SearchBar = ({
     lastSentValue.current = "";
     setValue("");
     onChange("");
+    searchRef.current?.focus();
   };
 
   useShortcut({
@@ -108,6 +111,7 @@ export const SearchBar = ({
       startElement={<FiSearch />}
     >
       <Input
+        aria-label={ariaLabel ?? placeholder}
         data-testid="search-dags"
         onChange={onSearchChange}
         placeholder={placeholder}

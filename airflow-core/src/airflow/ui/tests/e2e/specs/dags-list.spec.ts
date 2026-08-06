@@ -91,13 +91,23 @@ test.describe("Dags List Display", () => {
     }
   });
 
-  test("should display test Dag in the list", async ({ dagsPage }) => {
+  test("should navigate from the list to a Dag", async ({ dagsPage, page }) => {
     test.slow();
     const testDagId = testConfig.testDag.id;
 
     await dagsPage.navigate();
     await dagsPage.waitForDagList();
-    await expect(dagsPage.getDagLink(testDagId)).toBeVisible();
+    const dagLink = dagsPage.getDagLink(testDagId);
+
+    await expect(dagLink).toBeVisible();
+    await dagLink.click();
+    await expect(page).toHaveURL(new RegExp(`/dags/${testDagId}`));
+    await expect(
+      page
+        .getByRole("heading", { name: testDagId })
+        .or(page.locator(`[data-testid="dag-name"]:has-text("${testDagId}")`))
+        .first(),
+    ).toBeVisible();
   });
 
   test("verify HITL review modal opens from the needs review badge in table view", async ({
@@ -110,8 +120,7 @@ test.describe("Dags List Display", () => {
     await dagsPage.waitForDagList();
     await dagsPage.switchToTableView();
 
-    await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
-    await dagsPage.needsReviewFilter.click();
+    await dagsPage.filterByStatus("needs_review");
 
     const needsReviewBadge = await dagsPage.getDagNeedsReviewBadgeOnTable(pendingHITLRun.dagId);
 
@@ -131,8 +140,7 @@ test.describe("Dags List Display", () => {
     await dagsPage.waitForDagList();
     await dagsPage.switchToCardView();
 
-    await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
-    await dagsPage.needsReviewFilter.click();
+    await dagsPage.filterByStatus("needs_review");
 
     const needsReviewBadge = await dagsPage.getDagNeedsReviewBadgeOnCard(pendingHITLRun.dagId);
 
@@ -189,6 +197,78 @@ test.describe("Dags Search", () => {
       })
       .toBe(initialCount);
   });
+
+  test("should synchronize combined search and filters with browser history", async ({
+    dagsPage,
+    page,
+    pendingHITLRun,
+  }) => {
+    test.slow();
+    const pendingDagId = pendingHITLRun.dagId;
+
+    await dagsPage.navigate();
+    await dagsPage.searchDag(pendingDagId);
+
+    await expect.poll(() => new URL(page.url()).searchParams.get("name_pattern")).toBe(pendingDagId);
+
+    await dagsPage.filterByStatus("needs_review", { dag_display_name_prefix_pattern: pendingDagId });
+    await expect.poll(() => new URL(page.url()).searchParams.get("needs_review")).toBe("true");
+    await expect(dagsPage.searchInput).toHaveValue(pendingDagId);
+    await expect(dagsPage.getDagLink(pendingDagId)).toBeVisible();
+
+    await page.goBack();
+    await expect.poll(() => new URL(page.url()).searchParams.get("needs_review")).toBeNull();
+    await expect(dagsPage.searchInput).toHaveValue(pendingDagId);
+    await expect(dagsPage.getDagLink(pendingDagId)).toBeVisible();
+    await expect(page.getByTestId("hub-edit-needsReview")).toBeHidden();
+
+    await page.goForward();
+    await expect.poll(() => new URL(page.url()).searchParams.get("needs_review")).toBe("true");
+    await expect(page.getByTestId("hub-edit-needsReview")).toBeVisible();
+    await expect(dagsPage.getDagLink(pendingDagId)).toBeVisible();
+
+    await dagsPage.clearFilters();
+    await expect.poll(() => new URL(page.url()).searchParams.get("needs_review")).toBeNull();
+    await expect(dagsPage.searchInput).toHaveValue(pendingDagId);
+  });
+
+  test("should hydrate a multi-filter deep link and remove one active chip", async ({
+    dagsPage,
+    page,
+    pendingHITLRun,
+  }) => {
+    test.slow();
+    const pendingDagId = pendingHITLRun.dagId;
+    const responsePromise = dagsPage.waitForDagsResponse({
+      dag_display_name_prefix_pattern: pendingDagId,
+      has_pending_actions: "true",
+      paused: "false",
+    });
+
+    await page.goto(`/dags?name_pattern=${encodeURIComponent(pendingDagId)}&needs_review=true&paused=false`);
+    await responsePromise;
+
+    await expect(dagsPage.searchInput).toHaveValue(pendingDagId);
+    await expect(page.getByTestId("hub-edit-needsReview")).toBeVisible();
+    await expect(page.getByTestId("hub-edit-paused")).toBeVisible();
+
+    await dagsPage.removeFilter("paused", {
+      dag_display_name_prefix_pattern: pendingDagId,
+      has_pending_actions: "true",
+      paused: null,
+    });
+    await expect
+      .poll(() => ["all", null].includes(new URL(page.url()).searchParams.get("paused")))
+      .toBe(true);
+    await expect(page.getByTestId("hub-edit-paused")).toBeHidden();
+  });
+
+  test("should show the no-result state for a missing Dag", async ({ dagsPage, page }) => {
+    await dagsPage.navigate();
+    await dagsPage.searchDag("dag-that-does-not-exist-69728");
+
+    await expect(page.getByText(/no dag/i)).toBeVisible();
+  });
 });
 
 test.describe("Dags Status Filtering", () => {
@@ -197,12 +277,44 @@ test.describe("Dags Status Filtering", () => {
     await dagsPage.navigate();
     await dagsPage.waitForDagList();
 
-    await expect(dagsPage.lastRunStateFilter).toBeVisible();
-
     await dagsPage.filterByStatus("success");
     await dagsPage.waitForDagList();
 
     await dagsPage.filterByStatus("failed");
     await dagsPage.waitForDagList();
+  });
+
+  test("should support keyboard dismissal and restore focus", async ({ dagsPage }) => {
+    await dagsPage.navigate();
+    await dagsPage.openFilters();
+
+    await expect(dagsPage.lastRunStateFilter.getByRole("combobox")).toBeFocused();
+    await dagsPage.closeFilters();
+  });
+
+  test("should use a non-overflowing filter drawer on a narrow viewport", async ({ dagsPage, page }) => {
+    await page.setViewportSize({ height: 812, width: 375 });
+    const responsePromise = dagsPage.waitForDagsResponse({ paused: "false" });
+
+    await page.goto("/dags?paused=false");
+    await responsePromise;
+    await expect(dagsPage.filterTrigger).toHaveAccessibleName(/1 active filter/i);
+    await dagsPage.openFilters();
+
+    const drawer = page.getByRole("dialog", { name: "Filter Dags" });
+    const bounds = await drawer.boundingBox();
+
+    const hasHorizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+
+    expect(hasHorizontalOverflow).toBe(false);
+    expect(bounds).not.toBeNull();
+    expect(bounds?.x).toBeGreaterThanOrEqual(0);
+    expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(375);
+    await expect(dagsPage.lastRunStateFilter).toBeVisible();
+
+    await dagsPage.clearFilters();
+    await expect(dagsPage.filterTrigger).toBeFocused();
   });
 });

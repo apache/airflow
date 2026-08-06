@@ -16,12 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FilterHub } from "./FilterHub";
-import type { DagsFiltersProps } from "./types";
-import { useDagsFilterModel } from "./useDagsFilterModel";
-
-export const DagsFilters = (props: DagsFiltersProps) => {
-  const model = useDagsFilterModel();
-
-  return <FilterHub {...props} model={model} />;
-};
+export { SearchAndFilter, type SearchAndFilterLabels } from "./SearchAndFilter";
