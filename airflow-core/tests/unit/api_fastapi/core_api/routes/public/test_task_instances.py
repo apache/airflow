@@ -4900,6 +4900,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5177,6 +5178,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -5316,6 +5318,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5380,6 +5383,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5476,6 +5480,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     }
                 ],
                 "total_entries": 1,
+                "total_entries_limit": None,
                 "next_cursor": None,
                 "previous_cursor": None,
             }
@@ -5756,6 +5761,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -6045,6 +6051,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -6128,6 +6135,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.json() == {
             "task_instances": [],
             "total_entries": 0,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
