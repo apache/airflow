@@ -146,14 +146,19 @@ const makeDirectionalSelection = (options: {
     rangeCount: 1,
   }) as unknown as Selection;
 
-const buildClampContainer = () => {
+const buildClampContainer = ({
+  containerBottom = 500,
+  lastRowBottom = 700,
+}: { containerBottom?: number; lastRowBottom?: number } = {}) => {
   const container = buildLogContainer([
     { index: 10, text: "row ten" },
     { index: 11, text: "row eleven" },
     { index: 12, text: "row twelve" },
   ]);
+  const lastRow = container.querySelector('[data-index="12"]') as Element;
 
-  container.getBoundingClientRect = () => ({ bottom: 500, top: 100 }) as unknown as DOMRect;
+  container.getBoundingClientRect = () => ({ bottom: containerBottom, top: 100 }) as unknown as DOMRect;
+  lastRow.getBoundingClientRect = () => ({ bottom: lastRowBottom }) as DOMRect;
 
   return container;
 };
@@ -187,6 +192,34 @@ describe("getBottomDragClampTarget", () => {
       node: lastRow,
       offset: lastRow.childNodes.length,
     });
+  });
+
+  it("clamps inside the viewer after the pointer passes the last mounted row", () => {
+    const container = buildClampContainer({ lastRowBottom: 480 });
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 11),
+      anchorOffset: 2,
+      focus: getRowTextNode(container, 10),
+      focusOffset: 0,
+    });
+    const lastRow = container.querySelector('[data-index="12"]') as Element;
+
+    expect(getBottomDragClampTarget({ container, pointerY: 490, selection })).toEqual({
+      node: lastRow,
+      offset: lastRow.childNodes.length,
+    });
+  });
+
+  it("does not clamp inside the viewer while the last mounted row continues below it", () => {
+    const container = buildClampContainer();
+    const selection = makeDirectionalSelection({
+      anchor: getRowTextNode(container, 11),
+      anchorOffset: 2,
+      focus: getRowTextNode(container, 10),
+      focusOffset: 0,
+    });
+
+    expect(getBottomDragClampTarget({ container, pointerY: 490, selection })).toBeUndefined();
   });
 
   it("clamps to the last row when the pointer is below and the focus left the rows", () => {

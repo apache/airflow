@@ -568,9 +568,10 @@ describe("Downward drag selection", () => {
       .mockImplementation(() => undefined);
 
     container.getBoundingClientRect = () => ({ bottom: 500 }) as DOMRect;
+    lastRow.getBoundingClientRect = () => ({ bottom: 480 }) as DOMRect;
 
     fireEvent.pointerDown(anchorRow, { button: 0, clientY: 200, pointerType: "mouse" });
-    fireEvent.pointerMove(document, { clientY: 600, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 490, pointerType: "mouse" });
     document.dispatchEvent(new Event("selectionchange"));
     fireEvent.scroll(container);
 
@@ -605,11 +606,14 @@ describe("Downward drag selection", () => {
 
     const container = screen.getByTestId("virtual-scroll-container");
     const anchorRow = container.querySelector<HTMLElement>("[data-index]") as HTMLElement;
+    const rows = container.querySelectorAll<HTMLElement>("[data-index]");
+    const lastRow = rows[rows.length - 1] as HTMLElement;
     const requestAnimationFrameSpy = vi
       .spyOn(globalThis, "requestAnimationFrame")
       .mockImplementation(() => 1);
 
     container.getBoundingClientRect = () => ({ bottom: 500 }) as DOMRect;
+    lastRow.getBoundingClientRect = () => ({ bottom: 700 }) as DOMRect;
 
     fireEvent.pointerDown(container, { button: 0, clientY: 200, pointerType: "mouse" });
     fireEvent.pointerMove(document, { clientY: 600, pointerType: "mouse" });

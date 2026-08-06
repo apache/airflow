@@ -29,7 +29,12 @@ import type { ParsedLogEntry } from "src/queries/useLogs";
 
 import { HighlightedText } from "./HighlightedText";
 import { ScrollToButton } from "./ScrollToButton";
-import { getBottomDragClampTarget, getSelectionPinnedRows, mergePinnedIndexes } from "./logSelection";
+import {
+  getBottomDragBoundary,
+  getBottomDragClampTarget,
+  getSelectionPinnedRows,
+  mergePinnedIndexes,
+} from "./logSelection";
 import { useLogGroups } from "./useLogGroups";
 import { getHighlightColor, isSelectionWithin, scrollToBottom, scrollToTop } from "./utils";
 
@@ -143,11 +148,12 @@ export const TaskLogContent = ({
       }
     };
     const scheduleBottomClamp = () => {
-      if (
-        !isSelectingRef.current ||
-        dragClampRafRef.current !== 0 ||
-        !(lastPointerYRef.current >= container.getBoundingClientRect().bottom)
-      ) {
+      if (!isSelectingRef.current || dragClampRafRef.current !== 0) {
+        return;
+      }
+      const boundary = getBottomDragBoundary(container);
+
+      if (boundary === undefined || lastPointerYRef.current < boundary.y) {
         return;
       }
       dragClampRafRef.current = requestAnimationFrame(clampSelectionToBottom);

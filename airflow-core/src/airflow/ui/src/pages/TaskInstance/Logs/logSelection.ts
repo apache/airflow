@@ -59,6 +59,30 @@ type BottomDragClampOptions = {
   selection: Selection;
 };
 
+type BottomDragBoundary = {
+  lastRow: Element;
+  y: number;
+};
+
+/**
+ * The first Y coordinate where a downward drag leaves selectable log text.
+ * Mid-scroll this is the scrollport edge; at the end it is the last mounted
+ * row edge, before any trailing space or container padding.
+ */
+export const getBottomDragBoundary = (container: HTMLElement): BottomDragBoundary | undefined => {
+  const rows = container.querySelectorAll("[data-index]");
+  const lastRow = rows[rows.length - 1];
+
+  if (lastRow === undefined) {
+    return undefined;
+  }
+
+  return {
+    lastRow,
+    y: Math.min(container.getBoundingClientRect().bottom, lastRow.getBoundingClientRect().bottom),
+  };
+};
+
 /**
  * Re-extend a downward drag selection to the last mounted row. When all log
  * rows are absolutely positioned, Chrome can resolve a hit-test below the
@@ -77,17 +101,12 @@ export const getBottomDragClampTarget = ({
   if (anchorRow === undefined) {
     return undefined;
   }
-  const rect = container.getBoundingClientRect();
+  const boundary = getBottomDragBoundary(container);
 
-  if (pointerY < rect.bottom) {
+  if (boundary === undefined || pointerY < boundary.y) {
     return undefined;
   }
-  const rows = container.querySelectorAll("[data-index]");
-  const lastRow = rows[rows.length - 1];
-
-  if (lastRow === undefined) {
-    return undefined;
-  }
+  const { lastRow } = boundary;
   const offset = lastRow.childNodes.length;
 
   if (selection.focusNode === lastRow && selection.focusOffset === offset) {
