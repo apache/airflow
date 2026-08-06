@@ -59,6 +59,7 @@ import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
+import { DefaultTab as TaskInstanceDefaultTab } from "src/pages/TaskInstance/DefaultTab";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
 import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
@@ -76,7 +77,8 @@ const pluginRoute = {
 };
 
 export const taskInstanceRoutes = [
-  { element: <Logs />, index: true, path: undefined },
+  { element: <TaskInstanceDefaultTab />, index: true, path: undefined },
+  { element: <Logs />, path: "logs" },
   { element: <Events />, path: "events" },
   {
     children: [

@@ -29,8 +29,10 @@ import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useConfig } from "src/queries/useConfig";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
+import { getDefaultTaskInstanceTabPath } from "src/utils/links";
 
 import { Header } from "./Header";
 
@@ -43,8 +45,17 @@ export const TaskInstance = () => {
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
+  // When another tab is configured as the default, the index route redirects to it,
+  // so the Logs tab has to point at the explicit /logs path instead.
+  const defaultTabPath = getDefaultTaskInstanceTabPath(useConfig("default_task_instance_tab"));
+
   const tabs = [
-    { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
+    {
+      icon: <MdReorder />,
+      label: translate("tabs.logs"),
+      matchPaths: ["logs"],
+      value: defaultTabPath === "" ? "" : "logs",
+    },
     { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     {
       icon: <PiBracketsCurlyBold />,

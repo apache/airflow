@@ -2629,6 +2629,9 @@ components:
         default_wrap:
           type: boolean
           title: Default Wrap
+        default_task_instance_tab:
+          type: string
+          title: Default Task Instance Tab
         test_connection:
           type: string
           title: Test Connection
@@ -2666,6 +2669,7 @@ components:
       - enable_swagger_ui
       - require_confirmation_dag_change
       - default_wrap
+      - default_task_instance_tab
       - test_connection
       - dashboard_alert
       - show_external_log_redirect

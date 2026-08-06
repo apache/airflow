@@ -1956,6 +1956,15 @@ api:
       type: boolean
       example: ~
       default: "False"
+    default_task_instance_tab:
+      description: |
+        The tab shown by default when opening a task instance in the UI.
+        Valid values are ``logs``, ``details``, ``rendered_templates``, ``code``,
+        ``events``, ``asset_events`` and ``xcom``. Unknown values fall back to ``logs``.
+      version_added: 3.4.0
+      type: string
+      example: "details"
+      default: "logs"
     client_ssl_cert:
       description: |
         Path to a PEM-encoded client SSL certificate to use
