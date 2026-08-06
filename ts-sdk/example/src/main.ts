@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, registerDags, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
-const DAG_ID = "typescript_example";
+const dag = new Dag("typescript_example");
 
 export async function buildMessage({ client }: TaskHandlerArgs) {
   const upstream = await client.getXCom<string>({
@@ -49,7 +49,8 @@ export async function readConnection({ client }: TaskHandlerArgs) {
   };
 }
 
-registerTask({ dagId: DAG_ID, taskId: "build_message" }, buildMessage);
-registerTask({ dagId: DAG_ID, taskId: "read_connection" }, readConnection);
+dag.task("build_message", buildMessage);
+dag.task("read_connection", readConnection);
+registerDags(dag);
 
 await startCoordinator();

@@ -20,27 +20,46 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type {
   ConnectionResult,
+  DagSpec,
   GetXComOpts,
   SetXComOpts,
   StartCoordinatorOptions,
+  Task,
   TaskClient,
   TaskContext,
-  TaskRegistration,
+  TaskHandler,
+  TaskInputs,
+  TaskOptions,
+  TaskSpec,
 } from "../src/index.js";
+import * as sdk from "../src/index.js";
 import {
   ConnectionNotFoundError,
-  listRegisteredTasks,
-  registerTask,
+  Dag,
+  registerDags,
   startCoordinator,
   SUPERVISOR_API_VERSION,
   VariableNotFoundError,
 } from "../src/index.js";
 
 describe("public API", () => {
-  it("exports task registration helpers", () => {
-    const registration = { dagId: "public_api_dag", taskId: "public_api_task" };
-    registerTask(registration, async () => undefined);
-    expect(listRegisteredTasks()).toContainEqual(registration);
+  it("exports the Dag authoring surface", () => {
+    const dag = new Dag("public_api_dag");
+    const upstream = dag.task("public_api_task", async () => undefined);
+    const downstream = dag.task("public_api_downstream", async () => undefined, {
+      inputs: { upstream },
+    });
+    registerDags(dag);
+    expect(upstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_task" });
+    expect(downstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_downstream" });
+    expect(() => registerDags(new Dag("public_api_dag"))).toThrowError(/already registered/);
+  });
+
+  it("does not export the removed registerTask surface", () => {
+    expect("registerTask" in sdk).toBe(false);
+    expect("listRegisteredTasks" in sdk).toBe(false);
+    expectTypeOf<typeof sdk>().not.toHaveProperty("registerTask");
+    expectTypeOf<typeof sdk>().not.toHaveProperty("listRegisteredTasks");
   });
 
   it("exports public error classes", () => {
@@ -67,11 +86,28 @@ describe("public API", () => {
     expectTypeOf(SUPERVISOR_API_VERSION).toMatchTypeOf<string>();
   });
 
-  it("uses idiomatic TypeScript names for public client types", () => {
-    expectTypeOf<TaskRegistration>().toEqualTypeOf<{
+  it("keeps the Dag authoring signatures extensible via trailing specs", () => {
+    expectTypeOf<Task>().toEqualTypeOf<{
       readonly dagId: string;
       readonly taskId: string;
     }>();
+    expectTypeOf<TaskInputs>().toEqualTypeOf<Readonly<Record<string, Task>>>();
+    expectTypeOf<TaskOptions>().toEqualTypeOf<{
+      readonly inputs?: TaskInputs;
+      readonly spec?: TaskSpec;
+    }>();
+    expectTypeOf<ConstructorParameters<typeof Dag>>().toEqualTypeOf<[string, DagSpec?]>();
+    expectTypeOf<Dag["task"]>().toEqualTypeOf<
+      <TReturn = unknown>(
+        taskId: string,
+        handler: TaskHandler<TReturn>,
+        options?: TaskOptions,
+      ) => Task
+    >();
+    expectTypeOf<typeof registerDags>().toEqualTypeOf<(...dags: Dag[]) => void>();
+  });
+
+  it("uses idiomatic TypeScript names for public client types", () => {
     expectTypeOf<TaskContext>().toEqualTypeOf<{
       readonly dagId: string;
       readonly taskId: string;
@@ -120,7 +156,6 @@ describe("public API", () => {
   it("rejects wire-format names and non-JSON XCom values", () => {
     function acceptsGetXComOpts(_opts: GetXComOpts): void {}
     function acceptsSetXComOpts(_opts: SetXComOpts): void {}
-    function acceptsTaskRegistration(_registration: TaskRegistration): void {}
 
     acceptsGetXComOpts({
       key: "result",
@@ -149,10 +184,24 @@ describe("public API", () => {
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{ connId: string; connType: string }>();
     // @ts-expect-error public TaskContext does not expose the raw task-instance id.
     expectTypeOf<TaskContext>().toHaveProperty("taskInstanceId");
-    // @ts-expect-error task registration requires explicit dagId/taskId fields.
-    acceptsTaskRegistration("public_api_task");
-    // @ts-expect-error task registration uses dagId, not dag_id.
-    acceptsTaskRegistration({ dag_id: "example", taskId: "extract" });
+    // Never invoked: these constructor/method misuses also throw at runtime.
+    const rejectsPositionalMisuse = () => {
+      // @ts-expect-error dagId is positional, not an options object.
+      new Dag({ dagId: "example" });
+      // @ts-expect-error a task handler is required.
+      new Dag("example").task("extract");
+      const dag = new Dag("example");
+      const upstream = dag.task("extract", async () => undefined);
+      // @ts-expect-error inputs must be task handles, not arbitrary values.
+      dag.task("transform", async () => undefined, { inputs: { count: 1 } });
+      // @ts-expect-error inputs and spec are keyword-only, not positional.
+      dag.task("transform2", async () => undefined, { upstream });
+      // @ts-expect-error the Task handle is data, not callable.
+      upstream();
+    };
+    void rejectsPositionalMisuse;
+    // @ts-expect-error the Task handle is opaque and does not expose the handler.
+    expectTypeOf<Task>().toHaveProperty("handler");
     // @ts-expect-error XCom values must be JSON-compatible.
     acceptsSetXComOpts({ key: "result", value: new Date() });
   });
