@@ -205,6 +205,7 @@ class HttpSensorTrigger(BaseTrigger):
     :param extra_options: Additional kwargs to pass when creating a request.
         For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
     :param poke_interval: Time to sleep using asyncio
+    :param auth_type: The auth type for the service.
     """
 
     def __init__(
@@ -216,6 +217,7 @@ class HttpSensorTrigger(BaseTrigger):
         headers: dict[str, str] | None = None,
         extra_options: dict[str, Any] | None = None,
         poke_interval: float = 5.0,
+        auth_type: str | None = None,
     ):
         super().__init__()
         self.endpoint = endpoint
@@ -225,6 +227,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.extra_options = extra_options or {}
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
+        self.auth_type = deserialize_auth_type(auth_type)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -238,6 +241,7 @@ class HttpSensorTrigger(BaseTrigger):
                 "extra_options": self.extra_options,
                 "http_conn_id": self.http_conn_id,
                 "poke_interval": self.poke_interval,
+                "auth_type": serialize_auth_type(self.auth_type),
             },
         )
 
@@ -263,6 +267,7 @@ class HttpSensorTrigger(BaseTrigger):
     def _get_async_hook(self) -> HttpAsyncHook:
         return HttpAsyncHook(
             method=self.method,
+            auth_type=self.auth_type,
             http_conn_id=self.http_conn_id,
         )
 
