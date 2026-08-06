@@ -25,6 +25,7 @@ from airflow._shared.configuration.parser import base_section_name
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.config import Config
 from airflow.configuration import conf
+from airflow_shared.configuration.parser import base_section_name
 
 # Per-key environment-variable overrides for secrets-backend kwargs are
 # surfaced by ``conf.as_dict`` as synthetic options under the ``secrets``
