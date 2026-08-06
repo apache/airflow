@@ -83,8 +83,8 @@ branch(es) and wait for a human reviewer to approve the choice before any
 downstream task is skipped. The review form shows the LLM's choice and the
 valid downstream task IDs. When ``allow_modifications=True``, the reviewer
 can also change the choice — rendered as a dropdown of the downstream task
-IDs, or a free-text JSON list of task IDs (e.g. ``["task_a", "task_b"]``)
-with ``allow_multiple_branches=True``. The reviewed branch(es) are validated
+IDs, or a multi-select of them with ``allow_multiple_branches=True``. The
+reviewed branch(es) are validated
 against the downstream task IDs before branching:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_branch.py

@@ -819,7 +819,10 @@ class TestSparkSubmitOperatorResumable:
         hook._conf = {"spark.yarn.submit.waitAppCompletion": "true"}
         operator._hook = hook
 
-        with pytest.raises(ValueError, match="waitAppCompletion=true"):
+        with pytest.raises(
+            ValueError,
+            match=r"spark\.yarn\.submit\.waitAppCompletion=true cannot be set for cluster mode as it conflicts with the need",
+        ):
             operator.submit_job(context={})
 
     def test_yarn_poll_tolerates_transient_resourcemanager_failures(self):

@@ -371,26 +371,6 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  - package-ecosystem: "gomod"
-    cooldown:
-      # Longer than other ecosystems: distributed Go releases are not pre-scanned by a
-      # central registry, so we give any malicious release more time to be flagged.
-      default-days: 14
-    directory: "/go-sdk"
-    schedule:
-      interval: "weekly"
-    target-branch: v3-3-test
-    groups:
-      3-3-go-sdk-dependency-updates:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
   - package-ecosystem: "uv"
     cooldown:
       default-days: 4
@@ -422,6 +402,20 @@ updates:
     open-pull-requests-limit: 0
     groups:
       go-sdk-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+
+  - package-ecosystem: "gomod"
+    cooldown:
+      default-days: 14
+    directory: "/go-sdk"
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    open-pull-requests-limit: 0
+    groups:
+      3-3-go-sdk-security-updates:
         patterns:
           - "*"
         applies-to: security-updates

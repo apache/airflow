@@ -237,6 +237,7 @@ def get_xcom_entries(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
         ]
     ),
     dependencies=[
@@ -269,10 +270,9 @@ def create_xcom_entry(
 
     # Validate Dag Run ID
     if not dag_run:
-        if not dag_run:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
-            )
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
+        )
 
     # Check existing XCom
     already_existing_query = XComModel.get_many(
