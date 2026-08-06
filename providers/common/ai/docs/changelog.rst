@@ -52,6 +52,8 @@ Features
 * ``Use task state store for 'common.ai' durable execution on Airflow 3.3+ (#68926)``
 * ``Support '.txt' files in 'LLMFileAnalysisOperator' (#70431)``
 * ``Support cloud URI globs in DocumentLoaderOperator (#70299)``
+* ``Support require_approval in LLMBranchOperator (#70651)``
+* ``Render multi-branch review choices as a multi-select (#71046)``
 
 Bug Fixes
 ~~~~~~~~~
