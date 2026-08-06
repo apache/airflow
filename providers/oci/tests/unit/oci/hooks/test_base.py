@@ -113,6 +113,32 @@ class TestOciBaseHook:
         }
         assert signer is None
 
+    @pytest.mark.parametrize("auth_type", list(OciAuthType))
+    @mock.patch("oci.config.from_file", autospec=True, return_value={})
+    @mock.patch("oci.auth.signers.InstancePrincipalsSecurityTokenSigner", autospec=True)
+    @mock.patch("oci.auth.signers.get_resource_principals_signer", autospec=True)
+    def test_connection_region_cannot_control_service_domain(
+        self,
+        mock_resource_principal_signer,
+        mock_instance_principal_signer,
+        mock_from_file,
+        auth_type,
+    ):
+        self.hook = OciBaseHook(auth_type=auth_type, key_file="/keys/oci.pem")
+        self.set_connection(
+            Connection(
+                login="ocid1.user.test",
+                extra={
+                    "tenancy": "ocid1.tenancy.test",
+                    "fingerprint": "fingerprint",
+                    "region": "attacker.example",
+                },
+            )
+        )
+
+        with pytest.raises(ValueError, match="must be a region identifier"):
+            self.hook.get_oci_config()
+
     @pytest.mark.parametrize(
         ("hook_kwargs", "extra", "error_message"),
         [

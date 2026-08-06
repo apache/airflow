@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from enum import Enum
 from functools import cached_property
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
     OciSigner = Any
 
 OciClient = TypeVar("OciClient")
+
+OCI_REGION_IDENTIFIER_PATTERN = re.compile(r"[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?")
 
 
 class OciAuthType(str, Enum):
@@ -156,7 +159,7 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
                 file_location=self.config_file or oci.config.DEFAULT_LOCATION,
                 profile_name=self.profile or oci.config.DEFAULT_PROFILE,
             )
-            if region := extras.get("region"):
+            if region := self._get_connection_region(extras):
                 config["region"] = region
             return config, None
 
@@ -182,7 +185,7 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
             "tenancy": extras.get("tenancy"),
             "user": conn.login,
             "fingerprint": extras.get("fingerprint"),
-            "region": extras.get("region"),
+            "region": self._get_connection_region(extras),
             "pass_phrase": conn.password,
         }
         key_file = self.key_file
@@ -241,10 +244,22 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
             )
         return resolved_compartment_id
 
-    @staticmethod
-    def _build_principal_config(extras: dict[str, Any], signer: OciSigner) -> dict[str, Any]:
-        region = extras.get("region") or getattr(signer, "region", None)
+    @classmethod
+    def _build_principal_config(cls, extras: dict[str, Any], signer: OciSigner) -> dict[str, Any]:
+        region = cls._get_connection_region(extras) or getattr(signer, "region", None)
         return {"region": region} if region else {}
+
+    @staticmethod
+    def _get_connection_region(extras: dict[str, Any]) -> str | None:
+        region = extras.get("region")
+        if region in (None, ""):
+            return None
+        if not isinstance(region, str) or OCI_REGION_IDENTIFIER_PATTERN.fullmatch(region) is None:
+            raise ValueError(
+                "The OCI connection region must be a region identifier containing only ASCII letters, "
+                "digits, and hyphens. Dag authors can use service_endpoint for custom endpoints."
+            )
+        return region
 
     def _get_optional_connection_extras(self) -> dict[str, Any]:
         if not self.oci_conn_id:

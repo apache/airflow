@@ -24,12 +24,15 @@ The Oracle Cloud Infrastructure connection configures authentication for OCI SDK
 It is separate from the :ref:`Oracle Database connection <howto/connection:oracle>`, which
 uses the ``oracle`` connection type and the ``oracledb`` driver.
 
-OCI support is optional because the OCI Python SDK has transitive dependencies that Apache Airflow
-cannot distribute as required dependencies. Install the provider with the ``oci`` extra before using
-this connection or its service hooks:
+The OCI Python SDK transitively depends on the LGPL-licensed ``crc32c`` package. Under the
+`ASF third-party licensing policy <https://www.apache.org/legal/resolved.html#category-x>`__,
+this Category X dependency must remain optional. Install OCI support explicitly through either
+the Airflow or provider extra before using this connection or its service hooks:
 
 .. code-block:: bash
 
+    pip install 'apache-airflow[oci]'
+    # or
     pip install 'apache-airflow-providers-oci[oci]'
 
 The default connection ID is ``oci_default``.
@@ -95,7 +98,9 @@ Extra
     * ``private_key_content``: API signing private key content. Required for ``api_key``
       authentication unless the Dag author passes ``key_file`` to the hook instead; prefer a
       secrets backend.
-    * ``region``: OCI region identifier, for example ``us-chicago-1``. Required for ``api_key``
+    * ``region``: OCI region identifier containing only ASCII letters, digits, and hyphens, for
+      example ``us-chicago-1``. Domains and URLs are rejected; Dag authors must use the
+      ``service_endpoint`` hook argument for custom endpoints. The region is required for ``api_key``
       authentication, optional as a ``config_file`` profile override, and optional for principal
       authentication when the signer provides one.
     * ``compartment_id``: optional default compartment OCID used by service operations.

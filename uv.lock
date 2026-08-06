@@ -1344,7 +1344,7 @@ neo4j = [
     { name = "apache-airflow-providers-neo4j" },
 ]
 oci = [
-    { name = "apache-airflow-providers-oci" },
+    { name = "apache-airflow-providers-oci", extra = ["oci"] },
 ]
 odbc = [
     { name = "apache-airflow-providers-odbc" },
@@ -1703,7 +1703,7 @@ requires-dist = [
     { name = "apache-airflow-providers-neo4j", marker = "extra == 'all'", editable = "providers/neo4j" },
     { name = "apache-airflow-providers-neo4j", marker = "extra == 'neo4j'", editable = "providers/neo4j" },
     { name = "apache-airflow-providers-oci", marker = "extra == 'all'", editable = "providers/oci" },
-    { name = "apache-airflow-providers-oci", marker = "extra == 'oci'", editable = "providers/oci" },
+    { name = "apache-airflow-providers-oci", extras = ["oci"], marker = "extra == 'oci'", editable = "providers/oci" },
     { name = "apache-airflow-providers-odbc", marker = "extra == 'all'", editable = "providers/odbc" },
     { name = "apache-airflow-providers-odbc", marker = "extra == 'odbc'", editable = "providers/odbc" },
     { name = "apache-airflow-providers-openai", marker = "extra == 'all'", editable = "providers/openai" },

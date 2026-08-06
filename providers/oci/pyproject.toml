@@ -67,6 +67,8 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "oci" = [
+    # The OCI SDK transitively depends on LGPL-licensed crc32c. ASF policy permits Category X
+    # dependencies only for optional features, so the SDK must not be a required dependency.
     "oci>=2.182.0",
 ]
 

@@ -294,7 +294,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-neo4j>=3.8.0"
 ]
 "oci" = [
-    "apache-airflow-providers-oci>=0.1.0"
+    "apache-airflow-providers-oci[oci]>=0.1.0"
 ]
 "odbc" = [
     "apache-airflow-providers-odbc>=4.8.0"
