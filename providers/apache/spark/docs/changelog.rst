@@ -35,6 +35,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Anchor spark-submit log trail on actual exception instead of lines (#70513)``
+* ``Spark: Fix missing space in YARN waitAppCompletion error message (#71055)``
 
 Misc
 ~~~~

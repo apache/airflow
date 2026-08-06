@@ -27,8 +27,13 @@
 Changelog
 ---------
 
-1.11.2
+1.12.0
 ......
+
+Features
+~~~~~~~~
+
+* ``Add OpensearchRemoteLogIO.from_config and register opensearch scheme (#70295)``
 
 Bug Fixes
 ~~~~~~~~~
