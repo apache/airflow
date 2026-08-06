@@ -23,10 +23,17 @@ import pytest
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
-pytest.importorskip("vertexai.preview.evaluation")
 
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
-from vertexai.preview.evaluation import MetricPromptTemplateExamples
+
+try:
+    from vertexai.preview.evaluation import MetricPromptTemplateExamples
+except ImportError:
+    MetricPromptTemplateExamples = mock.MagicMock()
+    MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY = "summarization_quality"
+    MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS = "groundedness"
+    MetricPromptTemplateExamples.Pointwise.VERBOSITY = "verbosity"
+    MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING = "instruction_following"
 
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     GenerativeModelHook,
