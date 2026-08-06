@@ -1386,7 +1386,7 @@ class TestPodTemplateFile:
         assert initContainers["name"] == "kerberos-init"
         assert initContainers["args"] == ["kerberos", "-o"]
 
-    @pytest.mark.parametrize("reaonly_cache", [False, True])
+    @pytest.mark.parametrize("readonly_cache", [False, True])
     def test_kerberos_readonly_cache(self, readonly_cache: bool):
         docs = render_chart(
             name="test-release",
