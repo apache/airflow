@@ -329,11 +329,11 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         if self.deferrable:
             # Deferrable takes precedence over durable: the Triggerer already tracks the run across
             # the wait, so the run id is not persisted to task state on this path.
-            self.submit_job(context)
+            job_run_id = self.submit_job(context)
             self.defer(
                 trigger=GlueJobCompleteTrigger(
                     job_name=self.job_name,
-                    run_id=self._job_run_id,
+                    run_id=job_run_id,
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
