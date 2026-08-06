@@ -791,6 +791,11 @@ class TestGlueJobOperatorDeprecation:
                 )
         assert glue.durable is True
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="The <3.3 compat stub's __init__ isn't decorated with BaseOperatorMeta._apply_defaults, "
+        "so default_args injection for durable only works on the real ResumableJobMixin.",
+    )
     def test_default_args_durable_reaches_operator(self):
         with DAG(
             dag_id="test_glue_durable_default_args",
