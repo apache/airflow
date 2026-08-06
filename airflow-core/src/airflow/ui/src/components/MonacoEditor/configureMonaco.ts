@@ -31,6 +31,11 @@ const loadMonacoModules = async () => {
   // explicitly to keep the local bundle small.
   const monacoApi = Promise.all([
     import("monaco-editor/editor"),
+    import("monaco-editor/features/codeAction/register"),
+    import("monaco-editor/features/codelens/register"),
+    import("monaco-editor/features/dropOrPasteInto/register"),
+    import("monaco-editor/features/inlayHints/register"),
+    import("monaco-editor/features/suggest/register"),
     import("monaco-editor/features/folding/register"),
     import("monaco-editor/features/find/register"),
     import("monaco-editor/features/codicon/register"),
