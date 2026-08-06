@@ -24,9 +24,9 @@ requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "apache-airflow-providers-oracle"
-version = "4.6.2"
-description = "Provider package apache-airflow-providers-oracle for Apache Airflow"
+name = "apache-airflow-providers-oci"
+version = "0.1.0"
+description = "Provider package apache-airflow-providers-oci for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
 license-files = ['LICENSE', 'NOTICE']
@@ -36,7 +36,7 @@ authors = [
 maintainers = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
-keywords = [ "airflow-provider", "oracle", "airflow", "integration" ]
+keywords = [ "airflow-provider", "oci", "airflow", "integration" ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -60,23 +60,14 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
-    "apache-airflow-providers-common-sql>=1.32.0",
-    "oracledb>=2.3.0",
+    "apache-airflow-providers-common-compat>=1.12.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"numpy" = [
-    "numpy>=1.22.4; python_version<'3.11'",
-    "numpy>=1.23.2; python_version=='3.11'",
-    "numpy>=1.26.0; python_version=='3.12'",
-    "numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'",
-    "numpy>=2.4.3; python_version>='3.14'",
-]
-"openlineage" = [
-    "apache-airflow-providers-openlineage"
+"oci" = [
+    "oci>=2.182.0",
 ]
 
 [dependency-groups]
@@ -85,14 +76,8 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
-    "apache-airflow-providers-common-sql",
-    "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "numpy>=1.22.4; python_version<'3.11'",
-    "numpy>=1.23.2; python_version=='3.11'",
-    "numpy>=1.26.0; python_version=='3.12'",
-    "numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'",
-    "numpy>=2.4.3; python_version>='3.14'",
+    "apache-airflow-providers-oci[oci]",
 ]
 
 # To build docs:
@@ -121,8 +106,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.6.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.6.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-oci/0.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-oci/0.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -130,10 +115,10 @@ apache-airflow-providers-standard = {workspace = true}
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
-provider_info = "airflow.providers.oracle.get_provider_info:get_provider_info"
+provider_info = "airflow.providers.oci.get_provider_info:get_provider_info"
 
 [tool.flit.module]
-name = "airflow.providers.oracle"
+name = "airflow.providers.oci"
 
 # Explicit sdist contents so the build does not rely on VCS information
 # (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).

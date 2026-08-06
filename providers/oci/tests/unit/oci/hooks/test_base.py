@@ -22,8 +22,8 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowNotFoundException
-from airflow.providers.oracle.get_provider_info import get_provider_info
-from airflow.providers.oracle.hooks.base_oci import (
+from airflow.providers.oci.get_provider_info import get_provider_info
+from airflow.providers.oci.hooks.base import (
     OciAuthType,
     OciBaseHook,
 )

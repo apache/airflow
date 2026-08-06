@@ -18,11 +18,11 @@
 OCI Generative AI Hosted Applications
 =====================================
 
-:class:`~airflow.providers.oracle.hooks.generative_ai.OciGenerativeAIHook` uses the official
+:class:`~airflow.providers.oci.hooks.generative_ai.OciGenerativeAIHook` uses the official
 `OCI Python SDK <https://docs.oracle.com/en-us/iaas/tools/python/latest/>`__ to manage
 `Hosted Applications and deployments
 <https://docs.oracle.com/en-us/iaas/Content/generative-ai/agents.htm#deployments>`__.
-Install ``apache-airflow-providers-oracle[oci]`` before using the hook. Configure an
+Install ``apache-airflow-providers-oci[oci]`` before using the hook. Configure an
 :ref:`OCI connection <howto/connection:oci>` for API key authentication or optional
 connection-scoped defaults.
 The hook exposes the native :class:`oci.generative_ai.GenerativeAiClient` through ``conn`` and
@@ -58,7 +58,7 @@ and OAuth settings:
 
 .. code-block:: python
 
-    from airflow.providers.oracle.hooks.generative_ai import OciGenerativeAIHook
+    from airflow.providers.oci.hooks.generative_ai import OciGenerativeAIHook
 
     hook = OciGenerativeAIHook(oci_conn_id="oci_default")
     response = hook.conn.create_hosted_application(...)
@@ -71,7 +71,7 @@ OCI IAM applications do not require an OAuth or identity domain configuration:
 
 .. code-block:: python
 
-    from airflow.providers.oracle.hooks.generative_ai import OciGenerativeAIHook
+    from airflow.providers.oci.hooks.generative_ai import OciGenerativeAIHook
 
     hook = OciGenerativeAIHook(oci_conn_id="oci_default")
     response = hook.conn.create_hosted_application_iam(...)

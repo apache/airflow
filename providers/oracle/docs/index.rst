@@ -34,9 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Oracle Database connection <connections/oracle>
-    Oracle Cloud Infrastructure connection <connections/oci>
-    OCI Generative AI <generative_ai>
+    Connection types <connections/oracle>
     Operators <operators>
 
 .. toctree::
@@ -76,8 +74,7 @@
 apache-airflow-providers-oracle package
 ------------------------------------------------------
 
-`Oracle Database <https://www.oracle.com/database/technologies/>`__ and
-`Oracle Cloud Infrastructure <https://www.oracle.com/cloud/>`__ integrations.
+`Oracle <https://www.oracle.com/database/technologies/>`__
 
 
 Release: 4.6.2
@@ -104,7 +101,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``oracledb``                                ``>=2.3.0``
 ==========================================  ==================
@@ -136,13 +133,12 @@ Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-oracle[oci]
+    pip install apache-airflow-providers-oracle[numpy]
 
 
 ===============  ============================================================================================================================================================================================================================================
 Extra            Dependencies
 ===============  ============================================================================================================================================================================================================================================
-``oci``          ``oci>=2.182.0``
 ``numpy``        ``numpy>=1.22.4; python_version<'3.11'``, ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
 ``openlineage``  ``apache-airflow-providers-openlineage``
 ===============  ============================================================================================================================================================================================================================================

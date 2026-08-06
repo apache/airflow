@@ -24,14 +24,14 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-from airflow.providers.oracle.hooks.base_oci import _get_oci_sdk
+from airflow.providers.oci.hooks.base import _get_oci_sdk
 
 
 def test_get_oci_sdk_requires_optional_extra():
     with mock.patch.dict(sys.modules, {"oci": None}):
         with pytest.raises(
             AirflowOptionalProviderFeatureException,
-            match=r"pip install 'apache-airflow-providers-oracle\[oci\]'",
+            match=r"pip install 'apache-airflow-providers-oci\[oci\]'",
         ):
             _get_oci_sdk()
 
@@ -46,8 +46,8 @@ def test_hook_modules_import_without_optional_oci_sdk():
                 import sys
 
                 sys.modules["oci"] = None
-                import airflow.providers.oracle.hooks.base_oci
-                import airflow.providers.oracle.hooks.generative_ai
+                import airflow.providers.oci.hooks.base
+                import airflow.providers.oci.hooks.generative_ai
                 """
             ),
         ],

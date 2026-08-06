@@ -50,7 +50,7 @@ def _get_oci_sdk() -> Any:
     except ImportError as e:
         raise AirflowOptionalProviderFeatureException(
             "OCI features require the optional OCI Python SDK. "
-            "Install it with: pip install 'apache-airflow-providers-oracle[oci]'"
+            "Install it with: pip install 'apache-airflow-providers-oci[oci]'"
         ) from e
     return oci
 

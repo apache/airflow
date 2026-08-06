@@ -222,6 +222,9 @@ labelPRBasedOnFilePath:
   provider:neo4j:
     - providers/neo4j/**
 
+  provider:oci:
+    - providers/oci/**
+
   provider:odbc:
     - providers/odbc/**
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from airflow.providers.oracle.hooks.base_oci import OciBaseHook, _get_oci_sdk
+from airflow.providers.oci.hooks.base import OciBaseHook, _get_oci_sdk
 
 if TYPE_CHECKING:
     from oci.generative_ai import GenerativeAiClient

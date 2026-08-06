@@ -64,9 +64,9 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-oracle = false
 apache-airflow-providers-mysql = false
+apache-airflow-providers-teradata = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-microsoft-mssql = false
-apache-airflow-providers-teradata = false
 apache-airflow-providers-jdbc = false
 apache-airflow-helm-chart = false
 apache-airflow-providers-anthropic = false
@@ -138,6 +138,7 @@ apache-airflow-providers-singularity = false
 apache-airflow-providers-common-compat = false
 apache-airflow-ctl-tests = false
 apache-airflow-providers-tableau = false
+apache-airflow-providers-oci = false
 apache-airflow-providers-common-sql = false
 apache-airflow-shared-configuration = false
 apache-airflow-providers-facebook = false
@@ -241,6 +242,7 @@ members = [
     "apache-airflow-providers-mongo",
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-neo4j",
+    "apache-airflow-providers-oci",
     "apache-airflow-providers-odbc",
     "apache-airflow-providers-openai",
     "apache-airflow-providers-openfaas",
@@ -1066,6 +1068,7 @@ all = [
     { name = "apache-airflow-providers-mongo" },
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-neo4j" },
+    { name = "apache-airflow-providers-oci" },
     { name = "apache-airflow-providers-odbc" },
     { name = "apache-airflow-providers-openai" },
     { name = "apache-airflow-providers-openfaas" },
@@ -1339,6 +1342,9 @@ mysql = [
 ]
 neo4j = [
     { name = "apache-airflow-providers-neo4j" },
+]
+oci = [
+    { name = "apache-airflow-providers-oci" },
 ]
 odbc = [
     { name = "apache-airflow-providers-odbc" },
@@ -1696,6 +1702,8 @@ requires-dist = [
     { name = "apache-airflow-providers-mysql", marker = "extra == 'mysql'", editable = "providers/mysql" },
     { name = "apache-airflow-providers-neo4j", marker = "extra == 'all'", editable = "providers/neo4j" },
     { name = "apache-airflow-providers-neo4j", marker = "extra == 'neo4j'", editable = "providers/neo4j" },
+    { name = "apache-airflow-providers-oci", marker = "extra == 'all'", editable = "providers/oci" },
+    { name = "apache-airflow-providers-oci", marker = "extra == 'oci'", editable = "providers/oci" },
     { name = "apache-airflow-providers-odbc", marker = "extra == 'all'", editable = "providers/odbc" },
     { name = "apache-airflow-providers-odbc", marker = "extra == 'odbc'", editable = "providers/odbc" },
     { name = "apache-airflow-providers-openai", marker = "extra == 'all'", editable = "providers/openai" },
@@ -1780,7 +1788,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.29" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "oci", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -6685,6 +6693,50 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
+name = "apache-airflow-providers-oci"
+version = "0.1.0"
+source = { editable = "providers/oci" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+]
+
+[package.optional-dependencies]
+oci = [
+    { name = "oci" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-oci", extra = ["oci"] },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "oci", marker = "extra == 'oci'", specifier = ">=2.182.0" },
+]
+provides-extras = ["oci"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-oci", extras = ["oci"], editable = "providers/oci" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
 name = "apache-airflow-providers-odbc"
 version = "4.12.3"
 source = { editable = "providers/odbc" }
@@ -6950,9 +7002,6 @@ numpy = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
-oci = [
-    { name = "oci" },
-]
 openlineage = [
     { name = "apache-airflow-providers-openlineage" },
 ]
@@ -6964,7 +7013,6 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "apache-airflow-providers-openlineage" },
-    { name = "apache-airflow-providers-oracle", extra = ["oci"] },
     { name = "apache-airflow-task-sdk" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
@@ -6985,10 +7033,9 @@ requires-dist = [
     { name = "numpy", marker = "python_full_version == '3.12.*' and extra == 'numpy'", specifier = ">=1.26.0" },
     { name = "numpy", marker = "python_full_version == '3.13.*' and extra == 'numpy'", specifier = ">=2.1.0" },
     { name = "numpy", marker = "python_full_version >= '3.14' and extra == 'numpy'", specifier = ">=2.4.3" },
-    { name = "oci", marker = "extra == 'oci'", specifier = ">=2.182.0" },
     { name = "oracledb", specifier = ">=2.3.0" },
 ]
-provides-extras = ["oci", "numpy", "openlineage"]
+provides-extras = ["numpy", "openlineage"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -6997,7 +7044,6 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
-    { name = "apache-airflow-providers-oracle", extras = ["oci"], editable = "providers/oracle" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "numpy", marker = "python_full_version < '3.11'", specifier = ">=1.22.4" },
     { name = "numpy", marker = "python_full_version == '3.11.*'", specifier = ">=1.23.2" },
@@ -17521,7 +17567,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.182.0"
+version = "2.183.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -17534,9 +17580,9 @@ dependencies = [
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a6/20/769e5fef5006ca00b0917fc7a60d143af856ace4320af567fe83ab47f72b/oci-2.182.0.tar.gz", hash = "sha256:effdd24f808179cfa15ba1084181cadda8e09332699cdbcd2f78ebbd0a2d072e", size = 17631582, upload-time = "2026-07-14T07:21:19.742Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/2a/77bd6cbf1c69b2f368fe3d6462d84369b0cba15e37ce713cdc08d459b95a/oci-2.183.0.tar.gz", hash = "sha256:ff572ef5f2030a788796bb509d257e6a41c6510ef9b4b6a75a079efd06e533ce", size = 17759723, upload-time = "2026-07-28T06:02:29.76Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/b2/bd2ed4b1f29b1afe1565dd19e9cc0420fede82b9aa1c409361c18d84c554/oci-2.182.0-py3-none-any.whl", hash = "sha256:f8d7d675d1fe75721dac9aa97a11bf8b670a1814afd4969b7023fef8e3ce57d2", size = 35969385, upload-time = "2026-07-14T07:21:11.372Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/de/8574b3e527996a099d196e87794a4652d91a0c3185fcc7fdbb5649b75a8a/oci-2.183.0-py3-none-any.whl", hash = "sha256:bd789c98a94d7c5ea08c20d11dcf68c9cd1ad479b134727d80a930b84387070b", size = 36133501, upload-time = "2026-07-28T06:02:18.239Z" },
 ]
 
 [[package]]

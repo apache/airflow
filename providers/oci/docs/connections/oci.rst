@@ -30,7 +30,7 @@ this connection or its service hooks:
 
 .. code-block:: bash
 
-    pip install 'apache-airflow-providers-oracle[oci]'
+    pip install 'apache-airflow-providers-oci[oci]'
 
 The default connection ID is ``oci_default``.
 

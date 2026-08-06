@@ -1,0 +1,101 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-oci
+name: Oracle Cloud Infrastructure (OCI)
+description: |
+    `Oracle Cloud Infrastructure <https://www.oracle.com/cloud/>`__ integrations.
+
+state: ready
+lifecycle: incubation
+source-date-epoch: 1785967200
+
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 0.1.0
+
+integrations:
+  - integration-name: Oracle Cloud Infrastructure
+    external-doc-url: https://docs.oracle.com/en-us/iaas/Content/home.htm
+    tags: [service]
+  - integration-name: OCI Generative AI
+    external-doc-url: https://docs.oracle.com/en-us/iaas/Content/generative-ai/home.htm
+    tags: [generative-ai, service]
+
+hooks:
+  - integration-name: Oracle Cloud Infrastructure
+    python-modules:
+      - airflow.providers.oci.hooks.base
+  - integration-name: OCI Generative AI
+    python-modules:
+      - airflow.providers.oci.hooks.generative_ai
+
+connection-types:
+  - hook-class-name: airflow.providers.oci.hooks.base.OciBaseHook
+    hook-name: "Oracle Cloud Infrastructure"
+    connection-type: oci
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - schema
+        - port
+      relabeling:
+        login: User OCID
+        password: Private Key Passphrase
+      placeholders:
+        login: ocid1.user...
+        password: Optional API key passphrase
+        tenancy: ocid1.tenancy...
+        fingerprint: aa:bb:cc:...
+        region: us-chicago-1
+        compartment_id: ocid1.compartment...
+    conn-fields:
+      tenancy:
+        label: Tenancy OCID
+        schema:
+          type:
+            - string
+            - 'null'
+      fingerprint:
+        label: Key Fingerprint
+        schema:
+          type:
+            - string
+            - 'null'
+      private_key_content:
+        label: Private Key Content
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      region:
+        label: Region
+        schema:
+          type:
+            - string
+            - 'null'
+      compartment_id:
+        label: Compartment OCID
+        schema:
+          type:
+            - string
+            - 'null'

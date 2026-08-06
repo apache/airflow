@@ -293,6 +293,9 @@ apache-airflow = "airflow.__main__:main"
 "neo4j" = [
     "apache-airflow-providers-neo4j>=3.8.0"
 ]
+"oci" = [
+    "apache-airflow-providers-oci>=0.1.0"
+]
 "odbc" = [
     "apache-airflow-providers-odbc>=4.8.0"
 ]
@@ -472,6 +475,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-mongo>=4.2.2",
     "apache-airflow-providers-mysql>=5.7.2",
     "apache-airflow-providers-neo4j>=3.8.0",
+    "apache-airflow-providers-oci>=0.1.0",
     "apache-airflow-providers-odbc>=4.8.0",
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
@@ -1218,6 +1222,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/mysql/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/neo4j/src",
     "$MYPY_CONFIG_FILE_DIR/providers/neo4j/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/oci/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/oci/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/odbc/src",
     "$MYPY_CONFIG_FILE_DIR/providers/odbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/openai/src",
@@ -1496,6 +1502,7 @@ apache-airflow-providers-microsoft-winrm = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
+apache-airflow-providers-oci = false
 apache-airflow-providers-odbc = false
 apache-airflow-providers-openai = false
 apache-airflow-providers-openfaas = false
@@ -1648,6 +1655,7 @@ apache-airflow-providers-microsoft-winrm = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
+apache-airflow-providers-oci = false
 apache-airflow-providers-odbc = false
 apache-airflow-providers-openai = false
 apache-airflow-providers-openfaas = false
@@ -1811,6 +1819,7 @@ apache-airflow-providers-microsoft-winrm = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
+apache-airflow-providers-oci = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-openfaas = { workspace = true }
@@ -1952,6 +1961,7 @@ members = [
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",
+    "providers/oci",
     "providers/odbc",
     "providers/openai",
     "providers/openfaas",
