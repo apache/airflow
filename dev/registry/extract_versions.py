@@ -449,6 +449,7 @@ def extract_version_data(
                 "conn_type": conn_type,
                 "hook_class": ct.get("hook-class-name", ""),
                 "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
+                "external_services": ct.get("external-services", []),
             }
         )
 

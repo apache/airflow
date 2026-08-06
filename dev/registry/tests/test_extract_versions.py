@@ -18,12 +18,16 @@
 
 from __future__ import annotations
 
+import textwrap
+from unittest.mock import patch
+
 import pytest
 from extract_versions import (
     AIRFLOW_ROOT,
     PROVIDERS_JSON_CANDIDATES,
     SCRIPT_DIR,
     extract_modules_from_yaml,
+    extract_version_data,
 )
 from registry_tools.types import CLASS_LEVEL_SECTIONS, DICT_SHAPED_CLASS_LEVEL_SECTIONS
 
@@ -170,3 +174,39 @@ class TestExtractModulesFromYamlDictShapedSections:
         modules = _extract_class_level_modules(provider_yaml)
 
         assert {m["type"] for m in modules} == {t for t, _, _ in DICT_SHAPED_CLASS_LEVEL_SECTIONS.values()}
+
+
+class TestExtractVersionDataConnectionTypes:
+    """`external-services` on a connection-types entry must survive into the
+    per-version metadata.json (extract_versions.py:399) the same way it does
+    for the latest release in providers.json (extract_metadata.py). A
+    superseded release only has this file as its data source, so a dropped
+    or mis-keyed field here silently vanishes from just that version's page.
+    """
+
+    PROVIDER_YAML = textwrap.dedent("""\
+        name: Test Provider
+        connection-types:
+          - connection-type: testconn
+            hook-class-name: airflow.providers.test.hooks.TestHook
+            external-services:
+              - openai
+              - anthropic
+        """)
+
+    @patch("extract_versions.extract_modules_from_yaml", autospec=True, return_value=[])
+    @patch("extract_versions.fetch_provider_inventory", autospec=True, return_value=None)
+    @patch("extract_versions.git_show", autospec=True)
+    @patch("extract_versions.detect_layout", autospec=True, return_value="new")
+    @patch("extract_versions.git_tag_exists", autospec=True, return_value=True)
+    def test_external_services_propagates_to_version_metadata(
+        self, _tag_exists, _layout, mock_git_show, _inventory, _modules
+    ):
+        mock_git_show.side_effect = lambda tag, path: (
+            self.PROVIDER_YAML if path.endswith("provider.yaml") else None
+        )
+
+        result = extract_version_data("test", "1.0.0", "test")
+
+        assert result is not None
+        assert result["connection_types"][0]["external_services"] == ["openai", "anthropic"]
