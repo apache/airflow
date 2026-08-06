@@ -30,37 +30,72 @@ Changelog
 22.3.0
 ......
 
+.. note::
+    ``CloudSecretManagerBackend`` now applies the team scope it is given. Previously
+    ``get_conn_value`` and ``get_variable`` accepted a ``team_name`` and dropped it, so every
+    lookup resolved the team-agnostic secret name regardless of the team.
+
+    In multi-team deployments a team-scoped secret must now be stored under
+    ``{prefix}{sep}{team_name}--{secret_id}``; the team-agnostic name is still used as a
+    fallback when no team-scoped secret exists. Secrets that were relied on to resolve for a
+    specific team have to be re-stored under the team-scoped name.
+
+    Connection ids and variable keys containing ``--`` are no longer resolved in either mode,
+    because a team name may itself contain ``--`` and the resulting name would be ambiguous.
+    See :doc:`/secrets-backends/google-cloud-secret-manager-backend` for the full convention.
+
 Features
 ~~~~~~~~
 
 * ``Emit per-statement OpenLineage events for BigQuery script jobs (#69234)``
 * ``Add Vertex AI Agent Engine operators (Create, Get, Query, Update, Delete) (#68479)``
 * ``Adding durable execution to 'BigQueryInsertJobOperator' (#69542)``
+* ``Register Stackdriver remote task logging handler (#70549)``
+* ``Add CloudSQLNoOperationInProgressSensor for parallel admin ops (#68151)``
+* ``Enable provider-based GCS remote logging resolution (#70504)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Preserve Dataform workflow invocation config (#53843) (#69161)``
 * ``Make schema_fields templated in GCSToBigQueryOperator (#69108)``
 * ``Fix Google Links for TPC (Trusted Partner Cloud) (#69805)``
 * ``Fix Google Cloud Batch error messages to include job name (#69783)``
+* ``Validate Gemini batch results_folder in the worker that writes results (#70393)``
+* ``Fail deferred Cloud Composer tasks when the GCP operation errors (#70430)``
+* ``Apply the team scope in the Google Secret Manager backend (#70869)``
+* ``Delay BigQueryToMsSqlOperator source table parsing (#70493)``
+* ``Emit GCSToGCSOperator deprecation warnings after rendering (#70449)``
+* ``Emit GCSListObjectsOperator delimiter deprecation warning after rendering (#70533)``
+* ``Move Compute Engine validation out of constructors (#70454)``
+* ``Prevent premature validation in Gemini batch job operators (#70362)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 Misc
 ~~~~
 
 * ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
 * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+* ``Strip only the literal properties/ prefix from GA property link IDs (#70919)``
+* ``Update system test to the latest api version of google-ads (#69865)``
+* ``Use common.compat.sdk for timezone imports in providers (#70492)``
+* ``Drop redundant BigQueryInsertJobOperator job ID snapshot in __init__ (#70494)``
 
 Doc-only
 ~~~~~~~~
 
 * ``Link task state store docs in durable execution across providers (#69851)``
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+* ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix the google provider dataform system test (#70136)``
    * ``Format Dataflow wordcount system-test resource with gofmt (#70174)``
-
+   * ``Preserve Dataform workflow invocation config (#53843) (#69161)``
+   * ``Revert Dataform workflow invocation dict normalization (#69161) (#70395)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 22.2.2
 ......

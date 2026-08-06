@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+14.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add WasbRemoteLogIO.from_config and register wasb remote logging scheme (#70301)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Apply the ambiguous-id refusal to get_config in the Key Vault backend (#70899)``
+* ``Refuse the team agnostic fall-through for a team scoped Key Vault secret name (#70876)``
+* ``Fix duplicated task logs in the WASB log handler (#70860)``
+* ``Validate AzureVirtualMachineStateSensor target_state after rendering, outside poke() (#70329, #70372)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
+
+Misc
+~~~~
+
+* ``Use ValueError for unsupported recursive glob in ADLS upload (#70540)``
+* ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
+
 14.0.0
 ......
 

@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+9.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move template-field checks out of __init__ in Hive sensors (#70334)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
 9.6.0
 .....
 

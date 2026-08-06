@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.23.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Honor verbose logging for Celery workers (#69828)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.23.0
 ......
 

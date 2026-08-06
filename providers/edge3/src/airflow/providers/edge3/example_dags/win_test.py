@@ -140,7 +140,7 @@ class CmdOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("command", "env", "cwd")
     template_fields_renderers = {"command": "bash", "env": "json"}
-    template_ext: Sequence[str] = ".bat"
+    template_ext: Sequence[str] = (".bat",)
 
     subprocess: Popen | None = None
 

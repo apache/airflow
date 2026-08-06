@@ -93,6 +93,7 @@ export const TaskInstance = () => {
     {
       enabled: !isNaN(parsedMapIndex),
       refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      staleTime: 0,
     },
   );
 
