@@ -35,6 +35,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- include "airflow.standardLabels" (dict "root" . "component" "airflow-ingress") | nindent 4 }}
     {{- if or .Values.labels .Values.apiServer.labels }}
       {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}

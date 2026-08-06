@@ -142,6 +142,10 @@ class TestExtraConfigMapsSecrets:
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )
         expected_labels = {
+            "app.kubernetes.io/instance": RELEASE_NAME,
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/part-of": "airflow",
+            "helm.sh/chart": mock.ANY,
             "label1": "value1",
             "label2": "value2",
             "release": RELEASE_NAME,
@@ -181,6 +185,10 @@ class TestExtraConfigMapsSecrets:
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )
         common_labels = {
+            "app.kubernetes.io/instance": RELEASE_NAME,
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/part-of": "airflow",
+            "helm.sh/chart": mock.ANY,
             "release": RELEASE_NAME,
             "heritage": "Helm",
             "chart": mock.ANY,

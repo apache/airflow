@@ -31,6 +31,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- include "airflow.standardLabels" (dict "root" . "component" "triggerer-horizontalpodautoscaler") | nindent 4 }}
     deploymentName: {{ .Release.Name }}-triggerer
     {{- if or .Values.labels .Values.triggerer.labels }}
       {{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 4 }}
