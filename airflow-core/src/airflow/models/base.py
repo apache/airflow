@@ -83,6 +83,23 @@ def get_id_collation_args():
 COLLATION_ARGS: dict[str, Any] = get_id_collation_args()
 
 
+def get_asset_str_field(length: int = 1500) -> String:
+    """
+    Build the string type used for asset name/uri/group columns.
+
+    On MySQL these carry an explicit latin1 collation: the values are ASCII, and
+    a 1-byte-per-character charset keeps the 1500-char unique indexes inside the
+    3072-byte index limit that utf8mb4 would blow past. The collation is
+    overridable because MySQL-compatible engines do not all ship
+    ``latin1_general_cs`` (TiDB, for one, accepts only ``latin1_bin``).
+    """
+    collation = conf.get("database", "sql_engine_collation_for_asset_names", fallback="latin1_general_cs")
+    return String(length=length).with_variant(String(length=length, collation=collation), "mysql")
+
+
+ASSET_STR_FIELD: String = get_asset_str_field()
+
+
 def StringID(*, length=ID_LEN, **kwargs) -> String:
     return String(length=length, **kwargs, **COLLATION_ARGS)
 
