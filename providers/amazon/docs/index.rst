@@ -171,9 +171,9 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-amazon[aiobotocore]
 
 
-====================  =====================================================================================================================================================================
+====================  ============================================================================================================================================================
 Extra                 Dependencies
-====================  =====================================================================================================================================================================
+====================  ============================================================================================================================================================
 ``aiobotocore``       ``aiobotocore>=3.0.0``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
 ``s3fs``              ``s3fs>=2023.10.0``
@@ -186,14 +186,14 @@ Extra                 Dependencies
 ``imap``              ``apache-airflow-providers-imap``
 ``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
 ``mongo``             ``apache-airflow-providers-mongo``
-``pandas``            ``pandas>=2.1.2,<3; python_version <"3.13"``, ``pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3,<3; python_version >="3.14"``
+``pandas``            ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
 ``salesforce``        ``apache-airflow-providers-salesforce``
 ``ssh``               ``apache-airflow-providers-ssh``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ``sqlalchemy``        ``sqlalchemy>=1.4.54``
-====================  =====================================================================================================================================================================
+====================  ============================================================================================================================================================
 
 Downloading official packages
 -----------------------------

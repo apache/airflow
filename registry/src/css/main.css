@@ -898,6 +898,14 @@ footer a:hover {
 .provider-card .modules .logging { background: var(--color-logging); }
 .provider-card .modules .bundle { background: var(--color-bundle); }
 .provider-card .modules .decorator { background: var(--color-decorator); }
+.provider-card .modules .toolset { background: var(--color-toolset); }
+.provider-card .modules .retry_policy { background: var(--color-retry_policy); }
+.provider-card .modules .extra_link { background: var(--color-extra_link); }
+.provider-card .modules .queue { background: var(--color-queue); }
+.provider-card .modules .plugin { background: var(--color-plugin); }
+.provider-card .modules .auth_manager { background: var(--color-auth_manager); }
+.provider-card .modules .db_manager { background: var(--color-db_manager); }
+.provider-card .modules .dialect { background: var(--color-dialect); }
 
 .provider-card .meta,
 #featured-providers .meta {
@@ -2158,6 +2166,45 @@ main {
   color: var(--color-decorator);
 }
 
+.type-icon.toolset {
+  background: rgb(from var(--color-toolset) r g b / 0.2);
+  color: var(--color-toolset);
+}
+
+.type-icon.retry_policy {
+  background: rgb(from var(--color-retry_policy) r g b / 0.2);
+  color: var(--color-retry_policy);
+}
+
+.type-icon.extra_link {
+  background: rgb(from var(--color-extra_link) r g b / 0.2);
+  color: var(--color-extra_link);
+}
+
+.type-icon.queue {
+  background: rgb(from var(--color-queue) r g b / 0.2);
+  color: var(--color-queue);
+}
+
+.type-icon.plugin {
+  background: rgb(from var(--color-plugin) r g b / 0.2);
+  color: var(--color-plugin);
+}
+
+.type-icon.auth_manager {
+  background: rgb(from var(--color-auth_manager) r g b / 0.2);
+  color: var(--color-auth_manager);
+}
+
+.type-icon.db_manager {
+  background: rgb(from var(--color-db_manager) r g b / 0.2);
+  color: var(--color-db_manager);
+}
+
+.type-icon.dialect {
+  background: rgb(from var(--color-dialect) r g b / 0.2);
+  color: var(--color-dialect);
+}
 
 .type-count {
   font-size: var(--text-2xl);
@@ -2246,6 +2293,37 @@ main {
   --meter-color: var(--color-decorator);
 }
 
+.share-bar.toolset {
+  --meter-color: var(--color-toolset);
+}
+
+.share-bar.retry_policy {
+  --meter-color: var(--color-retry_policy);
+}
+
+.share-bar.extra_link {
+  --meter-color: var(--color-extra_link);
+}
+
+.share-bar.queue {
+  --meter-color: var(--color-queue);
+}
+
+.share-bar.plugin {
+  --meter-color: var(--color-plugin);
+}
+
+.share-bar.auth_manager {
+  --meter-color: var(--color-auth_manager);
+}
+
+.share-bar.db_manager {
+  --meter-color: var(--color-db_manager);
+}
+
+.share-bar.dialect {
+  --meter-color: var(--color-dialect);
+}
 
 .share-label {
   font-size: var(--text-xs);
@@ -3067,6 +3145,55 @@ main {
 .tab-icon.decorator { background: rgb(from var(--color-decorator) r g b / 0.2); color: var(--color-decorator); }
 .tab-icon.toolset { background: rgb(from var(--color-toolset) r g b / 0.2); color: var(--color-toolset); }
 .tab-icon.retry_policy { background: rgb(from var(--color-retry_policy) r g b / 0.2); color: var(--color-retry_policy); }
+.tab-icon.extra_link { background: rgb(from var(--color-extra_link) r g b / 0.2); color: var(--color-extra_link); }
+.tab-icon.queue { background: rgb(from var(--color-queue) r g b / 0.2); color: var(--color-queue); }
+.tab-icon.plugin { background: rgb(from var(--color-plugin) r g b / 0.2); color: var(--color-plugin); }
+.tab-icon.auth_manager { background: rgb(from var(--color-auth_manager) r g b / 0.2); color: var(--color-auth_manager); }
+.tab-icon.db_manager { background: rgb(from var(--color-db_manager) r g b / 0.2); color: var(--color-db_manager); }
+.tab-icon.dialect { background: rgb(from var(--color-dialect) r g b / 0.2); color: var(--color-dialect); }
+
+/* Module Tabs "More" overflow menu */
+.module-tab-more {
+  position: relative;
+}
+
+.module-tab-more-btn {
+  display: inline-flex;
+}
+
+.module-tab-more-btn svg {
+  width: 1rem;
+  height: 1rem;
+  transition: transform var(--transition-base);
+}
+
+.module-tab-more-btn[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.module-tab-more-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 12rem;
+  padding: var(--space-2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.module-tab-more-menu[hidden] {
+  display: none;
+}
+
+.module-tab-more-menu .module-tab {
+  justify-content: flex-start;
+}
 
 /* Modules Layout (sidebar + content) */
 .modules-layout {
@@ -3240,6 +3367,84 @@ main {
   background: rgb(from var(--color-bundle) r g b / 0.2);
   color: var(--color-bundle);
   border: 1px solid rgb(from var(--color-bundle) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.notifier {
+  background: rgb(from var(--color-notifier) r g b / 0.2);
+  color: var(--color-notifier);
+  border: 1px solid rgb(from var(--color-notifier) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.secret {
+  background: rgb(from var(--color-secret) r g b / 0.2);
+  color: var(--color-secret);
+  border: 1px solid rgb(from var(--color-secret) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.logging {
+  background: rgb(from var(--color-logging) r g b / 0.2);
+  color: var(--color-logging);
+  border: 1px solid rgb(from var(--color-logging) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.executor {
+  background: rgb(from var(--color-executor) r g b / 0.2);
+  color: var(--color-executor);
+  border: 1px solid rgb(from var(--color-executor) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.decorator {
+  background: rgb(from var(--color-decorator) r g b / 0.2);
+  color: var(--color-decorator);
+  border: 1px solid rgb(from var(--color-decorator) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.toolset {
+  background: rgb(from var(--color-toolset) r g b / 0.2);
+  color: var(--color-toolset);
+  border: 1px solid rgb(from var(--color-toolset) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.retry_policy {
+  background: rgb(from var(--color-retry_policy) r g b / 0.2);
+  color: var(--color-retry_policy);
+  border: 1px solid rgb(from var(--color-retry_policy) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.extra_link {
+  background: rgb(from var(--color-extra_link) r g b / 0.2);
+  color: var(--color-extra_link);
+  border: 1px solid rgb(from var(--color-extra_link) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.queue {
+  background: rgb(from var(--color-queue) r g b / 0.2);
+  color: var(--color-queue);
+  border: 1px solid rgb(from var(--color-queue) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.plugin {
+  background: rgb(from var(--color-plugin) r g b / 0.2);
+  color: var(--color-plugin);
+  border: 1px solid rgb(from var(--color-plugin) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.auth_manager {
+  background: rgb(from var(--color-auth_manager) r g b / 0.2);
+  color: var(--color-auth_manager);
+  border: 1px solid rgb(from var(--color-auth_manager) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.db_manager {
+  background: rgb(from var(--color-db_manager) r g b / 0.2);
+  color: var(--color-db_manager);
+  border: 1px solid rgb(from var(--color-db_manager) r g b / 0.3);
+}
+
+.provider-detail-page .modules .module .icon.dialect {
+  background: rgb(from var(--color-dialect) r g b / 0.2);
+  color: var(--color-dialect);
+  border: 1px solid rgb(from var(--color-dialect) r g b / 0.3);
 }
 
 .provider-detail-page .modules .module .content {

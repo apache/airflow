@@ -2586,7 +2586,8 @@ export type GridTISummaries = {
 export type HistoricalMetricDataResponse = {
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
-    state_count_limit: number;
+    dag_run_counts_are_lower_bounds?: boolean;
+    task_instance_counts_are_lower_bounds?: boolean;
 };
 
 /**
@@ -8081,6 +8082,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

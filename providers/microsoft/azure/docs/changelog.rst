@@ -42,6 +42,7 @@ Bug Fixes
 * ``Refuse the team agnostic fall-through for a team scoped Key Vault secret name (#70876)``
 * ``Fix duplicated task logs in the WASB log handler (#70860)``
 * ``Validate AzureVirtualMachineStateSensor target_state after rendering, outside poke() (#70329, #70372)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 Misc
 ~~~~
@@ -51,6 +52,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
 
 14.0.0
 ......

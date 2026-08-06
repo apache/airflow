@@ -379,6 +379,39 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
     return num_integrations, num_errors
 
 
+@run_check("Checking remote-logging scheme duplicates")
+def check_remote_logging_scheme_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    """Remote-logging ``scheme`` values must be globally unique across providers.
+
+    The scheme in ``[logging] remote_base_log_folder`` selects which provider's
+    ``RemoteLogIO`` handler serves a user's task logs. ``ProvidersManager`` resolves a
+    collision silently — the first provider in alphabetical order wins and the rest are
+    dropped — so a duplicate scheme can quietly shadow another provider's log handler.
+    Fail here so the clash is caught before it ships instead of at runtime.
+    """
+    num_errors = 0
+    packages_by_scheme: dict[str, set[str]] = {}
+    for provider_data in yaml_files.values():
+        package_name = provider_data["package-name"]
+        for entry in provider_data.get("remote-logging", []):
+            packages_by_scheme.setdefault(entry["scheme"], set()).add(package_name)
+    num_schemes = len(packages_by_scheme)
+    duplicates = [
+        (scheme, ", ".join(sorted(packages)))
+        for scheme, packages in sorted(packages_by_scheme.items())
+        if len(packages) > 1
+    ]
+    if duplicates:
+        console.print(
+            "Duplicate remote-logging schemes found. Each scheme may be registered by only "
+            "one provider; otherwise ProvidersManager silently keeps the first provider "
+            "alphabetically and shadows the others. Please give each handler a unique scheme."
+        )
+        errors.append(tabulate(duplicates, headers=["Remote-logging scheme", "Registered by"]))
+        num_errors += 1
+    return num_schemes, num_errors
+
+
 @run_check("Checking completeness of list of {sensors, hooks, operators, triggers, bundles, toolsets}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     yaml_files: dict[str, dict],
@@ -1153,6 +1186,7 @@ if __name__ == "__main__":
 
     all_files_loaded = len(all_provider_files) == len(paths)
     check_integration_duplicates(all_parsed_yaml_files)
+    check_remote_logging_scheme_duplicates(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_integrations_names_of_hooks_sensors_operators(all_parsed_yaml_files)
 

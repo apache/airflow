@@ -974,7 +974,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perms = self.get_all_permissions()
 
         for dag in _iter_dags():
-            print(dag)
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = permissions.resource_name(dag.dag_id, resource_name)
                 for action_name in resource_values["actions"]:
