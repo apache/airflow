@@ -44,7 +44,6 @@ type ErrorDetail = {
 };
 
 type RenderStructuredLogProps = {
-  /** Text mode only: render the timestamp with this instead of emitting the raw source value. */
   formatTimestamp?: (timestamp: string) => string;
   index: number;
   logLevelFilters?: Array<string>;
