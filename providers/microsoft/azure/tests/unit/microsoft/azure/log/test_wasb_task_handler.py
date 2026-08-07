@@ -492,6 +492,7 @@ class TestWasbRemoteLogIOAppendBlobMode:
         def __init__(self):
             self.blobs: dict[str, dict] = {}
             self.append_block_calls: list[tuple[str, bytes, int]] = []
+            self.fail_append_at_offset: int | None = None
 
         def check_for_blob(self, container, blob_name, **kwargs):
             return blob_name in self.blobs
@@ -507,6 +508,8 @@ class TestWasbRemoteLogIOAppendBlobMode:
             self.blobs.setdefault(blob_name, {"type": "AppendBlob", "content": b""})
 
         def append_block(self, container, blob_name, data, offset, **kwargs):
+            if self.fail_append_at_offset is not None and offset == self.fail_append_at_offset:
+                raise ConnectionError("simulated transient failure")
             blob = self.blobs[blob_name]
             if len(blob["content"]) != offset:
                 raise ResourceModifiedError("append position mismatch")
@@ -593,3 +596,38 @@ class TestWasbRemoteLogIOAppendBlobMode:
         io.upload("attempt=1.log")
 
         assert local_log.read_text() == "our segment\n"
+
+    def test_partial_chunk_failure_trims_local_file_to_uncommitted_remainder(self, tmp_path):
+        hook = self.FakeAppendHook()
+        hook.fail_append_at_offset = 9
+        io = self._io(tmp_path, hook)
+        io._MAX_APPEND_BLOCK_BYTES = 10
+        local_log = tmp_path / "attempt=1.log"
+        local_log.write_text("A" * 10 + "B" * 10 + "C" * 5)
+        io.upload("attempt=1.log")
+        blob_name = "remote/log/location/attempt=1.log"
+        assert hook.blobs[blob_name]["content"] == b"A" * 10
+        assert local_log.read_text() == "B" * 10 + "C" * 5
+        hook.fail_append_at_offset = None
+        io.upload("attempt=1.log")
+        assert hook.blobs[blob_name]["content"] == b"A" * 10 + b"B" * 10 + b"C" * 5
+        assert local_log.read_text() == ""
+
+    def test_chunk_boundary_never_splits_a_multibyte_character(self, tmp_path):
+        hook = self.FakeAppendHook()
+        hook.fail_append_at_offset = 9
+        io = self._io(tmp_path, hook)
+        io._MAX_APPEND_BLOCK_BYTES = 10
+        segment = "a" * 9 + "\u20ac" + "b" * 9
+        local_log = tmp_path / "attempt=1.log"
+        local_log.write_text(segment)
+        io.upload("attempt=1.log")
+        blob_name = "remote/log/location/attempt=1.log"
+        committed = hook.blobs[blob_name]["content"]
+        committed.decode("utf-8")
+        assert committed == "a" * 9
+        assert local_log.read_text() == "\u20ac" + "b" * 9
+        hook.fail_append_at_offset = None
+        io.upload("attempt=1.log")
+        assert hook.blobs[blob_name]["content"].decode("utf-8") == segment
+        assert local_log.read_text() == ""

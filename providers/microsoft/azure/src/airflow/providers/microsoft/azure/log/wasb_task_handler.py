@@ -96,14 +96,27 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             local_loc = self.base_log_folder.joinpath(path)
             remote_loc = os.path.join(self.remote_base, path)
 
-        if local_loc.is_file():
-            # read log and remove old logs to get just the latest additions
-            log = local_loc.read_text()
+        if not local_loc.is_file():
+            return
+
+        log = local_loc.read_text()
+
+        if self.write_mode == "append_blob":
+            data = log.encode("utf-8")
+            committed_bytes = self._write_append_blob(log, remote_loc)
+            if committed_bytes == 0:
+                return  # nothing landed, retry the whole segment
+            if committed_bytes < len(data):
+                local_loc.write_text(data[committed_bytes:].decode("utf-8"))  # trim to remainder
+                return
+            has_uploaded = True
+        else:
             has_uploaded = self.write(log, remote_loc)
-            if has_uploaded and self.delete_local_copy:
-                shutil.rmtree(os.path.dirname(local_loc))
-            elif has_uploaded:
-                local_loc.write_text("")
+
+        if has_uploaded and self.delete_local_copy:
+            shutil.rmtree(os.path.dirname(local_loc))
+        elif has_uploaded:
+            local_loc.write_text("")
 
     @cached_property
     def hook(self):
@@ -230,7 +243,7 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             the new log is appended to any existing logs.
         """
         if append and self.write_mode == "append_blob":
-            return self._write_append_blob(log, remote_log_location)
+            return self._write_append_blob(log, remote_log_location) == len(log.encode("utf-8"))
 
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)
@@ -245,21 +258,25 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             return False
         return True
 
-    def _write_append_blob(self, log: str, remote_log_location: str) -> bool:
+    @staticmethod
+    def _utf8_safe_boundary(data: bytes, pos: int) -> int:
+        """Largest index <= pos that doesn't split a UTF-8 character."""
+        if pos >= len(data):
+            return len(data)
+        while pos > 0 and (data[pos] & 0xC0) == 0x80:
+            pos -= 1
+        return pos
+
+    def _write_append_blob(self, log: str, remote_log_location: str) -> int:
         """
         Append ``log`` to an Azure AppendBlob instead of rewriting the whole object.
 
-        Each segment already ends with a newline (it comes from complete, terminator-suffixed
-        log records), so segments concatenate cleanly at the byte level with no separator
-        needed -- unlike the block-blob path, this never has to download existing content to
-        check its tail.
-
-        Falls back to the block-blob rewrite path, without converting the blob's type, if the
-        object already exists as a block blob: Azure does not support changing an existing
-        blob's type in place.
+        Returns bytes committed, so a partial failure can be trimmed instead of resent.
         """
         if not log:
-            return True
+            return 0
+
+        data = log.encode("utf-8")
 
         try:
             blob_exists = self.wasb_log_exists(remote_log_location)
@@ -275,29 +292,30 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
                         remote_log_location,
                         properties.blob_type,
                     )
-                    return self._write_block_blob_over_existing(log, remote_log_location)
+                    succeeded = self._write_block_blob_over_existing(log, remote_log_location)
+                    return len(data) if succeeded else 0
                 offset = properties.size
         except Exception:
             self.log.exception("Could not prepare append blob %s", remote_log_location)
-            return False
+            return 0
 
-        data = log.encode("utf-8")
+        committed = 0
+        start = 0
         try:
-            for start in range(0, len(data), self._MAX_APPEND_BLOCK_BYTES):
-                chunk = data[start : start + self._MAX_APPEND_BLOCK_BYTES]
+            while start < len(data):
+                end = self._utf8_safe_boundary(data, min(start + self._MAX_APPEND_BLOCK_BYTES, len(data)))
+                if end == start:
+                    end = min(start + self._MAX_APPEND_BLOCK_BYTES, len(data))  # avoid infinite loop
+                chunk = data[start:end]
                 self.hook.append_block(self.wasb_container, remote_log_location, chunk, offset)
                 offset += len(chunk)
+                committed += len(chunk)
+                start = end
         except ResourceModifiedError:
-            self.log.exception(
-                "Append position mismatch writing to %s. Leaving the local log intact so "
-                "this segment can be retried rather than risk writing at the wrong offset.",
-                remote_log_location,
-            )
-            return False
+            self.log.exception("Append mismatch after %d of %d bytes", committed, len(data))
         except Exception:
-            self.log.exception("Could not append logs to %s", remote_log_location)
-            return False
-        return True
+            self.log.exception("Append failed after %d of %d bytes", committed, len(data))
+        return committed
 
     def _write_block_blob_over_existing(self, log: str, remote_log_location: str) -> bool:
         """Rewrite-the-whole-object path, used for blobs that already exist as block blobs."""
