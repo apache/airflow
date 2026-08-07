@@ -2331,7 +2331,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 ),
                             )
                         )
-                except (OperationalError, exc.TimeoutError):
+                except (DBAPIError, exc.TimeoutError):
                     # Purely observational — must not fail or retry the tick's actual DagRun
                     # creation work. Leave the flag False so the next tick retries the write.
                     self.log.warning("Failed to write the partition dag run cap audit Log row", exc_info=True)
