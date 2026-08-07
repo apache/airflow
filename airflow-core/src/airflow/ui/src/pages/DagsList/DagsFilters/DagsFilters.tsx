@@ -31,12 +31,12 @@ import { useTagFilter } from "../useTagFilter";
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
 import { RequiredActionFilter } from "./RequiredActionFilter";
-import { RunStateScopeSelect, type RunStateScope } from "./RunStateScopeSelect";
+import { RunStateLookbackSelect, type RunStateLookback } from "./RunStateLookbackSelect";
 import { RunStateSelect } from "./RunStateSelect";
 import { TagFilter } from "./TagFilter";
 import { TeamFilter } from "./TeamFilter";
 import { TimetableTypeFilter } from "./TimetableTypeFilter";
-import { runScopeFor, runStateSelectionFor } from "./runStateFilter";
+import { runLookbackFor, runStateSelectionFor } from "./runStateFilter";
 
 const {
   DAG_RUN_STATE: DAG_RUN_STATE_PARAM,
@@ -72,17 +72,17 @@ export const DagsFilters = () => {
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const lastRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const anyRunState = searchParams.get(DAG_RUN_STATE_PARAM);
-  const anyRunStateWindow = searchParams.get(DAG_RUN_STATE_WITHIN_HOURS_PARAM);
+  const anyRunStateLookback = searchParams.get(DAG_RUN_STATE_WITHIN_HOURS_PARAM);
   const selectedTeams = searchParams.getAll(TEAMS_PARAM);
   const timetableTypes = searchParams.getAll(TIMETABLE_TYPE_PARAM).filter(Boolean);
 
   const [tagPattern, setTagPattern] = useState("");
   const [timetableTypePattern, setTimetableTypePattern] = useState("");
 
-  // One control, two dimensions: the state plus the scope it is matched against.
-  // "latest" maps to last_dag_run_state; the time scopes map to dag_run_state (+ window).
+  // One control, two dimensions: the state plus the lookback it is matched against.
+  // "latest" maps to last_dag_run_state; the time lookbacks map to dag_run_state (+ within-hours bound).
   const runState = lastRunState ?? anyRunState ?? undefined;
-  const runScope = runScopeFor(lastRunState, anyRunState, anyRunStateWindow);
+  const runLookback = runLookbackFor(lastRunState, anyRunState, anyRunStateLookback);
 
   const {
     data: tagData,
@@ -136,8 +136,8 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const applyRunStateParams = (state: string | undefined, scope: RunStateScope) => {
-    const selection = runStateSelectionFor(state, scope);
+  const applyRunStateParams = (state: string | undefined, lookback: RunStateLookback) => {
+    const selection = runStateSelectionFor(state, lookback);
     const setOrDelete = (key: string, value: string | undefined) =>
       value === undefined ? searchParams.delete(key) : searchParams.set(key, value);
 
@@ -149,11 +149,11 @@ export const DagsFilters = () => {
   };
 
   const handleRunStateChange = (value: string | undefined) => {
-    applyRunStateParams(value, runScope);
+    applyRunStateParams(value, runLookback);
   };
 
-  const handleRunScopeChange = (scope: RunStateScope) => {
-    applyRunStateParams(runState, scope);
+  const handleRunLookbackChange = (lookback: RunStateLookback) => {
+    applyRunStateParams(runState, lookback);
   };
 
   const handleNeedsReviewToggle = () => {
@@ -207,11 +207,11 @@ export const DagsFilters = () => {
           value={runState}
         />
         {runState === undefined ? undefined : (
-          <RunStateScopeSelect
-            dataTestId="dags-run-state-scope-filter"
-            onChange={handleRunScopeChange}
+          <RunStateLookbackSelect
+            dataTestId="dags-run-state-lookback-filter"
+            onChange={handleRunLookbackChange}
             triggerProps={{ borderStartRadius: 0 }}
-            value={runScope}
+            value={runLookback}
           />
         )}
       </HStack>

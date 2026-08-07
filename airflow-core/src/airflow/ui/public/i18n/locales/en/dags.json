@@ -24,7 +24,7 @@
       "paused": "Paused"
     },
     "runIdPatternFilter": "Search Dag Runs",
-    "runScope": {
+    "runLookback": {
       "anyTime": "Any time",
       "in": "in",
       "last7Days": "Last 7 days",

@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { RunStateScope } from "./RunStateScopeSelect";
+import type { RunStateLookback } from "./RunStateLookbackSelect";
 
 // The unified "Run state" control is backed by the existing independent URL params:
-//   - "latest" scope  → last_dag_run_state  (match the latest run only)
-//   - a time scope     → dag_run_state       (match any run) + a within-hours bound
-//     ("any" is any-run with no time bound, so it carries no window param)
+//   - "latest" lookback  → last_dag_run_state  (match the latest run only)
+//   - a time lookback     → dag_run_state       (match any run) + a within-hours bound
+//     ("any" is any-run with no time bound, so it carries no lookback param)
 // An unset key means "clear this param".
 export type RunStateSelection = {
   readonly dagRunState?: string;
@@ -29,23 +29,28 @@ export type RunStateSelection = {
   readonly lastDagRunState?: string;
 };
 
-export const runStateSelectionFor = (state: string | undefined, scope: RunStateScope): RunStateSelection => {
+export const runStateSelectionFor = (
+  state: string | undefined,
+  lookback: RunStateLookback,
+): RunStateSelection => {
   if (state === undefined) {
     return {};
   }
-  if (scope === "latest") {
+  if (lookback === "latest") {
     return { lastDagRunState: state };
   }
-  if (scope === "any") {
+  if (lookback === "any") {
     return { dagRunState: state };
   }
 
-  return { dagRunState: state, dagRunStateWithinHours: scope };
+  return { dagRunState: state, dagRunStateWithinHours: lookback };
 };
 
-export const runScopeFor = (
+export const runLookbackFor = (
   lastRunState: string | null,
   anyRunState: string | null,
-  anyRunStateWindow: string | null,
-): RunStateScope =>
-  lastRunState !== null || anyRunState === null ? "latest" : ((anyRunStateWindow ?? "any") as RunStateScope);
+  anyRunStateLookback: string | null,
+): RunStateLookback =>
+  lastRunState !== null || anyRunState === null
+    ? "latest"
+    : ((anyRunStateLookback ?? "any") as RunStateLookback);

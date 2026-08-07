@@ -24,12 +24,12 @@ import { describe, expect, it, vi } from "vitest";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import "../../../i18n/config";
-import { RunStateScopeSelect, type RunStateScope } from "./RunStateScopeSelect";
+import { RunStateLookbackSelect, type RunStateLookback } from "./RunStateLookbackSelect";
 
-const SCOPE_VALUES: ReadonlyArray<RunStateScope> = ["latest", "24", "168", "720", "any"];
+const LOOKBACK_VALUES: ReadonlyArray<RunStateLookback> = ["latest", "24", "168", "720", "any"];
 
-const renderScope = (value: RunStateScope, onChange = vi.fn()) => {
-  render(<RunStateScopeSelect dataTestId="scope" onChange={onChange} value={value} />, {
+const renderLookback = (value: RunStateLookback, onChange = vi.fn()) => {
+  render(<RunStateLookbackSelect dataTestId="lookback" onChange={onChange} value={value} />, {
     wrapper: ({ children }) => (
       <BaseWrapper>
         <MemoryRouter>{children}</MemoryRouter>
@@ -40,23 +40,23 @@ const renderScope = (value: RunStateScope, onChange = vi.fn()) => {
   return onChange;
 };
 
-describe("RunStateScopeSelect", () => {
-  it("offers the latest-run scope plus every time window", async () => {
-    renderScope("latest");
+describe("RunStateLookbackSelect", () => {
+  it("offers the latest-run lookback plus every time window", async () => {
+    renderLookback("latest");
 
-    within(screen.getByTestId("scope")).getByRole("combobox").click();
+    within(screen.getByTestId("lookback")).getByRole("combobox").click();
 
-    await waitFor(() => expect(screen.getByTestId("scope-latest")).toBeInTheDocument());
-    for (const value of SCOPE_VALUES) {
-      expect(screen.getByTestId(`scope-${value}`)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("lookback-latest")).toBeInTheDocument());
+    for (const value of LOOKBACK_VALUES) {
+      expect(screen.getByTestId(`lookback-${value}`)).toBeInTheDocument();
     }
   });
 
   it("emits the hour value of the selected window", async () => {
-    const onChange = renderScope("latest");
+    const onChange = renderLookback("latest");
 
-    within(screen.getByTestId("scope")).getByRole("combobox").click();
-    await waitFor(() => screen.getByTestId("scope-168").click());
+    within(screen.getByTestId("lookback")).getByRole("combobox").click();
+    await waitFor(() => screen.getByTestId("lookback-168").click());
 
     expect(onChange).toHaveBeenCalledWith("168");
   });

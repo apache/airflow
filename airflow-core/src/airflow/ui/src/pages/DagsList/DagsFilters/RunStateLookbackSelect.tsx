@@ -24,16 +24,16 @@ import { FiClock, FiZap } from "react-icons/fi";
 import { Select } from "src/components/ui";
 
 // "latest" matches on the latest run only; numeric values are hours; "any" has no time bound.
-export type RunStateScope = "168" | "24" | "720" | "any" | "latest";
+export type RunStateLookback = "168" | "24" | "720" | "any" | "latest";
 
 type Props = {
   readonly dataTestId?: string;
-  readonly onChange: (value: RunStateScope) => void;
+  readonly onChange: (value: RunStateLookback) => void;
   readonly triggerProps?: ChakraSelect.TriggerProps;
-  readonly value: RunStateScope;
+  readonly value: RunStateLookback;
 };
 
-const SCOPE_OPTIONS: ReadonlyArray<{ labelKey: string; value: RunStateScope }> = [
+const LOOKBACK_OPTIONS: ReadonlyArray<{ labelKey: string; value: RunStateLookback }> = [
   { labelKey: "latestRun", value: "latest" },
   { labelKey: "last24Hours", value: "24" },
   { labelKey: "last7Days", value: "168" },
@@ -41,13 +41,13 @@ const SCOPE_OPTIONS: ReadonlyArray<{ labelKey: string; value: RunStateScope }> =
   { labelKey: "anyTime", value: "any" },
 ];
 
-export const RunStateScopeSelect = ({ dataTestId, onChange, triggerProps, value }: Props) => {
+export const RunStateLookbackSelect = ({ dataTestId, onChange, triggerProps, value }: Props) => {
   const { t: translate } = useTranslation("dags");
 
   const collection = createListCollection({
-    items: SCOPE_OPTIONS.map(({ labelKey, value: scope }) => ({
-      label: translate(`filters.runScope.${labelKey}`),
-      value: scope,
+    items: LOOKBACK_OPTIONS.map(({ labelKey, value: lookback }) => ({
+      label: translate(`filters.runLookback.${labelKey}`),
+      value: lookback,
     })),
   });
 
@@ -57,14 +57,14 @@ export const RunStateScopeSelect = ({ dataTestId, onChange, triggerProps, value 
     <Select.Root
       collection={collection}
       data-testid={dataTestId}
-      onValueChange={({ value: selected }) => onChange(selected[0] as RunStateScope)}
+      onValueChange={({ value: selected }) => onChange(selected[0] as RunStateLookback)}
       value={[value]}
       width="fit-content"
     >
       <Select.Trigger triggerProps={triggerProps}>
         <HStack gap={2} justifyContent="space-between" pe={5} width="full">
           <Text color="fg.muted" whiteSpace="nowrap">
-            {translate("filters.runScope.in")}:
+            {translate("filters.runLookback.in")}:
           </Text>
           <HStack gap={2}>
             {value === "latest" ? <FiZap /> : <FiClock />}

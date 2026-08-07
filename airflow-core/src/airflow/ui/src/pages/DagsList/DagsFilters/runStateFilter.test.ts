@@ -18,8 +18,8 @@
  */
 import { describe, expect, it } from "vitest";
 
-import type { RunStateScope } from "./RunStateScopeSelect";
-import { runScopeFor, runStateSelectionFor } from "./runStateFilter";
+import type { RunStateLookback } from "./RunStateLookbackSelect";
+import { runLookbackFor, runStateSelectionFor } from "./runStateFilter";
 
 describe("runStateSelectionFor", () => {
   it("clears every param when no state is selected", () => {
@@ -27,7 +27,7 @@ describe("runStateSelectionFor", () => {
     expect(runStateSelectionFor(undefined, "168")).toEqual({});
   });
 
-  it("maps the latest scope to last_dag_run_state only", () => {
+  it("maps the latest lookback to last_dag_run_state only", () => {
     expect(runStateSelectionFor("failed", "latest")).toEqual({ lastDagRunState: "failed" });
   });
 
@@ -38,19 +38,19 @@ describe("runStateSelectionFor", () => {
     });
   });
 
-  it("maps the any-time scope to dag_run_state without a window", () => {
+  it("maps the any-time lookback to dag_run_state without a window", () => {
     expect(runStateSelectionFor("success", "any")).toEqual({ dagRunState: "success" });
   });
 });
 
-describe("runScopeFor", () => {
+describe("runLookbackFor", () => {
   it.each<{
     any: string | null;
-    expected: RunStateScope;
+    expected: RunStateLookback;
     last: string | null;
     window: string | null;
   }>([
-    // last_dag_run_state present → latest scope, regardless of the others
+    // last_dag_run_state present → latest lookback, regardless of the others
     { any: null, expected: "latest", last: "failed", window: null },
     { any: "success", expected: "latest", last: "failed", window: "168" },
     // no state at all → default latest (control shows nothing until a state is picked)
@@ -61,6 +61,6 @@ describe("runScopeFor", () => {
     // any-run state without a window → any-time
     { any: "failed", expected: "any", last: null, window: null },
   ])("last=$last any=$any window=$window resolves to $expected", ({ any, expected, last, window }) => {
-    expect(runScopeFor(last, any, window)).toBe(expected);
+    expect(runLookbackFor(last, any, window)).toBe(expected);
   });
 });
