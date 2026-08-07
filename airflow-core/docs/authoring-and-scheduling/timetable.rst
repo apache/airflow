@@ -372,6 +372,10 @@ This transition can happen without editing a Dag, in two ways:
 
 - Flipping ``[scheduler] create_cron_data_intervals`` changes how every Dag
   with a bare cron string in ``schedule=`` resolves its timetable.
+- Flipping ``[scheduler] create_delta_data_intervals`` changes how every Dag
+  with a ``timedelta`` or ``relativedelta`` in ``schedule=`` resolves its timetable.
+  The same one-period skip applies when switching from ``DeltaTriggerTimetable``
+  to ``DeltaDataIntervalTimetable``.
 - Crossing a version boundary where the default differs. Airflow 3 defaults
   to ``False``; Airflow 2.x defaults to ``True``.
 
