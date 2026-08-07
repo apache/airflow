@@ -467,7 +467,8 @@ Place the reference classes and the plugin that registers them in your plugins f
         """A custom reference evaluated when Dag runs are created."""
 
         def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
-            return dagrun.logical_date
+            my_datetime = my_business_logic(dagrun.logical_date)
+            return my_datetime
 
 
     # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
