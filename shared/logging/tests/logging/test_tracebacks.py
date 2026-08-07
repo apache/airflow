@@ -214,7 +214,69 @@ class TestFormatExceptionDicts:
             '  File "tabs.py", line 1\n    \t x = 1 +\n    \t^\nIndentationError: unexpected indent'
         )
 
-    def test_syntax_error_with_out_of_range_offset_drops_the_caret(self):
+    def test_syntax_error_points_one_past_the_end_of_the_line(self):
+        payload = [
+            stack(
+                "SyntaxError",
+                "expected ':'",
+                syntax_error={
+                    "offset": 8,
+                    "filename": "q.py",
+                    "line": "if True\n",
+                    "lineno": 1,
+                    "msg": "expected ':'",
+                },
+            )
+        ]
+
+        # The commonest syntax errors of all (`expected ':'`, a dangling `=`) point at the
+        # column just past the last character, so the caret sits one beyond the line.
+        assert format_exception_dicts(payload) == (
+            "  File \"q.py\", line 1\n    if True\n           ^\nSyntaxError: expected ':'"
+        )
+
+    def test_syntax_error_keeps_a_source_line_that_is_only_whitespace(self):
+        payload = [
+            stack(
+                "IndentationError",
+                "expected an indented block after function definition on line 1",
+                syntax_error={
+                    "offset": 2,
+                    "filename": "q.py",
+                    "line": "\t\n",
+                    "lineno": 2,
+                    "msg": "expected an indented block after function definition on line 1",
+                },
+            )
+        ]
+
+        # `expected an indented block` reports a line with nothing on it but indentation.
+        # CPython still prints the line and the caret, so dropping it loses the position.
+        assert format_exception_dicts(payload) == (
+            '  File "q.py", line 2\n    \t\n    \t^\n'
+            "IndentationError: expected an indented block after function definition on line 1"
+        )
+
+    def test_syntax_error_without_a_source_line_prints_only_the_location(self):
+        payload = [
+            stack(
+                "SyntaxError",
+                "bad",
+                syntax_error={
+                    "offset": 1,
+                    "filename": "b.py",
+                    "line": "",
+                    "lineno": 2,
+                    "msg": "invalid syntax",
+                },
+            )
+        ]
+
+        # structlog stores `exc_value.text or ""`, so a SyntaxError that carries no source text
+        # arrives as an empty string. CPython prints no source line in that case either.
+        assert format_exception_dicts(payload) == '  File "b.py", line 2\nSyntaxError: invalid syntax'
+
+    def test_syntax_error_offset_beyond_the_line_drops_only_the_caret(self):
         payload = [
             stack(
                 "SyntaxError",
@@ -229,6 +291,8 @@ class TestFormatExceptionDicts:
             )
         ]
 
+        # An offset past one-beyond-the-end cannot be placed, so the source line is kept and
+        # only the caret is dropped. This guards a corrupt offset, not an end-of-line one.
         assert format_exception_dicts(payload) == (
             '  File "b.py", line 2\n    x = 1\nSyntaxError: invalid syntax'
         )
@@ -436,6 +500,12 @@ class TestAgainstRealTransformerOutput:
                 id="nested-exception-group",
             ),
             pytest.param("    compile('def f(:', 'bad.py', 'exec')", id="syntax-error"),
+            pytest.param("    compile('if True', 'bad.py', 'exec')", id="syntax-error-at-end-of-line"),
+            pytest.param("    compile('x = ', 'bad.py', 'exec')", id="syntax-error-trailing-operator"),
+            pytest.param(
+                "    compile('def f():\\n\\t\\n', 'bad.py', 'exec')",
+                id="syntax-error-whitespace-only-line",
+            ),
             pytest.param("    raise ValueError()", id="no-message"),
             pytest.param(
                 "    try:\n        raise OSError('a')\n"
