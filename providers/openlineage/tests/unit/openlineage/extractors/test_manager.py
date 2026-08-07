@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import tempfile
+import types
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -36,6 +38,7 @@ from airflow.providers.common.compat.sdk import BaseOperator, Context, ObjectSto
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
+from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State, TaskInstanceState
 
@@ -637,6 +640,186 @@ def test_get_hook_lineage_passes_failed_state(hook_lineage_collector):
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 1
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"
+
+
+class _FakeS3Hook:
+    pass
+
+
+class _FakeGCSHook:
+    pass
+
+
+def _hook_fqcn(hook_cls) -> str:
+    return f"{hook_cls.__module__}.{hook_cls.__name__}"
+
+
+def _collect_assets(collector):
+    """
+    Seed the collector with staging parts plus unrelated assets from two hooks.
+
+    All of these fit well inside ``max_assets_per_collector``; exclusion runs after that cap,
+    so this fixture deliberately does not model a collection that overflows it.
+    """
+    s3_hook, gcs_hook = _FakeS3Hook(), _FakeGCSHook()
+    for idx in range(3):
+        collector.add_output_asset(context=s3_hook, uri=f"s3://bucket/prefix/part_{idx}.txt")
+    collector.add_output_asset(context=s3_hook, uri="s3://bucket/prefix/summary.json")
+    collector.add_output_asset(context=gcs_hook, uri="gs://bucket/out.csv")
+
+
+def _output_uris(lineage):
+    return sorted(f"{dataset.namespace}/{dataset.name}" for dataset in lineage.outputs)
+
+
+@pytest.mark.parametrize(
+    ("controls_kwargs", "expected"),
+    [
+        pytest.param(
+            {},
+            [
+                "gs://bucket/out.csv",
+                "s3://bucket/prefix/part_0.txt",
+                "s3://bucket/prefix/part_1.txt",
+                "s3://bucket/prefix/part_2.txt",
+                "s3://bucket/prefix/summary.json",
+            ],
+            id="no-filter-keeps-everything",
+        ),
+        pytest.param(
+            {"exclude_hook_lineage_assets": ("s3://bucket/prefix/part_.*",)},
+            ["gs://bucket/out.csv", "s3://bucket/prefix/summary.json"],
+            id="asset-pattern-drops-parts-keeps-others",
+        ),
+        pytest.param(
+            {"exclude_hook_lineage_hooks": (_hook_fqcn(_FakeS3Hook),)},
+            ["gs://bucket/out.csv"],
+            id="hook-pattern-drops-all-assets-from-that-hook",
+        ),
+        pytest.param(
+            {"exclude_hook_lineage_assets": (".*",)},
+            [],
+            id="catch-all-asset-pattern-drops-everything",
+        ),
+        pytest.param(
+            {"exclude_hook_lineage_assets": ("s3://bucket/prefix/part_0.txt",)},
+            [
+                "gs://bucket/out.csv",
+                "s3://bucket/prefix/part_1.txt",
+                "s3://bucket/prefix/part_2.txt",
+                "s3://bucket/prefix/summary.json",
+            ],
+            id="pattern-is-fullmatch-not-substring",
+        ),
+    ],
+)
+def test_get_hook_lineage_applies_exclusion_patterns(hook_lineage_collector, controls_kwargs, expected):
+    _collect_assets(hook_lineage_collector)
+    controls = replace(EmissionPolicy.defaults(), **controls_kwargs)
+
+    result = ExtractorManager().get_hook_lineage(
+        task_instance=MagicMock(),
+        task_instance_state=TaskInstanceState.SUCCESS,
+        controls=controls,
+    )
+
+    if expected:
+        assert _output_uris(result) == expected
+    else:
+        assert result is None
+
+
+def test_get_hook_lineage_exclusion_applies_to_inputs(hook_lineage_collector):
+    hook = _FakeS3Hook()
+    hook_lineage_collector.add_input_asset(context=hook, uri="s3://bucket/staging/tmp.txt")
+    hook_lineage_collector.add_input_asset(context=hook, uri="s3://bucket/in.txt")
+
+    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=("s3://bucket/staging/.*",))
+    result = ExtractorManager().get_hook_lineage(
+        task_instance=MagicMock(),
+        task_instance_state=TaskInstanceState.SUCCESS,
+        controls=controls,
+    )
+
+    assert result.inputs == [OpenLineageDataset(namespace="s3://bucket", name="in.txt")]
+
+
+def test_get_hook_lineage_hook_pattern_distinguishes_same_class_name(hook_lineage_collector):
+    """Two hooks with the same class name in different modules must be separately targetable."""
+    other_module = types.ModuleType("other_provider.hooks")
+    twin = type("_FakeS3Hook", (), {"__module__": other_module.__name__})
+
+    hook_lineage_collector.add_output_asset(context=_FakeS3Hook(), uri="s3://bucket/from_local.txt")
+    hook_lineage_collector.add_output_asset(context=twin(), uri="s3://bucket/from_other.txt")
+
+    controls = replace(
+        EmissionPolicy.defaults(),
+        exclude_hook_lineage_hooks=(f"{other_module.__name__}._FakeS3Hook",),
+    )
+    result = ExtractorManager().get_hook_lineage(
+        task_instance=MagicMock(),
+        task_instance_state=TaskInstanceState.SUCCESS,
+        controls=controls,
+    )
+
+    assert _output_uris(result) == ["s3://bucket/from_local.txt"]
+
+
+def test_extract_metadata_falls_back_to_manual_outlets_when_all_assets_excluded(hook_lineage_collector):
+    """Excluding every hook-collected asset must not suppress manually declared outlets."""
+    _collect_assets(hook_lineage_collector)
+    outlets = [Asset(uri="s3://bucket/curated/table.parquet", extra={})]
+    task = PythonOperator(task_id="task_id", python_callable=lambda: None, outlets=outlets)
+    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=(".*",))
+
+    result = ExtractorManager().extract_metadata(
+        dagrun=MagicMock(),
+        task=task,
+        task_instance_state=TaskInstanceState.SUCCESS,
+        task_instance=MagicMock(),
+        controls=controls,
+    )
+
+    assert _output_uris(result) == ["s3://bucket/curated/table.parquet"]
+
+
+def test_get_hook_lineage_does_not_filter_sql_extras(hook_lineage_collector):
+    """Exclusion patterns target assets only; SQL-based lineage is unaffected."""
+    hook_lineage_collector.add_input_asset(context=_FakeS3Hook(), uri="s3://bucket/in.txt")
+    hook_lineage_collector.add_extra(
+        context=MagicMock(),
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "SELECT 1"},
+    )
+
+    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=(".*",))
+    mock_ti = MagicMock()
+    with patch(_SQL_FN_PATH, return_value=None) as mock_sql_fn:
+        result = ExtractorManager().get_hook_lineage(
+            task_instance=mock_ti,
+            task_instance_state=TaskInstanceState.SUCCESS,
+            controls=controls,
+        )
+
+    assert result is None
+    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+
+
+def test_extract_metadata_passes_controls_to_hook_lineage(hook_lineage_collector):
+    """The exclusion patterns resolved for a task reach the collector read path."""
+    _collect_assets(hook_lineage_collector)
+    task = PythonOperator(task_id="task_id", python_callable=lambda: None)
+    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=("s3://bucket/prefix/part_.*",))
+
+    result = ExtractorManager().extract_metadata(
+        dagrun=MagicMock(),
+        task=task,
+        task_instance_state=TaskInstanceState.SUCCESS,
+        task_instance=MagicMock(),
+        controls=controls,
+    )
+
+    assert _output_uris(result) == ["gs://bucket/out.csv", "s3://bucket/prefix/summary.json"]
 
 
 def test_extract_inlets_and_outlets_converts_asset_inlet_outlet():
