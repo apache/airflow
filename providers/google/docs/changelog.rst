@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+.. Breaking change
+
+The ``google-cloud-aiplatform[evaluation]`` stack (``litellm``,
+``scikit-learn``, ``ruamel-yaml``) is no longer part of the base install of
+``apache-airflow-providers-google``. Users who exercise Vertex AI
+generative-model evaluation via ``GenerativeModelHook.get_eval_task`` /
+``run_evaluation`` (or ``RunEvaluationOperator``) must install the new
+``vertex-eval`` extra:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-google[vertex-eval]'
+
+Users who do not touch those Vertex AI evaluation APIs are unaffected and
+will no longer pull in ``litellm``, ``scikit-learn``, and ``ruamel-yaml``
+transitively.
+
 22.3.0
 ......
 
