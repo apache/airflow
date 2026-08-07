@@ -732,7 +732,11 @@ class AssetManager(LoggingMixin):
         try:
             # A SAVEPOINT scopes the potential IntegrityError so only this INSERT is rolled
             # back on conflict; the caller's surrounding transaction (with any other work
-            # already flushed in this scheduler tick) stays intact.
+            # already flushed in this scheduler tick) stays intact. Note that Session.begin_nested()
+            # itself flushes any pending (unflushed) ORM objects into the parent transaction before
+            # opening the SAVEPOINT, so unflushed Log/PartitionedAssetKeyLog rows added earlier in
+            # this loop are safely persisted first and are not among the objects a rollback here
+            # can expunge -- only ``apdr``, added after the SAVEPOINT starts, is at risk.
             with session.begin_nested():
                 session.add(apdr)
                 session.flush()

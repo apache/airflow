@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -425,6 +425,80 @@ class TestAssetManager:
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_lost_race_does_not_expunge_unflushed_log_rows(self, session):
+        """A savepoint rollback on a lost race must not expunge earlier unflushed rows.
+
+        ``_queue_partitioned_dags`` accumulates unflushed ``Log``/``PartitionedAssetKeyLog``
+        rows across loop iterations before ``_get_or_create_apdr`` opens its SAVEPOINT.
+        ``Session.begin_nested()`` flushes all pending ORM state into the parent transaction
+        before the SAVEPOINT is opened (see the comment in ``_get_or_create_apdr``), so those
+        earlier rows are persistent, not pending, by the time a later iteration loses the
+        race and its savepoint rolls back — the rollback can only expunge the savepoint-local
+        APDR, which the ``IntegrityError`` handler re-selects around.
+        """
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_lost_race", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
+        target_key = "2026-05-20"
+
+        # Simulate an earlier loop iteration's unflushed log row, accumulated before
+        # _get_or_create_apdr runs for this (later) target_key.
+        log_row = Log(event="unit test unflushed log", extra="pre-savepoint")
+        session.add(log_row)
+        assert log_row in session.new
+
+        calls = {"n": 0}
+        real_get_latest_pending_apdr = AssetManager._get_latest_pending_apdr.__func__
+
+        def fake_get_latest_pending_apdr(cls, *, target_key, target_dag_id, session):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # Pretend no APDR exists yet, but insert the "winning" competitor directly
+                # (bypassing the ORM identity map) so the upcoming ORM INSERT inside the
+                # savepoint collides with the unique constraint, forcing a lost race.
+                session.execute(
+                    insert(AssetPartitionDagRun.__table__).values(
+                        target_dag_id=target_dag_id,
+                        created_dag_run_id=None,
+                        partition_key=target_key,
+                        pending_partition_key=target_key,
+                        partition_date=None,
+                        rollup_fingerprint=fp,
+                    )
+                )
+                session.flush()
+                return None
+            return real_get_latest_pending_apdr(
+                cls, target_key=target_key, target_dag_id=target_dag_id, session=session
+            )
+
+        with mock.patch.object(
+            AssetManager, "_get_latest_pending_apdr", classmethod(fake_get_latest_pending_apdr)
+        ):
+            winner = AssetManager._get_or_create_apdr(
+                target_key=target_key,
+                target_partition_date=None,
+                target_dag=testing_dag,
+                rollup_fingerprint=fp,
+                session=session,
+            )
+
+        assert calls["n"] == 2  # first call lost the race, second call re-selected the winner
+        assert winner.target_dag_id == testing_dag.dag_id
+        assert winner.pending_partition_key == target_key
+
+        # The pre-savepoint log row was not expunged by the savepoint rollback: it is either
+        # still pending (not transient) or was already flushed by then, and in both cases it
+        # persists once the session is flushed -- it was never dropped.
+        assert log_row in session
+        session.flush()
+        persisted = session.scalar(select(Log).where(Log.id == log_row.id))
+        assert persisted is not None
+        assert persisted.event == "unit test unflushed log"
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_or_create_apdr_suppresses_conflicting_partition_date(self, session):
