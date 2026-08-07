@@ -59,6 +59,7 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
                     <div style={{ position: "relative", width: "100%" }}>
                       <Input
                         {...field}
+                        autoComplete={key === "password" ? "new-password" : undefined}
                         placeholder={fields.placeholder ?? ""}
                         type={
                           key === "password" && !showPassword
@@ -72,6 +73,10 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
                         <PasswordToggle
                           isVisible={showPassword}
                           onToggle={() => setShowPassword(!showPassword)}
+                          position="absolute"
+                          right={2}
+                          top="50%"
+                          transform="translateY(-50%)"
                         />
                       )}
                     </div>

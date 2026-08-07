@@ -18,7 +18,6 @@
  */
 import { Input } from "@chakra-ui/react";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import { PasswordToggle } from "src/components/PasswordToggle";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
@@ -27,7 +26,6 @@ import type { FlexibleFormElementProps } from ".";
 
 export const FieldPassword = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const [showPassword, setShowPassword] = useState(false);
-  const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
@@ -41,35 +39,29 @@ export const FieldPassword = ({ name, namespace = "default", onUpdate }: Flexibl
   };
 
   return (
-    <>
-      <div style={{ position: "relative", width: "100%" }}>
-        <Input
-          autoComplete="new-password"
-          disabled={disabled}
-          id={`element_${name}`}
-          list={param.schema.examples ? `list_${name}` : undefined}
-          maxLength={param.schema.maxLength ?? undefined}
-          minLength={param.schema.minLength ?? undefined}
-          name={`element_${name}`}
-          onChange={(event) => {
-            handleChange(event.target.value);
-          }}
-          placeholder={param.schema.examples ? translate("flexibleForm.placeholderExamples") : undefined}
-          size="sm"
-          type={showPassword ? "text" : "password"}
-          value={(param.value ?? "") as string}
-        />
-        <PasswordToggle isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />
-      </div>
-      {param.schema.examples ? (
-        <datalist id={`list_${name}`}>
-          {param.schema.examples.map((example) => (
-            <option key={example} value={example}>
-              {example}
-            </option>
-          ))}
-        </datalist>
-      ) : undefined}
-    </>
+    <div style={{ position: "relative", width: "100%" }}>
+      <Input
+        autoComplete="new-password"
+        disabled={disabled}
+        id={`element_${name}`}
+        maxLength={param.schema.maxLength ?? undefined}
+        minLength={param.schema.minLength ?? undefined}
+        name={`element_${name}`}
+        onChange={(event) => {
+          handleChange(event.target.value);
+        }}
+        size="sm"
+        type={showPassword ? "text" : "password"}
+        value={(param.value ?? "") as string}
+      />
+      <PasswordToggle
+        isVisible={showPassword}
+        onToggle={() => setShowPassword(!showPassword)}
+        position="absolute"
+        right={2}
+        top="50%"
+        transform="translateY(-50%)"
+      />
+    </div>
   );
 };

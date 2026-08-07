@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { IconButtonProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 
@@ -24,20 +25,17 @@ import { IconButton } from "src/components/ui";
 type Props = {
   readonly isVisible: boolean;
   readonly onToggle: () => void;
-};
+} & IconButtonProps;
 
-export const PasswordToggle = ({ isVisible, onToggle }: Props) => {
+export const PasswordToggle = ({ isVisible, onToggle, ...rest }: Props) => {
   const { t: translate } = useTranslation("components");
 
   return (
     <IconButton
       label={isVisible ? translate("passwordToggle.hide") : translate("passwordToggle.show")}
       onClick={onToggle}
-      position="absolute"
-      right={2}
       size="xs"
-      top="50%"
-      transform="translateY(-50%)"
+      {...rest}
     >
       {isVisible ? <FiEye size={15} /> : <FiEyeOff size={15} />}
     </IconButton>
