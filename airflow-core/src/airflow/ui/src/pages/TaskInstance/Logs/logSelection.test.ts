@@ -20,10 +20,8 @@ import { createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  getBottomDragClampTarget,
-  getSelectionPinnedRows,
-  mergePinnedIndexes,
   extractSelectedLogText,
+  getBottomDragClampTarget,
   getEntryText,
   getSelectionPinnedRows,
   getSelectionRowRange,
