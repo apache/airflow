@@ -72,20 +72,11 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "pandas" = [
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas[sql-other]>=2.1.2,<3; python_version <"3.13"',
+    'pandas[sql-other]>=2.1.2; python_version <"3.13"',
     # Technically - we should add "sql-other" here as well, but this will only be possible when we move
     # to sqlalchemy 2+ TODO(potiuk): do so.
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"',
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.3.3,<3; python_version >="3.14"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage"

@@ -25,6 +25,7 @@ import time_machine
 from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -1504,7 +1505,10 @@ class TestQueuedEventEndpoint(TestAssets):
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
         session.execute(delete(AssetDagRunQueue))
         session.flush()
-        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id, asset_event_id=event.id)
         session.add(adrq)
         session.commit()
         return adrq
@@ -2151,6 +2155,33 @@ class TestPostAssetMaterialize(TestAssets):
         assert dag_run.partition_key == "2025-06-01T00:00:00"
         assert dag_run.partition_date == timezone.datetime(2025, 6, 1)
 
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_against_the_dags_team(self, test_client, session, team_name):
+        """The Dag is resolved from the asset, so its team must be resolved and passed too — see the
+        call site's comment for why an unresolved team asks about the wrong resource."""
+        recorded = []
+
+        auth_manager = mock.Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_dag.side_effect = lambda **kw: recorded.append(kw) or True
+
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager",
+                return_value=auth_manager,
+            ),
+            mock.patch.object(
+                DagModel, "get_team_name", return_value=team_name, autospec=True
+            ) as mock_get_team_name,
+        ):
+            test_client.post("/assets/1/materialize")
+
+        assert len(recorded) == 1, "expected exactly one authorization check"
+        details = recorded[0]["details"]
+        assert details.id == self.DAG_ASSET1_ID
+        assert details.team_name == team_name
+        # resolved for the Dag the asset led to, not for some other Dag
+        mock_get_team_name.assert_called_once_with(self.DAG_ASSET1_ID, session=mock.ANY)
+
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
@@ -2198,10 +2229,10 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is not None
+        assert session.scalars(select(AssetDagRunQueue)).all()
         response = test_client.delete(f"/assets/{asset.id}/queuedEvents")
         assert response.status_code == 204
-        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is None
+        assert session.scalars(select(AssetDagRunQueue)).all() == []
         check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):

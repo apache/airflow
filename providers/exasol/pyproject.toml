@@ -65,18 +65,9 @@ dependencies = [
     # Capped to 1.x: pyexasol 2.x ships stricter types that break the exasol hook.
     # Remove the cap after migrating; tracked at https://github.com/apache/airflow/issues/69123
     "pyexasol>=0.26.0,<2",
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.1.2,<3; python_version <"3.13"',
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"',
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.3.3,<3; python_version >="3.14"',
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
 ]
 
 # The optional dependencies should be modified in place in the generated file

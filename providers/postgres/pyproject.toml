@@ -93,18 +93,9 @@ dependencies = [
     "apache-airflow-providers-openlineage"
 ]
 "pandas" = [
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.1.2,<3; python_version <"3.13"',
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"',
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.3.3,<3; python_version >="3.14"',
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
 ]
 "polars" = [
     "polars>=1.26.0"
