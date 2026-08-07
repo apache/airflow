@@ -458,6 +458,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Ensure all requested dag_ids are in the result (with None for those not found)
         return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
 
+    def _stamp_team_names(self, dag_runs: Collection[DagRun], session: Session) -> None:
+        """
+        Stamp ``_team_name`` on each DagRun.
+
+        Team names are resolved via ``_get_team_names_for_dag_ids``, which caches results in
+        ``self._dag_id_to_team_name`` for the duration of the current scheduler loop.  In
+        practice this means the first call per loop issues one batched query; subsequent calls
+        for the same dag_ids are pure dict reads with no DB round-trip.
+        """
+        if not self._multi_team:
+            return
+        if not dag_runs:
+            return
+        team_map = self._get_team_names_for_dag_ids({dr.dag_id for dr in dag_runs}, session)
+        for dr in dag_runs:
+            if team := team_map.get(dr.dag_id):
+                dr._team_name = team
+
     def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
         Resolve team name for a workload using the DAG > Bundle > Team relationship chain.
@@ -1734,12 +1752,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
-            if self._multi_team and paused_runs:
-                paused_dag_ids = {dr.dag_id for dr in paused_runs}
-                paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
-                for dr in paused_runs:
-                    if team := paused_team_mapping.get(dr.dag_id):
-                        dr._team_name = team
+            # Team name should be added before listeners are called in update_state()
+            self._stamp_team_names(paused_runs, session)
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
@@ -1996,12 +2010,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
 
-            if self._multi_team and dag_runs:
-                unique_dag_ids = {dr.dag_id for dr in dag_runs}
-                dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
-                for dr in dag_runs:
-                    if team := dr_team_mapping.get(dr.dag_id):
-                        dr._team_name = team
+            # Team name should be added before listeners are called in _schedule_all_dag_runs()
+            self._stamp_team_names(dag_runs, session)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -2827,6 +2837,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
+        # Team name should be added before listeners are called in notify_dagrun_state_changed()
+        self._stamp_team_names(dag_runs, session)
+
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
@@ -2964,6 +2977,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 execute=False,
             )
 
+            # Team name should be added before listeners are called in notify_dagrun_state_changed()
+            self._stamp_team_names([dag_run], session)
             dag_run.notify_dagrun_state_changed(msg="timed_out")
             if dag_run.end_date and dag_run.start_date:
                 duration = dag_run.end_date - dag_run.start_date
