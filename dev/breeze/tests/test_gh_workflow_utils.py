@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "ruff==0.16.0",
-# ]
-# ///
-
 from __future__ import annotations
 
-import os
-import subprocess
+from unittest import mock
 
-ruff_format_cmd = "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
-envcopy = os.environ.copy()
-envcopy["CLICOLOR_FORCE"] = "1"
-subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)
+from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
+from airflow_breeze.utils.shared_options import set_dry_run
+
+
+@mock.patch("airflow_breeze.utils.gh_workflow_utils.monitor_workflow_run")
+@mock.patch("airflow_breeze.utils.gh_workflow_utils.make_sure_gh_is_installed")
+def test_trigger_workflow_and_monitor_stops_after_the_dispatch_in_dry_run(_, mock_monitor):
+    """A dry run dispatches nothing, so the empty `gh run list` must not read as a missing run."""
+    set_dry_run(True)
+    try:
+        trigger_workflow_and_monitor(
+            workflow_name="release-constraints.yml",
+            repo="apache/airflow",
+            version="3.2.0rc1",
+            ref="v3-2-stable",
+        )
+    finally:
+        set_dry_run(False)
+
+    mock_monitor.assert_not_called()
