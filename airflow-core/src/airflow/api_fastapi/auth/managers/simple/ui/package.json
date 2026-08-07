@@ -27,7 +27,7 @@
     "react": "^19.2.8",
     "react-cookie": "^8.1.2",
     "react-dom": "^19.2.8",
-    "react-hook-form": "^7.83.0",
+    "react-hook-form": "^7.84.0",
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
