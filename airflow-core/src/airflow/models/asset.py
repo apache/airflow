@@ -32,11 +32,12 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    UniqueConstraint,
     delete,
     select,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
@@ -927,15 +928,27 @@ class AssetPartitionDagRun(Base):
 
     Where created_dag_run_id is null, the dag run has not yet been created.
     We should not allow more than one row with the same target_dag_id /
-    partition_key where created_dag_run_id is null, and this is what the
-    `_lock_target_dag` mutex control is for. In case a duplicate somehow
-    gets created, we always work on the latest matching APDR record.
+    partition_key where created_dag_run_id is null. This is enforced by a
+    unique constraint on (target_dag_id, pending_partition_key) rather than a
+    partial/filtered unique index, because MySQL supports neither:
+    pending_partition_key mirrors partition_key only while created_dag_run_id
+    is null (see the `_sync_pending_partition_key` validator below), and is
+    null once the dag run is created. A unique index treats null as distinct
+    from every other value on all three supported backends, so completed rows
+    never collide with each other while pending rows for the same key do. In
+    the rare case a duplicate pending row still exists (e.g. rows created
+    before this constraint was added), we always work on the latest matching
+    APDR record.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    # Mirrors partition_key while created_dag_run_id is null, and is cleared to null once
+    # the dag run is created; see the class docstring for why this backs the uniqueness
+    # guard instead of a partial index.
+    pending_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Serialized snapshot of the rollup definition (mapper + window for every
     # partitioned asset in the timetable) at the time this APDR was created.
@@ -960,7 +973,25 @@ class AssetPartitionDagRun(Base):
             name="apdr_created_dag_run_id_fkey",
             ondelete="CASCADE",
         ),
+        UniqueConstraint(
+            "target_dag_id",
+            "pending_partition_key",
+            name="apdr_target_dag_id_pending_partition_key_uq",
+        ),
     )
+
+    @validates("created_dag_run_id")
+    def _sync_pending_partition_key(self, key, value):
+        """
+        Keep pending_partition_key in lockstep with created_dag_run_id.
+
+        Runs whenever created_dag_run_id is assigned (including at construction), so
+        every call site — not just _get_or_create_apdr — automatically clears the
+        pending marker once a dag run is created, without needing to remember to.
+        """
+        if value is not None:
+            self.pending_partition_key = None
+        return value
 
 
 class PartitionedAssetKeyLog(Base):

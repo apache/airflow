@@ -27,6 +27,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.dialects import mysql, postgresql, sqlite
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -406,10 +407,21 @@ class TestAssetManager:
             with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as pool:
                 ids = pool.map(lambda _: _get_or_create_apdr(), [None] * thread_count)
 
-        assert Counter(r.msg for r in caplog.records) == {
-            "Existing APDR found for key test_partition_key dag_id testing_dag": thread_count - 1,
-            "No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag": 1,
-        }
+        # The find-or-create is lock-free: a thread may either see the row via its initial
+        # SELECT ("Existing APDR found"), or race straight to the INSERT and lose to the
+        # unique constraint on (target_dag_id, pending_partition_key), catching the
+        # IntegrityError and re-selecting the winner ("Lost race creating APDR"). Which of
+        # the two happens per thread is a timing detail; the invariant that matters is that
+        # exactly one thread ever wins the INSERT and every thread converges on that row.
+        msg_counts = Counter(r.msg for r in caplog.records)
+        create_msg = "No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag"
+        found_msg = "Existing APDR found for key test_partition_key dag_id testing_dag"
+        lost_race_msg = (
+            "Lost race creating APDR for key test_partition_key dag_id testing_dag; "
+            "using the winning APDR instead"
+        )
+        assert msg_counts[create_msg] == 1
+        assert msg_counts[found_msg] + msg_counts[lost_race_msg] == thread_count - 1
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
@@ -581,10 +593,13 @@ class TestAssetManager:
         locks, could each observe "no existing APDR", and inserted a duplicate row
         for the same (target_dag_id, partition_key) — leaving neither APDR ever
         satisfied by all required events.
+
+        The fix is a unique constraint on (target_dag_id, pending_partition_key) rather
+        than a lock on any row (see ``AssetPartitionDagRun.pending_partition_key``), so
+        this asserts the outcome directly: both events, from different producer assets,
+        collapse into a single row without either insert raising.
         """
         _clear_partition_db()
-
-        from airflow.assets import manager as asset_manager_module
 
         asset_1 = Asset(name="asset-71070-a")
         asset_2 = Asset(name="asset-71070-b")
@@ -601,33 +616,61 @@ class TestAssetManager:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        lock_keys: list[str] = []
-        real_lock = asset_manager_module._lock_target_dag
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_1,
+            session=session,
+            partition_key="shared-key",
+        )
+        session.flush()
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_2,
+            session=session,
+            partition_key="shared-key",
+        )
+        session.flush()
 
-        def _spy_lock(*, session, dag_id, **kwargs):
-            lock_keys.append(dag_id)
-            return real_lock(session=session, dag_id=dag_id, **kwargs)
-
-        with mock.patch("airflow.assets.manager._lock_target_dag", side_effect=_spy_lock):
-            AssetManager.register_asset_change(
-                task_instance=mock_task_instance,
-                asset=asset_1,
-                session=session,
-                partition_key="shared-key",
-            )
-            session.flush()
-            AssetManager.register_asset_change(
-                task_instance=mock_task_instance,
-                asset=asset_2,
-                session=session,
-                partition_key="shared-key",
-            )
-            session.flush()
-
-        # Both events must serialize on the SAME resource (the target Dag), regardless
-        # of which producer asset triggered them.
-        assert lock_keys == [dag_id, dag_id]
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_pending_partition_key_unique_constraint_blocks_duplicate_pending_rows(self, session):
+        """DB-level guard backing _get_or_create_apdr's IntegrityError-and-reselect path.
+
+        A second pending row for the same (target_dag_id, partition_key), inserted directly
+        without going through _get_or_create_apdr, must be rejected by the database itself —
+        this is what makes the concurrent-insert race in _get_or_create_apdr resolve to one row.
+        """
+        testing_dag = DagModel(dag_id="testing_dag_uq", is_stale=False, bundle_name="testing")
+        session.add(testing_dag)
+        session.commit()
+
+        first = AssetPartitionDagRun(
+            target_dag_id="testing_dag_uq", partition_key="k", pending_partition_key="k"
+        )
+        session.add(first)
+        session.commit()
+
+        second = AssetPartitionDagRun(
+            target_dag_id="testing_dag_uq", partition_key="k", pending_partition_key="k"
+        )
+        session.add(second)
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+
+    def test_created_dag_run_id_assignment_clears_pending_partition_key(self):
+        """Setting created_dag_run_id must clear pending_partition_key, not just at creation.
+
+        This is what lets a new pending APDR be created for the same (target_dag_id,
+        partition_key) once the previous one is fulfilled, without ever needing every call
+        site that marks an APDR as fulfilled to remember to also clear the marker.
+        """
+        apdr = AssetPartitionDagRun(target_dag_id="d", partition_key="k", pending_partition_key="k")
+        assert apdr.pending_partition_key == "k"
+
+        apdr.created_dag_run_id = 123
+        assert apdr.pending_partition_key is None
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")
