@@ -243,25 +243,30 @@ class TestDeadlineAlert:
             run_id="test_run",
         ) == DEFAULT_DATE + timedelta(hours=1)
 
-    def test_legacy_serialized_custom_reference_ignores_evaluation_context(self):
-        class LegacyReference(BaseDeadlineReference):
+    def test_serialized_custom_reference_var_keyword_receives_full_context(self):
+        class VarKeywordReference(BaseDeadlineReference):
             received_kwargs: dict[str, object]
 
             def _evaluate_with(self, *, session, **kwargs):
                 self.received_kwargs = kwargs
                 return DEFAULT_DATE
 
-        reference = LegacyReference()
+        reference = VarKeywordReference()
         wrapper = SerializedReferenceModels.SerializedCustomReference(reference)
+        dagrun = SimpleNamespace()
 
         assert wrapper.evaluate_with(
             session=None,
             interval=timedelta(hours=1),
-            dagrun=SimpleNamespace(),
+            dagrun=dagrun,
             dag_id="test_dag",
             run_id="test_run",
         ) == DEFAULT_DATE + timedelta(hours=1)
-        assert reference.received_kwargs == {}
+        assert reference.received_kwargs == {
+            "dagrun": dagrun,
+            "dag_id": "test_dag",
+            "run_id": "test_run",
+        }
 
     def test_core_deadline_reference_treated_as_builtins(self):
         """Test that refs from airflow.models.deadline are still treated as builtins."""
