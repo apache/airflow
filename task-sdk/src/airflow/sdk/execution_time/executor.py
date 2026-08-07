@@ -43,7 +43,11 @@ from typing import TYPE_CHECKING, Any, cast
 from airflow.sdk import BaseAsyncOperator, BaseOperator, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
-from airflow.sdk.exceptions import AirflowRescheduleException, AirflowRescheduleTaskInstanceException, TaskDeferred
+from airflow.sdk.exceptions import (
+    AirflowRescheduleException,
+    AirflowRescheduleTaskInstanceException,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.context import context_get_outlet_events, set_current_context
 from airflow.sdk.execution_time.task_runner import (
