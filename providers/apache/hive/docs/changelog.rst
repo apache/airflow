@@ -27,6 +27,52 @@
 Changelog
 ---------
 
+9.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move template-field checks out of __init__ in Hive sensors (#70334)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
+9.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Beeline JDBC parameters to HiveCliHook (#68144)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Hive metastore partition sensor initialization (#69612)``
+
+Misc
+~~~~
+
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 9.5.0
 .....
 
@@ -347,7 +393,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 9.0.1
 .....

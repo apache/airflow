@@ -21,7 +21,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 > **Note:** This ADR describes pure Java DAG authoring (entire DAGs written in Java without a
 > Python file), which was removed from the scope of

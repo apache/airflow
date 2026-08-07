@@ -472,7 +472,9 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook("mock_conn_id")
         with mock.patch.object(hook.log, "info") as mock_log_info:
             hook.check_query_output(query_ids)
-        mock_log_info.assert_called_with(GET_RESPONSE)
+        mock_log_info.assert_called_with(
+            "Snowflake SQL API result for query %s: %s", query_ids[-1], GET_RESPONSE
+        )
 
     @pytest.mark.parametrize("query_ids", [["uuid", "uuid1"]])
     @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")

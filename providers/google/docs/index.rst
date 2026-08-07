@@ -90,7 +90,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 22.2.2
+Release: 22.3.0
 
 Provider package
 ----------------
@@ -130,7 +130,14 @@ PIP package                                 Version required
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
-``google-cloud-aiplatform[evaluation]``     ``>=1.155.0``
+``google-cloud-aiplatform``                 ``>=1.155.0``
+``tqdm``                                    ``>=4.23.0``
+``scikit-learn``                            ``>=1.6.0``
+``jsonschema``                              ``>=4.19.1``
+``ruamel.yaml``                             ``>=0.19.0``
+``pyyaml``                                  ``>=6.0.3``
+``litellm``                                 ``>=1.83.7,<1.86.0; python_version < "3.14"``
+``litellm``                                 ``>=1.93.0; python_version >= "3.14"``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
@@ -273,5 +280,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 22.2.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.2.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.2.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.2.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 22.2.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.2.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.2.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.2.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 22.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 22.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0-py3-none-any.whl.sha512>`__)

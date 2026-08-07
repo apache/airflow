@@ -126,12 +126,15 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
   let runtimeAbort: RuntimeAbort | null = null;
 
   try {
-    // Connect log channel first so early failures are captured.
+    // Records emitted before the `--logs` socket connects are buffered and
+    // flushed on connect; if the connect fails, close() dumps them to stderr.
     // Root logger is `ts-sdk`; subsystems use child names (`ts-sdk.runtime`,
     // `ts-sdk.comm`, `ts-sdk.client`) so structlog's ConsoleRenderer prints
     // them as a distinct `[name]` column on the supervisor side.
-    logs = await LogChannel.connect(parsed.logsAddr);
+    logs = LogChannel.createBuffered();
     const runtimeLogs = logs.child("runtime");
+    runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
+    await logs.connect(parsed.logsAddr);
     const tasks = listRegisteredTasks();
     runtimeLogs.info("Coordinator runtime started", {
       registered_tasks: tasks,
