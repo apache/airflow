@@ -177,13 +177,13 @@ class AgentEngineHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> QueryReasoningEngineResponse:
         """
-        Query an Agent Engine synchronously.
+        Query a Reasoning Engine synchronously.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param reasoning_engine_id: Required. The Reasoning Engine resource ID for the Agent Engine.
-        :param input_data: Optional. Input for the Agent Engine class method in JSON object format.
+        :param reasoning_engine_id: Required. The Reasoning Engine resource ID.
+        :param input_data: Optional. Input for the Reasoning Engine class method in JSON object format.
             Defaults to ``None``.
-        :param class_method: Optional. The Agent Engine class method to invoke. Defaults to ``query``.
+        :param class_method: Optional. The Reasoning Engine class method to invoke. Defaults to ``query``.
         :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
         :param timeout: The timeout for this request. Defaults to ``None``.
         :param metadata: Strings which should be sent along with the request as metadata. Defaults
