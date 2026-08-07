@@ -439,6 +439,24 @@ describe("Task log search", () => {
   }, 10_000);
 });
 
+const makeClipboardData = () => {
+  const store = new Map<string, string>();
+
+  return {
+    getData: (type: string) => store.get(type) ?? "",
+    setData: (type: string, value: string) => store.set(type, value),
+  };
+};
+
+const dispatchCopy = (clipboardData: ReturnType<typeof makeClipboardData>) => {
+  const copyEvent = new Event("copy", { bubbles: true, cancelable: true });
+
+  Object.defineProperty(copyEvent, "clipboardData", { value: clipboardData });
+  document.dispatchEvent(copyEvent);
+
+  return copyEvent;
+};
+
 const findRow = (text: string) => {
   const container = screen.getByTestId("virtual-scroll-container");
 
@@ -455,6 +473,101 @@ const withFakeSelection = <T,>(selection: Selection, callback: () => T): T => {
 
   return result;
 };
+
+describe("Copy across virtualized rows", () => {
+  it("rebuilds a removed grouped row from log data and strips line numbers", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    fireEvent.click(screen.getByTestId("summary-Pre Execute"));
+    await waitFor(() => expect(screen.getByText(/DAG bundles loaded/iu)).toBeInTheDocument());
+
+    const firstRow = findRow("Task started");
+    const middleRow = findRow("DAG bundles loaded");
+    const lastRow = findRow("Done. Returned value was: None");
+
+    expect(firstRow).toBeDefined();
+    expect(middleRow).toBeDefined();
+    expect(lastRow).toBeDefined();
+
+    middleRow.remove();
+
+    const range = document.createRange();
+
+    range.setStart(firstRow, 0);
+    range.setEnd(lastRow, lastRow.childNodes.length);
+
+    const selection = { getRangeAt: () => range, isCollapsed: false, rangeCount: 1 } as unknown as Selection;
+    const clipboardData = makeClipboardData();
+    const copyEvent = withFakeSelection(selection, () => dispatchCopy(clipboardData));
+
+    expect(copyEvent.defaultPrevented).toBe(true);
+
+    const lines = clipboardData.getData("text/plain").split("\n");
+
+    expect(lines[0]).not.toMatch(/^\d/u);
+    expect(lines[0]).toContain("Task started");
+    expect(lines).toContainEqual(
+      expect.stringMatching(/^\[.+\] INFO - DAG bundles loaded: dags-folder, example_dags$/u),
+    );
+  });
+
+  it("rebuilds a removed ungrouped row from log data", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const firstRow = findRow("Log message source details");
+    const middleRow = findRow("Task started");
+    const lastRow = findRow("Done. Returned value was: None");
+
+    expect(firstRow).toBeDefined();
+    expect(middleRow).toBeDefined();
+    expect(lastRow).toBeDefined();
+
+    middleRow.remove();
+
+    const range = document.createRange();
+
+    range.setStart(firstRow, 0);
+    range.setEnd(lastRow, lastRow.childNodes.length);
+
+    const selection = { getRangeAt: () => range, isCollapsed: false, rangeCount: 1 } as unknown as Selection;
+    const clipboardData = makeClipboardData();
+    const copyEvent = withFakeSelection(selection, () => dispatchCopy(clipboardData));
+
+    expect(copyEvent.defaultPrevented).toBe(true);
+    expect(clipboardData.getData("text/plain").split("\n")).toContainEqual(
+      expect.stringMatching(/^\[.+\] INFO - Task started$/u),
+    );
+  });
+
+  it("leaves single-row selections to native copy", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const row = findRow("Task started");
+
+    expect(row).toBeDefined();
+
+    const range = document.createRange();
+
+    range.setStart(row, 0);
+    range.setEnd(row, row.childNodes.length);
+
+    const selection = { getRangeAt: () => range, isCollapsed: false, rangeCount: 1 } as unknown as Selection;
+    const clipboardData = makeClipboardData();
+    const copyEvent = withFakeSelection(selection, () => dispatchCopy(clipboardData));
+
+    expect(copyEvent.defaultPrevented).toBe(false);
+    expect(clipboardData.getData("text/plain")).toBe("");
+  });
+});
 
 describe("Selection pinning across scrolling", () => {
   it("keeps the selection-anchor row mounted after scrolling it out of the render window", async () => {
