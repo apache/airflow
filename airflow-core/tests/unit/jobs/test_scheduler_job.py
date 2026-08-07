@@ -13206,6 +13206,46 @@ def test_partition_cap_audit_row_survives_outer_rollback(dag_maker: DagMaker, se
     assert audit_events == ["partition dag run cap reached"]
 
 
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
+def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker, session: Session, caplog):
+    """
+    A `DBAPIError` while writing the cap-reached audit row must not escape the tick.
+
+    The audit write is purely observational, so any DBAPI-layer failure — not just
+    `OperationalError` — must be caught and logged, leaving `_partition_cap_backlog_reported`
+    `False` so the next tick retries the write.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-audit-failure",
+        asset=Asset(name="asset-cap-audit-failure"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 2
+
+    failing_session_cm = MagicMock()
+    failing_session_cm.__enter__.return_value.add.side_effect = IntegrityError(
+        "INSERT INTO log", {}, Exception("duplicate key")
+    )
+    failing_session_cm.__exit__.return_value = False
+
+    with mock.patch("airflow.jobs.scheduler_job_runner.create_session", return_value=failing_session_cm):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert "Failed to write the partition dag run cap audit Log row" in caplog
+    assert runner._partition_cap_backlog_reported is False
+    audit_rows = session.scalars(select(Log).where(Log.event == "partition dag run cap reached")).all()
+    assert audit_rows == []
+
+
 def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) -> None:
     """Toggle ``AssetActive`` row for an asset to simulate orphan / reactivation."""
     row = session.scalar(select(AssetActive).where(AssetActive.name == name, AssetActive.uri == uri))
