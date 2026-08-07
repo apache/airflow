@@ -33,7 +33,7 @@ determined by:
 
 .. tip::
 
-    The ``@task.bash`` decorator is recommended over the classic ``BashOperator`` to execute Bash commands.
+    The ``@task.bash`` decorator is the Taskflow equivalent of ``BashOperator`` to execute Bash commands.
 
 
 .. tab-set::
