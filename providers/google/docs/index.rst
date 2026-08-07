@@ -130,7 +130,8 @@ PIP package                                 Version required
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
-``google-cloud-aiplatform[evaluation]``     ``>=1.155.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.155.0; python_version < "3.14"``
+``google-cloud-aiplatform``                 ``>=1.155.0; python_version >= "3.14"``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
