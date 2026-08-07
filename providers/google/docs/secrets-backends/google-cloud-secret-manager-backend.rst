@@ -233,8 +233,12 @@ secret. Avoid ``--`` in connection ids and variable keys.
 
 .. warning::
 
-    This refusal applies whether or not you use teams. If you already store a connection or
-    variable whose id contains ``--``, it stops resolving after upgrading and you must rename it.
+    This refusal only applies when ``[core] multi_team`` is enabled — with multi-team support
+    off, no team-scoped name can exist for a ``--``-containing id to collide with, so it resolves
+    normally. If you already store a connection or variable whose id contains ``--``, it keeps
+    working until multi-team support is enabled, at which point it silently stops resolving (a
+    warning is logged, but lookups do not raise) instead of raising outright. Check for ids
+    containing ``--`` before turning on ``multi_team``.
 
 ``get_config`` is not team-scoped and is unaffected by any of the above.
 
