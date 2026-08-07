@@ -2491,6 +2491,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             cancel_on_kill=False,
             request_id=REQUEST_ID,
         )
+        op.render_template_fields({})
         assert op.start_from_trigger is True
         assert (
             op.start_trigger_args.trigger_cls
@@ -2508,6 +2509,46 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         }
         assert op.start_trigger_args.next_method == "execute_complete"
 
+    def test_start_trigger_args_use_rendered_template_fields(self):
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region="{{ params.region }}",
+            project_id="{{ params.project }}",
+            job={"reference": {"job_id": "job-{{ ds }}"}},
+            deferrable=True,
+            start_from_trigger=True,
+        )
+        op.render_template_fields(
+            {"ds": "2026-01-01", "params": {"region": GCP_REGION, "project": GCP_PROJECT}}
+        )
+        trigger_kwargs = op.start_trigger_args.trigger_kwargs
+        assert trigger_kwargs["region"] == GCP_REGION
+        assert trigger_kwargs["project_id"] == GCP_PROJECT
+        assert trigger_kwargs["job"] == {"reference": {"job_id": "job-2026-01-01"}}
+
+    def test_start_trigger_args_are_not_shared_between_tasks(self):
+        first = DataprocSubmitJobOperator(
+            task_id="first",
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={"reference": {"job_id": "first"}},
+            deferrable=True,
+            start_from_trigger=True,
+        )
+        second = DataprocSubmitJobOperator(
+            task_id="second",
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={"reference": {"job_id": "second"}},
+            deferrable=True,
+            start_from_trigger=True,
+        )
+        first.render_template_fields({})
+        second.render_template_fields({})
+        assert first.start_trigger_args.trigger_kwargs["job"] == {"reference": {"job_id": "first"}}
+        assert second.start_trigger_args.trigger_kwargs["job"] == {"reference": {"job_id": "second"}}
+        assert DataprocSubmitJobOperator.start_trigger_args.trigger_kwargs == {}
+
     def test_start_from_trigger_without_deferrable_does_not_set_args(self):
         op = DataprocSubmitJobOperator(
             task_id=TASK_ID,
@@ -2518,6 +2559,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             deferrable=False,
             start_from_trigger=True,
         )
+        op.render_template_fields({})
         assert op.start_from_trigger is True
         assert op.start_trigger_args.trigger_kwargs == {}
 

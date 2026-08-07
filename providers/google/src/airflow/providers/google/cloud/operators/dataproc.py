@@ -24,7 +24,7 @@ import re
 import time
 import warnings
 from collections.abc import MutableSequence, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
@@ -66,6 +66,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
+    import jinja2
     from google.api_core import operation
     from google.api_core.retry_async import AsyncRetry
     from google.protobuf.duration_pb2 import Duration
@@ -2004,9 +2005,13 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
+    def render_template_fields(self, context: Context, jinja_env: jinja2.Environment | None = None) -> None:
+        super().render_template_fields(context, jinja_env)
+        # Built here rather than in __init__: every value below is a template field, so in the
+        # constructor they still hold the un-rendered Jinja expression.
         if self.deferrable and self.start_from_trigger:
-            self.start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger",
+            self.start_trigger_args = replace(
+                self.start_trigger_args,
                 trigger_kwargs={
                     "job": self.job,
                     "project_id": self.project_id,
@@ -2017,9 +2022,6 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
                     "cancel_on_kill": self.cancel_on_kill,
                     "request_id": self.request_id,
                 },
-                next_method="execute_complete",
-                next_kwargs=None,
-                timeout=None,
             )
 
     def execute(self, context: Context):
