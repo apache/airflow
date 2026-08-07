@@ -1542,33 +1542,6 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
-def test_create_cluster_operator_legacy_kwargs_survive_serialization_and_render(
-    dag_maker, create_task_instance_of_operator
-):
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance_of_operator(
-            DataprocCreateClusterOperator,
-            dag_id=TEST_DAG_ID,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            project_id=GCP_PROJECT,
-            cluster_name=CLUSTER_NAME,
-            num_workers=2,
-            zone="{{ 'templated-zone' }}",
-            gcp_conn_id=GCP_CONN_ID,
-        )
-    serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
-    deserialized_task = deserialized_dag.tasks[0]
-    assert deserialized_task._legacy_cluster_kwargs["zone"] == "{{ 'templated-zone' }}"
-
-    context = {"dag": dag_maker.dag, "ti": ti}
-    rendered_task = ti.render_templates(context=context)
-    assert rendered_task._legacy_cluster_kwargs["zone"] == "templated-zone"
-
-
-@pytest.mark.db_test
-@pytest.mark.need_serialized_dag
 def test_create_cluster_operator_extra_links(
     dag_maker, create_task_instance_of_operator, mock_supervisor_comms
 ):

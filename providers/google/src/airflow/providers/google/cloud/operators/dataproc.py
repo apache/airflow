@@ -685,13 +685,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         "labels",
         "gcp_conn_id",
         "impersonation_chain",
-        "_legacy_cluster_kwargs",
     )
-    template_fields_renderers = {
-        "cluster_config": "json",
-        "virtual_cluster_config": "json",
-        "_legacy_cluster_kwargs": "json",
-    }
+    template_fields_renderers = {"cluster_config": "json", "virtual_cluster_config": "json"}
 
     operator_extra_links = (DataprocClusterLink(),)
 
@@ -717,8 +712,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
-        # TODO: remove one day
-        self._legacy_cluster_kwargs: dict | None = None
         if cluster_config is None and virtual_cluster_config is None:
             warnings.warn(
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
@@ -739,8 +732,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 )
             kwargs["project_id"] = project_id
 
-            # Build cluster_config in execute() after template values are rendered.
-            self._legacy_cluster_kwargs = dict(kwargs)
+            cluster_config = ClusterGenerator(**kwargs).make()
 
             # Remove from kwargs cluster params passed for backward compatibility
             cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
@@ -905,9 +897,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return cluster
 
     def execute(self, context: Context) -> dict:
-        if self._legacy_cluster_kwargs is not None:
-            # Build cluster_config here so it uses rendered template values.
-            self.cluster_config = ClusterGenerator(**self._legacy_cluster_kwargs).make()
 
         self.log.info("Attempting to create cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
