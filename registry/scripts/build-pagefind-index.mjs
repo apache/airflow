@@ -40,9 +40,17 @@ async function buildPagefindIndex() {
   let modulesAdded = 0;
 
   for (const provider of providers.providers) {
+    const integrations = (provider.categories || [])
+      .map((category) => category.name)
+      .filter(Boolean)
+      .join(' ');
+
     await index.addCustomRecord({
       url: `/providers/${provider.id}/${provider.version}/`,
-      content: `${provider.name} ${provider.description}`,
+      // The id is indexed on its own, not as part of the distribution name:
+      // the `apache-airflow-providers-` prefix is shared by every provider and
+      // would make 'apache' or 'airflow' match all of them.
+      content: `${provider.name} ${provider.id} ${provider.description} ${integrations}`,
       language: 'en',
       meta: {
         type: 'provider',

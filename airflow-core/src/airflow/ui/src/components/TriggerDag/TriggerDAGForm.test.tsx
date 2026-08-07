@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -47,8 +47,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+const useDagParamsMock = vi.hoisted(() => vi.fn());
+
 vi.mock("src/queries/useDagParams", () => ({
-  useDagParams: () => dagParams,
+  useDagParams: useDagParamsMock,
 }));
 
 vi.mock("src/queries/useTogglePause", () => ({
@@ -83,6 +85,46 @@ vi.mock("../JsonEditor", () => ({
 }));
 
 describe("TriggerDAGForm", () => {
+  beforeEach(() => {
+    useDagParamsMock.mockReturnValue(dagParams);
+  });
+
+  it("propagates the selected run's conf to the JSON editor when the Dag has no declared params", async () => {
+    useDagParamsMock.mockReturnValue({ paramsDict: {} });
+
+    render(
+      <TriggerDAGForm
+        dagDisplayName="No Params Dag"
+        dagId="example_no_params"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={{
+          conf: { message: "from selected run" },
+          logicalDate: undefined,
+          runId: "manual__test",
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() => {
+      const configJson = screen.getByLabelText("Configuration JSON");
+
+      if (!(configJson instanceof HTMLTextAreaElement)) {
+        throw new TypeError("Expected Configuration JSON to render as a textarea");
+      }
+
+      expect(configJson.value).toContain('"from selected run"');
+    });
+  });
+
   it("syncs Advanced Options JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
     const { container } = render(
       <TriggerDAGForm

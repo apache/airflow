@@ -108,7 +108,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -135,7 +135,7 @@ jobs:
       # arch-specific auto-provisioned JDKs (the example pins a Java 11 toolchain).
       - name: "Setup Java for the Java SDK build"
         if: inputs.e2e_test_mode == 'java_sdk'
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
         with:
           distribution: 'temurin'
           java-version: ${{ inputs.java-sdk-version }}
@@ -158,7 +158,7 @@ jobs:
       # restore/save pair below persists the module + build caches even on red runs.
       - name: "Setup Go for the Go SDK build"
         if: inputs.e2e_test_mode == 'go_sdk'
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go-sdk/go.mod
           cache: false

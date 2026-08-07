@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+4.5.9
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle DockerOperator mounts after rendering instead of in __init__ (#70342)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.5.8
+.....
+
+Misc
+~~~~
+
+* ``Remove airflow.utils dependency from Docker provider (#69900)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 
 4.5.7
 .....
@@ -308,7 +331,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 4.1.0
 .....
