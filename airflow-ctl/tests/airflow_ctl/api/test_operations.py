@@ -250,6 +250,29 @@ class TestBaseOperations:
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
 
+    def test_execute_list_sends_offset_to_server(self):
+        """``offset`` must reach the server on the first request, not only on subsequent pages."""
+        rows = [{"name": name} for name in "abcdef"]
+
+        def paged(path, params):
+            # An absent ``offset`` is what the server would see as its own default of 0.
+            start = params.get("offset", 0)
+            return Mock(
+                content=json.dumps(
+                    {"hellos": rows[start : start + params["limit"]], "total_entries": len(rows)}
+                )
+            )
+
+        mock_client = Mock()
+        mock_client.get.side_effect = paged
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(
+            path="hello", data_model=HelloCollectionResponse, offset=2, limit=2
+        )
+
+        assert [hello.name for hello in response.hellos] == ["c", "d", "e", "f"]
+
     @pytest.mark.parametrize("limit", [0, -1])
     def test_execute_list_rejects_non_positive_limit(self, limit):
         mock_client = Mock()
