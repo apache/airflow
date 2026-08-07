@@ -77,6 +77,9 @@ def _get_evaluation_kwargs(reference: Any, evaluator: Any, kwargs: dict[str, Any
         return kwargs
 
     parameters = signature(evaluator).parameters
+    if any(param.kind is param.VAR_KEYWORD for param in parameters.values()):
+        return kwargs
+
     return {key: value for key, value in kwargs.items() if key in parameters}
 
 
