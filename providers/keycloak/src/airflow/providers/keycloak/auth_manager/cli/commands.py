@@ -267,7 +267,7 @@ def _attach_default_role_permissions(
             permission_name="ReadOnly",
             policy_name=_role_policy_name(role_name),
             scope_names=["GET", "MENU", "LIST"],
-            resource_names=[],
+            resource_names=list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
@@ -300,7 +300,7 @@ def _attach_default_role_permissions(
             permission_name="Admin",
             policy_name=_role_policy_name(role_name),
             scope_names=_get_extended_resource_methods() + ["LIST"],
-            resource_names=[],
+            resource_names=list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
             _dry_run=_dry_run,
         )
 
@@ -426,6 +426,7 @@ def _get_permissions_to_create(
                 "name": "ReadOnly",
                 "type": "scope-based",
                 "scope_names": ["GET", "MENU", "LIST"],
+                "resources": list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
             },
             {
                 "name": "Admin",
@@ -463,10 +464,7 @@ def _get_permissions_to_create(
                         "name": f"ReadOnly-{team}",
                         "type": "scope-based",
                         "scope_names": ["GET", "LIST"],
-                        "resources": [
-                            f"{KeycloakResource.DAG.value}:{team}",
-                            f"{KeycloakResource.TEAM.value}:{team}",
-                        ],
+                        "resources": [f"{resource}:{team}" for resource in TEAM_SCOPED_RESOURCE_NAMES],
                     },
                     {
                         "name": f"User-{team}",
@@ -492,9 +490,11 @@ def _get_permissions_to_create(
                     "name": "Admin",
                     "type": "scope-based",
                     "scope_names": _get_extended_resource_methods() + ["LIST"],
-                    "resources": [
-                        f"{resource}:{team}" for team in teams for resource in TEAM_SCOPED_RESOURCE_NAMES
-                    ],
+                    "resources": (
+                        [f"{resource}:{team}" for team in teams for resource in TEAM_SCOPED_RESOURCE_NAMES]
+                        + list(TEAM_SCOPED_RESOURCE_NAMES)
+                        + list(GLOBAL_SCOPED_RESOURCE_NAMES)
+                    ),
                 }
             )
         perm_configs.append(
@@ -502,6 +502,14 @@ def _get_permissions_to_create(
                 "name": "GlobalList",
                 "type": "scope-based",
                 "scope_names": ["LIST"],
+                "resources": list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
+            }
+        )
+        perm_configs.append(
+            {
+                "name": "ReadOnly",
+                "type": "scope-based",
+                "scope_names": ["GET", "MENU", "LIST"],
                 "resources": list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
             }
         )
@@ -780,8 +788,7 @@ def _attach_team_permissions(
         f"{KeycloakResource.DAG.value}:{team}",
     ]
     team_readable_resources = [
-        f"{KeycloakResource.DAG.value}:{team}",
-        f"{KeycloakResource.TEAM.value}:{team}",
+        f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)
     ]
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
 
