@@ -599,7 +599,7 @@ class TestWasbRemoteLogIOAppendBlobMode:
 
     def test_partial_chunk_failure_trims_local_file_to_uncommitted_remainder(self, tmp_path):
         hook = self.FakeAppendHook()
-        hook.fail_append_at_offset = 9
+        hook.fail_append_at_offset = 10
         io = self._io(tmp_path, hook)
         io._MAX_APPEND_BLOCK_BYTES = 10
         local_log = tmp_path / "attempt=1.log"
@@ -625,7 +625,7 @@ class TestWasbRemoteLogIOAppendBlobMode:
         blob_name = "remote/log/location/attempt=1.log"
         committed = hook.blobs[blob_name]["content"]
         committed.decode("utf-8")
-        assert committed == "a" * 9
+        assert committed == b"a" * 9
         assert local_log.read_text() == "\u20ac" + "b" * 9
         hook.fail_append_at_offset = None
         io.upload("attempt=1.log")
