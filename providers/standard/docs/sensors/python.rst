@@ -26,7 +26,7 @@ The :class:`~airflow.providers.standard.sensors.python.PythonSensor` executes an
 value to be True.
 
 .. tip::
-    The ``@task.sensor`` decorator is recommended over the classic ``PythonSensor``
+    The ``@task.sensor`` decorator is the Taskflow equivalent of ``PythonSensor``
     to execute Python callables to check for True condition.
 
 .. tab-set::
