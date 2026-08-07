@@ -97,6 +97,29 @@ class TestFormatExceptionDicts:
     def test_exception_without_frames_omits_the_traceback_header(self):
         assert format_exception_dicts([stack("ValueError", "first")]) == "ValueError: first"
 
+    def test_exception_raised_without_a_message_drops_the_colon(self):
+        assert format_exception_dicts([stack("ValueError", "")]) == "ValueError"
+
+    def test_exception_group_without_a_message_drops_the_colon(self):
+        payload = [
+            stack(
+                "ExceptionGroup",
+                "",
+                [("<string>", 4, "<module>")],
+                is_group=True,
+                exceptions=[[stack("ValueError", "first")]],
+            )
+        ]
+
+        assert format_exception_dicts(payload) == (
+            "  + Exception Group Traceback (most recent call last):\n"
+            '  |   File "<string>", line 4, in <module>\n'
+            "  | ExceptionGroup\n"
+            "  +-+---------------- 1 ----------------\n"
+            "    | ValueError: first\n"
+            "    +------------------------------------"
+        )
+
     def test_frame_source_line_is_indented_under_its_file_line(self):
         payload = [stack("ValueError", "boom")]
         payload[0]["frames"] = [
@@ -168,6 +191,27 @@ class TestFormatExceptionDicts:
 
         assert format_exception_dicts(payload) == (
             '  File "b.py", line 2\n    x ==== 1\n        ^\nSyntaxError: invalid syntax'
+        )
+
+    def test_syntax_error_keeps_tab_indentation_so_the_caret_still_lines_up(self):
+        payload = [
+            stack(
+                "IndentationError",
+                "unexpected indent",
+                syntax_error={
+                    "offset": 4,
+                    "filename": "tabs.py",
+                    "line": "  \t x = 1 +\n",
+                    "lineno": 1,
+                    "msg": "unexpected indent",
+                },
+            )
+        ]
+
+        # CPython strips only spaces, newlines and form feeds, and pads the caret with the
+        # whitespace it kept, so a tab in the source stays a tab in the caret line.
+        assert format_exception_dicts(payload) == (
+            '  File "tabs.py", line 1\n    \t x = 1 +\n    \t^\nIndentationError: unexpected indent'
         )
 
     def test_syntax_error_with_out_of_range_offset_drops_the_caret(self):
@@ -392,6 +436,12 @@ class TestAgainstRealTransformerOutput:
                 id="nested-exception-group",
             ),
             pytest.param("    compile('def f(:', 'bad.py', 'exec')", id="syntax-error"),
+            pytest.param("    raise ValueError()", id="no-message"),
+            pytest.param(
+                "    try:\n        raise OSError('a')\n"
+                "    except OSError as e:\n        raise RuntimeError() from e",
+                id="no-message-in-chain",
+            ),
         ],
     )
     def test_output_matches_cpython_traceback(self, body):
@@ -419,3 +469,14 @@ class TestAgainstRealTransformerOutput:
         assert "    x ==== 1\n        ^\n" in rendered
         # CPython would underline the whole operator, but `end_offset` is not in the payload.
         assert "^^" in namespace["stdlib"]
+
+    def test_non_builtin_exception_loses_its_module_because_structlog_drops_it(self):
+        namespace = run_in_synthetic_module("    import socket\n    raise socket.gaierror('dns')")
+
+        rendered = format_exception_dicts(namespace["dicts"])
+
+        # CPython qualifies any exception outside `builtins`, but structlog records only the
+        # bare class name, so the module cannot be recovered here. Airflow's own exceptions
+        # are all non-builtin, so this applies to most real triggerer tracebacks.
+        assert rendered.endswith("gaierror: dns")
+        assert "socket.gaierror: dns" in namespace["stdlib"]
