@@ -27,6 +27,7 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     SUPER_ADMIN_ROLE_NAME,
     TEAM_ROLE_NAMES,
     TEAM_SCOPED_RESOURCE_NAMES,
+    GLOBAL_SCOPED_RESOURCE_NAMES,
     _get_extended_resource_methods,
     _get_resource_methods,
     add_user_to_team_command,
@@ -274,6 +275,7 @@ class TestCommands:
                     "logic": "POSITIVE",
                     "decisionStrategy": "UNANIMOUS",
                     "scopes": ["1", "2", "3"],  # GET, MENU, LIST
+                    "resources": ["r1", "r2", "r3"],  # Dag, Asset, Connection (matched from TEAM_SCOPED + GLOBAL_SCOPED)
                 },
             ),
             call(
@@ -412,7 +414,18 @@ class TestCommands:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "scopes": ["1", "3"],
-                "resources": ["r1"],
+                "resources": ["r1", "r2", "r3", "r4"],  # Dag:team-a, Connection:team-a, Pool:team-a, Variable:team-a
+            },
+        )
+        client.create_client_authz_scope_permission.assert_any_call(
+            client_id="test-id",
+            payload={
+                "name": "ReadOnly",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "scopes": ["1", "2", "3"],
+                "resources": ["r6", "r7", "r8", "r9", "r10", "r11", "r12"],  # non-team resources
             },
         )
         client.create_client_authz_resource_based_permission.assert_any_call(
@@ -468,7 +481,7 @@ class TestCommands:
                 permission_name="ReadOnly",
                 policy_name=f"Allow-{role_name}",
                 scope_names=["GET", "MENU", "LIST"],
-                resource_names=[],
+                resource_names=list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
                 decision_strategy="AFFIRMATIVE",
                 _dry_run=False,
             )
@@ -478,7 +491,7 @@ class TestCommands:
             permission_name="Admin",
             policy_name="Allow-Admin",
             scope_names=_get_extended_resource_methods() + ["LIST"],
-            resource_names=[],
+            resource_names=list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
             _dry_run=False,
         )
         mock_attach_scope_policy.assert_any_call(
@@ -487,7 +500,7 @@ class TestCommands:
             permission_name="Admin",
             policy_name="Allow-SuperAdmin",
             scope_names=_get_extended_resource_methods() + ["LIST"],
-            resource_names=[],
+            resource_names=list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
             _dry_run=False,
         )
         mock_attach_resource_policy.assert_any_call(
@@ -573,7 +586,13 @@ class TestCommands:
             permission_name="ReadOnly-team-a",
             policy_name="Allow-Viewer-team-a",
             scope_names=["GET", "LIST"],
-            resource_names=["Dag:team-a", "Team:team-a"],
+            resource_names=[
+                "Connection:team-a",
+                "Dag:team-a",
+                "Pool:team-a",
+                "Team:team-a",
+                "Variable:team-a",
+            ],
             _dry_run=False,
         )
         mock_attach_policy.assert_any_call(
