@@ -247,7 +247,9 @@ class DeadlineReference:
 
        class MyDeadlineReference(BaseDeadlineReference):
            def _evaluate_with(self, *, session, dagrun):
-               return dagrun.logical_date
+               # Add your business logic here; dagrun.logical_date is available to use.
+               my_datetime = my_business_logic(dagrun.logical_date)
+               return my_datetime
     """
 
     class TYPES:
@@ -393,7 +395,9 @@ def deadline_reference(deadline_reference_type=None):
         class MyCustomReference(BaseDeadlineReference):
             # By default, evaluate_with will be called when a new dagrun is created.
             def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
-                return dagrun.logical_date
+                # Add your business logic here; dagrun.logical_date is available to use.
+                my_datetime = my_business_logic(dagrun.logical_date)
+                return my_datetime
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
@@ -403,7 +407,9 @@ def deadline_reference(deadline_reference_type=None):
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
         class MyQueuedRef(BaseDeadlineReference):
             def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
-                return dagrun.queued_at
+                # Add your business logic here; dagrun.queued_at is available to use.
+                my_datetime = my_business_logic(dagrun.queued_at)
+                return my_datetime
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}

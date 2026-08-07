@@ -477,7 +477,8 @@ Place the reference classes and the plugin that registers them in your plugins f
         """A custom reference evaluated when Dag runs are queued."""
 
         def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
-            return dagrun.queued_at
+            my_datetime = my_business_logic(dagrun.queued_at)
+            return my_datetime
 
 
     # Register the classes so the scheduler can resolve them when it deserializes the Dag.

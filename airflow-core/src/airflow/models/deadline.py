@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement
 
     from airflow.models.callback import CallbackDefinitionProtocol
+    from airflow.models.dagrun import DagRun
     from airflow.models.deadline_alert import DeadlineAlert
 
 
@@ -360,7 +361,7 @@ class ReferenceModels:
             return base_time + interval if base_time is not None else None
 
         @abstractmethod
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -410,13 +411,13 @@ class ReferenceModels:
     class DagRunLogicalDateDeadline(BaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
             return dagrun.logical_date
 
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
             return dagrun.queued_at
 
     @dataclass
@@ -434,7 +435,7 @@ class ReferenceModels:
                 raise ValueError("min_runs must be at least 1")
 
         @provide_session
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
             from airflow.models import DagRun
 
             dag_id = dagrun.dag_id
