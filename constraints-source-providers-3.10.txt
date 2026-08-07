@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-07T01:58:49.869558
+# This constraints file was automatically generated on 2026-08-07T17:49:17.097445
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -628,7 +628,7 @@ ruff==0.16.0
 s3fs==2026.6.0
 s3transfer==0.19.1
 sagemaker_studio==1.0.26
-scikit-learn==1.5.2
+scikit-learn==1.7.2
 scipy==1.15.3
 scramp==1.4.12
 scrapbook==0.5.0
