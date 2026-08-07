@@ -273,6 +273,17 @@ class TestSdkImportsAllowlistRatchet:
         manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
         assert manager.check([path], {}) == 0
 
+    def test_example_dags_are_not_checked(self, create_fake_core_repo, tmp_path):
+        path = create_fake_core_repo(
+            "example_dags/example_simplest_dag.py",
+            """\
+            from airflow.sdk import DAG
+            from airflow.sdk import task
+            """,
+        )
+        manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
+        assert manager.check([path], {}) == 0
+
     def test_non_python_file_is_skipped(self, create_fake_core_repo, tmp_path):
         path = create_fake_core_repo(
             "models/not_python.txt",
@@ -307,5 +318,59 @@ class TestSdkImportsAllowlistGenerate:
         create_fake_core_repo("models/b.py", "from airflow.models import DagRun\n")
         allowlist_path = tmp_path / "allowlist.txt"
         manager = SdkImportsAllowlistManager(allowlist_path)
+        assert manager.generate() == 0
+        assert manager.load() == {"airflow-core/src/airflow/models/a.py": 1}
+
+    def test_main_generate_with_files_is_scoped(self, create_fake_core_repo, tmp_path):
+        path = create_fake_core_repo("models/a.py", "from airflow.sdk import DAG\n")
+        (tmp_path / "generated").mkdir()
+        allowlist_path = tmp_path / "generated" / "known_sdk_imports_in_core.txt"
+        allowlist_path.write_text("airflow-core/src/airflow/models/other.py::2\n")
+
+        assert hook.main(["--generate", str(path)]) == 0
+        assert allowlist_path.read_text().splitlines() == [
+            "airflow-core/src/airflow/models/a.py::1",
+            "airflow-core/src/airflow/models/other.py::2",
+        ]
+
+    def test_generate_for_leaves_other_entries_untouched(self, create_fake_core_repo, tmp_path):
+        target = create_fake_core_repo(
+            "models/target.py",
+            """\
+            from airflow.sdk import DAG
+            from airflow.sdk import task
+            """,
+        )
+        create_fake_core_repo("models/drifted.py", "from airflow.sdk import DAG\n")
+        manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
+        manager.save({"airflow-core/src/airflow/models/target.py": 1})
+
+        assert manager.generate_for([target]) == 0
+        assert manager.load() == {"airflow-core/src/airflow/models/target.py": 2}
+
+    def test_generate_for_drops_entry_when_file_is_clean(self, create_fake_core_repo, tmp_path):
+        path = create_fake_core_repo("models/fixed.py", "from airflow.models import DagRun\n")
+        manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
+        manager.save(
+            {
+                "airflow-core/src/airflow/models/fixed.py": 1,
+                "airflow-core/src/airflow/models/other.py": 3,
+            }
+        )
+
+        assert manager.generate_for([path]) == 0
+        assert manager.load() == {"airflow-core/src/airflow/models/other.py": 3}
+
+    def test_generate_for_skips_example_dags(self, create_fake_core_repo, tmp_path):
+        path = create_fake_core_repo("example_dags/tutorial.py", "from airflow.sdk import DAG\n")
+        manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
+
+        assert manager.generate_for([path]) == 0
+        assert manager.load() == {}
+
+    def test_generate_skips_example_dags(self, create_fake_core_repo, tmp_path):
+        create_fake_core_repo("models/a.py", "from airflow.sdk import DAG\n")
+        create_fake_core_repo("example_dags/tutorial.py", "from airflow.sdk import DAG\n")
+        manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
         assert manager.generate() == 0
         assert manager.load() == {"airflow-core/src/airflow/models/a.py": 1}
