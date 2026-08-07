@@ -388,7 +388,7 @@ class ReferenceModels:
 
         _datetime: datetime
 
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime | None:
             return self._datetime
 
         def serialize_reference(self) -> dict:
