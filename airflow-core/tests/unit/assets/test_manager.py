@@ -395,7 +395,6 @@ class TestAssetManager:
                     target_partition_date=None,
                     target_dag=testing_dag,
                     rollup_fingerprint=rollup_fingerprint,
-                    asset_id=asm.id,
                     session=_session,
                 ).id
             finally:
@@ -433,7 +432,6 @@ class TestAssetManager:
             target_partition_date=timezone.parse("2026-05-20T00:00:00"),
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             session=session,
         )
         assert first.partition_date == timezone.parse("2026-05-20T00:00:00")
@@ -444,7 +442,6 @@ class TestAssetManager:
             target_partition_date=timezone.parse("2026-05-21T00:00:00"),
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             session=session,
         )
         assert second.id == first.id  # same pending APDR
@@ -464,7 +461,6 @@ class TestAssetManager:
             target_key="2026-05-20",
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
@@ -492,7 +488,6 @@ class TestAssetManager:
             target_key="2026-05-20",
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             session=session,
         )
         # First event carries no date (e.g. producer had no partition_date).
@@ -518,7 +513,6 @@ class TestAssetManager:
             target_key="2026-05-20",
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=date_1, **kwargs)
@@ -572,6 +566,68 @@ class TestAssetManager:
         # ...but the failed carry degraded to None instead of propagating.
         assert apdr.partition_date is None
         mock_log.exception.assert_called_once()
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_queue_partitioned_dags_dedups_across_different_producer_assets(
+        self, session, dag_maker, mock_task_instance
+    ):
+        """Regression test for apache/airflow#71070.
+
+        Two DIFFERENT producer assets that both feed a partitioned consumer Dag and
+        resolve (via IdentityMapper) to the SAME downstream partition key must
+        collapse into a single AssetPartitionDagRun. The find-or-create step used to
+        lock the *producer* AssetModel row instead of the target Dag; concurrent
+        events from two different producer assets therefore took two different row
+        locks, could each observe "no existing APDR", and inserted a duplicate row
+        for the same (target_dag_id, partition_key) — leaving neither APDR ever
+        satisfied by all required events.
+        """
+        _clear_partition_db()
+
+        from airflow.assets import manager as asset_manager_module
+
+        asset_1 = Asset(name="asset-71070-a")
+        asset_2 = Asset(name="asset-71070-b")
+        dag_id = "asset-event-consumer-71070"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=PartitionedAssetTimetable(
+                assets=(asset_1 & asset_2),
+                default_partition_mapper=IdentityMapper(),
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="hi")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        lock_keys: list[str] = []
+        real_lock = asset_manager_module._lock_target_dag
+
+        def _spy_lock(*, session, dag_id, **kwargs):
+            lock_keys.append(dag_id)
+            return real_lock(session=session, dag_id=dag_id, **kwargs)
+
+        with mock.patch("airflow.assets.manager._lock_target_dag", side_effect=_spy_lock):
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_1,
+                session=session,
+                partition_key="shared-key",
+            )
+            session.flush()
+            AssetManager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset_2,
+                session=session,
+                partition_key="shared-key",
+            )
+            session.flush()
+
+        # Both events must serialize on the SAME resource (the target Dag), regardless
+        # of which producer asset triggered them.
+        assert lock_keys == [dag_id, dag_id]
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")

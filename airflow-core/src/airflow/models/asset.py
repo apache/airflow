@@ -928,7 +928,7 @@ class AssetPartitionDagRun(Base):
     Where created_dag_run_id is null, the dag run has not yet been created.
     We should not allow more than one row with the same target_dag_id /
     partition_key where created_dag_run_id is null, and this is what the
-    `_lock_asset_model` mutex control is for. In case a duplicate somehow
+    `_lock_target_dag` mutex control is for. In case a duplicate somehow
     gets created, we always work on the latest matching APDR record.
     """
 

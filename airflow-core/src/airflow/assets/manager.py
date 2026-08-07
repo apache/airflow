@@ -68,19 +68,29 @@ log = structlog.get_logger(__name__)
 
 
 @contextmanager
-def _lock_asset_model(
+def _lock_target_dag(
     *,
     session: Session,
-    asset_id: int,
+    dag_id: str,
     max_retries: int = 10,
     retry_delay: float = 0.1,
 ):
     """
     Context manager to acquire a lock for AssetPartitionDagRun creation.
 
+    AssetPartitionDagRun find-or-create is deduplicated on (target_dag_id, partition_key),
+    not on the producer asset that triggered the event. Locking the producer AssetModel row
+    is therefore the wrong resource: two events from *different* producer assets that map to
+    the same target key take locks on two different asset rows, so neither blocks the other,
+    and both can observe "no existing APDR" and insert a duplicate. Locking the target
+    DagModel row instead serializes all APDR find-or-create calls for that Dag regardless of
+    which producer asset triggered them.
+
     - SQLite: Use a no-op ORM update to trigger a write-transaction and acquire SQLite's global writer lock.
-    - Postgres/MySQL: uses row-level lock on AssetModel.
+    - Postgres/MySQL: uses row-level lock on DagModel.
     """
+    from airflow.models.dag import DagModel
+
     if get_dialect_name(session) == "sqlite":
         import time
 
@@ -88,7 +98,7 @@ def _lock_asset_model(
 
         # no-op update
         # This is used to acquire SQLite's global writer lock.
-        stmt = update(AssetModel).where(AssetModel.id == asset_id).values(id=AssetModel.id)
+        stmt = update(DagModel).where(DagModel.dag_id == dag_id).values(dag_id=DagModel.dag_id)
         for _ in range(max_retries):
             try:
                 session.execute(stmt)
@@ -104,19 +114,19 @@ def _lock_asset_model(
             yield
             return
 
-        raise RuntimeError(f"Could not acquire SQLite AssetModel writer lock for asset_id={asset_id}")
+        raise RuntimeError(f"Could not acquire SQLite DagModel writer lock for dag_id={dag_id}")
     else:
         # Postgres/MySQL row-level lock
         if (
             session.scalar(
                 with_row_locks(
-                    query=select(AssetModel.id).where(AssetModel.id == asset_id),
+                    query=select(DagModel.dag_id).where(DagModel.dag_id == dag_id),
                     session=session,
                     key_share=True,
                 )
             )
         ) is None:
-            raise RuntimeError(f"Asset {asset_id} does not exist – cannot lock.")
+            raise RuntimeError(f"Dag {dag_id} does not exist – cannot lock.")
 
         yield
 
@@ -685,7 +695,6 @@ class AssetManager(LoggingMixin):
                     target_partition_date=target_partition_date,
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
-                    asset_id=asset_id,
                     session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
@@ -706,7 +715,6 @@ class AssetManager(LoggingMixin):
         target_partition_date: datetime | None,
         target_dag: DagModel,
         rollup_fingerprint: dict,
-        asset_id: int,
         session: Session,
     ) -> AssetPartitionDagRun:
         """
@@ -715,8 +723,10 @@ class AssetManager(LoggingMixin):
         If 2 processes invoke this method at the same time using the same (target_key, target_dag) pair,
         they may both check the database and, finding no existing APDR, create separate instances.
         This leads to the unintended outcome of having two APDRs created instead of one.
-        To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
-        AssetPartitionDagRunMutexLock table for SQLite.
+        To resolve this, we add a mutex lock to the target DagModel row for PostgreSQL and MySQL,
+        and acquire SQLite's global writer lock for SQLite. The lock is keyed on the target Dag
+        rather than the producer asset, since two events from different producer assets can map
+        to the same (target_key, target_dag) pair.
 
         ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
@@ -736,7 +746,7 @@ class AssetManager(LoggingMixin):
           carried date is suppressed to ``None`` (and re-adoptable by a later event).
         - Otherwise (the dates agree, or this event carries none) the existing value is kept.
         """
-        with _lock_asset_model(session=session, asset_id=asset_id):
+        with _lock_target_dag(session=session, dag_id=target_dag.dag_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
                 select(AssetPartitionDagRun)
                 .where(
