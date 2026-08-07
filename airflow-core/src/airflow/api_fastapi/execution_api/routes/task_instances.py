@@ -78,7 +78,6 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.api_fastapi.execution_api.services.task_instances import (
-    LANG_SDK_OPERATORS,
     client_supports_arg_bindings,
     get_arg_bindings,
 )
@@ -319,10 +318,8 @@ def ti_run(
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        if (
-            ti.operator in LANG_SDK_OPERATORS
-            and client_supports_arg_bindings()
-            and (arg_bindings := get_arg_bindings(dag_bag, ti, session=session))
+        if client_supports_arg_bindings() and (
+            arg_bindings := get_arg_bindings(dag_bag, ti, session=session)
         ):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)

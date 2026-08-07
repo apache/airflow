@@ -22,16 +22,19 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
+import copy
 import datetime
 import enum
 import itertools
 import logging
 import math
 import sys
+import types
+import typing
 import weakref
 from collections.abc import Collection, Iterable, Mapping
 from functools import cache, cached_property, lru_cache
-from inspect import signature
+from inspect import Parameter, Signature, signature
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast, overload
 
@@ -40,6 +43,8 @@ import lazy_object_proxy
 import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from pydantic import PydanticUserError, TypeAdapter
+from pydantic.json_schema import GenerateJsonSchema
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
@@ -48,6 +53,7 @@ from airflow.exceptions import AirflowException, DeserializationError, Serializa
 from airflow.models.connection import Connection
 from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
 from airflow.sdk.definitions._internal.expandinput import MappedArgument
@@ -57,12 +63,13 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     BaseAsset,
 )
+from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
-from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
+from airflow.sdk.definitions.xcom_arg import PlainXComArg, serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.decoders import (
@@ -112,13 +119,12 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.sqlalchemy import deserialize_pod_dict
 
 if TYPE_CHECKING:
-    from inspect import Parameter
-
     from kubernetes.client import models as k8s  # noqa: TC004
     from kubernetes.client.api_client import ApiClient  # noqa: TC004
 
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.bases.decorator import DecoratedOperator
     from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
     from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.definitions.mappedoperator import (
@@ -294,6 +300,245 @@ def _decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
         next_kwargs=var["next_kwargs"],
         timeout=datetime.timedelta(seconds=var["timeout"]) if var["timeout"] else None,
     )
+
+
+class _ValueSchemaGenerator(GenerateJsonSchema):
+    """
+    Pydantic's stock JSON-schema generation plus OpenAPI's fixed-width numeric formats.
+
+    A foreign runtime decodes numbers into machine types, which the bare
+    ``integer``/``number`` type names cannot convey; ``format`` is an annotation per
+    JSON schema, so runtimes that don't know these names simply skip them.
+    """
+
+    def int_schema(self, schema):
+        return {**super().int_schema(schema), "format": "int64"}
+
+    def float_schema(self, schema):
+        return {**super().float_schema(schema), "format": "double"}
+
+
+# Most-derived first: datetime subclasses date, so it must be matched before date.
+_TEMPORAL_BASES = (datetime.datetime, datetime.date, datetime.time, datetime.timedelta)
+
+
+def _normalize_temporal_annotation(annotation: Any) -> Any:
+    """
+    Map temporal subclasses (e.g. ``pendulum.DateTime``) to their stdlib base.
+
+    Applied recursively through unions and containers, and only as a retry when direct
+    schema generation fails, so temporal types carrying their own pydantic schema keep it.
+    """
+    # Parametrized generics must be detected before the plain-class branch: on Python
+    # 3.10, isinstance(list[X], type) is True and issubclass silently consults the
+    # origin, so the class branch would return list[X] unnormalized.
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin is not None and args:
+        normalized = tuple(_normalize_temporal_annotation(arg) for arg in args)
+        if normalized == args:
+            return annotation
+        if origin in (typing.Union, types.UnionType):
+            return typing.Union[normalized]  # noqa: UP007 -- runtime construction from a tuple
+        return origin[normalized]
+    if isinstance(annotation, type):
+        return next((base for base in _TEMPORAL_BASES if issubclass(annotation, base)), annotation)
+    return annotation
+
+
+def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
+    """
+    Build the JSON-schema fragment for one stub parameter annotation, via pydantic.
+
+    The pydantic-generated schema ships verbatim, so runtimes must treat it as
+    open-vocabulary JSON schema. Returns ``None`` when the annotation constrains nothing
+    (missing, ``Any``, bare ``None``) or pydantic cannot generate a schema for it; the
+    binding then omits ``value_schema`` and the foreign runtime falls back to a
+    decode-only check.
+    """
+    if annotation is Parameter.empty or annotation is None or annotation is Any:
+        return None
+    if annotation is type(None):
+        # get_type_hints normalizes a bare ``None`` annotation to NoneType; a parameter
+        # that can only ever be None constrains nothing worth shipping.
+        return None
+    try:
+        schema = _generate_value_schema(annotation)
+    except TypeError:
+        # Unhashable annotations cannot key the cache; generate directly. Any pydantic
+        # failure inside the body degrades to None there, so this retry never re-raises.
+        schema = _generate_value_schema.__wrapped__(annotation)
+    # Deep-copy so callers embedding the fragment never alias the cached dict.
+    return copy.deepcopy(schema) if schema else None
+
+
+@cache
+def _generate_value_schema(annotation: Any) -> dict[str, Any] | None:
+    """
+    Generate the schema for one annotation, cached for the process lifetime.
+
+    TypeAdapter construction is one of pydantic's most expensive operations and
+    annotations are static, so re-serializations of the same Dag must not re-pay it.
+    """
+    # PydanticUserError is the base of PydanticSchemaGenerationError and
+    # PydanticInvalidForJsonSchema and covers annotations pydantic rejects outright (e.g.
+    # bare ClassVar); TypeError catches the exotic generics pydantic chokes on with a
+    # plain TypeError. Either way, "pydantic cannot schema this" degrades to no schema
+    # rather than failing Dag serialization.
+    try:
+        return TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
+    except (PydanticUserError, TypeError):
+        normalized = _normalize_temporal_annotation(annotation)
+        if normalized is annotation:
+            return None
+        try:
+            return TypeAdapter(normalized).json_schema(schema_generator=_ValueSchemaGenerator)
+        except (PydanticUserError, TypeError):
+            return None
+
+
+def _validate_stub_signature(signature_: Signature, task_id: str) -> None:
+    for param in signature_.parameters.values():
+        if param.kind in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD):
+            raise ValueError(
+                f"@task.stub task {task_id!r} must declare a fixed number of parameters for the "
+                f"foreign runtime to bind against; *{param.name} is not supported"
+            )
+        if param.name in KNOWN_CONTEXT_KEYS:
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {param.name!r} is an Airflow context key; "
+                "stub signatures declare only data parameters -- the lang-SDK runtime injects its "
+                "own task context natively (e.g. the Go SDK's sdk.TIRunContext parameter)"
+            )
+
+
+def _resolve_param_annotations(python_callable: Any, signature_: Signature) -> dict[str, Any]:
+    """Map each parameter to its serialization-time-resolvable annotation (``Parameter.empty`` when not)."""
+    try:
+        hints = typing.get_type_hints(python_callable)
+    except (NameError, TypeError):
+        # Annotations that cannot be resolved (e.g. names behind TYPE_CHECKING with
+        # ``from __future__ import annotations``) degrade to "any".
+        hints = {}
+
+    def resolve(name: str, param: Parameter) -> Any:
+        if name in hints:
+            return hints[name]
+        if isinstance(param.annotation, str):
+            return Parameter.empty
+        return param.annotation
+
+    return {name: resolve(name, param) for name, param in signature_.parameters.items()}
+
+
+def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
+    if next(XComArg.iter_xcom_references(value), None) is not None:
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a collection with an "
+            "upstream task output nested inside it; only a direct XComArg argument can cross "
+            "the language boundary -- pass the upstream output as its own argument"
+        )
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a literal of type "
+            f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
+            "to the foreign runtime; pass it in its JSON form instead"
+        )
+
+
+def _validate_xcom_value(value: Any, task_id: str, name: str) -> bool:
+    """Validate an XComArg argument, returning True when it is a bindable direct upstream output."""
+    if isinstance(value, PlainXComArg):
+        if value.key != XCOM_RETURN_KEY:
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
+                f"{value.key!r}; only an upstream task's return value can cross the language "
+                "boundary -- indexing an output by a custom key is not supported"
+            )
+        # isinstance, not .is_mapped: Airflow 2.11 operators have no is_mapped attribute.
+        if isinstance(value.operator, MappedOperator):
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {name!r} references the aggregated "
+                f"output of the mapped task {value.operator.task_id!r}; a foreign runtime "
+                "pulls single XCom rows, so a mapped upstream's combined output is not "
+                "supported"
+            )
+        return True
+    if isinstance(value, XComArg):
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a "
+            f"{type(value).__name__}; only direct upstream task outputs can cross the "
+            "language boundary -- .map()/.zip()/.concat() results are not supported"
+        )
+    return False
+
+
+def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
+    """
+    Bind the TaskFlow call arguments to the stub signature and build the ordered arg spec.
+
+    Called from ``OperatorSerialization._serialize_node`` for any operator flagged
+    ``inherits_from_stub_operator``. Each spec entry is a plain dict matching one variant of
+    the execution API's ``TaskArgBinding`` union: an ``XComArgBinding`` (``kind="xcom"``) for
+    upstream TaskFlow outputs, or a ``LiteralArgBinding`` (``kind="literal"``) for everything
+    else. ``name`` is always the stub function's parameter name, so a foreign runtime can bind
+    by name in addition to the existing positional order.
+
+    Returns ``None`` for argless calls: the binding contract (including the signature checks
+    below) applies only once a TaskFlow call actually passes arguments, so pre-TaskFlow stub
+    Dags whose call arguments were always ignored keep serializing.
+    """
+    python_callable = op.python_callable
+    op_args = op.op_args
+    op_kwargs = op.op_kwargs
+    task_id = op.task_id
+
+    if not op_args and not op_kwargs:
+        return None
+
+    # Direct .expand() on the stub needs no spec here (ti_run derives per-map-index
+    # bindings from the serialized expand input), but a mapped task group creates
+    # per-map-index instances of the tasks inside it with no expand input of their own,
+    # so their arg values are unresolvable both here and server-side.
+    if op.get_closest_mapped_task_group() is not None:
+        raise ValueError(
+            f"@task.stub task {task_id!r} passes TaskFlow call arguments inside a mapped "
+            "task group; the captured spec cannot carry values that resolve per map index at "
+            "runtime, so stub tasks with arguments are not supported under a task group's "
+            ".expand()"
+        )
+
+    op_signature = signature(python_callable)
+    _validate_stub_signature(op_signature, task_id)
+
+    bound = op_signature.bind(*op_args, **op_kwargs)
+    explicitly_bound = set(bound.arguments)
+    bound.apply_defaults()
+
+    annotations = _resolve_param_annotations(python_callable, op_signature)
+
+    spec: list[dict[str, Any]] = []
+    for name in op_signature.parameters:
+        value = bound.arguments[name]
+        value_schema = _infer_value_schema(annotations[name])
+        if _validate_xcom_value(value, task_id, name):
+            xcom_entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
+            if value_schema is not None:
+                xcom_entry["value_schema"] = value_schema
+            spec.append(xcom_entry)
+            continue
+        _ensure_json_literal(value, task_id, name)
+        entry: dict[str, Any] = {"name": name, "kind": "literal", "value": value}
+        if value_schema is not None:
+            # Key omission (never ``None``) is the wire contract for "unconstrained":
+            # ti_run responds with ``exclude_unset``, so an absent key stays absent.
+            entry["value_schema"] = value_schema
+        if name not in explicitly_bound:
+            entry["from_default"] = True
+        spec.append(entry)
+    return spec
 
 
 class _XComRef(NamedTuple):
@@ -1063,6 +1308,14 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if op.inherits_from_skipmixin:
             serialize_op["_can_skip_downstream"] = True
 
+        # Used to determine if an Operator is a lang-SDK stub task, and to materialize its
+        # TaskFlow arg-binding spec (see airflow.serialization.stub_arg_bindings).
+        if op.inherits_from_stub_operator:
+            serialize_op["_is_stub_operator"] = True
+            # inherits_from_stub_operator is only ever True on a DecoratedOperator subclass.
+            if arg_bindings := build_arg_bindings(cast("DecoratedOperator", op)):
+                serialize_op["_arg_bindings"] = arg_bindings
+
         if op.start_trigger_args:
             serialize_op["start_trigger_args"] = _encode_start_trigger_args(op.start_trigger_args)
 
@@ -1177,6 +1430,9 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
+            elif k == "_arg_bindings":
+                # Plain JSON (not {__type, __var}-encoded); restored verbatim below.
+                continue
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1234,6 +1490,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
         # Used to determine if an Operator is inherited from SkipMixin
         setattr(op, "_can_skip_downstream", bool(encoded_op.get("_can_skip_downstream", False)))
+
+        # Used to determine if an Operator is a lang-SDK stub task, and to restore its
+        # materialized TaskFlow arg-binding spec.
+        setattr(op, "_is_stub_operator", bool(encoded_op.get("_is_stub_operator", False)))
+        setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)

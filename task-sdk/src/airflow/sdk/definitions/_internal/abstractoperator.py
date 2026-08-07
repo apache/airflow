@@ -198,6 +198,11 @@ class AbstractOperator(Templater, DAGNode):
         """Used to determine if an Operator is inherited from SkipMixin or its subclasses (e.g., BranchMixin)."""
         return getattr(self, "_can_skip_downstream", False)
 
+    @property
+    def inherits_from_stub_operator(self):
+        """Used to determine if an Operator is inherited from the lang-SDK stub operator."""
+        return getattr(self, "_is_stub_operator", False)
+
     def as_setup(self):
         self.is_setup = True
         return self

@@ -18,17 +18,34 @@ from __future__ import annotations
 
 import contextlib
 import datetime
-import typing
-from typing import Any
-from unittest import mock
 
-import pendulum
 import pytest
 
+from airflow.exceptions import SerializationError
 from airflow.providers.common.compat.sdk import DAG, task_group
-from airflow.providers.standard.decorators.stub import _infer_value_schema, stub
+from airflow.providers.standard.decorators.stub import stub
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+
+def _to_dict(dag):
+    """Serialize a Dag through core Dag serialization -- _arg_bindings materializes here."""
+    try:
+        from airflow.serialization.serialized_objects import DagSerialization
+    except ImportError:  # Airflow 2 exposes the round-trip API on SerializedDAG
+        from airflow.serialization.serialized_objects import SerializedDAG as DagSerialization
+
+    return DagSerialization.to_dict(dag)
+
+
+def _round_trip(dag):
+    """Round-trip a Dag through core Dag serialization -- _arg_bindings materializes here."""
+    try:
+        from airflow.serialization.serialized_objects import DagSerialization
+    except ImportError:  # Airflow 2 exposes the round-trip API on SerializedDAG
+        from airflow.serialization.serialized_objects import SerializedDAG as DagSerialization
+
+    return DagSerialization.from_dict(DagSerialization.to_dict(dag))
 
 
 def fn_ellipsis(): ...
@@ -96,15 +113,15 @@ def fn_context_key(ti): ...
 
 
 class TestStubTaskflowArgs:
-    """The TaskFlow call on a stub captures the ordered positional-arg spec (``_arg_bindings``)."""
+    """The TaskFlow call on a stub captures the ordered positional-arg spec (``_arg_bindings``),
+    materialized by core Dag serialization from the stub's bound TaskFlow call args."""
 
     def test_literal_and_xcom_spec(self):
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             extracted = stub(fn_extract)()
             result = stub(fn_transform)("uk", extracted)
 
-        op = result.operator
-        assert op._arg_bindings == [
+        assert _round_trip(dag).task_dict["fn_transform"]._arg_bindings == [
             {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
             {
                 "name": "extracted",
@@ -120,14 +137,14 @@ class TestStubTaskflowArgs:
                 "from_default": True,
             },
         ]
-        assert op.upstream_task_ids == {"fn_extract"}
+        assert result.operator.upstream_task_ids == {"fn_extract"}
 
     def test_kwargs_normalize_to_declaration_order(self):
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             extracted = stub(fn_extract)()
-            result = stub(fn_transform)(extracted=extracted, country="fr", retries_num=7)
+            stub(fn_transform)(extracted=extracted, country="fr", retries_num=7)
 
-        assert result.operator._arg_bindings == [
+        assert _round_trip(dag).task_dict["fn_transform"]._arg_bindings == [
             {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "fr"},
             {
                 "name": "extracted",
@@ -146,11 +163,11 @@ class TestStubTaskflowArgs:
     def test_explicitly_passing_the_default_value_is_not_from_default(self):
         """The flag tracks provenance, not value equality: an author-passed argument is explicit
         even when it equals the signature default, so keyword-style consumers must still claim it."""
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             extracted = stub(fn_extract)()
-            result = stub(fn_transform)("uk", extracted, retries_num=3)
+            stub(fn_transform)("uk", extracted, retries_num=3)
 
-        assert result.operator._arg_bindings[2] == {
+        assert _round_trip(dag).task_dict["fn_transform"]._arg_bindings[2] == {
             "name": "retries_num",
             "kind": "literal",
             "value_schema": {"type": "integer", "format": "int64"},
@@ -158,20 +175,25 @@ class TestStubTaskflowArgs:
         }
 
     def test_custom_xcom_key_rejected(self):
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             extracted = stub(fn_extract)()
-            with pytest.raises(ValueError, match="indexing an output by a custom key"):
-                stub(fn_transform)("uk", extracted["part"])
+            stub(fn_transform)("uk", extracted["part"])
+
+        with pytest.raises(SerializationError, match="indexing an output by a custom key"):
+            _to_dict(dag)
 
     def test_zero_param_stub_has_no_spec(self):
-        assert stub(fn_pass)().operator._arg_bindings is None
+        with DAG(dag_id="d") as dag:
+            stub(fn_pass)()
+
+        assert _round_trip(dag).task_dict["fn_pass"]._arg_bindings is None
 
     def test_untyped_params_omit_value_schema(self):
         """Key absence (never ``None``) is the wire contract for an unconstrained argument."""
-        with DAG(dag_id="d"):
-            result = stub(fn_untyped)(1, "x")
+        with DAG(dag_id="d") as dag:
+            stub(fn_untyped)(1, "x")
 
-        assert result.operator._arg_bindings == [
+        assert _round_trip(dag).task_dict["fn_untyped"]._arg_bindings == [
             {"name": "a", "kind": "literal", "value": 1},
             {"name": "b", "kind": "literal", "value": "x"},
         ]
@@ -180,100 +202,103 @@ class TestStubTaskflowArgs:
         def fn(x): ...
 
         fn.__annotations__ = {"x": "NotARealType"}
-        with DAG(dag_id="d"):
-            result = stub(fn)("v")
+        with DAG(dag_id="d") as dag:
+            stub(fn)("v")
 
-        assert result.operator._arg_bindings == [{"name": "x", "kind": "literal", "value": "v"}]
+        assert _round_trip(dag).task_dict["fn"]._arg_bindings == [
+            {"name": "x", "kind": "literal", "value": "v"}
+        ]
 
     def test_varargs_rejected(self):
-        with pytest.raises(ValueError, match="fixed number of parameters"):
+        with DAG(dag_id="d") as dag:
             stub(fn_varargs)(1, 2)
 
+        with pytest.raises(SerializationError, match="fixed number of parameters"):
+            _to_dict(dag)
+
     def test_varkw_rejected(self):
-        with pytest.raises(ValueError, match="fixed number of parameters"):
+        with DAG(dag_id="d") as dag:
             stub(fn_kwonly_varkw)(x=1)
 
+        with pytest.raises(SerializationError, match="fixed number of parameters"):
+            _to_dict(dag)
+
     def test_context_key_param_rejected(self):
-        with pytest.raises(ValueError, match="is an Airflow context key"):
+        with DAG(dag_id="d") as dag:
             stub(fn_context_key)(1)
+
+        with pytest.raises(SerializationError, match="is an Airflow context key"):
+            _to_dict(dag)
 
     @pytest.mark.parametrize("fn", [fn_varargs, fn_kwonly_varkw, fn_context_key], ids=lambda f: f.__name__)
     def test_argless_call_skips_signature_checks(self, fn):
-        """Pre-TaskFlow stub Dags never passed arguments; their signatures must keep parsing."""
-        assert stub(fn)().operator._arg_bindings is None
+        """Pre-TaskFlow stub Dags never passed arguments; their signatures must keep serializing."""
+        with DAG(dag_id="d") as dag:
+            stub(fn)()
+
+        assert _round_trip(dag).task_dict[fn.__name__]._arg_bindings is None
 
     def test_argless_call_captures_no_spec_for_defaulted_params(self):
         def fn(limit: int = 10): ...
 
-        assert stub(fn)().operator._arg_bindings is None
+        with DAG(dag_id="d") as dag:
+            stub(fn)()
+
+        assert _round_trip(dag).task_dict["fn"]._arg_bindings is None
 
     def test_non_json_literal_rejected(self):
-        with DAG(dag_id="d"), pytest.raises(ValueError, match="not JSON-serializable"):
+        with DAG(dag_id="d") as dag:
             stub(fn_transform)("uk", object())
 
+        with pytest.raises(SerializationError, match="not JSON-serializable"):
+            _to_dict(dag)
+
     def test_nan_literal_rejected(self):
-        with DAG(dag_id="d"), pytest.raises(ValueError, match="not JSON-serializable"):
+        with DAG(dag_id="d") as dag:
             stub(fn_transform)("uk", {"ratio": float("nan")})
+
+        with pytest.raises(SerializationError, match="not JSON-serializable"):
+            _to_dict(dag)
 
     def test_temporal_literal_rejected(self):
         def fn(when: datetime.datetime): ...
 
-        with DAG(dag_id="d"), pytest.raises(ValueError, match="not JSON-serializable"):
+        with DAG(dag_id="d") as dag:
             stub(fn)(datetime.datetime(2020, 1, 1))
+
+        with pytest.raises(SerializationError, match="not JSON-serializable"):
+            _to_dict(dag)
 
     @pytest.mark.parametrize("wrap", [lambda x: [x], lambda x: {"data": x}], ids=["list", "dict"])
     def test_xcom_nested_in_collection_literal_rejected(self, wrap):
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             extracted = stub(fn_extract)()
-            with pytest.raises(ValueError, match="nested inside"):
-                stub(fn_transform)("uk", wrap(extracted))
+            stub(fn_transform)("uk", wrap(extracted))
+
+        with pytest.raises(SerializationError, match="nested inside"):
+            _to_dict(dag)
 
     def test_mapped_xcom_arg_rejected(self):
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             extracted = stub(fn_extract)()
-            with pytest.raises(ValueError, match="only direct upstream task outputs"):
-                stub(fn_transform)("uk", extracted.map(lambda v: v))
+            stub(fn_transform)("uk", extracted.map(lambda v: v))
+
+        with pytest.raises(SerializationError, match="only direct upstream task outputs"):
+            _to_dict(dag)
 
     def test_mapped_upstream_aggregated_output_rejected(self):
         def fn_produce(n: int): ...
 
-        with DAG(dag_id="d"):
-            vals = stub(fn_produce).expand(n=[1, 2])
-            with pytest.raises(ValueError, match="aggregated output of the mapped task"):
-                stub(fn_transform)("uk", vals)
-
-    def test_arg_bindings_survive_dag_serialization_round_trip(self):
-        """The captured spec must survive whichever core serializer the provider runs against."""
-        try:
-            from airflow.serialization.serialized_objects import DagSerialization
-        except ImportError:  # Airflow 2 exposes the round-trip API on SerializedDAG
-            from airflow.serialization.serialized_objects import SerializedDAG as DagSerialization
-
         with DAG(dag_id="d") as dag:
-            extracted = stub(fn_extract)()
-            stub(fn_transform)("uk", extracted)
+            vals = stub(fn_produce).expand(n=[1, 2])
+            stub(fn_transform)("uk", vals)
 
-        round_tripped = DagSerialization.from_dict(DagSerialization.to_dict(dag))
-        assert round_tripped.task_dict["fn_transform"]._arg_bindings == [
-            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
-            {
-                "name": "extracted",
-                "kind": "xcom",
-                "value_schema": {"type": "object", "additionalProperties": True},
-                "task_id": "fn_extract",
-            },
-            {
-                "name": "retries_num",
-                "kind": "literal",
-                "value_schema": {"type": "integer", "format": "int64"},
-                "value": 3,
-                "from_default": True,
-            },
-        ]
+        with pytest.raises(SerializationError, match="aggregated output of the mapped task"):
+            _to_dict(dag)
 
     def test_expand_builds_mapped_stub_without_parse_time_bindings(self):
         """Mapped stubs capture no spec: their call args keep the legacy ignored behavior for now."""
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             result = stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
         # op_kwargs_expand_input/partial_kwargs (not is_mapped) so the assertions also
         # hold on the Airflow 2.x MappedOperator, which the provider still supports.
@@ -283,170 +308,27 @@ class TestStubTaskflowArgs:
         }
         assert "_arg_bindings" not in result.operator.partial_kwargs
 
+        # The wrapping MappedOperator never inherits the stub marker, so it serializes
+        # cleanly with no materialized spec of its own.
+        assert _round_trip(dag).task_dict["fn_transform"].inherits_from_stub_operator is False
+
     def test_stub_with_args_inside_mapped_task_group_rejected(self):
         @task_group
         def group(n):
             stub(fn_transform)("uk", {})
 
-        with DAG(dag_id="d"):
-            with pytest.raises(ValueError, match="mapped task group"):
-                group.expand(n=[1, 2])
+        with DAG(dag_id="d") as dag:
+            group.expand(n=[1, 2])
+
+        with pytest.raises(SerializationError, match="mapped task group"):
+            _to_dict(dag)
 
     def test_argless_stub_inside_mapped_task_group_allowed(self):
         @task_group
         def group(n):
             stub(fn_extract)()
 
-        with DAG(dag_id="d"):
+        with DAG(dag_id="d") as dag:
             group.expand(n=[1, 2])
 
-
-@pytest.mark.parametrize(
-    ("annotation", "expected"),
-    [
-        pytest.param(str, {"type": "string"}, id="str"),
-        pytest.param(bool, {"type": "boolean"}, id="bool"),
-        pytest.param(int, {"type": "integer", "format": "int64"}, id="int"),
-        pytest.param(float, {"type": "number", "format": "double"}, id="float"),
-        pytest.param(dict, {"type": "object", "additionalProperties": True}, id="dict"),
-        pytest.param(
-            dict[str, int],
-            {"type": "object", "additionalProperties": {"type": "integer", "format": "int64"}},
-            id="dict-parameterized",
-        ),
-        pytest.param(
-            typing.Mapping[str, int],
-            {"type": "object", "additionalProperties": {"type": "integer", "format": "int64"}},
-            id="mapping",
-        ),
-        pytest.param(list, {"type": "array", "items": {}}, id="list"),
-        pytest.param(
-            list[int],
-            {"type": "array", "items": {"type": "integer", "format": "int64"}},
-            id="list-parameterized",
-        ),
-        pytest.param(tuple, {"type": "array", "items": {}}, id="tuple"),
-        pytest.param(set, {"type": "array", "items": {}, "uniqueItems": True}, id="set"),
-        pytest.param(
-            typing.Sequence[int],
-            {"type": "array", "items": {"type": "integer", "format": "int64"}},
-            id="sequence",
-        ),
-        pytest.param(datetime.datetime, {"type": "string", "format": "date-time"}, id="datetime"),
-        pytest.param(datetime.date, {"type": "string", "format": "date"}, id="date"),
-        pytest.param(datetime.time, {"type": "string", "format": "time"}, id="time"),
-        pytest.param(datetime.timedelta, {"type": "string", "format": "duration"}, id="timedelta"),
-        pytest.param(bytes, {"type": "string", "format": "binary"}, id="bytes"),
-        pytest.param(
-            typing.Literal["a", "b"],
-            {"type": "string", "enum": ["a", "b"]},
-            id="literal",
-        ),
-        pytest.param(Any, None, id="any"),
-        pytest.param(None, None, id="none"),
-        pytest.param(type(None), None, id="nonetype"),
-        pytest.param(
-            pendulum.DateTime,
-            {"type": "string", "format": "date-time"},
-            id="pendulum-datetime",
-        ),
-        pytest.param(
-            pendulum.DateTime | None,
-            {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
-            id="optional-pendulum-datetime",
-        ),
-        pytest.param(
-            list[pendulum.DateTime],
-            {"type": "array", "items": {"type": "string", "format": "date-time"}},
-            id="list-pendulum-datetime",
-        ),
-        pytest.param(pendulum.Duration, {"type": "string", "format": "duration"}, id="pendulum-duration"),
-        pytest.param(
-            typing.Optional[str],  # noqa: UP045 -- legacy form on purpose
-            {"anyOf": [{"type": "string"}, {"type": "null"}]},
-            id="optional-str",
-        ),
-        pytest.param(
-            typing.Union[int, str],  # noqa: UP007 -- legacy form on purpose
-            {"anyOf": [{"type": "integer", "format": "int64"}, {"type": "string"}]},
-            id="union",
-        ),
-        pytest.param(str | None, {"anyOf": [{"type": "string"}, {"type": "null"}]}, id="pep604-optional"),
-        pytest.param(
-            int | None,
-            {"anyOf": [{"type": "integer", "format": "int64"}, {"type": "null"}]},
-            id="optional-int",
-        ),
-        pytest.param(
-            datetime.datetime | None,
-            {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
-            id="optional-datetime",
-        ),
-        pytest.param(
-            dict | bool,
-            {"anyOf": [{"type": "object", "additionalProperties": True}, {"type": "boolean"}]},
-            id="union-dict-bool",
-        ),
-        pytest.param(
-            str | int | None,
-            {"anyOf": [{"type": "string"}, {"type": "integer", "format": "int64"}, {"type": "null"}]},
-            id="union-with-null",
-        ),
-        pytest.param(list | tuple, {"type": "array", "items": {}}, id="union-dedupes-equal-members"),
-        pytest.param(
-            datetime.datetime | str,
-            {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "string"}]},
-            id="mixed-format-union-keeps-both",
-        ),
-        pytest.param(
-            str | contextlib.AbstractContextManager,
-            None,
-            id="union-unclassifiable-member",
-        ),
-        pytest.param(contextlib.AbstractContextManager, None, id="custom-class"),
-        # pydantic raises PydanticUserError (not the JSON-schema subclasses) for these; they
-        # must still degrade to no schema rather than crash Dag parsing.
-        pytest.param(typing.ClassVar, None, id="pydantic-user-error"),
-        pytest.param(typing.Callable[[int], str], None, id="callable-invalid-for-json-schema"),
-        pytest.param(
-            pendulum.DateTime | contextlib.AbstractContextManager,
-            None,
-            id="union-temporal-and-unclassifiable",
-        ),
-    ],
-)
-def test_infer_value_schema(annotation, expected):
-    assert _infer_value_schema(annotation) == expected
-
-
-@mock.patch("airflow.providers.standard.decorators.stub.TypeAdapter", None)
-def test_infer_value_schema_without_pydantic():
-    assert _infer_value_schema(str) is None
-
-
-def test_infer_value_schema_cache_returns_isolated_copies():
-    first = _infer_value_schema(dict)
-    second = _infer_value_schema(dict)
-    assert first == second
-    assert first is not second, "callers embed and serialize the fragment, so it must not alias the cache"
-
-
-def test_infer_value_schema_unhashable_annotation_generates_uncached():
-    annotation = typing.Annotated[int, {"unhashable": True}]
-    assert _infer_value_schema(annotation) == {"type": "integer", "format": "int64"}
-
-
-def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):
-    """A bare TypeError from pydantic degrades to no schema rather than crashing Dag parsing."""
-    from airflow.providers.standard.decorators import stub as stub_module
-
-    def _raise_type_error(_annotation):
-        raise TypeError("pydantic cannot build a schema for this")
-
-    monkeypatch.setattr(stub_module, "TypeAdapter", _raise_type_error)
-
-    # A fresh class dodges the process-lifetime schema cache and exercises the hashable-but-
-    # unschemable path, where a naive ``except TypeError`` retry would re-raise and crash.
-    class _Unschemable: ...
-
-    assert _infer_value_schema(_Unschemable) is None
+        _to_dict(dag)  # must not raise

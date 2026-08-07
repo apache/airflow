@@ -25,12 +25,6 @@ if TYPE_CHECKING:
 
     from airflow.models.dagbag import DBDagBag
 
-# Task types (``TaskInstance.operator``, the operator class name) whose tasks carry a
-# lang-SDK ``arg_bindings`` spec. Used to gate the serialized-Dag lookup so regular tasks
-# never pay for it. The gate matches exact class names; a new lang-SDK operator adds its
-# name here.
-LANG_SDK_OPERATORS = frozenset({"_StubOperator"})
-
 
 def client_supports_arg_bindings() -> bool:
     """
@@ -62,6 +56,6 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
         return None
     if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
         return None
-    if (task := dag.task_dict.get(ti.task_id)) is None:
+    if (task := dag.task_dict.get(ti.task_id)) is None or not task.inherits_from_stub_operator:
         return None
-    return getattr(task, "_arg_bindings", None)
+    return task._arg_bindings

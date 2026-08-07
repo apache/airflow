@@ -3525,7 +3525,8 @@ def test_python_callable_name_uses_qualname_exclude_module():
 
 
 def test_stub_task_args_round_trip():
-    """The stub task's TaskFlow arg spec (``_arg_bindings``) survives Dag serialization."""
+    """The stub task's TaskFlow arg spec (``_arg_bindings``) is materialized by Dag serialization
+    and survives the round trip."""
     from airflow.sdk import task
 
     with DAG(dag_id="arg_bindings_dag", schedule=None) as dag:
@@ -3552,31 +3553,26 @@ def test_stub_task_args_round_trip():
 
     encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
     assert "_arg_bindings" not in encoded_tasks["extract"], "argless stubs must not serialize a spec"
+    # Materialized directly by _serialize_node (like _is_empty), not routed through the
+    # generic per-field encoder, so the wire form stays plain JSON with no {__type, __var}
+    # wrapping -- the execution API validates it straight off the serialized Dag.
     assert encoded_tasks["transform"]["_arg_bindings"] == [
         {
-            Encoding.TYPE: DagAttributeTypes.DICT,
-            Encoding.VAR: {
-                "name": "country",
-                "kind": "literal",
-                "value_schema": {Encoding.TYPE: DagAttributeTypes.DICT, Encoding.VAR: {"type": "string"}},
-                "value": "uk",
-            },
+            "name": "country",
+            "kind": "literal",
+            "value_schema": {"type": "string"},
+            "value": "uk",
         },
         {
-            Encoding.TYPE: DagAttributeTypes.DICT,
-            Encoding.VAR: {
-                "name": "extracted",
-                "kind": "xcom",
-                "value_schema": {
-                    Encoding.TYPE: DagAttributeTypes.DICT,
-                    Encoding.VAR: {"type": "object", "additionalProperties": True},
-                },
-                "task_id": "extract",
-            },
+            "name": "extracted",
+            "kind": "xcom",
+            "value_schema": {"type": "object", "additionalProperties": True},
+            "task_id": "extract",
         },
     ]
 
     round_tripped = DagSerialization.from_dict(ser_dag)
+    assert round_tripped.task_dict["transform"].inherits_from_stub_operator is True
     assert round_tripped.task_dict["transform"]._arg_bindings == [
         {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
         {
@@ -3587,7 +3583,6 @@ def test_stub_task_args_round_trip():
         },
     ]
     # The nested value_schema and dict/list literal values survive the round-trip intact.
-    assert round_tripped.task_dict["aggregate"]._arg_bindings == dag.task_dict["aggregate"]._arg_bindings
     assert round_tripped.task_dict["aggregate"]._arg_bindings == [
         {
             "name": "counts",
@@ -3611,7 +3606,8 @@ def test_stub_task_args_round_trip():
             "value": {"threshold": {"warn": 1}},
         },
     ]
-    assert not hasattr(round_tripped.task_dict["extract"], "_arg_bindings")
+    assert round_tripped.task_dict["extract"].inherits_from_stub_operator is True
+    assert round_tripped.task_dict["extract"]._arg_bindings is None
 
     # The deserialized spec must be plain JSON (no {__type, __var} encoding sentinels) so the
     # execution API can validate it straight off the serialized Dag -- this is the contract
