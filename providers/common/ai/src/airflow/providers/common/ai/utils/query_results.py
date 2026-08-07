@@ -53,9 +53,10 @@ _DUMP_KWARGS: dict[str, Any] = {"default": str, "separators": (",", ":"), "ensur
 QUERY_TOOL_DESCRIPTION = (
     "Execute a SQL query. Returns JSON of the form "
     '{"columns": [name, ...], "rows": [[value, ...], ...]}, where each row holds its '
-    "values in column order. A `truncated` key means the query matched more than was "
-    "returned and `truncated_by` names the limit that was hit; narrow the projection or "
-    "aggregate in SQL rather than paging through the result."
+    "values in column order. A `truncated` key means you are not seeing the whole result "
+    "-- either more rows matched than were returned, or the result was too large -- and "
+    "`truncated_by` names the limit that was hit; narrow the projection or aggregate in "
+    "SQL rather than paging through the result."
 )
 
 

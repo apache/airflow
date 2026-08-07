@@ -106,9 +106,11 @@ class DataFusionToolset(AbstractToolset[Any]):
         Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
         row of a 3000-column table is larger than a thousand rows of a narrow one, and
         a tool result stays in the model's message history for the rest of the run, so
-        its cost is re-paid on every subsequent request. Rows are dropped from the end
-        until the payload fits, and the result reports which limit it hit so the agent
-        can narrow its projection rather than page through the table.
+        its cost is re-paid on every subsequent request. Rows are returned as a
+        contiguous prefix, stopping at the first that does not fit the remaining budget
+        rather than skipping it and packing later ones, so one wide row early in the
+        result ends it. The result reports which limit it hit so the agent can narrow
+        its projection rather than page through the table.
     """
 
     def __init__(

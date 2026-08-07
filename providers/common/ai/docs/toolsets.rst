@@ -204,7 +204,8 @@ Parameters
   Default ``False`` -- only SELECT-family and read-only metadata
   (``DESCRIBE``/``SHOW``) statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
-  Rows beyond it are never fetched from the cursor.
+  Rows beyond it are not read out of a DBAPI cursor; what the driver has already
+  transferred is its own call. See :ref:`bounded-query-results`.
 - ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
   See :ref:`bounded-query-results`.
 
@@ -239,8 +240,10 @@ not.
 
 **A byte budget bounds the payload.** ``max_rows`` caps rows, which says nothing about
 size -- one row of a 3000-column table is larger than a thousand rows of a narrow one.
-``max_result_bytes`` is what actually bounds context. Rows are dropped from the end
-until the payload fits, and the result says which limit it hit:
+``max_result_bytes`` is what actually bounds context. Rows are returned as a contiguous
+prefix: the result stops at the first row that does not fit the remaining budget rather
+than skipping it and packing later ones, so a single wide row early in the result ends
+it. The result says which limit it hit:
 
 .. code-block:: json
 
