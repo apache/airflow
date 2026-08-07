@@ -175,6 +175,7 @@ class TestTriggererCallback:
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
         assert retrieved.trigger_id is None
+        assert retrieved.dagrun_id is None
 
     def test_queue(self, session):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
@@ -311,6 +312,7 @@ class TestExecutorCallback:
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
         assert retrieved.trigger_id is None
+        assert retrieved.dagrun_id is None
 
     def test_queue(self, session):
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)
