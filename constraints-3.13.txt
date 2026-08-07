@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-05T14:57:50.545567
+# This constraints file was automatically generated on 2026-08-07T02:00:26.140630
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -108,6 +108,7 @@ apache-airflow-providers-apache-tinkerpop==1.1.4
 apache-airflow-providers-apprise==2.3.4
 apache-airflow-providers-asana==2.11.4
 apache-airflow-providers-atlassian-jira==3.3.5
+apache-airflow-providers-clickhousedb==1.0.0
 apache-airflow-providers-cloudant==4.3.5
 apache-airflow-providers-common-io==1.8.0
 apache-airflow-providers-common-messaging==2.0.4
@@ -142,7 +143,6 @@ apache-airflow-providers-segment==3.9.5
 apache-airflow-providers-sendgrid==4.2.4
 apache-airflow-providers-singularity==3.9.4
 apache-airflow-providers-slack==9.10.2
-apache-airflow-providers-snowflake==6.15.0
 apache-airflow-providers-sqlite==4.3.3
 apache-airflow-providers-tableau==5.6.0
 apache-airflow-providers-vertica==4.4.0
@@ -203,7 +203,7 @@ blinker==1.9.0
 boto3==1.43.56
 botocore==1.43.56
 cachelib==0.15.0
-cachetools==7.1.6
+cachetools==7.1.7
 cadwyn==7.0.0
 capi_param_builder_python==1.3.0
 cassandra-driver==3.30.1
@@ -257,7 +257,7 @@ facebook_business==25.0.3
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.1.16
+fastcore==2.1.17
 fastjsonschema==2.22.1
 fastuuid==0.14.0
 filelock==3.32.2
@@ -512,7 +512,7 @@ ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
 py-spy==0.4.2
-pyOpenSSL==22.0.0
+pyOpenSSL==26.4.0
 pyarrow==25.0.0
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
@@ -596,7 +596,7 @@ smart_open==8.0.1
 smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
-snowflake-connector-python==4.0.0
+snowflake-connector-python==4.7.1
 snowflake-snowpark-python==1.54.0
 snowflake-sqlalchemy==1.11.0
 sortedcontainers==2.4.0
@@ -646,7 +646,7 @@ uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
 uv==0.12.1
-uvicorn==0.52.0
+uvicorn==0.52.1
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
