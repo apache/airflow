@@ -232,8 +232,10 @@ query matching a whole table costs the worker roughly what one matching ``max_ro
 costs. How much is saved depends on the driver: with a server-side cursor the
 remaining rows are never sent, while a client-buffering driver (psycopg2's default
 cursor, MySQLdb) has already received them and only the per-row conversion is skipped.
-``DataFusionToolset`` materializes the full result in the engine before the toolset
-sees it, so only the payload is bounded there.
+Hooks whose cursor is not DBAPI 2.0 (``ExasolHook`` passes a pyexasol statement) fall
+back to a full fetch, and ``DataFusionToolset`` materializes the full result in the
+engine before the toolset sees it; in both the payload is bounded but the transfer is
+not.
 
 **A byte budget bounds the payload.** ``max_rows`` caps rows, which says nothing about
 size -- one row of a 3000-column table is larger than a thousand rows of a narrow one.
@@ -674,9 +676,11 @@ No single layer is sufficient — they work together.
    * - **SQLToolset: max_rows / max_result_bytes**
      - Bounds a query result by rows (default 50) and by serialized size
        (default 64 KiB), preventing the agent from pulling entire tables into
-       context. Rows past ``max_rows`` are never fetched from the cursor.
+       context.
      - Does not limit the number of queries the agent can make, and each result
-       stays in message history for the rest of the run.
+       stays in message history for the rest of the run. Rows past ``max_rows``
+       are not read out of the cursor, but a client-buffering driver has already
+       transferred them -- this bounds context, not database or network load.
    * - **MCPToolset: external server**
      - Connects the agent to tools exposed by an MCP server, authenticated
        through an Airflow connection.

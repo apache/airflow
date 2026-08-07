@@ -83,6 +83,26 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
 }
 
 
+def _trusted_row_count(cursor: Any, *, fetched: int) -> int | None:
+    """
+    Return the driver's row count for the query, or ``None`` when it cannot mean that.
+
+    ``rowcount`` is only a query total on drivers that buffer the whole result before
+    handing back the first row. Others report rows fetched *so far* -- python-oracledb
+    documents exactly that for ``SELECT`` -- which after a capped fetch equals the cap,
+    not the total. Handing an agent ``total_rows: 51`` for a ten-million-row table is
+    worse than handing it nothing: it reads as authoritative and it is wrong.
+
+    A count no larger than what was fetched is indistinguishable from that failure mode,
+    so it is discarded. Nothing is lost when the result was not truncated -- ``row_count``
+    is already the total there.
+    """
+    row_count = get_row_count(cursor)
+    if row_count is None or row_count <= fetched:
+        return None
+    return row_count
+
+
 class _CappedFetch:
     """
     ``DbApiHook.run`` handler that fetches at most ``limit`` rows instead of all of them.
@@ -98,6 +118,12 @@ class _CappedFetch:
     cursor, MySQLdb) has already received them and only the per-row conversion is
     skipped. The result handed to the model is bounded either way.
 
+    Not every hook hands its handler a DBAPI cursor -- ``ExasolHook`` passes a pyexasol
+    statement, which signals "this produced rows" through ``result_type`` rather than
+    ``description``. Bounding the fetch is not possible without knowing that per driver,
+    so those fall back to a full fetch, which is what the toolset did everywhere before.
+    The payload is still bounded; only the transfer is not.
+
     Instances are single-use -- ``total_rows`` refers to the last query run.
     """
 
@@ -108,16 +134,21 @@ class _CappedFetch:
 
     def __call__(self, cursor: Any) -> list[tuple] | None:
         if not hasattr(cursor, "description"):
-            raise RuntimeError(
-                "The database we interact with does not support DBAPI 2.0. Use a connection "
-                "whose hook is a DbApiHook over a DBAPI 2.0 driver."
-            )
+            fetchall = getattr(cursor, "fetchall", None)
+            if not callable(fetchall):
+                raise RuntimeError(
+                    "The database we interact with does not support DBAPI 2.0. Use a "
+                    "connection whose hook exposes a DBAPI 2.0 cursor."
+                )
+            rows = fetchall()
+            # Nothing was left behind, so the fetched count is the exact total.
+            self.total_rows = len(rows) if rows is not None else 0
+            return rows
         if cursor.description is None:
+            # A statement that returned no result set (DDL, or DML without RETURNING).
             return None
         rows = cursor.fetchmany(self._limit)
-        # Read after fetching: drivers that stream set rowcount as rows arrive, and the
-        # ones that buffer have it set either way.
-        self.total_rows = get_row_count(cursor)
+        self.total_rows = _trusted_row_count(cursor, fetched=len(rows or []))
         return rows
 
 
@@ -187,9 +218,12 @@ class SQLToolset(AbstractToolset[Any]):
     :param allow_writes: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
         Default ``False`` — only SELECT-family statements are permitted.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
-        Default ``50``. Rows beyond this are not fetched from the cursor at all, so a
-        query matching the whole table costs the worker the same as one matching
-        ``max_rows``.
+        Default ``50``. Rows beyond it are not pulled out of the cursor. How much that
+        saves is the driver's call, not this toolset's: a client-buffering driver
+        (psycopg2's default cursor, MySQLdb) has already received the whole result by
+        the time the first row is read, so only the per-row Python conversion is
+        skipped. Treat this as a bound on what the agent is shown, not as a guarantee
+        that ``SELECT * FROM huge_table`` is cheap.
     :param max_result_bytes: Budget for the serialized ``query`` result, in bytes.
         Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
         row of a 3000-column table is larger than a thousand rows of a narrow one, and

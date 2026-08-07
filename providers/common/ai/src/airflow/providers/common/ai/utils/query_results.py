@@ -35,14 +35,17 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
-# Roughly 16k tokens at 4 characters per token. Large enough that ordinary queries
-# are unaffected, small enough that no single tool result can dominate the context
-# window. Deployments that keep many results in history should lower it.
+# A policy default, not a limit imposed by any storage, protocol, or model layer:
+# roughly 16k tokens at 4 characters per token. Large enough that ordinary queries are
+# unaffected, small enough that no single tool result can dominate the context window.
+# Deployments that keep many results in history should lower it.
 DEFAULT_MAX_RESULT_BYTES = 65_536
 
-# Tool results are machine-read, so no whitespace: separators alone cut ~15% off a
-# wide payload, and the measurement below is exact only if it matches the final dump.
-_COMPACT = (",", ":")
+# Tool results are machine-read, so no whitespace. ensure_ascii=False matters as much as
+# the separators: escaping one CJK character to \uXXXX costs six bytes instead of three,
+# so an ASCII-escaped result is charged several times over against the budget and
+# truncated that much earlier than an equivalent English one.
+_DUMP_KWARGS: dict[str, Any] = {"default": str, "separators": (",", ":"), "ensure_ascii": False}
 
 #: Description for the ``query`` tool. States the columnar shape, since the model has
 #: to align each row's values to ``columns`` positionally, and the truncation contract,
@@ -57,7 +60,12 @@ QUERY_TOOL_DESCRIPTION = (
 
 
 def _dumps(payload: Any) -> str:
-    return json.dumps(payload, default=str, separators=_COMPACT)
+    return json.dumps(payload, **_DUMP_KWARGS)
+
+
+def _size(payload: Any) -> int:
+    """Measure the serialized size in bytes -- not characters, which diverge outside ASCII."""
+    return len(_dumps(payload).encode("utf-8"))
 
 
 def build_query_result(
@@ -86,7 +94,7 @@ def build_query_result(
         reports one at all. ``None`` is common and is not an error -- SQLite and
         several warehouse drivers do not populate it for ``SELECT``.
     """
-    budget = max_result_bytes - len(_dumps(list(columns)))
+    budget = max_result_bytes - _size(list(columns))
     if budget < 0:
         # The column names alone blow the budget, so returning them would spend the
         # whole context on a header and leave no room for data. Report the shape and
@@ -98,21 +106,24 @@ def build_query_result(
             "truncated": True,
             "truncated_by": "max_result_bytes",
             "hint": (
-                f"This query returns {len(columns)} columns, whose names alone exceed "
-                f"max_result_bytes ({max_result_bytes}). Select the specific columns you "
-                f"need instead of all of them."
+                f"This query returns {len(columns)} column{'' if len(columns) == 1 else 's'}, "
+                f"whose names alone exceed max_result_bytes ({max_result_bytes}). Select the "
+                f"specific columns you need instead of all of them."
             ),
         }
         if total_rows is not None:
             output["total_rows"] = total_rows
         return _dumps(output)
 
+    # Rows are kept as a contiguous prefix: stopping at the first row that does not fit
+    # rather than skipping it and packing later ones, so "rows 1..n" means what it says
+    # and the agent is never handed a result with a hole in the middle.
     kept: list[list[Any]] = []
     for row in rows:
         as_list = list(row)
         # +1 for the comma joining this row to the previous one; the serializer and
         # separators match the final dump, so this accounting is exact.
-        cost = len(_dumps(as_list)) + (1 if kept else 0)
+        cost = _size(as_list) + (1 if kept else 0)
         if cost > budget:
             break
         budget -= cost
@@ -127,11 +138,15 @@ def build_query_result(
         output["truncated"] = True
         output["truncated_by"] = "max_result_bytes" if byte_capped else "max_rows"
     if byte_capped:
-        if not kept:
-            output["hint"] = (
-                f"No row fits within max_result_bytes ({max_result_bytes}). Select fewer "
-                f"columns, or aggregate, instead of returning whole rows."
-            )
+        # Say which row stopped it. "No row fits" would be false whenever a single wide
+        # row sits in front of narrow ones, and a partial result with no guidance at all
+        # is the common case, not the empty one.
+        output["hint"] = (
+            f"The first row alone exceeds max_result_bytes ({max_result_bytes}). "
+            if not kept
+            else f"Stopped after {len(kept)} row{'' if len(kept) == 1 else 's'}: the next row "
+            f"did not fit in max_result_bytes ({max_result_bytes}). "
+        ) + "Select fewer columns, or aggregate, instead of returning whole rows."
     elif more_rows_available:
         output["hint"] = (
             f"Only the first {max_rows} rows are shown. Filter or aggregate in SQL rather "

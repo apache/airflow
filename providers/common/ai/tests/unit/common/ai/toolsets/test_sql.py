@@ -267,6 +267,23 @@ class TestSQLToolsetQuery:
 
         assert _query(ts, "SELECT id, name FROM users")["total_rows"] == 4_200_000
 
+    def test_omits_total_rows_when_the_driver_counts_rows_fetched_so_far(self):
+        """python-oracledb documents rowcount for SELECT as rows fetched *so far*, so
+        after a capped fetch it equals the cap, not the query total. Reporting it would
+        tell an agent it saw 50 of 51 rows when the table holds millions."""
+        ts = SQLToolset("pg_default", max_rows=50)
+        ts._hook = _make_mock_db_hook(
+            records=[(i, f"name_{i}") for i in range(500)],
+            last_description=[("id",), ("name",)],
+            # Fetching max_rows + 1 leaves an incremental driver reporting exactly 51.
+            rowcount=51,
+        )
+
+        data = _query(ts, "SELECT id, name FROM big")
+        assert data["row_count"] == 50
+        assert data["truncated"] is True
+        assert "total_rows" not in data
+
     def test_omits_total_rows_when_the_driver_has_none(self):
         """SQLite and several warehouse drivers report -1 for a SELECT. Absent beats
         inventing a count the agent would treat as authoritative."""
@@ -321,6 +338,49 @@ class TestSQLToolsetQuery:
 
         data = _query(ts, "SELECT id, name FROM users WHERE 1=0")
         assert data == {"columns": ["id", "name"], "rows": [], "row_count": 0}
+
+    def test_statement_returning_no_result_set(self):
+        """A DBAPI cursor reports description=None for DDL and for DML without
+        RETURNING; that is not an error, just no rows."""
+        ts = SQLToolset("pg_default", allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = lambda sql, handler, **kwargs: handler(_FakeCursor([], None, -1))
+
+        assert _query(ts, "INSERT INTO users VALUES (3, 'Eve')")["row_count"] == 0
+
+    def test_non_dbapi_cursor_falls_back_to_a_full_fetch(self):
+        """ExasolHook hands its handler a pyexasol statement, which has no
+        ``description``. Bounding the fetch needs driver-specific knowledge, so those
+        fall back to fetching everything -- as the toolset did before -- rather than
+        failing the query. The payload is still bounded."""
+
+        class _NonDbapiStatement:
+            def __init__(self, records):
+                self._records = records
+
+            def fetchall(self):
+                return self._records
+
+        ts = SQLToolset("pg_default", max_rows=2)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = lambda sql, handler, **kwargs: handler(
+            _NonDbapiStatement([(i, f"name_{i}") for i in range(10)])
+        )
+
+        data = _query(ts, "SELECT id, name FROM users")
+        assert data["rows"] == [[0, "name_0"], [1, "name_1"]]
+        assert data["truncated_by"] == "max_rows"
+        # A full fetch left nothing behind, so the count is exact and worth reporting.
+        assert data["total_rows"] == 10
+
+    def test_cursor_that_can_neither_describe_nor_fetch_is_an_error(self):
+        """Returning an empty result would read to the agent as 'the table is empty'."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = lambda sql, handler, **kwargs: handler(object())
+
+        with pytest.raises(ModelRetry, match="DBAPI 2.0"):
+            _query(ts, "SELECT id FROM users")
 
     def test_trailing_semicolon_is_stripped(self):
         """get_records did this for the hooks that override it -- Trino rejects a

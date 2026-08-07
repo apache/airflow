@@ -105,7 +105,42 @@ class TestByteBudget:
         data = _build(["blob"], [("x" * 400,)], max_result_bytes=100)
         assert data["rows"] == []
         assert data["truncated_by"] == "max_result_bytes"
-        assert "max_result_bytes (100)" in data["hint"]
+        assert "first row alone exceeds max_result_bytes (100)" in data["hint"]
+
+    def test_an_oversized_row_stops_the_result_rather_than_being_skipped(self):
+        """Packing later rows around a wide one would hand the agent a prefix with a
+        hole in it. Stopping keeps 'rows 1..n' meaning what it says."""
+        rows = [("small",), ("x" * 5000,), ("small",), ("small",)]
+
+        data = _build(["blob"], rows, max_result_bytes=1000)
+        assert data["rows"] == [["small"]]
+        assert data["truncated_by"] == "max_result_bytes"
+
+    def test_partial_byte_truncation_still_guides_the_agent(self):
+        """The partial case is the common one; it used to carry no hint at all, so the
+        agent saw a short result with no reason to change its query."""
+        rows = [("small",), ("x" * 5000,), ("small",)]
+
+        data = _build(["blob"], rows, max_result_bytes=1000)
+        assert "Stopped after 1 row:" in data["hint"]
+        assert "Select fewer columns" in data["hint"]
+
+    def test_budget_counts_bytes_not_escape_sequences(self):
+        """With ensure_ascii the budget charges six characters per CJK character, so a
+        Japanese result would be truncated several times earlier than an English one
+        carrying the same information."""
+        rows = [("日本語のテキスト",)] * 40
+
+        data = _build(["text"], rows, max_result_bytes=2048)
+        assert data["rows"][0] == ["日本語のテキスト"]
+        # Three bytes per character, not the six an escaped \uXXXX would cost.
+        assert data["row_count"] > 40 / 2
+
+    def test_reported_size_is_bytes_for_non_ascii(self):
+        rows = [("é" * 200,)]
+        data = _build(["text"], rows, max_result_bytes=300)
+        # 400 bytes of payload cannot fit a 300-byte budget, though it is 200 characters.
+        assert data["rows"] == []
 
     def test_columns_over_budget_report_the_shape_without_the_names(self):
         columns = [f"column_name_{i}" for i in range(3000)]
