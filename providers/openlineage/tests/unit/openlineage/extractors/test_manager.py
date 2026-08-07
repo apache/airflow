@@ -642,11 +642,11 @@ def test_get_hook_lineage_passes_failed_state(hook_lineage_collector):
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"
 
 
-class _FakeS3Hook:
+class _FakeStorageHook:
     pass
 
 
-class _FakeGCSHook:
+class _FakeWarehouseHook:
     pass
 
 
@@ -654,6 +654,10 @@ def _hook_fqcn(hook_cls) -> str:
     return f"{hook_cls.__module__}.{hook_cls.__name__}"
 
 
+# Assets are built on gs:// because translating an Airflow asset to an OL dataset needs the
+# scheme's converter from the owning provider, and google is a dev dependency of this provider
+# while amazon is not - s3:// URIs silently fail to translate when only the lowest set of
+# dependencies is installed.
 def _collect_assets(collector):
     """
     Seed the collector with staging parts plus unrelated assets from two hooks.
@@ -661,11 +665,11 @@ def _collect_assets(collector):
     All of these fit well inside ``max_assets_per_collector``; exclusion runs after that cap,
     so this fixture deliberately does not model a collection that overflows it.
     """
-    s3_hook, gcs_hook = _FakeS3Hook(), _FakeGCSHook()
+    storage_hook, warehouse_hook = _FakeStorageHook(), _FakeWarehouseHook()
     for idx in range(3):
-        collector.add_output_asset(context=s3_hook, uri=f"s3://bucket/prefix/part_{idx}.txt")
-    collector.add_output_asset(context=s3_hook, uri="s3://bucket/prefix/summary.json")
-    collector.add_output_asset(context=gcs_hook, uri="gs://bucket/out.csv")
+        collector.add_output_asset(context=storage_hook, uri=f"gs://bucket/prefix/part_{idx}.txt")
+    collector.add_output_asset(context=storage_hook, uri="gs://bucket/prefix/summary.json")
+    collector.add_output_asset(context=warehouse_hook, uri="gs://other-bucket/out.csv")
 
 
 def _output_uris(lineage):
@@ -678,22 +682,22 @@ def _output_uris(lineage):
         pytest.param(
             {},
             [
-                "gs://bucket/out.csv",
-                "s3://bucket/prefix/part_0.txt",
-                "s3://bucket/prefix/part_1.txt",
-                "s3://bucket/prefix/part_2.txt",
-                "s3://bucket/prefix/summary.json",
+                "gs://bucket/prefix/part_0.txt",
+                "gs://bucket/prefix/part_1.txt",
+                "gs://bucket/prefix/part_2.txt",
+                "gs://bucket/prefix/summary.json",
+                "gs://other-bucket/out.csv",
             ],
             id="no-filter-keeps-everything",
         ),
         pytest.param(
-            {"exclude_hook_lineage_assets": ("s3://bucket/prefix/part_.*",)},
-            ["gs://bucket/out.csv", "s3://bucket/prefix/summary.json"],
+            {"exclude_hook_lineage_assets": ("gs://bucket/prefix/part_.*",)},
+            ["gs://bucket/prefix/summary.json", "gs://other-bucket/out.csv"],
             id="asset-pattern-drops-parts-keeps-others",
         ),
         pytest.param(
-            {"exclude_hook_lineage_hooks": (_hook_fqcn(_FakeS3Hook),)},
-            ["gs://bucket/out.csv"],
+            {"exclude_hook_lineage_hooks": (_hook_fqcn(_FakeStorageHook),)},
+            ["gs://other-bucket/out.csv"],
             id="hook-pattern-drops-all-assets-from-that-hook",
         ),
         pytest.param(
@@ -702,12 +706,12 @@ def _output_uris(lineage):
             id="catch-all-asset-pattern-drops-everything",
         ),
         pytest.param(
-            {"exclude_hook_lineage_assets": ("s3://bucket/prefix/part_0.txt",)},
+            {"exclude_hook_lineage_assets": ("gs://bucket/prefix/part_0.txt",)},
             [
-                "gs://bucket/out.csv",
-                "s3://bucket/prefix/part_1.txt",
-                "s3://bucket/prefix/part_2.txt",
-                "s3://bucket/prefix/summary.json",
+                "gs://bucket/prefix/part_1.txt",
+                "gs://bucket/prefix/part_2.txt",
+                "gs://bucket/prefix/summary.json",
+                "gs://other-bucket/out.csv",
             ],
             id="pattern-is-fullmatch-not-substring",
         ),
@@ -730,31 +734,31 @@ def test_get_hook_lineage_applies_exclusion_patterns(hook_lineage_collector, con
 
 
 def test_get_hook_lineage_exclusion_applies_to_inputs(hook_lineage_collector):
-    hook = _FakeS3Hook()
-    hook_lineage_collector.add_input_asset(context=hook, uri="s3://bucket/staging/tmp.txt")
-    hook_lineage_collector.add_input_asset(context=hook, uri="s3://bucket/in.txt")
+    hook = _FakeStorageHook()
+    hook_lineage_collector.add_input_asset(context=hook, uri="gs://bucket/staging/tmp.txt")
+    hook_lineage_collector.add_input_asset(context=hook, uri="gs://bucket/in.txt")
 
-    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=("s3://bucket/staging/.*",))
+    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=("gs://bucket/staging/.*",))
     result = ExtractorManager().get_hook_lineage(
         task_instance=MagicMock(),
         task_instance_state=TaskInstanceState.SUCCESS,
         controls=controls,
     )
 
-    assert result.inputs == [OpenLineageDataset(namespace="s3://bucket", name="in.txt")]
+    assert result.inputs == [OpenLineageDataset(namespace="gs://bucket", name="in.txt")]
 
 
 def test_get_hook_lineage_hook_pattern_distinguishes_same_class_name(hook_lineage_collector):
     """Two hooks with the same class name in different modules must be separately targetable."""
     other_module = types.ModuleType("other_provider.hooks")
-    twin = type("_FakeS3Hook", (), {"__module__": other_module.__name__})
+    twin = type("_FakeStorageHook", (), {"__module__": other_module.__name__})
 
-    hook_lineage_collector.add_output_asset(context=_FakeS3Hook(), uri="s3://bucket/from_local.txt")
-    hook_lineage_collector.add_output_asset(context=twin(), uri="s3://bucket/from_other.txt")
+    hook_lineage_collector.add_output_asset(context=_FakeStorageHook(), uri="gs://bucket/from_local.txt")
+    hook_lineage_collector.add_output_asset(context=twin(), uri="gs://bucket/from_other.txt")
 
     controls = replace(
         EmissionPolicy.defaults(),
-        exclude_hook_lineage_hooks=(f"{other_module.__name__}._FakeS3Hook",),
+        exclude_hook_lineage_hooks=(f"{other_module.__name__}._FakeStorageHook",),
     )
     result = ExtractorManager().get_hook_lineage(
         task_instance=MagicMock(),
@@ -762,13 +766,13 @@ def test_get_hook_lineage_hook_pattern_distinguishes_same_class_name(hook_lineag
         controls=controls,
     )
 
-    assert _output_uris(result) == ["s3://bucket/from_local.txt"]
+    assert _output_uris(result) == ["gs://bucket/from_local.txt"]
 
 
 def test_extract_metadata_falls_back_to_manual_outlets_when_all_assets_excluded(hook_lineage_collector):
     """Excluding every hook-collected asset must not suppress manually declared outlets."""
     _collect_assets(hook_lineage_collector)
-    outlets = [Asset(uri="s3://bucket/curated/table.parquet", extra={})]
+    outlets = [Asset(uri="gs://bucket/curated/table.parquet", extra={})]
     task = PythonOperator(task_id="task_id", python_callable=lambda: None, outlets=outlets)
     controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=(".*",))
 
@@ -780,12 +784,12 @@ def test_extract_metadata_falls_back_to_manual_outlets_when_all_assets_excluded(
         controls=controls,
     )
 
-    assert _output_uris(result) == ["s3://bucket/curated/table.parquet"]
+    assert _output_uris(result) == ["gs://bucket/curated/table.parquet"]
 
 
 def test_get_hook_lineage_does_not_filter_sql_extras(hook_lineage_collector):
     """Exclusion patterns target assets only; SQL-based lineage is unaffected."""
-    hook_lineage_collector.add_input_asset(context=_FakeS3Hook(), uri="s3://bucket/in.txt")
+    hook_lineage_collector.add_input_asset(context=_FakeStorageHook(), uri="gs://bucket/in.txt")
     hook_lineage_collector.add_extra(
         context=MagicMock(),
         key=SqlJobHookLineageExtra.KEY.value,
@@ -809,7 +813,7 @@ def test_extract_metadata_passes_controls_to_hook_lineage(hook_lineage_collector
     """The exclusion patterns resolved for a task reach the collector read path."""
     _collect_assets(hook_lineage_collector)
     task = PythonOperator(task_id="task_id", python_callable=lambda: None)
-    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=("s3://bucket/prefix/part_.*",))
+    controls = replace(EmissionPolicy.defaults(), exclude_hook_lineage_assets=("gs://bucket/prefix/part_.*",))
 
     result = ExtractorManager().extract_metadata(
         dagrun=MagicMock(),
@@ -819,7 +823,7 @@ def test_extract_metadata_passes_controls_to_hook_lineage(hook_lineage_collector
         controls=controls,
     )
 
-    assert _output_uris(result) == ["gs://bucket/out.csv", "s3://bucket/prefix/summary.json"]
+    assert _output_uris(result) == ["gs://bucket/prefix/summary.json", "gs://other-bucket/out.csv"]
 
 
 def test_extract_inlets_and_outlets_converts_asset_inlet_outlet():
