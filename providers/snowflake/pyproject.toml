@@ -68,6 +68,10 @@ dependencies = [
     "pyarrow>=16.1.0; python_version < '3.13'",
     "pyarrow>=18.0.0; python_version >= '3.13' and python_version < '3.14'",
     "pyarrow>=22.0.0; python_version >= '3.14'",
+    # snowflake-connector-python <4.4.0 caps pyOpenSSL below 26.0.0, and pyOpenSSL 22.0.0 and older
+    # declare no upper bound on cryptography, so an unconstrained resolve pairs them with a
+    # cryptography they cannot import against. 22.1.0 is the first release with a correct bound.
+    "pyOpenSSL>=22.1.0",
     # TODO(potiuk): We should bump the snowflake-connector-python to >=4.0.0 when sqlalchemy>=2.0 is required
     # 3.17.0 is the first version with Workload Identity Federation (WORKLOAD_IDENTITY authenticator).
     "snowflake-connector-python>=3.17.0",

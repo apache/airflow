@@ -471,6 +471,14 @@
                         },
                         "additionalProperties": false
                     },
+                    "external-services": {
+                        "description": "Representative, non-exhaustive list of upstream provider/service names this connection type is known to reach over the network (e.g. 'Anthropic', 'AWS Bedrock', 'Ollama') -- examples, not an exhaustive compatibility matrix. Hooks that resolve the destination from a caller-supplied model identifier (as with pydantic-ai) can reach any service the model id names, so the list can never be complete. Not to be confused with the top-level 'integrations' key, which describes framework integrations and drives docs/logo/tag generation.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1
+                    },
                     "conn-fields": {
                         "description": "Custom connection fields stored in Connection.extra JSON",
                         "type": "object",
