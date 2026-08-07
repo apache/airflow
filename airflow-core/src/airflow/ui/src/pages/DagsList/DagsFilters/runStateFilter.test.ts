@@ -31,14 +31,14 @@ describe("runStateSelectionFor", () => {
     expect(runStateSelectionFor("failed", "latest")).toEqual({ lastDagRunState: "failed" });
   });
 
-  it("maps a time window to dag_run_state plus the within bound", () => {
+  it("maps a time lookback to dag_run_state plus the within bound", () => {
     expect(runStateSelectionFor("failed", "168")).toEqual({
       dagRunState: "failed",
       dagRunStateWithinHours: "168",
     });
   });
 
-  it("maps the any-time lookback to dag_run_state without a window", () => {
+  it("maps the any-time lookback to dag_run_state without a lookback", () => {
     expect(runStateSelectionFor("success", "any")).toEqual({ dagRunState: "success" });
   });
 });
@@ -48,19 +48,19 @@ describe("runLookbackFor", () => {
     any: string | null;
     expected: RunStateLookback;
     last: string | null;
-    window: string | null;
+    lookback: string | null;
   }>([
     // last_dag_run_state present → latest lookback, regardless of the others
-    { any: null, expected: "latest", last: "failed", window: null },
-    { any: "success", expected: "latest", last: "failed", window: "168" },
+    { any: null, expected: "latest", last: "failed", lookback: null },
+    { any: "success", expected: "latest", last: "failed", lookback: "168" },
     // no state at all → default latest (control shows nothing until a state is picked)
-    { any: null, expected: "latest", last: null, window: null },
-    // any-run state with a window → that window
-    { any: "failed", expected: "168", last: null, window: "168" },
-    { any: "failed", expected: "24", last: null, window: "24" },
-    // any-run state without a window → any-time
-    { any: "failed", expected: "any", last: null, window: null },
-  ])("last=$last any=$any window=$window resolves to $expected", ({ any, expected, last, window }) => {
-    expect(runLookbackFor(last, any, window)).toBe(expected);
+    { any: null, expected: "latest", last: null, lookback: null },
+    // any-run state with a lookback → that lookback
+    { any: "failed", expected: "168", last: null, lookback: "168" },
+    { any: "failed", expected: "24", last: null, lookback: "24" },
+    // any-run state without a lookback → any-time
+    { any: "failed", expected: "any", last: null, lookback: null },
+  ])("last=$last any=$any lookback=$lookback resolves to $expected", ({ any, expected, last, lookback }) => {
+    expect(runLookbackFor(last, any, lookback)).toBe(expected);
   });
 });

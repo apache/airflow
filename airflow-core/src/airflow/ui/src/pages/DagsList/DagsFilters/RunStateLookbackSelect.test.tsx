@@ -41,7 +41,7 @@ const renderLookback = (value: RunStateLookback, onChange = vi.fn()) => {
 };
 
 describe("RunStateLookbackSelect", () => {
-  it("offers the latest-run lookback plus every time window", async () => {
+  it("offers the latest-run lookback plus every time lookback", async () => {
     renderLookback("latest");
 
     within(screen.getByTestId("lookback")).getByRole("combobox").click();
@@ -52,7 +52,7 @@ describe("RunStateLookbackSelect", () => {
     }
   });
 
-  it("emits the hour value of the selected window", async () => {
+  it("emits the hour value of the selected lookback", async () => {
     const onChange = renderLookback("latest");
 
     within(screen.getByTestId("lookback")).getByRole("combobox").click();
