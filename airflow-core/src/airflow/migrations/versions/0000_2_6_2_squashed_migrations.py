@@ -34,6 +34,7 @@ from alembic import op
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
 from airflow.migrations.db_types import StringID
+from airflow.migrations.utils import asset_name_collation
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -208,7 +209,7 @@ def upgrade() -> None:
                     length=3000,
                     # latin1 allows for more indexed length in mysql
                     # and this field should only be ascii chars
-                    collation="latin1_general_cs",
+                    collation=asset_name_collation(),
                 ),
                 "mysql",
             ),

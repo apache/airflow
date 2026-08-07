@@ -39,6 +39,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import asset_name_collation
+
 # revision identifiers, used by Alembic.
 revision = "0d9e73a75ee4"
 down_revision = "44eabb1904b4"
@@ -47,7 +49,7 @@ depends_on = None
 airflow_version = "3.0.0"
 
 _STRING_COLUMN_TYPE = sa.String(length=1500).with_variant(
-    sa.String(length=1500, collation="latin1_general_cs"),
+    sa.String(length=1500, collation=asset_name_collation()),
     "mysql",
 )
 
@@ -127,7 +129,7 @@ def downgrade():
         batch_op.alter_column(
             "uri",
             type_=sa.String(length=3000).with_variant(
-                sa.String(length=3000, collation="latin1_general_cs"),
+                sa.String(length=3000, collation=asset_name_collation()),
                 "mysql",
             ),
             nullable=False,

@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import asset_name_collation
+
 # revision identifiers, used by Alembic.
 revision = "05e19f3176be"
 down_revision = "d482b7261ff9"
@@ -46,7 +48,7 @@ def upgrade():
         sa.Column(
             "name",
             sa.String(length=3000).with_variant(
-                sa.String(length=3000, collation="latin1_general_cs"), "mysql"
+                sa.String(length=3000, collation=asset_name_collation()), "mysql"
             ),
             nullable=False,
         ),
