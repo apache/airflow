@@ -243,6 +243,34 @@ def test_core_asset_time_schedules_reject_nested_asset_aware_timetable(outer_typ
         timetable.validate()
 
 
+@pytest.mark.parametrize(
+    ("assets", "expected_type"),
+    [
+        pytest.param(
+            SerializedAsset("test_asset", "test://asset/", "asset", {}, []),
+            SerializedAsset,
+            id="serialized-asset-used-as-is",
+        ),
+        pytest.param(
+            [SerializedAsset("test_asset", "test://asset/", "asset", {}, [])],
+            SerializedAssetAll,
+            id="collection-wrapped-in-all",
+        ),
+        pytest.param(Asset("test_asset"), SerializedAsset, id="sdk-asset-converted"),
+        pytest.param([Asset("test_asset")], SerializedAssetAll, id="sdk-collection-converted"),
+    ],
+)
+def test_core_asset_and_time_schedule_coerces_assets(assets, expected_type) -> None:
+    timetable = CoreAssetAndTimeSchedule(timetable=MockTimetable(), assets=assets)
+
+    assert isinstance(timetable.asset_condition, expected_type)
+
+
+def test_core_asset_and_time_schedule_rejects_non_asset() -> None:
+    with pytest.raises(ValueError, match="serialization not implemented for 'int'"):
+        CoreAssetAndTimeSchedule(timetable=MockTimetable(), assets=123)  # type: ignore[arg-type]
+
+
 def test_serialization(sdk_asset_timetable: SdkAssetOrTimeSchedule, monkeypatch: Any) -> None:
     """
     Tests the serialization method of AssetOrTimeSchedule.
