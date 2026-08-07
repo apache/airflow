@@ -627,6 +627,9 @@ To evaluate a model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.RunEvaluationOperator`.
 The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom>` under ``summary_metrics`` key.
 
+Vertex AI evaluation requires the ``evaluation`` extra. Install it with
+``pip install apache-airflow-providers-google[evaluation]``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4

@@ -25,7 +25,15 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 pytest.importorskip("google.cloud.aiplatform_v1beta1")
 vertexai = pytest.importorskip("vertexai.generative_models")
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
-from vertexai.preview.evaluation import MetricPromptTemplateExamples
+
+try:
+    from vertexai.preview.evaluation import MetricPromptTemplateExamples
+except ImportError:
+    MetricPromptTemplateExamples = mock.MagicMock()
+    MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY = "summarization_quality"
+    MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS = "groundedness"
+    MetricPromptTemplateExamples.Pointwise.VERBOSITY = "verbosity"
+    MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING = "instruction_following"
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     RunEvaluationOperator,
