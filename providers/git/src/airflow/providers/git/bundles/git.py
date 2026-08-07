@@ -271,7 +271,7 @@ class GitDagBundle(BaseDagBundle):
             self.repo = Repo(self.repo_path)
         except NoSuchPathError as e:
             # Protection should the bare repo be removed manually
-            raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
+            raise FileNotFoundError(f"Repository path: {self.bare_repo_path} not found") from e
         except (InvalidGitRepositoryError, GitCommandError) as e:
             self._log.warning(
                 "Repository clone/open failed, cleaning up and retrying",
@@ -373,8 +373,12 @@ class GitDagBundle(BaseDagBundle):
     )
     def _fetch_submodules(self) -> None:
         self._log.info("Initializing and updating submodules", repo_path=self.repo_path)
-        self.repo.git.submodule("sync", "--recursive")
-        self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
+        cm = nullcontext()
+        if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
+            cm = self.repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        with cm:
+            self.repo.git.submodule("sync", "--recursive")
+            self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
 
     def refresh(self) -> None:
         if self.version:

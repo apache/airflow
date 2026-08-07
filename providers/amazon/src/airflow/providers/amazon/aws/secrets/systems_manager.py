@@ -23,8 +23,12 @@ import re
 from functools import cached_property
 
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.common.compat.sdk import conf
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+# Separator between the team name and the secret id in a team scoped secret name.
+TEAM_SEP = "--"
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
@@ -142,6 +146,10 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
+        if self._names_a_team_namespace(conn_id):
+            self._log_refusal("connection", conn_id)
+            return None
+
         return self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern, team_name)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
@@ -155,6 +163,10 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         if self.variables_prefix is None:
             return None
 
+        if self._names_a_team_namespace(key):
+            self._log_refusal("variable", key)
+            return None
+
         return self._get_secret(self.variables_prefix, key, self.variables_lookup_pattern, team_name)
 
     def get_config(self, key: str) -> str | None:
@@ -165,6 +177,10 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :return: Configuration Option Value
         """
         if self.config_prefix is None:
+            return None
+
+        if self._names_a_team_namespace(key):
+            self._log_refusal("configuration option", key)
             return None
 
         return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
@@ -181,6 +197,40 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         except self.client.exceptions.ParameterNotFound:
             self.log.debug("Parameter %s not found.", ssm_path)
             return None
+
+    @staticmethod
+    def _names_a_team_namespace(secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` spells out a team scoped secret name.
+
+        A team scoped secret is named ``<team><TEAM_SEP><secret id>``, so an id that itself
+        contains the team separator makes the built name ambiguous: team ``a`` with id ``b--c``
+        and team ``a--b`` with id ``c`` produce the same string. Such an id is refused by every
+        getter -- connections, variables and configuration options, team scoped as well as team
+        agnostic -- because the ambiguity exists in both directions and the caller's own
+        namespace is not a safe harbour for it.
+
+        The id is never parsed to work out *which* team it names, because it cannot be: nothing
+        in the string distinguishes the two readings above. Comparing the id against the prefix
+        the caller's own team builds looks equivalent and is not -- a caller in team ``a`` would
+        match ``a--b``'s namespace on the prefix and read its secrets. Only the caller's own
+        namespace is ever constructed, never parsed.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no
+        team scoped secret can exist to collide with.
+        """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
+        return TEAM_SEP in secret_id
+
+    def _log_refusal(self, kind: str, secret_id: str) -> None:
+        self.log.warning(
+            "%s id %r contains %r, which separates the team name from the secret id in a team "
+            "scoped secret name. Such an id is ambiguous and is not looked up. Returning None.",
+            kind.capitalize(),
+            secret_id,
+            TEAM_SEP,
+        )
 
     def _get_secret(
         self, path_prefix: str, secret_id: str, lookup_pattern: str | None, team_name: str | None = None
@@ -201,15 +251,10 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
                 lookup_pattern,
             )
             return None
-        if team_name is None and re.fullmatch(r"[^-]+--.+", secret_id):
-            self.log.warning(
-                "Secret ID %r contains a '--' separator, which is reserved for team-scoped lookups, "
-                "but no team context was provided. Returning None.",
-                secret_id,
-            )
-            return None
+        # The team scoped name is tried first. Ids that would make it name a namespace other
+        # than the caller's own are refused by the callers before reaching here.
         if team_name:
-            ssm_path = self.build_path(path_prefix, f"{team_name}--{secret_id}")
+            ssm_path = self.build_path(path_prefix, f"{team_name}{TEAM_SEP}{secret_id}")
             ssm_path = self._ensure_leading_slash(ssm_path)
             value = self._get_parameter_value(ssm_path)
             if value is not None:

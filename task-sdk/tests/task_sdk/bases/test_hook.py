@@ -110,6 +110,8 @@ class TestBaseHook:
             login="user",
             password="password",
             port=443,
+            schema=None,
+            extra=None,
         )
 
         mock_supervisor_comms.asend.return_value = conn

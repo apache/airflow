@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_pyspark import PySparkOperator
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
 

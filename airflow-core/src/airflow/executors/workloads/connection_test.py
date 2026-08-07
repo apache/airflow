@@ -37,6 +37,7 @@ class TestConnection(BaseWorkloadSchema):
     connection_id: str
     timeout: int
     queue: str | None = None
+    team_name: str | None = None
 
     type: Literal["TestConnection"] = Field(init=False, default="TestConnection")
 
@@ -70,6 +71,7 @@ class TestConnection(BaseWorkloadSchema):
         connection_id: str,
         timeout: int,
         queue: str | None = None,
+        team_name: str | None = None,
         generator: JWTGenerator | None = None,
     ) -> TestConnection:
         return cls(
@@ -77,5 +79,6 @@ class TestConnection(BaseWorkloadSchema):
             connection_id=connection_id,
             timeout=timeout,
             queue=queue,
+            team_name=team_name,
             token=cls.generate_token(str(connection_test_id), generator),
         )

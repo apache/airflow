@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "כל סוגי הריצות",
     "allStates": "כל המצבים",
+    "anyRunState": "ריצה כלשהי",
     "favorite": {
       "all": "הכל",
       "favorite": "מועדף",
       "unfavorite": "לא מועדף"
     },
+    "lastRunState": "ריצה אחרונה",
     "paused": {
       "active": "פעיל",
       "all": "הכל",
@@ -76,6 +78,11 @@
       "upstream": "במעלה הזרם"
     }
   },
+  "runStateCounts": {
+    "label": "מצבי ריצה",
+    "loading": "טוען ספירת מצבי ריצה",
+    "tooltip": "{{state}}: {{formattedCount}} — לחץ כדי לסנן ריצות"
+  },
   "search": {
     "advanced": "חיפוש מתקדם",
     "clear": "נקה חיפוש",
@@ -87,6 +94,10 @@
     "displayName": {
       "asc": "מיין לפי שם תצוגה (A-Z)",
       "desc": "מיין לפי שם תצוגה (Z-A)"
+    },
+    "lastRunAfter": {
+      "asc": "מיין לפי ריצה לאחר של הריצה האחרונה (מהמוקדם למאוחר)",
+      "desc": "מיין לפי ריצה לאחר של הריצה האחרונה (מהמאוחר למוקדם)"
     },
     "lastRunStartDate": {
       "asc": "מיין לפי תאריך התחלת ריצה אחרון (מהמוקדם למאוחר)",

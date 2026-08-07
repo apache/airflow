@@ -290,6 +290,8 @@ def make_ti_context() -> MakeTIContextCallable:
                 state=DagRunState.RUNNING,
                 conf=conf,  # type: ignore
                 consumed_asset_events=list(consumed_asset_events),
+                end_date=None,
+                partition_key=None,
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=max_tries,

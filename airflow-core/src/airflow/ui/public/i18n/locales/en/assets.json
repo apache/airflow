@@ -42,7 +42,10 @@
     "title": "Create Asset Event for {{name}}"
   },
   "events": "Events",
-  "extra": "Extra",
+  "filters": {
+    "groupPlaceholder": "Search group",
+    "lastEventDateRange": "Last Event Date"
+  },
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",
   "name": "Name",

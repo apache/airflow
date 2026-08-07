@@ -731,10 +731,6 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.storage_config = storage_config
         self.create_knowledge_base_kwargs = create_knowledge_base_kwargs or {}
         self.embedding_model_arn = embedding_model_arn
-        self.knowledge_base_config = {
-            "type": "VECTOR",
-            "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
-        }
         self.wait_for_indexing = wait_for_indexing
         self.indexing_error_retry_delay = indexing_error_retry_delay
         self.indexing_error_max_attempts = indexing_error_max_attempts
@@ -754,6 +750,11 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         return validated_event["knowledge_base_id"]
 
     def execute(self, context: Context) -> str:
+        knowledge_base_config = {
+            "type": "VECTOR",
+            "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+        }
+
         def _create_kb():
             # This API call will return the following if the index has not completed, but there is no apparent
             # way to check the state of the index beforehand, so retry on index failure if set to do so.
@@ -764,7 +765,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                 return self.hook.conn.create_knowledge_base(
                     name=self.name,
                     roleArn=self.role_arn,
-                    knowledgeBaseConfiguration=self.knowledge_base_config,
+                    knowledgeBaseConfiguration=knowledge_base_config,
                     storageConfiguration=self.storage_config,
                     **self.create_knowledge_base_kwargs,
                 )["knowledgeBase"]["knowledgeBaseId"]
@@ -1065,10 +1066,10 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
     ):
         super().__init__(**kwargs)
         self.input = input
-        self.prompt_template = prompt_template
-        self.source_type = source_type.upper()
-        self.knowledge_base_id = knowledge_base_id
+        self.source_type = source_type
         self.model_arn = model_arn
+        self.prompt_template = prompt_template
+        self.knowledge_base_id = knowledge_base_id
         self.vector_search_config = vector_search_config
         self.sources = sources
         self.rag_kwargs = rag_kwargs or {}
@@ -1132,6 +1133,7 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
         return result
 
     def execute(self, context: Context) -> Any:
+        self.source_type = self.source_type.upper()
         self.validate_inputs()
 
         result = self.hook.conn.retrieve_and_generate(

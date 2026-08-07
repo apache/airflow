@@ -144,12 +144,16 @@ const initI18n = (version: string) => {
     });
 };
 
-void VersionService.getVersion()
-  .then((data) => {
-    initI18n(data.version);
-  })
-  .catch(() => {
-    initI18n("");
-  });
+// Falling back to an empty version on failure would drop the `?v=` cache
+// buster from the translation loadPath, letting a CDN/browser keep serving a
+// translation bundle cached from before the running version, indefinitely
+// missing any keys added since. A timestamp isn't the true version, but it
+// still busts the cache on every retry.
+export const resolveI18nVersion = (): Promise<string> =>
+  VersionService.getVersion()
+    .then((data) => data.version)
+    .catch(() => Date.now().toString());
+
+void resolveI18nVersion().then(initI18n);
 
 export { default } from "i18next";

@@ -114,6 +114,38 @@ class TestNamedHivePartitionSensor:
             self.database, self.table, f"{self.partition_by}={self.next_day}"
         )
 
+    def test_native_templated_partition_names(self):
+        self.hook.metastore.__enter__().check_for_named_partition.return_value = True
+        partitions = [f"{self.database}.{self.table}/{self.partition_by}={DEFAULT_DATE_DS}"]
+        dag = DAG(
+            "named_hive_native",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            render_template_as_native_obj=True,
+        )
+        sensor = NamedHivePartitionSensor(
+            partition_names="{{ params.names }}",
+            task_id="test_native_templated_partition_names",
+            poke_interval=1,
+            hook=self.hook,
+            params={"names": partitions},
+            dag=dag,
+        )
+        sensor.render_template_fields({"params": {"names": partitions}})
+        assert sensor.partition_names == partitions
+        assert sensor.poke(None)
+
+    def test_poke_rejects_str_partition_names(self):
+        """partition_names is validated at poke now, so a rendered str raises there, not in __init__."""
+        sensor = NamedHivePartitionSensor(
+            partition_names="not-a-list",
+            task_id="test_poke_rejects_str_partition_names",
+            poke_interval=1,
+            hook=self.hook,
+        )
+        with pytest.raises(TypeError, match="partition_names must be an array of strings"):
+            sensor.poke(None)
+
 
 @pytest.mark.skipif(
     "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"

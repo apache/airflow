@@ -39,15 +39,12 @@ except ImportError as e:
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from pydantic_core import SchemaValidator, core_schema
 
-from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
+from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
-
-_PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
 # JSON Schemas for the four SQL tools.
 _LIST_TABLES_SCHEMA: dict[str, Any] = {
@@ -272,7 +269,7 @@ class SQLToolset(AbstractToolset[Any]):
                 toolset=self,
                 tool_def=tool_def,
                 max_retries=1,
-                args_validator=_PASSTHROUGH_VALIDATOR,
+                args_validator=build_args_validator(schema),
             )
         return tools
 

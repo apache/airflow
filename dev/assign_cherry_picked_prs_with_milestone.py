@@ -47,7 +47,6 @@ console = Console(width=400, color_system="standard")
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 CHANGELOG_CHANGES_FILE = "changelog-changes.txt"
 DOC_ONLY_CHANGES_FILE = "doc-only-changes.txt"

@@ -39,12 +39,17 @@ const CustomEdge = ({ data, source, target }: Props) => {
   // don't require the parent to rebuild and pass down a new edges array.
   // useNodesData subscribes to data changes for these specific node IDs only.
   const nodesData = useNodesData([source, target]);
-  const isSelected = nodesData.some((node) => Boolean(node.data.isSelected));
 
   if (data === undefined) {
     return undefined;
   }
   const { rest } = data;
+
+  // rest.isSelected covers what node-level selection can't express on its own: a gate
+  // (asset-condition) node is shared by every asset in its AND/OR condition, so marking the gate
+  // itself selected would highlight every edge touching it, not just the path relevant to the
+  // currently selected asset/Dag. See getGatePathEdgeIdsForSelection.
+  const isSelected = Boolean(rest.isSelected) || nodesData.some((node) => Boolean(node.data.isSelected));
 
   const edgeStrokeColor = isSelected ? (rest.edgeType === "data" ? dataEdgeColor : blueColor) : strokeColor;
 

@@ -68,8 +68,6 @@ class CohereEmbeddingOperator(BaseOperator):
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
-        if isinstance(input_text, str):
-            input_text = [input_text]
         self.conn_id = conn_id
         self.input_text = input_text
         self.timeout = timeout
@@ -88,7 +86,10 @@ class CohereEmbeddingOperator(BaseOperator):
 
     def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""
-        embedding_response = self.hook.create_embeddings(self.input_text)
+        # input_text is a template field, so normalize a single string into a list here
+        # (after rendering) rather than in __init__, where it would act on the un-rendered value.
+        input_text = [self.input_text] if isinstance(self.input_text, str) else self.input_text
+        embedding_response = self.hook.create_embeddings(input_text)
         # NOTE: Return type `EmbedByTypeResponseEmbeddings` was removed temporarily due to limitations
         # in XCom serialization/deserialization of complex types like Cohere embeddings and Pydantic models.
         #

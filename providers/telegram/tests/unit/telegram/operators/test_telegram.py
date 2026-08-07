@@ -24,7 +24,7 @@ import telegram
 
 import airflow
 from airflow.models import Connection
-from airflow.providers.telegram.operators.telegram import TelegramOperator
+from airflow.providers.telegram.operators.telegram import TelegramFileOperator, TelegramOperator
 
 TELEGRAM_TOKEN = "xxx:xxx"
 
@@ -171,6 +171,21 @@ class TestTelegramOperator:
             task_id="telegram",
             text="text",
             telegram_kwargs={"custom_arg": "value", "text": "should be ignored"},
+        )
+        operator.render_template_fields({"chat_id": "1234567"})
+        assert operator.chat_id == "1234567"
+
+
+class TestTelegramFileOperator:
+    def test_should_return_template_fields(self):
+        assert TelegramFileOperator.template_fields == ("chat_id",)
+
+    def test_should_return_templatized_chat_id_field(self):
+        operator = TelegramFileOperator(
+            telegram_conn_id="telegram_default",
+            chat_id="{{ chat_id }}",
+            task_id="telegram",
+            file="/tmp/file.txt",
         )
         operator.render_template_fields({"chat_id": "1234567"})
         assert operator.chat_id == "1234567"

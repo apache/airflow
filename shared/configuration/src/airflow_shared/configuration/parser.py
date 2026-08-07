@@ -77,6 +77,34 @@ ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 ENV_VAR_PREFIX = "AIRFLOW__"
+# Separates the team name from the base section name in a team scoped config file section.
+TEAM_SECTION_SEPARATOR = "="
+
+
+def team_section_name(team_name: str, section: str) -> str:
+    """
+    Build the config file section name that holds the team scoped overrides of ``section``.
+
+    :param team_name: name of the team the overrides belong to
+    :param section: base section name that is being overridden
+    :return: the team scoped section name, e.g. ``team_a=celery``
+    """
+    return f"{team_name}{TEAM_SECTION_SEPARATOR}{section}"
+
+
+def base_section_name(section: str) -> str:
+    """
+    Return the base section name of a possibly team scoped config file section.
+
+    Team scoped sections are built by :func:`team_section_name`. Base section names never contain
+    the separator, so the name is split on the last one - that way the base section is recovered
+    even for a team name that contains the separator itself.
+
+    :param section: section name, either a base one or a team scoped one
+    :return: the base section name, which is ``section`` itself when it is not team scoped
+    """
+    _, separator, base_section = section.rpartition(TEAM_SECTION_SEPARATOR)
+    return base_section if separator else section
 
 
 if TYPE_CHECKING:
@@ -562,6 +590,68 @@ class AirflowConfigParser(ConfigParser):
         sensitive.update(depr_section, depr_option)
         return sensitive
 
+    def _names_sensitive_team_env_var(self, env_var: str) -> bool:
+        """
+        Check whether an environment variable name is a team scoped override of a sensitive option.
+
+        Team scoped variables are named ``AIRFLOW__<TEAM>___<SECTION>__<KEY>`` (see
+        :meth:`_env_var_name`). A team name may contain underscores itself, so the team name is not
+        parsed out of the variable name; the name is matched against the tail that each option
+        registered as sensitive contributes instead. The ``_CMD`` / ``_SECRET`` fallbacks are
+        matched too, because - unlike for a base section - they are never resolved into their value.
+
+        :param env_var: environment variable name
+        :return: True if the variable holds a team scoped value of an option registered as sensitive
+        """
+        env_var = env_var.upper()
+        if not env_var.startswith(ENV_VAR_PREFIX):
+            return False
+        # Every tail matched below starts with the ``___`` separating the team name from the
+        # section, so a name not containing it cannot be a team scoped one.
+        if "___" not in env_var:
+            return False
+        for section, key in self.sensitive_config_values:
+            option_tail = self._env_var_name(section, key).removeprefix(ENV_VAR_PREFIX)
+            for tail in (f"___{option_tail}", f"___{option_tail}_CMD", f"___{option_tail}_SECRET"):
+                # The team name sits between the prefix and the tail, so it must not be empty.
+                if env_var.endswith(tail) and len(env_var) > len(ENV_VAR_PREFIX) + len(tail):
+                    return True
+        return False
+
+    def is_sensitive_option(self, section: str, key: str) -> bool:
+        """
+        Check whether the value of ``key`` in ``section`` is registered as sensitive.
+
+        Options are registered as sensitive under their base section name, while a team scoped
+        override of the very same option is held by a ``<team name>=<section>`` config file section
+        or by an ``AIRFLOW__<TEAM>___<SECTION>__<KEY>`` environment variable. Both of those
+        spellings are resolved back to the base option here, so that a team scoped value is treated
+        exactly like the base one. A name that does not resolve to a registered option is not
+        sensitive - so this only ever recognises more options as sensitive, never fewer.
+
+        :param section: section name, either a base one or a team scoped one
+        :param key: option name
+        :return: True if the value of the option should be treated as sensitive
+        """
+        section = section.lower()
+        key = key.lower()
+        if (section, key) in self.sensitive_config_values:
+            return True
+        base_section = base_section_name(section)
+        if base_section != section:
+            if (base_section, key) in self.sensitive_config_values:
+                return True
+            # A team scoped ``_cmd`` / ``_secret`` fallback is not resolved into its value, so it
+            # stays in the output as configured and has to be recognised on its own.
+            for fallback_suffix in ("_cmd", "_secret"):
+                if not key.endswith(fallback_suffix):
+                    continue
+                if (base_section, key.removesuffix(fallback_suffix)) in self.sensitive_config_values:
+                    return True
+        # A team scoped environment variable is reported under the section and key its name splits
+        # into, which is neither the base nor the team scoped section name.
+        return self._names_sensitive_team_env_var(self._env_var_name(section, key))
+
     def _update_defaults_from_string(self, config_string: str) -> None:
         """
         Update the defaults in _default_values based on values in config_string ("ini" format).
@@ -788,8 +878,11 @@ class AirflowConfigParser(ConfigParser):
                 log.warning("Ignoring unknown env var '%s'", env_var)
                 continue
             if not display_sensitive and env_var != self._env_var_name("core", "unit_test_mode"):
+                if self._names_sensitive_team_env_var(env_var):
+                    # Covers the cmd/secret variants too; see is_sensitive_option.
+                    opt = "< hidden >"
                 # Don't hide cmd/secret values here
-                if not env_var.lower().endswith(("cmd", "secret")):
+                elif not env_var.lower().endswith(("cmd", "secret")):
                     if (section, key) in self.sensitive_config_values:
                         opt = "< hidden >"
             elif raw:
@@ -1121,7 +1214,7 @@ class AirflowConfigParser(ConfigParser):
     ) -> str | ValueNotFound:
         """Get config option from config file."""
         if team_name := kwargs.get("team_name", None):
-            section = f"{team_name}={section}"
+            section = team_section_name(team_name, section)
             # since this is the last lookup that supports team_name, pop it
             kwargs.pop("team_name")
         if super().has_option(section, key):
@@ -1792,15 +1885,19 @@ class AirflowConfigParser(ConfigParser):
         if not display_sensitive:
             # This ensures the ones from config file is hidden too
             # if they are not provided through env, cmd and secret
+            # The collected options are walked (rather than the registered sensitive ones) so that
+            # team scoped sections are covered as well - they are named after the team, not after
+            # the base section the option is registered under.
             hidden = "< hidden >"
-            for section, key in self.sensitive_config_values:
-                if config_sources.get(section):
-                    if config_sources[section].get(key, None):
-                        if display_source:
-                            source = config_sources[section][key][1]
-                            config_sources[section][key] = (hidden, source)
-                        else:
-                            config_sources[section][key] = hidden
+            for section, options in config_sources.items():
+                for key, value in list(options.items()):
+                    if not value or not self.is_sensitive_option(section, key):
+                        continue
+                    if display_source:
+                        source = value[1]
+                        options[key] = (hidden, source)
+                    else:
+                        options[key] = hidden
 
         return config_sources
 
@@ -1877,9 +1974,9 @@ class AirflowConfigParser(ConfigParser):
         :param team_name: optional team name for team-specific configuration lookup
         """
         # Handle team-specific section lookup for config file
-        config_section = f"{team_name}={section}" if team_name else section
+        config_section = team_section_name(team_name, section) if team_name else section
 
-        if not self.has_section(config_section) and not self._default_values.has_section(config_section):
+        if not self.has_section(config_section) and not self._has_section_in_any_defaults(config_section):
             return None
         if self._default_values.has_section(config_section):
             _section: ConfigOptionsDictType = dict(self._default_values.items(config_section))
@@ -2032,10 +2129,7 @@ class AirflowConfigParser(ConfigParser):
                             section_to_write=section_to_write,
                             sources_dict=sources_dict,
                         )
-                        is_sensitive = (
-                            section_to_write.lower(),
-                            option.lower(),
-                        ) in self.sensitive_config_values
+                        is_sensitive = self.is_sensitive_option(section_to_write, option)
                         self._write_value(
                             file=file,
                             option=option,

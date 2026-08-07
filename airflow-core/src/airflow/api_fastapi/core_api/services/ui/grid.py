@@ -145,6 +145,7 @@ def _find_aggregates(
     node: SerializedTaskGroup | SerializedBaseOperator | TaskMap,
     parent_node: SerializedTaskGroup | SerializedBaseOperator | TaskMap | None,
     ti_details: Mapping[str, GridNodeAgg],
+    group_dict: dict[str | None, SerializedTaskGroup] | None = None,
 ) -> Iterable[tuple[dict[str, Any], GridNodeAgg]]:
     """Recursively fill the Task Group Map."""
     node_id = node.node_id
@@ -171,10 +172,12 @@ def _find_aggregates(
 
         return
     if isinstance(node, SerializedTaskGroup):
+        if group_dict is None:
+            group_dict = node.dag.task_group.get_task_group_dict()
         children_summary = GridNodeAgg()
-        for child in get_task_group_children_getter()(node):
+        for child in get_task_group_children_getter()(node, group_dict):
             for child_node, child_summary in _find_aggregates(
-                node=child, parent_node=node, ti_details=ti_details
+                node=child, parent_node=node, ti_details=ti_details, group_dict=group_dict
             ):
                 if child_node["parent_id"] == node_id:
                     children_summary.merge(child_summary)

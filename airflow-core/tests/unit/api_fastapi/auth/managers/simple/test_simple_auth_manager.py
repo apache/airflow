@@ -348,6 +348,33 @@ class TestSimpleAuthManager:
         )
 
     @pytest.mark.parametrize(
+        "access_view",
+        [AccessView.IMPORT_ERRORS_ALL, AccessView.AUDIT_LOGS_ALL],
+    )
+    @pytest.mark.parametrize(
+        ("role", "result"),
+        [
+            ("ADMIN", True),
+            ("OP", False),
+            ("USER", False),
+            ("VIEWER", False),
+        ],
+    )
+    def test_is_authorized_view_admin_only_views(self, auth_manager, access_view, role, result):
+        """The views covering records with no per-Dag key to authorize on are admin-only.
+
+        Every other view is readable by a viewer (asserted above); these two gate records
+        that carry no other authorization key -- import errors for files with no registered
+        Dag, and audit log rows not tied to a Dag -- so they must not ride on viewer access.
+        """
+        assert (
+            auth_manager.is_authorized_view(
+                access_view=access_view, user=SimpleAuthManagerUser(username="test", role=role)
+            )
+            is result
+        )
+
+    @pytest.mark.parametrize(
         "api",
         [
             "is_authorized_configuration",

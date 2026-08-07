@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any
@@ -177,6 +178,8 @@ class WaitSensor(BaseSensorOperator):
     :param deferrable: Run sensor in deferrable mode
     """
 
+    template_fields: Sequence[str] = ("time_to_wait",)
+
     def __init__(
         self,
         time_to_wait: timedelta | int,
@@ -185,20 +188,24 @@ class WaitSensor(BaseSensorOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.deferrable = deferrable
-        if isinstance(time_to_wait, int):
-            self.time_to_wait = timedelta(minutes=time_to_wait)
-        else:
-            self.time_to_wait = time_to_wait
+        self.time_to_wait = time_to_wait
+
+    def _resolve_time_to_wait(self) -> timedelta:
+        value = self.time_to_wait
+        if isinstance(value, timedelta):
+            return value
+        return timedelta(minutes=int(value))
 
     def execute(self, context: Context) -> None:
+        time_to_wait = self._resolve_time_to_wait()
         if self.deferrable:
             self.defer(
                 trigger=(
-                    TimeDeltaTrigger(self.time_to_wait, end_from_trigger=True)
+                    TimeDeltaTrigger(time_to_wait, end_from_trigger=True)
                     if AIRFLOW_V_3_0_PLUS
-                    else TimeDeltaTrigger(self.time_to_wait)
+                    else TimeDeltaTrigger(time_to_wait)
                 ),
                 method_name="execute_complete",
             )
         else:
-            sleep(int(self.time_to_wait.total_seconds()))
+            sleep(int(time_to_wait.total_seconds()))

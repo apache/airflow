@@ -600,7 +600,9 @@ EOL
 equest
 errno
 errored
+esbuild
 eslint
+ESM
 ETag
 etag
 etl
@@ -1428,6 +1430,7 @@ reqs
 requeue
 requeued
 requeues
+requeuing
 reserialize
 Reserializing
 resetdb
@@ -1617,6 +1620,7 @@ StatsD
 statsd
 stderr
 stdin
+stdlib
 stdout
 StorageClass
 storages

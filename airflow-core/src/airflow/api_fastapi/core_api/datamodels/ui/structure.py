@@ -30,7 +30,6 @@ class EdgeResponse(BaseEdgeResponse):
 
     is_setup_teardown: bool | None = None
     label: str | None = None
-    is_source_asset: bool | None = None
 
 
 class NodeResponse(BaseNodeResponse):
@@ -41,7 +40,6 @@ class NodeResponse(BaseNodeResponse):
     tooltip: str | None = None
     setup_teardown_type: Literal["setup", "teardown"] | None = None
     operator: str | None = None
-    asset_condition_type: Literal["or-gate", "and-gate"] | None = None
     ui_color: str | None = None
     ui_fgcolor: str | None = None
 

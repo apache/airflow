@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -912,6 +913,44 @@ class TestDeadlineReferenceDecorator:
                 return timezone.datetime(DEFAULT_DATE)
 
         mock_register.assert_called_once_with(DecoratedCustomRef, timing)
+
+    def test_deadline_reference_decorator_without_parentheses(self):
+        @deadline_reference
+        class BareDecoratedRef(BaseDeadlineReference):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        # The decorated name must still be the class, not the inner decorator function.
+        assert isinstance(BareDecoratedRef, type)
+        assert issubclass(BareDecoratedRef, BaseDeadlineReference)
+
+        assert hasattr(DeadlineReference, BareDecoratedRef.__name__)
+        assert getattr(DeadlineReference, BareDecoratedRef.__name__).__class__ is BareDecoratedRef
+
+        assert_correct_timing(BareDecoratedRef, DeadlineReference.TYPES.DAGRUN_CREATED)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
+        )
+
+    def test_deadline_reference_decorator_without_parentheses_invalid_class(self):
+        """Test that the bare form must inherit the base class."""
+        with pytest.raises(ValueError, match="InvalidBareRef must inherit from BaseDeadlineReference"):
+
+            @deadline_reference
+            class InvalidBareRef:
+                pass
+
+    def test_deadline_reference_requiring_arguments_raises_helpful_error(self):
+        """Test that a reference which cannot be instantiated with no arguments explains itself."""
+        with pytest.raises(TypeError, match="must be constructible with no arguments"):
+
+            @deadline_reference()
+            @dataclass
+            class RefWithRequiredField(BaseDeadlineReference):
+                required_field: str
+
+                def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                    return timezone.datetime(DEFAULT_DATE)
 
 
 @pytest.mark.db_test

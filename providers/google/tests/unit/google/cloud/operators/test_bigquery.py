@@ -1035,6 +1035,16 @@ class TestBigQueryUpsertTableOperator:
 
 
 class TestBigQueryInsertJobOperator:
+    def test_init_does_not_snapshot_templated_job_id(self):
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration={"query": {"query": "SELECT 1", "useLegacySql": False}},
+            job_id="report_{{ ds_nodash }}",
+        )
+
+        assert op.job_id == "report_{{ ds_nodash }}"
+        assert op._configured_job_id is None
+
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_query_success(self, mock_hook):
         job_id = "123456"

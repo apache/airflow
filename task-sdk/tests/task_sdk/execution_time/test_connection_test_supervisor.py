@@ -262,3 +262,115 @@ class TestSuperviseConnectionTest:
 
         assert "unrelated" not in observed
         assert observed.get("unrelated_error") == "AirflowNotFoundException"
+
+    @pytest.mark.parametrize(
+        ("team_name", "hook_result", "expected_metric", "expected_tags"),
+        [
+            pytest.param(
+                "team_alpha",
+                (True, "Connection OK"),
+                "connection_test.success",
+                {"team_name": "team_alpha"},
+                id="success_with_team",
+            ),
+            pytest.param(
+                "team_alpha",
+                (False, "Connection refused"),
+                "connection_test.failed",
+                {"team_name": "team_alpha"},
+                id="failure_with_team",
+            ),
+            pytest.param(
+                None,
+                (True, "Connection OK"),
+                "connection_test.success",
+                {},
+                id="success_without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.connection_test_supervisor.stats.incr")
+    @mock.patch("airflow.sdk.execution_time.connection_test_supervisor.stats.timer")
+    def test_emits_team_name_on_completion(
+        self,
+        mock_timer,
+        mock_incr,
+        MockClient,
+        team_name,
+        hook_result,
+        expected_metric,
+        expected_tags,
+    ):
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+            host="httpbin.org",
+        )
+        mock_timer.return_value.__enter__ = mock.Mock(return_value=None)
+        mock_timer.return_value.__exit__ = mock.Mock(return_value=False)
+
+        with mock.patch(
+            "airflow.sdk.definitions.connection.Connection.test_connection",
+            autospec=True,
+            return_value=hook_result,
+        ):
+            _call(team_name=team_name)
+
+        mock_timer.assert_called_once_with("connection_test.hook_duration", tags=expected_tags)
+        mock_incr.assert_called_once_with(expected_metric, tags=expected_tags)
+
+    @pytest.mark.parametrize(
+        ("team_name", "exception", "expected_tags"),
+        [
+            pytest.param(
+                "team_alpha",
+                AirflowTaskTimeout("Connection test timed out"),
+                {"team_name": "team_alpha"},
+                id="timeout_with_team",
+            ),
+            pytest.param(
+                "team_alpha",
+                RuntimeError("Something broke"),
+                {"team_name": "team_alpha"},
+                id="exception_with_team",
+            ),
+            pytest.param(None, RuntimeError("Something broke"), {}, id="exception_without_team"),
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.connection_test_supervisor.stats.incr")
+    def test_emits_team_name_on_failure_paths(
+        self,
+        mock_incr,
+        MockClient,
+        team_name,
+        exception,
+        expected_tags,
+    ):
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+        )
+
+        with mock.patch(
+            "airflow.sdk.definitions.connection.Connection.test_connection",
+            autospec=True,
+            side_effect=exception,
+        ):
+            _call(team_name=team_name)
+
+        mock_incr.assert_called_once_with("connection_test.failed", tags=expected_tags)
+
+    @mock.patch("airflow.sdk.execution_time.connection_test_supervisor.stats.incr")
+    def test_emits_team_name_on_pre_fetch_failure(self, mock_incr, MockClient):
+        """Failures before GET /connection still include workload team_name on the failed metric."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.side_effect = RuntimeError("not found")
+
+        _call(team_name="team_alpha")
+
+        mock_incr.assert_called_once_with(
+            "connection_test.failed",
+            tags={"team_name": "team_alpha"},
+        )

@@ -223,6 +223,12 @@ The ``db clean`` command works by deleting from each table the records older tha
 
 You can optionally provide a list of tables to perform deletes on. If no list of tables is supplied, all tables will be included.
 
+.. note::
+
+  Cleaning the ``asset_event`` table also drops any queued-but-not-yet-consumed asset events. This mainly
+  affects Dags waiting on a multi-asset condition, where a pending event can be purged before the condition
+  is met, meaning the Dag will not be triggered by it.
+
 You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list). These options allow you to target or avoid cleanup for particular DAGs.
 
 You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.

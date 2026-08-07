@@ -60,7 +60,7 @@ dependencies = [
     "msgspec>=0.19.0",
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
-    "structlog>=25.4.0",
+    "structlog>=26.1.0",
     "greenback>=1.2.1",
     "tenacity>=8.3.0",
     # Start of shared timezones dependencies
@@ -215,7 +215,7 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]==0.41.0",
+    "datamodel-code-generator[http]>=0.71.0",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
     "rich>=13.6.0",

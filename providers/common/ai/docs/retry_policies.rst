@@ -70,7 +70,9 @@ How it works
 
 When a task fails, ``LLMRetryPolicy``:
 
-1. Sends the exception message to the configured LLM
+1. Sends the exception message to the configured LLM. By default, the message
+   is first masked through Airflow's secrets masker (see ``redact_exception``
+   below) before it is added to the prompt.
 2. The LLM classifies the error into a category (``rate_limit``, ``auth``,
    ``network``, ``data``, ``transient``, ``permanent``)
 3. Based on the classification, returns RETRY (with a suggested delay) or FAIL
@@ -156,12 +158,26 @@ Parameters
    * - ``timeout``
      - 30.0
      - Max seconds to wait for the LLM response before falling back.
+   * - ``redact_exception``
+     - True
+     - When ``True``, the exception's string representation is passed through
+       Airflow's secrets masker before being added to the classification
+       prompt. This only masks values already registered via
+       ``mask_secret()`` (e.g. connection passwords Airflow captured while
+       resolving the failing task's connections) -- it is not general-purpose
+       PII detection and will not catch arbitrary sensitive strings that were
+       never registered as secrets. Set to ``False`` only if you are certain
+       your exception messages contain no sensitive data and you need the
+       raw text for accurate classification.
 
 Local LLM support
 -----------------
 
-For environments where exception data must not leave the infrastructure, point
-to a local model via Ollama or vLLM -- see :ref:`howto/self_hosted_models` for
+By default, ``redact_exception`` already masks known secrets before the
+exception data reaches the LLM provider. For environments where exception
+data must not leave your own infrastructure at all -- even in masked form --
+point to a local model via Ollama or vLLM instead, so the classification
+never crosses the network boundary. See :ref:`howto/self_hosted_models` for
 general self-hosted connection setup:
 
 .. code-block:: python

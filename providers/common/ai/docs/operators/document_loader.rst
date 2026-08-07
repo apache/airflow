@@ -195,8 +195,9 @@ Cloud storage URIs
 ``source_path`` accepts any URI that
 :class:`~airflow.sdk.ObjectStoragePath` resolves via fsspec
 (``s3://``, ``gs://``, ``azure://``, ``file://``, ...). Point it at a
-single object or a directory; cross-directory globs in cloud URIs are not
-supported in this version.
+single object, a directory, or a glob pattern such as
+``s3://bucket/logs/**/*.json``. Wildcards must not appear in the scheme or
+bucket segment.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
     :language: python
@@ -261,8 +262,8 @@ Parameters
      - Local file, directory, or glob pattern, **or** a storage URI
        (``s3://``, ``gs://``, ``azure://``, ``file://``) resolved via
        :class:`~airflow.sdk.ObjectStoragePath`. ``**`` is recursive for
-       local globs; cross-directory globs in cloud URIs are not supported.
-       Mutually exclusive with ``source_bytes``.
+       both local globs and cloud URIs; wildcards must not appear in the
+       scheme or bucket segment. Mutually exclusive with ``source_bytes``.
    * - ``source_conn_id``
      - Airflow connection ID for the cloud-storage credentials used by
        ``ObjectStoragePath`` (``aws_default``, ``google_cloud_default``,

@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator
 
 TASK_ID = "test-adls-upload-operator"
@@ -51,7 +50,7 @@ class TestADLSUploadOperator:
         operator = LocalFilesystemToADLSOperator(
             task_id=TASK_ID, local_path=BAD_LOCAL_PATH, remote_path=REMOTE_PATH
         )
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(ValueError, match="Recursive glob patterns using") as ctx:
             operator.execute(None)
         assert str(ctx.value) == "Recursive glob patterns using `**` are not supported"
 

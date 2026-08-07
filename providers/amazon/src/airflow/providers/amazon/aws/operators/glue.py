@@ -433,7 +433,7 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
     ):
         super().__init__(**kwargs)
         self.name = name
-        self.ruleset = ruleset.strip()
+        self.ruleset = ruleset
         self.description = description
         self.update_rule_set = update_rule_set
         self.data_quality_ruleset_kwargs = data_quality_ruleset_kwargs or {}
@@ -449,6 +449,8 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
                 raise AttributeError("Target table must have DatabaseName and TableName")
 
     def execute(self, context: Context):
+        # ruleset is a template field; strip the rendered value here, not in __init__.
+        self.ruleset = self.ruleset.strip()
         self.validate_inputs()
 
         config = {

@@ -42,7 +42,10 @@
     "title": "為 {{name}} 建立資源事件"
   },
   "events": "資源事件",
-  "extra": "額外資源資訊",
+  "filters": {
+    "groupPlaceholder": "搜尋群組",
+    "lastEventDateRange": "最後事件時間"
+  },
   "group": "群組",
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",

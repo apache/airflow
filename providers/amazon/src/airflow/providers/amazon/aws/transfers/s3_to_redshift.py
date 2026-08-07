@@ -117,21 +117,6 @@ class S3ToRedshiftOperator(BaseOperator):
         self.method = method
         self.upsert_keys = upsert_keys
         self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
-        # In execute() we attempt to fetch this aws connection to check for extras. If the user didn't
-        # actually provide a connection note that, because we don't want to let the exception bubble up in
-        # that case (since we're silently injecting a connection on their behalf).
-        self._aws_conn_id: str | None
-        if is_arg_set(aws_conn_id):
-            self.conn_set = True
-            self._aws_conn_id = aws_conn_id
-        else:
-            self.conn_set = False
-            self._aws_conn_id = "aws_default"
-
-        if self.redshift_data_api_kwargs:
-            for arg in ["sql", "parameters"]:
-                if arg in self.redshift_data_api_kwargs:
-                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
     @property
     def use_redshift_data(self):
@@ -154,15 +139,31 @@ class S3ToRedshiftOperator(BaseOperator):
         if self.method not in AVAILABLE_METHODS:
             raise AirflowException(f"Method not found! Available methods: {AVAILABLE_METHODS}")
 
+        if self.redshift_data_api_kwargs:
+            for arg in ["sql", "parameters"]:
+                if arg in self.redshift_data_api_kwargs:
+                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
+
+        # We attempt to fetch this aws connection below to check for extras. If the user didn't
+        # actually provide a connection note that, because we don't want to let the exception bubble up
+        # in that case (since we're silently injecting a connection on their behalf).
+        aws_conn_id: str | None
+        if is_arg_set(self.aws_conn_id):
+            conn_set = True
+            aws_conn_id = self.aws_conn_id
+        else:
+            conn_set = False
+            aws_conn_id = "aws_default"
+
         if self.use_redshift_data:
             redshift_data_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
         else:
             redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
 
         conn = (
-            S3Hook.get_connection(conn_id=self._aws_conn_id)
+            S3Hook.get_connection(conn_id=aws_conn_id)
             # Only fetch the connection if it was set by the user and it is not None
-            if self.conn_set and self._aws_conn_id
+            if conn_set and aws_conn_id
             else None
         )
         region_info = ""
@@ -171,7 +172,7 @@ class S3ToRedshiftOperator(BaseOperator):
         if conn and conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
-            s3_hook = S3Hook(aws_conn_id=self._aws_conn_id, verify=self.verify)
+            s3_hook = S3Hook(aws_conn_id=aws_conn_id, verify=self.verify)
             credentials = s3_hook.get_credentials()
             credentials_block = build_credentials_block(credentials)
 

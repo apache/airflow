@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import importlib
 import os
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock, call
 
 import kubernetes
 import pytest
+import time_machine
 from dateutil.parser import parse
+from kubernetes.client import models as k8s
 
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
@@ -33,6 +36,47 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
+
+NOW = parse("2024-01-01T13:15:17Z")
+
+
+def make_container_status(state):
+    return k8s.V1ContainerStatus(
+        name="base", ready=False, restart_count=0, image="img", image_id="id", state=state
+    )
+
+
+def make_terminated_status(finished_at):
+    return make_container_status(
+        k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=finished_at))
+    )
+
+
+def make_terminal_pod(
+    name,
+    phase,
+    reason=None,
+    restart_policy="Never",
+    finished_at=None,
+    init_finished_at=None,
+    condition_time=None,
+):
+    conditions = (
+        [k8s.V1PodCondition(type="Ready", status="False", last_transition_time=condition_time)]
+        if condition_time
+        else []
+    )
+    return k8s.V1Pod(
+        metadata=k8s.V1ObjectMeta(name=name, creation_timestamp=NOW - timedelta(hours=1)),
+        spec=k8s.V1PodSpec(containers=[], restart_policy=restart_policy),
+        status=k8s.V1PodStatus(
+            phase=phase,
+            reason=reason,
+            container_statuses=[make_terminated_status(finished_at)] if finished_at else [],
+            init_container_statuses=[make_terminated_status(init_finished_at)] if init_finished_at else [],
+            conditions=conditions,
+        ),
+    )
 
 
 class TestGenerateDagYamlCommand:
@@ -283,3 +327,139 @@ class TestCleanUpPodsCommand:
         list_namespaced_pod.assert_has_calls(calls)
         delete_pod.assert_called_with("dummy", "awesome-namespace")
         load_incluster_config.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("pod_kwargs", "min_completed_minutes", "expect_deleted"),
+        [
+            pytest.param(
+                {"phase": "Succeeded", "finished_at": NOW - timedelta(seconds=3)},
+                1,
+                False,
+                id="succeeded-just-finished-kept",
+            ),
+            pytest.param(
+                {"phase": "Succeeded", "finished_at": NOW - timedelta(minutes=5)},
+                1,
+                True,
+                id="succeeded-old-enough-deleted",
+            ),
+            pytest.param(
+                {"phase": "Succeeded", "finished_at": NOW - timedelta(seconds=3)},
+                0,
+                True,
+                id="zero-disables-guard",
+            ),
+            pytest.param(
+                {"phase": "Failed", "finished_at": NOW - timedelta(seconds=3)},
+                1,
+                False,
+                id="failed-just-finished-kept",
+            ),
+            pytest.param(
+                {"phase": "Failed", "init_finished_at": NOW - timedelta(seconds=3)},
+                1,
+                False,
+                id="init-container-failed-just-finished-kept",
+            ),
+            pytest.param(
+                {"phase": "Failed", "reason": "Evicted", "condition_time": NOW - timedelta(seconds=3)},
+                1,
+                False,
+                id="evicted-before-containers-started-kept",
+            ),
+            pytest.param(
+                {"phase": "Failed", "reason": "Evicted", "condition_time": NOW - timedelta(minutes=5)},
+                1,
+                True,
+                id="evicted-old-enough-deleted",
+            ),
+        ],
+    )
+    @time_machine.travel(NOW, tick=False)
+    @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
+    @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
+    @mock.patch("kubernetes.config.load_incluster_config")
+    def test_cleanup_pods_min_completed_minutes(
+        self,
+        load_incluster_config,
+        list_namespaced_pod,
+        delete_pod,
+        pod_kwargs,
+        min_completed_minutes,
+        expect_deleted,
+    ):
+        pods = MagicMock()
+        pods.metadata._continue = None
+        pods.items = [make_terminal_pod("run-o1sxc2on", **pod_kwargs)]
+        list_namespaced_pod.return_value = pods
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(
+                [
+                    "kubernetes",
+                    "cleanup-pods",
+                    "--namespace",
+                    "awesome-namespace",
+                    "--min-completed-minutes",
+                    str(min_completed_minutes),
+                ]
+            )
+        )
+        if expect_deleted:
+            delete_pod.assert_called_once_with("run-o1sxc2on", "awesome-namespace")
+        else:
+            delete_pod.assert_not_called()
+
+
+class TestGetPodCompletionTime:
+    T1 = parse("2024-01-01T10:00:00Z")
+    T2 = parse("2024-01-01T10:05:00Z")
+    CREATED_AT = parse("2024-01-01T09:00:00Z")  # earlier than T1/T2
+
+    def _pod(self, container_statuses=None, init_container_statuses=None, conditions=None):
+        return k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="run-o1sxc2on", creation_timestamp=self.CREATED_AT),
+            status=k8s.V1PodStatus(
+                container_statuses=container_statuses,
+                init_container_statuses=init_container_statuses,
+                conditions=conditions,
+            ),
+        )
+
+    def test_single_main_container(self):
+        pod = self._pod(container_statuses=[make_terminated_status(self.T1)])
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T1
+
+    def test_single_init_container_no_main(self):
+        pod = self._pod(container_statuses=[], init_container_statuses=[make_terminated_status(self.T1)])
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T1
+
+    def test_main_and_init_returns_max(self):
+        pod = self._pod(
+            container_statuses=[make_terminated_status(self.T1)],
+            init_container_statuses=[make_terminated_status(self.T2)],
+        )
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T2
+
+    @pytest.mark.parametrize(
+        "container_status",
+        [
+            pytest.param(make_container_status(state=None), id="no-state"),
+            pytest.param(
+                make_container_status(
+                    k8s.V1ContainerState(waiting=k8s.V1ContainerStateWaiting(reason="ContainerCreating"))
+                ),
+                id="never-terminated",
+            ),
+            pytest.param(make_terminated_status(finished_at=None), id="terminated-without-finished-at"),
+        ],
+    )
+    def test_falls_back_to_conditions(self, container_status):
+        pod = self._pod(
+            container_statuses=[container_status],
+            conditions=[k8s.V1PodCondition(type="Ready", status="False", last_transition_time=self.T1)],
+        )
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T1
+
+    def test_no_containers_no_conditions_falls_back_to_creation_timestamp(self):
+        pod = self._pod(container_statuses=[], init_container_statuses=[], conditions=[])
+        assert kubernetes_command._get_pod_completion_time(pod) == self.CREATED_AT

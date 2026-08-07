@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -819,7 +819,10 @@ class TestSparkSubmitOperatorResumable:
         hook._conf = {"spark.yarn.submit.waitAppCompletion": "true"}
         operator._hook = hook
 
-        with pytest.raises(ValueError, match="waitAppCompletion=true"):
+        with pytest.raises(
+            ValueError,
+            match=r"spark\.yarn\.submit\.waitAppCompletion=true cannot be set for cluster mode as it conflicts with the need",
+        ):
             operator.submit_job(context={})
 
     def test_yarn_poll_tolerates_transient_resourcemanager_failures(self):

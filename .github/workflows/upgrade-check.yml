@@ -51,7 +51,7 @@ jobs:
           -u 0:0 bash -c "rm -rf /workspace/*"
       - name: >-
           [${{ inputs.target-branch }}] Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ inputs.target-branch }}
           fetch-depth: 0
@@ -103,7 +103,7 @@ jobs:
           [${{ inputs.target-branch }}] Notify Slack on success
         if: success() && steps.find-pr.outputs.pr-url != ''
         uses: >-
-          slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc
+          slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -132,7 +132,7 @@ jobs:
           [${{ inputs.target-branch }}] Notify Slack on failure
         if: failure()
         uses: >-
-          slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc
+          slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

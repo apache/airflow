@@ -1,4 +1,25 @@
 {
+  "alerts": {
+    "seeLessContext": "Voir moins",
+    "seeMoreContext": "Voir plus",
+    "showMoreAlerts_many": "+{{count}} alertes supplémentaires",
+    "showMoreAlerts_one": "+{{count}} alerte supplémentaire",
+    "showMoreAlerts_other": "+{{count}} alertes supplémentaires"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "Aucune échéance à venir",
+      "title": "À venir"
+    },
+    "recentlyMissed": {
+      "empty": "Aucune échéance manquée",
+      "title": "Échéances manquées"
+    },
+    "showMore": "Voir plus",
+    "title": "Échéances"
+  },
+  "deferredSlotsNotCounted": "Différées non comptées dans les slots : {{count}}",
+  "deferredSlotsNotCountedTooltip": "Les tâches différées affichées dans la barre sont comptées dans les slots des Pools. Les tâches différées affichées sous la barre proviennent de Pools qui ne comptent pas les tâches différées dans les slots.",
   "favorite": {
     "favoriteDags_many": "{{count}} premiers Dags favoris",
     "favoriteDags_one": "{{count}} premier Dag favori",

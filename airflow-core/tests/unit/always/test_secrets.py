@@ -122,6 +122,7 @@ class TestConnectionsFromSecrets:
         assert conn.get_uri() == "mysql://airflow:airflow@host:5432/airflow"
 
     @pytest.mark.db_test
+    @conf_vars({("core", "multi_team"): "True"})
     @mock.patch.dict(
         "os.environ",
         {
@@ -218,6 +219,7 @@ class TestVariableFromSecrets:
         mock_secret_get.return_value = "a_secret_value"
         assert Variable.get(key="not_myvar") == "a_secret_value"
 
+    @conf_vars({("core", "multi_team"): "True"})
     @mock.patch.dict(
         "os.environ",
         {

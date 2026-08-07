@@ -79,8 +79,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
     def __init__(
         self,
         *,
-        dataset_table: str,
         target_table_name: str | None,
+        dataset_table: str | None = None,
         selected_fields: list[str] | str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         database: str | None = None,
@@ -101,12 +101,13 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         self.batch_size = batch_size
         self.location = location
         self.impersonation_chain = impersonation_chain
+        if dataset_table is not None:
+            try:
+                dataset_id, table_id = dataset_table.split(".")
+            except ValueError:
+                raise ValueError(f"Could not parse {dataset_table} as <dataset>.<table>") from None
         self.dataset_id = dataset_id
         self.table_id = table_id
-        try:
-            self.dataset_id, self.table_id = dataset_table.split(".")
-        except ValueError:
-            raise ValueError(f"Could not parse {dataset_table} as <dataset>.<table>") from None
 
     @abc.abstractmethod
     def get_sql_hook(self) -> DbApiHook:

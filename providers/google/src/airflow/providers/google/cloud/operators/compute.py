@@ -65,7 +65,6 @@ class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
-        self._validate_inputs()
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
@@ -165,19 +164,12 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        if "name" in body:
-            resource_id = self.body["name"]
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
         self.recreate_if_machine_type_different = recreate_if_machine_type_different
+        self.validate_body = validate_body
 
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             resource_id=resource_id,
             zone=zone,
@@ -208,8 +200,11 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             )
 
     def _validate_all_body_fields(self) -> None:
-        if self._field_validator:
-            self._field_validator.validate(self.body)
+        if self.validate_body:
+            GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=self.api_version,
+            ).validate(self.body)
 
     def _extract_machine_type(self, value: str | None) -> str | None:
         if not value:
@@ -237,7 +232,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
 
     def _create_instance(self, hook: ComputeEngineHook, context: Context) -> dict:
         """Create the instance using the current body and return the created instance as dict."""
-        self._field_sanitizer.sanitize(self.body)
+        GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE).sanitize(self.body)
 
         self.log.info("Creating Instance with specified body: %s", self.body)
 
@@ -273,13 +268,18 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         If machine type drift is detected and ``recreate_if_machine_type_different=True``,
         the existing instance is deleted and recreated using the requested body.
         """
+        if "name" in self.body:
+            self.resource_id = self.body["name"]
+
+        self._validate_inputs()
+        self._validate_all_body_fields()
+        self.check_body_fields()
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self._validate_all_body_fields()
-        self.check_body_fields()
 
         try:
             existing_instance = hook.get_instance(
@@ -411,19 +411,12 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         self.source_instance_template = source_instance_template
         self.body = body
         self.zone = zone
-        if "name" in body:
-            resource_id = self.body["name"]
         self.request_id = request_id
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.validate_body = validate_body
 
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             resource_id=resource_id,
             zone=zone,
@@ -435,8 +428,11 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         )
 
     def _validate_all_body_fields(self) -> None:
-        if self._field_validator:
-            self._field_validator.validate(self.body)
+        if self.validate_body:
+            GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=self.api_version,
+            ).validate(self.body)
 
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
@@ -447,12 +443,19 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             )
 
     def execute(self, context: Context) -> dict:
+        if "name" in self.body:
+            self.resource_id = self.body["name"]
+
+        self._validate_inputs()
+        self._validate_all_body_fields()
+
+        field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self._validate_all_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new Instance
             # is already created and if is, then we assume it was created - we do
@@ -475,7 +478,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
                 project_id=self.project_id or hook.project_id,
             )
             return Instance.to_dict(existing_instance)
-        self._field_sanitizer.sanitize(self.body)
+        field_sanitizer.sanitize(self.body)
         self.log.info("Creating Instance with specified body: %s", self.body)
         hook.insert_instance(
             body=self.body,
@@ -561,16 +564,10 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
         self.zone = zone
         self.request_id = request_id
         self.resource_id = resource_id
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
 
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone=zone,
@@ -587,6 +584,8 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
             raise AirflowException("The required parameter 'resource_id' is missing. ")
 
     def execute(self, context: Context) -> None:
+        self._validate_inputs()
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -660,6 +659,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
             raise AirflowException("The required parameter 'resource_id' is missing. ")
 
     def execute(self, context: Context) -> None:
+        self._validate_inputs()
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -718,6 +718,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
             raise AirflowException("The required parameter 'resource_id' is missing. ")
 
     def execute(self, context: Context) -> None:
+        self._validate_inputs()
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -794,11 +795,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         **kwargs,
     ) -> None:
         self.body = body
-        self._field_validator: GcpBodyFieldValidator | None = None
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                SET_MACHINE_TYPE_VALIDATION_SPECIFICATION, api_version=api_version
-            )
+        self.validate_body = validate_body
         super().__init__(
             project_id=project_id,
             zone=zone,
@@ -810,8 +807,11 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         )
 
     def _validate_all_body_fields(self) -> None:
-        if self._field_validator:
-            self._field_validator.validate(self.body)
+        if self.validate_body:
+            GcpBodyFieldValidator(
+                SET_MACHINE_TYPE_VALIDATION_SPECIFICATION,
+                api_version=self.api_version,
+            ).validate(self.body)
 
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
@@ -819,12 +819,14 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
             raise AirflowException("The required parameter 'resource_id' is missing. ")
 
     def execute(self, context: Context) -> None:
+        self._validate_inputs()
+        self._validate_all_body_fields()
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self._validate_all_body_fields()
         ComputeInstanceDetailsLink.persist(
             context=context,
             project_id=self.project_id or hook.project_id,
@@ -958,18 +960,11 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.body = body
         self.request_id = request_id
-        if "name" in body:
-            resource_id = self.body["name"]
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.validate_body = validate_body
 
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone="global",
@@ -992,8 +987,11 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
                 )
 
     def _validate_all_body_fields(self) -> None:
-        if self._field_validator:
-            self._field_validator.validate(self.body)
+        if self.validate_body:
+            GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=self.api_version,
+            ).validate(self.body)
 
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
@@ -1004,14 +1002,21 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
             )
 
     def execute(self, context: Context) -> dict:
+        if "name" in self.body:
+            self.resource_id = self.body["name"]
+
+        self._validate_inputs()
+        self._validate_all_body_fields()
+        self.check_body_fields()
+
+        field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+        field_sanitizer.sanitize(self.body)
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self._validate_all_body_fields()
-        self.check_body_fields()
-        self._field_sanitizer.sanitize(self.body)
         try:
             # Idempotence check (sort of) - we want to check if the new Template
             # is already created and if is, then we assume it was created by previous run
@@ -1035,7 +1040,6 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
                 project_id=self.project_id or hook.project_id,
             )
             return InstanceTemplate.to_dict(existing_template)
-        self._field_sanitizer.sanitize(self.body)
         self.log.info("Creating Instance Template with specified body: %s", self.body)
         hook.insert_instance_template(
             body=self.body,
@@ -1114,16 +1118,10 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.request_id = request_id
         self.resource_id = resource_id
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
 
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone="global",
@@ -1140,6 +1138,8 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
             raise AirflowException("The required parameter 'resource_id' is missing.")
 
     def execute(self, context: Context) -> None:
+        self._validate_inputs()
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -1232,17 +1232,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.body_patch = body_patch
         self.request_id = request_id
-        self._field_validator = None  # GcpBodyFieldValidator | None
-        if "name" not in self.body_patch:
-            raise AirflowException(
-                f"The body '{body_patch}' should contain at least name for the new operator "
-                f"in the 'name' field"
-            )
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+        self.validate_body = validate_body
         super().__init__(
             project_id=project_id,
             zone="global",
@@ -1253,9 +1243,19 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
+    def _validate_body_patch(self) -> None:
+        if "name" not in self.body_patch:
+            raise AirflowException(
+                f"The body '{self.body_patch}' should contain at least name for the new operator "
+                "in the 'name' field"
+            )
+
     def _validate_all_body_fields(self) -> None:
-        if self._field_validator:
-            self._field_validator.validate(self.body_patch)
+        if self.validate_body:
+            GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=self.api_version,
+            ).validate(self.body_patch)
 
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
@@ -1263,6 +1263,12 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             raise AirflowException("The required parameter 'resource_id' is missing.")
 
     def execute(self, context: Context) -> dict:
+        self._validate_inputs()
+        self._validate_body_patch()
+        self._validate_all_body_fields()
+
+        field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -1305,7 +1311,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             )
         )
         new_body = deepcopy(old_body)
-        self._field_sanitizer.sanitize(new_body)
+        field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
         hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
@@ -1393,12 +1399,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         self.request_id = request_id
         self.update_policy = update_policy
         self._change_performed = False
-        if api_version == "v1":
-            raise AirflowException(
-                "Api version v1 does not have update/patch "
-                "operations for Instance Group Managers. Use beta"
-                " api version or above"
-            )
         super().__init__(
             project_id=project_id,
             zone=zone,
@@ -1408,6 +1408,14 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             impersonation_chain=impersonation_chain,
             **kwargs,
         )
+
+    def _validate_api_version(self) -> None:
+        if self.api_version == "v1":
+            raise AirflowException(
+                "Api version v1 does not have update/patch "
+                "operations for Instance Group Managers. Use beta "
+                "api version or above"
+            )
 
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
@@ -1420,6 +1428,9 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             self._change_performed = True
 
     def execute(self, context: Context) -> bool | None:
+        self._validate_inputs()
+        self._validate_api_version()
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -1531,17 +1542,10 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
     ) -> None:
         self.body = body
         self.request_id = request_id
-        if "name" in body:
-            resource_id = self.body["name"]
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+        self.validate_body = validate_body
         super().__init__(
             project_id=project_id,
             zone=zone,
@@ -1564,8 +1568,11 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
                 )
 
     def _validate_all_body_fields(self) -> None:
-        if self._field_validator:
-            self._field_validator.validate(self.body)
+        if self.validate_body:
+            GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=self.api_version,
+            ).validate(self.body)
 
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
@@ -1576,13 +1583,20 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             )
 
     def execute(self, context: Context) -> dict:
+        if "name" in self.body:
+            self.resource_id = self.body["name"]
+
+        self._validate_inputs()
+        self._validate_all_body_fields()
+        self.check_body_fields()
+
+        field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self._validate_all_body_fields()
-        self.check_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new Instance Group Manager
             # is already created and if isn't, we create new one
@@ -1603,7 +1617,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
                 project_id=self.project_id or hook.project_id,
             )
             return InstanceGroupManager.to_dict(existing_instance_group_manager)
-        self._field_sanitizer.sanitize(self.body)
+        field_sanitizer.sanitize(self.body)
         self.log.info("Creating Instance Group Manager with specified body: %s", self.body)
         hook.insert_instance_group_manager(
             body=self.body,
@@ -1687,15 +1701,10 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         self.zone = zone
         self.request_id = request_id
         self.resource_id = resource_id
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+
         super().__init__(
             project_id=project_id,
             zone=zone,
@@ -1712,6 +1721,8 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             raise AirflowException("The required parameter 'resource_id' is missing. ")
 
     def execute(self, context: Context):
+        self._validate_inputs()
+
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

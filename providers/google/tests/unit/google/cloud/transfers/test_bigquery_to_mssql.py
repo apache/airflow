@@ -20,6 +20,8 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
+
 from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
 
 TASK_ID = "test-bq-create-table-operator"
@@ -67,6 +69,57 @@ class TestBigQueryToMsSqlOperator:
             selected_fields=None,
             start_index=0,
         )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryTableLink")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
+    def test_execute_uses_rendered_source_project_dataset_table(self, mock_hook, mock_link):
+        destination_table = "table"
+        source_project_dataset_table = f"{TEST_PROJECT}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        operator = BigQueryToMsSqlOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table="{{ var.value.source_project_dataset_table }}",
+            target_table_name=destination_table,
+            replace=False,
+        )
+
+        assert operator.dataset_id is None
+        assert operator.table_id is None
+
+        operator.render_template_fields(
+            {"var": {"value": {"source_project_dataset_table": source_project_dataset_table}}}
+        )
+        operator.execute(None)
+
+        mock_hook.return_value.list_rows.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            max_results=1000,
+            selected_fields=None,
+            start_index=0,
+        )
+        mock_link.persist.assert_called_once_with(
+            context=None,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_PROJECT,
+            table_id=TEST_TABLE_ID,
+        )
+
+    def test_execute_raises_for_invalid_rendered_source_project_dataset_table(self):
+        operator = BigQueryToMsSqlOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table="{{ var.value.source_project_dataset_table }}",
+            target_table_name="table",
+            replace=False,
+        )
+
+        operator.render_template_fields(
+            {"var": {"value": {"source_project_dataset_table": "project.dataset"}}}
+        )
+
+        with pytest.raises(
+            ValueError, match="Could not parse project.dataset as <project>.<dataset>.<table>"
+        ):
+            operator.execute(None)
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.MsSqlHook")
     def test_get_sql_hook(self, mock_hook):

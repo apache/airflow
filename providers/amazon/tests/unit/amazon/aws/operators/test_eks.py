@@ -72,6 +72,15 @@ CREATE_NODEGROUP_KWARGS = {
     "instanceTypes": "t4g.large",
 }
 
+RESOURCE_IN_USE_ERROR = ClientError(
+    error_response={"Error": {"Code": "ResourceInUseException", "Message": "update in progress"}},
+    operation_name="DeleteCluster",
+)
+RESOURCE_NOT_FOUND_ERROR = ClientError(
+    error_response={"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}},
+    operation_name="DeleteCluster",
+)
+
 
 class ClusterParams(TypedDict):
     cluster_name: str
@@ -628,6 +637,39 @@ class TestEksCreateNodegroupOperator:
             nodegroupName=NODEGROUP_NAME,
         )
 
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.wait")
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_nodegroup_cleanup_retries_on_resource_in_use(
+        self,
+        mock_create_nodegroup,
+        mock_waiter,
+        mock_delete_nodegroup,
+        mock_sleep,
+    ):
+        mock_waiter.side_effect = AirflowException("Nodegroup creation failed: Waiter NodegroupActive failed")
+        # A freshly-failed nodegroup may still be settling, so the cleanup delete rides out
+        # transient ResourceInUseException before succeeding.
+        mock_delete_nodegroup.side_effect = [RESOURCE_IN_USE_ERROR, RESOURCE_IN_USE_ERROR, None]
+
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            nodegroup_name=NODEGROUP_NAME,
+            nodegroup_subnets=SUBNET_IDS,
+            nodegroup_role_arn=NODEROLE_ARN[1],
+            wait_for_completion=True,
+            delete_nodegroup_on_failure=True,
+        )
+
+        # The original creation error is still raised once cleanup eventually succeeds.
+        with pytest.raises(AirflowException, match="Nodegroup creation failed"):
+            operator.execute({})
+
+        assert mock_delete_nodegroup.call_count == 3
+        mock_delete_nodegroup.assert_called_with(clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
+
     @mock.patch.object(EksHook, "delete_nodegroup")
     @mock.patch("airflow.providers.amazon.aws.operators.eks.wait")
     @mock.patch.object(EksHook, "create_nodegroup")
@@ -718,6 +760,53 @@ class TestEksDeleteClusterOperator:
         with pytest.raises(TaskDeferred):
             self.delete_cluster_operator.execute({})
 
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "list_nodegroups")
+    @mock.patch.object(EksHook, "delete_cluster")
+    def test_delete_cluster_retries_on_resource_in_use(
+        self, mock_delete_cluster, mock_list_nodegroups, mock_waiter, mock_sleep
+    ):
+        mock_list_nodegroups.return_value = []
+        mock_delete_cluster.side_effect = [RESOURCE_IN_USE_ERROR, RESOURCE_IN_USE_ERROR, None]
+
+        self.delete_cluster_operator.execute({})
+
+        assert mock_delete_cluster.call_count == 3
+        mock_delete_cluster.assert_called_with(name=self.cluster_name)
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EksHook, "get_waiter")
+    @mock.patch.object(EksHook, "list_nodegroups")
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    def test_delete_any_nodegroups_retries_on_resource_in_use(
+        self, mock_delete_nodegroup, mock_list_nodegroups, mock_get_waiter, mock_sleep
+    ):
+        mock_list_nodegroups.return_value = ["ng1"]
+        mock_delete_nodegroup.side_effect = [RESOURCE_IN_USE_ERROR, RESOURCE_IN_USE_ERROR, None]
+
+        self.delete_cluster_operator.delete_any_nodegroups()
+
+        assert mock_delete_nodegroup.call_count == 3
+        mock_delete_nodegroup.assert_called_with(clusterName=self.cluster_name, nodegroupName="ng1")
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "list_fargate_profiles")
+    @mock.patch.object(EksHook, "delete_fargate_profile")
+    def test_delete_any_fargate_profiles_retries_on_resource_in_use(
+        self, mock_delete_fargate_profile, mock_list_fargate_profiles, mock_waiter, mock_sleep
+    ):
+        mock_list_fargate_profiles.return_value = ["fp1"]
+        mock_delete_fargate_profile.side_effect = [RESOURCE_IN_USE_ERROR, RESOURCE_IN_USE_ERROR, None]
+
+        self.delete_cluster_operator.delete_any_fargate_profiles()
+
+        assert mock_delete_fargate_profile.call_count == 3
+        mock_delete_fargate_profile.assert_called_with(
+            clusterName=self.cluster_name, fargateProfileName="fp1"
+        )
+
     def test_template_fields(self):
         validate_template_fields(self.delete_cluster_operator)
 
@@ -760,6 +849,21 @@ class TestEksDeleteNodegroupOperator:
         )
         mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
         assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    def test_delete_nodegroup_retries_on_resource_in_use(
+        self, mock_delete_nodegroup, mock_waiter, mock_sleep
+    ):
+        mock_delete_nodegroup.side_effect = [RESOURCE_IN_USE_ERROR, RESOURCE_IN_USE_ERROR, None]
+
+        self.delete_nodegroup_operator.execute({})
+
+        assert mock_delete_nodegroup.call_count == 3
+        mock_delete_nodegroup.assert_called_with(
+            clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.delete_nodegroup_operator)
@@ -820,6 +924,21 @@ class TestEksDeleteFargateProfileOperator:
             self.delete_fargate_profile_operator.execute({})
         assert isinstance(exc.value.trigger, EksDeleteFargateProfileTrigger), (
             "Trigger is not a EksDeleteFargateProfileTrigger"
+        )
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "delete_fargate_profile")
+    def test_delete_fargate_profile_retries_on_resource_in_use(
+        self, mock_delete_fargate_profile, mock_waiter, mock_sleep
+    ):
+        mock_delete_fargate_profile.side_effect = [RESOURCE_IN_USE_ERROR, RESOURCE_IN_USE_ERROR, None]
+
+        self.delete_fargate_profile_operator.execute({})
+
+        assert mock_delete_fargate_profile.call_count == 3
+        mock_delete_fargate_profile.assert_called_with(
+            clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
 
     def test_template_fields(self):

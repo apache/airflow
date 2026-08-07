@@ -195,37 +195,40 @@ VALIDATE 10 ROWS
 
 def test_incorrect_params_files_patterns():
     exception_message = "Only one of 'pattern' or 'files' should be specified"
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+        files=["file1", "file2", "file3"],
+        pattern="abc",
+    )
     with pytest.raises(AirflowException, match=exception_message):
-        DatabricksCopyIntoOperator(
-            task_id=TASK_ID,
-            file_location=COPY_FILE_LOCATION,
-            file_format="JSON",
-            table_name="test",
-            files=["file1", "file2", "file3"],
-            pattern="abc",
-        )
+        op.execute(context={})
 
 
 def test_incorrect_params_emtpy_table():
     exception_message = "table_name shouldn't be empty"
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="",
+    )
     with pytest.raises(AirflowException, match=exception_message):
-        DatabricksCopyIntoOperator(
-            task_id=TASK_ID,
-            file_location=COPY_FILE_LOCATION,
-            file_format="JSON",
-            table_name="",
-        )
+        op.execute(context={})
 
 
 def test_incorrect_params_emtpy_location():
     exception_message = "file_location shouldn't be empty"
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location="",
+        file_format="JSON",
+        table_name="abc",
+    )
     with pytest.raises(AirflowException, match=exception_message):
-        DatabricksCopyIntoOperator(
-            task_id=TASK_ID,
-            file_location="",
-            file_format="JSON",
-            table_name="abc",
-        )
+        op.execute(context={})
 
 
 def test_incorrect_params_wrong_format():

@@ -66,6 +66,7 @@ const eventsColumn = (
   },
   {
     accessorKey: "owner",
+    cell: ({ row: { original } }) => original.owner_display_name,
     enableSorting: true,
     header: translate("auditLog.columns.user"),
     meta: {
@@ -203,8 +204,8 @@ export const Events = () => {
     value: eventTypeFilter,
   });
   const ownerArg = useAdvancedSearchArg({
-    patternApiKey: "ownerPattern",
-    prefixApiKey: "ownerPrefixPattern",
+    patternApiKey: "ownerDisplayNamePattern",
+    prefixApiKey: "ownerDisplayNamePrefixPattern",
     storageKey: USER_PARAM,
     value: userFilter,
   });

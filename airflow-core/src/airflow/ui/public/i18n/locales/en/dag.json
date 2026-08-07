@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Must complete within {{interval}} of {{reference}}",
+    "completionRuleDynamic": "Must complete within a variable interval measured from {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
     "referenceType": {
@@ -143,13 +144,7 @@
       "label": "Number of Dag Runs"
     },
     "dependencies": {
-      "label": "Dependencies",
-      "options": {
-        "allDagDependencies": "All Dag Dependencies",
-        "externalConditions": "External conditions",
-        "onlyTasks": "Only tasks"
-      },
-      "placeholder": "Dependencies"
+      "allDagDependencies": "All Dag Dependencies"
     },
     "graphDirection": {
       "label": "Graph Direction"

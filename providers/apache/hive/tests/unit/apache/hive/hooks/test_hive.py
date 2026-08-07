@@ -30,9 +30,8 @@ from hmsclient import HMSClient
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
-from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING, AirflowException
+from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING, AirflowException, timezone
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
-from airflow.utils import timezone
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS

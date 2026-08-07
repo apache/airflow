@@ -30,6 +30,7 @@ from extract_parameters import (
     Module,
     _get_source_line,
     _parse_requested_providers,
+    _resolve_dotted_path,
     _should_skip_class,
     compare_with_ast,
     discover_classes_from_provider,
@@ -225,6 +226,24 @@ class PlainOperator:
         return None
 
 
+class ManuallyDurableOperator:
+    """Implements durable execution directly (e.g. via task_state_store), without
+    ResumableJobMixin -- mirrors KubernetesPodOperator/AgentOperator."""
+
+    __supports_durable_execution = True
+
+    def execute(self, context):
+        return None
+
+
+class ManuallyDurableSubclass(ManuallyDurableOperator):
+    """Overrides execute() itself -- must NOT inherit the parent's declaration,
+    since nothing here verifies it preserves the reconnect behavior."""
+
+    def execute(self, context):
+        return "something else entirely"
+
+
 class TestIsDurableCapable:
     def test_fully_implemented_and_wired_qualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
@@ -240,6 +259,12 @@ class TestIsDurableCapable:
 
     def test_mixin_unavailable_disqualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, None) is False
+
+    def test_manual_durable_marker_qualifies_without_mixin(self):
+        assert is_durable_capable(ManuallyDurableOperator, None) is True
+
+    def test_subclass_not_redeclaring_marker_disqualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclass, FakeResumableJobMixin) is False
 
 
 # ---------------------------------------------------------------------------
@@ -346,6 +371,18 @@ class FakeSecretBackend:
     __module__ = "airflow.providers.amazon.aws.secrets.secrets_manager"
 
 
+class FakePlugin:
+    """S3 plugin."""
+
+    __module__ = "airflow.providers.amazon.aws.plugins.s3"
+
+
+class FakeDialect:
+    """Redshift dialect."""
+
+    __module__ = "airflow.providers.amazon.aws.dialects.redshift"
+
+
 def _make_module(name: str, members: dict) -> types.ModuleType:
     """Create a fake module with given members."""
     mod = types.ModuleType(name)
@@ -386,6 +423,20 @@ FAKE_PROVIDER_YAML = {
     ],
     "executors": [
         "airflow.providers.amazon.aws.executors.ecs.FakeExecutor",
+    ],
+    "plugins": [
+        {
+            "name": "AmazonS3Plugin",
+            "plugin-class": "airflow.providers.amazon.aws.plugins.s3.FakePlugin",
+        },
+        "not-a-dict-entry",
+    ],
+    "dialects": [
+        {
+            "dialect-type": "redshift",
+            "dialect-class-name": "airflow.providers.amazon.aws.dialects.redshift.FakeDialect",
+        },
+        "not-a-dict-entry",
     ],
     "task-decorators": [],
 }
@@ -449,6 +500,14 @@ class TestDiscoverClassesFromProvider:
                 "airflow.providers.amazon.aws.executors.ecs",
                 {"FakeExecutor": FakeExecutor},
             ),
+            "airflow.providers.amazon.aws.plugins.s3": _make_module(
+                "airflow.providers.amazon.aws.plugins.s3",
+                {"FakePlugin": FakePlugin},
+            ),
+            "airflow.providers.amazon.aws.dialects.redshift": _make_module(
+                "airflow.providers.amazon.aws.dialects.redshift",
+                {"FakeDialect": FakeDialect},
+            ),
         }
         if module_name in modules:
             return modules[module_name]
@@ -488,6 +547,42 @@ class TestDiscoverClassesFromProvider:
         hooks = [r for r in result if r["type"] == "hook"]
         assert len(hooks) == 1
         assert hooks[0]["name"] == "FakeHook"
+
+    def test_discovers_plugin(self, provider_yaml_path, base_classes):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        plugins = [r for r in result if r["type"] == "plugin"]
+        assert len(plugins) == 1
+        assert plugins[0]["name"] == "FakePlugin"
+        assert plugins[0]["category"] == "plugins"
+
+    def test_discovers_dialect(self, provider_yaml_path, base_classes):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        dialects = [r for r in result if r["type"] == "dialect"]
+        assert len(dialects) == 1
+        assert dialects[0]["name"] == "FakeDialect"
+        assert dialects[0]["category"] == "dialects"
+
+    def test_skips_non_dict_plugin_and_dialect_entries(self, provider_yaml_path, base_classes):
+        """FAKE_PROVIDER_YAML's plugins/dialects each carry a bare-string entry
+        alongside the valid dict entry; it must be skipped, not raise."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        assert len([r for r in result if r["type"] == "plugin"]) == 1
+        assert len([r for r in result if r["type"] == "dialect"]) == 1
 
     def test_filters_reexported_classes(self, provider_yaml_path, base_classes):
         """Classes where cls.__module__ != the module being scanned should be excluded."""
@@ -1062,3 +1157,31 @@ class TestParseRequestedProviders:
 
     def test_duplicate_providers_collapsed(self):
         assert _parse_requested_providers("amazon amazon google") == {"amazon", "google"}
+
+
+class TestResolveDottedPath:
+    @pytest.mark.parametrize(
+        "class_path",
+        (
+            "no_dot_here",
+            "this.module.does.not.exist.at.all.Foo",
+        ),
+    )
+    def test__resolve_dotted_path_returns_none(self, class_path: str):
+        assert _resolve_dotted_path(class_path) is None
+
+    @pytest.mark.parametrize(
+        ("class_path", "expected"),
+        (
+            (
+                "extract_parameters.ThisAttrDoesNotExist",
+                ("extract_parameters", "ThisAttrDoesNotExist", None),
+            ),
+            (
+                "extract_parameters.get_category",
+                ("extract_parameters", "get_category", get_category),
+            ),
+        ),
+    )
+    def test__resolve_dotted_path(self, class_path: str, expected: tuple[str, str, object]):
+        assert _resolve_dotted_path(class_path) == expected

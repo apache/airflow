@@ -17,12 +17,14 @@
       "unfavorite": "즐겨찾기 해제"
     },
     "lastRunState": "마지막 실행",
+    "noTimetableTypesFound": "타임테이블 유형을 찾을 수 없습니다",
     "paused": {
       "active": "활성",
       "all": "모두",
       "paused": "일시 중지됨"
     },
-    "runIdPatternFilter": "Dag 실행 검색"
+    "runIdPatternFilter": "Dag 실행 검색",
+    "timetableType": "타임테이블 유형"
   },
   "ownerLink": "{{owner}}의 소유자 링크",
   "runAndTaskActions": {
@@ -95,9 +97,9 @@
       "asc": "표시 이름으로 정렬 (A-Z)",
       "desc": "표시 이름으로 정렬 (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "최신 실행 시작 날짜로 정렬 (이전-최신)",
-      "desc": "최신 실행 시작 날짜로 정렬 (최신-이전)"
+    "lastRunAfter": {
+      "asc": "최신 실행 이후로 정렬 (이전-최신)",
+      "desc": "최신 실행 이후로 정렬 (최신-이전)"
     },
     "lastRunState": {
       "asc": "최신 실행 상태로 정렬 (A-Z)",

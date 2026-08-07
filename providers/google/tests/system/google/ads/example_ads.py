@@ -62,7 +62,7 @@ from system.google.gcp_api_client_helpers import create_airflow_connection, dele
 # [START howto_google_ads_env_variables]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-API_VERSION = "v21"
+API_VERSION = "v24"
 
 DAG_ID = "google_ads"
 

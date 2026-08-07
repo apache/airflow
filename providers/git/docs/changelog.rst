@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+0.4.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use private key when pulling submodules (#62938)``
+
+Misc
+~~~~
+
+* ``Use ValueError for conflicting Git connection key arguments (#70538)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.4.1
 .....
 

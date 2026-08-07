@@ -37,7 +37,7 @@ from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, TeamDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
-        AccessView,
         AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
@@ -352,8 +351,18 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             team_name=details.team_name if details else None,
         )
 
-    def is_authorized_view(self, *, access_view: AccessView, user: SimpleAuthManagerUser) -> bool:
-        return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: SimpleAuthManagerUser, team_name: str | None = None
+    ) -> bool:
+        # Views covering records that have no per-Dag key to authorize on are admin-only --
+        # import errors for files with no registered Dag, and audit log rows not tied to a
+        # Dag. Every other view stays readable by viewers.
+        allow_role = (
+            SimpleAuthManagerRole.ADMIN
+            if access_view in (AccessView.IMPORT_ERRORS_ALL, AccessView.AUDIT_LOGS_ALL)
+            else SimpleAuthManagerRole.VIEWER
+        )
+        return self._is_authorized(method="GET", allow_role=allow_role, user=user, team_name=team_name)
 
     def is_authorized_custom_view(
         self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser

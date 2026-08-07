@@ -1278,7 +1278,7 @@ class TestDagDetails(TestDagEndpoint):
         # Verify active_runs_count field is present and correct
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
-        assert body["active_runs_count"] == 2  # 1 running + 1 queued
+        assert body["active_runs_count"] == 1  # only running counts, queued does not
 
         # Test with DAG that has no active runs
         response = test_client.get(f"/dags/{DAG1_ID}/details")

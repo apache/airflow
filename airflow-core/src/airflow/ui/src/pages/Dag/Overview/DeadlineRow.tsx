@@ -17,18 +17,13 @@
  * under the License.
  */
 import { Badge, HStack, Text, VStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import type { DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
-
-dayjs.extend(duration);
-dayjs.extend(relativeTime);
+import { translateCompletionRule } from "src/utils/deadlines";
 
 type DeadlineRowProps = {
   readonly alert?: DeadlineAlertResponse;
@@ -38,12 +33,7 @@ type DeadlineRowProps = {
 export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
   const { t: translate } = useTranslation("dag");
 
-  const reference = alert
-    ? translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-        defaultValue: alert.reference_type,
-      })
-    : undefined;
-  const interval = alert ? dayjs.duration(alert.interval, "seconds").humanize() : undefined;
+  const completionRule = translateCompletionRule(translate, alert);
 
   return (
     <HStack justifyContent="space-between" px={2} py={1.5} width="100%">
@@ -61,11 +51,11 @@ export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
             {deadline.dag_run_id}
           </RouterLink>
         </HStack>
-        {reference !== undefined && interval !== undefined ? (
+        {completionRule === undefined ? undefined : (
           <Text color="fg.muted" fontSize="xs">
-            {translate("deadlineAlerts.completionRule", { interval, reference })}
+            {completionRule}
           </Text>
-        ) : undefined}
+        )}
       </VStack>
       <HStack gap={1}>
         <Text color="fg.muted" fontSize="xs">

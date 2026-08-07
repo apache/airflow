@@ -11,6 +11,25 @@
     },
     "title": "Journal d'Audit"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Nom de l'alerte",
+      "deadlineTime": "Heure de l'échéance",
+      "status": "Statut"
+    },
+    "deadline_many": "Échéances",
+    "deadline_one": "Échéance",
+    "deadline_other": "Échéances",
+    "filters": {
+      "status": "Statut",
+      "statusOptions": {
+        "all": "Toutes",
+        "missed": "Manquée",
+        "pending": "En attente"
+      }
+    },
+    "title": "Échéances"
+  },
   "xcom": {
     "add": {
       "error": "Échec de l'ajout du XCom",

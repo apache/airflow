@@ -252,6 +252,7 @@ representative examples (file → effect):
 | `.github/workflows/codeql-analysis.yml` (non-test workflow) | **basic checks only**                                           | non-test workflow → cannot affect tests (env-files carve-out) |
 | `scripts/ci/prek/check_*.py` (static-check hook)       | CI image + static checks, **no full matrix**                         | prek hooks are static checks → `Prek files` carve-out |
 | the generated OpenAPI spec                             | **full matrix**                                                      | the API *contract* ripples to UI codegen + every client |
+| `core_api/openapi/_private_ui.yaml` (UI-only spec)     | UI compile/lint prek hooks, **no full matrix**                       | matches `UI OpenAPI files`; the UI codegen input must be type-checked, but the public contract is unchanged |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
 | `task-sdk/.../task_runner.py` or `airflow-core/tests/integration/otel/...` | the `otel` core integration                       | matches `OTEL_FILES`; the otel integration tests assert the span hierarchy task_runner emits |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
@@ -363,6 +364,11 @@ We have the following Groups of files for CI that determine which tests are run:
 * `Always test files` - Files that belong to "Always" run tests.
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
+* `UI OpenAPI files` - the OpenAPI spec yamls under `core_api/openapi/` and under the simple
+  auth manager's `openapi/` that are the inputs of the UI client codegen. Membership in this
+  group does not force full tests (a generated spec still does, via `Codegen test files`); it
+  only keeps the UI compile/lint prek hooks from being skipped
+  (see [Skipping prek hooks](#skipping-prek-hooks-static-checks)).
 * `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder (which contains the chart sources and tests under `chart/tests/`).
 * `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
   build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
@@ -372,7 +378,6 @@ We have the following Groups of files for CI that determine which tests are run:
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
   and airflow documentation)
 * `UI files` - those are files for the new full React UI (useful to determine if UI tests should run)
-* `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
 * `System test files` - those are the files that are part of system tests (system tests are not automatically
   run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
   [System Test Dashbards](https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards)
@@ -497,8 +502,11 @@ when some files are not changed. Those are the rules implemented:
     `mypy-task-sdk-integration-tests`, `mypy-docker-tests`, `mypy-kubernetes-tests`)
   * for each `shared/<dist>` workspace member, `mypy-shared-<dist>` is skipped when no
     file under `shared/<dist>/` changed (enumerated at runtime)
-  * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
-  * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
+  * if neither `UI files` nor `UI OpenAPI files` changed - the `ts-compile-lint-ui` and
+    `ts-compile-lint-simple-auth-manager-ui` checks are skipped. The `UI OpenAPI files` group
+    covers the union of those hooks' own openapi `files:` triggers, so a spec-only change
+    (e.g. `_private_ui.yaml`) still runs them - otherwise a stale committed client can mask
+    type errors (see #68919)
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
   * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle

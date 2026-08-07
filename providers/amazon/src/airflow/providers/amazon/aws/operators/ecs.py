@@ -491,9 +491,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.reattach = reattach
         self.number_logs_exception = number_logs_exception
 
-        if self.awslogs_region is None:
-            self.awslogs_region = self.region_name
-
         self.arn: str | None = None
         self.container_name: str | None = container_name
         self._started_by: str | None = None
@@ -513,11 +510,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
         )
         self.stop_task_on_failure = stop_task_on_failure
 
-        if self._aws_logs_enabled() and not self.wait_for_completion:
-            self.log.warning(
-                "Trying to get logs without waiting for the task to complete is undefined behavior."
-            )
-
     @staticmethod
     def _get_ecs_task_id(task_arn: str | None) -> str | None:
         if task_arn is None:
@@ -525,6 +517,11 @@ class EcsRunTaskOperator(EcsBaseOperator):
         return task_arn.split("/")[-1]
 
     def execute(self, context):
+        if self._aws_logs_enabled() and not self.wait_for_completion:
+            self.log.warning(
+                "Trying to get logs without waiting for the task to complete is undefined behavior."
+            )
+
         self.log.info(
             "Running ECS Task - Task definition: %s - on cluster %s", self.task_definition, self.cluster
         )
@@ -557,6 +554,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
                         region_name=self.region_name,
+                        log_region_name=self.resolve_awslogs_region(),
                         log_group=self.awslogs_group,
                         log_stream=self._get_logs_stream_name(),
                         verify=self.verify,
@@ -623,7 +621,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self._after_execution()
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.
-            logs_client = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name).conn
+            logs_client = AwsLogsHook(
+                aws_conn_id=self.aws_conn_id, region_name=self.resolve_awslogs_region()
+            ).conn
             one_log = logs_client.get_log_events(
                 logGroupName=self.awslogs_group,
                 logStreamName=self._get_logs_stream_name(),
@@ -737,13 +737,16 @@ class EcsRunTaskOperator(EcsBaseOperator):
             return f"{self.awslogs_stream_prefix}/{self.container_name}/{self._get_ecs_task_id(self.arn)}"
         return f"{self.awslogs_stream_prefix}/{self._get_ecs_task_id(self.arn)}"
 
+    def resolve_awslogs_region(self) -> str | None:
+        return self.awslogs_region if self.awslogs_region is not None else self.region_name
+
     def _get_task_log_fetcher(self) -> AwsTaskLogFetcher:
         if not self.awslogs_group:
             raise ValueError("must specify awslogs_group to fetch task logs")
 
         return AwsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
-            region_name=self.awslogs_region,
+            region_name=self.resolve_awslogs_region(),
             log_group=self.awslogs_group,
             log_stream_name=self._get_logs_stream_name(),
             fetch_interval=self.awslogs_fetch_interval,

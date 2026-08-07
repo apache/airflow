@@ -23,11 +23,11 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.branch import BaseBranchOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 

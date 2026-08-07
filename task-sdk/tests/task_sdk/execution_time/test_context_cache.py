@@ -97,6 +97,8 @@ class TestConnectionCacheIntegration:
             port=3306,
             login="user",
             password="pass",
+            schema=None,
+            extra=None,
         )
 
         mock_ensure_backends.return_value = [ExecutionAPISecretsBackend()]
@@ -281,6 +283,10 @@ class TestAsyncConnectionCache:
             conn_type="mysql",
             host="host",
             port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
         )
 
         # Configure asend to return the conn_result when awaited
@@ -344,7 +350,16 @@ class TestCacheDisabled:
     def test_get_connection_no_cache_when_disabled(self, mock_ensure_backends, mock_supervisor_comms):
         """Test that cache is not used when disabled."""
         conn_id = "test_conn"
-        conn_result = ConnectionResult(conn_id=conn_id, conn_type="mysql", host="host")
+        conn_result = ConnectionResult(
+            conn_id=conn_id,
+            conn_type="mysql",
+            host="host",
+            schema=None,
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+        )
 
         mock_ensure_backends.return_value = [ExecutionAPISecretsBackend()]
 

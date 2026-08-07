@@ -382,7 +382,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_submit_failure_includes_captured_log_tail(self, mock_popen, sdk_connection_not_found):
         mock_popen.return_value.stdout = StringIO(
-            "Exception in thread main: SparkException: bad jar\nsome other line"
+            'Exception in thread "main" org.apache.spark.SparkException: bad jar\nsome other line'
         )
         mock_popen.return_value.stderr = StringIO("")
         mock_popen.return_value.wait.return_value = 1
@@ -391,7 +391,7 @@ class TestSparkSubmitHook:
 
         with pytest.raises(AirflowException, match="Last spark-submit output:") as exc_info:
             hook.submit()
-        assert "Exception in thread main: SparkException: bad jar" in str(exc_info.value)
+        assert 'Exception in thread "main" org.apache.spark.SparkException: bad jar' in str(exc_info.value)
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1013,23 +1013,53 @@ class TestSparkSubmitHook:
 
         assert hook._driver_id == "driver-20171128111415-0001"
 
-    def test_process_spark_submit_log_populates_last_submit_log_lines(self):
+    def test_process_spark_submit_log_captures_from_exception_marker_onward(self):
+        """Lines before the uncaught-exception marker are noise and get discarded."""
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
         log_lines = [
-            "Running Spark using the REST application submission protocol.",
-            "17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request "
-            "to launch an application in spark://spark-standalone-master:6066",
+            "WARNING: Using incubator modules: jdk.incubator.vector",
+            "26/07/27 09:43:44 INFO SparkKubernetesClientFactory: Auto-configuring K8S client",
+            'Exception in thread "main" io.fabric8.kubernetes.client.KubernetesClientException: boom',
+            "\tat io.fabric8.kubernetes.client.dsl.internal.OperationSupport.handleCreate(OS.java:340)",
         ]
 
         hook._process_spark_submit_log(log_lines)
 
-        assert list(hook._last_submit_log_lines) == log_lines
+        assert list(hook._last_submit_log_lines) == [line.strip() for line in log_lines[2:]]
 
-    def test_process_spark_submit_log_last_submit_log_lines_truncates_to_maxlen(self):
+    def test_process_spark_submit_log_without_exception_marker_uses_rolling_tail(self):
+        """No 'Exception in thread' anywhere -> falls back to the plain last-20 tail."""
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
-        log_lines = [f"line {i}" for i in range(25)]
+        log_lines = [f"plain output line {i}" for i in range(25)]
+
         hook._process_spark_submit_log(log_lines)
+
         assert list(hook._last_submit_log_lines) == log_lines[-20:]
+
+    def test_process_spark_submit_log_exception_message_survives_long_stack_trace(self):
+        """A message preceding 30+ stack frames must not roll off the buffer."""
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        message_line = (
+            'Exception in thread "main" io.fabric8.kubernetes.client.KubernetesClientException: '
+            'pods "arrow-spark-driver" is forbidden: exceeded quota: spark-demo-quota'
+        )
+        log_lines = [message_line] + [f"\tat some.deep.Frame.method{i}(Frame.java:{i})" for i in range(30)]
+
+        hook._process_spark_submit_log(log_lines)
+
+        assert next(iter(hook._last_submit_log_lines)) == message_line
+        assert "exceeded quota" in hook._submit_log_tail
+
+    def test_process_spark_submit_log_anchor_buffer_truncates_at_500(self):
+        """The widened post-anchor buffer still enforces its own maxlen."""
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        marker_line = 'Exception in thread "main" java.lang.RuntimeException: boom'
+        log_lines = [marker_line] + [f"line {i}" for i in range(505)]
+
+        hook._process_spark_submit_log(log_lines)
+
+        assert len(hook._last_submit_log_lines) == 500
+        assert list(hook._last_submit_log_lines) == [f"line {i}" for i in range(5, 505)]
 
     def test_process_spark_driver_status_log(self):
         # Given

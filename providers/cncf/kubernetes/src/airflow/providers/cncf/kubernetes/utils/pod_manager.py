@@ -1231,6 +1231,11 @@ class AsyncPodManager(LoggingMixin):
             container_name=container_name,
             since_seconds=(math.ceil((now - since_time).total_seconds()) if since_time else None),
         )
+        # CPU-bound per-line parse/emit, offloaded so it can't block the triggerer event loop.
+        await asyncio.to_thread(self._emit_container_logs, logs, now, container_name)
+        return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.
+
+    def _emit_container_logs(self, logs: list[str], now: DateTime, container_name: str) -> None:
         message_to_log = None
         try:
             now_seconds = now.replace(microsecond=0)
@@ -1266,4 +1271,3 @@ class AsyncPodManager(LoggingMixin):
                 else:
                     level = _parse_log_level(message_to_log)
                     self.log.log(level, "[%s] %s", container_name, message_to_log)
-        return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.

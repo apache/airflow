@@ -1,0 +1,13 @@
+Changes to how pending asset events trigger Dag runs
+
+Deleting asset event records with ``airflow db clean`` now also removes any
+asset events that are still pending for a downstream Dag. This mainly affects
+Dags waiting on a multi-asset condition, where a pending event can be purged
+before the condition is met. Deleting an asset event now consistently means it
+will not trigger a run; previously such a pending trigger could still fire after
+the event had been purged.
+
+Relatedly, an asset event that was queued for a Dag while it was scheduled on
+that asset is still used to trigger the run, and appears among the run's
+triggering events, even if the asset is later removed from the Dag's schedule.
+Previously, they were silently dropped.

@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Text } from "@chakra-ui/react";
-import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
+import { Box, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { Switch } from "src/components/ui";
 
+import { DagsFilterSelect } from "./DagsFilterSelect";
+
 type Props = {
   readonly onMenuScrollToBottom: () => void;
   readonly onMenuScrollToTop: () => void;
-  readonly onSelectTagsChange: (tags: MultiValue<{ label: string; value: string }>) => void;
+  readonly onSelectTagsChange: (tags: Array<string>) => void;
   readonly onTagModeChange: ({ checked }: { checked: boolean }) => void;
   readonly onUpdate: (newValue: string) => void;
   readonly selectedTags: Array<string>;
@@ -46,47 +47,18 @@ export const TagFilter = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <Box maxWidth="300px" minWidth="64px">
-      <Field.Root>
-        <ReactSelect
-          aria-label={translate("table.filterByTag")}
-          chakraStyles={{
-            clearIndicator: (provided) => ({
-              ...provided,
-              color: "gray.fg",
-            }),
-            container: (provided) => ({
-              ...provided,
-              maxWidth: 300,
-              minWidth: 64,
-            }),
-            control: (provided) => ({
-              ...provided,
-              colorPalette: "brand",
-            }),
-            menu: (provided) => ({
-              ...provided,
-              zIndex: 2,
-            }),
-          }}
-          isClearable
-          isMulti
-          noOptionsMessage={() => translate("table.noTagsFound")}
-          onChange={onSelectTagsChange}
-          onInputChange={(newValue) => onUpdate(newValue)}
-          onMenuScrollToBottom={onMenuScrollToBottom}
-          onMenuScrollToTop={onMenuScrollToTop}
-          options={tags.map((tag) => ({
-            label: tag,
-            value: tag,
-          }))}
-          placeholder={translate("table.tagPlaceholder")}
-          value={selectedTags.map((tag) => ({
-            label: tag,
-            value: tag,
-          }))}
-        />
-      </Field.Root>
+    <Box flex="0 1 300px" maxWidth="100%" width="300px">
+      <DagsFilterSelect
+        ariaLabel={translate("table.filterByTag")}
+        noOptionsMessage={translate("table.noTagsFound")}
+        onChange={onSelectTagsChange}
+        onInputChange={onUpdate}
+        onMenuScrollToBottom={onMenuScrollToBottom}
+        onMenuScrollToTop={onMenuScrollToTop}
+        options={tags}
+        placeholder={translate("table.tagPlaceholder")}
+        values={selectedTags}
+      />
       {selectedTags.length >= 2 && (
         <HStack align="center" gap={1}>
           <Text

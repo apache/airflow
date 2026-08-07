@@ -1,4 +1,24 @@
 {
+  "alerts": {
+    "seeLessContext": "Pokaż mniej",
+    "seeMoreContext": "Pokaż więcej",
+    "showMoreAlerts_few": "+{{count}} alerty więcej",
+    "showMoreAlerts_many": "+{{count}} alertów więcej",
+    "showMoreAlerts_one": "+{{count}} alert więcej",
+    "showMoreAlerts_other": "+{{count}} alerty więcej"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "Brak nadchodzących terminów",
+      "title": "Nadchodzące"
+    },
+    "recentlyMissed": {
+      "empty": "Brak niedotrzymanych terminów",
+      "title": "Niedotrzymane terminy"
+    },
+    "showMore": "Pokaż więcej",
+    "title": "Terminy"
+  },
   "deferredSlotsNotCounted": "Odłożone, ale nieliczone do slotów: {{count}}",
   "deferredSlotsNotCountedTooltip": "Odłożone zadania pokazane na pasku są liczone do slotów puli. Odłożone zadania pokazane pod paskiem pochodzą z pul, które liczą sloty, nie licząc odłożonych zadań.",
   "favorite": {
@@ -18,7 +38,7 @@
     "metaDatabase": "Baza Danych Meta",
     "scheduler": "Planer zadań",
     "status": "Stan",
-    "triggerer": "Cyngiel",
+    "triggerer": "Wyzwalacz",
     "unhealthy": "Nieprawidłowy"
   },
   "history": "Historia",

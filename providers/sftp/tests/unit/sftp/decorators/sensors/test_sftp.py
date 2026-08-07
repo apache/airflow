@@ -26,7 +26,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 pytestmark = pytest.mark.db_test
 

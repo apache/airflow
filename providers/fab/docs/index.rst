@@ -84,7 +84,7 @@ apache-airflow-providers-fab package
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 3.7.2
+Release: 3.8.0
 
 Provider package
 ----------------
@@ -108,7 +108,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  =====================================
 ``apache-airflow``                          ``>=3.0.2``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.18.0``
 ``blinker``                                 ``>=1.6.2``
 ``flask``                                   ``>=2.2.1``
 ``flask-appbuilder``                        ``==5.2.2``
@@ -153,5 +153,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-fab 3.7.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.7.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.7.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.7.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-fab 3.7.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.7.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.7.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.7.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-fab 3.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.8.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-fab 3.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.8.0-py3-none-any.whl.sha512>`__)

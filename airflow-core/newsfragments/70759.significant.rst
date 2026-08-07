@@ -1,0 +1,24 @@
+Audit log rows not tied to a Dag now require the ``AUDIT_LOGS_ALL`` view
+
+Rows in the audit log whose ``dag_id`` is ``NULL`` record operations that are not tied to a
+Dag, such as Connection, Variable and Pool changes. They were returned to any caller that
+could read event logs at all, because there is no per-Dag key to authorize them on and both
+read paths fell back to a Dag-level audit log check.
+
+They are now gated on a dedicated ``AccessView.AUDIT_LOGS_ALL``, in the same way
+``AccessView.IMPORT_ERRORS_ALL`` gates import errors for files with no registered Dag. Rows
+bound to a Dag keep their existing per-Dag check.
+
+**Behaviour changes:**
+
+- ``GET /eventLogs`` no longer returns rows with a ``NULL`` ``dag_id`` to callers without the
+  new view, and excludes them from ``total_entries`` and pagination.
+  ``GET /eventLogs/{event_log_id}`` returns ``403`` for such a row. An id matching no row
+  still returns ``404``.
+- With the simple auth manager the view is granted to the ``ADMIN`` role only. With the FAB
+  auth manager it maps to a new ``All Audit Logs`` resource, which ships in the ``Admin``
+  role; custom roles that need to read these rows must be granted
+  ``All Audit Logs.can_read`` explicitly.
+- An auth manager that cannot map a requested ``AccessView`` now denies that view and emits
+  a ``UserWarning`` instead of raising ``KeyError``. This affects auth managers older than
+  the core they run against, which previously failed the request with a server error.

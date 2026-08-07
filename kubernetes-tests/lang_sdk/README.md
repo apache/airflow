@@ -74,6 +74,12 @@ Everything else — `airflow-core/`, `task-sdk/`, the deployed Airflow image, an
 `go_example`/`java_example` harness fixtures — still comes from the checked-out branch as before, so a
 backport of a core/task-sdk fix to a release-test branch keeps testing against current SDK code.
 
+Because the branch's `go_example` and upstream main's `go-sdk` can diverge (a branch may change
+go-sdk's dependency graph while `go_example`'s committed `go.sum` is tidied against the in-repo
+go-sdk), the Go bundle build re-runs `go mod tidy` in its scratch workspace before packing, so the
+build reconciles to whichever `go-sdk` it is compiled against. The committed `go_example` `go.sum`
+is untouched and stays guarded by the `check-go-example-mod-tidy` prek hook.
+
 ## Running it
 
 The artifacts, localstack, config, and Helm release are provisioned by a single breeze

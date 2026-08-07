@@ -53,6 +53,7 @@ type Props = {
   readonly onJumpToLatest: () => void;
   readonly runAfterGte?: string;
   readonly runAfterLte?: string;
+  readonly runIdPattern?: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly setOffset: (value: number) => void;
   readonly sharedScrollContainerRef?: RefObject<HTMLDivElement | null>;
@@ -62,6 +63,7 @@ type Props = {
 };
 
 const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
+const ScrollbarSpacer = () => <Box aria-hidden flexShrink={0} minWidth="16px" width="16px" />;
 
 export const Grid = ({
   dagRunState,
@@ -70,6 +72,7 @@ export const Grid = ({
   onJumpToLatest,
   runAfterGte,
   runAfterLte,
+  runIdPattern,
   runType,
   setOffset,
   sharedScrollContainerRef,
@@ -99,6 +102,7 @@ export const Grid = ({
     offset,
     runAfterGte,
     runAfterLte,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -121,6 +125,7 @@ export const Grid = ({
     includeUpstream,
     limit,
     root: filterRoot,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -189,9 +194,25 @@ export const Grid = ({
 
   const gridHeaderAndBody = (
     <>
-      {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
-      <Flex bg="bg" display="flex" position="sticky" pt={`${GRID_HEADER_PADDING_PX}px`} top={0} zIndex={2}>
-        <Box bg="bg" left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
+      {/* Grid header. minWidth stretches the header past the scrollport so its bg covers every run
+        column during horizontal scroll; the padding sits on the children so the sticky task name
+        column's bg spans the full header height and hides bars scrolled behind it. */}
+      <Flex
+        bg="bg"
+        display="flex"
+        minWidth={usesSharedScroll ? undefined : "max-content"}
+        position="sticky"
+        top={0}
+        zIndex={2}
+      >
+        <Box
+          bg="bg"
+          left={0}
+          position="sticky"
+          pt={`${GRID_HEADER_PADDING_PX}px`}
+          zIndex={1}
+          {...taskNameColumnStyles}
+        >
           <Flex flexDirection="column-reverse" height={`${GRID_HEADER_HEIGHT_PX}px`} position="relative">
             {Boolean(gridRuns?.length) && (
               <>
@@ -202,12 +223,13 @@ export const Grid = ({
           </Flex>
         </Box>
         {/* Duration bars */}
-        <Flex flexDirection="row-reverse" flexShrink={0}>
+        <Flex flexDirection="row-reverse" flexShrink={0} pt={`${GRID_HEADER_PADDING_PX}px`}>
           <Flex flexShrink={0} position="relative">
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
             <DurationAxis top="4px" />
             <Flex flexDirection="row-reverse">
+              {!showGantt && <ScrollbarSpacer />}
               {runsWithVersionFlags?.map((dr) => (
                 <Bar
                   key={dr.run_id}
@@ -237,6 +259,7 @@ export const Grid = ({
           <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
         </Box>
         <Flex flexDirection="row-reverse" flexShrink={0}>
+          {!showGantt && <ScrollbarSpacer />}
           {gridRuns?.map((dr: GridRunsResponse) => (
             <TaskInstancesColumn
               key={dr.run_id}
@@ -273,7 +296,6 @@ export const Grid = ({
           marginRight={showGantt ? 0 : 1}
           minH={0}
           overflow="auto"
-          paddingRight={showGantt ? 0 : 6}
           position="relative"
           ref={scrollContainerRef}
         >

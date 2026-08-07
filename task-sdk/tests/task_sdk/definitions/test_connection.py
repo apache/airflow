@@ -104,7 +104,16 @@ class TestConnections:
         assert parsed_uri.path.lstrip("/") == "test_schema"
 
     def test_conn_get(self, mock_supervisor_comms):
-        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
+        )
         mock_supervisor_comms.send.return_value = conn_result
 
         conn = Connection.get(conn_id="mysql_conn")

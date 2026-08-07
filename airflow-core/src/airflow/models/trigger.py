@@ -250,13 +250,12 @@ class Trigger(Base):
                 )
 
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
-        ids = (
-            select(cls.id)
-            .where(~cls.assets.any(), ~cls.callback.has())
-            .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
-            .group_by(cls.id)
-            .having(func.count(TaskInstance.trigger_id) == 0)
+        ids = select(cls.id).where(
+            ~cls.assets.any(),
+            ~cls.callback.has(),
+            ~cls.task_instance.has(),
         )
+        ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
         if get_dialect_name(session) == "mysql":
             # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
             ids_list = list(session.scalars(ids).all())
@@ -501,6 +500,55 @@ class Trigger(Base):
         return result
 
 
+def _decode_next_kwargs(next_kwargs_raw: Any) -> dict[str, Any]:
+    """
+    Decode the stored ``next_kwargs`` of a task instance into a plain dict.
+
+    Deserialize with serde first to provide a compat layer if there are mixed serialized
+    (BaseSerialisation and serde) data, which can happen if a deferred task resumes after upgrade.
+
+    The result is checked here rather than assumed, so callers never have to trust the shape of
+    what comes back out of the stored payload.
+
+    :raise ValueError: The payload did not decode to a dict.
+    :raise Exception: Whatever the two decoders raise on a payload they cannot read -- the stored
+        blob is arbitrary, so the set is open and callers have to treat it as such.
+    """
+    from airflow.sdk.serde import deserialize
+
+    try:
+        next_kwargs = deserialize(next_kwargs_raw)
+    except (ImportError, KeyError, AttributeError, TypeError):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
+
+    if not isinstance(next_kwargs, dict):
+        raise ValueError(f"next_kwargs decoded to {type(next_kwargs).__name__}, expected a dict")
+    return next_kwargs
+
+
+def _fail_unresumable_task_instance(
+    task_instance: TaskInstance, reason: str, exc: BaseException, *, session: Session
+) -> None:
+    """
+    Route through ``__fail__`` so a worker fails the task normally instead of stranding it.
+
+    Mirrors ``Trigger.submit_failure``: without this the task is left with no event to resume it.
+    Traceback goes into ``next_kwargs`` as a list -- the only channel reaching the task log --
+    since ``format_exception`` returns it that way and the runtime joins it.
+    """
+    task_instance.next_method = TRIGGER_FAIL_REPR
+    task_instance.next_kwargs = {
+        "error": reason,
+        "traceback": format_exception(type(exc), exc, exc.__traceback__),
+    }
+    task_instance.trigger_id = None
+    task_instance.state = TaskInstanceState.SCHEDULED
+    task_instance.scheduled_dttm = timezone.utcnow()
+    session.flush()
+
+
 @singledispatch
 def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, session: Session) -> None:
     """
@@ -510,33 +558,66 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     as well as its state to scheduled. It also adds the event's payload
     into the kwargs for the task.
 
+    A task instance whose stored kwargs cannot be decoded, or which the event payload cannot be
+    encoded into, is failed rather than resumed. This runs in the triggerer, the scheduler and the
+    API processes, each of which handles every waiting task instance in one pass, so a single
+    unusable payload must not be able to abort the caller. The triggerer had the worst of it: an
+    event whose submit raised was left unconfirmed and redelivered indefinitely.
+
+    Failing the task instance is not free for every caller: a Human-in-the-loop response whose
+    ``params_input`` serde cannot encode is now recorded and discarded rather than rejected, which
+    the submitter cannot retry. That wants validating on the write side; tracked at
+    https://github.com/apache/airflow/issues/71036
+
     :param task_instance: The task instance to handle the submit event for.
     :param session: The session to be used for the database callback sink.
     """
-    from airflow.sdk.serde import deserialize, serialize
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk.serde import serialize
 
     next_kwargs_raw = task_instance.next_kwargs or {}
 
-    # deserialize first to provide a compat layer if there are mixed serialized (BaseSerialisation and serde) data
-    # which can happen if a deferred task resumes after upgrade
+    # Decoding and re-encoding fail for different reasons and are reported separately: blaming the
+    # stored kwargs for a payload the trigger just yielded would point the author at DB state that
+    # was never the problem.
     try:
-        next_kwargs = deserialize(next_kwargs_raw)
-    except (ImportError, KeyError, AttributeError, TypeError):
-        from airflow.serialization.serialized_objects import BaseSerialization
-
-        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
+        next_kwargs = _decode_next_kwargs(next_kwargs_raw)
+    except Exception as exc:
+        log.exception(
+            "Could not decode the stored next_kwargs of %s; failing it instead of resuming it",
+            task_instance,
+        )
+        _fail_unresumable_task_instance(
+            task_instance,
+            "Could not resume the task: its stored next_kwargs could not be decoded "
+            f"({type(exc).__name__}: {exc})",
+            exc,
+            session=session,
+        )
+        return
 
     # Add event to the plain dict, then serialize everything together so nested
     # non-primitive values get proper serde encoding.
-    if TYPE_CHECKING:
-        assert isinstance(next_kwargs, dict)
     next_kwargs["event"] = event.payload
+    try:
+        # Re-serialize using serde. The Execution API version converter
+        # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
+        # BaseSerialization format when serving old workers.
+        serialized_next_kwargs = serialize(next_kwargs)
+    except Exception as exc:
+        log.exception(
+            "Could not serialize the event payload for %s; failing it instead of resuming it",
+            task_instance,
+        )
+        _fail_unresumable_task_instance(
+            task_instance,
+            f"Could not resume the task: the event payload could not be serialized "
+            f"({type(exc).__name__}: {exc})",
+            exc,
+            session=session,
+        )
+        return
 
-    # Re-serialize using serde. The Execution API version converter
-    # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
-    # BaseSerialization format when serving old workers.
-    task_instance.next_kwargs = serialize(next_kwargs)
+    task_instance.next_kwargs = serialized_next_kwargs
 
     # Remove ourselves as its trigger
     task_instance.trigger_id = None
@@ -561,13 +642,35 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
     from airflow.utils.state import TaskInstanceState
 
-    # Mark the task with terminal state and prevent it from resuming on worker
+    # Prevent the task from resuming on a worker.
     task_instance.trigger_id = None
-    task_instance.set_state(event.task_instance_state, session=session)
+
+    callback_type = event.task_instance_state
+    should_retry = False
+
+    if event.task_instance_state == TaskInstanceState.FAILED:
+        # Load the serialized task so retry eligibility matches the normal task path.
+        try:
+            from airflow.models.dagbag import DBDagBag
+
+            dag = DBDagBag().get_dag_for_run(dag_run=task_instance.dag_run, session=session)
+            if dag is not None:
+                task_instance.task = dag.get_task(task_instance.task_id)
+                should_retry = task_instance.is_eligible_to_retry()
+        except Exception:
+            log.exception(
+                "Could not load task for %s; failing terminally without retry routing", task_instance
+            )
+        if should_retry:
+            callback_type = TaskInstanceState.UP_FOR_RETRY
 
     def _submit_callback_if_necessary() -> None:
-        """Submit a callback request if the task state is SUCCESS or FAILED."""
-        if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
+        """Submit a callback request if the task state is SUCCESS, FAILED, or UP_FOR_RETRY."""
+        if callback_type in (
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.UP_FOR_RETRY,
+        ):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
             from airflow.models.dag_version import _resolve_version_data
@@ -591,7 +694,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
-                task_callback_type=event.task_instance_state,
+                task_callback_type=callback_type,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
                 version_data=version_data,
@@ -604,10 +707,22 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
 
     def _push_xcoms_if_necessary() -> None:
         """Pushes XComs to the database if they are provided."""
-        if event.xcoms:
+        if event.xcoms and callback_type != TaskInstanceState.UP_FOR_RETRY:
             for key, value in event.xcoms.items():
                 task_instance.xcom_push(key=key, value=value)
 
+    # Send the callback before mutating task state so it reflects the retry-vs-terminal
+    # decision derived above.
     _submit_callback_if_necessary()
+
+    if should_retry:
+        task_instance.end_date = timezone.utcnow()
+        task_instance.set_duration()
+        task_instance.clear_next_method_args()
+        task_instance.prepare_db_for_next_try(session)
+        task_instance.state = TaskInstanceState.UP_FOR_RETRY
+    else:
+        task_instance.set_state(event.task_instance_state, session=session)
+
     _push_xcoms_if_necessary()
     session.flush()

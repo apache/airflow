@@ -74,13 +74,13 @@ export const HistoricalMetrics = ({ endDate, startDate }: HistoricalMetricsProps
             {!isLoading && data !== undefined && (
               <Box>
                 <DagRunMetrics
+                  countsAreLowerBounds={data.dag_run_counts_are_lower_bounds ?? false}
                   dagRunStates={data.dag_run_states}
                   startDate={startDate}
-                  stateCountLimit={data.state_count_limit}
                 />
                 <TaskInstanceMetrics
+                  countsAreLowerBounds={data.task_instance_counts_are_lower_bounds ?? false}
                   startDate={startDate}
-                  stateCountLimit={data.state_count_limit}
                   taskInstanceStates={data.task_instance_states}
                 />
               </Box>

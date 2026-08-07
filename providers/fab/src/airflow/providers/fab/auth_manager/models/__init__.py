@@ -363,6 +363,9 @@ class User(Model, BaseUser):
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
 
+    def get_display_name(self) -> str:
+        return self.get_full_name()
+
     def __repr__(self):
         return self.get_full_name()
 

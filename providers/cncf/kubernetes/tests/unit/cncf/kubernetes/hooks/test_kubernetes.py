@@ -39,6 +39,7 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     AsyncKubernetesHook,
     KubernetesHook,
+    _split_log_bytes,
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
 )
@@ -1856,6 +1857,29 @@ class TestAsyncKubernetesHook:
         assert "\ufffd" in logs[1]
         lib_method.assert_called_once()
         assert lib_method.call_args.kwargs.get("_preload_content") is False
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.to_thread", new_callable=mock.AsyncMock)
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_read_logs_decodes_off_the_event_loop(self, lib_method, mock_to_thread, kube_config_loader):
+        """The CPU-bound decode/splitlines is offloaded to a worker thread, not run on the loop."""
+        raw_bytes = b"2023-01-11 Some string logs..."
+        mock_raw_resp = mock.AsyncMock()
+        mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
+        lib_method.return_value = self.mock_await_result(mock_raw_resp)
+        mock_to_thread.return_value = ["decoded line"]
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        logs = await hook.read_logs(name=POD_NAME, namespace=NAMESPACE, container_name=CONTAINER_NAME)
+
+        assert logs == ["decoded line"]
+        mock_to_thread.assert_awaited_once_with(_split_log_bytes, raw_bytes)
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))

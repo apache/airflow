@@ -38,8 +38,12 @@ from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, Ve
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
-from airflow.providers.openai.hooks.openai import OpenAIHook
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+    OpenAITriggerEventError,
+)
+from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_complete_event
 
 ASSISTANT_ID = "test_assistant_abc123"
 ASSISTANT_NAME = "Test Assistant"
@@ -872,3 +876,34 @@ def test_get_conn_workload_identity_custom_missing_token_provider():
     conn = _make_workload_identity_conn("wi_custom_missing", {"workload_identity_provider": "custom"})
     with pytest.raises(ValueError, match="Missing required 'token_provider'"):
         OpenAIHook(conn_id=conn.conn_id).get_conn()
+
+
+class TestValidateTriggerEvent:
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param({}, "Unexpected trigger event status None", id="missing-status"),
+            pytest.param(
+                {"status": "expired", "batch_id": BATCH_ID},
+                "Unexpected trigger event status",
+                id="unknown-status",
+            ),
+        ],
+    )
+    def test_invalid_event_raises(self, event, match):
+        with pytest.raises(OpenAITriggerEventError, match=match):
+            validate_execute_complete_event(event)
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param({"status": "success", "batch_id": BATCH_ID}, id="success"),
+            pytest.param({"status": "error", "batch_id": BATCH_ID, "message": "boom"}, id="error"),
+            pytest.param(
+                {"status": "cancelled", "batch_id": BATCH_ID, "message": "cancelled"}, id="cancelled"
+            ),
+        ],
+    )
+    def test_valid_event_is_returned(self, event):
+        assert validate_execute_complete_event(event) is event

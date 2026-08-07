@@ -1120,7 +1120,7 @@ class TestS3DeleteObjectsOperator:
     )
     def test_validate_keys_and_filters_in_constructor(self, keys, prefix, from_datetime, to_datetime):
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match=r"Either keys or at least one of prefix, from_datetime, to_datetime should be set.",
         ):
             S3DeleteObjectsOperator(

@@ -24,15 +24,14 @@ import pytest
 
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.ftp.operators.ftp import (
     FTPFileTransmitOperator,
     FTPOperation,
     FTPSFileTransmitOperator,
 )
-from airflow.utils import timezone
-from airflow.utils.timezone import datetime
 
-DEFAULT_DATE = datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 DEFAULT_CONN_ID = "ftp_default"
 
 

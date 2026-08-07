@@ -324,7 +324,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             _, response_json = self._make_api_call_with_retries(
                 method="GET", url=url, headers=header, params=params
             )
-            self.log.info(response_json)
+            self.log.info("Snowflake SQL API result for query %s: %s", query_id, response_json)
 
     def _process_response(self, status_code, resp):
         self.log.info("Snowflake SQL GET statements status API response: %s", resp)

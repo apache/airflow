@@ -130,6 +130,7 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 @dataclass
 class ConfigParams:
     airflow_constraints_mode: str
+    allow_pre_releases: bool
     constraints_github_repository: str
     default_constraints_branch: str
     github_actions: bool
@@ -458,6 +459,19 @@ def get_all_active_provider_distributions(python_version: str | None = None) -> 
     ]
 
 
+def build_provider_pre_release_requirements(python_version: str) -> list[str]:
+    """Requirements that let only the providers resolve to a pre-release.
+
+    uv considers a pre-release for a package only when some requirement for it mentions one, so a
+    pre-release lower bound on each provider confines the allowance to them. `--pre` would apply to
+    the whole resolution and could put a pre-release of any third-party dependency into the
+    constraints a release ships.
+    """
+    return [
+        f"{distribution}>=0.0.0rc0" for distribution in get_all_active_provider_distributions(python_version)
+    ]
+
+
 def generate_constraints_source_providers(config_params: ConfigParams) -> None:
     """
     Generates constraints with provider dependencies used from current sources. This might be different
@@ -512,22 +526,55 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     # * pyarrow>=22.0.0 on Python 3.14 — older pyarrow releases have no prebuilt wheels for
     #   Python 3.14 and uv falls back to building from source, which fails. pyarrow 22.0.0 is
     #   the first release shipping cp314 wheels.
-    # * pymysql<1.2 — pymysql 1.2.0 changed Connection.ping() to require `reconnect` as a
-    #   positional arg, which breaks SQLAlchemy's AsyncAdapt_aiomysql_connection.ping() (it
-    #   has no default for `reconnect`). The released apache-airflow-providers-mysql on PyPI
-    #   does not yet carry this cap, so we mirror it here so PyPI constraints stay installable
-    #   until the SQLAlchemy fix is released. Tracked upstream at
-    #   https://github.com/sqlalchemy/sqlalchemy/issues/13306
-    # * databricks-sql-connector>=4.0.0 - added to keep databricks-sql-connector from downgrading
-    #   because of https://github.com/apache/thrift/pull/3584 - which shipped thrift 0.24.0. Older
-    #   versions of databricks-sql-connector do not have the thrift<=0.23.0 limitation, so the
-    #   resolver preferred the latest thrift over the latest connector and downgraded the connector.
-    #   This is tracked in https://github.com/databricks/databricks-sql-python/issues/859
+    # * gremlinpython>=3.8.0 — older versions of gremlinpython have more relaxed dependencies and
+    #   resolver might choose to downgrade gremlinpython to an older version,
+    #   which in turn might downgrade tinkerpop provider. Having gremlinpython>=3.8.0 ensures
+    #   that the resolver will not downgrade the provider.
+    # * opentelemetry-exporter-prometheus>=0.47b0 — this package only ever publishes beta versions
+    #   (airflow-core requires ``>=0.47b0`` and released constraints already pin a beta, e.g.
+    #   ``==0.65b0``). For a release candidate the resolution runs with ``--prerelease explicit``,
+    #   which permits a pre-release only for a package some requirement marks as such and drops the
+    #   if-necessary fallback; without this entry the package cannot resolve and generation fails
+    #   with "No solution found". Keeping it here (rather than the provider pre-release list) marks
+    #   it as an always-allowed pre-release across every resolution, matching how it already ships.
+    # * opentelemetry-semantic-conventions>=0.48b0 — same story: a beta-only package, pulled in as a
+    #   hard dependency of opentelemetry-sdk (via opentelemetry-exporter-otlp and shared/observability),
+    #   so the ``--prerelease explicit`` resolution needs the same explicit mark. The floor only marks
+    #   it as a pre-release and must stay at the version paired with our ``opentelemetry-*>=1.27.0``
+    #   floor — opentelemetry-sdk exact-pins the semantic conventions version it ships with, so a
+    #   higher floor here would conflict with any sdk older than that pairing.
+    #
+    # These two are the only pre-releases in the constraints we tag, and removing the need for the
+    # exception is tracked at https://github.com/apache/airflow/issues/71176
+    #
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
-        "pymysql>=1.0.3,<1.2",
-        "databricks-sql-connector>=4.0.0",
+        "gremlinpython>=3.8.0",
+        "opentelemetry-exporter-prometheus>=0.47b0",
+        "opentelemetry-semantic-conventions>=0.48b0",
     ]
+
+    # Constraints cut for a release candidate have to pin the candidates themselves - the providers
+    # for that wave exist on PyPI only as rcN versions, and uv will not resolve to a pre-release
+    # unless asked. The final release regenerates these without it, so a released constraints file
+    # can never carry an rc pin.
+    #
+    # Scoped to the providers rather than passing `--pre`, which applies to the whole resolution
+    # and would let any dependency answer with a pre-release - putting, say, a beta of a
+    # third-party library into the constraints a release ships. uv has no per-package pre-release
+    # flag, so the scoping is expressed the way it does support: `explicit` permits a pre-release
+    # only for a package some requirement marks as such, and the rc lower bound below is that mark.
+    # `explicit` rather than the default `if-necessary-or-explicit` also drops the fallback that
+    # would otherwise let an unmarked package resolve to a pre-release when no final satisfies.
+    pre_release_requirements: list[str] = []
+    pre_release_strategy: list[str] = []
+    if config_params.allow_pre_releases:
+        pre_release_requirements = build_provider_pre_release_requirements(config_params.python)
+        pre_release_strategy = ["--prerelease", "explicit"]
+        console.print(
+            f"[bright_blue]Allowing pre-releases for {len(pre_release_requirements)} provider "
+            "distributions - no other package can resolve to one."
+        )
 
     result = run_command(
         cmd=[
@@ -542,6 +589,8 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             f"apache-airflow-task-sdk=={AIRFLOW_TASK_SDK_VERSION}",
             "./airflow-ctl",
             *additional_constraints_for_highest_resolution,
+            *pre_release_requirements,
+            *pre_release_strategy,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
@@ -640,8 +689,17 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     help="Use uv instead of pip as packaging tool.",
     envvar="USE_UV",
 )
+@click.option(
+    "--allow-pre-releases",
+    is_flag=True,
+    default=False,
+    help="Allow pre-release versions of Airflow and providers to be pinned. Used when constraints "
+    "are generated for a release candidate, whose providers are only on PyPI as rc versions.",
+    envvar="ALLOW_PRE_RELEASES",
+)
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     constraints_github_repository: str,
     default_constraints_branch: str,
     github_actions: bool,
@@ -650,6 +708,7 @@ def generate_constraints(
 ) -> None:
     config_params = ConfigParams(
         airflow_constraints_mode=airflow_constraints_mode,
+        allow_pre_releases=allow_pre_releases,
         constraints_github_repository=constraints_github_repository,
         default_constraints_branch=default_constraints_branch,
         github_actions=github_actions,

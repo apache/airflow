@@ -20,6 +20,24 @@
 Changelog
 ---------
 
+1.6.7
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CohereEmbeddingOperator input_text normalization before rendering (#70325)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 1.6.6
 .....
 
@@ -225,7 +243,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 1.4.1
 .....

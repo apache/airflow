@@ -174,19 +174,6 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
         self.task_execution_kwargs = task_execution_kwargs or {}
         self.delete_task_after_execution = delete_task_after_execution
 
-        # Validations
-        valid = False
-        if self.task_arn:
-            valid = True
-        if self.source_location_uri and self.destination_location_uri:
-            valid = True
-        if not valid:
-            raise AirflowException(
-                f"Either specify task_arn or both source_location_uri and destination_location_uri. "
-                f"task_arn={task_arn!r}, source_location_uri={source_location_uri!r}, "
-                f"destination_location_uri={destination_location_uri!r}"
-            )
-
         # Candidates - these are found in AWS as possible things
         # for us to use
         self.candidate_source_location_arns: list[str] | None = None
@@ -201,7 +188,22 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
     def _hook_parameters(self) -> dict[str, Any]:
         return {**super()._hook_parameters, "wait_interval_seconds": self.wait_interval_seconds}
 
+    def validate_inputs(self) -> None:
+        valid = False
+        if self.task_arn:
+            valid = True
+        if self.source_location_uri and self.destination_location_uri:
+            valid = True
+        if not valid:
+            raise AirflowException(
+                f"Either specify task_arn or both source_location_uri and destination_location_uri. "
+                f"task_arn={self.task_arn!r}, source_location_uri={self.source_location_uri!r}, "
+                f"destination_location_uri={self.destination_location_uri!r}"
+            )
+
     def execute(self, context: Context):
+        self.validate_inputs()
+
         # If task_arn was not specified then try to
         # find 0, 1 or many candidate DataSync Tasks to run
         if not self.task_arn:

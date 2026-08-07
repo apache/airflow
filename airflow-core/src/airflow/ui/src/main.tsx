@@ -29,6 +29,7 @@ import * as ReactRouterDOM from "react-router-dom";
 import * as ReactJSXRuntime from "react/jsx-runtime";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
+import { pruneLegacyDependencyKeys } from "src/constants/localStorage";
 import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
 import { ShortcutRegistryProvider } from "src/context/keyboardShortcuts";
@@ -94,6 +95,8 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+pruneLegacyDependencyKeys();
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>

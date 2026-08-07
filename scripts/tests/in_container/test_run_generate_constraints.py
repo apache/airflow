@@ -109,3 +109,42 @@ class TestCheckProvidersNotDowngraded:
         latest.write_text("apache-airflow-providers-amazon==not-a-version\n")
         current.write_text("apache-airflow-providers-amazon==also-bad\n")
         m.check_providers_not_downgraded(_config(latest, current))
+
+
+class TestBuildProviderPreReleaseRequirements:
+    """Pre-releases are allowed for the providers only, never for the whole resolution."""
+
+    def test_every_requirement_names_a_provider_and_permits_a_pre_release(self, monkeypatch):
+        monkeypatch.setattr(
+            m,
+            "get_all_active_provider_distributions",
+            lambda python_version=None: [
+                "apache-airflow-providers-amazon",
+                "apache-airflow-providers-cncf-kubernetes",
+            ],
+        )
+
+        requirements = m.build_provider_pre_release_requirements("3.10")
+
+        assert requirements == [
+            "apache-airflow-providers-amazon>=0.0.0rc0",
+            "apache-airflow-providers-cncf-kubernetes>=0.0.0rc0",
+        ]
+        # The rc lower bound is what marks the package as explicit to uv; without it the
+        # requirement would not permit a pre-release at all.
+        assert all(requirement.endswith(">=0.0.0rc0") for requirement in requirements)
+        assert all(requirement.startswith("apache-airflow-providers-") for requirement in requirements)
+
+    def test_the_python_version_is_passed_through(self, monkeypatch):
+        """Providers excluded on a Python version must not be named for it."""
+        seen: list[str | None] = []
+
+        def fake_distributions(python_version=None):
+            seen.append(python_version)
+            return []
+
+        monkeypatch.setattr(m, "get_all_active_provider_distributions", fake_distributions)
+
+        m.build_provider_pre_release_requirements("3.14")
+
+        assert seen == ["3.14"]

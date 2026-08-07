@@ -829,6 +829,11 @@ def _build_python_docs(
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
+    # Docs are always built on the default Python. The Sphinx configuration mocks third-party
+    # modules, and what that mocking does depends on the interpreter - on 3.12 functools copies
+    # __type_params__, for which a mock returns another mock rather than a tuple, so providers
+    # decorating methods with functools.wraps over a mocked callable fail to import. Letting a
+    # caller pick the interpreter here silently changes what the docs build can document.
     build_params = BuildCiParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,

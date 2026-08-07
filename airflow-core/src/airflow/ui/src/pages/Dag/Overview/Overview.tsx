@@ -32,6 +32,7 @@ import {
 import type { ReactAppResponse } from "openapi/requests/types.gen";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
+import { SlowestTaskInstancesChart } from "src/components/SlowestTaskInstancesChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { dagRunsLimitKey } from "src/constants/localStorage";
@@ -65,6 +66,21 @@ export const Overview = () => {
   });
 
   const failedTaskCount = failedTasks?.total_entries ?? 0;
+
+  const { data: slowestTaskInstancesData, isLoading: isLoadingSlowestTaskInstances } =
+    useTaskInstanceServiceGetTaskInstances(
+      {
+        dagId: dagId ?? "",
+        dagRunId: "~",
+        limit: 10,
+        orderBy: ["-duration"],
+        runAfterGte: startDate,
+        runAfterLte: endDate,
+        state: ["success", "failed"],
+      },
+      undefined,
+      { enabled: Boolean(dagId) },
+    );
 
   const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
 
@@ -153,6 +169,21 @@ export const Overview = () => {
               isAutoRefreshing={isAutoRefreshing}
               kind="Dag Run"
             />
+          )}
+        </Box>
+        <Box
+          borderRadius={4}
+          borderStyle="solid"
+          borderWidth={1}
+          flex="1 1 520px"
+          maxWidth="900px"
+          minWidth="320px"
+          p={2}
+        >
+          {isLoadingSlowestTaskInstances ? (
+            <Skeleton height="380px" w="full" />
+          ) : (
+            <SlowestTaskInstancesChart taskInstances={slowestTaskInstancesData?.task_instances ?? []} />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (

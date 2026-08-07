@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 import attrs
 import methodtools
 
+from airflow._shared.dagnode.node import TaskGroupMixin
 from airflow.serialization.definitions.node import DAGNode
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 
 
 @attrs.define(eq=False, hash=False, kw_only=True)
-class SerializedTaskGroup(DAGNode):
+class SerializedTaskGroup(TaskGroupMixin, DAGNode):
     """Serialized representation of a TaskGroup used in protected processes."""
 
     _group_id: str | None = attrs.field(alias="group_id")
@@ -215,7 +216,9 @@ class SerializedTaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
-    def topological_sort(self) -> list[DAGNode]:
+    def topological_sort(
+        self, *, group_dict: dict[str | None, SerializedTaskGroup] | None = None
+    ) -> list[DAGNode]:
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
@@ -231,11 +234,13 @@ class SerializedTaskGroup(DAGNode):
         nodes = list(children.values())
         n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
+        if group_dict is None:
+            group_dict = self.dag.task_group.get_task_group_dict()
 
         projected: list[tuple[int, ...]] = [()] * n
         nodes_with_back_edge = 0
         for i, child in enumerate(nodes):
-            deps = self._project_child_deps(i, child, id_to_idx)
+            deps = self._project_child_deps(i, child, id_to_idx, group_dict)
             if deps:
                 projected[i] = deps
                 if any(d > i for d in deps):
@@ -248,9 +253,13 @@ class SerializedTaskGroup(DAGNode):
         return self._sweep_projection(nodes, projected)
 
     def _project_child_deps(
-        self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
+        self,
+        child_idx: int,
+        child: DAGNode,
+        id_to_idx: dict[str, int],
+        group_dict: dict[str | None, SerializedTaskGroup],
     ) -> tuple[int, ...]:
-        upstream_ids = child.upstream_task_ids
+        upstream_ids = child._topological_upstream_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
@@ -260,8 +269,10 @@ class SerializedTaskGroup(DAGNode):
                 if j != child_idx:
                     sib_deps.add(j)
                 continue
-            edge = self.dag.get_task(edge_id)
-            tg = edge.task_group
+            tg = group_dict.get(edge_id)
+            if tg is None:
+                edge = self.dag.get_task(edge_id)
+                tg = edge.task_group
             while tg is not None:
                 anc_idx = id_to_idx.get(tg.node_id)
                 if anc_idx is not None:

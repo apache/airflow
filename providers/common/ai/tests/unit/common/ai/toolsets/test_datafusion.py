@@ -25,6 +25,7 @@ import pytest
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.abstract import ToolsetTool
+from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.datafusion import (
     _RETRYABLE_QUERY_ERROR_PATTERNS,
@@ -105,6 +106,24 @@ class TestDataFusionToolsetGetTools:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
         for tool in tools.values():
             assert tool.tool_def.description
+
+
+class TestDataFusionToolsetArgsValidation:
+    @pytest.mark.parametrize(
+        ("tool_name", "valid_args"),
+        [
+            ("get_schema", {"table_name": "sales_data"}),
+            ("query", {"sql": "SELECT 1"}),
+        ],
+    )
+    def test_enforces_required_args(self, tool_name, valid_args):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+        validator = tools[tool_name].args_validator
+        assert validator.validate_python(valid_args) == valid_args
+        with pytest.raises(ValidationError):
+            validator.validate_python({})
 
 
 class TestDataFusionToolsetListTables:

@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 from google.cloud.exceptions import GoogleCloudError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     LifecycleStateChange,
@@ -255,7 +256,8 @@ class TestGoogleCloudStorageListOperator:
         operator = GCSListObjectsOperator(
             task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
-        files = operator.execute(context=mock.MagicMock())
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Usage of 'delimiter' is deprecated"):
+            files = operator.execute(context=mock.MagicMock())
         mock_hook.return_value.list.assert_called_once_with(
             bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER, match_glob=None
         )

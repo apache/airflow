@@ -116,6 +116,10 @@ Deadline Alerts
 
 .. autoclass:: airflow.sdk.DeadlineReference
 
+.. autoclass:: airflow.sdk.BaseDeadlineReference
+
+.. autofunction:: airflow.sdk.deadline_reference
+
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection
@@ -297,6 +301,10 @@ See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a con
 .. rubric:: Native executable (e.g. Go)
 
 .. autoapiclass:: airflow.sdk.coordinators.executable.ExecutableCoordinator
+
+.. rubric:: Node.js (TypeScript)
+
+.. autoapiclass:: airflow.sdk.coordinators.node.NodeCoordinator
 
 Execution Time Components
 -------------------------

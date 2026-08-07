@@ -128,6 +128,9 @@ class TaskDoneTrigger(BaseTrigger):
         Will fail after that many unsuccessful attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: The AWS region where the cluster is located. Used to build the hook.
+    :param log_region_name: The AWS region where the CloudWatch logs are stored. Defaults to
+        ``region_name`` when not set, which is correct unless the task definition ships its logs
+        to another region.
     :param verify: Whether or not to verify SSL certificates. Used to build the hook.
     :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     :param region: (deprecated) use ``region_name`` instead.
@@ -146,6 +149,7 @@ class TaskDoneTrigger(BaseTrigger):
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
         region: str | None = None,
+        log_region_name: str | None = None,
     ):
         if region is not None:
             warnings.warn(
@@ -167,6 +171,7 @@ class TaskDoneTrigger(BaseTrigger):
 
         self.log_group = log_group
         self.log_stream = log_stream
+        self.log_region_name = log_region_name
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -178,6 +183,7 @@ class TaskDoneTrigger(BaseTrigger):
                 "waiter_max_attempts": self.waiter_max_attempts,
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
+                "log_region_name": self.log_region_name,
                 "log_group": self.log_group,
                 "log_stream": self.log_stream,
                 "verify": self.verify,
@@ -186,6 +192,9 @@ class TaskDoneTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+        # Triggers serialized before ``log_region_name`` existed deserialize without it, so an
+        # unset value keeps reading logs from the cluster region as before.
+        log_region_name = self.log_region_name if self.log_region_name is not None else self.region_name
         async with (
             await EcsHook(
                 aws_conn_id=self.aws_conn_id,
@@ -195,7 +204,7 @@ class TaskDoneTrigger(BaseTrigger):
             ).get_async_conn() as ecs_client,
             await AwsLogsHook(
                 aws_conn_id=self.aws_conn_id,
-                region_name=self.region_name,
+                region_name=log_region_name,
                 verify=self.verify,
                 config=self.botocore_config,
             ).get_async_conn() as logs_client,

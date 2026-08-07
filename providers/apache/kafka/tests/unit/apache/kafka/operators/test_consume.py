@@ -41,6 +41,11 @@ def _no_op(*args, **kwargs) -> Any:
     return args, kwargs
 
 
+def _raise_on_message(*args, **kwargs) -> Any:
+    """A function that always raises, to simulate a failing apply_function."""
+    raise ValueError("boom")
+
+
 def create_mock_kafka_consumer(
     message_count: int = 1001, message_content: Any = "test_message", track_consumed_messages: bool = False
 ) -> tuple[mock.MagicMock, mock.MagicMock, list[int] | None]:
@@ -278,4 +283,41 @@ class TestConsumeFromTopic:
             assert mock_consumer.commit.call_count == expected_commit_calls
 
             # Verify consumer was closed
+            mock_consumer.close.assert_called_once()
+
+    def test_execute_closes_consumer_when_apply_function_raises(self):
+        """The consumer must be closed even if message processing raises."""
+        mock_consumer, mock_get_consumer, _ = create_mock_kafka_consumer(message_count=5)
+
+        with mock_get_consumer:
+            operator = ConsumeFromTopicOperator(
+                kafka_config_id="kafka_d",
+                topics=["test"],
+                task_id="test",
+                poll_timeout=0.0001,
+                apply_function=_raise_on_message,
+            )
+
+            with pytest.raises(ValueError, match="boom"):
+                operator.execute(context={})
+
+            mock_consumer.close.assert_called_once()
+
+    def test_execute_does_not_mask_error_when_close_raises(self):
+        """A failing close() must not replace the original processing error."""
+        mock_consumer, mock_get_consumer, _ = create_mock_kafka_consumer(message_count=5)
+        mock_consumer.close.side_effect = Exception("close failed")
+
+        with mock_get_consumer:
+            operator = ConsumeFromTopicOperator(
+                kafka_config_id="kafka_d",
+                topics=["test"],
+                task_id="test",
+                poll_timeout=0.0001,
+                apply_function=_raise_on_message,
+            )
+
+            with pytest.raises(ValueError, match="boom"):
+                operator.execute(context={})
+
             mock_consumer.close.assert_called_once()

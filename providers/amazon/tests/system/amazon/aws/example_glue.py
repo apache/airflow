@@ -161,19 +161,10 @@ with DAG(
 
     verify_crawler_update = verify_crawler_description(glue_crawler_name, updated_crawler_description)
 
-    # [START howto_operator_glue_crawler_run_deferrable]
-    run_crawler_deferrable = GlueCrawlerRunOperator(
-        task_id="run_crawler_deferrable",
-        crawler_name=glue_crawler_name,
-        deferrable=True,
-    )
-    # [END howto_operator_glue_crawler_run_deferrable]
-
     # [START howto_operator_glue_crawler_run]
     run_crawler = GlueCrawlerRunOperator(
         task_id="run_crawler",
         crawler_name=glue_crawler_name,
-        deferrable=False,
     )
     # [END howto_operator_glue_crawler_run]
 
@@ -255,7 +246,6 @@ with DAG(
         create_crawler,
         update_crawler,
         verify_crawler_update,
-        run_crawler_deferrable,
         run_crawler,
         wait_for_crawl,
         wait_for_catalog_partition,

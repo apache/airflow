@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.jobs.job import Job, JobState
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
+@deprecated_for_airflowctl("airflowctl jobs check")
 @providers_configuration_loaded
 @provide_session
 def check(args, *, session: Session = NEW_SESSION) -> None:

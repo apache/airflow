@@ -118,6 +118,23 @@ available in your deployment.
     :start-after: [START howto_operator_emr_add_steps]
     :end-before: [END howto_operator_emr_add_steps]
 
+OpenLineage parent job information
+""""""""""""""""""""""""""""""""""
+
+For Spark steps launched through ``command-runner.jar`` with ``spark-submit`` or ``run-example``,
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator` can inject OpenLineage parent job
+information into the Spark arguments. This links OpenLineage events emitted by the Spark application to the
+Airflow task that submitted the step.
+
+Enable injection globally with the ``[openlineage] spark_inject_parent_job_info`` configuration option, or for
+one operator by passing ``openlineage_inject_parent_job_info=True``. The operator preserves manually configured
+``spark.openlineage.parent*`` properties and does not modify non-Spark steps. The Spark application must still
+have the OpenLineage Spark integration installed and enabled.
+
+See the `OpenLineage Spark automatic injection documentation
+<https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/spark.html#automatic-injection>`__
+for configuration details and an example.
+
 .. _howto/operator:EmrTerminateJobFlowOperator:
 
 Terminate an EMR job flow

@@ -123,11 +123,11 @@ def _format_error_detail(error_detail: Any) -> str | None:
 
 def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter an ES hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
-    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS}
 
-    # Map @timestamp to timestamp
-    if "@timestamp" in fields and "timestamp" not in fields:
-        fields["timestamp"] = fields.pop("@timestamp")
+    # Map @timestamp to timestamp but not include `@timestamp` in log fields
+    if "@timestamp" in hit_dict and "timestamp" not in fields:
+        fields["timestamp"] = hit_dict["@timestamp"]
 
     # Map levelname to level
     if "levelname" in fields and "level" not in fields:
@@ -711,6 +711,28 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
     )
 
     processors = ()
+
+    @classmethod
+    def from_config(cls) -> ElasticsearchRemoteLogIO:
+        """
+        Build the remote log IO from Airflow logging and ``[elasticsearch]`` configuration.
+
+        Mirrors the legacy branch in ``airflow_local_settings.py``. Unlike the object-storage
+        backends, this does not merge ``[logging] remote_task_handler_kwargs`` IO-kwargs, matching
+        the legacy behavior for Elasticsearch.
+        """
+        return cls(
+            base_log_folder=os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            host=conf.get("elasticsearch", "host") or "http://localhost:9200",
+            target_index=conf.get_mandatory_value("elasticsearch", "target_index"),
+            write_stdout=conf.getboolean("elasticsearch", "write_stdout"),
+            write_to_es=conf.getboolean("elasticsearch", "write_to_es"),
+            json_format=conf.getboolean("elasticsearch", "json_format"),
+            host_field=conf.get_mandatory_value("elasticsearch", "host_field"),
+            offset_field=conf.get_mandatory_value("elasticsearch", "offset_field"),
+            log_id_template=conf.get_mandatory_value("elasticsearch", "log_id_template"),
+        )
 
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
