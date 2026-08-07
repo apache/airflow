@@ -30,6 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 
 from airflow.migrations.db_types import StringID
+from airflow.migrations.utils import asset_name_collation
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -40,7 +41,7 @@ depends_on = None
 airflow_version = "3.0.0"
 
 ASSET_STR_FIELD = sa.String(length=1500).with_variant(
-    sa.String(length=1500, collation="latin1_general_cs"), "mysql"
+    sa.String(length=1500, collation=asset_name_collation()), "mysql"
 )
 
 
