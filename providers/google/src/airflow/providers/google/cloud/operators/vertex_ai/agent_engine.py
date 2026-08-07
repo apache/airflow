@@ -172,18 +172,17 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
 
 class RunReasoningEngineQueryOperator(GoogleCloudBaseOperator):
     """
-    Query a Vertex AI Agent Engine synchronously.
+    Query a Vertex AI Reasoning Engine synchronously.
 
     :param project_id: Required (templated). The ID of the Google Cloud project that the service
         belongs to.
     :param location: Required (templated). The ID of the Google Cloud location that the service
         belongs to.
-    :param reasoning_engine_id: Required (templated). The Reasoning Engine resource ID for the
-        Agent Engine.
-    :param input_data: Optional (templated). Input for the Agent Engine class method in JSON object
-        format. Defaults to ``None``.
-    :param class_method: Optional (templated). The Agent Engine class method to invoke. Defaults to
-        ``query``.
+    :param reasoning_engine_id: Required (templated). The Reasoning Engine resource ID.
+    :param input_data: Optional (templated). Input for the Reasoning Engine class method in JSON
+        object format. Defaults to ``None``.
+    :param class_method: Optional (templated). The Reasoning Engine class method to invoke. Defaults
+        to ``query``.
     :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
     :param timeout: The timeout for this request. Defaults to ``None``.
     :param metadata: Strings which should be sent along with the request as metadata. Defaults to
@@ -239,7 +238,7 @@ class RunReasoningEngineQueryOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, JsonValue]:
-        self.log.info("Querying Agent Engine %s.", self.reasoning_engine_id)
+        self.log.info("Querying Reasoning Engine %s.", self.reasoning_engine_id)
         response = self.hook.query_reasoning_engine(
             project_id=self.project_id,
             location=self.location,
@@ -250,7 +249,7 @@ class RunReasoningEngineQueryOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.log.info("Agent Engine %s returned a response.", self.reasoning_engine_id)
+        self.log.info("Reasoning Engine %s returned a response.", self.reasoning_engine_id)
         return QueryReasoningEngineResponse.to_dict(response)
 
 
