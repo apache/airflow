@@ -18,18 +18,15 @@
 from __future__ import annotations
 
 import typing
+from collections.abc import Collection
 
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.sdk.definitions.asset import BaseAsset  # TODO: Use serialized classes.
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
-from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Collection
-
     import pendulum
 
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
@@ -120,12 +117,16 @@ class AssetAndTimeSchedule(Timetable):
         timetable: Timetable,
         assets: Collection[SerializedAsset] | SerializedAssetBase,
     ) -> None:
+        from airflow.serialization.encoders import ensure_serialized_asset
+
         self.timetable = timetable
 
-        if isinstance(assets, SerializedAssetBase | BaseAsset):
-            self.asset_condition = ensure_serialized_asset(assets)
-        else:
+        if isinstance(assets, SerializedAssetBase):
+            self.asset_condition = assets
+        elif isinstance(assets, Collection):
             self.asset_condition = SerializedAssetAll([ensure_serialized_asset(a) for a in assets])
+        else:
+            self.asset_condition = ensure_serialized_asset(assets)
 
         self.description = f"Triggered by assets and {timetable.description}"
         self.periodic = timetable.periodic
