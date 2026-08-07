@@ -5658,6 +5658,43 @@ class TestSchedulerJob:
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
 
+    def test_create_dag_runs_continues_after_db_error(self, dag_maker, session):
+        with dag_maker(dag_id="test_create_dag_runs_bad_flush", schedule="@daily"):
+            EmptyOperator(task_id="dummy")
+        bad_dag_model = dag_maker.dag_model
+
+        with dag_maker(dag_id="test_create_dag_runs_good_after_bad", schedule="@daily"):
+            EmptyOperator(task_id="dummy")
+        good_dag_model = dag_maker.dag_model
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        original_create_dagrun = SerializedDAG.create_dagrun
+
+        def create_dagrun(serialized_dag, **kwargs):
+            if serialized_dag.dag_id == bad_dag_model.dag_id:
+                session.add(
+                    DagRun(
+                        dag_id=None,
+                        run_id="scheduled__bad_flush",
+                        logical_date=DEFAULT_DATE,
+                        run_after=timezone.utcnow(),
+                        run_type=DagRunType.SCHEDULED,
+                        triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        state=DagRunState.QUEUED,
+                    )
+                )
+                session.flush()
+                pytest.fail("Expected invalid DagRun to fail during flush")
+            return original_create_dagrun(serialized_dag, **kwargs)
+
+        with patch.object(SerializedDAG, "create_dagrun", autospec=True, side_effect=create_dagrun):
+            self.job_runner._create_dag_runs([bad_dag_model, good_dag_model], session)
+
+        session.flush()
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == bad_dag_model.dag_id)) == 0
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == good_dag_model.dag_id)) == 1
+
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_assets(self, session, dag_maker):
         """
