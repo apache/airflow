@@ -1502,6 +1502,9 @@ def tag_providers(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
+                # Read-only lookup, so run it even in dry-run mode: a dry run returns empty
+                # stdout for every remote, which would make the search below find nothing.
+                dry_run_override=False,
             )
             if "apache/airflow.git" in result.stdout:
                 found_remote = remote
