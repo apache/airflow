@@ -115,18 +115,16 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.headers.get("content-type") != "application/json":
             return None
 
-        if 400 <= response.status_code < 500:
-            response.read()
-            return cls(
-                message=f"Client error message: {response.json()}",
-                request=response.request,
-                response=response,
-            )
+        # httpx runs response event hooks before it reads the body, so the body has to be
+        # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
+        response.read()
 
-        msg = response.json()
-
-        self = cls(message=msg, request=response.request, response=response)
-        return self
+        error_kind = "Client" if response.status_code < 500 else "Server"
+        return cls(
+            message=f"{error_kind} error message: {response.json()}",
+            request=response.request,
+            response=response,
+        )
 
 
 def _check_flag_and_exit_if_server_response_error(func):
@@ -222,7 +220,7 @@ class BaseOperations:
                 raw = fill_missing_fields(json.loads(content), data_model)
                 return data_model.model_validate(raw)  # type: ignore[union-attr]
 
-        self.response = self.client.get(path, params=shared_params)
+        self.response = self.client.get(path, params={**shared_params, "offset": offset})
         first_pass = safe_validate(self.response.content)
         total_entries = first_pass.total_entries  # type: ignore[attr-defined]
         if total_entries < limit:

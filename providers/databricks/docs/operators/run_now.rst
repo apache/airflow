@@ -60,7 +60,14 @@ for this run.
 If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
 non-empty, ``params`` is forwarded as ``job_parameters`` as-is, so Airflow Dag params can
 be passed dynamically to a run without hardcoding them in ``json``. If ``json`` already
-contains ``job_parameters``, it is left untouched.
+contains ``job_parameters``, it is left untouched. You can set ``forward_dag_params=False`` to
+disable this parameter forwarding behavior.
+
+.. note::
+  The Databricks API does not permit ``job_parameters`` to be used in combination with
+  ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
+  ``python_named_params``, or ``dbt_commands``. Auto-forwarding is automatically skipped
+  when any of those parameter slots are used.
 
 .. code-block:: python
 

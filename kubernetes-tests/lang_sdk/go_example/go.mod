@@ -5,9 +5,7 @@ go 1.25.0
 require github.com/apache/airflow/go-sdk v0.0.0
 
 require (
-	github.com/MatusOllah/slogcolor v1.6.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/evanphx/go-hclog-slog v0.0.0-20240717231540-be48fc4c4df5 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
@@ -17,7 +15,6 @@ require (
 	github.com/hashicorp/go-plugin v1.7.0 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/ivanpirog/coloredcobra v1.0.2-0.20250501221745-46194c320708 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect

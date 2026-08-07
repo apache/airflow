@@ -229,7 +229,9 @@ def _default_json_contains(element, compiler, **kw):
 
     clauses = []
     for k, v in element.kv_dict.items():
-        path = f"$.{k}"
+        # Quote the key (json.dumps also covers embedded quotes/backslashes) so metacharacters
+        # like "." match literally, as PostgreSQL ``@>`` and MySQL ``JSON_CONTAINS`` do.
+        path = f"$.{json.dumps(k, ensure_ascii=False)}"
         clauses.append(func.json_extract(element.column, literal(path)) == literal(v))
     if len(clauses) == 1:
         return compiler.process(clauses[0], **kw)
