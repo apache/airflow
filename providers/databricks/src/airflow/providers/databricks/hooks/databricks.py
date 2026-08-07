@@ -276,8 +276,9 @@ class DatabricksHook(BaseDatabricksHook):
         will wait before timing-out.
     :param retry_limit: The number of times to retry the connection in case of
         service outages.
-    :param retry_delay: The number of seconds to wait between retries (it
-        might be a floating point number).
+    :param retry_delay: Minimum wait in seconds between retryable attempts when using the
+        default retry strategy. The wait uses exponential backoff (doubling after each
+        failure, capped at ``2 ** retry_limit`` seconds). May be a floating point number.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 

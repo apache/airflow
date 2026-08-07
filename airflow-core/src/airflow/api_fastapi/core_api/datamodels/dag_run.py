@@ -184,6 +184,7 @@ class DAGRunResponse(BaseModel):
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
     partition_key: str | None
     partition_date: datetime | None
+    team_name: str | None = None
 
 
 class DAGRunCollectionResponse(BaseModel):

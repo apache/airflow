@@ -303,6 +303,16 @@ _DICT_PARAM_FIELD_BY_TASK = {
     "run_job_task": "job_parameters",
 }
 
+# Parameter slots in run-now payload that Databricks API rejects when combined with job_parameters
+_RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
+    "notebook_params",
+    "python_params",
+    "jar_params",
+    "spark_submit_params",
+    "python_named_params",
+    "dbt_commands",
+)
+
 
 def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
     """Set dict-shaped per-task parameter fields from ``params`` if they are not already set."""
@@ -433,8 +443,10 @@ class DatabricksCreateJobsOperator(BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
 
     .. note::
@@ -669,8 +681,10 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param git_source: Optional specification of a remote git repository from which
@@ -1149,8 +1163,10 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         this run. By default, the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
@@ -1167,12 +1183,18 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         before polling begins so that a worker crash and retry reconnects to the existing run
         instead of triggering a duplicate run of the same job. Set to ``False`` to always trigger a
         fresh run on retry. Requires Airflow 3.3+; on earlier versions it is silently ignored.
+    :param forward_dag_params: Whether to forward Dag-level params as ``job_parameters``
+        when no ``job_parameters`` are specified. (default: ``True``)
 
     .. note::
         If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
         non-empty, the operator's ``params`` are automatically forwarded as ``job_parameters``
         so that Airflow Dag params can be passed dynamically to Databricks runs without
-        hardcoding them in ``json``.
+        hardcoding them in ``json``. Set ``forward_dag_params=False`` to disable this.
+        Note that the Databricks API does not permit ``job_parameters`` to be used in combination
+        with ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
+        ``python_named_params``, or ``dbt_commands``; auto-forwarding is automatically skipped
+        when any of those parameters are set.
     """
 
     external_id_key = "databricks_run_now_id"
@@ -1223,6 +1245,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         repair_run: bool = False,
         databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
+        forward_dag_params: bool = True,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
@@ -1248,6 +1271,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.repair_run = repair_run
         self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
         self.cancel_previous_runs = cancel_previous_runs
+        self.forward_dag_params = forward_dag_params
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -1315,7 +1339,12 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             json["job_id"] = job_id
             del json["job_name"]
 
-        if not json.get("job_parameters") and self.params:
+        if (
+            self.forward_dag_params
+            and not json.get("job_parameters")
+            and self.params
+            and not any(k in json for k in _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS)
+        ):
             json["job_parameters"] = dict(self.params)
 
         return json
@@ -1458,8 +1487,10 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         this statement. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push statement_id to xcom.:
     :param timeout: The timeout for the Airflow task executing the SQL statement. By default a value of 3600 seconds is used.
@@ -1628,7 +1659,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param databricks_task_key: An optional task_key used to refer to the task by Databricks API. By
         default this will be set to the hash of ``dag_id + task_id``.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy (exponential backoff). May be a floating point number.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
     :param deferrable: Whether to run the operator in the deferrable mode.
     :param existing_cluster_id: ID for existing cluster on which to run this task.
@@ -1941,6 +1973,31 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         errors = event.get("errors", [])
         self._handle_terminal_run_state(run_state, errors)
 
+    def on_kill(self) -> None:
+        if self.databricks_run_id is None:
+            return
+        if self._databricks_workflow_task_group:
+            # Workflow member: cancel only this task's child run, not the shared parent workflow run.
+            # Cancelling the parent would also stop all sibling tasks.
+            # If the child run_id cannot be resolved, log and bail out — do NOT fall back to the
+            # parent run_id as that would cancel sibling tasks.
+            try:
+                run_id_to_cancel = self._get_current_databricks_task()["run_id"]
+            except Exception:
+                self.log.exception(
+                    "Task: %s could not resolve child run_id; skipping cancel to avoid stopping sibling tasks.",
+                    self.task_id,
+                )
+                return
+        else:
+            run_id_to_cancel = self.databricks_run_id
+        self._hook.cancel_run(run_id_to_cancel)
+        self.log.info(
+            "Task: %s with run_id: %s was requested to be cancelled.",
+            self.task_id,
+            run_id_to_cancel,
+        )
+
 
 class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     """
@@ -1962,7 +2019,8 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate
     :param databricks_conn_id: The name of the Airflow connection to use.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy (exponential backoff). May be a floating point number.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
     :param deferrable: Whether to run the operator in the deferrable mode.
     :param existing_cluster_id: ID for existing cluster on which to run this task.
@@ -2109,7 +2167,8 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     :param task_config: The configuration of the task to be run on Databricks.
     :param databricks_conn_id: The name of the Airflow connection to use.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy (exponential backoff). May be a floating point number.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
     :param deferrable: Whether to run the operator in the deferrable mode.
     :param existing_cluster_id: ID for existing cluster on which to run this task.

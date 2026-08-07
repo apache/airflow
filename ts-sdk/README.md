@@ -26,11 +26,9 @@ Public TypeScript interfaces for writing Apache Airflow task handlers.
 This package defines the user-facing task handler contract and the coordinator
 runtime used to execute registered TypeScript handlers from Airflow.
 
-## Install
-
-```bash
-pnpm add @apache-airflow/ts-sdk
-```
+> **Note:** This package is not yet published to a public npm registry. Until an
+> official Apache Airflow release is available, build and use it from source (see
+> [Development](#development)).
 
 ## Task Handlers
 
@@ -92,8 +90,7 @@ queue_to_coordinator = {"typescript": "ts"}
 
 Each configured bundle directory must contain a `bundle.mjs` built with
 `airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
-Airflow metadata in the bundle itself. A `bundle.mjs` without embedded
-metadata is also accepted alongside an `airflow-metadata.yaml` sidecar.
+Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
@@ -202,4 +199,11 @@ pnpm install
 pnpm test
 pnpm run typecheck
 pnpm run build
+```
+
+Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
+with its own managed node + pnpm toolchain:
+
+```bash
+prek run compile-ts-sdk
 ```

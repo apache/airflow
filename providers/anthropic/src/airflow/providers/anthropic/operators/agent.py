@@ -103,10 +103,6 @@ class AnthropicAgentSessionOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        if (message is None) == (outcome is None):
-            raise ValueError("Provide exactly one of 'message' or 'outcome'.")
-        if outcome is not None and not {"description", "rubric"} <= outcome.keys():
-            raise ValueError("'outcome' must include both 'description' and 'rubric'.")
         self.agent_id = agent_id
         self.environment_id = environment_id
         self.message = message
@@ -126,6 +122,10 @@ class AnthropicAgentSessionOperator(BaseOperator):
         return AnthropicHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> str | None:
+        if (self.message is None) == (self.outcome is None):
+            raise ValueError("Provide exactly one of 'message' or 'outcome'.")
+        if self.outcome is not None and not {"description", "rubric"} <= self.outcome.keys():
+            raise ValueError("'outcome' must include both 'description' and 'rubric'.")
         create_kwargs: dict[str, Any] = dict(self.session_kwargs)
         if self.vault_ids:
             create_kwargs["vault_ids"] = self.vault_ids

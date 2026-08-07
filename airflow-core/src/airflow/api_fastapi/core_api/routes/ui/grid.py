@@ -42,7 +42,11 @@ from airflow.api_fastapi.common.parameters import (
     QueryOffset,
     RangeFilter,
     SortParam,
+    _PrefixSearchParam,
+    _SearchParam,
     datetime_range_filter_factory,
+    prefix_search_param_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import (
@@ -144,6 +148,11 @@ def get_dag_structure(
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
     triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.run_id, "run_id_prefix_pattern")),
+    ],
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     depth: int | None = None,
@@ -177,21 +186,41 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
+        filters=[
+            run_after,
+            run_type,
+            state,
+            triggering_user,
+            triggering_user_prefix,
+            run_id_pattern,
+            run_id_prefix_pattern,
+        ],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
 
     task_group_sort = get_task_group_children_getter()
+    # Built once per render and passed down, intentionally not memoized/LRU-cached: it is a
+    # derived view of a mutable task-group tree, so a cache would go stale with no invalidation
+    # and would pin the whole map for the group's lifetime, fighting the streaming/expunge below.
+    # It is released when the request returns (explicitly del-eted after the latest serdag is
+    # merged on the main path).
+    latest_group_dict = latest_dag.task_group.get_task_group_dict()
     if not run_ids:
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+        nodes = [
+            task_group_to_dict_grid(x, group_dict=latest_group_dict)
+            for x in task_group_sort(latest_dag.task_group, latest_group_dict)
+        ]
         return [GridNodeResponse(**n) for n in nodes]
 
     # Process and merge the latest serdag first
     merged_nodes: list[dict[str, Any]] = []
-    nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+    nodes = [
+        task_group_to_dict_grid(x, group_dict=latest_group_dict)
+        for x in task_group_sort(latest_dag.task_group, latest_group_dict)
+    ]
     _merge_node_dicts(merged_nodes, nodes)
-    del latest_dag
+    del latest_dag, latest_group_dict
 
     # Process serdags one by one and merge immediately to reduce memory usage.
     # Use yield_per() for streaming results and expunge each serdag after processing
@@ -226,7 +255,11 @@ def get_dag_structure(
                 depth=depth,
             )
         # Merge immediately instead of collecting all Dags in memory
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
+        filtered_group_dict = filtered_dag.task_group.get_task_group_dict()
+        nodes = [
+            task_group_to_dict_grid(x, group_dict=filtered_group_dict)
+            for x in task_group_sort(filtered_dag.task_group, filtered_group_dict)
+        ]
         _merge_node_dicts(merged_nodes, nodes)
 
         session.expunge(serdag)  # to allow garbage collection
@@ -282,6 +315,11 @@ def get_grid_runs(
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
     triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.run_id, "run_id_prefix_pattern")),
+    ],
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous Dag Runs
@@ -330,7 +368,15 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
+        filters=[
+            run_after,
+            run_type,
+            state,
+            triggering_user,
+            triggering_user_prefix,
+            run_id_pattern,
+            run_id_prefix_pattern,
+        ],
         limit=limit,
         return_total_entries=False,
     )

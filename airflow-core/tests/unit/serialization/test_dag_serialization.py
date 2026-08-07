@@ -52,6 +52,7 @@ from airflow._shared.timezones import timezone
 from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import (
     AirflowException,
+    DeserializationError,
     ParamValidationError,
     SerializationError,
 )
@@ -77,7 +78,7 @@ from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.enums import Encoding
+from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -517,6 +518,10 @@ def timetable_plugin(monkeypatch: pytest.MonkeyPatch):
             "tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable
         },
     )
+
+
+class PluginContributedError(AirflowException):
+    """Defined outside airflow.exceptions on purpose: resolution must not be limited to exceptions Airflow itself ships."""
 
 
 class TestStringifiedDAGs:
@@ -2805,6 +2810,120 @@ class TestStringifiedDAGs:
 
         dr = dag_maker.create_dagrun(partition_key="runtime-key")
         assert dr.partition_key == "runtime-key"
+
+    @pytest.mark.parametrize(
+        ("module_name", "attr_name"),
+        [
+            pytest.param("subprocess", "check_output", id="callable_in_loaded_module"),
+            pytest.param("os", "system", id="another_callable"),
+            pytest.param("builtins", "eval", id="builtin_callable"),
+            pytest.param("airflow.exceptions", "NoSuchThing", id="missing_attr"),
+        ],
+    )
+    def test_airflow_exc_deserialization_rejects_a_name_in_a_loaded_module(self, module_name, attr_name):
+        """Having the module loaded is not enough -- the name must be an AirflowException subclass.
+
+        The module is imported by the test first, so the rejection cannot be an artefact of the
+        module simply being absent.
+        """
+        importlib.import_module(module_name)
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize(
+                {"exc_cls_name": f"{module_name}.{attr_name}", "args": [], "kwargs": {}}
+            ),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        with pytest.raises(DeserializationError, match="Refusing to deserialize unknown exception class"):
+            BaseSerialization.deserialize(encoded)
+
+    @pytest.mark.parametrize(
+        "exc_cls_name",
+        [
+            pytest.param("not.a.loaded.module.Thing", id="unloaded_module"),
+            pytest.param("NoModulePart", id="no_module_part"),
+            pytest.param("", id="empty"),
+        ],
+    )
+    def test_airflow_exc_deserialization_rejects_an_unresolvable_name(self, exc_cls_name):
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize({"exc_cls_name": exc_cls_name, "args": [], "kwargs": {}}),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        with pytest.raises(DeserializationError, match="Refusing to deserialize unknown exception class"):
+            BaseSerialization.deserialize(encoded)
+
+    def test_airflow_exc_deserialization_does_not_import_the_named_module(self):
+        """Resolution reads ``sys.modules``; it never imports what the blob names."""
+        module_name = "airflow_exc_module_that_must_not_be_imported"
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize({"exc_cls_name": f"{module_name}.Boom", "args": [], "kwargs": {}}),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        with mock.patch.object(
+            importlib, "import_module", side_effect=AssertionError("imported"), autospec=True
+        ):
+            with pytest.raises(DeserializationError):
+                BaseSerialization.deserialize(encoded)
+        assert module_name not in sys.modules
+
+    def test_airflow_exc_deserialization_roundtrips_airflow_exception(self):
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(AirflowException("boom")))
+        assert isinstance(result, AirflowException)
+        assert result.args == ("boom",)
+
+    def test_airflow_exc_deserialization_resolves_a_subclass_outside_airflow(self):
+        """Resolves as long as its module is loaded, registration order doesn't matter."""
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(PluginContributedError("boom")))
+        assert isinstance(result, PluginContributedError)
+        assert result.args == ("boom",)
+
+    @pytest.mark.parametrize(
+        "exc_cls_name",
+        [
+            "airflow.exceptions.AirflowException",
+            "airflow.exceptions.AirflowNotFoundException",
+            "airflow.exceptions.ParamValidationError",
+            "airflow.sdk.exceptions.AirflowException",
+        ],
+    )
+    def test_airflow_exc_deserialization_accepts_the_pre_3_2_module_spelling(self, exc_cls_name):
+        """A blob written before these exceptions moved to ``airflow.sdk.exceptions`` still reads.
+
+        3.0/3.1 stored ``airflow.exceptions.<Name>``; 3.2.0 moved the classes and left a re-export
+        behind. Both spellings have to resolve, or upgrading strands every stored blob that carries
+        an exception node.
+        """
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize({"exc_cls_name": exc_cls_name, "args": ["boom"], "kwargs": {}}),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        result = BaseSerialization.deserialize(encoded)
+        assert isinstance(result, AirflowException)
+
+    def test_base_exc_deserialization_rejects_non_allowlisted_builtin(self):
+        """A BASE_EXC_SER name outside the {KeyError, AttributeError} the encoder emits is rejected."""
+        # ``eval`` is the weaponisable case; ``ValueError`` is a harmless builtin the encoder
+        # never emits as BASE_EXC_SER -- both must be rejected.
+        for name in ("eval", "ValueError"):
+            encoded = BaseSerialization._encode(
+                BaseSerialization.serialize({"exc_cls_name": name, "args": ["1"], "kwargs": {}}),
+                type_=DagAttributeTypes.BASE_EXC_SER,
+            )
+            with pytest.raises(
+                DeserializationError, match="Refusing to deserialize unsupported builtin exception"
+            ):
+                BaseSerialization.deserialize(encoded)
+
+    @pytest.mark.parametrize("exc_type", [KeyError, AttributeError])
+    def test_base_exc_serialize_deserialize_round_trip(self, exc_type):
+        """Pins the allow-list to the encode branch, by going through ``serialize`` rather than
+        hand-building the node: if that branch ever accepts another builtin, this fails."""
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(exc_type("boom")))
+
+        assert isinstance(result, exc_type)
+        # The encode branch stores ``[var.args]``, so the args arrive nested. Pre-existing shape,
+        # asserted as it is rather than as it ought to be.
+        assert result.args == (("boom",),)
 
 
 def test_kubernetes_optional():

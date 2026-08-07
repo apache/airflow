@@ -77,9 +77,12 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
     AirflowException,
+    AirflowFailException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowRuntimeError,
+    AirflowSensorTimeout,
+    AirflowTaskTerminated,
     AirflowTaskTimeout,
     ErrorType,
     TaskAwaitingInput,
@@ -241,6 +244,9 @@ class RuntimeTaskInstance(TaskInstance):
 
     _terminal_state_send_failed: bool = False
     """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
+
+    _failure_metrics_emitted: bool = False
+    """True once the failure counters have been recorded, so a second pass through the failure path (one attempt raised part-way through) does not count the same failure twice."""
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
@@ -1655,22 +1661,17 @@ def _await_input_task(
     return msg, state
 
 
-@Sentry.enrich_errors
-@detail_span("run")
-def run(
+def _run_task_and_map_outcome(
     ti: RuntimeTaskInstance,
     context: Context,
     log: Logger,
 ) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
-    """Run the task in this process."""
+    """Execute the task and map its outcome -- success or a handled exception -- to a message and state."""
     import signal
 
     from airflow.sdk.exceptions import (
-        AirflowFailException,
         AirflowRescheduleException,
-        AirflowSensorTimeout,
         AirflowSkipException,
-        AirflowTaskTerminated,
         DagRunTriggerException,
         DownstreamTasksSkipped,
         TaskAwaitingInput,
@@ -1695,9 +1696,6 @@ def run(
     msg: ToSupervisor | None = None
     state: TaskInstanceState | None = None
     error: BaseException | None = None
-
-    stats_tags = ti.stats_tags
-    stats.incr("ti.start", tags=stats_tags)
 
     try:
         # First, clear the xcom data sent from server
@@ -1822,6 +1820,32 @@ def run(
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
+
+    return state, msg, error
+
+
+@Sentry.enrich_errors
+@detail_span("run")
+def run(
+    ti: RuntimeTaskInstance,
+    context: Context,
+    log: Logger,
+) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
+    """Run the task in this process."""
+    msg: ToSupervisor | None = None
+    state: TaskInstanceState | None = None
+    error: BaseException | None = None
+
+    stats_tags = ti.stats_tags
+    stats.incr("ti.start", tags=stats_tags)
+
+    try:
+        state, msg, error = _run_task_and_map_outcome(ti, context, log)
+    except Exception as e:
+        # Python does not offer an exception raised inside an ``except`` clause to that
+        # clause's siblings, so a handler that fails would otherwise escape entirely --
+        # skipping the retry decision and every callback in ``finalize()``.
+        msg, state, error = _handle_handler_failure(ti, e, log, context)
     finally:
         # `state` may still be unset if an exception handler above raised before
         # binding it
@@ -1929,6 +1953,46 @@ def _evaluate_retry_policy(
         return None
 
 
+def _handle_handler_failure(
+    ti: RuntimeTaskInstance, exception: Exception, log: Logger, context: Context
+) -> tuple[RetryTask | TaskState, TaskInstanceState, Exception]:
+    """
+    Decide the outcome for an exception raised by one of the outcome handlers themselves.
+
+    Handlers reach this by talking to the API server -- a missing Dag makes
+    ``_handle_trigger_dag_run`` raise ``AirflowRuntimeError`` -- or by serializing
+    user-supplied values, since ``_defer_task`` and ``_await_input_task`` run
+    ``serde_serialize`` over kwargs and it raises ``TypeError`` for anything it has no
+    serializer for.
+
+    The handler chain's own classifications are preserved rather than routing everything
+    through the retry-count check, so an exception that means "do not retry" still means
+    that when it surfaces from a handler.
+    """
+    log.exception("Task failed with exception")
+    if isinstance(exception, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)):
+        return _terminal_failure(ti), TaskInstanceState.FAILED, exception
+    try:
+        msg, state = _handle_current_task_failed(ti, exception, log, context)
+    except Exception:
+        # The failure path itself failed. Re-entering it would just fail again and
+        # escape, losing the callbacks this whole function exists to preserve, so fail
+        # closed on a plain FAILED state instead.
+        log.exception("Could not determine terminal state, failing closed")
+        return _terminal_failure(ti), TaskInstanceState.FAILED, exception
+    return msg, state, exception
+
+
+def _terminal_failure(ti: RuntimeTaskInstance) -> TaskState:
+    """Build a plain FAILED terminal message, bypassing any retry decision."""
+    ti.end_date = datetime.now(tz=timezone.utc)
+    return TaskState(
+        state=TaskInstanceState.FAILED,
+        end_date=ti.end_date,
+        rendered_map_index=ti.rendered_map_index,
+    )
+
+
 def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
@@ -1980,12 +2044,16 @@ def _finalize_task_failure(
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
 
-    # Record operator and task instance failed metrics
-    operator = ti.task.__class__.__name__
-    stats_tags = ti.stats_tags
+    # Record operator and task instance failed metrics. One failure is one increment even
+    # if this runs twice, which happens when a first pass raised after counting -- see
+    # `_handle_handler_failure`.
+    if not ti._failure_metrics_emitted:
+        operator = ti.task.__class__.__name__
+        stats_tags = ti.stats_tags
 
-    stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
-    stats.incr("ti_failures", tags=stats_tags)
+        stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
+        stats.incr("ti_failures", tags=stats_tags)
+        ti._failure_metrics_emitted = True
 
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         retry_kwargs: dict[str, Any] = {"end_date": end_date}

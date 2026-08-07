@@ -497,10 +497,40 @@ def test_queue_connection_test_workload_accepted_when_supported():
         connection_test_id=uuid4(),
         connection_id="test_conn",
         timeout=60,
+        team_name="team_a",
     )
     executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
     assert len(executor.queued_connection_tests) == 1
     assert executor.queued_connection_tests[wl.key] is wl
+    assert wl.team_name == "team_a"
+
+
+@mock.patch(
+    "airflow.sdk.execution_time.connection_test_supervisor.supervise_connection_test",
+    autospec=True,
+)
+def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_supervise):
+    """BaseExecutor.run_workload forwards TestConnection.team_name to the supervisor."""
+    mock_supervise.return_value = 0
+    test_id = uuid4()
+    wl = workloads.TestConnection.make(
+        connection_test_id=test_id,
+        connection_id="test_conn",
+        timeout=60,
+        team_name="team_a",
+    )
+    wl.token = "test-token"
+
+    BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    mock_supervise.assert_called_once_with(
+        connection_test_id=test_id,
+        connection_id="test_conn",
+        timeout=60,
+        token="test-token",
+        server="http://localhost:8080/execution/",
+        team_name="team_a",
+    )
 
 
 def test_trigger_connection_tests_skipped_when_not_supported():
