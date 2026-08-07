@@ -451,7 +451,8 @@ choose a different time.
         """A custom reference evaluated when Dag runs are queued."""
 
         def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
-            return dagrun.queued_at
+            my_datetime = my_business_logic(dagrun.queued_at)
+            return my_datetime
 
 
 **Using a Custom Reference in a Dag**
