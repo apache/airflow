@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 from datetime import datetime, timedelta
 
@@ -67,6 +68,9 @@ sys_test_context_task = (
     .add_variable(SUBNETS_KEY, split_string=True)
     .build()
 )
+
+# `emr-containers create-role-associations` / `delete-role-associations` were added in this release.
+MIN_AWS_CLI_VERSION = (2, 24, 0)
 
 S3_FILE_NAME = "pi.py"
 S3_FILE_CONTENT = """
@@ -123,6 +127,42 @@ def run_eksctl_commands(cluster_name, ns):
         raise RuntimeError(err)
 
 
+def _install_aws_cli_if_needed():
+    """
+    Ensure an AWS CLI new enough for `emr-containers create-role-associations` is installed.
+
+    The role-association subcommands were added in AWS CLI 2.24.0. The task image may ship an
+    older CLI or none at all, so install a fresh one when what we find is missing or too old.
+    """
+    log = logging.getLogger(__name__)
+    check = subprocess.run("aws --version", shell=True, capture_output=True, text=True, check=False)
+
+    # `aws --version` has written to stderr on some past releases, so check both streams.
+    version_match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", f"{check.stdout}{check.stderr}")
+    if check.returncode == 0 and version_match:
+        version = tuple(int(part) for part in version_match.groups())
+        if version >= MIN_AWS_CLI_VERSION:
+            log.info("AWS CLI %s satisfies the minimum required version.", version)
+            return
+        log.info("AWS CLI %s is older than %s; upgrading.", version, MIN_AWS_CLI_VERSION)
+    else:
+        log.info("AWS CLI not found; installing.")
+
+    install = subprocess.run(
+        """
+            curl --silent "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" &&
+            unzip -q -o awscliv2.zip &&
+            ./aws/install --update --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
+        """,
+        shell=True,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if install.returncode != 0:
+        raise RuntimeError(f"Failed to install the AWS CLI: {install.stderr}")
+
+
 @task
 def install_pod_identity_agent(cluster_name):
     """Install and wait for the EKS Pod Identity Agent add-on.
@@ -149,8 +189,10 @@ def install_pod_identity_agent(cluster_name):
 def create_pod_identity_role_associations(cluster_name, namespace, role_name):
     # `emr-containers create-role-associations` is a CLI-only helper — it creates
     # the three Pod Identity associations (client, driver, executor) that the EMR
-    # job pods use. There is no boto3 equivalent. Requires AWS CLI > 2.24.0.
+    # job pods use. There is no boto3 equivalent.
     # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html
+    _install_aws_cli_if_needed()
+
     commands = (
         f"aws emr-containers create-role-associations --cluster-name {cluster_name} "
         f"--namespace {namespace} --role-name {role_name}"
@@ -170,6 +212,8 @@ def create_pod_identity_role_associations(cluster_name, namespace, role_name):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_pod_identity_role_associations(cluster_name, namespace, role_name):
+    _install_aws_cli_if_needed()
+
     commands = (
         f"aws emr-containers delete-role-associations --cluster-name {cluster_name} "
         f"--namespace {namespace} --role-name {role_name}"
