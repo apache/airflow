@@ -57,10 +57,12 @@ class TimeDeltaSensor(BaseSensorOperator):
 
     """
 
+    template_fields: Sequence[str] = ("delta",)
+
     def __init__(
         self,
         *,
-        delta: timedelta,
+        delta: timedelta | int,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         end_from_trigger: bool = False,
         **kwargs,
@@ -69,6 +71,12 @@ class TimeDeltaSensor(BaseSensorOperator):
         self.delta = delta
         self.deferrable = deferrable
         self.end_from_trigger = end_from_trigger
+
+    def _resolve_delta(self) -> timedelta:
+        value = self.delta
+        if isinstance(value, timedelta):
+            return value
+        return timedelta(minutes=int(value))
 
     def _derive_base_time(self, context: Context) -> datetime:
         """
@@ -93,8 +101,9 @@ class TimeDeltaSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         base_time = self._derive_base_time(context=context)
-        target_dttm = base_time + self.delta
-        self.log.info("Checking if the delta has elapsed base_time=%s, delta=%s", base_time, self.delta)
+        delta = self._resolve_delta()
+        target_dttm = base_time + delta
+        self.log.info("Checking if the delta has elapsed base_time=%s, delta=%s", base_time, delta)
         return timezone.utcnow() > target_dttm
 
     """
@@ -113,7 +122,7 @@ class TimeDeltaSensor(BaseSensorOperator):
 
         # Deferrable path
         base_time = self._derive_base_time(context=context)
-        target_dttm: datetime = base_time + self.delta
+        target_dttm: datetime = base_time + self._resolve_delta()
 
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
