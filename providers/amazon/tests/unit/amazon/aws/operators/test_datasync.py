@@ -206,17 +206,20 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
+    def test_execute_fails(self, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
+        self.set_up_operator(task_id="task_1", source_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None)
+            self.datasync.execute(None)
+        self.set_up_operator(task_id="task_2", destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(destination_location_uri=None)
+            self.datasync.execute(None)
+        self.set_up_operator(task_id="task_3", source_location_uri=None, destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
+            self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -430,17 +433,20 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
+    def test_execute_fails(self, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
+        self.set_up_operator(task_id="task_1", source_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None)
+            self.datasync.execute(None)
+        self.set_up_operator(task_id="task_2", destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(destination_location_uri=None)
+            self.datasync.execute(None)
+        self.set_up_operator(task_id="task_3", source_location_uri=None, destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
+            self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -640,13 +646,14 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
+    def test_execute_fails(self, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
+        self.set_up_operator(task_arn=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(task_arn=None)
+            self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -761,13 +768,14 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
+    def test_execute_fails(self, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
+        self.set_up_operator(task_arn=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(task_arn=None)
+            self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
@@ -973,13 +981,14 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
+    def test_execute_fails(self, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
+        self.set_up_operator(task_arn=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(task_arn=None)
+            self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 

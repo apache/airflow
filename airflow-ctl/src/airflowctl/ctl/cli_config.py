@@ -111,10 +111,6 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 class DefaultHelpParser(argparse.ArgumentParser):
     """CustomParser to display help message."""
 
-    def _check_value(self, action, value):
-        """Override _check_value and check conditionally added command."""
-        super()._check_value(action, value)
-
     def error(self, message):
         """Override error and use print_help instead of print_usage."""
         self.print_help()
@@ -281,6 +277,57 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID",
 )
+ARG_DAG_RUN_ID = Arg(
+    flags=("--run-id",),
+    type=str,
+    help="The Dag run ID to clear",
+)
+ARG_DAG_PARTITION_KEY = Arg(
+    flags=("--partition-key",),
+    type=str,
+    help="The Dag run partition key to clear",
+)
+ARG_DAG_PARTITION_DATE_START = Arg(
+    flags=("--partition-date-start",),
+    type=str,
+    help=(
+        "Inclusive lower bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_PARTITION_DATE_END = Arg(
+    flags=("--partition-date-end",),
+    type=str,
+    help=(
+        "Inclusive upper bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_CLEAR_ONLY_FAILED = Arg(
+    flags=("-f", "--only-failed"),
+    default=False,
+    action="store_true",
+    help="Only clear failed task instances",
+)
+ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
+    flags=("-r", "--only-running"),
+    default=False,
+    action="store_true",
+    help="Only clear running task instances",
+)
+ARG_DAG_CLEAR_YES = Arg(
+    flags=("-y", "--yes"),
+    default=False,
+    action="store_true",
+    help="Do not prompt to confirm clearing task instances",
+)
+
+# Task Commands Args
+ARG_TASK_ID = Arg(
+    flags=("task_id",),
+    type=str,
+    help="The task ID",
+)
 ARG_RUN_ID = Arg(
     flags=("run_id",),
     type=str,
@@ -291,36 +338,12 @@ ARG_LOGICAL_DATE = Arg(
     flags=("--logical-date",),
     type=str,
     help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
-)
-
-# Task Commands Args
-ARG_DAG_RUN_ID = Arg(
-    flags=("dag_run_id",),
-    type=str,
-    help="The Dag Run ID",
-)
-ARG_TASK_ID = Arg(
-    flags=("task_id",),
-    type=str,
-    help="The Task ID",
 )
 ARG_MAP_INDEX = Arg(
     flags=("--map-index",),
     type=int,
-    dest="map_index",
     default=-1,
-    help="If set, query the mapped task instance with this map index (negative means non-mapped)",
-)
-ARG_RUN_ID = Arg(
-    flags=("run_id",),
-    type=str,
-    nargs="?",
-    help="The run ID of the Dag run (pass this or --logical-date, not both)",
-)
-ARG_LOGICAL_DATE = Arg(
-    flags=("--logical-date",),
-    type=str,
-    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+    help="Mapped task index",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -553,6 +576,7 @@ class CommandFactory:
             "dict",
             "tuple",
             "set",
+            "datetime.date",
             "datetime.datetime",
         }
         # Handle Optional types (e.g., "datetime.datetime | None", "str | None")
@@ -583,6 +607,7 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
+            "datetime.date": datetime.date,
             "datetime.datetime": datetime.datetime,
             "dict[str, typing.Any]": json_dict_type,
         }
@@ -1045,6 +1070,21 @@ CONNECTION_COMMANDS = (
 
 DAG_COMMANDS = (
     ActionCommand(
+        name="clear",
+        help="Clear task instances for Dag runs selected by run ID, partition key, or partition date",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_DAG_PARTITION_KEY,
+            ARG_DAG_PARTITION_DATE_START,
+            ARG_DAG_PARTITION_DATE_END,
+            ARG_DAG_CLEAR_ONLY_FAILED,
+            ARG_DAG_CLEAR_ONLY_RUNNING,
+            ARG_DAG_CLEAR_YES,
+        ),
+    ),
+    ActionCommand(
         name="next-execution",
         help="Show the next scheduled execution time for a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
@@ -1103,15 +1143,20 @@ POOL_COMMANDS = (
 
 TASK_COMMANDS = (
     ActionCommand(
-        name="state",
-        help="Get the state of a task instance",
-        func=lazy_load_command("airflowctl.ctl.commands.task_command.task_state"),
+        name="failed-deps",
+        help="Returns the unmet dependencies for a task instance",
+        description=(
+            "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
+            "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
+            "and then run by an executor."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.failed_deps"),
         args=(
             ARG_DAG_ID,
-            ARG_DAG_RUN_ID,
             ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
             ARG_MAP_INDEX,
-            ARG_OUTPUT,
         ),
     ),
     ActionCommand(

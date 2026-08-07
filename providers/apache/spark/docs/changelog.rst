@@ -28,6 +28,25 @@
 Changelog
 ---------
 
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Anchor spark-submit log trail on actual exception instead of lines (#70513)``
+* ``Spark: Fix missing space in YARN waitAppCompletion error message (#71055)``
+
+Misc
+~~~~
+
+* ``Decouple SparkSubmitOperator resumable deployment backends (#68679)``
+* ``Drop unused post_submit_commands copy from SparkSubmitOperator init (#70323)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 6.3.0
 .....
 

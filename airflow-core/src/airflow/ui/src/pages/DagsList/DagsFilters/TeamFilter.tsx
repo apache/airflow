@@ -41,7 +41,7 @@ export const TeamFilter = ({ onChange, selectedTeams }: Props) => {
   };
 
   return (
-    <Box>
+    <Box flex="0 1 200px" maxWidth="100%" width="200px">
       <Field.Root>
         <ReactSelect
           aria-label={translate("dagDetails.team")}
@@ -52,8 +52,7 @@ export const TeamFilter = ({ onChange, selectedTeams }: Props) => {
             }),
             container: (provided) => ({
               ...provided,
-              maxWidth: 200,
-              minWidth: 64,
+              width: "100%",
             }),
             control: (provided) => ({
               ...provided,
