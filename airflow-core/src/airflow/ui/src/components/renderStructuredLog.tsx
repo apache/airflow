@@ -44,6 +44,8 @@ type ErrorDetail = {
 };
 
 type RenderStructuredLogProps = {
+  /** Text mode only: render the timestamp with this instead of emitting the raw source value. */
+  formatTimestamp?: (timestamp: string) => string;
   index: number;
   logLevelFilters?: Array<string>;
   logLink: string;
@@ -173,6 +175,7 @@ export const extractTIContext = (
 };
 
 const renderStructuredLogImpl = ({
+  formatTimestamp,
   index,
   logLevelFilters,
   logLink,
@@ -216,9 +219,9 @@ const renderStructuredLogImpl = ({
     return "";
   }
 
-  if (Boolean(timestamp) && showTimestamp) {
+  if (timestamp !== undefined && Boolean(timestamp) && showTimestamp) {
     if (renderingMode === "text") {
-      elements.push(`[${timestamp}] `);
+      elements.push(`[${formatTimestamp?.(timestamp) ?? timestamp}] `);
     } else {
       elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
     }
@@ -322,7 +325,7 @@ const renderStructuredLogImpl = ({
       const stringifiedValue = val instanceof Object ? JSON.stringify(val) : val;
 
       if (renderingMode === "text") {
-        elements.push(` ${key === "logger" ? "source" : key}=${stringifiedValue} `);
+        elements.push(` ${key === "logger" ? "source" : key}=${stringifiedValue}`);
       } else {
         elements.push(
           <React.Fragment key={`space_${key}`}> </React.Fragment>,
