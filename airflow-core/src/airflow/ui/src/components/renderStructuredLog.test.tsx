@@ -112,6 +112,18 @@ describe("renderStructuredLog — already rendered error_detail", () => {
     expect(container.textContent).toBe(`0Trigger failed\n${traceback}`);
   });
 
+  it("adds no blank line when error_detail is an empty string", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage: { error_detail: "", event: "Trigger failed" },
+      renderingMode: "text",
+      translate: translate as never,
+    });
+
+    expect(result).toBe("Trigger failed");
+  });
+
   it("does not throw on an error_detail that is neither a list nor a string", () => {
     const result = renderStructuredLog({
       index: 0,

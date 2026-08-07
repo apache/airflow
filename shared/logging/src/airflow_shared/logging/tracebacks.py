@@ -28,9 +28,11 @@ _CONTEXT_MESSAGE = "During handling of the above exception, another exception oc
 _GROUP_HEADER = "Exception Group Traceback (most recent call last):"
 _SEPARATOR_DASHES = 16
 _CLOSING_DASHES = 36
-# Groups can nest arbitrarily deep. CPython's own traceback module stops at 15 levels and so
-# do we, both to keep the output readable and to bound recursion on a hostile payload.
-_MAX_GROUP_DEPTH = 15
+# Both limits and their wording are CPython's, from `TracebackException.max_group_width` and
+# `max_group_depth`. Matching them keeps the output familiar and bounds recursion and length
+# on a hostile payload.
+_MAX_GROUP_WIDTH = 15
+_MAX_GROUP_DEPTH = 10
 
 
 class _MalformedPayload(Exception):
@@ -83,6 +85,8 @@ def _prefixed(lines: list[str], depth: int) -> list[str]:
 def _format_stack(stack: Any, depth: int) -> list[str]:
     """Render a single exception together with its stack frames."""
     if stack.get("is_group") and stack.get("exceptions"):
+        if (depth or 1) > _MAX_GROUP_DEPTH:
+            return _prefixed([f"... (max_group_depth is {_MAX_GROUP_DEPTH})"], depth)
         return _format_group(stack, depth)
 
     lines: list[str] = []
@@ -141,31 +145,52 @@ def _format_group(stack: Any, depth: int) -> list[str]:
         lines[0] = f"{indent}+ {_GROUP_HEADER}"
 
     children = _as_list(stack.get("exceptions"))
-    if group_depth >= _MAX_GROUP_DEPTH:
-        return [*lines, f"{child_indent}+ ... ({len(children)} more nested sub-exceptions)"]
+    shown = children[:_MAX_GROUP_WIDTH]
 
-    for position, child in enumerate(children):
-        divider = f"{'-' * _SEPARATOR_DASHES} {position + 1} {'-' * _SEPARATOR_DASHES}"
+    for position, child in enumerate(shown):
+        divider = _divider(str(position + 1))
         lines.append(f"{indent}+-+{divider}" if position == 0 else f"{child_indent}+{divider}")
         lines.extend(_format_chain(_as_list(child), group_depth + 1))
 
-    # The last sub-exception draws the closing line itself when it is a group of its own.
-    if not _ends_in_group(children):
+    dropped = len(children) - len(shown)
+    if dropped:
+        plural = "s" if dropped > 1 else ""
+        lines.append(f"{child_indent}+{_divider('...')}")
+        lines.extend(_prefixed([f"and {dropped} more exception{plural}"], group_depth + 1))
+
+    # A sub-exception that is itself a group draws the closing line at its own level, so the
+    # one place we must not draw it is directly after such a group. A group deep enough to be
+    # replaced by the depth notice never gets that far, and neither does the dropped count.
+    if dropped or not _ends_in_rendered_group(shown, group_depth + 1):
         lines.append(f"{child_indent}+{'-' * _CLOSING_DASHES}")
     return lines
 
 
-def _ends_in_group(children: list[Any]) -> bool:
-    """Tell whether the last sub-exception rendered is itself an exception group."""
+def _divider(title: str) -> str:
+    """Build the numbered rule that separates one sub-exception from the next."""
+    return f"{'-' * _SEPARATOR_DASHES} {title} {'-' * _SEPARATOR_DASHES}"
+
+
+def _ends_in_rendered_group(children: list[Any], child_depth: int) -> bool:
+    """Tell whether the last sub-exception is a group that was rendered rather than elided."""
     if not children or not isinstance(children[-1], list) or not children[-1]:
         return False
     last = children[-1][0]
-    return bool(isinstance(last, dict) and last.get("is_group") and last.get("exceptions"))
+    if not (isinstance(last, dict) and last.get("is_group") and last.get("exceptions")):
+        return False
+    return child_depth <= _MAX_GROUP_DEPTH
 
 
 def _format_syntax_error(syntax_error: Any) -> list[str]:
     """Render the offending source line of a :exc:`SyntaxError` with a caret beneath it."""
-    lines = [f'  File "{syntax_error.get("filename")}", line {syntax_error.get("lineno")}']
+    # CPython prints the location only when the exception carries a line number, so a
+    # `raise SyntaxError("bad")` written by hand gets none. structlog stores `lineno or 0`,
+    # which turns that absence into a zero, and no real syntax error is reported on line 0.
+    # Printing the header regardless would invent a position that does not exist.
+    lines = []
+    if lineno := syntax_error.get("lineno"):
+        lines.append(f'  File "{syntax_error.get("filename")}", line {lineno}')
+
     # structlog stores `exc_value.text or ""`, so an exception with no source text arrives as
     # an empty string. Anything else is printed, including a line that is only indentation,
     # which is exactly what `expected an indented block` reports.

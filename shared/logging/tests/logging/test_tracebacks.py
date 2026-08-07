@@ -214,6 +214,27 @@ class TestFormatExceptionDicts:
             '  File "tabs.py", line 1\n    \t x = 1 +\n    \t^\nIndentationError: unexpected indent'
         )
 
+    def test_syntax_error_raised_by_hand_invents_no_location(self):
+        # `raise SyntaxError("bad")` carries no position at all. structlog stores
+        # `lineno or 0` and `filename or "?"`, so the absence arrives as 0 and "?".
+        # CPython prints no File line when there is no lineno, and neither do we: printing
+        # one would put a location in the log that does not exist.
+        payload = [
+            stack(
+                "SyntaxError",
+                "bad",
+                syntax_error={
+                    "offset": 0,
+                    "filename": "?",
+                    "line": "",
+                    "lineno": 0,
+                    "msg": "bad",
+                },
+            )
+        ]
+
+        assert format_exception_dicts(payload) == "SyntaxError: bad"
+
     def test_syntax_error_points_one_past_the_end_of_the_line(self):
         payload = [
             stack(
@@ -438,8 +459,54 @@ class TestMalformedPayloads:
         rendered = format_exception_dicts([payload])
 
         assert rendered is not None
-        assert "more nested sub-exceptions)" in rendered
+        # CPython's own limit, and its own wording. Ten groups are rendered, then the rest of
+        # the nest is replaced by one line and the block is closed.
+        assert rendered.splitlines()[-2:] == [
+            f"{'  ' * 11}| ... (max_group_depth is 10)",
+            f"{'  ' * 11}+{'-' * 36}",
+        ]
+        assert rendered.count("ExceptionGroup: level") == 10
         assert "ValueError: innermost" not in rendered
+
+    def test_group_wider_than_the_limit_reports_how_many_were_dropped(self):
+        payload = [
+            stack(
+                "ExceptionGroup",
+                "g (20 sub-exceptions)",
+                [("<string>", 4, "<module>")],
+                is_group=True,
+                exceptions=[[stack("ValueError", str(i))] for i in range(20)],
+            )
+        ]
+
+        rendered = format_exception_dicts(payload)
+
+        assert rendered is not None
+        # CPython prints the first fifteen, then a `...` divider and a count of the rest.
+        assert "    | ValueError: 14" in rendered
+        assert "    | ValueError: 15" not in rendered
+        assert rendered.splitlines()[-3:] == [
+            f"    +{'-' * 16} ... {'-' * 16}",
+            "    | and 5 more exceptions",
+            f"    +{'-' * 36}",
+        ]
+
+    def test_group_one_over_the_limit_uses_the_singular(self):
+        payload = [
+            stack(
+                "ExceptionGroup",
+                "g (16 sub-exceptions)",
+                [("<string>", 4, "<module>")],
+                is_group=True,
+                exceptions=[[stack("ValueError", str(i))] for i in range(16)],
+            )
+        ]
+
+        rendered = format_exception_dicts(payload)
+
+        assert rendered is not None
+        assert "    | and 1 more exception" in rendered
+        assert "more exceptions" not in rendered
 
 
 # Compiling from a name that is not on disk keeps `linecache` from finding source, so CPython
@@ -500,6 +567,22 @@ class TestAgainstRealTransformerOutput:
                 id="nested-exception-group",
             ),
             pytest.param("    compile('def f(:', 'bad.py', 'exec')", id="syntax-error"),
+            pytest.param("    raise SyntaxError('bad')", id="manually-raised-syntax-error"),
+            pytest.param(
+                "    raise ExceptionGroup('g', [SyntaxError('bad'), ValueError('v')])",
+                id="group-containing-a-syntax-error",
+            ),
+            pytest.param(
+                "    raise ExceptionGroup('g', [ValueError(str(i)) for i in range(20)])",
+                id="group-wider-than-the-limit",
+            ),
+            pytest.param(
+                "    e = ValueError('innermost')\n"
+                "    for i in range(20):\n"
+                "        e = ExceptionGroup(f'L{i}', [e])\n"
+                "    raise e",
+                id="group-deeper-than-the-limit",
+            ),
             pytest.param("    compile('if True', 'bad.py', 'exec')", id="syntax-error-at-end-of-line"),
             pytest.param("    compile('x = ', 'bad.py', 'exec')", id="syntax-error-trailing-operator"),
             pytest.param(

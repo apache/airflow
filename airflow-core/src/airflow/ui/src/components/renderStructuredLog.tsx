@@ -296,7 +296,8 @@ const renderStructuredLogImpl = ({
     // stringified rather than rendered, so an unexpected value cannot take the log view down.
     const rendered = typeof errorDetail === "string" ? errorDetail : JSON.stringify(errorDetail);
 
-    details = `\n${rendered}`;
+    // An empty detail would otherwise contribute nothing but the line break.
+    details = rendered === "" ? undefined : `\n${rendered}`;
   }
 
   elements.push(
