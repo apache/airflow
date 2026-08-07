@@ -46,7 +46,7 @@ export const RunStateLookbackSelect = ({ dataTestId, onChange, triggerProps, val
 
   const collection = createListCollection({
     items: LOOKBACK_OPTIONS.map(({ labelKey, value: lookback }) => ({
-      label: translate(`filters.runLookback.${labelKey}`),
+      label: translate(`common:timeRange.${labelKey}`),
       value: lookback,
     })),
   });
@@ -64,7 +64,7 @@ export const RunStateLookbackSelect = ({ dataTestId, onChange, triggerProps, val
       <Select.Trigger triggerProps={triggerProps}>
         <HStack gap={2} justifyContent="space-between" pe={5} width="full">
           <Text color="fg.muted" whiteSpace="nowrap">
-            {translate("filters.runLookback.in")}:
+            {translate("common:timeRange.in")}:
           </Text>
           <HStack gap={2}>
             {value === "latest" ? <FiZap /> : <FiClock />}

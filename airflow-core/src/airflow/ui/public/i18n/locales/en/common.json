@@ -387,9 +387,14 @@
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
+    "anyTime": "Any time",
+    "in": "in",
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
+    "last30Days": "Last 30 days",
+    "last7Days": "Last 7 days",
     "lastHour": "Last Hour",
+    "latestRun": "Latest run",
     "pastWeek": "Past Week"
   },
   "timestamp": {
