@@ -2409,11 +2409,11 @@ def process_log_messages_from_subprocess(
             event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
 
         if exc := event.pop("exception", None):
-            # Left structured on purpose. These records go to the task log, and its readers (the
-            # UI's log view, and the Elasticsearch and OpenSearch handlers) render the frames
-            # themselves, so handing them a string would cost them that. Choosing a format per
-            # destination is not open to us either: `_get_target_loggers` fans this single event
-            # out to both the task log and stdout, so there is only one payload to decide about.
+            # Left structured on purpose. These records go to the task log, whose log view in the
+            # UI renders the frames itself, so handing it a string would cost it that. Picking a
+            # format per destination is not open to us here either: the loop below sends this one
+            # event to every target logger, and those can be the task log and stdout at the same
+            # time, so there is only ever a single payload to decide about.
             event["error_detail"] = exc
 
         if level := NAME_TO_LEVEL.get(event.pop("level")):

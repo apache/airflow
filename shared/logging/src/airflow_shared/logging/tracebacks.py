@@ -166,8 +166,11 @@ def _ends_in_group(children: list[Any]) -> bool:
 def _format_syntax_error(syntax_error: Any) -> list[str]:
     """Render the offending source line of a :exc:`SyntaxError` with a caret beneath it."""
     lines = [f'  File "{syntax_error.get("filename")}", line {syntax_error.get("lineno")}']
+    # structlog stores `exc_value.text or ""`, so an exception with no source text arrives as
+    # an empty string. Anything else is printed, including a line that is only indentation,
+    # which is exactly what `expected an indented block` reports.
     source = (syntax_error.get("line") or "").rstrip("\n")
-    if not source.strip():
+    if not source:
         return lines
 
     # Match CPython, which strips only spaces, newlines and form feeds so that tab-indented
@@ -177,7 +180,9 @@ def _format_syntax_error(syntax_error: Any) -> list[str]:
     offset = syntax_error.get("offset")
     if isinstance(offset, int):
         column = offset - 1 - (len(source) - len(stripped))
-        if 0 <= column < len(stripped):
+        # `<=` rather than `<`: the commonest syntax errors point at the column just past the
+        # last character, so the caret legitimately sits one beyond the end of the line.
+        if 0 <= column <= len(stripped):
             padding = "".join(char if char.isspace() else " " for char in stripped[:column])
             lines.append(f"    {padding}^")
     return lines

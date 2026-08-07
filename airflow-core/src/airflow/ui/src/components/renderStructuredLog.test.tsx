@@ -83,29 +83,9 @@ describe("renderStructuredLog — already rendered error_detail", () => {
     "RuntimeError: outer",
   ].join("\n");
 
-  const logMessage = {
-    error_detail: traceback,
-    event: "Trigger failed",
-    level: "error",
-    timestamp: "2026-07-22T09:15:20Z",
-  };
+  const logMessage = { error_detail: traceback, event: "Trigger failed" };
 
-  it("jsx mode: renders a string error_detail instead of throwing", () => {
-    const result = renderStructuredLog({
-      index: 0,
-      logLink: "",
-      logMessage,
-      renderingMode: "jsx",
-      translate: translate as never,
-    });
-
-    render(<Wrapper>{result}</Wrapper>);
-
-    expect(screen.getByText(/RuntimeError: outer/u)).toBeInTheDocument();
-    expect(screen.getByText("Trigger failed")).toBeInTheDocument();
-  });
-
-  it("text mode: keeps the traceback verbatim", () => {
+  it("text mode: puts the traceback on its own line rather than against the event", () => {
     const result = renderStructuredLog({
       index: 0,
       logLink: "",
@@ -114,7 +94,34 @@ describe("renderStructuredLog — already rendered error_detail", () => {
       translate: translate as never,
     });
 
-    expect(result).toContain(traceback);
+    expect(result).toBe(`Trigger failed\n${traceback}`);
+  });
+
+  it("jsx mode: puts the traceback on its own line rather than against the event", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage,
+      renderingMode: "jsx",
+      translate: translate as never,
+    });
+
+    const { container } = render(<Wrapper>{result}</Wrapper>);
+
+    // The leading "0" is the line-number gutter link, which carries the index.
+    expect(container.textContent).toBe(`0Trigger failed\n${traceback}`);
+  });
+
+  it("does not throw on an error_detail that is neither a list nor a string", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage: { error_detail: { unexpected: true }, event: "Trigger failed" },
+      renderingMode: "text",
+      translate: translate as never,
+    });
+
+    expect(result).toBe('Trigger failed\n{"unexpected":true}');
   });
 });
 
