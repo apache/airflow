@@ -226,11 +226,16 @@ FAB_AUTH_MANAGER = "FabAuthManager"
 GOLANG_WORKER = "go"
 
 JAVA_SDK = "java"
-ALLOWED_SDKS = [JAVA_SDK]
+TYPESCRIPT_SDK = "typescript"
+ALLOWED_SDKS = [JAVA_SDK, TYPESCRIPT_SDK]
 
 # JDK version used to build the Java SDK and its example bundles (e.g. the lang-SDK k8s system test).
 # Keep in sync with the toolchain the Java SDK Gradle build targets.
 JAVA_SDK_VERSION = "17"
+
+# Node image used to build the TypeScript SDK docs. Keep in sync with the ``engines.node``
+# requirement in ts-sdk/package.json.
+TYPESCRIPT_SDK_NODE_VERSION = "22"
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]

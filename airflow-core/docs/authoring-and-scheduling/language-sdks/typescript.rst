@@ -37,7 +37,7 @@ The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the 
 .. seealso::
 
   For the full TypeScript API reference (task handlers, ``TaskClient``, and the coordinator runtime),
-  see :doc:`ts-sdk:api`.
+  see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
 .. contents:: Contents
    :local:

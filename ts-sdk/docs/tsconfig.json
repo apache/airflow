@@ -1,19 +1,5 @@
 {
-  "//": "Standalone docs-only tsconfig for the TypeDoc analysis pass driven by sphinx-js. It deliberately does NOT extend ../tsconfig.json: that file sets target/lib to es2023, which the TypeScript 5.4 shipped with TypeDoc 0.25 rejects at extends-resolution time. TypeDoc only needs to parse (not type-check) the sources, so es2022 with NodeNext resolution is sufficient.",
-  "compilerOptions": {
-    "target": "es2022",
-    "lib": ["es2022"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "moduleDetection": "force",
-    "types": ["node"],
-    "strict": true,
-    "verbatimModuleSyntax": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "noEmit": true
-  },
+  "//": "Docs-only tsconfig for the TypeDoc analysis pass. It inherits the SDK's compiler settings verbatim and only narrows the program to the public sources: TypeDoc documents src/, and pulling tests/ in would slow the pass down without adding to the reference.",
+  "extends": "../tsconfig.json",
   "include": ["../src/**/*.ts"]
 }

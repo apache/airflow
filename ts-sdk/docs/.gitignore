@@ -1,3 +1,4 @@
 _build/
-_api/
+.typedoc/
+.npm-home/
 node_modules/
