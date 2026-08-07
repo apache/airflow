@@ -99,9 +99,15 @@ def _format_stack(stack: Any, depth: int) -> list[str]:
         # over ``exc_value``, which repeats them.
         summary = syntax_error.get("msg", summary)
 
-    lines.append(f"{stack.get('exc_type')}: {summary}")
+    lines.append(_exception_line(stack.get("exc_type"), summary))
     lines.extend(_as_list(stack.get("exc_notes")))
     return _prefixed(lines, depth)
+
+
+def _exception_line(exc_type: Any, summary: Any) -> str:
+    """Render the ``Type: message`` line, dropping the separator when there is no message."""
+    # `raise ValueError()` carries an empty `exc_value`, and CPython prints the bare type name.
+    return f"{exc_type}: {summary}" if summary else f"{exc_type}"
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -126,7 +132,7 @@ def _format_group(stack: Any, depth: int) -> list[str]:
         header.append(_GROUP_HEADER)
         for frame in frames:
             header.extend(_format_frame(frame))
-    header.append(f"{stack.get('exc_type')}: {stack.get('exc_value')}")
+    header.append(_exception_line(stack.get("exc_type"), stack.get("exc_value")))
     header.extend(_as_list(stack.get("exc_notes")))
 
     lines = _prefixed(header, group_depth)
@@ -160,17 +166,20 @@ def _ends_in_group(children: list[Any]) -> bool:
 def _format_syntax_error(syntax_error: Any) -> list[str]:
     """Render the offending source line of a :exc:`SyntaxError` with a caret beneath it."""
     lines = [f'  File "{syntax_error.get("filename")}", line {syntax_error.get("lineno")}']
-    source = (syntax_error.get("line") or "").rstrip()
+    source = (syntax_error.get("line") or "").rstrip("\n")
     if not source.strip():
         return lines
 
-    stripped = source.lstrip()
+    # Match CPython, which strips only spaces, newlines and form feeds so that tab-indented
+    # source keeps its tabs, and pads the caret with the whitespace it kept so it lines up.
+    stripped = source.lstrip(" \n\f")
     lines.append(f"    {stripped}")
     offset = syntax_error.get("offset")
     if isinstance(offset, int):
         column = offset - 1 - (len(source) - len(stripped))
         if 0 <= column < len(stripped):
-            lines.append(f"    {' ' * column}^")
+            padding = "".join(char if char.isspace() else " " for char in stripped[:column])
+            lines.append(f"    {padding}^")
     return lines
 
 
