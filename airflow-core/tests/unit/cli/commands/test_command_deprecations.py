@@ -36,6 +36,7 @@ from airflow.cli.commands import (
     config_command,
     connection_command,
     dag_command,
+    jobs_command,
     pool_command,
     provider_command,
     task_command,
@@ -86,6 +87,7 @@ MIGRATED_CLI_COMMANDS = [
     (task_command.task_states_for_dag_run, "airflowctl tasks states-for-dag-run"),
     (task_command.task_clear, "airflowctl tasks clear"),
     (task_command.task_failed_deps, "airflowctl tasks failed-deps"),
+    (jobs_command.check, "airflowctl jobs check"),
 ]
 
 
