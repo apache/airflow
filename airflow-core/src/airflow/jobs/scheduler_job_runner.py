@@ -2290,11 +2290,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         has_backlog = len(rows) > self._max_partition_dag_runs_per_loop
         pending_apdrs = rows[: self._max_partition_dag_runs_per_loop]
         if has_backlog:
+            # Cap the dag_ids surfaced in logs/audit to the first 5 distinct target_dag_ids so a
+            # backlog spanning many Dags doesn't blow up the log line / audit row.
+            affected_dag_ids = list(dict.fromkeys(apdr.target_dag_id for apdr in pending_apdrs))
+            truncated_dag_ids = affected_dag_ids[:5]
+            extra_dag_id_count = len(affected_dag_ids) - len(truncated_dag_ids)
             self.log.warning(
                 "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
                 "will be evaluated over subsequent scheduler ticks",
                 cap=self._max_partition_dag_runs_per_loop,
                 pending_count=len(pending_apdrs),
+                dag_ids=truncated_dag_ids,
             )
             # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
             # and writing a `Log` row that often would flood the audit table. Write it once per
@@ -2308,6 +2314,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Invariant: this must run before *session* makes any writes this tick, or the
                 # new connection's commit can lock-contend with it on SQLite.
                 try:
+                    dag_ids_note = f"Affected dag_ids: {', '.join(truncated_dag_ids)}"
+                    if extra_dag_id_count > 0:
+                        dag_ids_note += f" (and {extra_dag_id_count} more)"
+                    dag_ids_note += "."
                     with create_session(scoped=False) as audit_session:
                         audit_session.add(
                             Log(
@@ -2317,7 +2327,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                     f"runs this tick, reaching the internal per-tick cap of "
                                     f"{self._max_partition_dag_runs_per_loop}. This cap is a hardcoded "
                                     "scheduler safety limit, not a configurable setting; the remaining "
-                                    "backlog will be evaluated over subsequent ticks."
+                                    f"backlog will be evaluated over subsequent ticks. {dag_ids_note}"
                                 ),
                             )
                         )
