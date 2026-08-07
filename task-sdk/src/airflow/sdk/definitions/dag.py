@@ -591,7 +591,9 @@ class DAG:
             self.default_args["end_date"] = timezone.convert_to_utc(end_date)
         if self.access_control is not None:
             warnings.warn(
-                "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
+                "DAG.access_control is deprecated and is only read when the configured auth manager is the "
+                "FAB auth manager; under any other auth manager it is ignored and grants no access. See "
+                "https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
