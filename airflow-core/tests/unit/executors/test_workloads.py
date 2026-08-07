@@ -235,19 +235,19 @@ class TestExecuteTaskMakeVersionData:
         return ti
 
     @pytest.mark.parametrize("execute_tasks_new_python_interpreter", [True, False, None])
-    def test_make_populates_execute_tasks_new_python_interpreter(self, execute_tasks_new_python_interpreter):
-        from unittest.mock import Mock
-
+    def test_make_uses_explicit_execute_tasks_new_python_interpreter(
+        self, execute_tasks_new_python_interpreter
+    ):
         ti = self._make_mock_ti(bundle_version="abc123", version_data={})
-        ti.task = Mock(execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter)
 
-        workload = ExecuteTask.make(ti)
+        workload = ExecuteTask.make(
+            ti, execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter
+        )
 
         assert workload.execute_tasks_new_python_interpreter is execute_tasks_new_python_interpreter
 
     def test_make_defaults_execute_tasks_new_python_interpreter_to_none(self):
         ti = self._make_mock_ti(bundle_version="abc123", version_data={})
-        ti.task = None
 
         workload = ExecuteTask.make(ti)
 
