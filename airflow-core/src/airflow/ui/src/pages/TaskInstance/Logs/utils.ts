@@ -27,6 +27,9 @@ import {
 } from "src/components/renderStructuredLog";
 import { parseStreamingLogContent } from "src/utils/logs";
 
+/** Marker shown before group header rows; rendered as a real character so it survives copy. */
+export const getGroupHeaderMarker = (isExpanded: boolean): string => (isExpanded ? "▼" : "▶");
+
 type GetDownloadTextOptions = {
   fetchedData: TaskInstancesLogResponse | undefined;
   logLevelFilters: Array<string>;

@@ -38,7 +38,13 @@ import {
   mergePinnedIndexes,
 } from "./logSelection";
 import { useLogGroups } from "./useLogGroups";
-import { getHighlightColor, isSelectionWithin, scrollToBottom, scrollToTop } from "./utils";
+import {
+  getGroupHeaderMarker,
+  getHighlightColor,
+  isSelectionWithin,
+  scrollToBottom,
+  scrollToTop,
+} from "./utils";
 
 export type TaskLogContentProps = {
   readonly currentMatchLineIndex?: number;
@@ -222,7 +228,7 @@ export const TaskLogContent = ({
         getRowText: (index) => {
           const entry = visibleItems[index]?.entry;
 
-          return entry ? getEntryText(entry) : "";
+          return entry ? getEntryText(entry, expandedGroups) : "";
         },
         selection,
       });
@@ -237,7 +243,7 @@ export const TaskLogContent = ({
     document.addEventListener("copy", handleCopy);
 
     return () => document.removeEventListener("copy", handleCopy);
-  }, [visibleItems]);
+  }, [visibleItems, expandedGroups]);
 
   useLayoutEffect(() => {
     if (visibleItems.length === 0) {
@@ -368,15 +374,7 @@ export const TaskLogContent = ({
                       color="fg.info"
                       data-testid={`summary-${typeof entry.element === "string" ? entry.element : ""}`}
                     >
-                      <Box
-                        as="span"
-                        display="inline-block"
-                        mr={1}
-                        transform={isExpanded ? "rotate(90deg)" : "rotate(0deg)"}
-                        transition="transform 0.15s"
-                      >
-                        {"\u25B6"}
-                      </Box>
+                      {getGroupHeaderMarker(isExpanded)}{" "}
                       {visibleSearchMatchIndices?.has(virtualRow.index) ? (
                         <HighlightedText query={searchQuery}>
                           {typeof entry.element === "string" ? entry.element : undefined}
