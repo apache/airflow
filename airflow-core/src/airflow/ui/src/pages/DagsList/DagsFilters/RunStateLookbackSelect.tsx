@@ -41,6 +41,10 @@ const LOOKBACK_OPTIONS: ReadonlyArray<{ labelKey: string; value: RunStateLookbac
   { labelKey: "anyTime", value: "any" },
 ];
 
+export const TIME_LOOKBACKS = LOOKBACK_OPTIONS.map((option) => option.value).filter(
+  (value) => value !== "latest" && value !== "any",
+);
+
 export const RunStateLookbackSelect = ({ dataTestId, onChange, triggerProps, value }: Props) => {
   const { t: translate } = useTranslation("dags");
 

@@ -60,6 +60,9 @@ describe("runLookbackFor", () => {
     { any: "failed", expected: "24", last: null, lookback: "24" },
     // any-run state without a lookback → any-time
     { any: "failed", expected: "any", last: null, lookback: null },
+    // invalid lookback values (garbage / out-of-range number) fall back to any-time
+    { any: "failed", expected: "any", last: null, lookback: "abc" },
+    { any: "failed", expected: "any", last: null, lookback: "100" },
   ])("last=$last any=$any lookback=$lookback resolves to $expected", ({ any, expected, last, lookback }) => {
     expect(runLookbackFor(last, any, lookback)).toBe(expected);
   });

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { RunStateLookback } from "./RunStateLookbackSelect";
+import { TIME_LOOKBACKS, type RunStateLookback } from "./RunStateLookbackSelect";
 
 // The unified "Run state" control is backed by the existing independent URL params:
 //   - "latest" lookback  → last_dag_run_state  (match the latest run only)
@@ -50,7 +50,13 @@ export const runLookbackFor = (
   lastRunState: string | null,
   anyRunState: string | null,
   anyRunStateLookback: string | null,
-): RunStateLookback =>
-  lastRunState !== null || anyRunState === null
-    ? "latest"
-    : ((anyRunStateLookback ?? "any") as RunStateLookback);
+): RunStateLookback => {
+  if (lastRunState !== null || anyRunState === null) {
+    return "latest";
+  }
+
+  return anyRunStateLookback !== null &&
+    (TIME_LOOKBACKS as ReadonlyArray<string>).includes(anyRunStateLookback)
+    ? (anyRunStateLookback as RunStateLookback)
+    : "any";
+};
