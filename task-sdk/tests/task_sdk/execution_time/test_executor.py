@@ -26,7 +26,11 @@ from task_sdk.execution_time.test_task_runner import get_inline_dag
 from airflow.sdk import BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.bases.operator import event_loop
-from airflow.sdk.exceptions import AirflowRescheduleException, AirflowRescheduleTaskInstanceException, TaskDeferred
+from airflow.sdk.exceptions import (
+    AirflowRescheduleException,
+    AirflowRescheduleTaskInstanceException,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
 
 from tests_common.test_utils.mock_context import mock_context
