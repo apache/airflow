@@ -367,21 +367,17 @@ updates:
 
   - package-ecosystem: "gomod"
     cooldown:
-      default-days: 4
+      default-days: 14
     directory: "/go-sdk"
     schedule:
       interval: "weekly"
     target-branch: v3-3-test
+    open-pull-requests-limit: 0
     groups:
-      3-3-go-sdk-dependency-updates:
+      3-3-go-sdk-security-updates:
         patterns:
           - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        applies-to: security-updates
 
   - package-ecosystem: "uv"
     cooldown:
