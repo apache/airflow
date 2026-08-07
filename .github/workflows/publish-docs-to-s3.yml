@@ -303,7 +303,7 @@ jobs:
           -t "ghcr.io/apache/airflow/main/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest" --target main .
           -f Dockerfile.ci --platform linux/amd64
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
+        uses: apache/infrastructure-actions/stash/restore@6a8cc443005eb76c9e5619da00205d6181966b5a
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -316,7 +316,7 @@ jobs:
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
+        uses: apache/infrastructure-actions/stash/save@6a8cc443005eb76c9e5619da00205d6181966b5a
         if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
         with:
           path: ./generated/_inventory_cache/
