@@ -129,7 +129,14 @@ PIP package                                 Version required
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.155.0``
+``google-cloud-aiplatform``                 ``>=1.155.0``
+``tqdm``                                    ``>=4.23.0``
+``scikit-learn``                            ``>=1.6.0``
+``jsonschema``                              ``>=4.19.1``
+``ruamel.yaml``                             ``>=0.19.0``
+``pyyaml``                                  ``>=6.0.3``
+``litellm``                                 ``>=1.83.7,<1.86.0; python_version < "3.14"``
+``litellm``                                 ``>=1.93.0; python_version >= "3.14"``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
