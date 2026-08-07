@@ -76,6 +76,48 @@ describe("renderStructuredLog — traceback frame highlighting", () => {
   });
 });
 
+describe("renderStructuredLog — already rendered error_detail", () => {
+  const traceback = [
+    "Traceback (most recent call last):",
+    '  File "/dags/t.py", line 12, in run',
+    "RuntimeError: outer",
+  ].join("\n");
+
+  const logMessage = {
+    error_detail: traceback,
+    event: "Trigger failed",
+    level: "error",
+    timestamp: "2026-07-22T09:15:20Z",
+  };
+
+  it("jsx mode: renders a string error_detail instead of throwing", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage,
+      renderingMode: "jsx",
+      translate: translate as never,
+    });
+
+    render(<Wrapper>{result}</Wrapper>);
+
+    expect(screen.getByText(/RuntimeError: outer/u)).toBeInTheDocument();
+    expect(screen.getByText("Trigger failed")).toBeInTheDocument();
+  });
+
+  it("text mode: keeps the traceback verbatim", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage,
+      renderingMode: "text",
+      translate: translate as never,
+    });
+
+    expect(result).toContain(traceback);
+  });
+});
+
 describe("renderStructuredLog — TI context field stripping", () => {
   it("does not render TI context fields as per-line structured attributes", () => {
     const result = renderStructuredLog({

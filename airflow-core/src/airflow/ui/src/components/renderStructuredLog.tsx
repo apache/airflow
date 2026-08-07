@@ -248,7 +248,11 @@ const renderStructuredLogImpl = ({
   const { error_detail: errorDetail, ...reStructured } = structured;
   let details;
 
-  if (errorDetail !== undefined) {
+  if (typeof errorDetail === "string") {
+    // Some producers render the traceback themselves instead of sending the frames. Both the
+    // text branch and the jsx wrapper below keep whitespace, so it lays out as it arrived.
+    details = errorDetail;
+  } else if (errorDetail !== undefined) {
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => {
         if (renderingMode === "text") {
