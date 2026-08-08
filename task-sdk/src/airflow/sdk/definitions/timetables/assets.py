@@ -42,6 +42,7 @@ class AssetTriggeredTimetable(BaseTimetable):
     :meta private:
     """
 
+    asset_triggered = True
     asset_condition: BaseAsset = attrs.field(alias="assets")
 
 
@@ -78,6 +79,26 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
     :param timetable: A timetable instance to evaluate time-based scheduling.
     """
 
+    asset_condition: BaseAsset = attrs.field(alias="assets", converter=_coerce_assets)
+    timetable: BaseTimetable
+
+    def __attrs_post_init__(self) -> None:
+        self.active_runs_limit = self.timetable.active_runs_limit
+        self.can_be_scheduled = self.timetable.can_be_scheduled
+
+
+@attrs.define(kw_only=True)
+class AssetAndTimeSchedule(BaseTimetable):
+    """
+    Combine time-based scheduling with asset conditions.
+
+    :param assets: An asset or list of assets, in the same format as
+        ``DAG(schedule=...)`` when using event-driven scheduling. This is used
+        to evaluate whether a scheduled run can be created.
+    :param timetable: A timetable instance to evaluate time-based scheduling.
+    """
+
+    asset_gated = True
     asset_condition: BaseAsset = attrs.field(alias="assets", converter=_coerce_assets)
     timetable: BaseTimetable
 

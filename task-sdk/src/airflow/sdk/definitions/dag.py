@@ -635,7 +635,7 @@ class DAG:
             return
         from airflow.sdk.api.datamodels._generated import DagRunType
 
-        if isinstance(self.timetable, AssetTriggeredTimetable):
+        if self.timetable.asset_triggered:
             if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
                 raise ValueError(
                     "allowed_run_types must include ASSET_TRIGGERED when the Dag is scheduled by assets"
