@@ -1704,7 +1704,11 @@ api:
     dag_cache_size:
       description: |
         Size of the LRU cache for SerializedDAG objects in the API server.
-        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        Set to 0 to remove the size cap. Cached entries are then evicted only by
+        ``dag_cache_ttl``, or never if that is also 0 (matching pre-3.3 behavior).
+        Note that the TTL is then not a ceiling on memory. Entries that keep being
+        requested are refreshed and never expire, so memory usage follows the number
+        of distinct Dag versions in active use.
         The cache is keyed by Dag version ID, so lookups by Dag ID
         (e.g., viewing a Dag's details) always query the database for the latest
         version, but the deserialized result is cached for subsequent
@@ -1717,7 +1721,9 @@ api:
       description: |
         Time-to-live (seconds) for cached SerializedDAG objects in the API server.
         After this time, cached DAGs will be re-fetched from the database on next access.
-        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+        Applies whether or not ``dag_cache_size`` sets a size cap. Set to 0 to disable TTL,
+        leaving eviction to the ``dag_cache_size`` LRU policy, or no eviction at all if
+        ``dag_cache_size`` is also 0.
 
         Note: After a DAG is updated, the API server may serve the previous version
         until the cached entry expires. Lower values reduce staleness but increase

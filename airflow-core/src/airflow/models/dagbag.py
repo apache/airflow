@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import time
 from collections.abc import MutableMapping
 from contextlib import nullcontext
@@ -62,9 +63,9 @@ class DBDagBag:
     """
     Internal class for retrieving dags from the database.
 
-    Optionally supports LRU+TTL caching when cache_size is provided.
-    The scheduler uses this without caching, while the API server can
-    enable caching via configuration.
+    Optionally caches deserialized dags. A size cap enables LRU eviction and a TTL
+    enables age-based eviction, with or without a size cap. The scheduler uses this
+    without caching, while the API server can enable caching via configuration.
 
     :meta private:
     """
@@ -79,8 +80,9 @@ class DBDagBag:
         Initialize DBDagBag.
 
         :param load_op_links: Should the extra operator link be loaded when de-serializing the DAG?
-        :param cache_size: Size of LRU cache. If None or 0, uses unbounded dict (no eviction).
-        :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL (LRU only).
+        :param cache_size: Max cached entries; 0 or None means no size cap.
+        :param cache_ttl: Seconds until a cached entry expires. If > 0, entries are evicted by
+            age regardless of ``cache_size`` (with no size cap this gives TTL-only eviction).
         """
         self.load_op_links = load_op_links
         self._dags: MutableMapping[UUID | str, _CacheEntry] = {}
@@ -88,12 +90,13 @@ class DBDagBag:
 
         self._revalidation_interval = conf.getint("core", "min_serialized_dag_update_interval")
 
-        # Initialize bounded cache if cache_size is provided and > 0
-        if cache_size and cache_size > 0:
-            if cache_ttl and cache_ttl > 0:
-                self._dags = TTLCache(maxsize=cache_size, ttl=cache_ttl)
-            else:
-                self._dags = LRUCache(maxsize=cache_size)
+        # Initialize a TTL cache if configured, otherwise a bounded LRU cache.
+        if cache_ttl and cache_ttl > 0:
+            maxsize = cache_size if cache_size and cache_size > 0 else math.inf
+            self._dags = TTLCache(maxsize=maxsize, ttl=cache_ttl)
+            self._use_cache = True
+        elif cache_size and cache_size > 0:
+            self._dags = LRUCache(maxsize=cache_size)
             self._use_cache = True
 
         # Lock required for bounded caches: cachetools caches are NOT thread-safe

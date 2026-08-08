@@ -725,8 +725,10 @@ in memory. Configure this in the ``[api]`` section:
 .. code-block:: ini
 
     [api]
-    dag_cache_size = 64    ; max cached versions (0 = unbounded, pre-3.2 behavior)
+    dag_cache_size = 64    ; max cached versions (0 = no size cap, TTL still applies)
     dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = LRU only)
+
+Setting both to 0 disables eviction entirely, matching pre-3.3 behavior.
 
 The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
 previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
