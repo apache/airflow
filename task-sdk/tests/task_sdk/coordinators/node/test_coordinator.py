@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import pathlib
+from unittest.mock import patch
 
 import pytest
 from uuid6 import uuid7
@@ -94,9 +95,34 @@ class TestNodeCoordinatorAttributes:
         ]
         assert coordinator.task_startup_timeout == 30.0
 
-    def test_bundles_root_is_required(self):
-        with pytest.raises(ValueError, match="Length of 'bundles_root' must be >= 1"):
-            NodeCoordinator(bundles_root=None)
+    def test_bundles_root_optional_defaults_to_empty(self):
+        # Neither an explicit root nor dag_bundle_name: co-located mode, valid.
+        coordinator = NodeCoordinator()
+        assert coordinator.bundles_root == []
+        assert coordinator.dag_bundle_name is None
+
+    def test_none_bundles_root_normalized_to_empty(self):
+        coordinator = NodeCoordinator(bundles_root=None)
+        assert coordinator.bundles_root == []
+
+    def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="at most one of 'bundles_root' or 'dag_bundle_name'"):
+            NodeCoordinator(bundles_root="/airflow/ts-bundles", dag_bundle_name="artifacts")
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
+        mock_manager.is_bundle_configured.return_value = False
+        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
+            NodeCoordinator(dag_bundle_name="ghost")
+
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        # Co-located mode: no configured root, so the subclass must scan the roots
+        # the base hands in rather than a configured bundles_root field.
+        bundle = write_bundle(tmp_path)
+        coordinator = NodeCoordinator()
+        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
+        assert command == ["node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
 
 
 class TestNodeCoordinatorBundleSelection:
@@ -217,7 +243,7 @@ class TestNodeCoordinatorExecuteTaskCommand:
             bundles_root=tmp_path,
         )
 
-        command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
+        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
 
         assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION

@@ -370,13 +370,43 @@ class TestExecutableCoordinatorAttributes:
         coordinator = ExecutableCoordinator(executables_root=[str(tmp_path), other])
         assert coordinator.executables_root == [tmp_path, other]
 
-    def test_executables_root_required(self):
-        with pytest.raises(TypeError, match="executables_root"):
-            ExecutableCoordinator()
+    def test_executables_root_optional_defaults_to_empty(self):
+        # Neither an explicit root nor dag_bundle_name: co-located mode, valid.
+        coordinator = ExecutableCoordinator()
+        assert coordinator.executables_root == []
+        assert coordinator.dag_bundle_name is None
 
-    def test_executables_root_must_be_non_empty(self):
-        with pytest.raises(ValueError, match="executables_root"):
-            ExecutableCoordinator(executables_root=None)
+    def test_none_executables_root_normalized_to_empty(self):
+        coordinator = ExecutableCoordinator(executables_root=None)
+        assert coordinator.executables_root == []
+
+    def test_root_and_dag_bundle_name_are_mutually_exclusive(self, tmp_path):
+        with pytest.raises(ValueError, match="at most one of 'executables_root' or 'dag_bundle_name'"):
+            ExecutableCoordinator(executables_root=[tmp_path], dag_bundle_name="artifacts")
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
+        mock_manager.is_bundle_configured.return_value = False
+        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
+            ExecutableCoordinator(dag_bundle_name="ghost")
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_configured_dag_bundle_name_accepted(self, mock_manager):
+        mock_manager.is_bundle_configured.return_value = True
+        coordinator = ExecutableCoordinator(dag_bundle_name="artifacts")
+        assert coordinator.dag_bundle_name == "artifacts"
+        mock_manager.is_bundle_configured.assert_called_once_with("artifacts")
+
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        # Co-located mode: no configured root, so the subclass must scan the roots
+        # the base hands in rather than a configured executables_root field.
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
+        coordinator = ExecutableCoordinator()
+        command, schema_version = coordinator._build_execute_task_command(
+            what=_make_ti(dag_id="tutorial_dag"), roots=[tmp_path]
+        )
+        assert command == [str(binary.resolve())]
+        assert schema_version == "2026-06-16"
 
 
 class TestBuildExecuteTaskCommand:
@@ -385,7 +415,7 @@ class TestBuildExecuteTaskCommand:
         ti = _make_ti(dag_id="tutorial_dag")
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        command, schema_version = coordinator._build_execute_task_command(what=ti)
+        command, schema_version = coordinator._build_execute_task_command(what=ti, roots=[tmp_path])
         assert command == [str(binary.resolve())]
         assert schema_version == "2026-06-16"
 
@@ -397,7 +427,7 @@ class TestBuildExecuteTaskCommand:
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
         with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
-            coordinator._build_execute_task_command(what=ti)
+            coordinator._build_execute_task_command(what=ti, roots=[tmp_path])
 
     def test_raises_when_dag_id_not_found(self, tmp_path):
         _build_bundle(tmp_path / "my_bundle", dag_ids=["other_dag"])
@@ -405,7 +435,7 @@ class TestBuildExecuteTaskCommand:
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
         with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            coordinator._build_execute_task_command(what=ti)
+            coordinator._build_execute_task_command(what=ti, roots=[tmp_path])
 
 
 @pytest.fixture

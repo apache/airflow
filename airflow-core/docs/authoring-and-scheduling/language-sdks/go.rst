@@ -424,13 +424,29 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Default
      - Description
    * - ``executables_root``
-     - *(required)*
+     - *(optional)*
      - One or more directories scanned recursively for executable bundles. Accepts a string,
-       a path, or a list of strings/paths.
+       a path, or a list of strings/paths. When omitted, bundles are located through a Dag
+       bundle instead (see the note below).
+   * - ``dag_bundle_name``
+     - *(auto: task's own bundle)*
+     - Name of a configured Dag bundle to load executable bundles from. Mutually exclusive
+       with ``executables_root``.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the bundle subprocess to connect after launch. Increase this if your
        bundle startup is slow (e.g. on constrained hardware).
+
+.. note::
+
+  **Locating bundles.** ``executables_root`` and ``dag_bundle_name`` are mutually exclusive,
+  and both are optional:
+
+  * Set ``executables_root`` to scan explicit filesystem directories you manage yourself.
+  * Set ``dag_bundle_name`` to load bundles from a configured Dag bundle (its latest version),
+    so they are delivered and versioned through the same bundle machinery as your Dags.
+  * Leave both unset (the default) to load bundles from the **task's own** Dag bundle, pinned
+    to the version the run was created with.
 
 .. _go-sdk/edge-worker:
 

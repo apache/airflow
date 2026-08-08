@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import importlib
 import logging
 import os
@@ -105,6 +106,20 @@ def _bundle_item_exc(msg):
     return AirflowConfigException(
         "Invalid config for section `dag_processor` key `dag_bundle_config_list`. " + msg
     )
+
+
+@functools.cache
+def _configured_bundle_names() -> frozenset[str]:
+    """Return configured Dag bundle names, parsed by name only (no class import)."""
+    config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
+    if not config_list:
+        return frozenset()
+    if not isinstance(config_list, list):
+        raise AirflowConfigException(
+            "Section `dag_processor` key `dag_bundle_config_list` "
+            f"must be list but got {config_list.__class__}"
+        )
+    return frozenset(cfg.name for cfg in _parse_bundle_config(config_list))
 
 
 def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
@@ -652,6 +667,11 @@ class DagBundlesManager(LoggingMixin):
         return cfg_bundle.bundle_class(
             name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
         )
+
+    @classmethod
+    def is_bundle_configured(cls, name: str) -> bool:
+        """Return whether *name* is a configured Dag bundle, by config name only (no class import)."""
+        return name in _configured_bundle_names()
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """

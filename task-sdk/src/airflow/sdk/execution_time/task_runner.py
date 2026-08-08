@@ -158,6 +158,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.api.datamodels._generated import BundleInfo
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryDecision
@@ -1012,6 +1013,25 @@ def _register_deserialization_allowed_classes(dag, log: Logger) -> None:
                     )
 
 
+def initialize_ti_bundle(bundle_info: BundleInfo, log: Logger) -> BaseDagBundle:
+    """
+    Resolve, initialize, and access-check the Dag bundle for a task instance.
+
+    Shared by :func:`parse` (Python task path) and the subprocess coordinators
+    (language-SDK path), which both need a task instance's bundle materialized
+    on disk before use. Returns the initialized bundle so callers can read
+    ``bundle.path``.
+    """
+    bundle_instance = DagBundlesManager().get_bundle(
+        name=bundle_info.name,
+        version=bundle_info.version,
+        version_data=bundle_info.version_data,
+    )
+    bundle_instance.initialize()
+    _verify_bundle_access(bundle_instance, log)
+    return bundle_instance
+
+
 @detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
@@ -1020,13 +1040,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 
     bundle_info = what.bundle_info
     bundle_prepare_start = time.monotonic()
-    bundle_instance = DagBundlesManager().get_bundle(
-        name=bundle_info.name,
-        version=bundle_info.version,
-        version_data=bundle_info.version_data,
-    )
-    bundle_instance.initialize()
-    _verify_bundle_access(bundle_instance, log)
+    bundle_instance = initialize_ti_bundle(bundle_info, log)
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))

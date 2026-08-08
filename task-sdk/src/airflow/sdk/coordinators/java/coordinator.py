@@ -24,7 +24,7 @@ import os
 import pathlib
 import stat
 import zipfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import attrs
 import structlog
@@ -172,7 +172,8 @@ class JavaCoordinator(SubprocessCoordinator):
     :param java_executable: Path to the ``java`` command (defaults to
         ``"java"``, which relies on ``$PATH``).
     :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
-    :param jars_root: A list of directories scanned for JAR bundles.
+    :param jars_root: A list of directories scanned for JAR bundles. See
+        :class:`SubprocessCoordinator` for its interaction with ``dag_bundle_name``.
     :param main_class: Explicit entry point to execute with *java_executable*.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
@@ -200,16 +201,28 @@ class JavaCoordinator(SubprocessCoordinator):
     jvm_args: list[str] = attrs.field(factory=list)
     jars_root: list[pathlib.Path] = attrs.field(
         converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        factory=list,
     )
     main_class: str = ""
+    _root_kwarg: ClassVar[str] = "jars_root"
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        jar = _JarInfo.find(self.jars_root, self.main_class)
+    @property
+    def _explicit_artifact_roots(self) -> list[pathlib.Path]:
+        return self.jars_root
+
+    def _build_execute_task_command(
+        self, *, what: TaskInstance, roots: list[pathlib.Path]
+    ) -> tuple[list[str], str | None]:
+        # TODO: Scanning a whole Dag bundle without an explicit main_class lets
+        # _JarInfo.find pick the first executable JAR in walk order, so duplicate
+        # entrypoints across bundles resolve non-deterministically — the same
+        # duplicate-dag_id ambiguity the Python Dag path has. Reject it at the
+        # IMPORT_ERROR stage once AIP-85 exposes an interface to raise there.
+        jar = _JarInfo.find(roots, self.main_class)
         command = [
             self.java_executable,
             "-classpath",
-            _calculate_classpath(self.jars_root),
+            _calculate_classpath(roots),
             *self.jvm_args,
             jar.main_class,
         ]
