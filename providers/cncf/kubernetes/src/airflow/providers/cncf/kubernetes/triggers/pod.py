@@ -36,6 +36,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
     OnKillAction,
     PodLaunchTimeoutException,
+    PodNotFoundException,
     PodPhase,
 )
 from airflow.providers.cncf.kubernetes.version_compat import (
@@ -204,8 +205,10 @@ class KubernetesPodTrigger(BaseTrigger):
                 }
             )
             return
+        pod_may_have_started = False
         try:
             state = await self._wait_for_pod_start_within_deadline()
+            pod_may_have_started = True
             if state == ContainerState.TERMINATED:
                 event = TriggerEvent(
                     {
@@ -241,6 +244,27 @@ class KubernetesPodTrigger(BaseTrigger):
                     "status": "timeout",
                     "message": message,
                     **self.trigger_kwargs,
+                }
+            )
+            return
+        except PodNotFoundException as e:
+            # A 404 while ``pod_may_have_started`` is still False means the pod disappeared before its
+            # base container could have started (e.g. preempted by a higher-priority DaemonSet pod
+            # while the node was still stabilizing) — safe for the operator to relaunch on re-entry.
+            # Once the pod has left Pending, its base container may already be running, so a later 404
+            # must not be flagged as safe to retry, to avoid duplicating non-idempotent work.
+            message = self._format_exception_description(e)
+            self._fired_event = True
+            yield TriggerEvent(
+                {
+                    "name": self.pod_name,
+                    "namespace": self.pod_namespace,
+                    "status": "error",
+                    "message": message,
+                    **self.trigger_kwargs,
+                    # Computed after the trigger_kwargs spread so a caller-supplied trigger_kwargs
+                    # cannot override this safety-critical field and force an unsafe relaunch.
+                    "pod_disappeared_before_start": not pod_may_have_started,
                 }
             )
             return

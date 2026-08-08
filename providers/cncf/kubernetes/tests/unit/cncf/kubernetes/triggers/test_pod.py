@@ -31,7 +31,7 @@ from kubernetes.client import models as k8s
 from pendulum import DateTime
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodNotFoundException, PodPhase
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
@@ -236,6 +236,67 @@ class TestKubernetesPodTrigger:
         assert not task.done()
         assert "Container is not completed and still working." in caplog.text
         assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    async def test_run_flags_pod_not_found_before_start_as_safe_to_retry(self, mock_wait_pod, trigger):
+        """A PodNotFoundException raised while still waiting for the pod to start (i.e. before it has
+        left Pending) is flagged in the event so the operator knows it's safe to relaunch."""
+        mock_wait_pod.side_effect = PodNotFoundException(f"Pod {NAMESPACE}/{POD_NAME} not found.")
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == "error"
+        assert actual_event.payload["pod_disappeared_before_start"] is True
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_container_completion")
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    async def test_run_does_not_flag_pod_not_found_after_start_as_safe_to_retry(
+        self, mock_wait_pod, mock_wait_completion, trigger
+    ):
+        """A PodNotFoundException raised after the pod has already started (i.e. while waiting for
+        container completion) must NOT be flagged as safe to retry, since the base container may
+        already have run non-idempotent work."""
+        mock_wait_pod.return_value = ContainerState.RUNNING
+        mock_wait_completion.side_effect = PodNotFoundException(f"Pod {NAMESPACE}/{POD_NAME} not found.")
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == "error"
+        assert actual_event.payload["pod_disappeared_before_start"] is False
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_container_completion")
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    async def test_run_pod_disappeared_before_start_cannot_be_overridden_by_trigger_kwargs(
+        self, mock_wait_pod, mock_wait_completion
+    ):
+        """A caller-supplied trigger_kwargs must not be able to override the computed
+        pod_disappeared_before_start value and force an unsafe relaunch."""
+        trigger_with_kwargs = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_dict=CONFIG_DICT,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            startup_check_interval=STARTUP_CHECK_INTERVAL_SECS,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+            trigger_kwargs={"pod_disappeared_before_start": True},
+        )
+        mock_wait_pod.return_value = ContainerState.RUNNING
+        mock_wait_completion.side_effect = PodNotFoundException(f"Pod {NAMESPACE}/{POD_NAME} not found.")
+
+        actual_event = await trigger_with_kwargs.run().asend(None)
+
+        assert actual_event.payload["pod_disappeared_before_start"] is False
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
