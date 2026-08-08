@@ -56,6 +56,7 @@ from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
+from airflow._shared.state import TaskFailureKind
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
 from airflow.assets.evaluation import AssetEvaluator
@@ -1486,6 +1487,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     job_id,
                 )
             state, info = event_buffer.pop(buffer_key)
+            # Pop unconditionally, not only on the killed-externally branch below, so a
+            # self-reporting task can't leak its entry.
+            executor_failure_kind: tuple[TaskFailureKind, str | None] | None = executor.get_task_failure_info(
+                ti.key
+            )
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
@@ -1681,7 +1687,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.send_callback(email_request)
 
                 # Update task state - emails are handled by DAG processor now
-                ti.handle_failure(error=msg, session=session)
+                # Refund only on a positive infra classification. An executor that reports
+                # nothing but a state can't tell an eviction from a silent crash, so it
+                # stays unclassified and spends the retry as today.
+                if executor_failure_kind is not None:
+                    failure_kind, reason = executor_failure_kind
+                else:
+                    failure_kind, reason = None, None
+                ti.handle_failure(
+                    error=msg,
+                    session=session,
+                    failure_kind=failure_kind,
+                    reason=reason if failure_kind == TaskFailureKind.INFRA else None,
+                )
 
         cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)

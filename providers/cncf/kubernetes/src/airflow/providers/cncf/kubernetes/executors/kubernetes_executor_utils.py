@@ -47,6 +47,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -56,6 +57,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from kubernetes.client import Configuration, models as k8s
+
+    from airflow._shared.state import TaskFailureKind
 
 
 class ResourceVersion:
@@ -333,18 +336,20 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info(
-                    "Event: Pod %s deleted before it could complete, annotations: %s",
+                    "Event: Pod %s deleted while running, annotations: %s",
                     pod_name,
                     annotations_string,
                 )
+                # An Airflow-initiated stop sets the TI terminal first, so the scheduler
+                # excludes that case by state and only a real disruption reaches here.
                 self.watcher_queue.put(
                     KubernetesWatch(
-                        pod_name,
-                        namespace,
-                        TaskInstanceState.FAILED,
-                        annotations,
-                        resource_version,
-                        None,
+                        pod_name=pod_name,
+                        namespace=namespace,
+                        state=TaskInstanceState.FAILED,
+                        annotations=annotations,
+                        resource_version=resource_version,
+                        failure_details={"pod_status": "Running", "pod_reason": POD_DELETED_REASON},
                     )
                 )
             else:
@@ -359,6 +364,22 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 annotations,
                 resource_version,
             )
+
+
+def _disruption_target_reason(pod_status: k8s.V1PodStatus) -> str | None:
+    """
+    Return the ``DisruptionTarget`` condition's reason, which outlives the pod's phase.
+
+    Gated on status "True" like Kubernetes' own podFailurePolicy matcher, since the writers
+    update the condition in place and a stale reason can survive a flip to "False".
+    """
+    for condition in getattr(pod_status, "conditions", None) or []:
+        if (
+            getattr(condition, "type", None) == "DisruptionTarget"
+            and getattr(condition, "status", None) == "True"
+        ):
+            return getattr(condition, "reason", None)
+    return None
 
 
 def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None:
@@ -384,6 +405,7 @@ def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None
             "pod_status": getattr(pod.status, "phase", None),
             "pod_reason": getattr(pod.status, "reason", None),
             "pod_message": getattr(pod.status, "message", None),
+            "disruption_reason": _disruption_target_reason(pod.status),
         }
 
         # Check init containers first (they run before main containers)
@@ -411,6 +433,87 @@ def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None
             "pod_reason": getattr(pod.status, "reason", None),
             "pod_message": getattr(pod.status, "message", None),
         }
+
+
+# A pod taken by the platform while its task ran: node drain, preemption, spot reclaim,
+# or a force-delete. Distinct from a container that ran and exited on its own.
+POD_DELETED_REASON: str = "PodDeleted"
+
+# Pod-level reasons meaning the platform ended the pod, as opposed to the container
+# terminating on its own. Matched against pod.status.reason and a container's
+# terminated/waiting reason, which are the only two fields collect_pod_failure_details
+# populates.
+#
+# The Python kubernetes client publishes no constants for these (it models only the
+# API schema, not the kubelet's reason vocabulary), so they are pinned to their Go
+# definitions at kubernetes/kubernetes 6fd1049740274a3adfa5d5be904715a780465bf2:
+#   Evicted       pkg/kubelet/eviction/eviction_manager.go#L648
+#   Preempting    pkg/kubelet/preemption/preemption.go
+#   NodeShutdown  pkg/kubelet/nodeshutdown/nodeshutdown_manager_linux.go (admission rejection)
+#   Terminated    pkg/kubelet/nodeshutdown/nodeshutdown_manager.go#L88 (graceful node
+#                 shutdown killing an already-running pod; sole writer of this reason)
+#   NodeLost      pkg/controller/util/node/controller_utils.go#L108
+#
+# Matched against pod.status.reason and container reasons only, so condition reasons such as
+# DeletionByTaintManager belong in _DISRUPTION_TARGET_REASONS below, not here.
+_INFRA_FAILURE_REASONS: frozenset[str] = frozenset(
+    {
+        "Evicted",
+        "Preempting",
+        "NodeShutdown",
+        "Terminated",
+        "NodeLost",
+        POD_DELETED_REASON,
+    }
+)
+
+# Reasons for the DisruptionTarget condition. The control plane sets it, then deletes the pod
+# without ever setting pod.status.reason, so the set above cannot see these. Verified live on
+# k8s v1.35.0: a node-drain taint eviction and a scheduler preemption both reach phase=Failed
+# with pod.status.reason empty and only "Error"/exit 143 on the container, and the condition is
+# still on that terminal object. Pinned to the same commit as above:
+#   PreemptionByScheduler   staging/src/k8s.io/api/core/v1/types.go#L3792
+#   TerminationByKubelet    staging/src/k8s.io/api/core/v1/types.go#L3788
+#   DeletionByTaintManager  pkg/controller/tainteviction/taint_eviction.go#L139
+#   DeletionByPodGC         pkg/controller/podgc/gc_controller.go#L257
+_DISRUPTION_TARGET_REASONS: frozenset[str] = frozenset(
+    {
+        "PreemptionByScheduler",
+        "TerminationByKubelet",
+        "DeletionByTaintManager",
+        "DeletionByPodGC",
+    }
+)
+
+
+def classify_pod_failure(
+    failure_details: FailureDetails | None,
+) -> tuple[TaskFailureKind, str | None] | None:
+    """
+    Classify a pod failure into a ``(TaskFailureKind, reason)`` pair.
+
+    A node-level disruption is ``INFRA``. A container that ended on its own, including
+    an ``OOMKilled`` against its own limit, is ``APPLICATION`` and earns no refund.
+    Returns None with nothing to classify, or on an Airflow predating the API (3.4).
+    """
+    if not failure_details or not AIRFLOW_V_3_4_PLUS:
+        return None
+
+    from airflow._shared.state import TaskFailureKind
+
+    pod_reason = failure_details.get("pod_reason")
+    container_reason = failure_details.get("container_reason")
+    disruption_reason = failure_details.get("disruption_reason")
+
+    if disruption_reason in _DISRUPTION_TARGET_REASONS:
+        return TaskFailureKind.INFRA, disruption_reason
+
+    if pod_reason in _INFRA_FAILURE_REASONS or container_reason in _INFRA_FAILURE_REASONS:
+        failure_kind = TaskFailureKind.INFRA
+    else:
+        failure_kind = TaskFailureKind.APPLICATION
+
+    return failure_kind, (pod_reason or container_reason)
 
 
 def _analyze_containers(
