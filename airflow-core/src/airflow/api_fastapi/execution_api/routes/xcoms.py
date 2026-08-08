@@ -457,8 +457,8 @@ def set_xcom(
         if not any(
             msg in str(e.orig)
             for msg in (
-                "UNIQUE constraint failed",    # SQLite
-                "Duplicate entry",             # MySQL
+                "UNIQUE constraint failed",  # SQLite
+                "Duplicate entry",  # MySQL
                 "violates unique constraint",  # PostgreSQL
             )
         ):
