@@ -151,12 +151,12 @@ def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
                     f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available "
                     f"for team '{dag_team_name}' (the team associated with DAG '{dag.dag_id}') or as a global executor. "
                     f"Make sure '{task.executor}' is configured for team '{dag_team_name}' or globally in your "
-                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "[core] executor configuration, or update the task's executor to use one of the "
                     f"configured executors for team '{dag_team_name}' or available global executors."
                 )
             raise UnknownExecutorException(
                 f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available. "
-                "Make sure it is listed in your [core] executors configuration, or update the task's "
+                "Make sure it is listed in your [core] executor configuration, or update the task's "
                 "executor to use one of the configured executors."
             )
 
