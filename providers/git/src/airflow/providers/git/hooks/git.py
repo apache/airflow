@@ -32,7 +32,7 @@ from typing import Any
 from urllib.parse import quote as urlquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -141,25 +141,21 @@ class GitHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        if None in (self.github_app_id, self.github_installation_id):
+        github_app_fields = (self.github_app_id, self.github_installation_id)
+        if any(github_app_fields) and not all(github_app_fields):
             raise ValueError(
                 "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
-        else:  # noqa: RET506
-            if self.key_file and not self.private_key:
-                with open(self.key_file, encoding="utf-8") as key_file:
-                    self.private_key = key_file.read()
+        if all(github_app_fields):
+            if self.auth_token:
+                raise ValueError("Password field must be empty to use GitHub App Auth")
             if not (self.repo_url or "").startswith(("https://", "http://")):
                 raise ValueError(
                     f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
                 )
-            if self.auth_token:
-                raise ValueError("Password field must be empty to use GitHub App Auth")
-            # Store the PEM separately so configure_hook_env() does not treat it as an SSH key.
-            # Keep `private_key` populated for callers/tests that expect it to be available,
-            # but also keep a dedicated attribute so configure_hook_env() can avoid
-            # treating the GitHub App PEM as an SSH key.
-            self.github_app_private_key = self.private_key
+            if self.key_file and not self.private_key:
+                with open(self.key_file, encoding="utf-8") as key_file:
+                    self.private_key = key_file.read()
         self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
@@ -220,11 +216,11 @@ class GitHook(BaseHook):
         try:
             from github import Auth, GithubIntegration
         except ImportError as exc:
-            raise ImportError(
+            raise AirflowOptionalProviderFeatureException(
                 "The PyGithub library is required for GitHub App authentication. Please install it with 'pip install apache-airflow-providers-git[github]'"
             ) from exc
 
-        auth = Auth.AppAuth(self.github_app_id, self.github_app_private_key)
+        auth = Auth.AppAuth(self.github_app_id, self.private_key)
         integration = GithubIntegration(auth=auth)
         access_token = integration.get_access_token(installation_id=self.github_installation_id)
         github_app_token_exp = access_token.expires_at
