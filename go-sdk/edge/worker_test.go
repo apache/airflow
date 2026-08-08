@@ -25,11 +25,56 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/pkg/config"
 	"github.com/apache/airflow/go-sdk/pkg/edgeapi"
 )
+
+func TestWorkerConfigLogValueMasksSensitiveFields(t *testing.T) {
+	secretKey := "super-secret-edge-jwt-key"
+	issuer := "airflow"
+	apiURL := "https://user:password@example.com"
+	conf := config.WorkerConfig{
+		ClientConfig: config.ClientConfig{
+			RetryCount:    3,
+			StartWaitTime: 2 * time.Second,
+			MaxWaitTime:   30 * time.Second,
+		},
+		ApiJWTSecretKey: secretKey,
+		Issuer:          issuer,
+		Queues:          []string{"default", "golang"},
+		Hostname:        "test-worker",
+		ApiURL:          apiURL,
+	}
+
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logBuffer, nil))
+
+	logger.Info("Config", "config", conf)
+
+	var logEntry map[string]any
+	require.NoError(t, json.Unmarshal(logBuffer.Bytes(), &logEntry))
+	delete(logEntry, "time")
+	require.Equal(t, map[string]any{
+		"level": "INFO",
+		"msg":   "Config",
+		"config": map[string]any{
+			"ClientConfig": map[string]any{
+				"RetryCount":    float64(3),
+				"StartWaitTime": float64(2 * time.Second),
+				"MaxWaitTime":   float64(30 * time.Second),
+			},
+			"ApiJWTSecretKey": "[redacted]",
+			"Issuer":          "[redacted]",
+			"Queues":          []any{"default", "golang"},
+			"Hostname":        "test-worker",
+			"ApiURL":          "[redacted]",
+		},
+	}, logEntry)
+}
 
 func TestFetchJobDoesNotLogToken(t *testing.T) {
 	var logBuffer bytes.Buffer
