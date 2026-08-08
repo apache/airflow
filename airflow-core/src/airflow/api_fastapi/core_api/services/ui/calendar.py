@@ -28,6 +28,7 @@ from sqlalchemy.engine import Row
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from airflow._shared.timezones import timezone
+from airflow._shared.timezones.timezone import convert_to_utc, make_aware, make_naive
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarDeadlineCollectionResponse,
@@ -215,21 +216,35 @@ class CalendarService:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime, int] = collections.Counter()
 
+        timetable = cast("CronMixin", dag.timetable)
+        tz = timetable._timezone
+
+        # Localize start_time into the timetable's own timezone before
+        # constructing croniter, matching the pattern used by
+        # CronMixin._get_next().  Without this, the cron expression is
+        # matched against UTC wall-clock, which produces wrong scheduled
+        # times for DAGs with a non-UTC default_timezone.
+        local_start = make_naive(last_data_interval.end, tz)
+
         dates_iter: Iterator[datetime | None] = croniter(
-            cast("CronMixin", dag.timetable)._expression,
-            start_time=last_data_interval.end,
+            timetable._expression,
+            start_time=local_start,
             ret_type=datetime,
         )
 
         for dt in dates_iter:
-            if dt is None or dt.year != year:
+            if dt is None:
                 break
-            if dag.end_date and dt > dag.end_date:
+            # Convert back to UTC-aware for comparison and storage.
+            dt_utc = convert_to_utc(make_aware(dt, tz))
+            if dt_utc.year != year:
                 break
-            if not self._is_date_in_range(dt, date_filter):
+            if dag.end_date and dt_utc > dag.end_date:
+                break
+            if not self._is_date_in_range(dt_utc, date_filter):
                 continue
 
-            dates[self._truncate_datetime_for_granularity(dt, granularity)] += 1
+            dates[self._truncate_datetime_for_granularity(dt_utc, granularity)] += 1
 
         return [
             CalendarTimeRangeResponse(date=dt, state="planned", count=count) for dt, count in dates.items()
