@@ -15,10 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-org.gradle.configuration-cache=true
+from __future__ import annotations
 
-airflowSupervisorSchemaVersion=2026-10-30
+from cadwyn import VersionChange, schema
 
-projectVersion=1.0.0-SNAPSHOT
+from airflow.sdk.api.datamodels._generated import TIRunContext
 
-mockkVersion=1.13.12
+
+class AddArgBindingsToSupervisorTIRunContext(VersionChange):
+    """
+    Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks.
+
+    Each entry is a discriminated union of ``XComArgBinding`` and ``LiteralArgBinding``
+    keyed on ``kind``. The supervisor-schema mirror of the execution API's
+    ``AddArgBindingsToTIRunContext``, named apart so the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)

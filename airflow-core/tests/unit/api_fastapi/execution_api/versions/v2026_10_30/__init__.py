@@ -14,11 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-org.gradle.configuration-cache=true
-
-airflowSupervisorSchemaVersion=2026-10-30
-
-projectVersion=1.0.0-SNAPSHOT
-
-mockkVersion=1.13.12

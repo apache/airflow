@@ -19,6 +19,7 @@ from __future__ import annotations
 import random
 import string
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -34,6 +35,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
+    _resolve_existing_version_tag,
     classification_result,
     classify_change_deterministically,
     get_most_impactful_change,
@@ -100,6 +102,25 @@ def test_find_insertion_index_insert_new_changelog():
 )
 def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
     assert get_version_tag(version, provider_id, suffix) == tag
+
+
+@pytest.mark.parametrize(
+    ("rev_parse_returncode", "rc_tags_output", "expected_tag"),
+    [
+        (0, "", "providers-asana/1.0.1"),
+        (128, "providers-asana/1.0.1rc2\nproviders-asana/1.0.1rc1\n", "providers-asana/1.0.1rc2"),
+        (128, "", "providers-asana/1.0.1"),
+    ],
+)
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.run_command")
+def test_resolve_existing_version_tag(
+    mock_run_command, rev_parse_returncode: int, rc_tags_output: str, expected_tag: str
+):
+    mock_run_command.side_effect = [
+        mock.Mock(returncode=rev_parse_returncode),
+        mock.Mock(returncode=0, stdout=rc_tags_output),
+    ]
+    assert _resolve_existing_version_tag("providers-asana/1.0.1") == expected_tag
 
 
 @pytest.mark.parametrize(

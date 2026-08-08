@@ -19,29 +19,22 @@
 
 package org.apache.airflow.sdk
 
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Test
-
-internal class BundleTest {
-  @Test
-  @DisplayName("Should index dags by dagId")
-  fun shouldIndexDagsByDagId() {
-    val dag = DagDef("dag")
-
-    val bundle = Bundle(listOf(dag))
-
-    Assertions.assertEquals(mapOf("dag" to dag), bundle.dags)
-  }
-
-  @Test
-  @DisplayName("Should reject duplicate dag ids")
-  fun shouldRejectDuplicateDagIds() {
-    val error =
-      Assertions.assertThrows(IllegalArgumentException::class.java) {
-        Bundle(listOf(DagDef("dag"), DagDef("dag")))
-      }
-
-    Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)
-  }
-}
+/**
+ * Declares the wire name of a [TaskInput] field explicitly, for when the
+ * Python stub signature's argument name is not a valid (or desirable) Java
+ * field name — typically `snake_case` arguments crossing into `camelCase`
+ * fields.
+ *
+ * ```java
+ * @ArgName("region_code") public String region;
+ * ```
+ *
+ * Fields without the annotation bind their verbatim field name.
+ *
+ * @param value Argument name as declared in the stub task's signature.
+ */
+@Target(AnnotationTarget.FIELD)
+@MustBeDocumented
+annotation class ArgName(
+  val value: String,
+)

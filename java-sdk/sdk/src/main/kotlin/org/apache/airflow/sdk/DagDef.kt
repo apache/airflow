@@ -24,44 +24,70 @@ import kotlin.Throws
 /**
  * A collection of tasks with directional dependencies.
  *
- * Create a [Dag] directly and register tasks with [addTask].
+ * Create a [DagDef] directly and register [TaskDef]s with [addTask].
  *
  * The [Builder.Dag] annotation should generally be preferred in user code,
  * where the annotation processor generates the wiring for you. Only use this
- * class directly if you need to do low-level plumbing.
+ * class directly if you need to do low-level plumbing:
+ *
+ * ```java
+ * var dag = new DagDef("java_etl")
+ *     .addTask(new TaskDef("extract", Extract.class))
+ *     .addTask(new TaskDef("load", Load.class));
+ * ```
  *
  * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
  *    dashes, dots, or underscores; must be unique within a [Bundle].
  *
  * @see Builder.Dag
  */
-class Dag(
+class DagDef(
   val id: String, // TODO: charset check?
 ) {
-  internal var tasks = mutableMapOf<String, Class<out Task>>()
+  internal val tasks = linkedMapOf<String, TaskDef>()
 
   /**
    * Registers a task with this Dag.
    *
-   * The class must have a public no-argument constructor and implement [Task].
-   * Task IDs must be unique within a Dag.
+   * A [TaskDef] belongs to at most one [DagDef]; registering the same instance
+   * with a second Dag, or twice with the same one, fails. Task IDs must be
+   * unique within a Dag.
    *
-   * @param id Task identifier, unique within this Dag.
-   * @param definition Class that implements [Task]. Must have a public no-arg
-   *    constructor.
+   * @param task Task definition to register.
    * @return This Dag, for chaining.
-   * @throws IllegalArgumentException if a task already exists in the Dag with
-   *    the same ID.
+   * @throws IllegalArgumentException if the task already belongs to a Dag or a
+   *    task with the same ID is already registered.
    */
-  fun addTask(
-    id: String,
-    definition: Class<out Task>,
-  ): Dag {
-    require(tasks.putIfAbsent(id, definition) == null) {
-      "Tasks in Dag have duplicate ID: $id"
+  fun addTask(task: TaskDef): DagDef {
+    require(task.owner == null) {
+      "Task '${task.id}' already belongs to Dag '${task.owner?.id}'"
     }
+    require(tasks.putIfAbsent(task.id, task) == null) {
+      "Tasks in Dag have duplicate ID: ${task.id}"
+    }
+    task.owner = this
     return this
   }
+}
+
+/**
+ * One task definition: its ID and the class that implements it.
+ *
+ * ```java
+ * var extract = new TaskDef("extract", Extract.class);
+ * ```
+ *
+ * @param id Task identifier, unique within a [DagDef].
+ * @param definition Class that implements [Task]. Must have a public no-arg
+ *    constructor.
+ *
+ * @see Builder.Task
+ */
+class TaskDef(
+  val id: String,
+  val definition: Class<out Task>,
+) {
+  internal var owner: DagDef? = null
 }
 
 /**

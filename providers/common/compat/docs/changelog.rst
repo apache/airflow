@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+1.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Expose KNOWN_CONTEXT_KEYS and PlainXComArg through the common.compat SDK seam``
+
 1.18.0
 ......
 

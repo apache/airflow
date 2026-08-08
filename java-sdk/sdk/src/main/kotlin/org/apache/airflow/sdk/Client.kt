@@ -19,8 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.execution.ArgBinding
 import org.apache.airflow.sdk.execution.Client
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.decodeArgBindings
 
 /**
  * A connection registered in Airflow's connection store.
@@ -152,6 +154,98 @@ class Client internal constructor(
     runId = details.ti.runId,
     mapIndex = details.ti.mapIndex ?: -1,
   )
+
+  internal val argBindings: List<ArgBinding> by lazy {
+    decodeArgBindings(details.tiContext?.argBindings)
+  }
+
+  // A literal binding carries the inline value from the Dag file; an XCom
+  // binding pulls the bound upstream task's return-value XCom, honouring the
+  // bound map index and element index.
+  internal fun resolveBinding(binding: ArgBinding): Any? =
+    when (binding) {
+      is ArgBinding.Literal -> binding.value
+      is ArgBinding.XCom -> {
+        val value = getXCom(taskId = binding.taskId, mapIndex = binding.mapIndex.takeIf { it >= 0 })
+        when {
+          binding.elementIndex == null -> value
+          value is List<*> -> value[binding.elementIndex]
+          else ->
+            error(
+              "Argument '${binding.name}' binds element ${binding.elementIndex} of task '${binding.taskId}', " +
+                "but its XCom is not a list",
+            )
+        }
+      }
+    }
+
+  /**
+   * Whether the supervisor delivered TaskFlow arg bindings for this run —
+   * that is, the Python Dag file called this stub task with TaskFlow
+   * arguments.
+   */
+  fun hasArgs(): Boolean = argBindings.isNotEmpty()
+
+  /**
+   * Whether a TaskFlow argument was bound at [position] of the stub task's
+   * signature.
+   *
+   * @param position Zero-based position in the stub call's argument list.
+   */
+  fun hasArg(position: Int): Boolean = position in argBindings.indices
+
+  /**
+   * Whether the Python Dag file bound a TaskFlow argument with this name to
+   * the current stub task.
+   *
+   * @param name Argument name as declared in the stub task's signature.
+   */
+  fun hasArg(name: String): Boolean = argBindings.any { it.name == name }
+
+  /**
+   * Resolves the TaskFlow argument bound at [position] of the stub task's
+   * signature.
+   *
+   * A literal binding returns the inline value from the Dag file; an XCom
+   * binding pulls the bound upstream task's return-value XCom, honouring the
+   * bound map index and element index.
+   *
+   * @param position Zero-based position in the stub call's argument list.
+   * @return The bound value, or `null` when the bound value is null or the
+   *    upstream pushed no value.
+   * @throws IllegalArgumentException if no argument was bound at this
+   *    position; use [hasArg] to probe.
+   * @throws ApiError if the underlying XCom read fails.
+   */
+  fun getArg(position: Int): Any? {
+    require(position in argBindings.indices) {
+      "No TaskFlow argument bound at position: $position"
+    }
+    return resolveBinding(argBindings[position])
+  }
+
+  /**
+   * Resolves the TaskFlow argument bound with [name] at the `@task.stub`
+   * call site in the Python Dag file.
+   *
+   * A literal binding returns the inline value from the Dag file; an XCom
+   * binding pulls the bound upstream task's return-value XCom, honouring the
+   * bound map index and element index.
+   *
+   * @param name Argument name as declared in the stub task's signature.
+   * @return The bound value, or `null` when the bound value is null or the
+   *    upstream pushed no value.
+   * @throws IllegalArgumentException if no argument with this name was bound;
+   *    use [hasArg] to probe.
+   * @throws ApiError if the underlying XCom read fails.
+   */
+  fun getArg(name: String): Any? {
+    val binding =
+      requireNotNull(argBindings.firstOrNull { it.name == name }) {
+        "No TaskFlow argument bound with name: '$name'"
+      }
+    return resolveBinding(binding)
+  }
 }
 
 /**

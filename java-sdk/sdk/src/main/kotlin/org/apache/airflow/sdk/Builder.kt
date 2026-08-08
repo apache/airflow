@@ -24,7 +24,7 @@ package org.apache.airflow.sdk
  *
  * This class is not instantiated directly. Its nested annotations drive the
  * `BuilderProcessor` annotation processor in the :processor project,
- * which generates a `*Builder` class for each class annotated with [Dag].
+ * which generates a `*Builder` class for each class annotated with [Builder.Dag].
  *
  * Example:
  *
@@ -36,12 +36,17 @@ package org.apache.airflow.sdk
  *     public long extract(Client client) { ... }
  *
  *     @Builder.Task(id = "transform")
- *     public long transform(Client client, @Builder.XCom(task = "extract") long extracted) { ... }
+ *     public long transform(Client client, long extracted) { ... }
  * }
  * ```
  *
+ * A task method's data parameters — everything other than the injected
+ * [Client] and [Context] — receive the arguments the Python `@task.stub` call
+ * site bound, by position. Keyword arguments bind by name instead through a
+ * single [TaskInput] bundle parameter.
+ *
  * The processor generates `MyPipelineBuilder.build()`, which returns a
- * fully wired-up [Dag] ready to add to a [Bundle].
+ * fully wired-up [DagDef] ready to add to a [Bundle].
  */
 class Builder internal constructor() {
   /**
@@ -72,17 +77,5 @@ class Builder internal constructor() {
   @MustBeDocumented
   annotation class Task(
     val id: String = "",
-  )
-
-  /**
-   * Annotation to mark a task definition's method parameter as an XCom input.
-   *
-   * @param task The task ID to pull. If empty or not given, the annotated
-   *    parameter's name is used by default.
-   */
-  @Target(AnnotationTarget.VALUE_PARAMETER)
-  @MustBeDocumented
-  annotation class XCom(
-    val task: String = "",
   )
 }
