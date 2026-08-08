@@ -1691,6 +1691,88 @@ class TestSchedulerJob:
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
 
+    def test_find_executable_task_instances_order_run_after_asset_triggered(self, dag_maker):
+        """
+        Asset-triggered dagruns have logical_date=None, so the scheduler falls back to
+        run_after (the asset event time) to keep them FIFO. The run with the earliest
+        run_after must be queued first, regardless of creation order.
+        """
+        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_run_after_asset-a"
+        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_run_after_asset-b"
+        task_id = "task-a"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id_1, max_active_tasks=16, session=session):
+            EmptyOperator(task_id=task_id)
+        dr1 = dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=None,
+            run_after=DEFAULT_DATE + timedelta(hours=2),
+        )
+
+        with dag_maker(dag_id=dag_id_2, max_active_tasks=16, session=session):
+            EmptyOperator(task_id=task_id)
+        dr2 = dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=None,
+            run_after=DEFAULT_DATE + timedelta(hours=1),
+        )
+
+        dr1 = session.merge(dr1, load=False)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        tis = dr1.task_instances + dr2.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        session.flush()
+        assert [ti.key for ti in res] == [tis[1].key]
+        session.rollback()
+
+    def test_find_executable_task_instances_order_mixed_asset_triggered_and_dated(self, dag_maker):
+        """
+        A mix of dated and asset-triggered dagruns interleaves by
+        coalesce(logical_date, run_after) rather than one run type categorically
+        preceding the other (which NULL logical_date otherwise causes,
+        backend-dependently). The asset-triggered run with the earlier run_after
+        must beat the dated run with the later logical_date.
+        """
+        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_mixed-a"
+        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_mixed-b"
+        task_id = "task-a"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id_1, max_active_tasks=16, session=session):
+            EmptyOperator(task_id=task_id)
+        dr1 = dag_maker.create_dagrun(logical_date=DEFAULT_DATE + timedelta(hours=2))
+
+        with dag_maker(dag_id=dag_id_2, max_active_tasks=16, session=session):
+            EmptyOperator(task_id=task_id)
+        dr2 = dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=None,
+            run_after=DEFAULT_DATE + timedelta(hours=1),
+        )
+
+        dr1 = session.merge(dr1, load=False)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        tis = dr1.task_instances + dr2.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        session.flush()
+        assert [ti.key for ti in res] == [tis[1].key]
+        session.rollback()
+
     def test_find_executable_task_instances_order_priority(self, dag_maker):
         dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_priority-a"
         dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_priority-b"
