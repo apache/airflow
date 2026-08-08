@@ -63,6 +63,65 @@ class TestTemporalMappers:
         assert pm.to_downstream("2026-02-10T14:30:45") == expected_downstream_key
 
     @pytest.mark.parametrize(
+        ("mapper_cls", "already_normalized_key"),
+        [
+            (StartOfHourMapper, "2026-02-10T14"),
+            (StartOfDayMapper, "2026-02-10"),
+            (StartOfWeekMapper, "2026-02-09 (W07)"),
+            (StartOfMonthMapper, "2026-02"),
+            (StartOfQuarterMapper, "2026-Q1"),
+            (StartOfYearMapper, "2026"),
+        ],
+    )
+    def test_to_downstream_accepts_already_normalized_key(
+        self,
+        mapper_cls: type[_BaseTemporalMapper],
+        already_normalized_key: str,
+    ):
+        """
+        Regression test for #70762.
+
+        An upstream asset may already emit keys at (or coarser than) a
+        mapper's own granularity -- e.g. a day-level key fed into
+        ``StartOfDayMapper`` -- without the Dag author overriding
+        ``input_format``. ``to_downstream`` should fall back to parsing the
+        key via ``output_format`` (through ``decode_downstream``) instead of
+        raising ``ValueError``, and the result should be unchanged.
+        """
+        pm = mapper_cls()
+        assert pm.to_downstream(already_normalized_key) == already_normalized_key
+
+    @pytest.mark.parametrize(
+        "mapper_cls",
+        [
+            StartOfHourMapper,
+            StartOfDayMapper,
+            StartOfWeekMapper,
+            StartOfMonthMapper,
+            StartOfQuarterMapper,
+            StartOfYearMapper,
+        ],
+    )
+    def test_to_downstream_output_is_chainable(self, mapper_cls: type[_BaseTemporalMapper]):
+        """A mapper's own downstream key can be fed back into a fresh instance of itself."""
+        first_pass = mapper_cls().to_downstream("2026-02-10T14:30:45")
+        second_pass = mapper_cls().to_downstream(first_pass)
+        assert second_pass == first_pass
+
+    def test_to_downstream_still_prefers_input_format_when_it_matches(self):
+        """input_format is tried first, so a key matching both formats is parsed as input_format."""
+        pm = StartOfDayMapper(input_format="%Y-%m-%d")
+        # Explicit override still works exactly as documented.
+        assert pm.to_downstream("2026-02-10") == "2026-02-10"
+
+    @pytest.mark.parametrize("bad_key", ["not-a-date", "2026/07/30", "2026-07-30T14:30:45 trailing"])
+    def test_to_downstream_raises_on_key_matching_neither_format(self, bad_key: str):
+        """A key that matches neither input_format nor output_format still raises a clear ValueError."""
+        pm = StartOfDayMapper()
+        with pytest.raises(ValueError, match="matches neither input_format .* nor output_format"):
+            pm.to_downstream(bad_key)
+
+    @pytest.mark.parametrize(
         ("timezone", "expected_timezone"),
         [
             (None, "UTC"),
