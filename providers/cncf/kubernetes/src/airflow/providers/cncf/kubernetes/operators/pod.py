@@ -242,7 +242,7 @@ class KubernetesPodOperator(BaseOperator):
     :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
-        Extends env_from.
+        Extends env_from. (templated)
     :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
@@ -313,6 +313,7 @@ class KubernetesPodOperator(BaseOperator):
         "volume_mounts",
         "cluster_context",
         "env_from",
+        "configmaps",
         "node_selector",
         "kubernetes_conn_id",
         "base_container_name",
@@ -421,20 +422,16 @@ class KubernetesPodOperator(BaseOperator):
         self.startup_check_interval_seconds = startup_check_interval_seconds
         # New parameter startup_timeout_seconds adds breaking change, to handle this as smooth as possible just reuse startup time
         self.schedule_timeout_seconds = schedule_timeout_seconds or startup_timeout_seconds
-        env_vars = convert_env_vars(env_vars) if env_vars else []
-        self.env_vars = env_vars
+        self.env_vars = env_vars or []
         pod_runtime_info_envs = (
             [convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs] if pod_runtime_info_envs else []
         )
         self.pod_runtime_info_envs = pod_runtime_info_envs
         self.env_from = env_from or []
-        if configmaps:
-            self.env_from.extend([convert_configmap(c) for c in configmaps])
+        self.configmaps = configmaps or []
         self.ports = [convert_port(p) for p in ports] if ports else []
-        volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
-        self.volume_mounts = volume_mounts
-        volumes = [convert_volume(volume) for volume in volumes] if volumes else []
-        self.volumes = volumes
+        self.volume_mounts = volume_mounts or []
+        self.volumes = volumes or []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
@@ -449,7 +446,7 @@ class KubernetesPodOperator(BaseOperator):
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.base_container_status_polling_interval = base_container_status_polling_interval
         self.init_container_logs = init_container_logs
-        self.container_logs = container_logs or self.base_container_name
+        self._container_logs = container_logs
         self.image_pull_policy = image_pull_policy
         self.runtime_class_name = runtime_class_name
         self.node_selector = node_selector or {}
@@ -511,6 +508,23 @@ class KubernetesPodOperator(BaseOperator):
         self._killed: bool = False
         self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
         self.log_formatter = log_formatter
+
+    @property
+    def container_logs(self) -> Iterable[str] | str | Literal[True]:
+        # Falls back lazily rather than in __init__: base_container_name is a template field, so
+        # the fallback has to read it once rendering has happened.
+        return self._container_logs or self.base_container_name
+
+    @container_logs.setter
+    def container_logs(self, value: Iterable[str] | str | Literal[True] | None) -> None:
+        self._container_logs = value
+
+    def render_template_fields(self, context: Context, jinja_env: jinja2.Environment | None = None) -> None:
+        # A str-str mapping has to become V1EnvVar objects before rendering: rendering a dict
+        # covers only its values, whereas an env var name is a template field of V1EnvVar.
+        if isinstance(self.env_vars, dict):
+            self.env_vars = convert_env_vars(self.env_vars)
+        super().render_template_fields(context, jinja_env)
 
     @cached_property
     def _incluster_namespace(self):
@@ -1573,6 +1587,9 @@ class KubernetesPodOperator(BaseOperator):
         self.env_vars = convert_env_vars_or_raise_error(self.env_vars) if self.env_vars else []
         if self.pod_runtime_info_envs:
             self.env_vars.extend(self.pod_runtime_info_envs)
+        env_from = [*self.env_from, *(convert_configmap(c) for c in self.configmaps)]
+        volume_mounts = [convert_volume_mount(v) for v in self.volume_mounts]
+        volumes = [convert_volume(volume) for volume in self.volumes]
 
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
@@ -1613,10 +1630,10 @@ class KubernetesPodOperator(BaseOperator):
                         ports=self.ports,
                         image_pull_policy=self.image_pull_policy,
                         resources=self.container_resources,
-                        volume_mounts=self.volume_mounts,
+                        volume_mounts=volume_mounts,
                         args=self.arguments,
                         env=self.env_vars,
-                        env_from=self.env_from,
+                        env_from=env_from,
                         security_context=self.container_security_context,
                         termination_message_policy=self.termination_message_policy,
                     )
@@ -1633,7 +1650,7 @@ class KubernetesPodOperator(BaseOperator):
                 scheduler_name=self.schedulername,
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,
-                volumes=self.volumes,
+                volumes=volumes,
                 active_deadline_seconds=self.active_deadline_seconds,
                 termination_grace_period_seconds=self.termination_grace_period,
             ),
