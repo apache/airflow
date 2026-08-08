@@ -248,6 +248,14 @@ class ClearTaskInstancesBody(StrictBaseModel):
         return data
 
 
+class RunOnDemandSectionBody(StrictBaseModel):
+    """Request body for running an on-demand section."""
+
+    dry_run: bool = True
+    prevent_running_task: bool = False
+    note: Annotated[str, StringConstraints(max_length=1000)] | None = None
+
+
 class PatchTaskInstanceBody(StrictBaseModel):
     """Request body for patching task instance state."""
 
