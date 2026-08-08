@@ -136,7 +136,7 @@ def build_upsert_stmt(
     :raises ValueError: if the dialect does not support a known upsert syntax
     """
     stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
-    if dialect == "postgresql":
+    if dialect in ("postgresql", "cockroachdb"):
         from sqlalchemy.dialects.postgresql import insert as pg_insert
 
         stmt = pg_insert(model).values(**values)
@@ -154,7 +154,7 @@ def build_upsert_stmt(
     else:
         raise ValueError(
             f"Unsupported database dialect '{dialect}' for upsert. "
-            "Supported dialects are: postgresql, mysql, sqlite."
+            "Supported dialects are: postgresql, cockroachdb, mysql, sqlite."
         )
     return stmt
 
