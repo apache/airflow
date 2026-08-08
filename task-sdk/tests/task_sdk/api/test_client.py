@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import certifi
-import httpx
+import httpx2
 import pytest
 import time_machine
 import uuid6
@@ -98,53 +98,53 @@ class TestClient:
 
     @mock.patch("airflow.sdk.api.client.API_SSL_CERT_PATH", "/capath/does/not/exist/")
     def test_add_capath(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200)
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200)
 
         with pytest.raises(FileNotFoundError) as err:
-            make_client(httpx.MockTransport(handle_request))
+            make_client(httpx2.MockTransport(handle_request))
 
         assert isinstance(err.value, FileNotFoundError)
 
     @mock.patch("airflow.sdk.api.client.API_SSL_CA_FILE_PATH", "/capath/does/not/exist/")
     def test_ssl_with_cafile(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200)
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200)
 
         with pytest.raises(FileNotFoundError) as err:
-            make_client(httpx.MockTransport(handle_request))
+            make_client(httpx2.MockTransport(handle_request))
 
         assert isinstance(err.value, FileNotFoundError)
 
     @mock.patch("ssl.create_default_context")
     @mock.patch("airflow.sdk.api.client.API_CLIENT_USE_PUBLIC_CERTS", True)
     def test_use_public_certs(self, mock_default_context):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200)
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200)
 
-        make_client(httpx.MockTransport(handle_request))
+        make_client(httpx2.MockTransport(handle_request))
         mock_default_context.return_value.load_verify_locations.assert_called_with(certifi.where())
 
     @mock.patch("airflow.sdk.api.client.API_TIMEOUT", 60.0)
     def test_timeout_configuration(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200)
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200)
 
-        client = make_client(httpx.MockTransport(handle_request))
-        assert client.timeout == httpx.Timeout(60.0)
+        client = make_client(httpx2.MockTransport(handle_request))
+        assert client.timeout == httpx2.Timeout(60.0)
 
     def test_timeout_can_be_overridden(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200)
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200)
 
         client = Client(
-            base_url="test://server", token="", transport=httpx.MockTransport(handle_request), timeout=120.0
+            base_url="test://server", token="", transport=httpx2.MockTransport(handle_request), timeout=120.0
         )
-        assert client.timeout == httpx.Timeout(120.0)
+        assert client.timeout == httpx2.Timeout(120.0)
 
     def test_error_parsing(self):
         responses = [
-            httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
+            httpx2.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
         ]
         client = make_client_w_responses(responses)
 
@@ -158,15 +158,15 @@ class TestClient:
         ]
 
     def test_error_parsing_plain_text(self):
-        responses = [httpx.Response(422, content=b"Internal Server Error")]
+        responses = [httpx2.Response(422, content=b"Internal Server Error")]
         client = make_client_w_responses(responses)
 
-        with pytest.raises(httpx.HTTPStatusError) as err:
+        with pytest.raises(httpx2.HTTPStatusError) as err:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
 
     def test_error_parsing_other_json(self):
-        responses = [httpx.Response(404, json={"detail": "Not found"})]
+        responses = [httpx2.Response(404, json={"detail": "Not found"})]
         client = make_client_w_responses(responses)
 
         with pytest.raises(ServerResponseError) as err:
@@ -175,7 +175,7 @@ class TestClient:
         assert err.value.detail is None
 
     def test_server_response_error_pickling(self):
-        responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
+        responses = [httpx2.Response(404, json={"detail": {"message": "Invalid input"}})]
         client = make_client_w_responses(responses)
 
         with pytest.raises(ServerResponseError) as exc_info:
@@ -199,24 +199,24 @@ class TestClient:
 
     def test_retry_handling_unrecoverable_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
-            responses: list[httpx.Response] = [
-                *[httpx.Response(500, text="Internal Server Error")] * 6,
-                httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
-                httpx.Response(400, json={"detail": "Should not get here"}),
+            responses: list[httpx2.Response] = [
+                *[httpx2.Response(500, text="Internal Server Error")] * 6,
+                httpx2.Response(200, json={"detail": "Recovered from error - but will fail before"}),
+                httpx2.Response(400, json={"detail": "Should not get here"}),
             ]
             client = make_client_w_responses(responses)
 
-            with pytest.raises(httpx.HTTPStatusError) as err:
+            with pytest.raises(httpx2.HTTPStatusError) as err:
                 client.get("http://error")
             assert not isinstance(err.value, ServerResponseError)
             assert len(responses) == 3
 
     def test_retry_handling_recovered(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
-            responses: list[httpx.Response] = [
-                *[httpx.Response(500, text="Internal Server Error")] * 2,
-                httpx.Response(200, json={"detail": "Recovered from error"}),
-                httpx.Response(400, json={"detail": "Should not get here"}),
+            responses: list[httpx2.Response] = [
+                *[httpx2.Response(500, text="Internal Server Error")] * 2,
+                httpx2.Response(200, json={"detail": "Recovered from error"}),
+                httpx2.Response(400, json={"detail": "Should not get here"}),
             ]
             client = make_client_w_responses(responses)
 
@@ -226,9 +226,9 @@ class TestClient:
 
     def test_retry_handling_non_retry_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
-            responses: list[httpx.Response] = [
-                httpx.Response(422, json={"detail": "Somehow this is a bad request"}),
-                httpx.Response(400, json={"detail": "Should not get here"}),
+            responses: list[httpx2.Response] = [
+                httpx2.Response(422, json={"detail": "Somehow this is a bad request"}),
+                httpx2.Response(400, json={"detail": "Should not get here"}),
             ]
             client = make_client_w_responses(responses)
 
@@ -239,9 +239,9 @@ class TestClient:
 
     def test_retry_handling_ok(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
-            responses: list[httpx.Response] = [
-                httpx.Response(200, json={"detail": "Recovered from error"}),
-                httpx.Response(400, json={"detail": "Should not get here"}),
+            responses: list[httpx2.Response] = [
+                httpx2.Response(200, json={"detail": "Recovered from error"}),
+                httpx2.Response(400, json={"detail": "Should not get here"}),
             ]
             client = make_client_w_responses(responses)
 
@@ -250,10 +250,10 @@ class TestClient:
             assert len(responses) == 1
 
     def test_token_renewal(self):
-        responses: list[httpx.Response] = [
-            httpx.Response(200, json={"ok": "1"}),
-            httpx.Response(404, json={"var": "not_found"}, headers={"Refreshed-API-Token": "abc"}),
-            httpx.Response(200, json={"ok": "3"}),
+        responses: list[httpx2.Response] = [
+            httpx2.Response(200, json={"ok": "1"}),
+            httpx2.Response(404, json={"var": "not_found"}, headers={"Refreshed-API-Token": "abc"}),
+            httpx2.Response(200, json={"ok": "3"}),
         ]
         client = make_client_w_responses(responses)
         response = client.get("/")
@@ -282,35 +282,35 @@ class TestClient:
     )
     def test_server_response_error_invalid_status_codes(self, status_code, description):
         """Test that ServerResponseError.from_response returns None for invalid status codes."""
-        response = httpx.Response(status_code, json={"detail": f"Test {description}"})
+        response = httpx2.Response(status_code, json={"detail": f"Test {description}"})
         assert ServerResponseError.from_response(response) is None
 
     @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_CERT", "/etc/airflow/certs/client.crt")
     @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_KEY", "/etc/airflow/certs/client.key")
     def test_sets_cert_tuple(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200)
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200)
 
         captured: dict[str, object] = {}
-        real_init = httpx.Client.__init__
+        real_init = httpx2.Client.__init__
 
         def spy_init(self, *args, **kwargs):
             captured["cert"] = kwargs.get("cert")
             return real_init(self, *args, **kwargs)
 
-        with mock.patch.object(httpx.Client, "__init__", spy_init):
-            make_client(httpx.MockTransport(handle_request))
+        with mock.patch.object(httpx2.Client, "__init__", spy_init):
+            make_client(httpx2.MockTransport(handle_request))
 
         assert captured["cert"] == ("/etc/airflow/certs/client.crt", "/etc/airflow/certs/client.key")
 
     @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_CERT", "/etc/airflow/certs/client.crt")
     @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_KEY", None)
     def test_requires_both_cert_and_key(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200)
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200)
 
         with pytest.raises(ValueError, match="Both client_ssl_cert and client_ssl_key must be set"):
-            make_client(httpx.MockTransport(handle_request))
+            make_client(httpx2.MockTransport(handle_request))
 
 
 class TestTaskInstanceOperations:
@@ -334,23 +334,23 @@ class TestTaskInstanceOperations:
             # ...including a validation that retry really works
             call_count = 0
 
-            def handle_request(request: httpx.Request) -> httpx.Response:
+            def handle_request(request: httpx2.Request) -> httpx2.Response:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 3:
-                    return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
+                    return httpx2.Response(status_code=500, json={"detail": "Internal Server Error"})
                 if request.url.path == f"/task-instances/{ti_id}/run":
                     actual_body = json.loads(request.read())
                     assert actual_body["pid"] == 100
                     assert actual_body["start_date"] == start_date
                     assert actual_body["state"] == "running"
-                    return httpx.Response(
+                    return httpx2.Response(
                         status_code=200,
                         json=ti_context.model_dump(mode="json"),
                     )
-                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-            client = make_client(transport=httpx.MockTransport(handle_request))
+            client = make_client(transport=httpx2.MockTransport(handle_request))
             resp = client.task_instances.start(ti_id, 100, start_date)
             assert resp == ti_context
             assert call_count == 3
@@ -359,9 +359,9 @@ class TestTaskInstanceOperations:
         """Test that start() raises TaskAlreadyRunningError when TI is already running."""
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/run":
-                return httpx.Response(
+                return httpx2.Response(
                     409,
                     json={
                         "detail": {
@@ -371,9 +371,9 @@ class TestTaskInstanceOperations:
                         }
                     },
                 )
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         with pytest.raises(TaskAlreadyRunningError, match="already running"):
             client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=timezone.utc))
@@ -383,9 +383,9 @@ class TestTaskInstanceOperations:
         """Test that start() raises ServerResponseError for non-running invalid states."""
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/run":
-                return httpx.Response(
+                return httpx2.Response(
                     409,
                     json={
                         "detail": {
@@ -395,9 +395,9 @@ class TestTaskInstanceOperations:
                         }
                     },
                 )
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError):
             client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=timezone.utc))
@@ -409,18 +409,18 @@ class TestTaskInstanceOperations:
         # Simulate a successful response from the server that finishes (moved to terminal state) a task
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/state":
                 actual_body = json.loads(request.read())
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["state"] == state
                 assert actual_body["rendered_map_index"] == "test"
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=204,
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_instances.finish(
             ti_id, state=state, when="2024-10-31T12:00:00Z", rendered_map_index="test"
         )
@@ -429,16 +429,16 @@ class TestTaskInstanceOperations:
         # Simulate a successful response from the server that sends a heartbeat for a ti
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/heartbeat":
                 actual_body = json.loads(request.read())
                 assert actual_body["pid"] == 100
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=204,
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_instances.heartbeat(ti_id, 100)
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
@@ -461,7 +461,7 @@ class TestTaskInstanceOperations:
             queue=task_queue if queues_enabled else None,
         )
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/state":
                 actual_body = json.loads(request.read())
                 assert actual_body["state"] == "deferred"
@@ -474,30 +474,30 @@ class TestTaskInstanceOperations:
                     assert actual_body["queue"] == task_queue
                 else:
                     assert actual_body.get("queue") is None
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=204,
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_instances.defer(ti_id, msg)
 
     def test_task_instance_reschedule(self):
         # Simulate a successful response from the server that reschedules a task
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/state":
                 actual_body = json.loads(request.read())
                 assert actual_body["state"] == "up_for_reschedule"
                 assert actual_body["reschedule_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=204,
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         msg = RescheduleTask(
             reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
             end_date=timezone.parse("2024-10-31T12:00:00Z"),
@@ -507,18 +507,18 @@ class TestTaskInstanceOperations:
     def test_task_instance_up_for_retry(self):
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/state":
                 actual_body = json.loads(request.read())
                 assert actual_body["state"] == "up_for_retry"
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["rendered_map_index"] == "test"
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=204,
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_instances.retry(
             ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test"
         )
@@ -541,15 +541,15 @@ class TestTaskInstanceOperations:
     def test_taskinstance_set_rtif_success(self, rendered_fields):
         TI_ID = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{TI_ID}/rtif":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={"message": "Rendered task instance fields successfully set"},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
 
         assert result == OKResponse(ok=True)
@@ -558,16 +558,16 @@ class TestTaskInstanceOperations:
         TI_ID = uuid6.uuid7()
         rendered_map_index = "Label: task_1"
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{TI_ID}/rendered-map-index":
                 actual_body = json.loads(request.read())
                 assert request.method == "PATCH"
                 # Body should be the string directly, not wrapped in JSON
                 assert actual_body == rendered_map_index
-                return httpx.Response(status_code=204)
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=204)
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.set_rendered_map_index(id=TI_ID, rendered_map_index=rendered_map_index)
 
         assert result == OKResponse(ok=True)
@@ -575,12 +575,12 @@ class TestTaskInstanceOperations:
     def test_get_count_basic(self):
         """Test basic get_count functionality with just dag_id."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.url.path == "/task-instances/count"
             assert request.url.params.get("dag_id") == "test_dag"
-            return httpx.Response(200, json=5)
+            return httpx2.Response(200, json=5)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_count(dag_id="test_dag")
         assert result.count == 5
 
@@ -592,7 +592,7 @@ class TestTaskInstanceOperations:
         task_ids = ["task1", "task2"]
         states = ["success", "failed"]
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.url.path == "/task-instances/count"
             assert request.method == "GET"
             params = request.url.params
@@ -603,9 +603,9 @@ class TestTaskInstanceOperations:
             assert params.get_list("run_ids") == []
             assert params.get_list("states") == states
             assert params["map_index"] == "0"
-            return httpx.Response(200, json=10)
+            return httpx2.Response(200, json=10)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_count(
             dag_id="test_dag",
             map_index=0,
@@ -619,15 +619,15 @@ class TestTaskInstanceOperations:
     def test_get_task_states_basic(self):
         """Test basic get_task_states functionality with just dag_id."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.url.path == "/task-instances/states"
             assert request.url.params.get("dag_id") == "test_dag"
             assert request.url.params.get("task_group_id") == "group1"
-            return httpx.Response(
+            return httpx2.Response(
                 200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_task_states(dag_id="test_dag", task_group_id="group1")
         assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
 
@@ -637,7 +637,7 @@ class TestTaskInstanceOperations:
         logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
         logical_dates = [timezone.parse(d) for d in logical_dates_str]
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.url.path == "/task-instances/states"
             assert request.method == "GET"
             params = request.url.params
@@ -647,11 +647,11 @@ class TestTaskInstanceOperations:
             assert params.get_list("task_ids") == []
             assert params.get_list("run_ids") == []
             assert params.get("map_index") == "0"
-            return httpx.Response(
+            return httpx2.Response(
                 200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_task_states(
             dag_id="test_dag",
             map_index=0,
@@ -664,14 +664,14 @@ class TestTaskInstanceOperations:
         """Test basic get_previous functionality."""
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/task-instances/previous/test_dag/test_task":
-                assert request.url.params == httpx.QueryParams(
+                assert request.url.params == httpx2.QueryParams(
                     logical_date=logical_date.isoformat(),
                     map_index="-1",
                 )
                 # Return complete TI data
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "task_id": "test_task",
@@ -686,9 +686,9 @@ class TestTaskInstanceOperations:
                         "duration": 300.0,
                     },
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_previous(
             dag_id="test_dag", task_id="test_task", logical_date=logical_date
         )
@@ -703,14 +703,14 @@ class TestTaskInstanceOperations:
         """Test get_previous functionality with state filtering."""
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/task-instances/previous/test_dag/test_task":
-                assert request.url.params == httpx.QueryParams(
+                assert request.url.params == httpx2.QueryParams(
                     logical_date=logical_date.isoformat(),
                     map_index="-1",
                     state="success",
                 )
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "task_id": "test_task",
@@ -725,9 +725,9 @@ class TestTaskInstanceOperations:
                         "duration": 300.0,
                     },
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_previous(
             dag_id="test_dag", task_id="test_task", logical_date=logical_date, state="success"
         )
@@ -737,12 +737,12 @@ class TestTaskInstanceOperations:
     def test_get_previous_with_map_index_filter(self):
         """Test get_previous functionality with map_index filtering."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/task-instances/previous/test_dag/test_task":
-                assert request.url.params == httpx.QueryParams(
+                assert request.url.params == httpx2.QueryParams(
                     map_index="0",
                 )
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "task_id": "test_task",
@@ -757,9 +757,9 @@ class TestTaskInstanceOperations:
                         "duration": 300.0,
                     },
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_previous(dag_id="test_dag", task_id="test_task", map_index=0)
 
         assert result.task_instance.map_index == 0
@@ -767,13 +767,13 @@ class TestTaskInstanceOperations:
     def test_get_previous_not_found(self):
         """Test get_previous when no previous TI exists returns None."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/task-instances/previous/test_dag/test_task":
                 # Return None (null) when no previous TI found
-                return httpx.Response(status_code=200, content="null")
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=200, content="null")
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_previous(dag_id="test_dag", task_id="test_task")
 
         assert isinstance(result, PreviousTIResult)
@@ -793,19 +793,19 @@ class TestVariableOperations:
             # ...including a validation that retry really works
             call_count = 0
 
-            def handle_request(request: httpx.Request) -> httpx.Response:
+            def handle_request(request: httpx2.Request) -> httpx2.Response:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 2:
-                    return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
+                    return httpx2.Response(status_code=500, json={"detail": "Internal Server Error"})
                 if request.url.path == "/variables/test_key":
-                    return httpx.Response(
+                    return httpx2.Response(
                         status_code=200,
                         json={"key": "test_key", "value": "test_value"},
                     )
-                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-            client = make_client(transport=httpx.MockTransport(handle_request))
+            client = make_client(transport=httpx2.MockTransport(handle_request))
             result = client.variables.get(key="test_key")
 
             assert isinstance(result, VariableResponse)
@@ -815,9 +815,9 @@ class TestVariableOperations:
 
     def test_variable_not_found(self, cap_structlog):
         # Simulate a 404 response from the server
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/variables/non_existent_var":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=404,
                     json={
                         "detail": {
@@ -826,9 +826,9 @@ class TestVariableOperations:
                         }
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         with cap_structlog.at_level("debug"):
             resp = client.variables.get(key="non_existent_var")
@@ -842,9 +842,9 @@ class TestVariableOperations:
     def test_variable_get_500_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             # Simulate a response from the server returning a 500 error
-            def handle_request(request: httpx.Request) -> httpx.Response:
+            def handle_request(request: httpx2.Request) -> httpx2.Response:
                 if request.url.path == "/variables/test_key":
-                    return httpx.Response(
+                    return httpx2.Response(
                         status_code=500,
                         headers=[("content-Type", "application/json")],
                         json={
@@ -852,9 +852,9 @@ class TestVariableOperations:
                             "message": "Internal Server Error",
                         },
                     )
-                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-            client = make_client(transport=httpx.MockTransport(handle_request))
+            client = make_client(transport=httpx2.MockTransport(handle_request))
             with pytest.raises(ServerResponseError):
                 client.variables.get(
                     key="test_key",
@@ -868,10 +868,10 @@ class TestVariableOperations:
         to a less-restrictive backend on an explicit deny.
         """
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=status_code, json={"detail": "Forbidden"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         resp = client.variables.get(key="denied_var")
         assert isinstance(resp, ErrorResponse)
         assert resp.error == ErrorType.PERMISSION_DENIED
@@ -879,30 +879,30 @@ class TestVariableOperations:
 
     def test_variable_set_success(self):
         # Simulate a successful response from the server when putting a variable
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/variables/test_key":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={"message": "Variable successfully set"},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         result = client.variables.set(key="test_key", value="test_value", description="test_description")
         assert result == OKResponse(ok=True)
 
     def test_variable_delete_success(self):
         # Simulate a successful response from the server when deleting a variable
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.method == "DELETE" and request.url.path == "/variables/test_key":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={"count": 1},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         result = client.variables.delete(key="test_key")
         assert result == OKResponse(ok=True)
@@ -931,19 +931,19 @@ class TestXCOMOperations:
             # ...including a validation that retry really works
             call_count = 0
 
-            def handle_request(request: httpx.Request) -> httpx.Response:
+            def handle_request(request: httpx2.Request) -> httpx2.Response:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 3:
-                    return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
+                    return httpx2.Response(status_code=500, json={"detail": "Internal Server Error"})
                 if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
-                    return httpx.Response(
+                    return httpx2.Response(
                         status_code=201,
                         json={"key": "test_key", "value": value},
                     )
-                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-            client = make_client(transport=httpx.MockTransport(handle_request))
+            client = make_client(transport=httpx2.MockTransport(handle_request))
             result = client.xcoms.get(
                 dag_id="dag_id",
                 run_id="run_id",
@@ -957,18 +957,18 @@ class TestXCOMOperations:
 
     def test_xcom_get_success_with_map_index(self):
         # Simulate a successful response from the server when getting an xcom with map_index passed
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if (
                 request.url.path == "/xcoms/dag_id/run_id/task_id/key"
                 and request.url.params.get("map_index") == "2"
             ):
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={"key": "test_key", "value": "test_value"},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.xcoms.get(
             dag_id="dag_id",
             run_id="run_id",
@@ -982,17 +982,17 @@ class TestXCOMOperations:
 
     def test_xcom_get_success_with_include_prior_dates(self):
         # Simulate a successful response from the server when getting an xcom with include_prior_dates passed
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key" and request.url.params.get(
                 "include_prior_dates"
             ):
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={"key": "test_key", "value": "test_value"},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.xcoms.get(
             dag_id="dag_id",
             run_id="run_id",
@@ -1007,9 +1007,9 @@ class TestXCOMOperations:
     def test_xcom_get_500_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             # Simulate a successful response from the server returning a 500 error
-            def handle_request(request: httpx.Request) -> httpx.Response:
+            def handle_request(request: httpx2.Request) -> httpx2.Response:
                 if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
-                    return httpx.Response(
+                    return httpx2.Response(
                         status_code=500,
                         headers=[("content-Type", "application/json")],
                         json={
@@ -1017,9 +1017,9 @@ class TestXCOMOperations:
                             "message": "XCom value is not a valid JSON",
                         },
                     )
-                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-            client = make_client(transport=httpx.MockTransport(handle_request))
+            client = make_client(transport=httpx2.MockTransport(handle_request))
             with pytest.raises(ServerResponseError):
                 client.xcoms.get(
                     dag_id="dag_id",
@@ -1039,16 +1039,16 @@ class TestXCOMOperations:
     )
     def test_xcom_set_success(self, values):
         # Simulate a successful response from the server when setting an xcom
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
                 assert json.loads(request.read()) == values
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={"message": "XCom successfully set"},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.xcoms.set(
             dag_id="dag_id",
             run_id="run_id",
@@ -1060,19 +1060,19 @@ class TestXCOMOperations:
 
     def test_xcom_set_with_map_index(self):
         # Simulate a successful response from the server when setting an xcom with map_index passed
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if (
                 request.url.path == "/xcoms/dag_id/run_id/task_id/key"
                 and request.url.params.get("map_index") == "2"
             ):
                 assert json.loads(request.read()) == "value1"
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={"message": "XCom successfully set"},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.xcoms.set(
             dag_id="dag_id",
             run_id="run_id",
@@ -1085,20 +1085,20 @@ class TestXCOMOperations:
 
     def test_xcom_set_with_mapped_length(self):
         # Simulate a successful response from the server when setting an xcom with mapped_length
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if (
                 request.url.path == "/xcoms/dag_id/run_id/task_id/key"
                 and request.url.params.get("map_index") == "2"
                 and request.url.params.get("mapped_length") == "3"
             ):
                 assert json.loads(request.read()) == "value1"
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={"message": "XCom successfully set"},
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.xcoms.set(
             dag_id="dag_id",
             run_id="run_id",
@@ -1120,9 +1120,9 @@ class TestConnectionOperations:
 
     def test_connection_get_success(self):
         # Simulate a successful response from the server with a connection
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/connections/test_conn":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "conn_id": "test_conn",
@@ -1135,9 +1135,9 @@ class TestConnectionOperations:
                         "extra": None,
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.connections.get(conn_id="test_conn")
 
         assert isinstance(result, ConnectionResponse)
@@ -1146,18 +1146,18 @@ class TestConnectionOperations:
 
     def test_connection_get_404_not_found(self):
         # Simulate a successful response from the server with a connection
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/connections/test_conn":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=404,
                     json={
                         "reason": "not_found",
                         "message": "Connection with ID test_conn not found",
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.connections.get(conn_id="test_conn")
 
         assert isinstance(result, ErrorResponse)
@@ -1167,10 +1167,10 @@ class TestConnectionOperations:
     def test_connection_get_authz_returns_permission_denied(self, status_code):
         """401/403 from the API server is reported as PERMISSION_DENIED, not raised."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=status_code, json={"detail": "Forbidden"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.connections.get(conn_id="denied_conn")
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.PERMISSION_DENIED
@@ -1186,7 +1186,7 @@ class TestAssetEventOperations:
         ],
     )
     def test_by_name_get_success(self, request_params):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             params = request.url.params
             if request.url.path == "/asset-events/by-asset":
                 assert params.get("name") == request_params.get("name")
@@ -1194,9 +1194,9 @@ class TestAssetEventOperations:
             elif request.url.path == "/asset-events/by-asset-alias":
                 assert params.get("name") == request_params.get("alias_name")
             else:
-                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={
                     "asset_events": [
@@ -1214,7 +1214,7 @@ class TestAssetEventOperations:
                 },
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_events.get(**request_params)
 
         assert isinstance(result, AssetEventsResponse)
@@ -1223,11 +1223,11 @@ class TestAssetEventOperations:
         assert result.asset_events[0].asset.uri == "s3://bucket/key"
 
     def test_partition_key_exact_match_param_passed(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             params = request.url.params
             assert params.get("partition_key") == "2024-01-01"
             assert "partition_key_regexp_pattern" not in params
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={
                     "asset_events": [
@@ -1246,42 +1246,42 @@ class TestAssetEventOperations:
                 },
             )
 
-        client = make_client(httpx.MockTransport(handle_request))
+        client = make_client(httpx2.MockTransport(handle_request))
         result = client.asset_events.get(name="this_asset", partition_key="2024-01-01")
 
         assert isinstance(result, AssetEventsResponse)
         assert len(result.asset_events) == 1
 
     def test_partition_key_regexp_pattern_param_passed(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             params = request.url.params
             assert params.get("partition_key_regexp_pattern") == "^2024-01-"
             assert "partition_key" not in params
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={"asset_events": []},
             )
 
-        client = make_client(httpx.MockTransport(handle_request))
+        client = make_client(httpx2.MockTransport(handle_request))
         result = client.asset_events.get(name="this_asset", partition_key_regexp_pattern="^2024-01-")
 
         assert isinstance(result, AssetEventsResponse)
         assert len(result.asset_events) == 0
 
     def test_partition_key_regexp_pattern_with_other_params(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             params = request.url.params
             assert params.get("partition_key_regexp_pattern") == r"^us\|2024-.*"
             assert "partition_key" not in params
             assert params.get("after") == "2023-06-01T00:00:00+00:00"
             assert params.get("limit") == "5"
             assert params.get("ascending") == "false"
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={"asset_events": []},
             )
 
-        client = make_client(httpx.MockTransport(handle_request))
+        client = make_client(httpx2.MockTransport(handle_request))
         result = client.asset_events.get(
             name="this_asset",
             partition_key_regexp_pattern=r"^us\|2024-.*",
@@ -1294,29 +1294,29 @@ class TestAssetEventOperations:
         assert len(result.asset_events) == 0
 
     def test_partition_key_with_alias(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.url.path == "/asset-events/by-asset-alias"
             params = request.url.params
             assert params.get("name") == "my_alias"
             assert params.get("partition_key") == "us-east|2024-01-01"
             assert "partition_key_regexp_pattern" not in params
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={"asset_events": []},
             )
 
-        client = make_client(httpx.MockTransport(handle_request))
+        client = make_client(httpx2.MockTransport(handle_request))
         result = client.asset_events.get(alias_name="my_alias", partition_key="us-east|2024-01-01")
 
         assert isinstance(result, AssetEventsResponse)
         assert len(result.asset_events) == 0
 
     def test_extra_dict_param_passed(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             params = request.url.params
             extra_pairs = [v for k, v in params.multi_items() if k == "extra"]
             assert sorted(extra_pairs) == sorted(["region=us", "env=prod"])
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={
                     "asset_events": [
@@ -1330,18 +1330,18 @@ class TestAssetEventOperations:
                 },
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_events.get(name="a", uri="s3://b", extra={"region": "us", "env": "prod"})
         assert isinstance(result, AssetEventsResponse)
         assert len(result.asset_events) == 1
 
     def test_extra_dict_with_alias(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             params = request.url.params
             assert request.url.path == "/asset-events/by-asset-alias"
             extra_pairs = [v for k, v in params.multi_items() if k == "extra"]
             assert extra_pairs == ["env=prod"]
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={
                     "asset_events": [
@@ -1355,21 +1355,21 @@ class TestAssetEventOperations:
                 },
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_events.get(alias_name="my_alias", extra={"env": "prod"})
         assert isinstance(result, AssetEventsResponse)
         assert len(result.asset_events) == 1
 
     def test_extra_none_not_sent(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             params = request.url.params
             assert "extra" not in params
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json={"asset_events": []},
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_events.get(name="a", uri="s3://b")
         assert isinstance(result, AssetEventsResponse)
 
@@ -1383,9 +1383,9 @@ class TestAssetOperations:
         ],
     )
     def test_by_name_get_success(self, request_params):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path in ("/assets/by-name", "/assets/by-uri"):
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "name": "this_asset",
@@ -1394,9 +1394,9 @@ class TestAssetOperations:
                         "extra": {"foo": "bar"},
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.assets.get(**request_params)
 
         assert isinstance(result, AssetResponse)
@@ -1411,9 +1411,9 @@ class TestAssetOperations:
         ],
     )
     def test_by_name_get_404_not_found(self, request_params):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path in ("/assets/by-name", "/assets/by-uri"):
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=404,
                     json={
                         "detail": {
@@ -1422,19 +1422,19 @@ class TestAssetOperations:
                         }
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.assets.get(**request_params)
 
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.ASSET_NOT_FOUND
 
     def test_get_by_alias_returns_list(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.url.path == "/assets/by-alias"
             assert request.url.params["alias_name"] == "my_alias"
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=200,
                 json=[
                     {"name": "asset_a", "uri": "s3://bucket/a", "group": "asset", "extra": {}},
@@ -1442,7 +1442,7 @@ class TestAssetOperations:
                 ],
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.assets.get_by_alias("my_alias")
 
         assert isinstance(result, AssetsByAliasResult)
@@ -1453,10 +1453,10 @@ class TestAssetOperations:
         assert result.assets[1].name == "asset_b"
 
     def test_get_by_alias_returns_empty_for_unknown_alias(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status_code=200, json=[])
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=200, json=[])
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.assets.get_by_alias("unknown_alias")
 
         assert result.assets == []
@@ -1465,7 +1465,7 @@ class TestAssetOperations:
 class TestDagRunOperations:
     def test_trigger(self):
         # Simulate a successful response from the server when triggering a dag run
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/test_trigger/test_run_id":
                 actual_body = json.loads(request.read())
                 assert actual_body["logical_date"] == "2025-01-01T00:00:00Z"
@@ -1473,10 +1473,10 @@ class TestDagRunOperations:
 
                 # Since the value for `reset_dag_run` is default, it should not be present in the request body
                 assert "reset_dag_run" not in actual_body
-                return httpx.Response(status_code=204)
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(status_code=204)
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.trigger(
             dag_id="test_trigger",
             run_id="test_run_id",
@@ -1489,9 +1489,9 @@ class TestDagRunOperations:
     def test_trigger_conflict(self):
         """Test that if the dag run already exists, the client returns an error when default reset_dag_run=False"""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/test_trigger_conflict/test_run_id":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=409,
                     json={
                         "detail": {
@@ -1500,9 +1500,9 @@ class TestDagRunOperations:
                         }
                     },
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.trigger(dag_id="test_trigger_conflict", run_id="test_run_id")
 
         assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
@@ -1510,9 +1510,9 @@ class TestDagRunOperations:
     def test_trigger_conflict_reset_dag_run(self):
         """Test that if dag run already exists and reset_dag_run=True, the client clears the dag run"""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=409,
                     json={
                         "detail": {
@@ -1522,10 +1522,10 @@ class TestDagRunOperations:
                     },
                 )
             if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id/clear":
-                return httpx.Response(status_code=204)
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=204)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.trigger(
             dag_id="test_trigger_conflict_reset",
             run_id="test_run_id",
@@ -1537,12 +1537,12 @@ class TestDagRunOperations:
     def test_clear(self):
         """Test that the client can clear a dag run"""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/test_clear/test_run_id/clear":
-                return httpx.Response(status_code=204)
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=204)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.clear(dag_id="test_clear", run_id="test_run_id")
 
         assert result == OKResponse(ok=True)
@@ -1550,39 +1550,39 @@ class TestDagRunOperations:
     def test_get_state(self):
         """Test that the client can get the state of a dag run"""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/test_state/test_run_id/state":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={"state": "running"},
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_state(dag_id="test_state", run_id="test_run_id")
 
         assert result == DagRunStateResponse(state=DagRunState.RUNNING)
 
     def test_get_count_basic(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/count":
                 assert request.url.params["dag_id"] == "test_dag"
-                return httpx.Response(status_code=200, json=1)
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=200, json=1)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_count(dag_id="test_dag")
         assert result.count == 1
 
     def test_get_count_with_states(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/count":
                 assert request.url.params["dag_id"] == "test_dag"
                 assert request.url.params.get_list("states") == ["success", "failed"]
-                return httpx.Response(status_code=200, json=2)
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=200, json=2)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_count(dag_id="test_dag", states=["success", "failed"])
         assert result.count == 2
 
@@ -1590,28 +1590,28 @@ class TestDagRunOperations:
         logical_dates = [timezone.datetime(2025, 1, 1), timezone.datetime(2025, 1, 2)]
         logical_dates_str = [d.isoformat() for d in logical_dates]
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/count":
                 assert request.url.params["dag_id"] == "test_dag"
                 assert request.url.params.get_list("logical_dates") == logical_dates_str
-                return httpx.Response(status_code=200, json=2)
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=200, json=2)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_count(
             dag_id="test_dag", logical_dates=[timezone.datetime(2025, 1, 1), timezone.datetime(2025, 1, 2)]
         )
         assert result.count == 2
 
     def test_get_count_with_run_ids(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/count":
                 assert request.url.params["dag_id"] == "test_dag"
                 assert request.url.params.get_list("run_ids") == ["run1", "run2"]
-                return httpx.Response(status_code=200, json=2)
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=200, json=2)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_count(dag_id="test_dag", run_ids=["run1", "run2"])
         assert result.count == 2
 
@@ -1619,14 +1619,14 @@ class TestDagRunOperations:
         """Test basic get_previous functionality with dag_id and logical_date."""
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/previous":
-                assert request.url.params == httpx.QueryParams(
+                assert request.url.params == httpx2.QueryParams(
                     dag_id="test_dag",
                     logical_date=logical_date.isoformat(),
                 )
                 # Return complete DagRun data
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "dag_id": "test_dag",
@@ -1643,9 +1643,9 @@ class TestDagRunOperations:
                         "partition_key": None,
                     },
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date)
 
         assert isinstance(result, PreviousDagRunResult)
@@ -1657,15 +1657,15 @@ class TestDagRunOperations:
         """Test get_previous functionality with state filtering."""
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/previous":
-                assert request.url.params == httpx.QueryParams(
+                assert request.url.params == httpx2.QueryParams(
                     dag_id="test_dag",
                     logical_date=logical_date.isoformat(),
                     state="success",
                 )
                 # Return complete DagRun data
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "dag_id": "test_dag",
@@ -1682,9 +1682,9 @@ class TestDagRunOperations:
                         "partition_key": None,
                     },
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date, state="success")
 
         assert isinstance(result, PreviousDagRunResult)
@@ -1696,17 +1696,17 @@ class TestDagRunOperations:
         """Test get_previous when no previous Dag run exists returns None."""
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/previous":
-                assert request.url.params == httpx.QueryParams(
+                assert request.url.params == httpx2.QueryParams(
                     dag_id="test_dag",
                     logical_date=logical_date.isoformat(),
                 )
                 # Return None (null) when no previous Dag run found
-                return httpx.Response(status_code=200, content="null")
-            return httpx.Response(status_code=422)
+                return httpx2.Response(status_code=200, content="null")
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date)
 
         assert isinstance(result, PreviousDagRunResult)
@@ -1718,17 +1718,17 @@ class TestTaskRescheduleOperations:
         """Test that the client can get the start date of a task reschedule"""
         ti_id = uuid6.uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-reschedules/{ti_id}/start_date":
                 assert request.url.params.get("try_number") == "1"
 
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json="2024-01-01T00:00:00Z",
                 )
-            return httpx.Response(status_code=422)
+            return httpx2.Response(status_code=422)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_instances.get_reschedule_start_date(id=ti_id, try_number=1)
 
         assert isinstance(result, TaskRescheduleStartDate)
@@ -1739,9 +1739,9 @@ class TestHITLOperations:
     def test_add_response(self) -> None:
         ti_id = uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path in (f"/hitlDetails/{ti_id}"):
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=201,
                     json={
                         "ti_id": str(ti_id),
@@ -1753,9 +1753,9 @@ class TestHITLOperations:
                         "multiple": False,
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.hitl.add_response(
             ti_id=ti_id,
             options=["Approval", "Reject"],
@@ -1779,9 +1779,9 @@ class TestHITLOperations:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
         ti_id = uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path in (f"/hitlDetails/{ti_id}"):
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "chosen_options": ["Approval"],
@@ -1791,9 +1791,9 @@ class TestHITLOperations:
                         "responded_at": "2025-07-03T00:00:00Z",
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.hitl.update_response(
             ti_id=ti_id,
             chosen_options=["Approve"],
@@ -1810,9 +1810,9 @@ class TestHITLOperations:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
         ti_id = uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path in (f"/hitlDetails/{ti_id}"):
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "chosen_options": ["Approval"],
@@ -1822,9 +1822,9 @@ class TestHITLOperations:
                         "responded_at": "2025-07-03T00:00:00Z",
                     },
                 )
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.hitl.get_detail_response(ti_id=ti_id)
         assert isinstance(result, HITLDetailResponse)
         assert result.response_received is True
@@ -1871,9 +1871,9 @@ class TestDagsOperations:
     def test_get(self):
         """Test that the client can get a dag."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dags/test_dag":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={
                         "dag_id": "test_dag",
@@ -1886,9 +1886,9 @@ class TestDagsOperations:
                         "next_dagrun": "2026-04-13T00:00:00Z",
                     },
                 )
-            return httpx.Response(status_code=200)
+            return httpx2.Response(status_code=200)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.dags.get(dag_id="test_dag")
 
         assert result == DagResponse(
@@ -1907,14 +1907,14 @@ class TestDagsOperations:
         requests_seen = []
         crafted_dag_id = "x/../../variables/secret_key"
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             requests_seen.append(request)
             if request.url.path == "/variables/secret_key":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=200,
                     json={"key": "secret_key", "value": "super-secret-value"},
                 )
-            return httpx.Response(
+            return httpx2.Response(
                 status_code=404,
                 json={
                     "detail": {
@@ -1924,7 +1924,7 @@ class TestDagsOperations:
                 },
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError) as exc_info:
             client.dags.get(dag_id=crafted_dag_id)
@@ -1936,9 +1936,9 @@ class TestDagsOperations:
     def test_get_not_found(self):
         """Test that getting a missing dag raises a server response error."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dags/missing_dag":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=404,
                     json={
                         "detail": {
@@ -1947,9 +1947,9 @@ class TestDagsOperations:
                         }
                     },
                 )
-            return httpx.Response(status_code=200)
+            return httpx2.Response(status_code=200)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError) as exc_info:
             client.dags.get(dag_id="missing_dag")
@@ -1963,9 +1963,9 @@ class TestDagsOperations:
     def test_get_server_error(self):
         """Test that a server error while getting a dag."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dags/test_dag":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=500,
                     headers=[("content-Type", "application/json")],
                     json={
@@ -1973,9 +1973,9 @@ class TestDagsOperations:
                         "message": "Internal Server Error",
                     },
                 )
-            return httpx.Response(status_code=200)
+            return httpx2.Response(status_code=200)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError):
             client.dags.get(dag_id="test_dag")
@@ -1985,12 +1985,12 @@ class TestTaskStateOperations:
     TI_ID = uuid7()
 
     def test_get_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/store/ti/{self.TI_ID}/job_id":
-                return httpx.Response(status_code=200, json={"value": "spark_app_001"})
-            return httpx.Response(status_code=400)
+                return httpx2.Response(status_code=200, json={"value": "spark_app_001"})
+            return httpx2.Response(status_code=400)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.get(ti_id=self.TI_ID, key="job_id")
 
         assert isinstance(result, TaskStateStoreResponse)
@@ -1999,24 +1999,24 @@ class TestTaskStateOperations:
     def test_get_url_encodes_key_with_slash(self):
         requests_seen = []
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             requests_seen.append(request)
-            return httpx.Response(status_code=200, json={"value": "spark_app_001"})
+            return httpx2.Response(status_code=200, json={"value": "spark_app_001"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_state_store.get(ti_id=self.TI_ID, key="spark/job_id")
 
         assert b"%2F" in requests_seen[0].url.raw_path
         assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
 
     def test_get_returns_error_response_on_404(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(
                 status_code=404,
                 json={"detail": {"reason": "not_found", "message": "Task state key 'job_id' not found"}},
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.get(ti_id=self.TI_ID, key="job_id")
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.TASK_STORE_NOT_FOUND
@@ -2024,13 +2024,13 @@ class TestTaskStateOperations:
     def test_set_success(self):
         expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "PUT"
             assert request.url.path == f"/store/ti/{self.TI_ID}/job_id"
             assert b'"value":"spark_app_001"' in request.content
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.set(
             ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
         )
@@ -2039,11 +2039,11 @@ class TestTaskStateOperations:
     def test_set_url_encodes_key_with_slash(self):
         requests_seen = []
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             requests_seen.append(request)
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_state_store.set(
             ti_id=self.TI_ID, key="spark/job_id", value="spark_app_001", expires_at=None
         )
@@ -2055,13 +2055,13 @@ class TestTaskStateOperations:
         """expires_at is forwarded as an ISO datetime string in the request body."""
         expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             body = json.loads(request.content)
             assert body["value"] == "spark_app_001"
             assert body["expires_at"] == "2026-05-21T12:00:00Z"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.set(
             ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
         )
@@ -2070,12 +2070,12 @@ class TestTaskStateOperations:
     def test_set_with_never_expire_sends_null_expires_at(self):
         """NEVER_EXPIRE sends expires_at=null — stored as NULL in DB, GC skips it."""
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             body = json.loads(request.content)
             assert body.get("expires_at") is None
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.set(
             ti_id=self.TI_ID,
             key="job_id",
@@ -2085,155 +2085,155 @@ class TestTaskStateOperations:
         assert result == OKResponse(ok=True)
 
     def test_delete_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "DELETE"
             assert request.url.path == f"/store/ti/{self.TI_ID}/job_id"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.delete(ti_id=self.TI_ID, key="job_id")
         assert result == OKResponse(ok=True)
 
     def test_delete_url_encodes_key_with_slash(self):
         requests_seen = []
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             requests_seen.append(request)
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_state_store.delete(ti_id=self.TI_ID, key="spark/job_id")
 
         assert b"%2F" in requests_seen[0].url.raw_path
         assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
 
     def test_clear_sends_delete_request(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "DELETE"
             assert request.url.path == f"/store/ti/{self.TI_ID}"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.clear(ti_id=self.TI_ID)
         assert result == OKResponse(ok=True)
 
 
 class TestAssetStateOperations:
     def test_get_by_name_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if (
                 request.url.path == "/store/asset/by-name/value"
                 and request.url.params["name"] == "test_asset"
                 and request.url.params["key"] == "watermark"
             ):
-                return httpx.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
-            return httpx.Response(status_code=400)
+                return httpx2.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
+            return httpx2.Response(status_code=400)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.get(key="watermark", name="test_asset")
 
         assert isinstance(result, AssetStateStoreResponse)
         assert result.value == "2026-04-30T00:00:00Z"
 
     def test_get_by_uri_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if (
                 request.url.path == "/store/asset/by-uri/value"
                 and request.url.params["uri"] == "s3://bucket/key"
                 and request.url.params["key"] == "watermark"
             ):
-                return httpx.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
-            return httpx.Response(status_code=400)
+                return httpx2.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
+            return httpx2.Response(status_code=400)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.get(key="watermark", uri="s3://bucket/key")
 
         assert isinstance(result, AssetStateStoreResponse)
         assert result.value == "2026-04-30T00:00:00Z"
 
     def test_get_returns_error_response_on_404(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(
                 status_code=404,
                 json={"detail": {"reason": "not_found", "message": "Asset state key 'watermark' not found"}},
             )
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.get(key="watermark", name="test_asset")
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.ASSET_STORE_NOT_FOUND
 
     def test_set_by_name_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "PUT"
             assert request.url.path == "/store/asset/by-name/value"
             assert request.url.params["name"] == "test_asset"
             assert request.url.params["key"] == "watermark"
             assert b'"value":"2026-04-30T00:00:00Z"' in request.content
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.set(
             key="watermark", value="2026-04-30T00:00:00Z", name="test_asset"
         )
         assert result == OKResponse(ok=True)
 
     def test_set_by_uri_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "PUT"
             assert request.url.path == "/store/asset/by-uri/value"
             assert request.url.params["uri"] == "s3://bucket/key"
             assert request.url.params["key"] == "watermark"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.set(
             key="watermark", value="2026-04-30T00:00:00Z", uri="s3://bucket/key"
         )
         assert result == OKResponse(ok=True)
 
     def test_delete_by_name_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "DELETE"
             assert request.url.path == "/store/asset/by-name/value"
             assert request.url.params["name"] == "test_asset"
             assert request.url.params["key"] == "watermark"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.delete(key="watermark", name="test_asset")
         assert result == OKResponse(ok=True)
 
     def test_delete_by_uri_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "DELETE"
             assert request.url.path == "/store/asset/by-uri/value"
             assert request.url.params["uri"] == "s3://bucket/key"
             assert request.url.params["key"] == "watermark"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.delete(key="watermark", uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
 
     def test_clear_by_name_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "DELETE"
             assert request.url.path == "/store/asset/by-name/clear"
             assert request.url.params["name"] == "test_asset"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.clear(name="test_asset")
         assert result == OKResponse(ok=True)
 
     def test_clear_by_uri_success(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "DELETE"
             assert request.url.path == "/store/asset/by-uri/clear"
             assert request.url.params["uri"] == "s3://bucket/key"
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.asset_state_store.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
