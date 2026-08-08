@@ -21,7 +21,7 @@ from functools import cache
 
 from airflow._shared.listeners.listener import ListenerManager
 from airflow._shared.listeners.spec import lifecycle, taskinstance
-from airflow.listeners.spec import asset, dagrun, importerrors
+from airflow.listeners.spec import asset, audit_log, dagrun, importerrors
 from airflow.plugins_manager import integrate_listener_plugins
 
 
@@ -40,6 +40,7 @@ def get_listener_manager() -> ListenerManager:
     _listener_manager = ListenerManager()
 
     _listener_manager.add_hookspecs(lifecycle)
+    _listener_manager.add_hookspecs(audit_log)
     _listener_manager.add_hookspecs(dagrun)
     _listener_manager.add_hookspecs(taskinstance)
     _listener_manager.add_hookspecs(asset)
