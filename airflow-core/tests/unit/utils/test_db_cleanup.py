@@ -37,10 +37,13 @@ from airflow import DAG
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.asset import AssetModel, AssetWatcherModel
+from airflow.models.callback import Callback, CallbackFetchMethod, CallbackType
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
@@ -59,13 +62,16 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
+    clear_db_triggers,
     drop_tables_with_prefix,
 )
 from tests_common.test_utils.taskinstance import create_task_instance
@@ -85,6 +91,22 @@ def clean_database():
     clear_db_assets()
     clear_db_runs()
     clear_db_dag_bundles()
+
+
+@pytest.fixture
+def clear_callbacks_and_triggers():
+    """Isolate callback and trigger rows.
+
+    ``callback.trigger_id`` has no delete rule, so a leftover callback row blocks the shared
+    teardown from clearing triggers. Callbacks must go first for the same reason.
+    """
+    clear_db_callbacks()
+    clear_db_triggers()
+
+    yield
+
+    clear_db_callbacks()
+    clear_db_triggers()
 
 
 class TestDBCleanup:
@@ -550,6 +572,118 @@ class TestDBCleanup:
         assert pinned_id in remaining  # still referenced by a task instance -> skipped
         assert latest_id in remaining  # kept by keep_last
         assert orphan_id not in remaining  # old and unreferenced -> pruned
+
+    @pytest.mark.usefixtures("clear_callbacks_and_triggers")
+    def test_trigger_cleanup_skips_triggers_still_referenced(self):
+        """db clean must not purge trigger rows that live objects still point at.
+
+        ``task_instance.trigger_id`` and ``asset_watcher.trigger_id`` are ``ON DELETE CASCADE``,
+        so purging a referenced trigger destroys a deferred task instance or an event-driven
+        watcher without archiving it. ``callback.trigger_id`` has no delete rule, so the same
+        purge fails the foreign key and aborts the run.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        dag_id = f"test_dag_{uuid4()}"
+
+        with create_session() as session:
+            triggers = [
+                Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{i}", kwargs={}) for i in range(4)
+            ]
+            for trigger in triggers:
+                trigger.created_date = base_date
+            session.add_all(triggers)
+            session.flush()
+            ti_trigger, watcher_trigger, callback_trigger, orphan_trigger = triggers
+            trigger_ids = [trigger.id for trigger in triggers]
+
+            dag_run = DagRun(dag_id, run_id="run-1", run_type=DagRunType.MANUAL, start_date=base_date)
+            deferred_ti = create_task_instance(
+                PythonOperator(task_id="deferred-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=None,
+            )
+            deferred_ti.dag_id = dag_id
+            deferred_ti.start_date = base_date
+            deferred_ti.state = TaskInstanceState.DEFERRED
+            deferred_ti.trigger_id = ti_trigger.id
+            session.add_all([dag_run, deferred_ti])
+
+            asset = AssetModel(name=f"asset-{uuid4()}", uri=f"s3://bucket/{uuid4()}", group="asset")
+            session.add(asset)
+            session.flush()
+            session.add(AssetWatcherModel(name="watcher", asset_id=asset.id, trigger_id=watcher_trigger.id))
+            session.execute(
+                Callback.__table__.insert().values(
+                    id=uuid4(),
+                    type=CallbackType.TRIGGERER.value,
+                    fetch_method=CallbackFetchMethod.IMPORT_PATH.value,
+                    data={},
+                    priority_weight=1,
+                    created_at=base_date,
+                    trigger_id=callback_trigger.id,
+                )
+            )
+            session.commit()
+            deferred_ti_id = deferred_ti.id
+
+            _cleanup_table(
+                **config_dict["trigger"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                session=session,
+                table_names=["trigger"],
+                skip_archive=True,
+            )
+
+            remaining = set(session.scalars(select(Trigger.id).where(Trigger.id.in_(trigger_ids))).all())
+            surviving_ti = session.get(TaskInstance, deferred_ti_id)
+            watcher_count = session.scalar(
+                select(func.count())
+                .select_from(AssetWatcherModel)
+                .where(AssetWatcherModel.trigger_id == watcher_trigger.id)
+            )
+
+        assert ti_trigger.id in remaining
+        assert watcher_trigger.id in remaining
+        assert callback_trigger.id in remaining
+        assert orphan_trigger.id not in remaining  # old and unreferenced -> pruned
+        assert surviving_ti is not None, "cascade deleted a deferred task instance that was still running"
+        assert watcher_count == 1
+
+    @pytest.mark.usefixtures("clear_callbacks_and_triggers")
+    def test_trigger_cleanup_archives_orphan_trigger(self):
+        """An unreferenced trigger is archived and purged on every backend.
+
+        ``trigger`` is a reserved word on MySQL, so the archive DDL must quote it; unquoted it is
+        a syntax error that leaves the table permanently uncleanable there.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            orphan = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+            orphan.created_date = base_date
+            session.add(orphan)
+            session.commit()
+            orphan_id = orphan.id
+
+            _cleanup_table(
+                **config_dict["trigger"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                session=session,
+                table_names=["trigger"],
+                skip_archive=False,
+            )
+            session.commit()
+
+            remaining = session.scalar(
+                select(func.count()).select_from(Trigger).where(Trigger.id == orphan_id)
+            )
+            archives = _get_archived_table_names(["trigger"], session)
+
+        assert remaining == 0
+        assert len(archives) == 1
+        assert archives[0].startswith(f"{ARCHIVE_TABLE_PREFIX}trigger__")
 
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
