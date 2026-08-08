@@ -209,6 +209,12 @@ class HttpOperator(BaseOperator):
         return all_responses
 
     def execute_async(self, context: Context) -> None:
+        if self.method.upper() not in ("GET", "HEAD", "OPTIONS"):
+            self.log.warning(
+                "HttpOperator with deferrable=True and method=%s may send duplicate requests if the Triggerer restarts.",
+                self.method,
+            )
+
         self.defer(
             trigger=HttpTrigger(
                 http_conn_id=self.http_conn_id,

@@ -387,3 +387,33 @@ class TestHttpOperator:
             base.BaseHook, "get_connection", lambda _cid: SimpleNamespace(login=None, password=None)
         )
         assert HttpOperator(task_id="test_HTTP_op_3")._resolve_auth_type() is None
+
+    @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+    def test_execute_async_warns_on_non_idempotent_method(self, monkeypatch, method):
+        monkeypatch.setattr(
+            base.BaseHook, "get_connection", lambda _cid: SimpleNamespace(login=None, password=None)
+        )
+        self._capture_defer(monkeypatch)
+
+        operator = HttpOperator(task_id="test_HTTP_op", method=method, deferrable=True)
+
+        with mock.patch.object(operator.log, "warning") as mock_warning:
+            operator.execute_async(context={})
+
+        mock_warning.assert_called_once()
+        call_args = mock_warning.call_args
+        assert method in call_args.args or method in str(call_args)
+
+    @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS"])
+    def test_execute_async_no_warning_on_idempotent_method(self, monkeypatch, method):
+        monkeypatch.setattr(
+            base.BaseHook, "get_connection", lambda _cid: SimpleNamespace(login=None, password=None)
+        )
+        self._capture_defer(monkeypatch)
+
+        operator = HttpOperator(task_id="test_HTTP_op", method=method, deferrable=True)
+
+        with mock.patch.object(operator.log, "warning") as mock_warning:
+            operator.execute_async(context={})
+
+        mock_warning.assert_not_called()
