@@ -1,0 +1,1 @@
+Executors now dispatch the highest ``priority_weight`` tasks first. When more tasks were queued than there were open slots, the lowest priority ones were sent to workers and the highest priority ones were held back.
