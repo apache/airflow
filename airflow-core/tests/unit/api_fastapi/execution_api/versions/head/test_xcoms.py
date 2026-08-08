@@ -83,6 +83,17 @@ def access_denied(client):
     exec_app.dependency_overrides = {}
 
 
+@pytest.fixture
+def authenticate_as(exec_app):
+    def _authenticate_as(ti_id):
+        async def _auth(request: Request) -> TIToken:
+            return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
+
+        exec_app.dependency_overrides[require_auth] = _auth
+
+    return _authenticate_as
+
+
 class TestXComsGetEndpoint:
     @pytest.mark.parametrize(
         ("db_value"),
@@ -340,7 +351,7 @@ class TestXComsSetEndpoint:
             (None, None),
         ],
     )
-    def test_xcom_set(self, client, create_task_instance, session, value, expected_value):
+    def test_xcom_set(self, client, create_task_instance, session, authenticate_as, value, expected_value):
         """
         Test that XCom value is set correctly. The request body can be either:
         - a JSON string (e.g. '"value"', '{"k":"v"}', '[1]'), which is stored as-is (a string) in the DB
@@ -351,6 +362,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti.id)
         value = serialize(value)
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
@@ -373,6 +385,57 @@ class TestXComsSetEndpoint:
         ).one_or_none()
         assert task_map is None, "Should not be mapped"
 
+    @pytest.mark.parametrize("mismatch", ["dag_id", "run_id", "task_id", "map_index"])
+    def test_xcom_set_rejects_identity_mismatch(
+        self, client, create_task_instance, session, authenticate_as, mismatch
+    ):
+        ti = create_task_instance(map_index=3)
+        session.commit()
+        authenticate_as(ti.id)
+        identity = {
+            "dag_id": ti.dag_id,
+            "run_id": ti.run_id,
+            "task_id": ti.task_id,
+            "map_index": ti.map_index,
+        }
+        identity[mismatch] = 4 if mismatch == "map_index" else f"other_{mismatch}"
+
+        response = client.post(
+            f"/execution/xcoms/{identity['dag_id']}/{identity['run_id']}/{identity['task_id']}/xcom_1",
+            params={"map_index": identity["map_index"]},
+            json='"value1"',
+        )
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": {
+                "reason": "access_denied",
+                "message": "Task may only set XComs for its own task instance",
+            }
+        }
+        assert session.scalar(select(XComModel).where(XComModel.key == "xcom_1")) is None
+
+    def test_xcom_set_rejects_missing_token_task_instance(
+        self, client, create_task_instance, session, authenticate_as
+    ):
+        ti = create_task_instance()
+        session.commit()
+        authenticate_as(uuid4())
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            json='"value1"',
+        )
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": {
+                "reason": "access_denied",
+                "message": "Task may only set XComs for its own task instance",
+            }
+        }
+        assert session.scalar(select(XComModel).where(XComModel.key == "xcom_1")) is None
+
     @pytest.mark.parametrize(
         ("orig_value", "ser_value", "deser_value"),
         [
@@ -394,7 +457,16 @@ class TestXComsSetEndpoint:
             ),
         ],
     )
-    def test_xcom_round_trip(self, client, create_task_instance, session, orig_value, ser_value, deser_value):
+    def test_xcom_round_trip(
+        self,
+        client,
+        create_task_instance,
+        session,
+        authenticate_as,
+        orig_value,
+        ser_value,
+        deser_value,
+    ):
         """
         Test that deserialization works when XCom values are stored directly in the DB with API Server.
 
@@ -408,6 +480,7 @@ class TestXComsSetEndpoint:
 
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti.id)
 
         # Serialize the value to simulate the client SDK
         value = serialize(orig_value)
@@ -437,15 +510,16 @@ class TestXComsSetEndpoint:
         # Ensure that the deserialized value on the client side is the same as the original value
         assert deserialize(deserialized_value) == orig_value
 
-    def test_xcom_set_mapped(self, client, create_task_instance, session):
-        ti = create_task_instance()
+    def test_xcom_set_mapped(self, client, create_task_instance, session, authenticate_as):
+        ti = create_task_instance(map_index=2)
         session.commit()
+        authenticate_as(ti.id)
 
         value = serialize("value1")
 
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
-            params={"map_index": -1, "mapped_length": 3},
+            params={"map_index": 2, "mapped_length": 3},
             json=value,
         )
 
@@ -457,7 +531,7 @@ class TestXComsSetEndpoint:
                 XComModel.task_id == ti.task_id,
                 XComModel.dag_id == ti.dag_id,
                 XComModel.key == "xcom_1",
-                XComModel.map_index == -1,
+                XComModel.map_index == 2,
             )
         ).first()
         assert xcom.value == "value1"
@@ -468,7 +542,7 @@ class TestXComsSetEndpoint:
         assert task_map.dag_id == "dag"
         assert task_map.run_id == "test"
         assert task_map.task_id == "op1"
-        assert task_map.map_index == -1
+        assert task_map.map_index == 2
         assert task_map.length == 3
 
     @pytest.mark.parametrize(
@@ -479,7 +553,7 @@ class TestXComsSetEndpoint:
         ],
     )
     def test_xcom_set_downstream_of_mapped(
-        self, client, create_task_instance, session, length, expected_status
+        self, client, create_task_instance, session, authenticate_as, length, expected_status
     ):
         """
         Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
@@ -488,6 +562,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti.id)
 
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
@@ -527,7 +602,9 @@ class TestXComsSetEndpoint:
             ('["value1"]', '["value1"]'),
         ],
     )
-    def test_xcom_roundtrip(self, client, create_task_instance, session, value, expected_value):
+    def test_xcom_roundtrip(
+        self, client, create_task_instance, session, authenticate_as, value, expected_value
+    ):
         """
         Test that XCom value is set and retrieved correctly using API.
 
@@ -540,6 +617,7 @@ class TestXComsSetEndpoint:
 
         value = serialize(value)
         session.commit()
+        authenticate_as(ti.id)
         client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/test_xcom_roundtrip",
             json=value,
@@ -559,11 +637,13 @@ class TestXComsSetEndpoint:
         assert response.status_code == 200
         assert XComResponse.model_validate_json(response.read()).value == expected_value
 
-    def test_xcom_dag_result(self, client, create_task_instance, session):
+    def test_xcom_dag_result(self, client, create_task_instance, session, authenticate_as):
         """
         Test that the dag_result flag propagates to XComModel.
         """
         ti = create_task_instance()
+        session.commit()
+        authenticate_as(ti.id)
         client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value",
             params={"dag_result": True},

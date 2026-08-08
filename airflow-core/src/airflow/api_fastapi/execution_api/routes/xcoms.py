@@ -27,12 +27,14 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
@@ -114,6 +116,33 @@ router = APIRouter(
 )
 
 log = logging.getLogger(__name__)
+
+
+def get_xcom_write_ti(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    map_index: int = -1,
+    token: TIToken = CurrentTIToken,
+    *,
+    session: SessionDep,
+) -> TaskInstance:
+    """Resolve and authorize the task instance that owns an XCom write."""
+    ti = session.get(TaskInstance, token.id)
+    if ti is None or (dag_id, run_id, task_id, map_index) != (
+        ti.dag_id,
+        ti.run_id,
+        ti.task_id,
+        ti.map_index,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": "Task may only set XComs for its own task instance",
+            },
+        )
+    return ti
 
 
 async def xcom_query(
@@ -356,8 +385,6 @@ def get_xcom(
     return XComResponse(key=key, value=(result[0] if isinstance(result, tuple) else result).value)
 
 
-# TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
-# the token
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
@@ -368,6 +395,7 @@ def set_xcom(
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
+    ti: Annotated[TaskInstance, Depends(get_xcom_write_ti)],
     value: Annotated[
         JsonValue,
         Body(
@@ -410,10 +438,10 @@ def set_xcom(
 
     if mapped_length is not None:
         task_map = TaskMap(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
             length=mapped_length,
             keys=None,
         )
@@ -437,10 +465,10 @@ def set_xcom(
         XComModel.set(
             key=key,
             value=value,
-            run_id=run_id,
-            task_id=task_id,
-            dag_id=dag_id,
-            map_index=map_index,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+            map_index=ti.map_index,
             serialize=False,
             dag_result=dag_result,
             session=session,
