@@ -47,7 +47,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
-from airflow.assets.manager import AssetManager, _create_asset_event
+from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
@@ -341,6 +341,14 @@ class TestSchedulerJob:
         self.null_exec: MockExecutor | None = MockExecutor()
         yield
         self.null_exec = None
+
+    @pytest.fixture
+    def team_bundle(self, testing_team, testing_dag_bundle, session):
+        team = session.merge(testing_team)
+        bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == "testing"))
+        bundle.teams.append(team)
+        session.flush()
+        return bundle
 
     @pytest.fixture
     def mock_executors(self):
@@ -4237,6 +4245,44 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_dagrun_timeout_duration_metric_has_run_type(self, mock_get_backend, dag_maker):
+        """
+        The ``dagrun.duration.failed`` metric emitted when a Dag run times out must carry the
+        ``run_type`` tag, matching the metric emitted on normal Dag run completion via
+        ``DagRun._emit_duration_stats_for_finished_state``.
+        """
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_dagrun_timeout_duration_metric",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        assert dr.state == State.FAILED
+
+        mock_stats.timing.assert_any_call(
+            "dagrun.duration.failed",
+            mock.ANY,
+            tags={"dag_id": dr.dag_id, "run_type": dr.run_type},
+        )
+
+        session.rollback()
+        session.close()
+
     def test_dagrun_timeout_fails_run_and_update_next_dagrun(self, dag_maker):
         """
         Test that dagrun timeout fails run and update the next dagrun
@@ -5669,16 +5715,14 @@ class TestSchedulerJob:
             timestamp=base + timedelta(seconds=2),
         )
         session.add_all([event1, event2])
+        session.flush()  # assign event ids so the ADRQ rows can reference them
 
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(
-                    asset_id=asset1_id, target_dag_id=dag2.dag_id, created_at=base + timedelta(hours=1)
-                ),
-                AssetDagRunQueue(
-                    asset_id=asset1_id, target_dag_id=dag3.dag_id, created_at=base + timedelta(hours=1)
-                ),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id, asset_event_id=event1.id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id, asset_event_id=event1.id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id, asset_event_id=event2.id),
             ]
         )
         session.flush()
@@ -5735,27 +5779,20 @@ class TestSchedulerJob:
     def test_new_asset_triggered_dag_backlog_gated_by_catchup(
         self, catchup, expects_old_event, session, dag_maker
     ):
-        """Reproduces #39456: catchup gates whether a new asset-triggered Dag replays the
-        pre-creation backlog. With catchup off (the default) it only consumes events after it
-        started scheduling on the asset; with catchup on it replays the full history."""
+        """catchup gates whether a newly-subscribed asset-triggered Dag consumes its backlog.
+
+        With catchup off (the default) the Dag consumes only events with a queue row (i.e. those
+        emitted after it began scheduling on the asset). With catchup on, the first triggered run
+        also consumes the pre-subscription backlog -- every not-yet-consumed event for the Dag's
+        assets -- selected directly by the scheduler (no queue row required, no time window).
+        """
         asset = Asset(uri="test://asset-historical", name="hist_asset", group="test_group")
 
-        # Producer Dag + run that the asset events are sourced from.
+        # Producer + a historical event that exists BEFORE any consumer subscribes.
         with dag_maker(dag_id="historical-producer", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
         producer_run = dag_maker.create_dagrun(run_id="producer-run")
-
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-
-        # Consumer Dag created now; its schedule reference's created_at is the cut-off.
-        with dag_maker(dag_id="historical-consumer", schedule=[asset], catchup=catchup):
-            pass
-        consumer_dag = dag_maker.dag
-        reference_created_at = session.scalar(
-            select(DagScheduleAssetReference.created_at).where(
-                DagScheduleAssetReference.dag_id == consumer_dag.dag_id
-            )
-        )
 
         def _make_event(timestamp):
             return AssetEvent(
@@ -5767,18 +5804,28 @@ class TestSchedulerJob:
                 timestamp=timestamp,
             )
 
-        old_event = _make_event(reference_created_at - timedelta(days=1))
-        new_event = _make_event(reference_created_at + timedelta(seconds=1))
-        session.add_all([old_event, new_event])
-        # Trigger time after both events so neither is excluded by the upper bound.
+        old_event = _make_event(timezone.utcnow() - timedelta(days=1))
+        session.add(old_event)
+        session.commit()
+
+        # Consumer subscribes now: catchup=True backfills a queue row for old_event (the
+        # pre-subscription backlog); catchup=False backfills nothing.
+        with dag_maker(dag_id="historical-consumer", schedule=[asset], catchup=catchup, session=session):
+            pass
+        consumer_dag = dag_maker.dag
+
+        # A post-subscription event always gets its own queue row.
+        new_event = _make_event(timezone.utcnow())
+        session.add(new_event)
+        session.flush()
         session.add(
             AssetDagRunQueue(
                 asset_id=asset_id,
                 target_dag_id=consumer_dag.dag_id,
-                created_at=reference_created_at + timedelta(hours=1),
+                asset_event_id=new_event.id,
             )
         )
-        session.flush()
+        session.commit()
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
@@ -5791,6 +5838,78 @@ class TestSchedulerJob:
         assert {e.id for e in created_run.consumed_asset_events} == expected
 
     @pytest.mark.need_serialized_dag
+    def test_asset_events_out_of_order_are_both_consumed(self, session, dag_maker):
+        """Regression test for GH-54659.
+
+        Two events for the same asset can become visible out of timestamp order (for example a
+        long-running producer commits an "older" event after a "newer" one). Under the old
+        created_at/timestamp watermark the older event could be stranded below the watermark and
+        never consumed. With consume-by-reference every event referenced by an ADRQ row is
+        consumed, regardless of the order in which the timestamps became visible.
+        """
+        asset = Asset(uri="test://asset-ooo", name="ooo_asset", group="test_group")
+
+        with dag_maker(dag_id="ooo-producer", start_date=timezone.utcnow(), session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
+        producer_run = dag_maker.create_dagrun(run_id="producer-run")
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        with dag_maker(dag_id="ooo-consumer", schedule=[asset]):
+            pass
+        consumer_dag = dag_maker.dag
+
+        base = timezone.utcnow()
+
+        def _make_event(timestamp):
+            return AssetEvent(
+                asset_id=asset_id,
+                source_task_id="task",
+                source_dag_id=producer_run.dag_id,
+                source_run_id=producer_run.run_id,
+                source_map_index=-1,
+                timestamp=timestamp,
+            )
+
+        # The "newer" event is registered (and gets its lower id) BEFORE the "older" one, so
+        # insertion order and timestamp order disagree.
+        newer_event = _make_event(base + timedelta(seconds=10))
+        session.add(newer_event)
+        session.flush()
+        older_event = _make_event(base + timedelta(seconds=1))
+        session.add(older_event)
+        session.flush()
+
+        session.add_all(
+            [
+                AssetDagRunQueue(
+                    asset_id=asset_id, target_dag_id=consumer_dag.dag_id, asset_event_id=newer_event.id
+                ),
+                AssetDagRunQueue(
+                    asset_id=asset_id, target_dag_id=consumer_dag.dag_id, asset_event_id=older_event.id
+                ),
+            ]
+        )
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        with create_session() as session:
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)).one()
+        assert created_run.state == State.QUEUED
+        # Neither event is stranded: both are consumed by the single run.
+        assert {e.id for e in created_run.consumed_asset_events} == {newer_event.id, older_event.id}
+        # All ADRQ rows for the dag are cleared once consumed.
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag.dag_id)
+            ).all()
+            == []
+        )
+
+    @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_triggered_skips_stale_triggered_date(self, session, dag_maker):
         asset = Asset(uri="test://asset-for-stale-trigger-date", name="asset-for-stale-trigger-date")
         with dag_maker(dag_id="asset-consumer-stale-trigger-date", schedule=[asset], session=session):
@@ -5798,8 +5917,12 @@ class TestSchedulerJob:
         dag_model = dag_maker.dag_model
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
 
-        queued_at = timezone.utcnow()
-        session.add(AssetDagRunQueue(target_dag_id=dag_model.dag_id, asset_id=asset_id, created_at=queued_at))
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(target_dag_id=dag_model.dag_id, asset_id=asset_id, asset_event_id=event.id)
+        )
         session.flush()
 
         # Simulate another scheduler consuming ADRQ rows after we computed triggered_date_by_dag.
@@ -5827,21 +5950,20 @@ class TestSchedulerJob:
         dag_model = dag_maker.dag_model
         asset_1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_1.name))
         asset_2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_2.name))
+        event_1 = AssetEvent(asset_id=asset_1_id, timestamp=timezone.utcnow())
+        event_2 = AssetEvent(asset_id=asset_2_id, timestamp=timezone.utcnow())
+        session.add_all([event_1, event_2])
+        session.flush()
         session.add_all(
             [
-                AssetEvent(
-                    asset_id=asset_1_id,
-                    timestamp=timezone.utcnow(),
-                ),
-                # The ADRQ that should triggers the Dag run creation
+                # The ADRQ that should trigger the Dag run creation
                 AssetDagRunQueue(
-                    asset_id=asset_1_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
+                    asset_id=asset_1_id, target_dag_id=dag_model.dag_id, asset_event_id=event_1.id
                 ),
-                AssetEvent(asset_id=asset_2_id, timestamp=timezone.utcnow()),
-                # The ADRQ that arrives after the Dag run creation but before ADRQ clean up
-                # This situation is simulated by _lock_only_selected_asset below
+                # The ADRQ that arrives after the Dag run creation but before ADRQ clean up.
+                # This situation is simulated by _lock_only_selected_asset below.
                 AssetDagRunQueue(
-                    asset_id=asset_2_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
+                    asset_id=asset_2_id, target_dag_id=dag_model.dag_id, asset_event_id=event_2.id
                 ),
             ]
         )
@@ -5908,23 +6030,23 @@ class TestSchedulerJob:
                 dag = session.get(DagModel, consumer_dag_id)
                 now = timezone.utcnow()
                 asset_manager = AssetManager()
-                asset_event = _create_asset_event(session=session, asset_id=asset_id, timestamp=now)
+                # The event is now created inline on the caller's session (atomic), rather than in
+                # a side session, so build it directly here.
+                asset_event = AssetEvent(asset_id=asset_id, timestamp=now)
+                session.add(asset_event)
+                session.flush()
+                event_id = asset_event.id
                 time.sleep(sleep)  # widen the race window between event creation and queueing
-                dialect_name = inspect(session.get_bind()).dialect.name
-                if dialect_name in ("postgresql", "sqlite"):
-                    asset_manager._queue_dagruns_nonpartitioned_conflict_update(
-                        asset_id=asset_id,
-                        dags_to_queue=[dag],
-                        event=asset_event,
-                        session=session,
-                        dialect_name=dialect_name,
-                    )
-                elif dialect_name == "mysql":
-                    asset_manager._queue_dagruns_nonpartitioned_mysql(
-                        asset_id=asset_id, dags_to_queue=[dag], event=asset_event, session=session
-                    )
+                # A single dialect-agnostic helper now performs insert-or-ignore keyed on
+                # (target_dag_id, asset_event_id).
+                asset_manager._queue_dagruns_nonpartitioned(
+                    asset_id=asset_id,
+                    dags_to_queue={dag},
+                    event=asset_event,
+                    session=session,
+                )
 
-            return asset_event.id, now.isoformat()
+            return event_id, now.isoformat()
 
         with (
             ThreadPoolExecutor(max_workers=3) as executor,
@@ -6007,7 +6129,9 @@ class TestSchedulerJob:
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=consumer_dag.dag_id),
+                AssetDagRunQueue(
+                    asset_id=asset1_id, target_dag_id=consumer_dag.dag_id, asset_event_id=event.id
+                ),
             ]
         )
         session.flush()
@@ -6081,9 +6205,11 @@ class TestSchedulerJob:
             source_map_index=-1,
         )
         session.add(event)
-        # flush here to ensure event timestamp is before the ADRQ created_at timestamp
+        # flush here to assign the event id referenced by the ADRQ row
         session.flush()
-        session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=f"consumer_{suffix}"))
+        session.add(
+            AssetDagRunQueue(asset_id=asset_id, target_dag_id=f"consumer_{suffix}", asset_event_id=event.id)
+        )
         session.flush()
 
         with conf_vars({("core", "multi_team"): multi_team}):
@@ -6149,26 +6275,42 @@ class TestSchedulerJob:
         )
         session.flush()
         assert [e.source_run_id for e in session.scalars(ase_q)] == [dr1.run_id, dr2.run_id]
-        assert len(session.scalars(adrq_q).all()) == 1
-        assert session.scalars(adrq_q).one().target_dag_id == "consumer"
+        # ADRQ rows are per asset event now. A stale dag still enqueues while disabled (asserted
+        # above), so both events stay queued; a paused dag never enqueued the first event, so only
+        # the second remains.
+        expected_adrqs = 2 if "is_stale" in disable else 1
+        adrqs = session.scalars(adrq_q).all()
+        assert len(adrqs) == expected_adrqs
+        assert all(adrq.target_dag_id == "consumer" for adrq in adrqs)
 
     @pytest.mark.need_serialized_dag
-    def test_no_create_dag_runs_when_no_asset_event(self, session: Session, dag_maker, caplog):
+    def test_no_create_dag_runs_when_asset_event_already_consumed(self, session: Session, dag_maker, caplog):
         asset = Asset(name="test_asset")
         with dag_maker(dag_id="consumer", schedule=asset, session=session):
             pass
         dag_model = dag_maker.dag_model
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-        # Simulate an ADRQ row whose matching asset events were already consumed by an earlier DagRun.
-        # The ADRQ should be cleaned up even when no new DagRun is created, to prevent stale ADRQ
-        # rows from accumulating and causing infinite scheduler loops.
-        adrq = AssetDagRunQueue(
-            asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
-        )
-        session.add(adrq)
+
+        # An event that has already been consumed by an earlier DagRun of this dag.
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
         session.flush()
-        adrq.created_at = timezone.utcnow() + timedelta(seconds=1)
-        session.merge(adrq)
+        prior_run = dag_maker.create_dagrun(
+            run_id="prior-consuming-run",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
+        prior_run.consumed_asset_events.append(event)
+        session.flush()
+
+        # A stale ADRQ that still references the already-consumed event. It should be cleaned up
+        # even when no new DagRun is created, to prevent stale ADRQ rows from accumulating and
+        # causing infinite scheduler loops.
+        session.add(
+            AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        )
+        session.flush()
+
         with caplog.at_level("INFO"):
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
@@ -6176,9 +6318,11 @@ class TestSchedulerJob:
                 dag_models=[dag_model],
                 session=session,
             )
-        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none()
+
         assert "No DagRun created" in caplog.text
-        assert dr is None
+        # No *new* DagRun is created; only the pre-existing consuming run remains.
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+        assert [r.run_id for r in runs] == ["prior-consuming-run"]
         _adrq = session.scalars(
             select(AssetDagRunQueue).where(
                 AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == dag_model.dag_id
@@ -8077,6 +8221,58 @@ class TestSchedulerJob:
         assert ti.next_method == "execute_complete"
         assert ti.next_kwargs["event"]["error_type"] == "timeout"
 
+    def test_awaiting_input_timeout_sweep_survives_unusable_next_kwargs(self, dag_maker):
+        """The sweep finishes its batch even when one task's stored kwargs cannot be read."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_bad_kwargs",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr_bad = dag_maker.create_dagrun()
+        dr_good = dag_maker.create_dagrun(
+            run_id="good", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+        )
+        ti_bad = dr_bad.get_task_instance("dummy1", session=session)
+        ti_good = dr_good.get_task_instance("dummy1", session=session)
+        for ti in (ti_bad, ti_good):
+            ti.state = State.AWAITING_INPUT
+            ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+            ti.next_method = "execute_complete"
+            ti.next_kwargs = {}
+        # Stored kwargs that no longer decode into a dict (here: a class name that is not allowed
+        # for deserialization, which the legacy fallback cannot read either).
+        ti_bad.next_kwargs = {"__classname__": "not.allowed.Thing", "__version__": 1, "__data__": {}}
+        session.add(
+            HITLDetail(
+                ti_id=ti_good.id,
+                options=["Approve", "Reject"],
+                subject="approve?",
+                defaults=["Approve"],
+                multiple=False,
+                params={},
+            )
+        )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        mock_log = mock.MagicMock(spec=logging.Logger)
+        with mock.patch.object(SchedulerJobRunner, "log", mock_log):
+            self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.refresh(ti_bad)
+        session.refresh(ti_good)
+        assert ti_bad.state == State.SCHEDULED
+        assert ti_bad.next_method == "__fail__"
+        assert "error" in ti_bad.next_kwargs
+        assert ti_good.state == State.SCHEDULED
+        assert ti_good.next_method == "execute_complete"
+        assert ti_good.next_kwargs["event"]["chosen_options"] == ["Approve"]
+        # The one it could not resume is reported as such rather than counted as resolved.
+        assert mock_log.info.call_args.args[1:] == (1, 0, 1)
+
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
@@ -9596,6 +9792,147 @@ class TestSchedulerJob:
         call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
         assert call_args.kwargs["msg"] == "timed_out"
         assert call_args.kwargs["dag_run"] == dag_run
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_start_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_running receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_start_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(run_id="test_run", state=DagRunState.QUEUED)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._start_queued_dagruns(session)
+
+        mock_listener_manager.hook.on_dag_run_running.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_running.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_timeout_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_failed receives dag_run with _team_name set when a DAG times out."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(
+            dag_id="test_dag_timeout_team",
+            bundle_name="testing",
+            session=session,
+            dagrun_timeout=timedelta(seconds=60),
+        ):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        # We set it to double dagrun timeout so the timeout path is taken.
+        dag_run.start_date = DEFAULT_DATE - timedelta(seconds=120)
+        session.merge(dag_run)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._schedule_dag_run(dag_run, session)
+
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["msg"] == "timed_out"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_success_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_success receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_success_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        self.job_runner._do_scheduling(session)
+
+        mock_listener_manager.hook.on_dag_run_success.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_success.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_failure_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_failed receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_failure_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.FAILED, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        self.job_runner._do_scheduling(session)
+
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_paused_success_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_success receives dag_run with _team_name set for paused DAGs."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_paused_team", bundle_name="testing", session=session) as dag:
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        dag_run.last_scheduling_decision = DEFAULT_DATE - timedelta(minutes=1)
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.is_paused = True
+        session.flush()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
+
+        mock_listener_manager.hook.on_dag_run_success.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_success.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):

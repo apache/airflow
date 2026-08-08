@@ -1812,6 +1812,12 @@ QueryUriExactMatch = Annotated[
         )
     ),
 ]
+QueryAssetGroupPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetModel.group, "group_pattern"))
+]
+QueryAssetGroupPrefixPatternSearch = Annotated[
+    _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.group, "group_prefix_pattern"))
+]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))
 ]

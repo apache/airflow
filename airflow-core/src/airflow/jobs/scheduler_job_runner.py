@@ -28,7 +28,7 @@ import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator
 from contextlib import ExitStack
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
@@ -135,10 +135,10 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from types import FrameType
 
-    from pendulum.datetime import DateTime
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
@@ -457,6 +457,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Ensure all requested dag_ids are in the result (with None for those not found)
         return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
+
+    def _stamp_team_names(self, dag_runs: Collection[DagRun], session: Session) -> None:
+        """
+        Stamp ``_team_name`` on each DagRun.
+
+        Team names are resolved via ``_get_team_names_for_dag_ids``, which caches results in
+        ``self._dag_id_to_team_name`` for the duration of the current scheduler loop.  In
+        practice this means the first call per loop issues one batched query; subsequent calls
+        for the same dag_ids are pure dict reads with no DB round-trip.
+        """
+        if not self._multi_team:
+            return
+        if not dag_runs:
+            return
+        team_map = self._get_team_names_for_dag_ids({dr.dag_id for dr in dag_runs}, session)
+        for dr in dag_runs:
+            if team := team_map.get(dr.dag_id):
+                dr._team_name = team
 
     def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
@@ -1734,12 +1752,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
-            if self._multi_team and paused_runs:
-                paused_dag_ids = {dr.dag_id for dr in paused_runs}
-                paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
-                for dr in paused_runs:
-                    if team := paused_team_mapping.get(dr.dag_id):
-                        dr._team_name = team
+            # Team name should be added before listeners are called in update_state()
+            self._stamp_team_names(paused_runs, session)
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
@@ -1828,6 +1842,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._remove_unreferenced_triggers,
+            non_fatal=True,
         )
 
         if any(x.is_local for x in self.executors):
@@ -1845,6 +1860,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
+            non_fatal=True,
         )
 
         idle_count = 0
@@ -1996,12 +2012,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
 
-            if self._multi_team and dag_runs:
-                unique_dag_ids = {dr.dag_id for dr in dag_runs}
-                dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
-                for dr in dag_runs:
-                    if team := dr_team_mapping.get(dr.dag_id):
-                        dr._team_name = team
+            # Team name should be added before listeners are called in _schedule_all_dag_runs()
+            self._stamp_team_names(dag_runs, session)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -2641,9 +2653,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             queued_adrqs = session.scalars(
                 with_row_locks(
-                    select(AssetDagRunQueue)
-                    .where(AssetDagRunQueue.target_dag_id == dag.dag_id)
-                    .order_by(AssetDagRunQueue.created_at.desc()),
+                    select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag.dag_id),
                     of=AssetDagRunQueue,
                     skip_locked=True,
                     key_share=False,
@@ -2658,53 +2668,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
-            self.log.debug(
-                "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
-                dag.dag_id,
-                len(queued_adrqs),
-                triggered_date,
-            )
-            cte = (
-                select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
-                .where(
-                    DagRun.dag_id == dag.dag_id,
-                    DagRun.run_type == DagRunType.ASSET_TRIGGERED,
-                    DagRun.run_after < triggered_date,
+            referenced_event_ids = {adrq.asset_event_id for adrq in queued_adrqs}
+            event_predicate: ColumnElement[bool] = AssetEvent.id.in_(referenced_event_ids)
+            if dag.catchup:
+                # With catchup on, also consume events recorded before the Dag started
+                # scheduling on its assets/aliases, not just those with a queue row. (With catchup
+                # off only queued events are consumed.) The not-consumed filter below dedupes
+                # across runs, so no event window is needed.
+                event_predicate = or_(
+                    event_predicate,
+                    AssetEvent.asset_id.in_(
+                        select(DagScheduleAssetReference.asset_id).where(
+                            DagScheduleAssetReference.dag_id == dag.dag_id
+                        )
+                    ),
+                    AssetEvent.source_aliases.any(
+                        AssetAliasModel.scheduled_dags.any(
+                            DagScheduleAssetAliasReference.dag_id == dag.dag_id
+                        )
+                    ),
                 )
-                .cte()
-            )
-
-            # A first asset-triggered run has no previous run to floor the event window. With
-            # catchup off, floor it at when the Dag started scheduling on its assets so the
-            # backlog is skipped; with catchup on, only date.min applies and the backlog replays.
-            event_window_floor: list[Any] = [cte.c.previous_dag_run_run_after]
-            if not dag.catchup:
-                event_window_floor.append(
-                    select(func.min(DagScheduleAssetReference.created_at))
-                    .where(DagScheduleAssetReference.dag_id == dag.dag_id)
-                    .scalar_subquery()
-                )
-            event_window_floor.append(date.min)
-
             asset_events = list(
                 session.scalars(
                     select(AssetEvent)
                     .where(
-                        or_(
-                            AssetEvent.asset_id.in_(
-                                select(DagScheduleAssetReference.asset_id).where(
-                                    DagScheduleAssetReference.dag_id == dag.dag_id
-                                )
-                            ),
-                            AssetEvent.source_aliases.any(
-                                AssetAliasModel.scheduled_dags.any(
-                                    DagScheduleAssetAliasReference.dag_id == dag.dag_id
-                                )
-                            ),
-                        ),
-                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
-                        AssetEvent.timestamp <= triggered_date,
+                        event_predicate,
                         ~(
                             select(association_table.c.event_id)
                             .join(DagRun, DagRun.id == association_table.c.dag_run_id)
@@ -2719,6 +2707,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
             if asset_events:
+                triggered_date = timezone.coerce_datetime(max(event.timestamp for event in asset_events))
+                self.log.debug(
+                    "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+                    dag.dag_id,
+                    len(queued_adrqs),
+                    triggered_date,
+                )
                 dag_run = dag.create_dagrun(
                     run_id=DagRun.generate_run_id(
                         run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
@@ -2747,19 +2742,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             else:
                 self.log.info(
-                    "No DagRun created for '%s' at '%s' - asset events already consumed or none found",
+                    "No DagRun created for '%s' - asset events already consumed or none found",
                     dag.dag_id,
-                    triggered_date,
                 )
             # Always delete ADRQ rows for this batch to prevent stale entries accumulating,
             # including when all events were already consumed by a concurrent DagRun.
-            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
             result = cast(
                 "CursorResult",
                 session.execute(
                     delete(AssetDagRunQueue).where(
-                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks),
-                        AssetDagRunQueue.created_at <= triggered_date,
+                        tuple_(
+                            AssetDagRunQueue.target_dag_id,
+                            AssetDagRunQueue.asset_event_id,
+                        ).in_((adrq.target_dag_id, adrq.asset_event_id) for adrq in queued_adrqs)
                     )
                 ),
             )
@@ -2843,6 +2838,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
+
+        # Team name should be added before listeners are called in notify_dagrun_state_changed()
+        self._stamp_team_names(dag_runs, session)
 
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
@@ -2981,6 +2979,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 execute=False,
             )
 
+            # Team name should be added before listeners are called in notify_dagrun_state_changed()
+            self._stamp_team_names([dag_run], session)
             dag_run.notify_dagrun_state_changed(msg="timed_out")
             if dag_run.end_date and dag_run.start_date:
                 duration = dag_run.end_date - dag_run.start_date
@@ -2989,7 +2989,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     duration,
                     tags=prune_dict(
                         {
-                            "dag_id": dag_run.dag_id,
+                            **dag_run.stats_tags,
                             "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
                                 dag_run.dag_id
                             )
@@ -3528,8 +3528,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 num_resolved = 0
                 num_failed = 0
+                num_unresumable = 0
                 for ti in timed_out_tis:
                     hitl_detail = ti.hitl_detail
+                    resuming = True
                     if hitl_detail is not None and hitl_detail.responded_at is not None:
                         # A response landed just before the deadline; resume with it.
                         handle_event_submit(
@@ -3537,7 +3539,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             task_instance=ti,
                             session=session,
                         )
-                        num_resolved += 1
                     elif hitl_detail is not None and hitl_detail.defaults is not None:
                         # Apply the configured defaults as the response, then resume to success.
                         hitl_detail.chosen_options = list(hitl_detail.defaults)
@@ -3553,7 +3554,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             task_instance=ti,
                             session=session,
                         )
-                        num_resolved += 1
                     else:
                         # No defaults and no response: resume into execute_complete with a timeout
                         # failure event so the operator raises HITLTimeoutError (matching the old
@@ -3569,16 +3569,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             task_instance=ti,
                             session=session,
                         )
+                        resuming = False
+
+                    # ``handle_event_submit`` routes a task instance it could not process to
+                    # ``__fail__`` instead of resuming it. That is neither of the outcomes the
+                    # branches above intended, so it is counted on its own rather than being
+                    # reported as resolved.
+                    if ti.next_method == TRIGGER_FAIL_REPR:
+                        num_unresumable += 1
+                    elif resuming:
+                        num_resolved += 1
+                    else:
                         num_failed += 1
 
                 # Flush within the retry block so both branches persist consistently (the defaults
                 # branch already flushes via handle_event_submit; the fail branch relies on this).
                 session.flush()
-                if num_resolved or num_failed:
+                if num_resolved or num_failed or num_unresumable:
                     self.log.info(
-                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed",
+                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed, "
+                        "%i could not be resumed",
                         num_resolved,
                         num_failed,
+                        num_unresumable,
                     )
 
     # [START find_and_purge_task_instances_without_heartbeats]
