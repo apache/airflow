@@ -41,3 +41,25 @@ Example of using the GitDagBundle:
          }
      }
     ]'
+
+``tracking_ref`` accepts a branch, tag, or full commit SHA. Setting it to a commit SHA pins the
+bundle to that exact commit:
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+     {
+         "name": "my-git-repo",
+         "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+         "kwargs": {
+             "repo_url": "https://github.com/org/repo.git",
+             "tracking_ref": "a3d1850dd1aa1919a61620aa39f202185c9321c0",
+             "subdir": "dags"
+         }
+     }
+    ]'
+
+Branches move as new commits are pushed, so combined with ``refresh_interval`` they pick up new code
+without a restart. Tags and commit SHAs are static (assuming tags aren't moved), pinning the bundle
+to known-good code — but promoting or rolling back a SHA means changing ``tracking_ref`` in
+``dag_bundle_config_list`` itself, which requires restarting the Dag processor to take effect.
