@@ -519,7 +519,7 @@ class TestGitHook:
 
         assert hook.github_app_id == "12345"
         assert hook.github_installation_id == "67890"
-        assert hook.github_app_private_key is None
+        assert hook.private_key is None
 
     def test_app_auth_with_key_file_reads_file(self, create_connection_without_db, tmp_path, monkeypatch):
         key_file = tmp_path / "app_key.pem"
@@ -583,7 +583,7 @@ class TestGitHook:
         with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
             hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         assert len(mock_called) == 0
-        assert hook.auth_token == ""
+        assert hook.auth_token is None
         assert hook.github_app_id == "12345"
         assert hook.github_installation_id == "67890"
 
