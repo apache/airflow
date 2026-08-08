@@ -35,7 +35,12 @@ import {
   COORDINATOR_RESPONSE_TIMEOUT_MS,
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
-import { registerTask } from "../../src/sdk/registry.js";
+import { Dag } from "../../src/sdk/dag.js";
+import { registerDags } from "../../src/sdk/registry.js";
+
+const testDag = new Dag("test_dag");
+const otherDag = new Dag("other_dag");
+registerDags(testDag, otherDag);
 
 interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;
@@ -231,7 +236,7 @@ describe("coordinator runtime integration", () => {
 
   it("dispatches StartupDetails to a registered handler and emits SucceedTask", async () => {
     let observedCtx: unknown = null;
-    registerTask({ dagId: "test_dag", taskId: "say_hello" }, async ({ ctx }) => {
+    testDag.task("say_hello", async ({ ctx }) => {
       observedCtx = ctx;
       return "ok";
     });
@@ -287,7 +292,7 @@ describe("coordinator runtime integration", () => {
     const commAccept = acceptOne(comm.server);
     const logsAccept = acceptOne(logs.server);
 
-    registerTask({ dagId: "test_dag", taskId: "terminal_timeout" }, async () => undefined);
+    testDag.task("terminal_timeout", async () => undefined);
     const runtimeDone = startCoordinator({
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
@@ -317,7 +322,7 @@ describe("coordinator runtime integration", () => {
   });
 
   it("returns TaskState=failed when the handler throws", async () => {
-    registerTask({ dagId: "test_dag", taskId: "boom" }, async () => {
+    testDag.task("boom", async () => {
       throw new Error("boom");
     });
 
@@ -330,7 +335,7 @@ describe("coordinator runtime integration", () => {
   });
 
   it("returns RetryTask when the handler throws and Airflow says the failure is retryable", async () => {
-    registerTask({ dagId: "test_dag", taskId: "boom_retry" }, async () => {
+    testDag.task("boom_retry", async () => {
       throw new Error("boom");
     });
 
@@ -349,7 +354,7 @@ describe("coordinator runtime integration", () => {
 
   it("aborts ctx.signal on SIGTERM and reports a thrown task error", async () => {
     let sawAbort = false;
-    registerTask({ dagId: "test_dag", taskId: "aborted_then_failed" }, async ({ ctx }) => {
+    testDag.task("aborted_then_failed", async ({ ctx }) => {
       process.emit("SIGTERM");
       sawAbort = ctx.signal.aborted;
       throw new Error("interrupted");
@@ -367,7 +372,7 @@ describe("coordinator runtime integration", () => {
 
   it("returns RetryTask with the thrown error when a task fails after SIGTERM", async () => {
     let sawAbort = false;
-    registerTask({ dagId: "test_dag", taskId: "aborted_then_failed_retry" }, async ({ ctx }) => {
+    testDag.task("aborted_then_failed_retry", async ({ ctx }) => {
       process.emit("SIGTERM");
       sawAbort = ctx.signal.aborted;
       throw new Error("interrupted");
@@ -390,7 +395,7 @@ describe("coordinator runtime integration", () => {
 
   it("does not discard a completed task result after SIGTERM", async () => {
     let sawAbort = false;
-    registerTask({ dagId: "test_dag", taskId: "completed_after_sigterm" }, async ({ ctx }) => {
+    testDag.task("completed_after_sigterm", async ({ ctx }) => {
       process.emit("SIGTERM");
       sawAbort = ctx.signal.aborted;
       return "completed";
@@ -426,7 +431,7 @@ describe("coordinator runtime integration", () => {
     const xcomStore = new Map<string, unknown>();
     let observedGreeting: string | null = "<unset>";
 
-    registerTask({ dagId: "test_dag", taskId: "say_hello_client" }, async ({ ctx, client }) => {
+    testDag.task("say_hello_client", async ({ ctx, client }) => {
       // The coordinator-mode handler MUST receive a client.
       if (!client) throw new Error("client missing in coordinator mode");
 
@@ -495,7 +500,7 @@ describe("coordinator runtime integration", () => {
 
   it("returns null from getVariable when the supervisor signals NOT_FOUND", async () => {
     let observed: string | null = "<unset>";
-    registerTask({ dagId: "test_dag", taskId: "missing_variable" }, async ({ client }) => {
+    testDag.task("missing_variable", async ({ client }) => {
       observed = await client.getVariable("missing_key");
     });
 
@@ -520,10 +525,10 @@ describe("coordinator runtime integration", () => {
   it("looks up handlers by exact Dag and task id", async () => {
     let calledFirstDag = false;
     let calledSecondDag = false;
-    registerTask({ dagId: "test_dag", taskId: "shared_task" }, async () => {
+    testDag.task("shared_task", async () => {
       calledFirstDag = true;
     });
-    registerTask({ dagId: "other_dag", taskId: "shared_task" }, async () => {
+    otherDag.task("shared_task", async () => {
       calledSecondDag = true;
     });
 
@@ -548,7 +553,7 @@ describe("coordinator runtime integration", () => {
   });
 
   it("auto-pushes return_value XCom when handler returns a value", async () => {
-    registerTask({ dagId: "test_dag", taskId: "pusher" }, async () => "my-result");
+    testDag.task("pusher", async () => "my-result");
 
     const responder: Responder = (msgType, _body) => {
       if (msgType === "SetXCom") return { body: null };
@@ -568,7 +573,7 @@ describe("coordinator runtime integration", () => {
   });
 
   it("does NOT push return_value XCom when handler returns undefined", async () => {
-    registerTask({ dagId: "test_dag", taskId: "void_task" }, async () => {
+    testDag.task("void_task", async () => {
       // no return value
     });
 

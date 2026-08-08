@@ -24,8 +24,8 @@
 //     node my-bundle.mjs --comm=host:port --logs=host:port
 //
 // where `my-bundle.mjs` is a user-bundled Node script that imports
-// the SDK, calls `registerTask(...)` for each handler, then calls
-// `startCoordinator()`.
+// the SDK, creates `Dag` objects, attaches a handler per task with
+// `dag.task(...)`, calls `registerDags(...)`, then `startCoordinator()`.
 //
 // Lifecycle:
 //   1. Parse --comm / --logs from argv
@@ -51,7 +51,7 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { getRegisteredTask, listRegisteredTasks } from "../sdk/registry.js";
+import { defaultRegistry } from "../sdk/registry.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -135,7 +135,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = listRegisteredTasks();
+    const tasks = defaultRegistry.listTasks();
     runtimeLogs.info("Coordinator runtime started", {
       registered_tasks: tasks,
       count: tasks.length,
@@ -255,7 +255,7 @@ function handleParse(
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: listRegisteredTasks(),
+    registered_tasks: defaultRegistry.listTasks(),
   });
   const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
@@ -273,13 +273,13 @@ async function handleTask(
   signal: AbortSignal,
 ): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   const ti = details.ti;
-  const handler = getRegisteredTask(ti.dag_id, ti.task_id);
+  const handler = defaultRegistry.getTaskHandler(ti.dag_id, ti.task_id);
 
   if (!handler) {
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: listRegisteredTasks(),
+      available: defaultRegistry.listTasks(),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.

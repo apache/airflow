@@ -33,14 +33,16 @@ runtime used to execute registered TypeScript handlers from Airflow.
 ## Task Handlers
 
 ```ts
-import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, registerDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
   return { message: `Hello from ${ctx.taskId}: ${greeting}` };
 }
 
-registerTask({ dagId: "example_dag", taskId: "say_hello" }, sayHello);
+const dag = new Dag("example_dag");
+dag.task("say_hello", sayHello);
+registerDags(dag);
 ```
 
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
@@ -95,7 +97,7 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, registerDags, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
@@ -118,26 +120,30 @@ export async function transform({ client }: TaskHandlerArgs) {
   };
 }
 
-registerTask({ dagId: "sales_pipeline", taskId: "extract" }, extract);
-registerTask({ dagId: "sales_pipeline", taskId: "transform" }, transform);
+const salesPipeline = new Dag("sales_pipeline");
+salesPipeline.task("extract", extract);
+salesPipeline.task("transform", transform);
+registerDags(salesPipeline);
 
 await startCoordinator();
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
-the work and uses `TaskClient` for task-time Airflow data access. Register each
-handler with the Python Dag's `dag_id` and the stub task's `task_id`. The
-handler function is the reusable task implementation; `registerTask` binds that
-handler to a Python stub Dag/task identity for coordinator mode.
+the work and uses `TaskClient` for task-time Airflow data access. Create a
+`Dag` with the Python Dag's `dag_id` and attach each handler with the stub
+task's `task_id`. The handler function is the reusable task implementation;
+`dag.task` binds that handler to a Python stub task identity, and
+`registerDags` records the Dag for coordinator mode.
 
-For larger projects, keep one Airflow entrypoint that imports every module that
-registers tasks, then starts the coordinator:
+For larger projects, declare each Dag in its own module and keep one Airflow
+entrypoint that registers them all, then starts the coordinator:
 
 ```ts
-import "./sales/tasks";
-import "./billing/tasks";
-import { startCoordinator } from "@apache-airflow/ts-sdk";
+import { salesDag } from "./sales/dag";
+import { billingDag } from "./billing/dag";
+import { registerDags, startCoordinator } from "@apache-airflow/ts-sdk";
 
+registerDags(salesDag, billingDag);
 await startCoordinator();
 ```
 

@@ -24,12 +24,11 @@ import { startCoordinator } from "../../src/coordinator/runtime.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
 
 describe("buildBundleManifest", () => {
-  it("groups registrations by Dag ID under the SDK's schema version", () => {
+  it("maps registered Dags to their tasks under the SDK's schema version", () => {
     expect(
       buildBundleManifest([
-        { dagId: "dag_a", taskId: "t1" },
-        { dagId: "dag_b", taskId: "t2" },
-        { dagId: "dag_a", taskId: "t3" },
+        { dagId: "dag_a", tasks: ["t1", "t3"] },
+        { dagId: "dag_b", tasks: ["t2"] },
       ]),
     ).toEqual({
       supervisor_schema_version: SUPERVISOR_API_VERSION,
@@ -37,6 +36,12 @@ describe("buildBundleManifest", () => {
         dag_a: { tasks: ["t1", "t3"] },
         dag_b: { tasks: ["t2"] },
       },
+    });
+  });
+
+  it("keeps a registered Dag without tasks visible in the manifest", () => {
+    expect(buildBundleManifest([{ dagId: "empty_dag", tasks: [] }]).dags).toEqual({
+      empty_dag: { tasks: [] },
     });
   });
 });

@@ -154,6 +154,15 @@ function readBundleManifest(bundlePath: string): BundleManifest {
   if (!manifest.supervisor_schema_version || !manifest.dags || typeof manifest.dags !== "object") {
     throw new Error(`Bundle produced incomplete ${AIRFLOW_METADATA_FLAG} output`);
   }
+  // The line is whatever the bundle printed, so the per-Dag shape is not
+  // guaranteed by the type assertion above.
+  for (const [dagId, dag] of Object.entries(manifest.dags)) {
+    if (dag == null || !Array.isArray(dag.tasks)) {
+      throw new Error(
+        `Bundle produced ${AIRFLOW_METADATA_FLAG} output with a malformed entry for Dag "${dagId}"`,
+      );
+    }
+  }
   return manifest;
 }
 
@@ -193,9 +202,19 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     });
 
     const manifest = readBundleManifest(stagingPath);
-    if (Object.keys(manifest.dags).length === 0) {
+    const dagEntries = Object.entries(manifest.dags);
+    if (dagEntries.length === 0) {
       throw new Error(
-        `${args.entry} registered no tasks; call registerTask(...) before startCoordinator()`,
+        `${args.entry} registered no Dags; register Dags with registerDags(...) before startCoordinator()`,
+      );
+    }
+    const emptyDags = dagEntries
+      .filter(([, dag]) => dag.tasks.length === 0)
+      .map(([dagId]) => dagId);
+    if (emptyDags.length > 0) {
+      throw new Error(
+        `${args.entry} registered no tasks for Dag(s) ${emptyDags.map((id) => `"${id}"`).join(", ")}; ` +
+          "attach handlers with dag.task(...) before packing",
       );
     }
 

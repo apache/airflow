@@ -81,13 +81,14 @@ value routes the task to the Node.js coordinator.
 TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Register it with the
-``dag_id`` and ``task_id`` it implements, then start the coordinator runtime; the registrations and the
-top-level ``await startCoordinator()`` make the module a runnable bundle entry point.
+A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
+the ``dag_id`` it implements, attach each handler with ``dag.task``, register the Dag, then start the
+coordinator runtime; the registration and the top-level ``await startCoordinator()`` make the module a
+runnable bundle entry point.
 
 .. code-block:: typescript
 
-    import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, registerDags, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -98,12 +99,14 @@ top-level ``await startCoordinator()`` make the module a runnable bundle entry p
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
 
-    registerTask({ dagId: "typescript_example", taskId: "build_message" }, buildMessage);
+    const dag = new Dag("typescript_example");
+    dag.task("build_message", buildMessage);
+    registerDags(dag);
 
     await startCoordinator();
 
-The ``dagId`` passed to ``registerTask`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-must match a ``@task.stub`` function in that Dag.
+The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
+passed to ``dag.task`` must match a ``@task.stub`` function in that Dag.
 
 .. note::
 

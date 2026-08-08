@@ -167,8 +167,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { registerTask, startCoordinator } from ${JSON.stringify(SDK_INDEX)};`,
-        'for (let i = 0; i < 4000; i += 1) registerTask({ dagId: "big_dag", taskId: String(i).padStart(240, "t") }, async () => undefined);',
+        `import { Dag, registerDags, startCoordinator } from ${JSON.stringify(SDK_INDEX)};`,
+        'const bigDag = new Dag("big_dag");',
+        'for (let i = 0; i < 4000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
+        "registerDags(bigDag);",
         "await startCoordinator();",
       ].join("\n"),
     );
@@ -183,7 +185,47 @@ describe("runPack", () => {
   it("leaves no bundle behind when the entry registers no tasks", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
 
-    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("registered no tasks");
+    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("registered no Dags");
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
+  it("rejects a metadata line whose Dag entry is malformed", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "malformed-entry.ts");
+    // A bundle can print the sentinel itself, so the per-Dag shape is untrusted.
+    writeFileSync(
+      entry,
+      [
+        `const manifest = { supervisor_schema_version: "1", dags: { broken_dag: {} } };`,
+        `console.log(${JSON.stringify(AIRFLOW_METADATA_SENTINEL)} + JSON.stringify(manifest));`,
+      ].join("\n"),
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
+      'malformed entry for Dag "broken_dag"',
+    );
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
+  it("rejects a bundle whose registered Dag has no tasks, even alongside populated Dags", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "mixed-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Dag, registerDags, startCoordinator } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        'salesDag.task("extract", async () => undefined);',
+        'registerDags(salesDag, new Dag("empty_dag"));',
+        "await startCoordinator();",
+      ].join("\n"),
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
+      'registered no tasks for Dag(s) "empty_dag"',
+    );
     expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
