@@ -23,6 +23,9 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
+
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import (
     AgentEngineHook,
@@ -33,6 +36,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineQueryJobTrigger
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from pydantic import JsonValue
     from vertexai._genai import types
 
     from airflow.providers.common.compat.sdk import Context
@@ -163,6 +168,89 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
         result = _serialize_agent_engine(agent_engine)
         self.log.info("Agent Engine %s was retrieved.", self.agent_engine_id)
         return result
+
+
+class RunReasoningEngineQueryOperator(GoogleCloudBaseOperator):
+    """
+    Query a Vertex AI Reasoning Engine synchronously.
+
+    :param project_id: Required (templated). The ID of the Google Cloud project that the service
+        belongs to.
+    :param location: Required (templated). The ID of the Google Cloud location that the service
+        belongs to.
+    :param reasoning_engine_id: Required (templated). The Reasoning Engine resource ID.
+    :param input_data: Optional (templated). Input for the Reasoning Engine class method in JSON
+        object format. Defaults to ``None``.
+    :param class_method: Optional (templated). The Reasoning Engine class method to invoke. Defaults
+        to ``query``.
+    :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
+    :param timeout: The timeout for this request. Defaults to ``None``.
+    :param metadata: Strings which should be sent along with the request as metadata. Defaults to
+        an empty tuple.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud (templated). Defaults
+        to ``google_cloud_default``.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials
+        (templated). Defaults to ``None``.
+    """
+
+    template_fields = (
+        "project_id",
+        "location",
+        "reasoning_engine_id",
+        "input_data",
+        "class_method",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        reasoning_engine_id: str,
+        input_data: dict[str, Any] | None = None,
+        class_method: str = "query",
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.reasoning_engine_id = reasoning_engine_id
+        self.input_data = input_data
+        self.class_method = class_method
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> dict[str, JsonValue]:
+        self.log.info("Querying Reasoning Engine %s.", self.reasoning_engine_id)
+        response = self.hook.query_reasoning_engine(
+            project_id=self.project_id,
+            location=self.location,
+            reasoning_engine_id=self.reasoning_engine_id,
+            input_data=self.input_data,
+            class_method=self.class_method,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        self.log.info("Reasoning Engine %s returned a response.", self.reasoning_engine_id)
+        return QueryReasoningEngineResponse.to_dict(response)
 
 
 class RunQueryJobOperator(GoogleCloudBaseOperator):

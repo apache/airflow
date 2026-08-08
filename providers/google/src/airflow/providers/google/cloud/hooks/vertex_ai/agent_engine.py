@@ -25,8 +25,11 @@ from typing import TYPE_CHECKING, Any
 
 import google.auth.transport.requests
 from asgiref.sync import sync_to_async
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform_v1 import ReasoningEngineExecutionServiceClient
 from vertexai import Client
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -34,6 +37,8 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
     from vertexai._genai import types
 
 
@@ -66,7 +71,8 @@ class AgentEngineHook(GoogleBaseHook):
     """
     Hook for Google Cloud Vertex AI Agent Engine APIs.
 
-    Wraps the ``agent_engines`` module of the Vertex AI SDK client:
+    Wraps the ``agent_engines`` module of the Vertex AI SDK client and the
+    Reasoning Engine Execution Service GAPIC client:
     https://docs.cloud.google.com/python/docs/reference/agentplatform/latest/vertexai._genai.agent_engines.AgentEngines
     """
 
@@ -89,6 +95,23 @@ class AgentEngineHook(GoogleBaseHook):
             location=location,
             credentials=self.get_credentials(),
         ).agent_engines
+
+    def _get_api_endpoint(self, location: str | None = None) -> str | None:
+        if location and location != "global" and self.is_default_universe():
+            return f"{location}-aiplatform.googleapis.com:443"
+        return None
+
+    def get_reasoning_engine_execution_service_client(
+        self, location: str | None = None
+    ) -> ReasoningEngineExecutionServiceClient:
+        """Return the Reasoning Engine Execution Service client."""
+        return ReasoningEngineExecutionServiceClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(location=location)
+            ),
+        )
 
     @staticmethod
     def build_agent_engine_name(project_id: str, location: str, agent_engine_id: str) -> str:
@@ -140,6 +163,45 @@ class AgentEngineHook(GoogleBaseHook):
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
         return client.get(name=name, config=config)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def query_reasoning_engine(
+        self,
+        location: str,
+        reasoning_engine_id: str,
+        input_data: dict[str, Any] | None = None,
+        class_method: str = "query",
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> QueryReasoningEngineResponse:
+        """
+        Query a Reasoning Engine synchronously.
+
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param reasoning_engine_id: Required. The Reasoning Engine resource ID.
+        :param input_data: Optional. Input for the Reasoning Engine class method in JSON object format.
+            Defaults to ``None``.
+        :param class_method: Optional. The Reasoning Engine class method to invoke. Defaults to ``query``.
+        :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
+        :param timeout: The timeout for this request. Defaults to ``None``.
+        :param metadata: Strings which should be sent along with the request as metadata. Defaults
+            to an empty tuple.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
+        """
+        client = self.get_reasoning_engine_execution_service_client(location=location)
+        name = client.reasoning_engine_path(project_id, location, reasoning_engine_id)
+        request: dict[str, Any] = {"name": name, "class_method": class_method}
+        if input_data is not None:
+            request["input"] = input_data
+        return client.query_reasoning_engine(
+            request=request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_query_job(

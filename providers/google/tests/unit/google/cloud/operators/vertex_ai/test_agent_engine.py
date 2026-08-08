@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
 
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
@@ -27,6 +28,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
     DeleteAgentEngineOperator,
     GetAgentEngineOperator,
     RunQueryJobOperator,
+    RunReasoningEngineQueryOperator,
     UpdateAgentEngineOperator,
 )
 
@@ -41,6 +43,7 @@ AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"query": "hello", "output_gcs_uri": "gs://test-bucket/query-output/"}
+QUERY_INPUT = {"input": "hello"}
 CHECK_QUERY_CONFIG = {"retrieve_result": True}
 OPERATION = {"name": "operations/delete-123", "done": False}
 QUERY_OPERATION_NAME = "operations/query-123"
@@ -146,6 +149,43 @@ class TestGetAgentEngineOperator:
             agent_engine_id=AGENT_ENGINE_ID,
             config=CONFIG,
         )
+
+
+class TestRunReasoningEngineQueryOperator:
+    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
+    def test_execute(self, mock_hook, context):
+        query_output = {"message": "Hello from Agent Engine"}
+        mock_hook.return_value.query_reasoning_engine.return_value = QueryReasoningEngineResponse(
+            output=query_output
+        )
+        op = RunReasoningEngineQueryOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            reasoning_engine_id=AGENT_ENGINE_ID,
+            input_data=QUERY_INPUT,
+            class_method="custom_query",
+            retry=mock.sentinel.retry,
+            timeout=60,
+            metadata=(("key", "value"),),
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        result = op.execute(context=context)
+
+        assert_hook_created(mock_hook)
+        mock_hook.return_value.query_reasoning_engine.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            reasoning_engine_id=AGENT_ENGINE_ID,
+            input_data=QUERY_INPUT,
+            class_method="custom_query",
+            retry=mock.sentinel.retry,
+            timeout=60,
+            metadata=(("key", "value"),),
+        )
+        assert result == {"output": query_output}
 
 
 class TestRunQueryJobOperator:

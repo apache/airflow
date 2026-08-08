@@ -20,8 +20,10 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook, AgentEngineHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -39,6 +41,7 @@ OPERATION_ID = "delete-123"
 QUERY_OPERATION_ID = "query-123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"query": "hello", "output_gcs_uri": "gs://test-bucket/query-output/"}
+QUERY_INPUT = {"input": "hello"}
 CHECK_QUERY_CONFIG = {"retrieve_result": True}
 
 
@@ -61,6 +64,38 @@ class TestAgentEngineHookWithDefaultProjectId:
             credentials=mock.sentinel.credentials,
         )
         assert result == mock_client.return_value.agent_engines
+
+    @pytest.mark.parametrize(
+        ("location", "is_default_universe", "expected"),
+        [
+            (GCP_LOCATION, True, f"{GCP_LOCATION}-aiplatform.googleapis.com:443"),
+            ("global", True, None),
+            (GCP_LOCATION, False, None),
+        ],
+    )
+    def test_get_api_endpoint(self, location, is_default_universe, expected):
+        self.hook.is_default_universe = mock.create_autospec(
+            AgentEngineHook.is_default_universe, return_value=is_default_universe
+        )
+
+        assert self.hook._get_api_endpoint(location=location) == expected
+
+    @mock.patch(AGENT_ENGINE_STRING.format("ReasoningEngineExecutionServiceClient"), autospec=True)
+    def test_get_reasoning_engine_execution_service_client(self, mock_client):
+        self.hook.get_credentials = mock.Mock(return_value=mock.sentinel.credentials, spec=())
+        self.hook.get_client_options = mock.Mock(return_value=mock.sentinel.client_options, spec=())
+
+        result = self.hook.get_reasoning_engine_execution_service_client(location=GCP_LOCATION)
+
+        self.hook.get_client_options.assert_called_once_with(
+            api_endpoint_override=f"{GCP_LOCATION}-aiplatform.googleapis.com:443"
+        )
+        mock_client.assert_called_once_with(
+            credentials=mock.sentinel.credentials,
+            client_info=CLIENT_INFO,
+            client_options=mock.sentinel.client_options,
+        )
+        assert result == mock_client.return_value
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_create_agent_engine(self, mock_get_client):
@@ -99,6 +134,59 @@ class TestAgentEngineHookWithDefaultProjectId:
 
         mock_get_client.return_value.get.assert_called_once_with(name=AGENT_ENGINE_NAME, config=CONFIG)
         assert result == mock_get_client.return_value.get.return_value
+
+    @mock.patch(
+        AGENT_ENGINE_STRING.format("AgentEngineHook.get_reasoning_engine_execution_service_client"),
+        autospec=True,
+    )
+    def test_query_reasoning_engine(self, mock_get_client):
+        result = self.hook.query_reasoning_engine(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            reasoning_engine_id=AGENT_ENGINE_ID,
+            input_data=QUERY_INPUT,
+            class_method="custom_query",
+            retry=mock.sentinel.retry,
+            timeout=60,
+            metadata=(("key", "value"),),
+        )
+
+        mock_get_client.assert_called_once_with(self.hook, location=GCP_LOCATION)
+        mock_get_client.return_value.reasoning_engine_path.assert_called_once_with(
+            GCP_PROJECT, GCP_LOCATION, AGENT_ENGINE_ID
+        )
+        mock_get_client.return_value.query_reasoning_engine.assert_called_once_with(
+            request={
+                "name": mock_get_client.return_value.reasoning_engine_path.return_value,
+                "input": QUERY_INPUT,
+                "class_method": "custom_query",
+            },
+            retry=mock.sentinel.retry,
+            timeout=60,
+            metadata=(("key", "value"),),
+        )
+        assert result == mock_get_client.return_value.query_reasoning_engine.return_value
+
+    @mock.patch(
+        AGENT_ENGINE_STRING.format("AgentEngineHook.get_reasoning_engine_execution_service_client"),
+        autospec=True,
+    )
+    def test_query_reasoning_engine_without_input_data(self, mock_get_client):
+        self.hook.query_reasoning_engine(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            reasoning_engine_id=AGENT_ENGINE_ID,
+        )
+
+        mock_get_client.return_value.query_reasoning_engine.assert_called_once_with(
+            request={
+                "name": mock_get_client.return_value.reasoning_engine_path.return_value,
+                "class_method": "query",
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_run_query_job(self, mock_get_client):
