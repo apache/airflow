@@ -346,10 +346,13 @@ class SerializedDagModel(Base):
     load_op_links = True
     __table_args__ = (Index("idx_serialized_dag_dag_id_created_at", dag_id, created_at),)
 
-    def __init__(self, dag: LazyDeserializedDAG) -> None:
+    def __init__(self, dag: LazyDeserializedDAG, *, _precomputed_hash: str | None = None) -> None:
         self.dag_id = dag.dag_id
         dag_data = dag.data
-        self.dag_hash = SerializedDagModel.hash(dag_data)
+        if _precomputed_hash is not None:
+            self.dag_hash = _precomputed_hash
+        else:
+            self.dag_hash = SerializedDagModel.hash(dag_data)
 
         # partially ordered json data
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
@@ -728,7 +731,7 @@ class SerializedDagModel(Base):
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
-            new_serialized_dag = cls(dag)
+            new_serialized_dag = cls(dag, _precomputed_hash=new_dag_hash)
 
             # Use direct UPDATE to avoid loading the full serialized DAG
             result = session.execute(
@@ -779,8 +782,10 @@ class SerializedDagModel(Base):
         if reused_deadline_data:
             deadline_uuid_mapping = {str(uuid6.uuid7()): data for data in reused_deadline_data.values()}
             dag.data["dag"]["deadline"] = list(deadline_uuid_mapping.keys())
+            # The deadline UUIDs changed after new_dag_hash was computed, so refresh it.
+            new_dag_hash = cls.hash(dag.data)
 
-        new_serialized_dag = cls(dag)
+        new_serialized_dag = cls(dag, _precomputed_hash=new_dag_hash)
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
 
