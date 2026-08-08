@@ -33,7 +33,6 @@ Changelog
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Fix template-field validation in PapermillOperator (#70435)``
 
 .. Below changes are excluded from the changelog. Move them to
@@ -42,6 +41,8 @@ Misc
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
    * ``Prepare provider documentation 2026-06-16 (#68642)``
    * ``[main] Upgrade important CI environment (#68322)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 3.13.1
 ......
