@@ -17,7 +17,8 @@
  * under the License.
  */
 import { Box, Code, VStack } from "@chakra-ui/react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
+import type { Range as VirtualizerRange } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -28,6 +29,12 @@ import type { ParsedLogEntry } from "src/queries/useLogs";
 
 import { HighlightedText } from "./HighlightedText";
 import { ScrollToButton } from "./ScrollToButton";
+import {
+  extractSelectedLogText,
+  getEntryText,
+  getSelectionPinnedRows,
+  mergePinnedIndexes,
+} from "./logSelection";
 import { useLogGroups } from "./useLogGroups";
 import { getHighlightColor, isSelectionWithin, scrollToBottom, scrollToTop } from "./utils";
 
@@ -75,12 +82,17 @@ export const TaskLogContent = ({
 
   const isAtBottomRef = useRef<boolean>(true);
   const prevVisibleCountRef = useRef<number>(0);
+  const pinnedRowsRef = useRef<Array<number>>([]);
+
+  const rangeExtractor = (range: VirtualizerRange) =>
+    mergePinnedIndexes(defaultRangeExtractor(range), pinnedRowsRef.current, range.count);
 
   const rowVirtualizer = useVirtualizer({
     count: visibleItems.length,
     estimateSize: () => 20,
     getScrollElement: () => parentRef.current,
     overscan: 10,
+    rangeExtractor,
   });
 
   const contentHeight = rowVirtualizer.getTotalSize();
@@ -103,6 +115,50 @@ export const TaskLogContent = ({
 
     return () => el?.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
+
+  useEffect(() => {
+    const container = parentRef.current;
+    const handleSelectionChange = () => {
+      if (!container) {
+        return;
+      }
+      pinnedRowsRef.current = getSelectionPinnedRows(document.getSelection(), container);
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, []);
+
+  useEffect(() => {
+    const handleCopy = (event: ClipboardEvent) => {
+      const container = parentRef.current;
+      const selection = document.getSelection();
+
+      if (!container || !selection || !event.clipboardData) {
+        return;
+      }
+      const text = extractSelectedLogText({
+        container,
+        getRowText: (index) => {
+          const entry = visibleItems[index]?.entry;
+
+          return entry ? getEntryText(entry) : "";
+        },
+        selection,
+      });
+
+      if (text === undefined) {
+        return;
+      }
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", text);
+    };
+
+    document.addEventListener("copy", handleCopy);
+
+    return () => document.removeEventListener("copy", handleCopy);
+  }, [visibleItems]);
 
   useLayoutEffect(() => {
     if (visibleItems.length === 0) {
