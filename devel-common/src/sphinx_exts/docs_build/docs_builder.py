@@ -50,6 +50,7 @@ class AirflowDocsBuilder:
         self.is_chart = False
         self.is_docker_stack = False
         self.is_task_sdk = False
+        self.is_ts_sdk = False
         self.is_providers_summary = False
         self.is_autobuild = False
         if self.package_name.startswith("apache-airflow-providers-"):
@@ -64,6 +65,8 @@ class AirflowDocsBuilder:
             self.is_chart = True
         if self.package_name == "task-sdk":
             self.is_task_sdk = True
+        if self.package_name == "ts-sdk":
+            self.is_ts_sdk = True
         if self.package_name == "docker-stack":
             self.is_docker_stack = True
         if self.package_name == "apache-airflow-providers":
@@ -126,6 +129,8 @@ class AirflowDocsBuilder:
             return AIRFLOW_CONTENT_ROOT_PATH / "airflow-ctl" / "docs"
         if self.package_name == "task-sdk":
             return AIRFLOW_CONTENT_ROOT_PATH / "task-sdk" / "docs"
+        if self.package_name == "ts-sdk":
+            return AIRFLOW_CONTENT_ROOT_PATH / "ts-sdk" / "docs"
         console.print(f"[red]Unknown package name: {self.package_name}")
         sys.exit(1)
 
@@ -152,6 +157,49 @@ class AirflowDocsBuilder:
         self._api_dir.mkdir(parents=True, exist_ok=True)
         self._build_dir.mkdir(parents=True, exist_ok=True)
 
+    def _ensure_ts_sdk_toolchain(self) -> DocBuildError | None:
+        """
+        Install the Node/TypeDoc toolchain used by sphinx-js for the ts-sdk docs.
+
+        sphinx-js renders the TypeScript SDK API reference by driving TypeDoc, which it
+        locates in ``ts-sdk/docs/node_modules``. The exact toolchain is pinned in
+        ``ts-sdk/docs/package.json`` + ``package-lock.json``. This installs it once (skipped
+        when ``node_modules`` already exists) with ``npm ci`` for a reproducible tree, so
+        ``build-docs ts-sdk`` works out of the box wherever Node.js is available.
+
+        :return: a :class:`DocBuildError` if the install fails, otherwise ``None``.
+        """
+        if not self.is_ts_sdk:
+            return None
+        if (self._src_dir / "node_modules" / "typedoc").exists():
+            return None
+        console.print(
+            f"[bright_blue]{self.package_name:60}:[/] Installing the sphinx-js TypeDoc "
+            f"toolchain (ts-sdk/docs/node_modules) ..."
+        )
+        # Prefer ``npm ci`` (exact, reproducible install from the committed lockfile); fall
+        # back to ``npm install`` only if the lockfile is somehow absent.
+        if (self._src_dir / "package-lock.json").exists():
+            npm_command = ["npm", "ci", "--no-audit", "--no-fund"]
+        else:
+            npm_command = ["npm", "install", "--no-audit", "--no-fund"]
+        completed_proc = run(
+            npm_command,
+            check=False,
+            cwd=self._src_dir.as_posix(),
+            timeout=PROCESS_TIMEOUT,
+        )
+        if completed_proc.returncode != 0:
+            return DocBuildError(
+                file_path=None,
+                line_no=None,
+                message=(
+                    f"Failed to install the ts-sdk docs TypeDoc toolchain in {self._src_dir} "
+                    f"with '{' '.join(npm_command)}'. Ensure Node.js and npm are available on PATH."
+                ),
+            )
+        return None
+
     def check_spelling(self, verbose: bool) -> tuple[list[SpellingError], list[DocBuildError]]:
         """
         Checks spelling
@@ -159,8 +207,10 @@ class AirflowDocsBuilder:
         :param verbose: whether to show output while running
         :return: list of errors
         """
-        spelling_errors = []
-        build_errors = []
+        spelling_errors: list[SpellingError] = []
+        build_errors: list[DocBuildError] = []
+        if toolchain_error := self._ensure_ts_sdk_toolchain():
+            return spelling_errors, [toolchain_error]
         os.makedirs(self._build_dir, exist_ok=True)
         shutil.rmtree(self.log_spelling_output_dir, ignore_errors=True)
         self.log_spelling_output_dir.mkdir(parents=True, exist_ok=True)
@@ -245,6 +295,8 @@ class AirflowDocsBuilder:
         :return: list of errors
         """
         build_errors = []
+        if toolchain_error := self._ensure_ts_sdk_toolchain():
+            return [toolchain_error]
         os.makedirs(self._build_dir, exist_ok=True)
         command = self.get_command()
         build_cmd = [
@@ -343,6 +395,7 @@ def get_available_packages(include_suspended: bool = False, short_form: bool = F
         "apache-airflow-providers",
         "apache-airflow-ctl",
         "task-sdk",
+        "ts-sdk",
         "helm-chart",
         "docker-stack",
     ]

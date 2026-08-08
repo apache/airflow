@@ -87,6 +87,9 @@ dependencies = [
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.5.0",
     "sphinx-jinja>=2.0.2",
+    # sphinx-js renders the TypeScript SDK (ts-sdk) API reference via TypeDoc. The matching
+    # TypeDoc/TypeScript toolchain is pinned in ts-sdk/docs/package.json and installed with npm.
+    "sphinx-js>=5.0.3,<6",
     "sphinx-rtd-theme>=2.0.0",
     "sphinx>=7",
     "sphinxcontrib-applehelp>=1.0.4",
