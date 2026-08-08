@@ -136,7 +136,6 @@ providers/apache/hive/src/airflow/providers/apache/hive/hooks/hive.py::9
 providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats.py::1
 providers/apache/hive/src/airflow/providers/apache/hive/transfers/s3_to_hive.py::6
 providers/apache/kafka/src/airflow/providers/apache/kafka/operators/consume.py::2
-providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::1
 providers/apache/kafka/src/airflow/providers/apache/kafka/triggers/await_message.py::1
 providers/apache/kylin/src/airflow/providers/apache/kylin/hooks/kylin.py::1
 providers/apache/kylin/src/airflow/providers/apache/kylin/operators/kylin_cube.py::5
