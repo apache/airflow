@@ -45,9 +45,9 @@ class LangChainHook(BaseHook):
     OpenAI-compatible providers (OpenAI itself, Anthropic, Groq, Mistral AI
     chat, Ollama, DeepSeek, ...) work with this hook's ``api_key`` + optional
     ``base_url`` credential surface. Providers with bespoke auth (AWS Bedrock,
-    Google Vertex AI / GenAI, Azure OpenAI, Cohere, HuggingFace) reject these
-    kwargs; per-vendor subclasses can be added later mirroring the pydantic-ai
-    pattern.
+    Google Vertex AI / GenAI, Cohere, HuggingFace) reject these kwargs;
+    per-vendor subclasses can be added later mirroring the pydantic-ai
+    pattern. Azure OpenAI already has one: :class:`LangChainAzureHook`.
 
     Connection fields:
 
@@ -123,9 +123,8 @@ class LangChainHook(BaseHook):
             )
         return model_id
 
-    @staticmethod
-    def _connection_kwargs(conn: Any) -> dict[str, Any]:
-        """Return shared init_* kwargs (api_key, base_url) derived from the connection."""
+    def _connection_kwargs(self, conn: Any) -> dict[str, Any]:
+        """Return init_* kwargs (api_key, base_url) derived from the connection."""
         kwargs: dict[str, Any] = {}
         if conn.password:
             kwargs["api_key"] = conn.password
@@ -171,3 +170,53 @@ class LangChainHook(BaseHook):
             kind="embedding",
         )
         return init_embeddings(model_id, **self._connection_kwargs(conn))
+
+
+class LangChainAzureHook(LangChainHook):
+    """
+    Hook for Azure OpenAI via LangChain.
+
+    ``LangChainHook``'s ``api_key`` + ``base_url`` credential surface doesn't
+    match what Azure OpenAI's LangChain classes (``AzureChatOpenAI``,
+    ``AzureOpenAIEmbeddings``) expect: an ``azure_endpoint`` and an
+    ``api_version`` rather than a generic ``base_url``. This subclass maps
+    the connection to those fields instead, mirroring
+    :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook`.
+
+    Connection fields:
+        - **password**: Azure API key
+        - **host**: Azure endpoint (e.g. ``https://<resource>.openai.azure.com``)
+        - **extra** JSON::
+
+            {"model": "azure_openai:gpt-4o", "api_version": "2024-07-01-preview"}
+
+    :param llm_conn_id: Airflow connection ID.
+    """
+
+    conn_type = "langchain-azure"
+    default_conn_name = "langchain_azure_default"
+    hook_name = "LangChain (Azure OpenAI)"
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Return custom field behaviour for the Airflow connection form."""
+        return {
+            "hidden_fields": ["schema", "port", "login"],
+            "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
+            "placeholders": {
+                "host": "https://<resource>.openai.azure.com",
+                "extra": '{"model": "azure_openai:gpt-4o", "api_version": "2024-07-01-preview"}',
+            },
+        }
+
+    def _connection_kwargs(self, conn: Any) -> dict[str, Any]:
+        """Map connection fields to Azure OpenAI's azure_endpoint/api_version shape."""
+        kwargs: dict[str, Any] = {}
+        if conn.password:
+            kwargs["api_key"] = conn.password
+        if conn.host:
+            kwargs["azure_endpoint"] = conn.host
+        api_version = conn.extra_dejson.get("api_version")
+        if api_version:
+            kwargs["api_version"] = api_version
+        return kwargs
