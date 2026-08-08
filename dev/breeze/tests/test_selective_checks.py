@@ -1495,6 +1495,28 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run java e2e tests when java compose override changes",
         ),
         pytest.param(
+            ("ts-sdk/src/sdk/client.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when the documented sources change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/index.md",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Build ts-sdk docs for a docs-only Markdown change that skips ts-sdk tests",
+        ),
+        pytest.param(
+            ("ts-sdk/README.md",),
+            {
+                "run-ts-sdk-docs": "false",
+            },
+            id="Skip ts-sdk docs build for a ts-sdk README-only change",
+        ),
+        pytest.param(
             ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
             {
                 "run-java-sdk-e2e-tests": "true",

@@ -125,6 +125,7 @@ class FileGroupForCi(Enum):
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -483,6 +484,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.JAVA_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
+        ],
+        FileGroupForCi.TS_SDK_DOCS_FILES: [
+            # TypeDoc renders the reference from the SDK sources, and the landing page is
+            # authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md` counts here.
+            r"^ts-sdk/docs/.*",
+            r"^ts-sdk/src/.*",
         ],
         FileGroupForCi.TS_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the generated supervisor schema.
@@ -1130,6 +1137,10 @@ class SelectiveChecks:
     @cached_property
     def run_java_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
+
+    @cached_property
+    def run_ts_sdk_docs(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
 
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:
