@@ -55,4 +55,35 @@ describe("getLogLineText", () => {
       "plain ok line",
     );
   });
+
+  it("renders the timestamp with formatTimestamp when provided", () => {
+    const logMessage = {
+      event: "task done",
+      level: "info",
+      timestamp: "2026-01-01T00:00:00Z",
+    } as StructuredLogMessage;
+
+    expect(
+      getLogLineText({
+        formatTimestamp: (timestamp) => `formatted ${timestamp}`,
+        logMessage,
+        showSource: false,
+        showTimestamp: true,
+        translate,
+      }),
+    ).toBe("[formatted 2026-01-01T00:00:00Z] INFO - task done");
+  });
+
+  it("renders structured extras separated by single spaces, without a trailing space", () => {
+    const logMessage = {
+      event: "task done",
+      level: "info",
+      payload: 1,
+      worker: "w-1",
+    } as unknown as StructuredLogMessage;
+
+    expect(getLogLineText({ logMessage, showSource: false, showTimestamp: false, translate })).toBe(
+      "INFO - task done payload=1 worker=w-1",
+    );
+  });
 });

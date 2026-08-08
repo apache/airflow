@@ -19,6 +19,8 @@
 import type { UseQueryOptions } from "@tanstack/react-query";
 import Anser from "anser";
 import dayjs from "dayjs";
+import tz from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
@@ -35,9 +37,14 @@ import {
   renderStructuredLog,
   renderTIContextPreamble,
 } from "src/components/renderStructuredLog";
+import { useTimezone } from "src/context/timezone";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import { getTaskInstanceLink } from "src/utils/links";
 import { parseStreamingLogContent } from "src/utils/logs";
+
+dayjs.extend(utc);
+dayjs.extend(tz);
 
 export type ParsedLogEntry = {
   element: JSX.Element | string | undefined;
@@ -47,6 +54,7 @@ export type ParsedLogEntry = {
 };
 
 type GetLogLineTextOptions = {
+  formatTimestamp?: (timestamp: string) => string;
   logLevelFilters?: Array<string>;
   logMessage: string | StructuredLogMessage;
   showSource?: boolean;
@@ -58,9 +66,12 @@ type GetLogLineTextOptions = {
 /**
  * Plain-text rendering of a single log line — same pipeline as the log
  * download, with ANSI escape codes stripped. Used to rebuild copied text for
- * selected rows the virtualizer has unmounted.
+ * selected rows the virtualizer has unmounted; `formatTimestamp` lets that
+ * path render timestamps the way the screen does, while the download keeps
+ * the raw source timestamps.
  */
 export const getLogLineText = ({
+  formatTimestamp,
   logLevelFilters,
   logMessage,
   showSource,
@@ -70,6 +81,7 @@ export const getLogLineText = ({
 }: GetLogLineTextOptions): string =>
   Anser.ansiToText(
     renderStructuredLog({
+      formatTimestamp,
       index: 0,
       logLevelFilters,
       logLink: "",
@@ -96,6 +108,7 @@ type Props = {
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
+  formatTimestamp: (timestamp: string) => string;
   logLevelFilters?: Array<string>;
   showSource?: boolean;
   showTimestamp?: boolean;
@@ -107,6 +120,7 @@ type ParseLogsProps = {
 
 const parseLogs = ({
   data,
+  formatTimestamp,
   logLevelFilters,
   showSource,
   showTimestamp,
@@ -182,7 +196,15 @@ const parseLogs = ({
     parsedLines.forEach(({ element, lineNumber, logMessage }) => {
       const text = innerText(element);
       const getPlainText = () =>
-        getLogLineText({ logLevelFilters, logMessage, showSource, showTimestamp, sourceFilters, translate });
+        getLogLineText({
+          formatTimestamp,
+          logLevelFilters,
+          logMessage,
+          showSource,
+          showTimestamp,
+          sourceFilters,
+          translate,
+        });
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
@@ -297,7 +319,14 @@ export const useLogs = (
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
   const { t: translate } = useTranslation("common");
+  const { selectedTimezone } = useTimezone();
   const refetchInterval = useAutoRefresh({ dagId });
+
+  const formatTimestamp = (timestamp: string) => {
+    const time = dayjs(timestamp);
+
+    return time.isValid() ? time.tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT) : "";
+  };
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
     {
@@ -322,6 +351,7 @@ export const useLogs = (
 
   const parsedData = parseLogs({
     data: parseStreamingLogContent(truncateData(data, limit)),
+    formatTimestamp,
     logLevelFilters,
     showSource,
     showTimestamp,
