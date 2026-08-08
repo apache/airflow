@@ -681,6 +681,18 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: relative_fileloc_prefix
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter Dags by the folder (directory of ``relative_fileloc``)
+            they live in. Matches the given folder and all of its subfolders.
+          title: Relative Fileloc Prefix
+        description: Filter Dags by the folder (directory of ``relative_fileloc``)
+          they live in. Matches the given folder and all of its subfolders.
       - name: order_by
         in: query
         required: false
@@ -806,6 +818,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/folders:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Folders
+      description: 'Get the distinct folders the readable Dags live in, scoped to
+        their bundle.
+
+
+        A folder is the directory part of a Dag''s ``relative_fileloc`` (relative
+        to its
+
+        bundle root). Because ``relative_fileloc`` is relative to each bundle, the
+        same
+
+        path can exist in several bundles, so every folder is paired with its bundle
+
+        name to keep them apart. Dags located directly at the bundle root have no
+        folder
+
+        and are not represented here. The result powers the folder navigation tree
+        in
+
+        the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
+
+        groups it under its bundle when more than one bundle is present.
+
+
+        Stale Dags are left out to match the Dag list, which hides them by default:
+        keeping
+
+        them would surface folders (or whole bundles, once they stop being parsed)
+        that
+
+        select down to an empty list.'
+      operationId: get_dag_folders
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagFolderCollectionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags/{dag_id}/latest_run:
     get:
       tags:
@@ -3082,6 +3140,38 @@ components:
       - state_count_limit
       title: DAGsRunStateCountsCollectionResponse
       description: Collection of per-Dag DagRun-state counts for the Dag list page.
+    DagFolderCollectionResponse:
+      properties:
+        folders:
+          items:
+            $ref: '#/components/schemas/DagFolderResponse'
+          type: array
+          title: Folders
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - folders
+      - total_entries
+      title: DagFolderCollectionResponse
+      description: Collection of distinct Dag folders, each scoped to the bundle it
+        belongs to.
+    DagFolderResponse:
+      properties:
+        bundle_name:
+          type: string
+          title: Bundle Name
+        folder:
+          type: string
+          title: Folder
+      type: object
+      required:
+      - bundle_name
+      - folder
+      title: DagFolderResponse
+      description: A distinct Dag folder (directory of ``relative_fileloc``) within
+        a bundle.
     DagRunState:
       type: string
       enum:
