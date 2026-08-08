@@ -26,7 +26,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from git import Repo
+from git import RemoteReference, Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
@@ -139,7 +139,7 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
             repo_url="https://github.com/apache/zzzairflow",
         )
-        assert bundle.repo_url == f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow"
+        assert bundle.repo_url == "https://github.com/apache/zzzairflow"
 
     def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
@@ -1341,6 +1341,83 @@ class TestGitDagBundle:
             bundle._clone_bare_repo_if_required()
             _, kwargs = mock_gitRepo.clone_from.call_args
             assert kwargs["env"] == EXPECTED_ENV
+
+    def test_refresh_propagates_token_askpass_env_to_fetch_and_submodules(self, create_connection_without_db):
+        token = "tok$with'quote"
+        conn_id = "my_git_conn_token_refresh"
+        create_connection_without_db(
+            Connection(
+                conn_id=conn_id,
+                host=AIRFLOW_HTTPS_URL,
+                login="token_user",
+                password=token,
+                conn_type="git",
+            )
+        )
+
+        bundle = GitDagBundle(
+            name="my_repo",
+            git_conn_id=conn_id,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            submodules=True,
+        )
+
+        bundle.bare_repo = mock.MagicMock(spec=Repo)
+        bundle.repo = mock.MagicMock(spec=Repo)
+
+        origin_ref = mock.MagicMock(spec=RemoteReference)
+        origin_ref.name = f"origin/{GIT_DEFAULT_BRANCH}"
+        bundle.repo.remotes.origin.refs = [origin_ref]
+
+        def _assert_token_env(*_, **__):
+            assert os.environ["GIT_ASKPASS"] == bundle.hook.env["GIT_ASKPASS"]
+            assert os.environ["GIT_TERMINAL_PROMPT"] == "0"
+
+        bundle.bare_repo.remotes.origin.fetch.side_effect = _assert_token_env
+        bundle.repo.remotes.origin.fetch.side_effect = _assert_token_env
+        bundle.repo.git.submodule.side_effect = _assert_token_env
+
+        old_git_askpass = os.environ.get("GIT_ASKPASS")
+        old_git_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
+        with mock.patch.dict(
+            os.environ,
+            {"GIT_ASKPASS": "sentinel-askpass", "GIT_TERMINAL_PROMPT": "1"},
+            clear=False,
+        ):
+            bundle.refresh()
+
+        if old_git_askpass is None:
+            assert "GIT_ASKPASS" not in os.environ
+        else:
+            assert os.environ["GIT_ASKPASS"] == old_git_askpass
+
+        if old_git_terminal_prompt is None:
+            assert "GIT_TERMINAL_PROMPT" not in os.environ
+        else:
+            assert os.environ["GIT_TERMINAL_PROMPT"] == old_git_terminal_prompt
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_rewrites_credentials_left_in_bare_repo_remote(self, mock_githook, git_repo):
+        repo_path, _ = git_repo
+        mock_githook.return_value.repo_url = str(repo_path)
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+
+        bare_config = bundle.bare_repo_path / "config"
+        stale_repo = Repo(bundle.bare_repo_path)
+        stale_repo.remotes.origin.set_url(f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git")
+        stale_repo.close()
+        assert ACCESS_TOKEN in bare_config.read_text()
+
+        # A restart on the upgraded version is what has to clean the bundle up. The fetch is
+        # patched out because an unrewritten remote would reach for the real host over the network.
+        upgraded = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        with mock.patch.object(GitDagBundle, "_fetch_bare_repo"):
+            upgraded._clone_bare_repo_if_required()
+
+        assert ACCESS_TOKEN not in bare_config.read_text()
+        assert Repo(bundle.bare_repo_path).remotes.origin.url == str(repo_path)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
