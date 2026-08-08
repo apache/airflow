@@ -64,7 +64,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import SerializedBaseOperator, TriggerRule, timezone
+from tests_common.test_utils.compat import TriggerRule, timezone
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.in_process_taskrun import pushed_xcom, run_task_no_db
 from tests_common.test_utils.taskinstance import get_template_context, run_task_instance
@@ -87,13 +87,6 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.sdk import Context
-
-
-def has_execute_tasks_new_python_interpreter_serialization_support() -> bool:
-    get_serialized_fields = getattr(SerializedBaseOperator, "get_serialized_fields", None)
-    if get_serialized_fields is None:
-        return False
-    return "execute_tasks_new_python_interpreter" in get_serialized_fields()
 
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[6]
@@ -297,41 +290,6 @@ class TestPythonOperator(BasePythonTest):
         )
         rendered_op_kwargs = task.op_kwargs
         assert rendered_op_kwargs["a_callable"] == a_fn
-
-    @pytest.mark.skipif(
-        not has_execute_tasks_new_python_interpreter_serialization_support(),
-        reason="Current Airflow core does not serialize execute_tasks_new_python_interpreter",
-    )
-    @pytest.mark.parametrize("execute_tasks_new_python_interpreter", [True, False, None])
-    def test_execute_tasks_new_python_interpreter_is_serialized(self, execute_tasks_new_python_interpreter):
-        from tests_common.test_utils.compat import OperatorSerialization
-
-        task = PythonOperator(
-            python_callable=lambda: None,
-            task_id=self.task_id,
-            execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter,
-        )
-
-        serialized = OperatorSerialization.serialize_operator(task)
-        deserialized = OperatorSerialization.deserialize_operator(serialized)
-
-        assert "execute_tasks_new_python_interpreter" in PythonOperator.get_serialized_fields()
-        assert serialized.get("execute_tasks_new_python_interpreter") is execute_tasks_new_python_interpreter
-        assert (
-            getattr(deserialized, "execute_tasks_new_python_interpreter", None)
-            is execute_tasks_new_python_interpreter
-        )
-
-    @mock.patch(
-        "airflow.providers.standard.operators.python.has_execute_tasks_new_python_interpreter_serialization_support",
-        return_value=False,
-    )
-    def test_execute_tasks_new_python_interpreter_serialized_field_requires_core_support(self, _):
-        PythonOperator._PythonOperator__serialized_fields = None
-        try:
-            assert "execute_tasks_new_python_interpreter" not in PythonOperator.get_serialized_fields()
-        finally:
-            PythonOperator._PythonOperator__serialized_fields = None
 
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):

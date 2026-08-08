@@ -192,7 +192,6 @@ class SerializedBaseOperator(DAGNode):
                 "execution_timeout",
                 "executor",
                 "executor_config",
-                "execute_tasks_new_python_interpreter",
                 "ignore_first_depends_on_past",
                 "inlets",
                 "is_setup",

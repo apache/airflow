@@ -35,7 +35,7 @@ from functools import cache
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import lazy_object_proxy
 from packaging.requirements import InvalidRequirement, Requirement
@@ -75,19 +75,6 @@ from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
 
 log = logging.getLogger(__name__)
-
-
-def has_execute_tasks_new_python_interpreter_serialization_support() -> bool:
-    try:
-        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-    except ImportError:
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-    get_serialized_fields = getattr(SerializedBaseOperator, "get_serialized_fields", None)
-    if get_serialized_fields is None:
-        return False
-    return "execute_tasks_new_python_interpreter" in get_serialized_fields()
-
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -182,16 +169,12 @@ class PythonOperator(BaseAsyncOperator):
         logs. Defaults to True, which allows return value log output.
         It can be set to False to prevent log output of return value when you return huge data
         such as transmission a large amount of XCom to TaskAPI.
-    :param execute_tasks_new_python_interpreter: If set, overrides the global
-        ``[core] execute_tasks_new_python_interpreter`` setting for this task.
     """
 
     template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
     template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
     BLUE = "#ffefeb"
     ui_color = BLUE
-
-    __serialized_fields: ClassVar[frozenset[str] | None] = None
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
@@ -206,7 +189,6 @@ class PythonOperator(BaseAsyncOperator):
         templates_dict: dict[str, Any] | None = None,
         templates_exts: Sequence[str] | None = None,
         show_return_value_in_logs: bool = True,
-        execute_tasks_new_python_interpreter: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -219,16 +201,6 @@ class PythonOperator(BaseAsyncOperator):
         if templates_exts:
             self.template_ext = templates_exts
         self.show_return_value_in_logs = show_return_value_in_logs
-        self.execute_tasks_new_python_interpreter = execute_tasks_new_python_interpreter
-
-    @classmethod
-    def get_serialized_fields(cls):
-        if not cls.__serialized_fields:
-            serialized_fields = super().get_serialized_fields()
-            if has_execute_tasks_new_python_interpreter_serialization_support():
-                serialized_fields = serialized_fields | {"execute_tasks_new_python_interpreter"}
-            cls.__serialized_fields = frozenset(serialized_fields)
-        return cls.__serialized_fields
 
     @property
     def is_async(self) -> bool:

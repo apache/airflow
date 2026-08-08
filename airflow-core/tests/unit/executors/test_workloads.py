@@ -234,25 +234,6 @@ class TestExecuteTaskMakeVersionData:
 
         return ti
 
-    @pytest.mark.parametrize("execute_tasks_new_python_interpreter", [True, False, None])
-    def test_make_uses_explicit_execute_tasks_new_python_interpreter(
-        self, execute_tasks_new_python_interpreter
-    ):
-        ti = self._make_mock_ti(bundle_version="abc123", version_data={})
-
-        workload = ExecuteTask.make(
-            ti, execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter
-        )
-
-        assert workload.execute_tasks_new_python_interpreter is execute_tasks_new_python_interpreter
-
-    def test_make_defaults_execute_tasks_new_python_interpreter_to_none(self):
-        ti = self._make_mock_ti(bundle_version="abc123", version_data={})
-
-        workload = ExecuteTask.make(ti)
-
-        assert workload.execute_tasks_new_python_interpreter is None
-
     def test_pinned_run_populates_version_data(self):
         """When the run is pinned, version_data from the run's created_dag_version flows to BundleInfo."""
         version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}

@@ -1112,15 +1112,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return ""
             return sentry_integration
 
-        def _get_execute_tasks_new_python_interpreter(ti: TI) -> bool | None:
-            serialized_dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-            if not serialized_dag or not serialized_dag.has_task(ti.task_id):
-                return None
-            value = getattr(serialized_dag.get_task(ti.task_id), "execute_tasks_new_python_interpreter", None)
-            if value is None or isinstance(value, bool):
-                return value
-            return None
-
         # actually enqueue them
         for ti in task_instances:
             if ti.dag_run.state in State.finished_dr_states:
@@ -1146,7 +1137,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti,
                 generator=executor.jwt_generator,
                 sentry_integration=_get_sentry_integration(executor),
-                execute_tasks_new_python_interpreter=_get_execute_tasks_new_python_interpreter(ti),
             )
             executor.queue_workload(workload, session=session)
 

@@ -67,7 +67,6 @@ class ExecuteTask(BaseDagBundleWorkload):
 
     ti: TaskInstanceDTO
     sentry_integration: str = ""
-    execute_tasks_new_python_interpreter: bool | None = None
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
@@ -97,7 +96,6 @@ class ExecuteTask(BaseDagBundleWorkload):
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
         sentry_integration: str = "",
-        execute_tasks_new_python_interpreter: bool | None = None,
     ) -> ExecuteTask:
         """Create an ExecuteTask workload from a TaskInstance ORM model."""
         from airflow.utils.helpers import log_filename_template_renderer
@@ -124,5 +122,4 @@ class ExecuteTask(BaseDagBundleWorkload):
             log_path=fname,
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
-            execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter,
         )

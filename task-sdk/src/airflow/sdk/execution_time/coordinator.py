@@ -98,7 +98,6 @@ class BaseCoordinator:
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
         subprocess_logs_to_stdout: bool,
-        execute_tasks_new_python_interpreter: bool | None = None,
         **kwargs,
     ) -> ExecutionResult:
         """
@@ -172,7 +171,6 @@ class _PythonCoordinator(BaseCoordinator):
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
         subprocess_logs_to_stdout: bool,
-        execute_tasks_new_python_interpreter: bool | None = None,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
         # TODO: Importing this at the top causes circular imports.
@@ -193,7 +191,6 @@ class _PythonCoordinator(BaseCoordinator):
                 logger=logger,
                 bundle_info=bundle_info,
                 subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-                execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter,
                 sentry_integration=sentry_integration,
             )
             exit_code = process.wait()

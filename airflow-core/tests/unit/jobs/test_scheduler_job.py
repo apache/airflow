@@ -3130,36 +3130,6 @@ class TestSchedulerJob:
         assert mock_queue_workload.called
         session.rollback()
 
-    def test_enqueue_task_instances_sets_task_interpreter_override_from_serialized_task(
-        self, dag_maker, session
-    ):
-        from airflow.providers.standard.operators.python import PythonOperator
-
-        dag_id = "SchedulerJobTest.test_enqueue_sets_task_interpreter_override"
-        task_id = "dummy"
-        session = settings.Session()
-        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
-            PythonOperator(
-                task_id=task_id,
-                python_callable=lambda: None,
-                execute_tasks_new_python_interpreter=True,
-            )
-
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance(task_id, session=session)
-
-        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
-            self.job_runner._enqueue_task_instances_with_queued_state(
-                [ti], executor=self.job_runner.executor, session=session
-            )
-
-        workload = mock_queue_workload.call_args.args[0]
-        assert workload.execute_tasks_new_python_interpreter is True
-        session.rollback()
-
     def test_executable_task_instances_to_queued_sets_external_executor_id(self, dag_maker, session):
         """external_executor_id is written to the DB in the same UPDATE that sets state=QUEUED."""
         dag_id = "SchedulerJobTest.test_executable_sets_external_executor_id"
