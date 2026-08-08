@@ -92,7 +92,8 @@ class TestGitDagBundle:
 
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db, request):
+    def setup_connections(self, create_connection_without_db, request, monkeypatch):
+        monkeypatch.setattr(GitHook, "_get_git_version_info", staticmethod(lambda: (2, 46, 0)))
         # Skip setup for tests that need to create their own connections
         if request.function.__name__ in ["test_view_url", "test_view_url_subdir"]:
             return
@@ -122,6 +123,28 @@ class TestGitDagBundle:
 
     def test_supports_versioning(self):
         assert GitDagBundle.supports_versioning is True
+
+    def test_fetch_bare_repo_uses_full_hook_environment(self):
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        hook_env = {
+            "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=yes",
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": f"http.{AIRFLOW_HTTPS_URL}.proactiveAuth",
+            "GIT_CONFIG_VALUE_0": "basic",
+        }
+        bundle.hook.env = hook_env
+        bundle.bare_repo = mock.MagicMock()
+        environment_context = bundle.bare_repo.git.custom_environment.return_value
+
+        bundle._fetch_bare_repo()
+
+        bundle.bare_repo.git.custom_environment.assert_called_once_with(**hook_env)
+        environment_context.__enter__.assert_called_once_with()
+        environment_context.__exit__.assert_called_once()
+        bundle.bare_repo.remotes.origin.fetch.assert_called_once_with(
+            ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
+        )
+        bundle.bare_repo.close.assert_called_once_with()
 
     def test_uses_dag_bundle_root_storage_path(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
