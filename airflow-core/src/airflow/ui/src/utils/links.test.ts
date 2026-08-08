@@ -22,11 +22,71 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import {
   buildTaskInstanceUrl,
+  getDagAdditionalPath,
   getNextHref,
   getSafeExternalUrl,
   getTaskInstanceAdditionalPath,
   getTaskInstanceLink,
 } from "./links";
+
+const getDagMatches = (tab: string) => [
+  { handle: { entity: "dag" }, pathname: "/dags/example" },
+  { handle: { entity: "dag", tab }, pathname: `/dags/example${tab === "" ? "" : `/${tab}`}` },
+];
+
+describe("getDagAdditionalPath", () => {
+  it.each(["", "runs", "tasks", "calendar", "backfills", "events", "code", "details"])(
+    "preserves the %s Dag tab",
+    (tab) => {
+      expect(getDagAdditionalPath(getDagMatches(tab))).toBe(tab === "" ? "" : `/${tab}`);
+    },
+  );
+
+  it("preserves a nested plugin route from its matched pathname", () => {
+    expect(
+      getDagAdditionalPath([
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        {
+          handle: { entity: "dag", tab: "plugin" },
+          pathname: "/dags/example/plugin/test/nested/detail/42",
+        },
+      ]),
+    ).toBe("/plugin/test/nested/detail/42");
+  });
+
+  it.each([
+    { matches: [] },
+    { matches: [{ handle: { entity: "asset" }, pathname: "/assets/1" }] },
+    { matches: [{ handle: { entity: "task" }, pathname: "/dags/example/tasks/task_1" }] },
+    { matches: [{ handle: { entity: "dag" }, pathname: "/dags/example" }] },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: { entity: "dag", tab: 42 }, pathname: "/dags/example/details" },
+      ],
+    },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: undefined, pathname: "/dags/example/unknown" },
+      ],
+    },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: { entity: "dag", tab: "details" }, pathname: "/dags/another/details" },
+      ],
+    },
+    {
+      matches: [
+        { handle: { entity: "dag" }, pathname: "/dags/example" },
+        { handle: { entity: "dag", tab: "details" }, pathname: "/dags/example-other/details" },
+      ],
+    },
+  ])("does not preserve unmatched or non-Dag routes", (matches) => {
+    expect(getDagAdditionalPath(matches.matches)).toBe("");
+  });
+});
 
 describe("getTaskInstanceLink", () => {
   const testCases = [

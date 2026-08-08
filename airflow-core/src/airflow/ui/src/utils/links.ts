@@ -54,6 +54,39 @@ export const getRedirectPath = (targetPath: string): string => {
 export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "search">): string =>
   `${location.pathname}${location.search}${location.hash}`;
 
+type RouteMatch = {
+  readonly handle: unknown;
+  readonly pathname: string;
+};
+
+type DagRouteHandle = {
+  readonly entity: "dag";
+  readonly tab?: string;
+};
+
+const isDagRouteHandle = (handle: unknown): handle is DagRouteHandle =>
+  typeof handle === "object" &&
+  handle !== null &&
+  "entity" in handle &&
+  handle.entity === "dag" &&
+  (!("tab" in handle) || typeof handle.tab === "string");
+
+export const getDagAdditionalPath = (matches: Array<RouteMatch>): string => {
+  const dagMatch = matches.find((match) => isDagRouteHandle(match.handle) && match.handle.tab === undefined);
+  const tabMatch = [...matches]
+    .reverse()
+    .find((match) => isDagRouteHandle(match.handle) && match.handle.tab !== undefined);
+
+  if (
+    dagMatch === undefined ||
+    (tabMatch?.pathname !== dagMatch.pathname && !tabMatch?.pathname.startsWith(`${dagMatch.pathname}/`))
+  ) {
+    return "";
+  }
+
+  return tabMatch.pathname.slice(dagMatch.pathname.length);
+};
+
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   const subRoutes = taskInstanceRoutes.flatMap((route) => {
     if (route.path !== undefined) {
