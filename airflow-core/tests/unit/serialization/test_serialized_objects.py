@@ -581,6 +581,27 @@ def test_roundtrip_exceptions():
 
 
 @pytest.mark.parametrize(
+    "exc",
+    [
+        KeyError("boom"),
+        AttributeError("attr missing"),
+        KeyError("a", "b"),
+        KeyError(),
+    ],
+)
+def test_roundtrip_builtin_exceptions(exc):
+    """BaseSerialization should preserve ``args`` when round-tripping built-in exceptions.
+
+    Regression test for https://github.com/apache/airflow/issues/69743 where
+    a KeyError("boom") would deserialize with args == (("boom",),) instead of ("boom",).
+    """
+    ser = BaseSerialization.serialize(exc)
+    deser = BaseSerialization.deserialize(ser)
+    assert isinstance(deser, type(exc))
+    assert deser.args == exc.args
+
+
+@pytest.mark.parametrize(
     "concurrency_parameter",
     [
         "max_active_tis_per_dag",
