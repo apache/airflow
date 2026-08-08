@@ -1305,6 +1305,14 @@ class Client(httpx.Client):
         return DagsOperations(self)
 
 
+def _has_json_body(response: httpx.Response) -> bool:
+    """Check whether a response declares a JSON body."""
+    # Media types are case-insensitive and may carry parameters (RFC 9110), so a proxy that
+    # rewrites "application/json" into "application/json; charset=utf-8" must not defeat the check.
+    media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
+
+
 # This is only used for parsing. ServerResponseError is raised instead
 class _ErrorBody(BaseModel):
     detail: list[RemoteValidationError] | dict[str, Any] | str
@@ -1331,7 +1339,7 @@ class ServerResponseError(httpx.HTTPStatusError):
         if not (400 <= response.status_code < 600):
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        if not _has_json_body(response):
             return None
 
         detail: list[RemoteValidationError] | dict[str, Any] | None = None
