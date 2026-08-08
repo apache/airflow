@@ -159,14 +159,11 @@ def downgrade():
             "ALTER COLUMN id SET DEFAULT nextval('task_instance_history_id_seq')"
         )
     elif dialect_name == "mysql":
-        op.execute(
-            """
-            SET @row_number = 0;
-            UPDATE task_instance_history
-            SET id = (@row_number := @row_number + 1)
-            ORDER BY try_id;
-            """
-        )
+        # Two calls rather than one script: PyMySQL does not enable
+        # CLIENT.MULTI_STATEMENTS, so it rejects several statements in a single
+        # execute(). op.execute() reuses op.get_bind(), so @row_number survives.
+        op.execute("SET @row_number = 0")
+        op.execute("UPDATE task_instance_history SET id = (@row_number := @row_number + 1) ORDER BY try_id")
     else:
         op.execute(
             """
