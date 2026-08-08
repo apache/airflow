@@ -123,6 +123,9 @@ spec:
           {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if not $persistence }}
+      subdomain: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
+      {{- end }}
       {{- if .Values.workers.celery.runtimeClassName }}
       runtimeClassName: {{ .Values.workers.celery.runtimeClassName }}
       {{- end }}
