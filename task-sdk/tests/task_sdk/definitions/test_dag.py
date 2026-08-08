@@ -23,8 +23,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest import mock
 
-from dateutil.relativedelta import relativedelta
 import pytest
+from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import (
     DAG,
