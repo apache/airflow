@@ -3524,6 +3524,104 @@ def test_python_callable_name_uses_qualname_exclude_module():
     assert serialized3["python_callable_name"] == "empty_function"
 
 
+def test_stub_task_args_round_trip():
+    """The stub task's TaskFlow arg spec (``_arg_bindings``) survives Dag serialization."""
+    from airflow.sdk import task
+
+    with DAG(dag_id="arg_bindings_dag", schedule=None) as dag:
+
+        @task.stub
+        def extract(): ...
+
+        @task.stub
+        def transform(country: str, extracted: dict): ...
+
+        # Nested value_schema (dict[str, int] re-encodes its additionalProperties) plus
+        # dict/list literal values, whose contents must not collide with the {__type,__var}
+        # encoding during round-trip.
+        @task.stub
+        def aggregate(counts: dict[str, int], tags: list, config: dict): ...
+
+        data = extract()
+        transform("uk", data)
+        aggregate(data, ["metrics", "hourly"], {"threshold": {"warn": 1}})
+
+    ser_dag = DagSerialization.to_dict(dag)
+    # The serialized form must satisfy schema.json (arg_binding / typed_dict definitions).
+    DagSerialization.validate_schema(ser_dag)
+
+    encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
+    assert "_arg_bindings" not in encoded_tasks["extract"], "argless stubs must not serialize a spec"
+    assert encoded_tasks["transform"]["_arg_bindings"] == [
+        {
+            Encoding.TYPE: DagAttributeTypes.DICT,
+            Encoding.VAR: {
+                "name": "country",
+                "kind": "literal",
+                "value_schema": {Encoding.TYPE: DagAttributeTypes.DICT, Encoding.VAR: {"type": "string"}},
+                "value": "uk",
+            },
+        },
+        {
+            Encoding.TYPE: DagAttributeTypes.DICT,
+            Encoding.VAR: {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {
+                    Encoding.TYPE: DagAttributeTypes.DICT,
+                    Encoding.VAR: {"type": "object", "additionalProperties": True},
+                },
+                "task_id": "extract",
+            },
+        },
+    ]
+
+    round_tripped = DagSerialization.from_dict(ser_dag)
+    assert round_tripped.task_dict["transform"]._arg_bindings == [
+        {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+        {
+            "name": "extracted",
+            "kind": "xcom",
+            "value_schema": {"type": "object", "additionalProperties": True},
+            "task_id": "extract",
+        },
+    ]
+    # The nested value_schema and dict/list literal values survive the round-trip intact.
+    assert round_tripped.task_dict["aggregate"]._arg_bindings == dag.task_dict["aggregate"]._arg_bindings
+    assert round_tripped.task_dict["aggregate"]._arg_bindings == [
+        {
+            "name": "counts",
+            "kind": "xcom",
+            "value_schema": {
+                "type": "object",
+                "additionalProperties": {"type": "integer", "format": "int64"},
+            },
+            "task_id": "extract",
+        },
+        {
+            "name": "tags",
+            "kind": "literal",
+            "value_schema": {"type": "array", "items": {}},
+            "value": ["metrics", "hourly"],
+        },
+        {
+            "name": "config",
+            "kind": "literal",
+            "value_schema": {"type": "object", "additionalProperties": True},
+            "value": {"threshold": {"warn": 1}},
+        },
+    ]
+    assert not hasattr(round_tripped.task_dict["extract"], "_arg_bindings")
+
+    # The deserialized spec must be plain JSON (no {__type, __var} encoding sentinels) so the
+    # execution API can validate it straight off the serialized Dag -- this is the contract
+    # ti_run relies on when it feeds get_arg_bindings() into the TaskArgBinding adapter.
+    from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+    for task_id in ("transform", "aggregate"):
+        get_arg_bindings_adapter().validate_python(round_tripped.task_dict[task_id]._arg_bindings)
+
+
 def test_handle_v1_serdag():
     v1 = {
         "__version": 1,

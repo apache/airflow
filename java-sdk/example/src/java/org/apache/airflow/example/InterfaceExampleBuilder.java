@@ -52,8 +52,10 @@ public class InterfaceExampleBuilder {
 
   public static class Transform implements Task {
     public void execute(@NotNull Context context, Client client) {
-      var extracted = client.getXCom("extract");
-      log.log(INFO, "Got XCom from extract: {0}", extracted);
+      // The Python Dag file calls transform(extracted): an interface-API task
+      // reads the same binding imperatively, by position or by argument name.
+      var extracted = client.getArg(0);
+      log.log(INFO, "Got extracted value from the bound argument: {0}", extracted);
 
       var variable = client.getVariable("my_variable");
       log.log(INFO, "Got variable: {0}", variable);
@@ -65,17 +67,19 @@ public class InterfaceExampleBuilder {
 
   public static class Load implements Task {
     public void execute(@NotNull Context context, Client client) {
-      var transformed = client.getXCom("transform");
+      // hasArg probes whether the Dag file bound an argument at all, so a task
+      // can still fall back to reading an upstream XCom by task id.
+      var transformed =
+          client.hasArg("transformed") ? client.getArg("transformed") : client.getXCom("transform");
       log.log(INFO, "Got XCom from transform: {0}", transformed);
       throw new RuntimeException("I failed");
     }
   }
 
-  public static Dag build() {
-    var dag = new Dag("java_interface_example");
-    dag.addTask("extract", Extract.class);
-    dag.addTask("transform", Transform.class);
-    dag.addTask("load", Load.class);
-    return dag;
+  public static DagDef build() {
+    return new DagDef("java_interface_example")
+        .addTask(new TaskDef("extract", Extract.class))
+        .addTask(new TaskDef("transform", Transform.class))
+        .addTask(new TaskDef("load", Load.class));
   }
 }

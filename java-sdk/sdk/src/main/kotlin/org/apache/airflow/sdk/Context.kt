@@ -124,6 +124,9 @@ data class Context(
   @JvmField val dagRun: DagRun,
   @JvmField val ti: TaskInstance,
 ) {
+  /** Registration of the executing task; resolves wired data inputs. */
+  internal var taskDef: TaskDef? = null
+
   internal companion object {
     fun from(request: StartupDetails) =
       Context(

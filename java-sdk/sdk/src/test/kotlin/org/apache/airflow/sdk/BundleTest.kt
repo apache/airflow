@@ -27,7 +27,7 @@ internal class BundleTest {
   @Test
   @DisplayName("Should index dags by dagId")
   fun shouldIndexDagsByDagId() {
-    val dag = Dag("dag")
+    val dag = DagDef("dag")
 
     val bundle = Bundle(listOf(dag))
 
@@ -39,9 +39,84 @@ internal class BundleTest {
   fun shouldRejectDuplicateDagIds() {
     val error =
       Assertions.assertThrows(IllegalArgumentException::class.java) {
-        Bundle(listOf(Dag("dag"), Dag("dag")))
+        Bundle(listOf(DagDef("dag"), DagDef("dag")))
       }
 
     Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject a task depending on an unregistered upstream")
+  fun shouldRejectUnregisteredUpstream() {
+    val missing = TaskDef("missing", NoOp::class.java)
+    val dag = DagDef("dag").addTask(TaskDef("t", NoOp::class.java).dependsOn(missing))
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle(listOf(dag))
+      }
+
+    Assertions.assertEquals(
+      "Task 't' in Dag 'dag' depends on task 'missing' that is not registered in the same Dag",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject a task depending on a task registered in another dag")
+  fun shouldRejectUpstreamFromAnotherDag() {
+    val foreign = TaskDef("u", NoOp::class.java)
+    val other = DagDef("other").addTask(foreign)
+    val dag = DagDef("dag").addTask(TaskDef("t", NoOp::class.java).dependsOn(foreign))
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle(listOf(other, dag))
+      }
+
+    Assertions.assertEquals(
+      "Task 't' in Dag 'dag' depends on task 'u' that is not registered in the same Dag",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject dependency cycles")
+  fun shouldRejectDependencyCycle() {
+    val a = TaskDef("a", NoOp::class.java)
+    val b = TaskDef("b", NoOp::class.java)
+    a.dependsOn(b)
+    b.dependsOn(a)
+    val dag = DagDef("dag").addTask(a).addTask(b)
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle(listOf(dag))
+      }
+
+    Assertions.assertEquals(
+      "Task dependencies in Dag 'dag' contain a cycle involving task 'a'",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept a diamond-shaped dependency graph")
+  fun shouldAcceptDiamondGraph() {
+    val root = TaskDef("root", NoOp::class.java)
+    val left = TaskDef("left", NoOp::class.java).dependsOn(root)
+    val right = TaskDef("right", NoOp::class.java).dependsOn(root)
+    val join = TaskDef("join", NoOp::class.java).dependsOn(left, right)
+    val dag = DagDef("dag")
+    listOf(root, left, right, join).forEach(dag::addTask)
+
+    Assertions.assertEquals(mapOf("dag" to dag), Bundle(listOf(dag)).dags)
+  }
+
+  private class NoOp : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
   }
 }
