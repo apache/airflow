@@ -99,6 +99,13 @@ def _get_versioned_file_info(file: str | Path, bundle_version: str = "v1") -> Da
     )
 
 
+def test_normalized_file_path_for_stats_does_not_warn(caplog):
+    file_info = DagFileInfo(bundle_name="testing", rel_path=Path("folder/test_dag.py"))
+
+    assert file_info.normalized_file_path_for_stats == "folder_test_dag.py"
+    assert not caplog.records
+
+
 def mock_get_mtime(file: Path):
     f = str(file)
     m = re.match(pattern=r".*ss=(.+?)\.\w+", string=f)
