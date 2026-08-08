@@ -81,6 +81,8 @@ hooks:
 plugins:
   - name: hitl_review
     plugin-class: airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin
+  - name: ai_trace
+    plugin-class: airflow.providers.common.ai.plugins.ai_trace.AITracePlugin
 
 
 config:
@@ -141,6 +143,46 @@ config:
         type: boolean
         example: "False"
         default: "False"
+      trace_store_path:
+        description: |
+          ObjectStorage URI for the backend-free trace store -- local dev and
+          quick testing without Langfuse or any OTLP backend. When set, GenAI
+          spans from ``AgentOperator`` / ``@task.agent`` / ``@task.llm`` are
+          written as standard OTLP JSON lines (one file per task-instance try)
+          under this path, and the "AI Trace" UI reads them back directly.
+          Requires neither ``[traces] otel_on`` nor ``otel_export_enabled``.
+          Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is accepted
+          (``file://``, ``s3://``, ``gs://``, ...); the API server needs read
+          access to the same path. Files are plain OTLP JSON, so a collector's
+          ``otlpjsonfilereceiver`` can replay them into a real backend later.
+          Takes precedence over the Langfuse read path when set. Content
+          capture is still gated by ``capture_content``. Costs shown in the
+          UI are read-time estimates from the ``genai-prices`` library's
+          bundled price data (no runtime price fetch) -- approximate, not
+          billing data; unknown or self-hosted models show no cost. No
+          retention is applied; clean the path yourself.
+
+          Spike-status: proof of concept, not a stable layout.
+        version_added: 0.5.0
+        type: string
+        example: "file:///tmp/airflow_ai_traces"
+        default: ""
+      trace_backend_conn_id:
+        description: |
+          Airflow connection used by the "AI Trace" task instance panel to read
+          a trace back from your tracing backend (Langfuse today) once
+          ``otel_export_enabled`` has emitted it. The panel resolves a task
+          instance's trace_id from its own span context, so no data is written
+          anywhere new; this connection is read-only credentials for looking a
+          trace back up. Connection ``host`` is the backend's base URL,
+          ``login``/``password`` are its API key pair.
+
+          Spike-status: this is a proof of concept, not a stable API. The
+          panel only supports Langfuse today.
+        version_added: 0.5.0
+        type: string
+        example: "langfuse_default"
+        default: "langfuse_default"
 
 
 connection-types:
