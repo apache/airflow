@@ -520,11 +520,12 @@ class TestDatetimeRangeFilterFactory:
         assert type(rf) is RangeFilter
 
     def test_lower_bound_does_not_include_now(self):
-        """NULL branch on lower bounds passes unconditionally — no now() call."""
+        """NULL branch on lower bounds includes end_date IS NULL for start_date — no now() call."""
         bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
-        rf = _make_datetime_filter("start_date", lower_bound_gte=bound)
-        sql = _compile(rf.to_orm(select(TaskInstance)))
-        assert "is null" in sql
+        rf = _make_datetime_filter("start_date", model=DagRun, lower_bound_gte=bound)
+        sql = _compile(rf.to_orm(select(DagRun)))
+        # The NULL branch should require end_date IS NULL alongside start_date IS NULL
+        assert "end_date" in sql and "is null" in sql.lower()
         assert "now()" not in sql
         assert "coalesce" not in sql
 
@@ -543,6 +544,17 @@ class TestDatetimeRangeFilterFactory:
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "coalesce" not in sql
 
+
+
+    def test_start_date_lower_bound_excludes_terminal_runs(self):
+        """Terminal dag runs with NULL start_date should NOT match start_date_gte."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        rf = _make_datetime_filter("start_date", model=DagRun, lower_bound_gte=bound)
+        sql = _compile(rf.to_orm(select(DagRun)))
+        assert "end_date is not null" not in sql  # we want end_date IS NULL, not IS NOT NULL
+        assert "end_date" in sql and "is null" in sql.lower()
+        assert "start_date" in sql and "is null" in sql.lower()
+        assert "start_date" in sql and ">=" in sql
 
 class TestRegexParamFactory:
     """The regexp filter dependency must apply the query timeout itself (callers can't forget)."""
