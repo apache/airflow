@@ -2256,6 +2256,7 @@ export type ConfigResponse = {
     auto_refresh_interval: number;
     hide_paused_dags_by_default: boolean;
     instance_name: string;
+    default_landing_page: string;
     enable_swagger_ui: boolean;
     require_confirmation_dag_change: boolean;
     default_wrap: boolean;

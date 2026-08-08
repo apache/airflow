@@ -2628,6 +2628,9 @@ components:
         instance_name:
           type: string
           title: Instance Name
+        default_landing_page:
+          type: string
+          title: Default Landing Page
         enable_swagger_ui:
           type: boolean
           title: Enable Swagger Ui
@@ -2671,6 +2674,7 @@ components:
       - auto_refresh_interval
       - hide_paused_dags_by_default
       - instance_name
+      - default_landing_page
       - enable_swagger_ui
       - require_confirmation_dag_change
       - default_wrap

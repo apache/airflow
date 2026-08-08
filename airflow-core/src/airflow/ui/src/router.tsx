@@ -46,6 +46,7 @@ import { ExternalView } from "src/pages/ExternalView";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
+import { LandingPage } from "src/pages/LandingPage";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Details as MappedTaskInstanceDetails } from "src/pages/MappedTaskInstance/Details";
 import { Plugins } from "src/pages/Plugins";
@@ -98,8 +99,12 @@ export const routerConfig = [
   {
     children: [
       {
-        element: <Dashboard />,
+        element: <LandingPage />,
         index: true,
+      },
+      {
+        element: <Dashboard />,
+        path: "home",
       },
       {
         element: <HITLTaskInstances enableHITLReviewDrawer />,

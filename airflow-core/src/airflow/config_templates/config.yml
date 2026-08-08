@@ -1598,6 +1598,18 @@ api:
       type: string
       example: ~
       default:
+    default_landing_page:
+      description: |
+        The page the UI opens when navigating to the root URL. Options are:
+
+        - ``home``: the Home overview dashboard (default)
+        - ``dags``: the Dag list
+
+        When set to ``dags``, the Home dashboard remains available at ``/home``.
+      version_added: 3.4.0
+      type: string
+      example: ~
+      default: "home"
     theme:
       description: |
         JSON config to customize the Chakra UI theme.

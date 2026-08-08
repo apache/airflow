@@ -8866,6 +8866,10 @@ export const $ConfigResponse = {
             type: 'string',
             title: 'Instance Name'
         },
+        default_landing_page: {
+            type: 'string',
+            title: 'Default Landing Page'
+        },
         enable_swagger_ui: {
             type: 'boolean',
             title: 'Enable Swagger Ui'
@@ -8931,7 +8935,7 @@ export const $ConfigResponse = {
         }
     },
     type: 'object',
-    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'default_landing_page', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;
