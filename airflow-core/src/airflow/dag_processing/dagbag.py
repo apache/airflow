@@ -75,6 +75,17 @@ def _capture_with_reraise() -> Generator[list[warnings.WarningMessage], None, No
                 )
 
 
+def _format_dag_import_warning_message(message: str, source_path: str, dag_file_path: str | None) -> str:
+    """Include the imported Dag file when a warning points to another source file."""
+    if (
+        dag_file_path
+        and source_path != dag_file_path
+        and not source_path.startswith(f"{dag_file_path}{os.sep}")
+    ):
+        return f"{message} (Dag file: {dag_file_path})"
+    return message
+
+
 class FileLoadStat(NamedTuple):
     """
     Information about single file.
@@ -320,14 +331,16 @@ class DagBag(LoggingMixin):
 
         if result.warnings:
             formatted_warnings = [
-                f"{w.file_path}:{w.line_number}: {w.warning_type}: {w.message}" for w in result.warnings
+                f"{w.file_path}:{w.line_number}: {w.warning_type}: "
+                f"{_format_dag_import_warning_message(w.message, w.file_path, w.dag_file_path)}"
+                for w in result.warnings
             ]
             self.captured_warnings[filepath] = tuple(formatted_warnings)
             # Re-emit warnings so they can be handled by Python's warning system
             for w in result.warnings:
                 warnings.warn_explicit(
-                    message=w.message,
-                    category=UserWarning,
+                    message=_format_dag_import_warning_message(w.message, w.file_path, w.dag_file_path),
+                    category=w.category,
                     filename=w.file_path,
                     lineno=w.line_number or 0,
                 )
