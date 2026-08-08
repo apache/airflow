@@ -426,6 +426,17 @@ class TestCommands:
             },
             skip_exists=True,
         )
+        client.create_client_authz_resource_based_permission.assert_any_call(
+            client_id="test-id",
+            payload={
+                "name": "Op-team-a",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "resources": ["r1", "r2", "r3", "r4"],  # Dag:team-a, Connection:team-a, Pool:team-a, Variable:team-a
+            },
+            skip_exists=True,
+        )
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_resource_permission")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_scope_permission")
@@ -606,6 +617,7 @@ class TestCommands:
             policy_name="Allow-Op-team-a",
             resource_names=[
                 "Connection:team-a",
+                "Dag:team-a",
                 "Pool:team-a",
                 "Variable:team-a",
             ],
