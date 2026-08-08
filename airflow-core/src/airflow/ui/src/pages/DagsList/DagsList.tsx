@@ -22,7 +22,11 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DAGLatestRunTaskInstanceStateCountsResponse,
+  DagRunState,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
@@ -42,6 +46,7 @@ import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
+import { useLatestRunTaskStateCounts } from "src/queries/useLatestRunTaskStateCounts";
 import { useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
@@ -49,12 +54,14 @@ import { DagCard } from "./DagCard";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
+import { LatestRunTaskStateCounts } from "./LatestRunTaskStateCounts";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
 import { useTagFilter } from "./useTagFilter";
 
 type GetColumnsParams = {
   readonly multiTeam: boolean;
+  readonly taskStateContext: LatestRunTaskStateCountsContext;
 };
 
 type RunStateCountsContext = {
@@ -63,10 +70,15 @@ type RunStateCountsContext = {
   readonly stateCountLimit: number | undefined;
 };
 
+type LatestRunTaskStateCountsContext = {
+  readonly entriesByDag: Record<string, DAGLatestRunTaskInstanceStateCountsResponse | undefined>;
+  readonly isLoading: boolean;
+};
+
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   runStateContext: RunStateCountsContext,
-  { multiTeam }: GetColumnsParams,
+  { multiTeam, taskStateContext }: GetColumnsParams,
 ): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
   {
     accessorKey: "is_paused",
@@ -151,6 +163,19 @@ const createColumns = (
     header: () => translate("dags:runStateCounts.label"),
   },
   {
+    accessorKey: "latest_run_task_state_counts",
+    cell: ({ row: { original } }) => (
+      <LatestRunTaskStateCounts
+        compact
+        dagId={original.dag_id}
+        entry={taskStateContext.entriesByDag[original.dag_id]}
+        isLoading={taskStateContext.isLoading}
+      />
+    ),
+    enableSorting: false,
+    header: () => translate("dags:latestRunTaskStateCounts.label"),
+  },
+  {
     accessorKey: "tags",
     cell: ({
       row: {
@@ -224,10 +249,15 @@ const {
   TIMETABLE_TYPE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
+const createCardDef = (
+  runStateContext: RunStateCountsContext,
+  taskStateContext: LatestRunTaskStateCountsContext,
+): CardDef<DAGWithLatestDagRunsResponse> => ({
   card: ({ row }) => (
     <DagCard
       dag={row}
+      latestRunTaskStateCounts={taskStateContext.entriesByDag[row.dag_id]}
+      latestRunTaskStateCountsLoading={taskStateContext.isLoading}
       runStateCounts={runStateContext.countsByDag[row.dag_id]}
       runStateCountsLoading={runStateContext.isLoading}
       stateCountLimit={runStateContext.stateCountLimit}
@@ -340,8 +370,20 @@ export const DagsList = () => {
     stateCountLimit: runStateCountsData?.state_count_limit,
   };
 
-  const columns = createColumns(translate, runStateContext, { multiTeam: multiTeamEnabled });
-  const cardDef = createCardDef(runStateContext);
+  const { data: taskStateCountsData, isLoading: taskStateCountsLoading } = useLatestRunTaskStateCounts({
+    dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
+    dags: data?.dags,
+  });
+  const taskStateContext: LatestRunTaskStateCountsContext = {
+    entriesByDag: Object.fromEntries((taskStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry])),
+    isLoading: taskStateCountsLoading,
+  };
+
+  const columns = createColumns(translate, runStateContext, {
+    multiTeam: multiTeamEnabled,
+    taskStateContext,
+  });
+  const cardDef = createCardDef(runStateContext, taskStateContext);
 
   const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
     setTableURLState({
