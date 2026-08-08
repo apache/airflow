@@ -33,6 +33,7 @@ else:
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 
@@ -56,6 +57,8 @@ SPREADSHEET = {
     "sheets": [{"properties": {"title": "Sheet1"}}],
 }
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
+GDRIVE_SECRET_ID = "gdrive_shared_folder_id"
+GDRIVE_ID = "{{ task_instance.xcom_pull('get_shared_drive_id') }}"
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +68,15 @@ with DAG(
     schedule="@once",  # Override to match your needs
     catchup=False,
     tags=["example", "gcs"],
+    render_template_as_native_obj=True,
 ) as dag:
+
+    @task
+    def get_shared_drive_id() -> str:
+        return get_secret(secret_id=GDRIVE_SECRET_ID).strip()
+
+    get_shared_drive_id_task = get_shared_drive_id()
+
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
@@ -73,7 +84,7 @@ with DAG(
     @task
     def create_connection(connection_id: str):
         conn_extra = {
-            "scope": "https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/cloud-platform",
+            "scope": "https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/cloud-platform",
             "project": PROJECT_ID,
             "keyfile_dict": "",  # Override to match your needs
         }
@@ -88,7 +99,10 @@ with DAG(
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
     create_spreadsheet = GoogleSheetsCreateSpreadsheetOperator(
-        task_id="create_spreadsheet", spreadsheet=SPREADSHEET, gcp_conn_id=CONNECTION_ID
+        task_id="create_spreadsheet",
+        spreadsheet=SPREADSHEET,
+        gcp_conn_id=CONNECTION_ID,
+        drive_id=GDRIVE_ID,
     )
 
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
@@ -120,7 +134,7 @@ with DAG(
 
     (
         # TEST SETUP
-        [create_bucket, create_connection_task]
+        [get_shared_drive_id_task, create_bucket, create_connection_task]
         >> create_spreadsheet
         >> upload_sheet_to_gcs
         # TEST BODY
