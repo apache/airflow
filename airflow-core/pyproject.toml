@@ -211,6 +211,11 @@ dependencies = [
 [project.scripts]
 airflow = "airflow.__main__:main"
 
+# Lets OpenTelemetry auto-instrumentation and vendor distros select Airflow's id generator
+# with OTEL_PYTHON_ID_GENERATOR=airflow, instead of reaching into a private module.
+[project.entry-points.opentelemetry_id_generator]
+airflow = "airflow._shared.observability.traces:OverrideableRandomIdGenerator"
+
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 Documentation = "https://airflow.apache.org/docs/"
