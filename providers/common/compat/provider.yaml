@@ -29,6 +29,7 @@ source-date-epoch: 1785633505
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.19.0
   - 1.18.0
   - 1.17.0
   - 1.16.0
