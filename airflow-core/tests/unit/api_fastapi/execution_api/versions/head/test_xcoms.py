@@ -281,6 +281,59 @@ class TestXComsGetEndpoint:
         assert response.json() == ["f", "o", "b"][key]
 
     @pytest.mark.parametrize(
+        "key",
+        [
+            # start >= 0, stop given, step >= 0: query.slice(start, stop)
+            pytest.param(slice(4, 2, None), id="4:2"),
+            # start >= 0, stop given, step < 0: query.slice(stop + 1, start + 1)
+            pytest.param(slice(2, -3, -1), id="2:-3:-1"),
+            # start < 0, stop given, step <= 0 internally: query.slice(-stop, -start)
+            pytest.param(slice(-2, -5, None), id="-2:-5"),
+            # start < 0, stop given, step > 0 internally: query.slice(-1 - start, -1 - stop)
+            pytest.param(slice(-5, -2, -1), id="-5:-2:-1"),
+        ],
+    )
+    def test_xcom_get_with_crossed_bound_slice(self, client, dag_maker, session, key):
+        """Crossed-bound slices (effective stop before effective start) must return []."""
+        xcom_values = ["v0", "v1", "v2", "v3", "v4", "v5"]
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=xcom_values)
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+
+        for map_index, db_value in enumerate(xcom_values):
+            ti = tis[map_index]
+            x = XComModel(
+                key="xcom_1",
+                value=db_value,
+                dag_run_id=ti.dag_run.id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                map_index=map_index,
+            )
+            session.add(x)
+        session.commit()
+
+        qs = {}
+        if key.start is not None:
+            qs["start"] = key.start
+        if key.stop is not None:
+            qs["stop"] = key.stop
+        if key.step is not None:
+            qs["step"] = key.step
+
+        response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1/slice?{urllib.parse.urlencode(qs)}")
+        assert response.status_code == 200
+        assert response.json() == xcom_values[key] == []
+
+    @pytest.mark.parametrize(
         ("include_prior_dates", "expected_xcoms"),
         [[True, ["earlier_value", "later_value"]], [False, ["later_value"]]],
     )
