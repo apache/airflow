@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 from unittest import mock
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from airflow._shared.timezones import timezone
+from airflow.exceptions import DagVersionNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -209,3 +211,124 @@ class TestResolveVersionData:
         from airflow.models.dag_version import _resolve_version_data
 
         assert _resolve_version_data(dag_version, bundle_version) == expected
+
+
+class TestDagVersionGetDiff:
+    @pytest.fixture
+    def dag_id(self, dag_maker, session):
+        import datetime
+
+        from tests_common.test_utils.db import clear_db_serialized_dags
+
+        clear_db_dags()
+        clear_db_serialized_dags()
+        dag_id = "version_diff_dag"
+        for version_number in range(1, 3):
+            with dag_maker(dag_id, session=session, bundle_version=f"commit{version_number}"):
+                for task_number in range(version_number):
+                    EmptyOperator(task_id=f"task{task_number + 1}")
+            dag_maker.create_dagrun(
+                run_id=f"run{version_number}",
+                logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+                session=session,
+            )
+            session.commit()
+        # Read versions back from the DB the way the API and CLI callers do, so
+        # serialized payloads carry plain JSON keys rather than in-memory Encoding enums.
+        session.expunge_all()
+        return dag_id
+
+    def test_reports_observed_changes_between_versions(self, dag_id, session):
+        result = DagVersion.get_diff(dag_id, 1, 2, session=session)
+
+        assert result["mode"] == "observed_state"
+        paths = {change["path"]: change for change in result["changes"]}
+        assert paths["/dag/tasks/*"]["operation"] == "added"
+        assert "after_digest" not in paths["/dag/tasks/*"]
+        assert paths["/provenance/bundle_version"]["category"] == "provenance"
+        assert result["source"] == {"status": "unavailable", "fidelity": "unavailable"}
+        assert "values" not in result
+
+    def test_raises_for_missing_version(self, dag_id, session):
+        with pytest.raises(DagVersionNotFound, match="version_number: `3`"):
+            DagVersion.get_diff(dag_id, 1, 3, session=session)
+
+    @pytest.mark.parametrize("version_numbers", [(0, 2), (1, 0)])
+    def test_rejects_non_positive_version_numbers(self, dag_id, session, version_numbers):
+        with pytest.raises(ValueError, match="Dag version numbers must be positive integers"):
+            DagVersion.get_diff(dag_id, *version_numbers, session=session)
+
+    @pytest.mark.parametrize("values_status", [None, "available"])
+    def test_marks_values_available_when_allowed(self, dag_id, session, values_status):
+        result = DagVersion.get_diff(
+            dag_id, 1, 2, include_values=True, values_status=values_status, session=session
+        )
+
+        assert result["values"] == {"status": "available"}
+        assert any("after_value" in change for change in result["changes"])
+        assert any(change["path"] == "/dag/tasks/task2" for change in result["changes"])
+
+    def test_marks_values_unavailable_when_status_denied(self, dag_id, session):
+        result = DagVersion.get_diff(
+            dag_id, 1, 2, include_values=True, values_status="unavailable", session=session
+        )
+
+        assert result["mode"] == "observed_state"
+        assert any(change["path"] == "/dag/tasks/*" for change in result["changes"])
+        assert all(
+            "before_digest" not in change
+            and "after_digest" not in change
+            and "before_value" not in change
+            and "after_value" not in change
+            for change in result["changes"]
+        )
+        assert result["values"] == {"status": "unavailable"}
+
+    @pytest.mark.parametrize("source_status", [None, "current_stored_code"])
+    def test_includes_current_stored_source(self, dag_id, session, source_status):
+        result = DagVersion.get_diff(
+            dag_id, 1, 2, include_source=True, source_status=source_status, session=session
+        )
+
+        source = result["source"]
+        assert source["status"] == "current_stored_code"
+        assert isinstance(source["changed"], bool)
+        assert source["base"]["digest"].startswith("sha256:")
+        assert source["target"]["content"] is not None
+
+    @pytest.mark.parametrize("source_status", ["redacted", "unavailable"])
+    def test_hides_source_when_status_denied(self, dag_id, session, source_status):
+        result = DagVersion.get_diff(
+            dag_id, 1, 2, include_source=True, source_status=source_status, session=session
+        )
+
+        assert result["source"] == {"status": source_status, "fidelity": source_status}
+
+    @pytest.mark.parametrize(
+        ("status_name", "invalid_status"),
+        [("source_status", ""), ("values_status", "redacted")],
+    )
+    def test_rejects_invalid_authorization_status(self, dag_id, session, status_name, invalid_status):
+        status: dict[str, Any] = {status_name: invalid_status}
+
+        with pytest.raises(ValueError, match=rf"{status_name} must be one of"):
+            DagVersion.get_diff(
+                dag_id,
+                1,
+                2,
+                include_source=True,
+                include_values=True,
+                session=session,
+                **status,
+            )
+
+    def test_marks_source_unavailable_when_code_missing(self, dag_id, session):
+        from airflow.models.dagcode import DagCode
+
+        session.execute(delete(DagCode))
+        session.commit()
+        session.expunge_all()
+
+        result = DagVersion.get_diff(dag_id, 1, 2, include_source=True, session=session)
+
+        assert result["source"] == {"status": "unavailable", "fidelity": "unavailable"}
