@@ -265,7 +265,7 @@ class AssetsOperations(BaseOperations):
         return AssetResponse.model_validate_json(self.response.content)
 
     def get_alias(self, asset_alias_id: str) -> AssetAliasResponse | ServerResponseError:
-        """Get an asset alias from the API server."""
+        """Get an asset alias by its ID from the API server."""
         self.response = self.client.get(f"assets/aliases/{asset_alias_id}")
         return AssetAliasResponse.model_validate_json(self.response.content)
 
