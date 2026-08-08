@@ -63,6 +63,7 @@ expected_config_response = {
     "enable_swagger_ui": True,
     "require_confirmation_dag_change": False,
     "default_wrap": False,
+    "default_task_instance_tab": "logs",
     "test_connection": "Disabled",
     "dashboard_alert": [],
     "show_external_log_redirect": False,
@@ -160,6 +161,13 @@ class TestGetConfig:
 
         assert response.status_code == 200
         assert response.json() == expected_config_response
+
+    def test_should_return_configured_default_task_instance_tab(self, mock_config_data, test_client):
+        with conf_vars({("api", "default_task_instance_tab"): "details"}):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        assert response.json()["default_task_instance_tab"] == "details"
 
     def test_get_config_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/config")

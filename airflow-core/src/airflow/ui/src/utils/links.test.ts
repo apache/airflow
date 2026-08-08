@@ -22,6 +22,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import {
   buildTaskInstanceUrl,
+  getDefaultTaskInstanceTabPath,
   getNextHref,
   getSafeExternalUrl,
   getTaskInstanceAdditionalPath,
@@ -118,6 +119,7 @@ describe("getTaskInstanceAdditionalPath", () => {
 
   it("should handle all known task instance routes", () => {
     const knownRoutes = [
+      "logs",
       "events",
       "xcom",
       "code",
@@ -154,6 +156,22 @@ describe("getTaskInstanceAdditionalPath", () => {
       getTaskInstanceAdditionalPath("/dags/my-dag_v2/runs/run_1-test/tasks/task.1/rendered_templates"),
     ).toBe("/rendered_templates");
   });
+});
+
+describe("getDefaultTaskInstanceTabPath", () => {
+  it.each(["details", "rendered_templates", "code", "events", "asset_events", "xcom"])(
+    "should return the tab path for %s",
+    (tab) => {
+      expect(getDefaultTaskInstanceTabPath(tab)).toBe(tab);
+    },
+  );
+
+  it.each(["logs", "", "unknown_tab", undefined, 42])(
+    "should fall back to the index route for %s",
+    (value) => {
+      expect(getDefaultTaskInstanceTabPath(value)).toBe("");
+    },
+  );
 });
 
 describe("buildTaskInstanceUrl", () => {

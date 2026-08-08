@@ -34,6 +34,7 @@ class ConfigResponse(BaseModel):
     enable_swagger_ui: bool
     require_confirmation_dag_change: bool
     default_wrap: bool
+    default_task_instance_tab: str
     test_connection: str
     dashboard_alert: list[UIAlert]
     show_external_log_redirect: bool

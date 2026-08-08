@@ -93,6 +93,19 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   return "";
 };
 
+const TASK_INSTANCE_DEFAULT_TAB_PATHS = new Set([
+  "asset_events",
+  "code",
+  "details",
+  "events",
+  "rendered_templates",
+  "xcom",
+]);
+
+// "" means the Logs view stays on the index route; unknown config values fall back to it.
+export const getDefaultTaskInstanceTabPath = (configValue: unknown): string =>
+  typeof configValue === "string" && TASK_INSTANCE_DEFAULT_TAB_PATHS.has(configValue) ? configValue : "";
+
 const SAFE_EXTERNAL_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 
 /**
