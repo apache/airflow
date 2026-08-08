@@ -460,6 +460,60 @@ config:
       Redis Sentinel as the result backend. See:
       https://docs.celeryq.dev/en/latest/userguide/configuration.html#std:setting-result_backend_transport_options
     options:
+      client-config:
+        description: |
+          SQS botocore client config.
+        version_added: "3.24.0"
+        type: string
+        example: '{"connect_timeout": 5}'
+        default: ~
+      fetch_message_attributes:
+        description: |
+          SQS fetch message attributes.
+        version_added: "3.24.0"
+        type: string
+        example: |
+          {
+            "MessageSystemAttributeNames": ["SenderId", "SentTimestamp"],
+            "MessageAttributeNames": ["S3MessageBodyKey"]
+          }
+        default: ~
+      kafka_admin_config:
+        description: |
+          Kafka admin only config, see ``kafka_common_config``.
+        version_added: "3.24.0"
+        type: string
+        example: ~
+        default: ~
+      kafka_common_config:
+        description: |
+          Kafka config common to producers and consumers,
+          see https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/kafka.html.
+        version_added: "3.24.0"
+        type: string
+        example: |
+          {
+            "sasl.username": sasl_username,
+            "sasl.password": sasl_password,
+            "security.protocol": "SASL_SSL",
+            "sasl.mechanism": "SCRAM-SHA-512",
+            "bootstrap.servers": "broker:9094"
+          }
+        default: ~
+      kafka_consumer_config:
+        description: |
+          Kafka consumer specific config, see ``kafka_common_config``.
+        version_added: "3.24.0"
+        type: string
+        example: ~
+        default: ~
+      kafka_producer_config:
+        description: |
+          Kafka producer specific config, see ``kafka_common_config``.
+        version_added: "3.24.0"
+        type: string
+        example: ~
+        default: ~
       master_name:
         description: |
           The name of the Redis Sentinel primary node to connect to.
@@ -467,6 +521,27 @@ config:
         version_added: ~
         type: string
         example: "mymaster"
+        default: ~
+      predefined_exchanges:
+        description: |
+          SQS Predefined SNS topics.
+        version_added: "3.24.0"
+        type: string
+        example: |
+          {
+            "exchange-1": {
+              "arn": "arn:aws:sns:us-east-1:xxx:exchange-1",
+              "access_key_id": "a",
+              "secret_access_key": "b"
+            }
+          }
+        default: ~
+      queue_tags:
+        description: |
+          SQS Queue tags to apply during queue creation.
+        version_added: "3.24.0"
+        type: string
+        example: '{"Environment": "production", "Team": "backend"}'
         default: ~
       sentinel_kwargs:
         description: |
@@ -481,4 +556,11 @@ config:
         type: string
         sensitive: true
         example: '{"password": "password_for_redis_server"}'
+        default: ~
+      sqs-creation-attributes:
+        description: |
+          Additional SQS queue attributes to apply as key/value pairs.
+        version_added: "3.24.0"
+        type: string
+        example: '{"KmsMasterKeyId": "alias/aws/sqs"}'
         default: ~
