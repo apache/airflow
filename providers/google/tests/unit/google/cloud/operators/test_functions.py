@@ -80,10 +80,25 @@ class TestGcfFunctionDeploy:
             op.execute(None)
 
     def test_body_empty(self):
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id", location="test_region", body={}, task_id="id"
+        )
         with pytest.raises(AirflowException):
-            CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body={}, task_id="id"
-            )
+            op.execute(None)
+
+    @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
+    def test_templated_body_deploys_after_rendering(self, mock_hook):
+        mock_hook.return_value.get_function.side_effect = mock.Mock(
+            side_effect=HttpError(resp=MOCK_RESP_404, content=b"not found")
+        )
+        mock_hook.return_value.create_new_function.return_value = True
+        op = CloudFunctionDeployFunctionOperator(
+            project_id=GCP_PROJECT_ID, location=GCP_LOCATION, body="{{ var.value.body }}", task_id="id"
+        )
+        # Template rendering replaces the Jinja expression with the resolved value before execute.
+        op.body = deepcopy(VALID_BODY)
+        op.execute(context=mock.MagicMock())
+        mock_hook.return_value.create_new_function.assert_called_once()
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_deploy_execute(self, mock_hook):
@@ -154,19 +169,21 @@ class TestGcfFunctionDeploy:
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_empty_location(self, mock_hook):
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id", location="", body=None, task_id="id"
+        )
         with pytest.raises(AirflowException) as ctx:
-            CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="", body=None, task_id="id"
-            )
+            op.execute(None)
         err = ctx.value
         assert "The required parameter 'location' is missing" in str(err)
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_empty_body(self, mock_hook):
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id", location="test_region", body=None, task_id="id"
+        )
         with pytest.raises(AirflowException) as ctx:
-            CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body=None, task_id="id"
-            )
+            op.execute(None)
         err = ctx.value
         assert "The required parameter 'body' is missing" in str(err)
 
@@ -381,20 +398,21 @@ class TestGcfFunctionDeploy:
             ),
         ],
     )
-    def test_invalid_source_code_union_field__init(self, source_code, message):
+    def test_invalid_source_code_union_field__preprocess(self, source_code, message):
         body = deepcopy(VALID_BODY)
         body.pop("sourceUploadUrl", None)
         body.pop("sourceArchiveUrl", None)
         zip_path = source_code.pop("zip_path", None)
         body.update(source_code)
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id",
+            location="test_region",
+            body=body,
+            task_id="id",
+            zip_path=zip_path,
+        )
         with pytest.raises(AirflowException, match=message):
-            CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id",
-                location="test_region",
-                body=body,
-                task_id="id",
-                zip_path=zip_path,
-            )
+            op.execute(None)
 
     @pytest.mark.parametrize(
         ("source_code", "project_id"),
