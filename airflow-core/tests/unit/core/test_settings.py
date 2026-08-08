@@ -443,6 +443,19 @@ def test_sqlite_relative_path(value, expectation):
         ("postgresql+psycopg2://user:pass@host/db", False, "postgresql+asyncpg://user:pass@host/db"),
         ("sqlite:////root/airflow.db", True, "sqlite+aiosqlite:////root/airflow.db"),
         ("mysql://user:pass@host/db", True, "mysql+aiomysql://user:pass@host/db"),
+        # cockroachdb uses asyncpg regardless of the installed psycopg flavour: the
+        # sqlalchemy-cockroachdb dialect registers no psycopg_async variant.
+        (
+            "cockroachdb://user@host:26257/db?sslmode=disable",
+            True,
+            "cockroachdb+asyncpg://user@host:26257/db?sslmode=disable",
+        ),
+        (
+            "cockroachdb://user@host:26257/db?sslmode=disable",
+            False,
+            "cockroachdb+asyncpg://user@host:26257/db?sslmode=disable",
+        ),
+        ("cockroachdb+psycopg2://user@host:26257/db", False, "cockroachdb+asyncpg://user@host:26257/db"),
         ("mssql://user:pass@host/db", True, "mssql://user:pass@host/db"),
     ],
 )
