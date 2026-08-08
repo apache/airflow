@@ -19,12 +19,14 @@ package bundlev1
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -174,10 +176,6 @@ func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
 			},
 			"method GetVariable is func(context.Context, string) (string, error) on sdk.Client",
 		},
-		"empty-interface": {
-			func(x any) error { return nil },
-			"empty interfaces cannot be injected",
-		},
 		"context-with-extra-methods": {
 			func(x interface {
 				context.Context
@@ -275,4 +273,248 @@ func (s *TaskSuite) TestTIRunContextInjectionWithoutRuntimeContext() {
 		got.Value(probeKey),
 		"the injected context must be backed by the one passed to Execute",
 	)
+}
+
+// --- Data-parameter (TaskFlow Inputs) binding ---
+
+// fakeClient implements sdk.Client with canned per-task XCom values, recording
+// the pulls Execute performs to resolve data parameters.
+type fakeClient struct {
+	xcoms   map[string]any // upstream task id -> stored return_value
+	getErr  error
+	pulls   []string
+	pushed  map[string]any
+	pushErr error
+}
+
+func (f *fakeClient) GetVariable(context.Context, string) (string, error) { return "", nil }
+func (f *fakeClient) UnmarshalJSONVariable(context.Context, string, any) error {
+	return nil
+}
+
+func (f *fakeClient) GetConnection(context.Context, string) (sdk.Connection, error) {
+	return sdk.Connection{}, nil
+}
+
+func (f *fakeClient) GetXCom(
+	_ context.Context,
+	dagId, runId, taskId string,
+	mapIndex *int,
+	key string,
+	_ any,
+) (any, error) {
+	f.pulls = append(f.pulls, taskId)
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	if dagId != "dag1" || runId != "run1" || key != api.XComReturnValueKey || mapIndex != nil {
+		return nil, errors.New("unexpected xcom pull identifiers")
+	}
+	return f.xcoms[taskId], nil
+}
+
+func (f *fakeClient) PushXCom(_ context.Context, _ api.TaskInstance, key string, value any) error {
+	if f.pushed == nil {
+		f.pushed = map[string]any{}
+	}
+	f.pushed[key] = value
+	return f.pushErr
+}
+
+// bindingResult is the struct shape the fake upstream produces.
+type bindingResult struct {
+	Value int    `json:"value"`
+	Name  string `json:"name"`
+}
+
+func (s *TaskSuite) executionContext(client sdk.Client) context.Context {
+	ctx := context.WithValue(context.Background(), sdkcontext.SdkClientContextKey, client)
+	return context.WithValue(ctx, sdkcontext.WorkloadContextKey, api.ExecuteTaskWorkload{
+		TI: api.TaskInstance{DagId: "dag1", RunId: "run1", TaskId: "consumer"},
+	})
+}
+
+func (s *TaskSuite) TestDataParamInjection() {
+	client := &fakeClient{xcoms: map[string]any{
+		"extract": map[string]any{"value": 42, "name": "answer"},
+	}}
+
+	var got bindingResult
+	task, err := NewTaskFunction(func(in bindingResult) error {
+		got = in
+		return nil
+	}, InputBinding{TaskID: "extract"})
+	s.Require().NoError(err)
+
+	err = task.Execute(s.executionContext(client), slog.New(logging.NewTeeLogger()))
+	s.Require().NoError(err)
+	s.Equal(bindingResult{Value: 42, Name: "answer"}, got)
+	s.Equal([]string{"extract"}, client.pulls)
+}
+
+func (s *TaskSuite) TestDataParamsBindPositionallyAmongInjectables() {
+	client := &fakeClient{xcoms: map[string]any{
+		"first":  map[string]any{"value": 1, "name": "a"},
+		"second": map[string]any{"value": 2, "name": "b"},
+	}}
+
+	var gotA, gotB bindingResult
+	task, err := NewTaskFunction(
+		func(ctx context.Context, a bindingResult, logger *slog.Logger, b bindingResult, c sdk.XComClient) error {
+			s.NotNil(ctx)
+			s.NotNil(logger)
+			s.NotNil(c)
+			gotA, gotB = a, b
+			return nil
+		},
+		InputBinding{TaskID: "first"},
+		InputBinding{TaskID: "second"},
+	)
+	s.Require().NoError(err)
+
+	err = task.Execute(s.executionContext(client), slog.New(logging.NewTeeLogger()))
+	s.Require().NoError(err)
+	s.Equal(bindingResult{Value: 1, Name: "a"}, gotA)
+	s.Equal(bindingResult{Value: 2, Name: "b"}, gotB)
+	s.Equal([]string{"first", "second"}, client.pulls)
+}
+
+func (s *TaskSuite) TestDataParamStrictDecodeRejectsUnknownKeys() {
+	client := &fakeClient{xcoms: map[string]any{
+		"extract": map[string]any{"value": 1, "renamed_field": true},
+	}}
+
+	task, err := NewTaskFunction(
+		func(in bindingResult) error { return nil },
+		InputBinding{TaskID: "extract"},
+	)
+	s.Require().NoError(err)
+
+	err = task.Execute(s.executionContext(client), slog.New(logging.NewTeeLogger()))
+	if s.Error(err) {
+		s.Contains(err.Error(), `decoding input from task "extract"`)
+		s.Contains(err.Error(), "renamed_field")
+	}
+}
+
+func (s *TaskSuite) TestDataParamLooseMapDecodesAnyShape() {
+	client := &fakeClient{xcoms: map[string]any{
+		"extract": map[string]any{"anything": "goes", "extra": 1},
+	}}
+
+	var got map[string]any
+	task, err := NewTaskFunction(
+		func(in map[string]any) error {
+			got = in
+			return nil
+		},
+		InputBinding{TaskID: "extract"},
+	)
+	s.Require().NoError(err)
+
+	s.Require().NoError(task.Execute(s.executionContext(client), slog.New(logging.NewTeeLogger())))
+	s.Equal("goes", got["anything"])
+}
+
+func (s *TaskSuite) TestDataParamNullValue() {
+	client := &fakeClient{xcoms: map[string]any{"extract": nil}}
+
+	s.Run("nilable-target-gets-zero", func() {
+		var got *bindingResult
+		task, err := NewTaskFunction(
+			func(in *bindingResult) error {
+				got = in
+				return nil
+			},
+			InputBinding{TaskID: "extract"},
+		)
+		s.Require().NoError(err)
+		s.Require().
+			NoError(task.Execute(s.executionContext(client), slog.New(logging.NewTeeLogger())))
+		s.Nil(got)
+	})
+
+	s.Run("non-nilable-target-fails", func() {
+		task, err := NewTaskFunction(
+			func(in bindingResult) error { return nil },
+			InputBinding{TaskID: "extract"},
+		)
+		s.Require().NoError(err)
+		err = task.Execute(s.executionContext(client), slog.New(logging.NewTeeLogger()))
+		if s.Error(err) {
+			s.Contains(err.Error(), "not nilable")
+		}
+	})
+}
+
+func (s *TaskSuite) TestDataParamPullFailureFailsTask() {
+	client := &fakeClient{getErr: errors.New("supervisor unreachable")}
+
+	ran := false
+	task, err := NewTaskFunction(
+		func(in bindingResult) error {
+			ran = true
+			return nil
+		},
+		InputBinding{TaskID: "extract"},
+	)
+	s.Require().NoError(err)
+
+	err = task.Execute(s.executionContext(client), slog.New(logging.NewTeeLogger()))
+	if s.Error(err) {
+		s.Contains(err.Error(), `pulling input from task "extract"`)
+	}
+	s.False(ran, "the task body must not run when an input pull fails")
+}
+
+func (s *TaskSuite) TestDataParamWithoutWorkloadFails() {
+	client := &fakeClient{xcoms: map[string]any{"extract": map[string]any{"value": 1}}}
+	task, err := NewTaskFunction(
+		func(in map[string]any) error { return nil },
+		InputBinding{TaskID: "extract"},
+	)
+	s.Require().NoError(err)
+
+	// Client injected but no workload on the context.
+	ctx := context.WithValue(
+		context.Background(),
+		sdkcontext.SdkClientContextKey,
+		sdk.Client(client),
+	)
+	err = task.Execute(ctx, slog.New(logging.NewTeeLogger()))
+	if s.Error(err) {
+		s.Contains(err.Error(), "no workload in context")
+	}
+}
+
+func (s *TaskSuite) TestInputBindingValidation() {
+	s.Run("count-mismatch", func() {
+		_, err := NewTaskFunction(func(x any) error { return nil })
+		if s.Error(err) {
+			s.Contains(
+				err.Error(),
+				"declares 1 data parameter(s) but 0 input binding(s) were supplied",
+			)
+		}
+	})
+
+	s.Run("empty-task-id", func() {
+		_, err := NewTaskFunction(
+			func(x any) error { return nil },
+			InputBinding{},
+		)
+		if s.Error(err) {
+			s.Contains(err.Error(), "input binding 0 has an empty task id")
+		}
+	})
+
+	s.Run("undecodable-param", func() {
+		_, err := NewTaskFunction(
+			func(x chan int) error { return nil },
+			InputBinding{TaskID: "extract"},
+		)
+		if s.Error(err) {
+			s.Contains(err.Error(), "cannot hold an XCom value")
+		}
+	})
 }

@@ -45,15 +45,40 @@ func (m *myBundle) GetBundleVersion() v1.BundleInfo {
 	return v1.BundleInfo{Name: bundleName, Version: &bundleVersion}
 }
 
+// ExtractResult is extract's return value. Returning it pushes it as the
+// task's return_value XCom; declaring it via Inputs feeds it to a downstream
+// task's matching data parameter.
+type ExtractResult struct {
+	GoVersion string `json:"go_version"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+// TransformResult is transform's return value, consumed by load.
+type TransformResult struct {
+	Variable  string        `json:"variable"`
+	Extracted ExtractResult `json:"extracted"`
+}
+
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-	simpleDag := dagbag.AddDag("simple_dag")
-	simpleDag.AddTask(extract)
-	simpleDag.AddTask(transform)
-	simpleDag.AddTask(load)
+	simpleDag := dagbag.AddDag(v1.DagSpec{
+		DagId:       "simple_dag",
+		Schedule:    "@daily",
+		Description: "Example Go-authored Dag",
+		Tags:        []string{"example", "go-sdk"},
+	})
+	// TaskFlow style: each Task call returns a ref; passing refs via
+	// v1.Inputs both orders the tasks and feeds the upstream's return value
+	// into the downstream function's data parameter.
+	extracted := simpleDag.Task(extract, v1.TaskSpec{Queue: "go-task", Retries: 2})
+	transformed := simpleDag.Task(transform, v1.TaskSpec{Queue: "go-task"}, v1.Inputs(extracted))
+	simpleDag.Task(load, v1.TaskSpec{Queue: "go-task"}, v1.Inputs(transformed))
 
 	// Tasks defined in other packages register through the same dagbag.
-	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
-	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently)
+	concurrentDag := dagbag.AddDag(v1.DagSpec{DagId: "concurrent_xcom_dag"})
+	concurrentDag.Task(
+		concurrentxcom.PullXComsConcurrently,
+		v1.TaskSpec{TaskId: "pull_xcoms_concurrently"},
+	)
 
 	return nil
 }
@@ -64,7 +89,7 @@ func main() {
 	}
 }
 
-func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
+func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (ExtractResult, error) {
 	log.Info("Hello from task")
 
 	// ctx behaves as a context.Context and also carries the task instance
@@ -111,7 +136,7 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
 		// Once per loop,.check if we've been asked to cancel!
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return ExtractResult{}, ctx.Err()
 		default:
 		}
 		log.Info("After the beep the time will be", "time", time.Now())
@@ -119,40 +144,51 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
 	}
 	log.Info("Goodbye from task")
 
-	ret := map[string]any{
-		"go_version": runtime.Version(),
-		"timestamp":  time.Now().UnixNano(),
-	}
-
-	return ret, nil
+	return ExtractResult{
+		GoVersion: runtime.Version(),
+		Timestamp: time.Now().UnixNano(),
+	}, nil
 }
 
-func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
-	// This function takes a VariableClient and not a Client to make unit testing it easier. See
-	// `./main_test.go` for an example unit of this task fn. Functionally taking a `sdk.Client` is the same (as
-	// Client includes VariableClient) but by using the dedicated type it can be easier to write unit tests.
-	//
-	// It also gives a better indication of what features the tasks use
+// transform receives extract's return value as its `in` data parameter: the
+// runtime pulls extract's return-value XCom and decodes it into ExtractResult
+// before the body runs, because RegisterDags wired v1.Inputs(extracted).
+//
+// It takes a VariableClient and not a full Client to make unit testing easier
+// (see ./main_test.go); functionally `sdk.Client` works the same, but the
+// dedicated type documents what the task actually uses.
+func transform(
+	ctx sdk.TIRunContext,
+	client sdk.VariableClient,
+	log *slog.Logger,
+	in ExtractResult,
+) (TransformResult, error) {
+	log.Info("Received upstream result", "go_version", in.GoVersion, "timestamp", in.Timestamp)
+
 	key := "my_variable"
 	val, err := client.GetVariable(ctx, key)
 	if err != nil {
-		return err
+		return TransformResult{}, err
 	}
 	log.Info("Obtained variable", key, val)
-	return nil
+	return TransformResult{Variable: val, Extracted: in}, nil
 }
 
 // load fails on its first attempt and succeeds on the retry. With retries
-// configured on the stub task, the first failure makes the supervisor mark the
+// configured on the task, the first failure makes the supervisor mark the
 // task UP_FOR_RETRY -- which only works because the Go SDK now emits a
 // RetryTask frame (instead of a terminal FAILED) when ti_context.should_retry
 // is set. The retry then runs this task again and it returns nil.
-func load(ctx sdk.TIRunContext, log *slog.Logger) error {
+func load(ctx sdk.TIRunContext, log *slog.Logger, in TransformResult) error {
 	tryNumber := ctx.TaskInstance().TryNumber
 	if tryNumber == 1 {
 		log.InfoContext(ctx, "Please fail", "try_number", tryNumber)
 		return fmt.Errorf("Please fail")
 	}
-	log.InfoContext(ctx, "Recovered on retry", "try_number", tryNumber)
+	log.InfoContext(ctx, "Recovered on retry",
+		"try_number", tryNumber,
+		"variable", in.Variable,
+		"extracted_go_version", in.Extracted.GoVersion,
+	)
 	return nil
 }

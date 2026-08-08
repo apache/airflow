@@ -160,10 +160,11 @@ func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
 	wasCalled := false
 
 	// Register a task that should NOT be called if everything works
-	s.registry.AddDag(testWorkload.TI.DagId).AddTaskWithName(testWorkload.TI.TaskId, func() error {
-		wasCalled = true
-		return nil
-	})
+	s.registry.AddDag(bundlev1.DagSpec{DagId: testWorkload.TI.DagId}).
+		Task(func() error {
+			wasCalled = true
+			return nil
+		}, bundlev1.TaskSpec{TaskId: testWorkload.TI.TaskId})
 
 	// Setup the mock
 	s.ti.EXPECT().
@@ -193,10 +194,11 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	id := uuid.New().String()
 	var callCount atomic.Int32
 	testWorkload := newTestWorkLoad(id, id[:8])
-	s.registry.AddDag(testWorkload.TI.DagId).AddTaskWithName(testWorkload.TI.TaskId, func() error {
-		time.Sleep(time.Second)
-		return nil
-	})
+	s.registry.AddDag(bundlev1.DagSpec{DagId: testWorkload.TI.DagId}).
+		Task(func() error {
+			time.Sleep(time.Second)
+			return nil
+		}, bundlev1.TaskSpec{TaskId: testWorkload.TI.TaskId})
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
@@ -224,15 +226,15 @@ func (s *WorkerSuite) TestTaskHeartbeatConflictStopsTask() {
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 
-	s.registry.AddDag(testWorkload.TI.DagId).
-		AddTaskWithName(testWorkload.TI.TaskId, func(ctx context.Context) error {
+	s.registry.AddDag(bundlev1.DagSpec{DagId: testWorkload.TI.DagId}).
+		Task(func(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return nil
 			case <-time.After(2 * time.Second):
 				return fmt.Errorf("task context was not cancelled")
 			}
-		})
+		}, bundlev1.TaskSpec{TaskId: testWorkload.TI.TaskId})
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)

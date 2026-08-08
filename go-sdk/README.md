@@ -87,9 +87,9 @@ func (m *myBundle) GetBundleVersion() v1.BundleInfo {
 }
 
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-    simpleDag := dagbag.AddDag("simple_dag")
-    simpleDag.AddTask(extract)
-    simpleDag.AddTask(transform)
+    simpleDag := dagbag.AddDag(v1.DagSpec{DagId: "simple_dag"})
+    extracted := simpleDag.Task(extract)
+    simpleDag.Task(transform, v1.Inputs(extracted))
     return nil
 }
 
@@ -100,24 +100,32 @@ func main() {
 }
 ```
 
-A task is an ordinary Go function. The runtime inspects its signature and injects arguments by type:
-`sdk.TIRunContext`, `*slog.Logger`, and an `sdk.Client` (or a narrower interface such as
-`sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
-the task failed.
+A task is an ordinary Go function. The runtime inspects its signature and fills parameters by kind:
+runtime values (`sdk.TIRunContext`, `*slog.Logger`, and an `sdk.Client` or a narrower interface such as
+`sdk.VariableClient`) are injected by type, and every other parameter is a **data parameter**, bound
+positionally to the `v1.Inputs(...)` refs — at run time it receives the upstream task's return value,
+pulled from that task's return-value XCom and decoded into the parameter's type. A `(result, error)`
+return becomes the task's XCom; an `error` return marks the task failed.
 
 ```go
-func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
-    conn, err := client.GetConnection(ctx, "test_http")
-    // ... do work, honour ctx cancellation ...
-    return map[string]any{"go_version": runtime.Version()}, nil
+type ExtractResult struct {
+    GoVersion string `json:"go_version"`
 }
 
-func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
+func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (ExtractResult, error) {
+    conn, err := client.GetConnection(ctx, "test_http")
+    // ... do work, honour ctx cancellation ...
+    return ExtractResult{GoVersion: runtime.Version()}, nil
+}
+
+// `in` is a data parameter: it receives extract's return value because
+// RegisterDags wired v1.Inputs(extracted).
+func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger, in ExtractResult) error {
     val, err := client.GetVariable(ctx, "my_variable")
     if err != nil {
         return err
     }
-    log.Info("Obtained variable", "my_variable", val)
+    log.Info("Obtained variable", "my_variable", val, "upstream_go_version", in.GoVersion)
     return nil
 }
 ```
