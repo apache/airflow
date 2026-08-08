@@ -11530,6 +11530,22 @@ def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(sessi
 
 
 @pytest.mark.db_test
+def test_set_exceeds_max_active_runs_skips_write_when_unchanged(session, dag_maker):
+    with dag_maker(session=session):
+        pass
+    dag_model = dag_maker.dag_model
+    dag_model.exceeds_max_non_backfill = False
+    session.flush()
+    session.expire(dag_model)
+
+    scheduler_job = SchedulerJobRunner(job=Job())
+    scheduler_job._set_exceeds_max_active_runs(
+        dag_model=dag_model, active_non_backfill_runs=0, session=session
+    )
+    assert dag_model not in session.dirty
+
+
+@pytest.mark.db_test
 def test_create_dag_runs_partitioned_timetable_proceeds_when_partition_key_set(session):
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
