@@ -119,6 +119,7 @@ def test_normalize_metric_name(metric_name, expected_result):
         pytest.param("dag.{x}.{y}.duration", "task.duration", id="legacy_name_match_different_structure"),
         pytest.param("ti.{state}", _PREFIX_MATCHED, id="prefix_match_returns_sentinel"),
         pytest.param("dagrun.duration.{state}", _PREFIX_MATCHED, id="prefix_match_dotted_base"),
+        pytest.param("{stats_prefix}.open_slots", _PREFIX_MATCHED, id="suffix_match_returns_sentinel"),
         pytest.param("non.existent.{var}", None, id="dynamic_metric_no_prefix_match_returns_none"),
         pytest.param("non.existent", None, id="static_metric_not_in_registry_returns_none"),
     ],
@@ -226,6 +227,12 @@ def test_extract_metric_names_from_ast_node(code: str, expected_result):
         ),
         pytest.param("dagrun.duration.{state}", ["dagrun.duration.success"], id="dotted_base_prefix"),
         pytest.param("non.existent.{var}", [], id="no_prefix_match_returns_empty_list"),
+        pytest.param(
+            "{stats_prefix}.open_slots",
+            ["pool.open_slots", "executor.open_slots"],
+            id="leading_variable_matches_on_static_suffix",
+        ),
+        pytest.param("{stats_prefix}pen_slots", [], id="suffix_not_starting_at_a_dot_returns_empty_list"),
     ],
 )
 def test_find_prefix_matched_registry_entries(metric_name, expected_result):
@@ -276,6 +283,18 @@ def test_find_prefix_matched_registry_entries(metric_name, expected_result):
                 "ti.start.{dag_id}.{task_id}",
             ],
             id="legacy_name_structure_match_marks_entry_used",
+        ),
+        pytest.param(
+            {"{stats_prefix}.open_slots"},
+            [
+                "dagrun.duration.success",
+                "scheduler.heartbeat",
+                "task.duration",
+                "ti.queued",
+                "ti.scheduled",
+                "ti.start.{dag_id}.{task_id}",
+            ],
+            id="suffix_match_marks_all_matching_entries_used",
         ),
     ],
 )
