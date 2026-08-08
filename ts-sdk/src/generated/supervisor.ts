@@ -143,7 +143,12 @@ export type ClearNumber = number;
  * via the `definition` "DagRunType".
  */
 export type DagRunType =
-  "backfill" | "scheduled" | "manual" | "operator_triggered" | "asset_triggered" | "asset_materialization";
+  | "backfill"
+  | "scheduled"
+  | "manual"
+  | "operator_triggered"
+  | "asset_triggered"
+  | "asset_materialization";
 /**
  * All possible states that a DagRun can be in.
  *
