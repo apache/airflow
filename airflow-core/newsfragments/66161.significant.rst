@@ -10,3 +10,9 @@ REST API clients that filtered ``bundle_name`` by ``"dags-folder"`` for
 provider-shipped example DAGs (e.g. ``example_python_operator``) must
 update to the new per-provider bundle names. DAG identifiers are
 unchanged.
+
+The ``include_examples`` argument of ``DagBag`` and ``DagBag.collect_dags``
+is deprecated, has no effect, and will be removed in Airflow 4. A ``DagBag``
+now only ever parses the given folder; example Dags are provided exclusively
+through the per-provider bundles gated by ``[core] load_examples``. Passing
+the argument emits a ``RemovedInAirflow4Warning``.

@@ -42,7 +42,7 @@ from airflow.dag_processing.dagbag import (
     _capture_with_reraise,
     _validate_executor_fields,
 )
-from airflow.exceptions import UnknownExecutorException
+from airflow.exceptions import RemovedInAirflow4Warning, UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -1397,3 +1397,25 @@ class TestBundlePathSysPath:
 
         assert str(tmp_path) not in dag.description
         assert sys.path == syspath_before
+
+
+@pytest.mark.parametrize("include_examples", [True, False])
+def test_dagbag_include_examples_is_deprecated_and_ignored(include_examples, tmp_path):
+    with pytest.warns(RemovedInAirflow4Warning, match="'include_examples' argument is deprecated"):
+        dagbag = DagBag(dag_folder=tmp_path, include_examples=include_examples)
+    assert dagbag.dags == {}
+
+
+@pytest.mark.parametrize("include_examples", [True, False])
+def test_collect_dags_include_examples_is_deprecated_and_ignored(include_examples, tmp_path):
+    dagbag = DagBag(dag_folder=tmp_path, collect_dags=False)
+    with pytest.warns(RemovedInAirflow4Warning, match="'include_examples' argument is deprecated"):
+        dagbag.collect_dags(include_examples=include_examples)
+    assert dagbag.dags == {}
+
+
+def test_dagbag_does_not_warn_when_include_examples_is_not_passed(tmp_path):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RemovedInAirflow4Warning)
+        dagbag = DagBag(dag_folder=tmp_path)
+        dagbag.collect_dags()
