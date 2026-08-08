@@ -3386,8 +3386,54 @@
                         "exec airflow scheduler"
                     ]
                 },
+                "persistence": {
+                    "description": "Persistence configuration for the scheduler when using a local executor. Unset values fall back to workers.celery.persistence for backward compatibility.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volumes. If unset, workers.celery.persistence.enabled is used.",
+                            "type": [
+                                "boolean",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy for the scheduler StatefulSet. If unset, workers.celery.persistence.persistentVolumeClaimRetentionPolicy is used."
+                        },
+                        "size": {
+                            "description": "Volume size for the scheduler StatefulSet. If unset, workers.celery.persistence.size is used.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": "100Gi"
+                        },
+                        "storageClassName": {
+                            "description": "StorageClass for the scheduler StatefulSet (templated). If unset, `workers.celery.persistence.storageClassName` is used.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to scheduler volumes. If unset, workers.celery.persistence.annotations is used.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
                 "updateStrategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet (when using LocalExecutor and workers.persistence).",
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
                     "type": [
                         "null",
                         "object"
@@ -3395,7 +3441,7 @@
                     "default": null
                 },
                 "strategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment (when not using LocalExecutor and workers.persistence).",
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
                     "type": [
                         "null",
                         "object"

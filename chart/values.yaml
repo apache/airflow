@@ -1224,11 +1224,33 @@ scheduler:
   # Args to use when running the Airflow scheduler (templated).
   args: ["bash", "-c", "exec airflow scheduler"]
 
+  # Persistence configuration for the scheduler when using a local executor.
+  # When enabled is unset, workers.celery.persistence is used for backward compatibility.
+  persistence:
+    # Enable persistent volumes.
+    enabled: ~
+
+    # This policy determines whether PVCs should be deleted
+    # when the StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
+
+    # Volume size for the scheduler StatefulSet.
+    size: 100Gi
+
+    # If using a custom StorageClass, pass its name here.
+    storageClassName: ~
+
+    # Annotations to add to scheduler volumes.
+    annotations: {}
+
   # Update Strategy when scheduler is deployed as a StatefulSet
-  # (when using LocalExecutor and `workers.persistence`)
+  # (when using a local executor and `scheduler.persistence.enabled`)
   updateStrategy: ~
   # Update Strategy when scheduler is deployed as a Deployment
-  # (when not using LocalExecutor and `workers.persistence`)
+  # (when not using a local executor or when `scheduler.persistence.enabled` is false)
   strategy: ~
 
   # Detailed default security context for scheduler Deployments for container and pod level
