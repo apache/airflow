@@ -1,0 +1,5 @@
+PgBouncer Deployment now sets ``terminationGracePeriodSeconds`` (default ``120``)
+
+The PgBouncer Deployment previously relied on the Kubernetes default termination grace period of 30 seconds, which SIGKILLed the pod mid-drain: the chart's default preStop hook (``killall -INT pgbouncer && sleep 120``) needs up to 120 seconds to drain client connections, so on a node drain or eviction in-flight connections were cut after 30 seconds instead of being released.
+
+The new ``pgbouncer.terminationGracePeriodSeconds`` value defaults to ``120`` to match the preStop drain window. PgBouncer exits as soon as the last client connection is released, so the full 120 seconds is an upper bound, not a fixed wait. Set the value to ``30`` to restore the previous behaviour.
