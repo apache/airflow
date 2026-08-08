@@ -173,8 +173,8 @@ def generate_task_lifecycle_diagram():
         cond_retriable = Custom("\n\n\n\n\nEligible for retry?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
 
         start_node >> state_none >> component_scheduler >> cond_upstream_task_failure
-        cond_upstream_task_failure >> Edge(label="NO") >> state_upstream_failed
-        cond_upstream_task_failure >> Edge(label="YES") >> cond_scheduled_skip
+        cond_upstream_task_failure >> Edge(label="YES") >> state_upstream_failed
+        cond_upstream_task_failure >> Edge(label="NO") >> cond_scheduled_skip
         cond_scheduled_skip >> Edge(label="NO") >> cond_task_def_existence
         (cond_scheduled_skip >> Edge(label="YES") >> state_skipped,)
         (cond_task_def_existence >> Edge(label="NO") >> state_removed,)
