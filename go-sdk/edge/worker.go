@@ -270,14 +270,19 @@ func (w *worker) mainLoop(ctx context.Context) error {
 		return err
 	}
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGUSR1)
-
 	// Report state to Idle
 	if err := w.heartbeat(ctx); err != nil {
 		return err
 	}
 
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGUSR1)
+	defer signal.Stop(sigChan)
+
+	return w.runMainLoop(ctx, sigChan)
+}
+
+func (w *worker) runMainLoop(ctx context.Context, sigChan <-chan os.Signal) error {
 	heartbeat := time.NewTicker(HeartbeatInterval)
 	defer heartbeat.Stop()
 
@@ -291,13 +296,12 @@ func (w *worker) mainLoop(ctx context.Context) error {
 		select {
 		case sig := <-sigChan:
 			switch sig {
-			case os.Interrupt:
+			case os.Interrupt, syscall.SIGTERM:
 				if !w.drain {
 					w.logger.Info(
-						"Draining worker of running tasks before stopping, hit ^C again to force terminate",
+						"Draining worker of running tasks before stopping; send another termination signal to force terminate",
 					)
 					w.drain = true
-					w.heartbeat(ctx)
 					stopFetchJobs()
 				} else {
 					return nil
