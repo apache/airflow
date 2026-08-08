@@ -1,0 +1,1 @@
+Fix the mapped XCom sequence-slice API returning incorrect rows for crossed-bound slices (where ``stop`` comes before ``start``). Such slices now return an empty result, matching Python slicing, instead of emitting a negative SQL ``LIMIT`` -- which silently returned wrong rows on SQLite and failed the request on PostgreSQL/MySQL.
