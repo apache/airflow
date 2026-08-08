@@ -22,7 +22,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -433,17 +434,50 @@ def set_xcom(
     # means loading the serialized dag and that seems like a relatively costly operation for minimal benefit
     # (the mapped task would fail in a moment as it can't be expanded anyway.)
     try:
-        # We expect serialised value from the caller - sdk, do not serialise in here
-        XComModel.set(
-            key=key,
-            value=value,
-            run_id=run_id,
-            task_id=task_id,
-            dag_id=dag_id,
-            map_index=map_index,
-            serialize=False,
-            dag_result=dag_result,
-            session=session,
+        # Use a savepoint so that an IntegrityError on the XCom write does not
+        # roll back the task-map merge that may have already been flushed above.
+        with session.begin_nested():
+            # We expect serialised value from the caller - sdk, do not serialise in here
+            XComModel.set(
+                key=key,
+                value=value,
+                run_id=run_id,
+                task_id=task_id,
+                dag_id=dag_id,
+                map_index=map_index,
+                serialize=False,
+                dag_result=dag_result,
+                session=session,
+            )
+    except IntegrityError as e:
+        # Only swallow unique-constraint violations (a concurrent or retried write
+        # for the same PK beat us to it). FK violations — e.g. the task_instance
+        # cascade-deleted between our dag_run_id lookup and the flush — must
+        # propagate; silently returning 200 there would hide a lost write.
+        if not any(
+            msg in str(e.orig)
+            for msg in (
+                "UNIQUE constraint failed",  # SQLite
+                "Duplicate entry",  # MySQL
+                "violates unique constraint",  # PostgreSQL
+            )
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Unexpected database error: {e.orig}",
+            )
+        # The savepoint was rolled back automatically; fall through to an explicit
+        # UPDATE so the latest value wins.
+        session.execute(
+            update(XComModel)
+            .where(
+                XComModel.key == key,
+                XComModel.run_id == run_id,
+                XComModel.task_id == task_id,
+                XComModel.dag_id == dag_id,
+                XComModel.map_index == map_index,
+            )
+            .values(value=value, dag_result=dag_result)
         )
     except ValueError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))

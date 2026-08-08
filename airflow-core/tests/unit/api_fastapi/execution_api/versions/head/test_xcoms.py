@@ -579,6 +579,89 @@ class TestXComsSetEndpoint:
         )
         assert dag_result is True
 
+    def test_xcom_set_concurrent_write_uses_update_fallback(self, client, create_task_instance, session):
+        """
+        When a concurrent write wins the PK race and XComModel.set raises a
+        unique-constraint IntegrityError, the savepoint is rolled back and the
+        endpoint falls through to an UPDATE. The caller should still get a 201 and
+        the row should hold the value from this (latest) write.
+        """
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import IntegrityError
+
+        ti = create_task_instance()
+        session.commit()
+
+        # Pre-seed the row so the UPDATE fallback has a target row to update.
+        session.add(
+            XComModel(
+                key="concurrent_key",
+                value='"original"',
+                dag_run_id=ti.dag_run.id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+            )
+        )
+        session.commit()
+
+        # Simulate the concurrent-write race: the first INSERT hits a unique
+        # constraint because a parallel write already committed the same PK.
+        unique_orig = Exception("violates unique constraint (xcom_pkey)")
+        unique_error = IntegrityError("INSERT INTO xcom ...", {}, unique_orig)
+
+        with patch(
+            "airflow.api_fastapi.execution_api.routes.xcoms.XComModel.set",
+            side_effect=unique_error,
+        ):
+            response = client.post(
+                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/concurrent_key",
+                json='"updated"',
+            )
+
+        assert response.status_code == 201
+        assert response.json() == {"message": "XCom successfully set"}
+
+        stored = session.scalar(
+            select(XComModel.value).where(
+                XComModel.dag_id == ti.dag_id,
+                XComModel.run_id == ti.run_id,
+                XComModel.task_id == ti.task_id,
+                XComModel.key == "concurrent_key",
+            )
+        )
+        assert stored == '"updated"', f"Expected '\"updated\"' but got {stored!r}"
+
+    def test_xcom_set_fk_integrity_error_propagates(self, client, create_task_instance, session):
+        """
+        A non-unique IntegrityError — e.g. an FK violation when the task_instance
+        cascade-deleted between the dag_run_id lookup and the flush — must NOT be
+        swallowed. Silently returning 201 would hide the fact that the XCom was
+        never actually stored.
+        """
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import IntegrityError
+
+        ti = create_task_instance()
+        session.commit()
+
+        fk_orig = Exception("FOREIGN KEY constraint failed")
+        fk_error = IntegrityError("INSERT INTO xcom ...", {}, fk_orig)
+
+        with patch(
+            "airflow.api_fastapi.execution_api.routes.xcoms.XComModel.set",
+            side_effect=fk_error,
+        ):
+            response = client.post(
+                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/fk_key",
+                json='"value"',
+            )
+
+        # FK errors must not be silenced — they should propagate as a server error.
+        assert response.status_code == 500
+
 
 class TestXComsDeleteEndpoint:
     def test_xcom_delete_endpoint(self, client, create_task_instance, session):
