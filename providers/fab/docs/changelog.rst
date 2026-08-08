@@ -34,6 +34,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix asset state store writes forbidden under FAB auth manager (#70478)``
+* ``Stop dumping every Dag to stdout when syncing FAB permissions (#70939)``
 
 Misc
 ~~~~
