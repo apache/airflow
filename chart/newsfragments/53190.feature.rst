@@ -1,0 +1,1 @@
+Allow pod labels to be configured separately from object labels with ``podLabels``, for ``apiServer``, ``scheduler``, ``workers.celery``, ``triggerer``, ``dagProcessor``, ``flower``, ``statsd``, ``pgbouncer``, ``redis`` and ``otelCollector``. Leaving ``podLabels`` unset keeps the existing behaviour.

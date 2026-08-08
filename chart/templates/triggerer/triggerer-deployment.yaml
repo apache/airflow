@@ -34,6 +34,12 @@
 {{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list .Values.triggerer.logGroomerSidecar .Values) }}
 {{- $containerLifecycleHooks := or .Values.triggerer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.triggerer.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $deploymentLabels := .Values.labels }}
+{{- $podLabels := .Values.triggerer.labels }}
+{{- if ne .Values.triggerer.podLabels nil }}
+  {{- $deploymentLabels = mustMerge (deepCopy .Values.triggerer.labels) .Values.labels }}
+  {{- $podLabels = .Values.triggerer.podLabels }}
+{{- end }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
@@ -44,7 +50,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
+    {{- with $deploymentLabels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- if .Values.triggerer.annotations }}
@@ -80,8 +86,8 @@ spec:
         tier: airflow
         component: triggerer
         release: {{ .Release.Name }}
-        {{- if or .Values.labels .Values.triggerer.labels }}
-          {{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or .Values.labels $podLabels }}
+          {{- mustMerge (deepCopy $podLabels) .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
