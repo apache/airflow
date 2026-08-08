@@ -1572,6 +1572,14 @@ apache-airflow-task-sdk-integration-tests = false
 # Remove once the rolling window advances past 2026-07-15.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 
+# Temporary: flit / flit-core 4.0.2 were published 2026-08-04, inside the "4 days"
+# exclude-newer window. `flit build` has no PEP 517 isolation, so the installed flit_core
+# is the backend that builds every provider distribution - it has to be resolvable for the
+# 4.x adoption to take effect. Pins the per-package cutoff just past that release.
+# Remove once the rolling window advances past 2026-08-04.
+flit = "2026-08-05T00:00:00Z"
+flit-core = "2026-08-05T00:00:00Z"
+
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1719,6 +1727,14 @@ apache-airflow-task-sdk-integration-tests = false
 # `[tool.uv.exclude-newer-package]` above for rationale.
 # Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
+
+# Temporary: flit / flit-core 4.0.2 were published 2026-08-04, inside the "4 days"
+# exclude-newer window. `flit build` has no PEP 517 isolation, so the installed flit_core
+# is the backend that builds every provider distribution - it has to be resolvable for the
+# 4.x adoption to take effect. Pins the per-package cutoff just past that release.
+# Remove once the rolling window advances past 2026-08-04.
+flit = "2026-08-05T00:00:00Z"
+flit-core = "2026-08-05T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
