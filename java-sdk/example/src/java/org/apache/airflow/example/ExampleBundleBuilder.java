@@ -26,11 +26,13 @@ import org.jetbrains.annotations.NotNull;
 public class ExampleBundleBuilder implements BundleBuilder {
   @NotNull
   @Override
-  public Iterable<Dag> getDags() {
+  public Iterable<DagDef> getDags() {
     return List.of(
         InterfaceExampleBuilder.build(),
         AnnotationExampleBuilder.build(),
-        XComCastingExampleBuilder.build());
+        XComCastingExampleBuilder.build(),
+        org.apache.airflow.example.nativedag.AnnotationExampleBuilder.build(),
+        org.apache.airflow.example.nativedag.InterfaceExample.build());
   }
 
   public static void main(String[] args) {
