@@ -2560,7 +2560,7 @@ def get_or_create_dagrun(
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
-        start_date=start_date or logical_date,
+        start_date=start_date or timezone.utcnow(),
         session=session,
     )
     log.info("Created dag run.", dagrun=dr)
