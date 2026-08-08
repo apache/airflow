@@ -61,6 +61,14 @@ class GitDagBundle(BaseDagBundle):
         The sparse checkout will only produce the files and subfolders of the list of provided directories
         into the working tree. The "cone" mode is used, which means that effective and fast filtering can be made.
         See https://git-scm.com/docs/git-sparse-checkout for more information on the sparse checkout feature.
+    :param refresh_on_initialize: Whether ``initialize()`` fetches the latest commits from the remote
+        when the tracking repo already exists on disk. Defaults to True.
+
+        Set to False for components that share the bundle storage with a component that already keeps
+        it fresh - e.g. ephemeral worker pods mounting a volume that the dag processor refreshes - so
+        they skip the per-process network fetch on startup. The repository is still cloned when it is
+        not present on disk, and explicit ``refresh()`` calls still fetch. Only applies when the bundle
+        has no pinned version; version-pinned initialization is unaffected.
     """
 
     supports_versioning = True
@@ -75,10 +83,12 @@ class GitDagBundle(BaseDagBundle):
         submodules: bool = False,
         prune_dotgit_folder: bool = True,
         sparse_dirs: list[str] | None = None,
+        refresh_on_initialize: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
+        self.refresh_on_initialize = refresh_on_initialize
         self.subdir = subdir
         self.bare_repo_path = self.base_dir / "bare"
         if self.version:
@@ -193,6 +203,41 @@ class GitDagBundle(BaseDagBundle):
                         # HEAD hexsha rather than the raw self.version (which may be a
                         # tag or short SHA).
                         self.repo = repo
+                    return
+
+            if (
+                not self.version
+                and not self.refresh_on_initialize
+                and (self.repo_path / ".git").exists()
+                and self.bare_repo_path.exists()
+            ):
+                # The tracking repo is already on disk and the caller opted out of refreshing on
+                # initialize - reuse it as-is and skip all network operations. Fall through to the
+                # full initialization path if the on-disk repos turn out to be unusable. Both repo
+                # handles are still assigned so a later explicit refresh() works as usual.
+                try:
+                    repo = Repo(self.repo_path)
+                    try:
+                        repo.git.checkout(self.tracking_ref)
+                        bare_repo = Repo(self.bare_repo_path)
+                    except Exception:
+                        repo.close()
+                        raise
+                except Exception as e:
+                    # Reuse is best-effort: fall back to the full initialization path if the
+                    # on-disk repo is unusable for any reason - not only git-level errors but
+                    # also e.g. an OSError/PermissionError on the shared bundle storage.
+                    self._log.info(
+                        "Failed to reuse existing tracking repo, falling back to full initialization",
+                        repo_path=self.repo_path,
+                        exc=e,
+                    )
+                else:
+                    self._log.debug("Using existing tracking repo without refreshing from remote")
+                    self.repo = repo
+                    self.bare_repo = bare_repo
+                    self.repo.close()
+                    self.bare_repo.close()
                     return
 
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
