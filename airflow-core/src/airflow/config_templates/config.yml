@@ -1195,11 +1195,14 @@ metrics:
       default: "False"
     statsd_host:
       description: |
-        Specifies the host address where the StatsD daemon (or server) is running
+        Specifies the host address where the StatsD daemon (or server) is running. Left
+        unset by default so the DataDog client can fall back to its own environment
+        variables; the StatsD client defaults to ``localhost``. If ``statsd_socket_path`` is also
+        set, the socket takes precedence and a warning is logged.
       version_added: 2.0.0
       type: string
       example: ~
-      default: "localhost"
+      default: ~
     statsd_ipv6:
       description: |
         Enables the statsd host to be resolved into IPv6 address
@@ -1209,11 +1212,26 @@ metrics:
       default: "False"
     statsd_port:
       description: |
-        Specifies the port on which the StatsD daemon (or server) is listening to
+        Specifies the port on which the StatsD daemon (or server) is listening to. Left
+        unset by default so the DataDog client can fall back to its own environment
+        variables; the StatsD client defaults to ``8125``. If ``statsd_socket_path`` is also set,
+        the socket takes precedence and a warning is logged.
       version_added: 2.0.0
       type: integer
       example: ~
-      default: "8125"
+      default: ~
+    statsd_socket_path:
+      description: |
+        Path to a Unix Domain Socket used to submit metrics, instead of ``statsd_host``
+        and ``statsd_port``. Applies to both the StatsD and DataDog backends. Takes
+        precedence over ``statsd_host`` / ``statsd_port`` if both are set (a warning is
+        logged in that case). For the DataDog backend (``statsd_datadog_enabled = True``)
+        a plain path or a ``unix://`` / ``unixgram://`` / ``unixstream://`` URL is
+        accepted; for the StatsD backend a plain filesystem path is expected.
+      version_added: 3.4.0
+      type: string
+      example: "unix:///var/run/datadog/dsd.socket"
+      default: ~
     statsd_prefix:
       description: |
         Defines the namespace for all metrics sent from Airflow to StatsD

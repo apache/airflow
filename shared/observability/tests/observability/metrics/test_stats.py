@@ -71,6 +71,45 @@ class TestGetStatsdLogger:
         statsd_logger.get_statsd_logger(stats_class=mock_stats_client, ipv6=True)
         assert mock_stats_client.call_args.kwargs["ipv6"] is True
 
+    def test_socket_path_constructs_stats_class_with_socket_path(self):
+        # In socket mode the builder constructs the given stats_class with socket_path/prefix
+        # (host/port are omitted). The caller is responsible for passing a socket-capable class.
+        mock_stats_class = mock.MagicMock()
+        statsd_logger.get_statsd_logger(
+            stats_class=mock_stats_class,
+            socket_path="/var/run/datadog/dsd.socket",
+            prefix="airflow",
+        )
+        mock_stats_class.assert_called_once_with(socket_path="/var/run/datadog/dsd.socket", prefix="airflow")
+
+
+class TestResolveStatsdConnection:
+    def _conf(self, values):
+        conf = mock.MagicMock()
+        conf.has_option.side_effect = lambda s, k: k in values
+        conf.get.side_effect = lambda s, k, fallback=None: values.get(k, fallback)
+        conf.getint.side_effect = lambda s, k, fallback=None: int(values[k]) if k in values else fallback
+        return conf
+
+    def test_socket_path_only(self):
+        conf = self._conf({"statsd_socket_path": "/var/run/datadog/dsd.socket"})
+        assert statsd_logger.resolve_statsd_connection(conf) == (None, None, "/var/run/datadog/dsd.socket")
+
+    def test_nothing_set_returns_all_none(self):
+        # No defaults applied here — leaving everything None lets the DataDog client read env vars.
+        assert statsd_logger.resolve_statsd_connection(self._conf({})) == (None, None, None)
+
+    def test_explicit_host_port_passed_through(self):
+        conf = self._conf({"statsd_host": "myhost", "statsd_port": "9999"})
+        assert statsd_logger.resolve_statsd_connection(conf) == ("myhost", 9999, None)
+
+    def test_socket_path_with_host_warns_and_keeps_all(self, caplog):
+        conf = self._conf({"statsd_socket_path": "/var/run/datadog/dsd.socket", "statsd_host": "myhost"})
+        with caplog.at_level(logging.WARNING):
+            result = statsd_logger.resolve_statsd_connection(conf)
+        assert result == ("myhost", None, "/var/run/datadog/dsd.socket")
+        assert "takes precedence" in caplog.text
+
 
 class TestStats:
     def setup_method(self):
@@ -767,6 +806,18 @@ class TestCustomStatsName:
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
             mock_dogstatsd.return_value.assert_not_called()
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_dogstatsd_socket_path_passed_and_host_port_omitted(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            datadog_logger.get_dogstatsd_logger(
+                socket_path="unix:///var/run/datadog/dsd.socket",
+                namespace="airflow",
+            )
+            _, kwargs = mock_dogstatsd.call_args
+            assert kwargs["socket_path"] == "unix:///var/run/datadog/dsd.socket"
+            assert "host" not in kwargs
+            assert "port" not in kwargs
 
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self):
         with mock.patch("statsd.StatsClient") as mock_statsd:

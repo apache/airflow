@@ -31,10 +31,53 @@ from .validators import (
 )
 
 if TYPE_CHECKING:
-    from statsd import StatsClient
+    from configparser import ConfigParser
+
+    from statsd import StatsClient, UnixSocketStatsClient
 
     from .protocols import DeltaType
     from .validators import ListValidator
+
+# Fallbacks for the plain StatsD client, which (unlike datadog's DogStatsd) cannot resolve a
+# None host/port. The DataDog backend leaves these unset so the client reads its own env vars.
+DEFAULT_STATSD_HOST = "localhost"
+DEFAULT_STATSD_PORT = 8125
+
+
+def resolve_statsd_connection(conf: ConfigParser) -> tuple[str | None, int | None, str | None]:
+    """
+    Resolve the (host, port, socket_path) a StatsD/DataDog logger should use from config.
+
+    Only explicitly-configured values are returned; anything unset comes back as ``None``.
+    ``statsd_host`` / ``statsd_port`` are nullable config keys, so ``conf.has_option`` tells
+    an explicit value apart from "unset". Returning ``None`` for everything (when nothing is
+    configured) lets the DataDog client fall back to its own environment variables
+    (``DD_AGENT_HOST`` / ``DD_DOGSTATSD_URL`` / ``DD_DOGSTATSD_PORT``).
+
+    ``statsd_socket_path`` (a Unix Domain Socket) is not fatal to combine with ``statsd_host`` /
+    ``statsd_port`` — the socket takes precedence — but it is almost certainly a mistake, so a
+    warning is logged. No defaults are applied here; each backend applies its own if needed.
+    """
+    socket_path = conf.get("metrics", "statsd_socket_path", fallback=None)
+    host = (
+        conf.get("metrics", "statsd_host", fallback=None)
+        if conf.has_option("metrics", "statsd_host")
+        else None
+    )
+    port = (
+        conf.getint("metrics", "statsd_port", fallback=None)
+        if conf.has_option("metrics", "statsd_port")
+        else None
+    )
+
+    if socket_path and (host is not None or port is not None):
+        log.warning(
+            "[metrics] statsd_socket_path is set together with statsd_host / statsd_port; the socket "
+            "path takes precedence and the host/port are ignored."
+        )
+
+    return host, port, socket_path
+
 
 T = TypeVar("T", bound=Callable)
 
@@ -158,9 +201,10 @@ class SafeStatsdLogger:
 
 def get_statsd_logger(
     *,
-    stats_class: type[StatsClient],
+    stats_class: type[StatsClient] | type[UnixSocketStatsClient],
     host: str | None = None,
     port: int | None = None,
+    socket_path: str | None = None,
     prefix: str | None = None,
     ipv6: bool = False,
     influxdb_tags_enabled: bool = False,
@@ -171,12 +215,17 @@ def get_statsd_logger(
     statsd_influxdb_enabled: bool = False,
 ) -> SafeStatsdLogger:
     """Return logger for StatsD."""
-    statsd = stats_class(
-        host=host,
-        port=port,
-        prefix=prefix,
-        ipv6=ipv6,
-    )
+    if socket_path is not None:
+        # The socket path takes precedence; any host/port were already warned about upstream.
+        statsd = stats_class(socket_path=socket_path, prefix=prefix)
+    else:
+        # StatsClient cannot resolve a None host/port, so apply the usual defaults here.
+        statsd = stats_class(
+            host=host if host is not None else DEFAULT_STATSD_HOST,
+            port=port if port is not None else DEFAULT_STATSD_PORT,
+            prefix=prefix,
+            ipv6=ipv6,
+        )
 
     metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
     validator = get_validator(metrics_allow_list, metrics_block_list)

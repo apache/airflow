@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from airflow._shared.configuration import AirflowConfigException
 from airflow._shared.observability.metrics import statsd_logger
+from airflow._shared.observability.metrics.statsd_logger import resolve_statsd_connection
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
@@ -30,27 +31,30 @@ log = logging.getLogger(__name__)
 
 
 def get_statsd_logger() -> SafeStatsdLogger:
+    host, port, socket_path = resolve_statsd_connection(conf)
+
     stats_class = conf.getimport("metrics", "statsd_custom_client_path", fallback=None)
 
     # no need to check for the scheduler/statsd_on -> this method is only called when it is set
     # and previously it would crash with None is callable if it was called without it.
-    from statsd import StatsClient
+    from statsd import StatsClient, UnixSocketStatsClient
 
     if stats_class:
-        if not issubclass(stats_class, StatsClient):
+        if not (issubclass(stats_class, StatsClient) or issubclass(stats_class, UnixSocketStatsClient)):
             raise AirflowConfigException(
-                "Your custom StatsD client must extend the statsd.StatsClient in order to ensure "
-                "backwards compatibility."
+                "Your custom StatsD client must extend the statsd.StatsClient or "
+                "statsd.UnixSocketStatsClient in order to ensure backwards compatibility."
             )
         log.info("Successfully loaded custom StatsD client")
 
     else:
-        stats_class = StatsClient
+        stats_class = StatsClient if socket_path is None else UnixSocketStatsClient
 
     return statsd_logger.get_statsd_logger(
         stats_class=stats_class,
-        host=conf.get("metrics", "statsd_host"),
-        port=conf.getint("metrics", "statsd_port"),
+        host=host,
+        port=port,
+        socket_path=socket_path,
         prefix=conf.get("metrics", "statsd_prefix"),
         ipv6=conf.getboolean("metrics", "statsd_ipv6", fallback=False),
         influxdb_tags_enabled=conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False),

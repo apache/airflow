@@ -51,8 +51,8 @@ class TestStats:
                 factory=stats_utils.get_stats_factory(), export_legacy_names=True
             )
             error_message = re.escape(
-                "Your custom StatsD client must extend the statsd."
-                "StatsClient in order to ensure backwards compatibility."
+                "Your custom StatsD client must extend the statsd.StatsClient or "
+                "statsd.UnixSocketStatsClient in order to ensure backwards compatibility."
             )
             # we assert for Exception here instead of AirflowConfigException to not import from shared configuration
             with pytest.raises(Exception, match=error_message):

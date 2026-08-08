@@ -148,6 +148,7 @@ def get_dogstatsd_logger(
     tags_in_string: str | None = None,
     host: str | None = None,
     port: int | None = None,
+    socket_path: str | None = None,
     namespace: str | None = None,
     datadog_metrics_tags: bool = True,
     statsd_disabled_tags: str | None = None,
@@ -166,6 +167,8 @@ def get_dogstatsd_logger(
         dogstatsd_kwargs["host"] = host
     if port is not None:
         dogstatsd_kwargs["port"] = port
+    if socket_path is not None:
+        dogstatsd_kwargs["socket_path"] = socket_path
     if namespace is not None:
         dogstatsd_kwargs["namespace"] = namespace
     dogstatsd = DogStatsd(**dogstatsd_kwargs)
