@@ -234,6 +234,13 @@ metrics:
     legacy_name: "dag.serialization_writes.{dag_id}.{bundle_name}"
     name_variables: ["dag_id", "bundle_name"]
 
+  - name: "dag.auto_paused"
+    description: "Number of Dags automatically paused due to consecutive failures exceeding
+      the configured threshold. Metric with dag_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "celery.task_timeout_error"
     description: "Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker."
     type: "counter"
