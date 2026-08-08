@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 
-from pydantic import Field, JsonValue, model_validator
+from pydantic import Field, JsonValue, field_validator, model_validator
 
 from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
@@ -60,6 +60,13 @@ class VariableBody(StrictBaseModel):
     value: JsonValue = Field(serialization_alias="val")
     description: str | None = Field(default=None)
     team_name: str | None = Field(max_length=50, default=None)
+
+    @field_validator("value")
+    @classmethod
+    def serialize_non_string_value(cls, value: JsonValue) -> JsonValue:
+        if isinstance(value, str):
+            return value
+        return json.dumps(value, indent=2)
 
     @model_validator(mode="after")
     def validate_team_name(self) -> VariableBody:
