@@ -41,6 +41,8 @@ from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import conf_vars
+
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
 
@@ -454,8 +456,6 @@ class TestDag:
         """
         from airflow.sdk.definitions.timetables.interval import DeltaDataIntervalTimetable
         from airflow.sdk.definitions.timetables.trigger import DeltaTriggerTimetable
-
-        from tests_common.test_utils.config import conf_vars
 
         # Both False (the shipped airflow.cfg default): timedelta schedules use the trigger-based timetable.
         with conf_vars(
