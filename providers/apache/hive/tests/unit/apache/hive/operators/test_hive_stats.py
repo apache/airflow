@@ -23,7 +23,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
+from airflow.providers.apache.hive.operators.hive_stats import (
+    HiveStatsCollectionOperator,
+    _quote_presto_identifier,
+)
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.presto.hooks.presto import PrestoHook
 
@@ -58,6 +61,31 @@ class MockPrestoHook(PrestoHook):
 
     def get_connection(self, *args):
         return self.conn
+
+
+@pytest.mark.parametrize(
+    ("identifier", "expected"),
+    [
+        # Plain word identifiers are emitted unchanged.
+        ("plain_col", "plain_col"),
+        ("_underscore", "_underscore"),
+        # Anything that is not a plain word identifier is double-quoted, with any
+        # embedded quote doubled so an injection payload stays a single inert name.
+        ("weird-col", '"weird-col"'),
+        ("evil col", '"evil col"'),
+        ('a"b', '"a""b"'),
+        # An identifier the caller already double-quoted correctly is passed through
+        # untouched rather than re-escaped into '"""weird-col"""'.
+        ('"weird-col"', '"weird-col"'),
+        ('"test-123-quoted"', '"test-123-quoted"'),
+        ('"a""b"', '"a""b"'),
+        # A malformed pre-quoted identifier (unbalanced / lone inner quote) is not a
+        # valid quoted identifier, so it is escaped as a literal name instead.
+        ('"a"b"', '"""a""b"""'),
+    ],
+)
+def test_quote_presto_identifier(identifier, expected):
+    assert _quote_presto_identifier(identifier) == expected
 
 
 class TestHiveStatsCollectionOperator(TestHiveEnvironment):
@@ -131,6 +159,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
     def test_execute(self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, mock_json_dumps):
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
 
         hive_stats_collection_operator = HiveStatsCollectionOperator(**self.kwargs)
         hive_stats_collection_operator.execute(context={})
@@ -187,6 +216,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         self.kwargs.update(dict(assignment_func=assignment_func))
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
 
         hive_stats_collection_operator = HiveStatsCollectionOperator(**self.kwargs)
         hive_stats_collection_operator.execute(context={})
@@ -234,6 +264,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         self.kwargs.update(dict(assignment_func=assignment_func))
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
 
         hive_stats_collection_operator = HiveStatsCollectionOperator(**self.kwargs)
         hive_stats_collection_operator.execute(context={})
@@ -275,6 +306,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
         mock_presto_hook.return_value.get_first.return_value = None
+        mock_presto_hook.return_value.placeholder = "?"
 
         with pytest.raises(AirflowException):
             HiveStatsCollectionOperator(**self.kwargs).execute(context={})
@@ -288,18 +320,173 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
     ):
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = True
+        mock_presto_hook.return_value.placeholder = "?"
 
         hive_stats_collection_operator = HiveStatsCollectionOperator(**self.kwargs)
         hive_stats_collection_operator.execute(context={})
 
-        sql = f"""
+        expected_sql = """
             DELETE FROM hive_stats
             WHERE
-                table_name='{hive_stats_collection_operator.table}' AND
-                partition_repr='{mock_json_dumps.return_value}' AND
-                dttm='{hive_stats_collection_operator.dttm}';
+                table_name = %s AND
+                partition_repr = %s AND
+                dttm = %s;
             """
-        mock_mysql_hook.return_value.run.assert_called_once_with(sql)
+        mock_mysql_hook.return_value.run.assert_called_once_with(
+            expected_sql,
+            parameters=(
+                hive_stats_collection_operator.table,
+                mock_json_dumps.return_value,
+                hive_stats_collection_operator.dttm,
+            ),
+        )
+
+    @pytest.mark.parametrize(
+        ("table", "expected_from"),
+        [
+            # Plain identifiers (including a qualified <db>.<table>) are emitted
+            # unquoted exactly as before, so existing Dags are unaffected.
+            ("plain_table", "FROM plain_table"),
+            ("db.tbl", "FROM db.tbl"),
+            # Identifiers with other characters are double-quoted; a qualified
+            # name is quoted per dotted component.
+            ("weird-table", 'FROM "weird-table"'),
+            ("my-db.my-tbl", 'FROM "my-db"."my-tbl"'),
+            # An embedded double quote is doubled, so an injection payload is
+            # contained as a single inert identifier instead of breaking out of
+            # the FROM clause (and is no longer rejected outright).
+            ('evil"; DROP TABLE users--', 'FROM "evil""; DROP TABLE users--"'),
+        ],
+    )
+    @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
+    def test_execute_quotes_table_identifier(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, table, expected_from
+    ):
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
+        mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
+
+        self.kwargs["table"] = table
+        HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+
+        presto_sql = mock_presto_hook.return_value.get_first.call_args.args[0]
+        assert expected_from in presto_sql
+
+    @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
+    def test_execute_quotes_partition_column(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook
+    ):
+        # A partition key that is not a plain identifier (here it contains a
+        # space) is double-quoted in the WHERE clause while its value is still
+        # bound as a parameter, so special-character columns keep working
+        # without relying on the caller to escape them.
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
+        mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
+
+        self.kwargs["partition"] = {"evil col": "value"}
+        HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+
+        presto_call = mock_presto_hook.return_value.get_first.call_args
+        assert '"evil col" = ?' in presto_call.args[0]
+        assert presto_call.kwargs["parameters"] == ("value",)
+
+    @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
+    def test_execute_quotes_special_char_projection_column(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook
+    ):
+        # A metastore column whose name is not a plain identifier (here it contains
+        # a hyphen) is double-quoted everywhere it is interpolated into the Presto
+        # SELECT -- both in the stat expressions and in their aliases -- so the
+        # projection no longer emits invalid SQL like COUNT(weird-col). The bare
+        # column name is still what gets stored in hive_stats.col; the quoting must
+        # not leak into the inserted data (the dict key stays unquoted).
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [
+            _FakeCol("weird-col", "string")
+        ]
+        mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
+        # A string column yields three default exprs (non_null, len, approx_distinct)
+        # plus the COUNT(*) entry; supply matching positional results so the pivot
+        # that builds the inserted rows is exercised rather than zipping to empty.
+        mock_presto_hook.return_value.get_first.return_value = [1, 2, 3, 4]
+
+        HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+
+        presto_sql = mock_presto_hook.return_value.get_first.call_args.args[0]
+        assert 'COUNT("weird-col")' in presto_sql
+        assert 'AS "weird-col__non_null"' in presto_sql
+        assert "COUNT(weird-col)" not in presto_sql
+
+        inserted_rows = mock_mysql_hook.return_value.insert_rows.call_args.kwargs["rows"]
+        col_values = {row[4] for row in inserted_rows}
+        assert "weird-col" in col_values  # the bare column name is stored, ...
+        assert '"weird-col"' not in col_values  # ... the SQL quoting did not leak into the data
+
+    @patch("airflow.providers.apache.hive.operators.hive_stats.json.dumps")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
+    def test_execute_parameterizes_mysql_bookkeeping_queries(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, mock_json_dumps
+    ):
+        # The bookkeeping SELECT and DELETE against hive_stats bind table,
+        # partition_repr, and dttm as %s parameters instead of interpolating
+        # them into the SQL body, so the operator does not rely on the
+        # caller to escape those values. We use distinctive values for table
+        # and dttm so the absence-from-SQL assertion is not satisfied by
+        # accidental substrings of keywords like "table_name".
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
+        mock_mysql_hook.return_value.get_records.return_value = True
+        mock_presto_hook.return_value.placeholder = "?"
+
+        self.kwargs["table"] = "audit_db.audit_stats_table"
+        self.kwargs["dttm"] = "audit-dttm-marker-2099"
+        op = HiveStatsCollectionOperator(**self.kwargs)
+        op.execute(context={})
+
+        select_call = mock_mysql_hook.return_value.get_records.call_args
+        delete_call = mock_mysql_hook.return_value.run.call_args
+
+        select_sql = select_call.args[0]
+        delete_sql = delete_call.args[0]
+        assert "%s" in select_sql
+        assert "%s" in delete_sql
+        assert "audit_db.audit_stats_table" not in select_sql
+        assert "audit_db.audit_stats_table" not in delete_sql
+        assert "audit-dttm-marker-2099" not in select_sql
+        assert "audit-dttm-marker-2099" not in delete_sql
+
+        expected_params = (op.table, mock_json_dumps.return_value, op.dttm)
+        assert select_call.kwargs["parameters"] == expected_params
+        assert delete_call.kwargs["parameters"] == expected_params
+
+    @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
+    @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
+    def test_execute_parameterizes_presto_partition_values(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook
+    ):
+        # Partition values cannot influence the Presto SQL body — they are
+        # passed as bound parameters alongside the SELECT. PrestoHook uses
+        # `?` as its driver placeholder (not the default `%s`).
+        mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
+        mock_mysql_hook.return_value.get_records.return_value = False
+        mock_presto_hook.return_value.placeholder = "?"
+
+        self.kwargs["partition"] = {"col": "value"}
+        HiveStatsCollectionOperator(**self.kwargs).execute(context={})
+
+        presto_call = mock_presto_hook.return_value.get_first.call_args
+        assert "col = ?" in presto_call.args[0]
+        assert "'value'" not in presto_call.args[0]
+        assert presto_call.kwargs["parameters"] == ("value",)
 
     @pytest.mark.skipif(
         "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
@@ -326,23 +513,27 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         select_count_query = (
-            "SELECT COUNT(*) AS __count FROM airflow.static_babynames_partitioned WHERE ds = '2015-01-01';"
+            "SELECT COUNT(*) AS __count FROM airflow.static_babynames_partitioned WHERE ds = ?;"
         )
-        mock_presto_hook.get_first.assert_called_with(hql=select_count_query)
+        presto_call = mock_presto_hook.get_first.call_args
+        actual_presto_query = re.sub(r"\s{2,}", " ", presto_call.args[0]).strip()
+        assert actual_presto_query == select_count_query
+        assert presto_call.kwargs["parameters"] == ("2015-01-01",)
 
         expected_stats_select_query = (
-            "SELECT 1 "
-            "FROM hive_stats "
-            "WHERE table_name='airflow.static_babynames_partitioned' "
-            '  AND partition_repr=\'{"ds": "2015-01-01"}\' '
-            "  AND dttm='2015-01-01T00:00:00+00:00' "
-            "LIMIT 1;"
+            "SELECT 1 FROM hive_stats WHERE table_name = %s AND partition_repr = %s AND dttm = %s LIMIT 1;"
         )
 
-        raw_stats_select_query = mock_mysql_hook.get_records.call_args_list[0][0][0]
+        stats_select_call = mock_mysql_hook.get_records.call_args_list[0]
+        raw_stats_select_query = stats_select_call[0][0]
         actual_stats_select_query = re.sub(r"\s{2,}", " ", raw_stats_select_query).strip()
 
         assert expected_stats_select_query == actual_stats_select_query
+        assert stats_select_call.kwargs["parameters"] == (
+            "airflow.static_babynames_partitioned",
+            '{"ds": "2015-01-01"}',
+            "2015-01-01T00:00:00+00:00",
+        )
 
         insert_rows_val = [
             (
