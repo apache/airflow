@@ -1171,76 +1171,114 @@ class TestKubernetesJobOperator:
         else:
             mocked_fetch_logs.assert_not_called()
 
-    @pytest.mark.parametrize("retries", [3, 0])
     @pytest.mark.parametrize("parallelism", [1, 2])
+    @patch(JOB_OPERATORS_PATH.format("time.sleep"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.log_matching_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._build_find_pod_label_selector"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"), new_callable=mock.PropertyMock)
-    def test_get_pods(
-        self, mock_client, mock_build_find_pod_label_selector, mock_log_matching_pod, parallelism, retries
+    def test_get_pods_waits_until_ready(
+        self,
+        mock_client,
+        mock_build_find_pod_label_selector,
+        mock_log_matching_pod,
+        mock_sleep,
+        parallelism,
     ):
         mock_context = mock.MagicMock()
-        mock_build_find_pod_label_selector.return_value = {
-            "dag_id": "fakedag",
-            "task_id": "faketask",
-            "run_id": "fakerun",
-            "kubernetes_pod_operator": "True",
-        }
+        mock_build_find_pod_label_selector.return_value = "dag_id=fakedag,task_id=faketask"
         mock_pod_1 = mock.MagicMock()
         return_value = [mock_pod_1]
         if parallelism == 2:
-            mock_pod_2 = mock.MagicMock()
-            return_value.append(mock_pod_2)
-        side_effects = []
-        for _i in range(retries):
-            side_effects.append(k8s.V1PodList(items=[]))
+            return_value.append(mock.MagicMock())
+        empty_lists = 2
+        side_effects = [k8s.V1PodList(items=[]) for _ in range(empty_lists)]
         side_effects.append(k8s.V1PodList(items=return_value))
         mock_client.return_value.list_namespaced_pod.side_effect = side_effects
 
         op = KubernetesJobOperator(
-            task_id="faketask", parallelism=parallelism, discover_pods_retry_number=retries
+            task_id="faketask",
+            parallelism=parallelism,
+            startup_check_interval_seconds=5,
+            schedule_timeout_seconds=120,
         )
 
         result = op.get_pods(mock.MagicMock(), mock_context)
 
         assert result == return_value
-
+        assert mock_sleep.call_count == empty_lists
+        mock_sleep.assert_called_with(5)
         for pod in return_value:
             mock_log_matching_pod.assert_any_call(pod=pod, context=mock_context)
 
-    @pytest.mark.parametrize("successful_try", [3, 1, 0])
+    @patch(JOB_OPERATORS_PATH.format("time.sleep"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.log_matching_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._build_find_pod_label_selector"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"), new_callable=mock.PropertyMock)
-    def test_get_pods_retry(
-        self, mock_client, mock_build_find_pod_label_selector, mock_log_matching_pod, successful_try
+    def test_get_pods_immediate_success_does_not_sleep(
+        self, mock_client, mock_build_find_pod_label_selector, mock_log_matching_pod, mock_sleep
     ):
-        retries = 3
         mock_context = mock.MagicMock()
-        mock_build_find_pod_label_selector.return_value = {
-            "dag_id": "fakedag",
-            "task_id": "faketask",
-            "run_id": "fakerun",
-            "kubernetes_pod_operator": "True",
-        }
+        mock_build_find_pod_label_selector.return_value = "dag_id=fakedag"
+        mock_pod = mock.MagicMock()
+        mock_client.return_value.list_namespaced_pod.return_value = k8s.V1PodList(items=[mock_pod])
 
-        mock_pod_1 = mock.MagicMock()
-        return_value = [mock_pod_1]
-
-        side_effects = []
-        for i in range(retries + 1):
-            items = []
-            if i == successful_try:
-                items.append(mock_pod_1)
-            side_effects.append(k8s.V1PodList(items=items))
-        mock_client.return_value.list_namespaced_pod.side_effect = side_effects
-
-        op = KubernetesJobOperator(task_id="faketask", parallelism=1, discover_pods_retry_number=retries)
+        op = KubernetesJobOperator(task_id="faketask", parallelism=1, startup_check_interval_seconds=5)
 
         result = op.get_pods(mock.MagicMock(), mock_context)
 
-        assert result == return_value
-        assert mock_client.return_value.list_namespaced_pod.call_count == successful_try + 1
+        assert result == [mock_pod]
+        mock_sleep.assert_not_called()
+        mock_log_matching_pod.assert_called_once_with(pod=mock_pod, context=mock_context)
+
+    @patch(JOB_OPERATORS_PATH.format("time.sleep"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.log_matching_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._build_find_pod_label_selector"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"), new_callable=mock.PropertyMock)
+    def test_get_pods_accepts_more_pods_than_parallelism(
+        self, mock_client, mock_build_find_pod_label_selector, mock_log_matching_pod, mock_sleep
+    ):
+        mock_context = mock.MagicMock()
+        mock_build_find_pod_label_selector.return_value = "dag_id=fakedag"
+        pods = [mock.MagicMock(), mock.MagicMock(), mock.MagicMock()]
+        mock_client.return_value.list_namespaced_pod.return_value = k8s.V1PodList(items=pods)
+
+        op = KubernetesJobOperator(task_id="faketask", parallelism=2)
+
+        result = op.get_pods(mock.MagicMock(), mock_context)
+
+        assert result == pods
+        mock_sleep.assert_not_called()
+
+    @patch(JOB_OPERATORS_PATH.format("time.monotonic"))
+    @patch(JOB_OPERATORS_PATH.format("time.sleep"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._build_find_pod_label_selector"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"), new_callable=mock.PropertyMock)
+    def test_get_pods_timeout_raises(
+        self, mock_client, mock_build_find_pod_label_selector, mock_sleep, mock_monotonic
+    ):
+        mock_context = mock.MagicMock()
+        label_selector = "dag_id=fakedag,task_id=faketask"
+        mock_build_find_pod_label_selector.return_value = label_selector
+        mock_client.return_value.list_namespaced_pod.return_value = k8s.V1PodList(items=[])
+        # First call sets deadline = 0 + 10; subsequent calls show time past deadline.
+        mock_monotonic.side_effect = [0.0, 10.0]
+
+        op = KubernetesJobOperator(
+            task_id="faketask",
+            parallelism=1,
+            schedule_timeout_seconds=10,
+            startup_check_interval_seconds=5,
+        )
+
+        with pytest.raises(AirflowException, match=re.escape(f"No pods found with labels {label_selector}")):
+            op.get_pods(mock.MagicMock(), mock_context)
+
+        mock_sleep.assert_not_called()
+        assert mock_client.return_value.list_namespaced_pod.call_count == 1
+
+    def test_discover_pods_retry_number_deprecated(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="discover_pods_retry_number"):
+            KubernetesJobOperator(task_id="faketask", discover_pods_retry_number=5)
 
     @pytest.mark.non_db_test_override
     @pytest.mark.parametrize(
