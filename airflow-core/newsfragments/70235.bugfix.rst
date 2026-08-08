@@ -1,0 +1,1 @@
+Fixed ``airflow db migrate`` failing with ``pymysql.err.ProgrammingError`` when migrating to Airflow 2.9.2 using the PyMySQL driver
