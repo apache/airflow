@@ -638,6 +638,17 @@ database:
       type: string
       example: ~
       default: ~
+    sql_engine_collation_for_asset_names:
+      description: |
+        Collation for the ``name``, ``uri`` and ``group`` columns of the asset tables on
+        ``mysql`` and ``mariadb``. These columns hold ASCII values and are indexed at 1500
+        characters, so a single-byte charset is used to stay within the maximum index size.
+        Override this if your database engine does not provide ``latin1_general_cs`` --
+        for example TiDB, which supports ``latin1_bin`` instead.
+      version_added: 3.4.0
+      type: string
+      example: "latin1_bin"
+      default: "latin1_general_cs"
     sql_alchemy_pool_enabled:
       description: |
         If SQLAlchemy should pool database connections.
