@@ -41,13 +41,14 @@ func NewClient() Client {
 	return &client{}
 }
 
-func variableFromEnv(key string) (string, bool) {
+// VariableFromEnv returns the AIRFLOW_VAR_<UPPER(key)> value and whether it is set.
+func VariableFromEnv(key string) (string, bool) {
 	return os.LookupEnv(VariableEnvPrefix + strings.ToUpper(key))
 }
 
 func (*client) GetVariable(ctx context.Context, key string) (string, error) {
 	// TODO: Let the lookup priority be configurable like it is in Python SDK
-	if env, ok := variableFromEnv(key); ok {
+	if env, ok := VariableFromEnv(key); ok {
 		return env, nil
 	}
 
