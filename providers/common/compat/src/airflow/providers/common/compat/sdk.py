@@ -83,9 +83,13 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
     from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
     from airflow.sdk.configuration import conf as conf
-    from airflow.sdk.definitions.context import context_merge as context_merge
+    from airflow.sdk.definitions.context import (
+        KNOWN_CONTEXT_KEYS as KNOWN_CONTEXT_KEYS,
+        context_merge as context_merge,
+    )
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
+    from airflow.sdk.definitions.xcom_arg import PlainXComArg as PlainXComArg
     from airflow.sdk.exceptions import (
         AirflowConfigException as AirflowConfigException,
         AirflowException as AirflowException,
@@ -192,6 +196,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "DAG": ("airflow.sdk", "airflow.models.dag"),
     "Param": ("airflow.sdk", "airflow.models.param"),
     "XComArg": ("airflow.sdk", "airflow.models.xcom_arg"),
+    "PlainXComArg": ("airflow.sdk.definitions.xcom_arg", "airflow.models.xcom_arg"),
     "DecoratedOperator": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
     "DecoratedMappedOperator": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
     "MappedOperator": ("airflow.sdk.definitions.mappedoperator", "airflow.models.mappedoperator"),
@@ -246,6 +251,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "Context": ("airflow.sdk", "airflow.utils.context"),
     "context_merge": ("airflow.sdk.definitions.context", "airflow.utils.context"),
+    "KNOWN_CONTEXT_KEYS": ("airflow.sdk.definitions.context", "airflow.utils.context"),
     "context_to_airflow_vars": ("airflow.sdk.execution_time.context", "airflow.utils.operator_helpers"),
     "AIRFLOW_VAR_NAME_FORMAT_MAPPING": (
         "airflow.sdk.execution_time.context",

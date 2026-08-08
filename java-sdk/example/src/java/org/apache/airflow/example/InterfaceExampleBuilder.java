@@ -71,11 +71,10 @@ public class InterfaceExampleBuilder {
     }
   }
 
-  public static Dag build() {
-    var dag = new Dag("java_interface_example");
-    dag.addTask("extract", Extract.class);
-    dag.addTask("transform", Transform.class);
-    dag.addTask("load", Load.class);
-    return dag;
+  public static DagDef build() {
+    return new DagDef("java_interface_example")
+        .addTask(new TaskDef("extract", Extract.class))
+        .addTask(new TaskDef("transform", Transform.class))
+        .addTask(new TaskDef("load", Load.class));
   }
 }
