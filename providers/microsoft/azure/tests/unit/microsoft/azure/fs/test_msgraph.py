@@ -64,6 +64,7 @@ class TestMSGraphFS:
                 "client_id": "test_client_id",
                 "client_secret": "test_client_secret",
                 "tenant_id": "test_tenant_id",
+                "scope": "https://graph.microsoft.com/.default",
                 "token_endpoint": "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
             },
         )
@@ -151,6 +152,36 @@ class TestMSGraphFS:
             drive_id="storage_drive_id", oauth2_client_params=expected_oauth2_params
         )
         assert result == mock_fs_instance
+
+    @pytest.mark.parametrize(
+        ("extra", "expected_scope"),
+        [
+            pytest.param({"scope": "explicit.scope"}, "explicit.scope", id="explicit-scope-wins"),
+            pytest.param({"scopes": "form.scope"}, "form.scope", id="falls-back-to-scopes-form-field"),
+            pytest.param(
+                {"scopes": "User.Read,Files.Read"},
+                "User.Read Files.Read",
+                id="rewrites-comma-separated-scopes-to-space-delimited",
+            ),
+            pytest.param({}, "https://graph.microsoft.com/.default", id="defaults-to-graph-scope"),
+        ],
+    )
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection")
+    @patch("msgraphfs.MSGDriveFS")
+    def test_get_fs_resolves_scope(self, mock_msgdrivefs, mock_get_connection, extra, expected_scope):
+        mock_get_connection.return_value = Connection(
+            conn_id="msgraph_scope",
+            conn_type="msgraph",
+            login="test_client_id",
+            password="test_client_secret",
+            host="test_tenant_id",
+            extra=extra,
+        )
+        mock_msgdrivefs.return_value = MagicMock()
+
+        get_fs("msgraph_scope")
+
+        assert mock_msgdrivefs.call_args[1]["oauth2_client_params"]["scope"] == expected_scope
 
     @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection")
     @patch("msgraphfs.MSGDriveFS")
