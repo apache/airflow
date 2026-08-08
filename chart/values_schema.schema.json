@@ -1,86 +1,82 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "description": "This schema is used to validate `values.schema.json` to ensure each parameter has `default` and `description` set, and that top level properties have a `x-docsSection` set.",
-    "definitions": {
-        "leafs": {
-            "additionalProperties": {
-                "if": {
-                    "not": {
-                        "properties": {
-                            "description": {
-                                "pattern": "^Labels for the configmap$|^Labels for the secret$|^Annotations for the configmap$|^Annotations for the secret$"
-                            }
-                        }
-                    }
-                },
-                "then": {
+    "description": "This schema is used to validate `values.schema.json` file.",
+    "$defs": {
+        "commonRequired": {
+            "required": []
+        },
+        "leaf": {
+            "properties": {
+                "properties": {
                     "additionalProperties": {
-                        "$ref": "#/definitions/leafs"
+                        "if": {
+                            "oneOf": [
+                                {
+                                    "properties": {
+                                        "type": {
+                                            "const": "integer"
+                                        }
+                                    }
+                                },
+                                {
+                                    "properties": {
+                                        "type": {
+                                            "const": "number"
+                                        }
+                                    }
+                                },
+                                {
+                                    "properties": {
+                                        "type": {
+                                            "const": "string"
+                                        }
+                                    }
+                                },
+                                {
+                                    "properties": {
+                                        "type": {
+                                            "const": "boolean"
+                                        }
+                                    }
+                                },
+                                {
+                                    "properties": {
+                                        "type": {
+                                            "const": "object"
+                                        },
+                                        "properties": false
+                                    }
+                                },
+                                {
+                                    "properties": {
+                                        "type": {
+                                            "const": "array"
+                                        },
+                                        "items": false
+                                    }
+                                }
+                            ]
+                        },
+                        "then": {
+                            "$ref": "#/$defs/commonRequired"
+                        },
+                        "else": {
+                            "$ref": "#/$defs/leaf"
+                        }
                     }
                 }
-            },
-            "if": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "integer"
-                            }
-                        }
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "number"
-                            }
-                        }
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "string"
-                            }
-                        }
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "boolean"
-                            }
-                        }
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "object"
-                            },
-                            "properties": false
-                        }
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "array"
-                            },
-                            "items": false
-                        }
-                    }
-                ]
-            },
-            "then": {
-                "required": [
-                    "description",
-                    "default"
-                ]
             }
         }
     },
     "required": [
-        "x-docsSectionOrder"
+        "description",
+        "type",
+        "x-docsSectionOrder",
+        "properties"
     ],
     "properties": {
-        "section_order": {
+        "x-docsSectionOrder": {
             "type": "array",
             "items": {
                 "type": "string"
@@ -90,7 +86,10 @@
             "additionalProperties": {
                 "allOf": [
                     {
-                        "$ref": "#/definitions/leafs"
+                        "$ref": "#/$defs/leaf"
+                    },
+                    {
+                        "$ref": "#/$defs/commonRequired"
                     },
                     {
                         "required": [
