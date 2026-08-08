@@ -712,7 +712,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
-        # TODO: remove one day
         if cluster_config is None and virtual_cluster_config is None:
             warnings.warn(
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
@@ -732,6 +731,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                     "project_id argument is required when building cluster from keywords parameters"
                 )
             kwargs["project_id"] = project_id
+
             cluster_config = ClusterGenerator(**kwargs).make()
 
             # Remove from kwargs cluster params passed for backward compatibility
