@@ -418,7 +418,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
+        :ref:`howto/operator:CloudFunctionInvokeFunctionOperator`
 
     :param function_id: ID of the function to be called
     :param input_data: Input to be passed to the function
