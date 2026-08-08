@@ -123,6 +123,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
+    create_savepoint,
     get_dialect_name,
     is_lock_not_available_error,
     prohibit_commit,
@@ -2583,39 +2584,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            new_active_runs = active_runs_of_dags[dag_model.dag_id] + 1
             try:
-                next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
-                if TYPE_CHECKING:
-                    assert next_info is not None
-                data_interval = next_info.data_interval
-                logical_date = next_info.logical_date
-                partition_key = next_info.partition_key
-                run_after = next_info.run_after
-                created_run = serdag.create_dagrun(
-                    run_id=serdag.timetable.generate_run_id(
-                        run_type=DagRunType.SCHEDULED,
-                        run_after=run_after,
+                with create_savepoint(session):
+                    next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                    if TYPE_CHECKING:
+                        assert next_info is not None
+                    data_interval = next_info.data_interval
+                    logical_date = next_info.logical_date
+                    partition_key = next_info.partition_key
+                    run_after = next_info.run_after
+                    created_run = serdag.create_dagrun(
+                        run_id=serdag.timetable.generate_run_id(
+                            run_type=DagRunType.SCHEDULED,
+                            run_after=run_after,
+                            data_interval=data_interval,
+                            partition_key=partition_key,
+                        ),
+                        logical_date=logical_date,
                         data_interval=data_interval,
+                        run_after=run_after,
+                        run_type=DagRunType.SCHEDULED,
+                        triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
                         partition_key=partition_key,
-                    ),
-                    logical_date=logical_date,
-                    data_interval=data_interval,
-                    run_after=run_after,
-                    run_type=DagRunType.SCHEDULED,
-                    triggered_by=DagRunTriggeredByType.TIMETABLE,
-                    state=DagRunState.QUEUED,
-                    creating_job_id=self.job.id,
-                    session=session,
-                    partition_key=partition_key,
-                    partition_date=next_info.partition_date,
-                )
-                active_runs_of_dags[dag_model.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
-                self._set_exceeds_max_active_runs(
-                    dag_model=dag_model,
-                    session=session,
-                    active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
-                )
+                        partition_date=next_info.partition_date,
+                    )
+                    dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
+                    self._set_exceeds_max_active_runs(
+                        dag_model=dag_model,
+                        session=session,
+                        active_non_backfill_runs=new_active_runs,
+                    )
+                active_runs_of_dags[dag_model.dag_id] = new_active_runs
 
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
@@ -2623,10 +2626,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # and continue to the next serdag.
             except Exception:
                 self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
-                # todo: if you get a database error here, continuing does not work because
-                #  session needs rollback. you need either to make smaller transactions and
-                #  commit after every dag run or use savepoints.
-                #  https://github.com/apache/airflow/issues/59120
 
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
