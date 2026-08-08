@@ -114,7 +114,6 @@ providers/amazon/src/airflow/providers/amazon/aws/sensors/sagemaker.py::8
 providers/amazon/src/airflow/providers/amazon/aws/sensors/sagemaker_unified_studio.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/sqs.py::2
 providers/amazon/src/airflow/providers/amazon/aws/sensors/step_function.py::1
-providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::1
 providers/amazon/src/airflow/providers/amazon/aws/transfers/redshift_to_s3.py::1
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_dynamodb.py::3
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::3
