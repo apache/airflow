@@ -51,7 +51,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm import defer, joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -806,6 +806,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # (the PK is auto-included) so we read two columns rather than the full row.
                 .options(
                     joinedload(TI.dag_run)
+                    # Defer conf: when a dag_run has a large run config (512KB–2MB), the
+                    # joinedload embeds the full conf column in every result row.  For 500+
+                    # mapped task instances sharing one dag_run this puts ~1 GiB of
+                    # redundant conf data into the result set, causing a 5–6× scheduler
+                    # memory spike.  The scheduler never reads conf in the critical
+                    # section, so deferring it eliminates the bloat.  References #71267.
+                    .defer(DagRun.conf)
                     .selectinload(DagRun.created_dag_version)
                     .load_only(DagVersion.version_data)
                 )
@@ -1842,7 +1849,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._remove_unreferenced_triggers,
-            non_fatal=True,
         )
 
         if any(x.is_local for x in self.executors):
@@ -1860,7 +1866,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
-            non_fatal=True,
         )
 
         idle_count = 0
