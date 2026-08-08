@@ -29,7 +29,15 @@ from airflow import __version__ as airflow_version
 
 __all__ = ["__version__"]
 
-__version__ = "4.6.2"
+# ``apache-airflow-providers-oracle`` is deprecated and now hosts only a re-export shim
+# (see hooks/, operators/, transfers/, assets/ in this package). The real implementation
+# lives in the ``apache-airflow-providers-oracle-oracledb`` distribution, installed as a
+# dependency of this package, under ``airflow.providers.oracle.oracledb``. Extending
+# ``__path__`` here lets that sibling distribution's ``oracledb`` subpackage be found
+# under this namespace regardless of package install/discovery order.
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)
+
+__version__ = "4.6.3"
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
     "2.11.0"

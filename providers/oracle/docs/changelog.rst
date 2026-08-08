@@ -27,6 +27,39 @@
 Changelog
 ---------
 
+4.6.3
+.....
+
+``apache-airflow-providers-oracle`` is now **deprecated**. All functionality has moved,
+unchanged, to the new ``apache-airflow-providers-oracle-oracledb`` provider. Installing
+``apache-airflow-providers-oracle`` now pulls in ``apache-airflow-providers-oracle-oracledb``
+as a dependency, and the old import paths keep re-exporting the same classes so existing
+Dags keep working, but every import now raises a ``DeprecatedImportWarning``.
+
+To migrate:
+
+* Add ``apache-airflow-providers-oracle-oracledb`` to your dependencies (you can drop
+  ``apache-airflow-providers-oracle`` once you finish migrating).
+* Update your imports:
+
+  ==============================================================================  ============================================================================
+  Old import (deprecated)                                                        New import
+  ==============================================================================  ============================================================================
+  ``airflow.providers.oracle.hooks.oracle.OracleHook``                           ``airflow.providers.oracle.oracledb.hooks.oracle.OracleHook``
+  ``airflow.providers.oracle.hooks.handlers``                                    ``airflow.providers.oracle.oracledb.hooks.handlers``
+  ``airflow.providers.oracle.operators.oracle.OracleStoredProcedureOperator``    ``airflow.providers.oracle.oracledb.operators.oracle.OracleStoredProcedureOperator``
+  ``airflow.providers.oracle.transfers.oracle_to_oracle.OracleToOracleOperator`` ``airflow.providers.oracle.oracledb.transfers.oracle_to_oracle.OracleToOracleOperator``
+  ``airflow.providers.oracle.assets.oracle``                                     ``airflow.providers.oracle.oracledb.assets.oracle``
+  ==============================================================================  ============================================================================
+
+Connection type (``oracle``), connection ids, and behavior are unchanged — only the
+python import path moves.
+
+Misc
+~~~~
+
+* ``Deprecate apache-airflow-providers-oracle in favor of apache-airflow-providers-oracle-oracledb``
+
 4.6.2
 .....
 

@@ -14,50 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Deprecated. Use ``airflow.providers.oracle.oracledb.assets.oracle`` instead."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from airflow.utils.deprecation_tools import add_deprecated_classes
 
-from airflow.providers.common.compat.assets import Asset
+__deprecated_classes = {
+    __name__: {
+        "sanitize_uri": "airflow.providers.oracle.oracledb.assets.oracle.sanitize_uri",
+        "create_asset": "airflow.providers.oracle.oracledb.assets.oracle.create_asset",
+        "convert_asset_to_openlineage": (
+            "airflow.providers.oracle.oracledb.assets.oracle.convert_asset_to_openlineage"
+        ),
+    },
+}
 
-if TYPE_CHECKING:
-    from urllib.parse import SplitResult
-
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
-
-
-def sanitize_uri(uri: SplitResult) -> SplitResult:
-    if not uri.netloc:
-        raise ValueError("URI format oracle:// must contain a host")
-    if uri.port is None:
-        host = uri.netloc.rstrip(":")
-        uri = uri._replace(netloc=f"{host}:1521")
-    if len(uri.path.split("/")) != 4:  # Leading slash, service name, schema, and table names.
-        raise ValueError("URI format oracle:// must contain service name, schema, and table names")
-    return uri
-
-
-def create_asset(
-    *,
-    host: str,
-    port: int = 1521,
-    service_name: str,
-    schema: str,
-    table: str,
-    extra: dict | None = None,
-) -> Asset:
-    return Asset(uri=f"oracle://{host}:{port}/{service_name}/{schema}/{table}", extra=extra)
-
-
-def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:
-    """Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
-    from urllib.parse import urlsplit
-
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
-
-    parsed = urlsplit(asset.uri)
-    _, service_name, schema, table = parsed.path.split(
-        "/"
-    )  # Leading slash, service_name, schema, and table names.
-    return OpenLineageDataset(namespace=f"oracle://{parsed.netloc}", name=f"{service_name}.{schema}.{table}")
+add_deprecated_classes(
+    __deprecated_classes,
+    __name__,
+    extra_message="`apache-airflow-providers-oracle` is deprecated, install `apache-airflow-providers-oracle-oracledb` instead",
+)

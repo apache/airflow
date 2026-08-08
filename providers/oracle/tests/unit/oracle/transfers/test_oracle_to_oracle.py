@@ -17,54 +17,33 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-from unittest.mock import MagicMock
+import warnings
 
-from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOperator
+from airflow.providers.oracle.oracledb.transfers.oracle_to_oracle import (
+    OracleToOracleOperator as OracleDbOracleToOracleOperator,
+)
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 
-class TestOracleToOracleTransfer:
-    def test_execute(self):
-        oracle_destination_conn_id = "oracle_destination_conn_id"
-        destination_table = "destination_table"
-        oracle_source_conn_id = "oracle_source_conn_id"
-        source_sql = "select sysdate from dual where trunc(sysdate) = :p_data"
-        source_sql_params = {":p_data": "2018-01-01"}
-        rows_chunk = 5000
-        cursor_description = [
-            ("id", "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
-            ("description", "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
-        ]
-        cursor_rows = [[1, "description 1"], [2, "description 2"]]
+class TestDeprecatedOracleToOracleOperatorImport:
+    """`airflow.providers.oracle.transfers.oracle_to_oracle` is deprecated; it must keep
+    re-exporting the real class from `airflow.providers.oracle.oracledb.transfers.oracle_to_oracle`
+    unchanged."""
 
-        mock_dest_hook = MagicMock()
-        mock_src_hook = MagicMock()
-        mock_src_conn = mock_src_hook.get_conn.return_value.__enter__.return_value
-        mock_cursor = mock_src_conn.cursor.return_value
-        mock_cursor.description.__iter__.return_value = cursor_description
-        mock_cursor.fetchmany.side_effect = [cursor_rows, []]
+    def test_attribute_access_redirects_to_oracledb_and_warns(self):
+        import airflow.providers.oracle.transfers.oracle_to_oracle as deprecated_module
 
-        op = OracleToOracleOperator(
-            task_id="copy_data",
-            oracle_destination_conn_id=oracle_destination_conn_id,
-            destination_table=destination_table,
-            oracle_source_conn_id=oracle_source_conn_id,
-            source_sql=source_sql,
-            source_sql_params=source_sql_params,
-            rows_chunk=rows_chunk,
-        )
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            operator_cls = deprecated_module.OracleToOracleOperator
 
-        op._execute(mock_src_hook, mock_dest_hook, None)
+        assert operator_cls is OracleDbOracleToOracleOperator
+        assert any(issubclass(w.category, DeprecatedImportWarning) for w in captured_warnings)
 
-        assert mock_src_hook.get_conn.called
-        assert mock_src_conn.cursor.called
-        mock_cursor.execute.assert_called_once_with(source_sql, source_sql_params)
+    def test_from_import_redirects_to_oracledb_and_warns(self):
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOperator
 
-        calls = [
-            mock.call(rows_chunk),
-            mock.call(rows_chunk),
-        ]
-        mock_cursor.fetchmany.assert_has_calls(calls)
-        mock_dest_hook.bulk_insert_rows.assert_called_once_with(
-            destination_table, cursor_rows, commit_every=rows_chunk, target_fields=["id", "description"]
-        )
+        assert OracleToOracleOperator is OracleDbOracleToOracleOperator
+        assert any(issubclass(w.category, DeprecatedImportWarning) for w in captured_warnings)

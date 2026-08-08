@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-oracle-oracledb
+name: Oracle
+description: |
+    `Oracle <https://www.oracle.com/database/technologies/>`__
+
+    This provider was extracted from ``apache-airflow-providers-oracle``, which is now
+    deprecated. See the ``apache-airflow-providers-oracle`` changelog for migration notes.
+
+state: ready
+lifecycle: production
+source-date-epoch: 1783356304
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 4.6.3
+
+integrations:
+  - integration-name: Oracle
+    external-doc-url: https://www.oracle.com/en/database/
+    how-to-guide:
+      - /docs/apache-airflow-providers-oracle-oracledb/operators.rst
+    logo: /docs/integration-logos/Oracle.png
+    tags: [software]
+
+operators:
+  - integration-name: Oracle
+    python-modules:
+      - airflow.providers.oracle.oracledb.operators.oracle
+
+asset-uris:
+  - schemes: [oracle]
+    handler: airflow.providers.oracle.oracledb.assets.oracle.sanitize_uri
+    factory: airflow.providers.oracle.oracledb.assets.oracle.create_asset
+    to_openlineage_converter: airflow.providers.oracle.oracledb.assets.oracle.convert_asset_to_openlineage
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [oracle]
+    handler: airflow.providers.oracle.oracledb.assets.oracle.sanitize_uri
+    factory: airflow.providers.oracle.oracledb.assets.oracle.create_asset
+    to_openlineage_converter: airflow.providers.oracle.oracledb.assets.oracle.convert_asset_to_openlineage
+
+hooks:
+  - integration-name: Oracle
+    python-modules:
+      - airflow.providers.oracle.oracledb.hooks.handlers
+      - airflow.providers.oracle.oracledb.hooks.oracle
+
+transfers:
+  - source-integration-name: Oracle
+    target-integration-name: Oracle
+    python-module: airflow.providers.oracle.oracledb.transfers.oracle_to_oracle
+
+connection-types:
+  - hook-class-name: airflow.providers.oracle.oracledb.hooks.oracle.OracleHook
+    hook-name: "Oracle"
+    connection-type: oracle
