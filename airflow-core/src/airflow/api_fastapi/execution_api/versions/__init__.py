@@ -51,9 +51,11 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddTeamNameField,
     AddVariableKeysEndpoint,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_09_09 import AddXComBulkDeleteEndpoint
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2026-09-09", AddXComBulkDeleteEndpoint),
     Version(
         "2026-06-30",
         AddVariableKeysEndpoint,
