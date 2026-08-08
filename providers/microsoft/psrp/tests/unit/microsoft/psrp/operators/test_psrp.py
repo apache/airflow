@@ -39,14 +39,50 @@ class ExecuteParameter(NamedTuple):
 
 
 class TestPsrpOperator:
-    def test_no_command_or_powershell(self):
-        exception_msg = "Must provide exactly one of 'command', 'powershell', or 'cmdlet'"
-        with pytest.raises(ValueError, match=exception_msg):
-            PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID)
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({}, "exactly one", id="no-option"),
+            pytest.param({"command": "", "powershell": "Get-Bar"}, "exactly one", id="two-options-one-empty"),
+            pytest.param({"command": "x", "powershell": "x"}, "exactly one", id="two-equal-options"),
+            pytest.param(
+                {"command": "hostname", "arguments": ["x"]}, "Arguments only allowed", id="arguments"
+            ),
+            pytest.param(
+                {"command": "hostname", "parameters": {"k": "v"}}, "Parameters only allowed", id="parameters"
+            ),
+        ],
+    )
+    def test_invalid_option_combination(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, **kwargs)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"command": ""}, id="empty-command"),
+            pytest.param({"powershell": "", "arguments": ["a"]}, id="arguments"),
+            pytest.param({"powershell": "", "parameters": {"k": "v"}}, id="parameters"),
+        ],
+    )
+    def test_empty_option_counts_as_provided(self, kwargs):
+        PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, **kwargs)
 
     def test_cmdlet_task_id_default(self):
         operator = PsrpOperator(cmdlet="Invoke-Foo", psrp_conn_id=CONNECTION_ID)
         assert operator.task_id == "Invoke-Foo"
+
+    @patch(f"{PsrpOperator.__module__}.PsrpHook")
+    def test_command_rendering_to_empty_dispatches_as_command(self, hook_impl):
+        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}")
+        op.render_template_fields({})
+        assert op.command == ""
+        ps = Mock(spec=PowerShell, output=[], had_errors=False, runspace_pool=Mock(host=Mock(rc=0)))
+        hook_impl.configure_mock(
+            **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
+        )
+        op.execute(None)
+        ps.add_script.assert_called_once_with("cmd.exe /c @'\n\n'@")
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
