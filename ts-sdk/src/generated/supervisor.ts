@@ -244,6 +244,7 @@ export type NextKwargs1 =
   | null;
 export type XcomKeysToClear = string[];
 export type ShouldRetry = boolean;
+export type HasMappedDependants = boolean;
 export type StartDate2 = string | null;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
@@ -1018,6 +1019,7 @@ export interface TIRunContext {
   next_kwargs?: NextKwargs1;
   xcom_keys_to_clear?: XcomKeysToClear;
   should_retry?: ShouldRetry;
+  has_mapped_dependants?: HasMappedDependants;
   start_date?: StartDate2;
 }
 /**
