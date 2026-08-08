@@ -43,7 +43,6 @@ from structlog.contextvars import bind_contextvars
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -73,6 +72,7 @@ from airflow.api_fastapi.execution_api.security import (
     CurrentTIToken,
     ExecutionAPIRoute,
     get_team_name_for_ti,
+    issue_execution_token,
     require_auth,
 )
 from airflow.configuration import conf
@@ -324,9 +324,7 @@ def ti_run(
 
     # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
     if token.claims.scope == "workload":
-        generator: JWTGenerator = services.get(JWTGenerator)
-        execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
-        response.headers["Refreshed-API-Token"] = execution_token
+        issue_execution_token(services, response, sub=str(task_instance_id))
 
     return context
 
