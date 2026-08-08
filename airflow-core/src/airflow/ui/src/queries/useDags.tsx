@@ -26,6 +26,7 @@ export const useDags = ({
   dagIdPattern,
   dagRunsLimit,
   dagRunState,
+  dagRunStateWithinHours,
   excludeStale = true,
   isFavorite,
   lastDagRunState,
@@ -45,6 +46,7 @@ export const useDags = ({
   dagIdPattern?: string;
   dagRunsLimit: number;
   dagRunState?: DagRunState;
+  dagRunStateWithinHours?: number;
   excludeStale?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
@@ -68,6 +70,7 @@ export const useDags = ({
         : { dagDisplayNamePrefixPattern: dagDisplayNamePattern, dagIdPrefixPattern: dagIdPattern }),
       dagRunsLimit,
       dagRunState,
+      dagRunStateWithinHours,
       excludeStale,
       hasPendingActions: pendingHitl,
       isFavorite,

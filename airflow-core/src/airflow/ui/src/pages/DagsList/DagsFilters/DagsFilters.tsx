@@ -31,13 +31,16 @@ import { useTagFilter } from "../useTagFilter";
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
 import { RequiredActionFilter } from "./RequiredActionFilter";
+import { RunStateScopeSelect, type RunStateScope } from "./RunStateScopeSelect";
 import { RunStateSelect } from "./RunStateSelect";
 import { TagFilter } from "./TagFilter";
 import { TeamFilter } from "./TeamFilter";
 import { TimetableTypeFilter } from "./TimetableTypeFilter";
+import { runScopeFor, runStateSelectionFor } from "./runStateFilter";
 
 const {
   DAG_RUN_STATE: DAG_RUN_STATE_PARAM,
+  DAG_RUN_STATE_WITHIN_HOURS: DAG_RUN_STATE_WITHIN_HOURS_PARAM,
   FAVORITE: FAVORITE_PARAM,
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
@@ -67,13 +70,19 @@ export const DagsFilters = () => {
   const showPaused = searchParams.get(PAUSED_PARAM);
   const showFavorites = searchParams.get(FAVORITE_PARAM);
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
-  const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
-  const activeRunState = searchParams.get(DAG_RUN_STATE_PARAM);
+  const lastRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
+  const anyRunState = searchParams.get(DAG_RUN_STATE_PARAM);
+  const anyRunStateWindow = searchParams.get(DAG_RUN_STATE_WITHIN_HOURS_PARAM);
   const selectedTeams = searchParams.getAll(TEAMS_PARAM);
   const timetableTypes = searchParams.getAll(TIMETABLE_TYPE_PARAM).filter(Boolean);
 
   const [tagPattern, setTagPattern] = useState("");
   const [timetableTypePattern, setTimetableTypePattern] = useState("");
+
+  // One control, two dimensions: the state plus the scope it is matched against.
+  // "latest" maps to last_dag_run_state; the time scopes map to dag_run_state (+ window).
+  const runState = lastRunState ?? anyRunState ?? undefined;
+  const runScope = runScopeFor(lastRunState, anyRunState, anyRunStateWindow);
 
   const {
     data: tagData,
@@ -127,24 +136,24 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const handleStateChange = (value: string | undefined) => {
-    if (value === undefined) {
-      searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
-    } else {
-      searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
-    }
+  const applyRunStateParams = (state: string | undefined, scope: RunStateScope) => {
+    const selection = runStateSelectionFor(state, scope);
+    const setOrDelete = (key: string, value: string | undefined) =>
+      value === undefined ? searchParams.delete(key) : searchParams.set(key, value);
+
+    setOrDelete(LAST_DAG_RUN_STATE_PARAM, selection.lastDagRunState);
+    setOrDelete(DAG_RUN_STATE_PARAM, selection.dagRunState);
+    setOrDelete(DAG_RUN_STATE_WITHIN_HOURS_PARAM, selection.dagRunStateWithinHours);
     resetPagination();
     setSearchParams(searchParams);
   };
 
-  const handleActiveRunChange = (value: string | undefined) => {
-    if (value === undefined) {
-      searchParams.delete(DAG_RUN_STATE_PARAM);
-    } else {
-      searchParams.set(DAG_RUN_STATE_PARAM, value);
-    }
-    resetPagination();
-    setSearchParams(searchParams);
+  const handleRunStateChange = (value: string | undefined) => {
+    applyRunStateParams(value, runScope);
+  };
+
+  const handleRunScopeChange = (scope: RunStateScope) => {
+    applyRunStateParams(runState, scope);
   };
 
   const handleNeedsReviewToggle = () => {
@@ -187,21 +196,25 @@ export const DagsFilters = () => {
   const favoriteValue = toBooleanFilterValue(showFavorites);
 
   return (
-    <HStack alignItems="flex-start" flexWrap="wrap" gap={2}>
-      <RunStateSelect
-        dataTestId="dags-last-run-state-filter"
-        label={translate("filters.lastRunState")}
-        onChange={handleStateChange}
-        states={runStates}
-        value={state ?? undefined}
-      />
-      <RunStateSelect
-        dataTestId="dags-any-run-state-filter"
-        label={translate("filters.anyRunState")}
-        onChange={handleActiveRunChange}
-        states={runStates}
-        value={activeRunState ?? undefined}
-      />
+    <HStack alignItems="flex-start" flexWrap="wrap" gap={2} justifyContent="space-between">
+      <HStack gap={0}>
+        <RunStateSelect
+          dataTestId="dags-run-state-filter"
+          label={translate("filters.runState")}
+          onChange={handleRunStateChange}
+          states={runStates}
+          triggerProps={runState === undefined ? undefined : { borderEndRadius: 0, borderInlineEndWidth: 0 }}
+          value={runState}
+        />
+        {runState === undefined ? undefined : (
+          <RunStateScopeSelect
+            dataTestId="dags-run-state-scope-filter"
+            onChange={handleRunScopeChange}
+            triggerProps={{ borderStartRadius: 0 }}
+            value={runScope}
+          />
+        )}
+      </HStack>
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
       <PausedFilter onChange={handlePausedChange} value={pausedValue} />
       <TimetableTypeFilter

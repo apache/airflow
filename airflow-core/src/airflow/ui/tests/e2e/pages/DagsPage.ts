@@ -33,11 +33,11 @@ export class DagsPage extends BasePage {
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
   public readonly hitlReviewModal: HITLReviewModal;
-  public readonly lastRunStateFilter: Locator;
   public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
   public readonly retriesFilter: Locator;
+  public readonly runStateFilter: Locator;
   public readonly searchBox: Locator;
   public readonly searchInput: Locator;
   public readonly tableViewButton: Locator;
@@ -61,7 +61,7 @@ export class DagsPage extends BasePage {
     this.retriesFilter = page.getByTestId("retries-filter");
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
-    this.lastRunStateFilter = page.getByTestId("dags-last-run-state-filter");
+    this.runStateFilter = page.getByTestId("dags-run-state-filter");
     this.hitlReviewModal = new HITLReviewModal(page);
     this.needsReviewBadges = page.getByTestId("needs-review-badge");
     // Uses testId because this button's text is driven by an i18n key.
@@ -126,9 +126,9 @@ export class DagsPage extends BasePage {
     if (status === "needs_review") {
       await this.needsReviewFilter.click();
     } else {
-      // Run-state filters live in the "Last run" dropdown.
-      await this.lastRunStateFilter.getByRole("combobox").click();
-      await this.page.getByTestId(`dags-last-run-state-filter-${status}`).click();
+      // Run-state filters live in the unified "Run state" dropdown (default scope: latest run).
+      await this.runStateFilter.getByRole("combobox").click();
+      await this.page.getByTestId(`dags-run-state-filter-${status}`).click();
     }
     await responsePromise;
   }
