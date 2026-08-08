@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlsplit
@@ -339,6 +340,25 @@ class ObjectStoragePath(ProxyUPath):
         """Size in bytes of the file at this path."""
         return self.fs.size(self.path)
 
+    def _raise_if_remote_keys_escape(self, local_dir: str, **kwargs) -> None:
+        """
+        Refuse a recursive download when a remote object key resolves outside ``local_dir``.
+
+        Object-store keys are arbitrary strings and may contain ``..`` segments written by
+        anyone who can put objects in the source prefix; ``fs.get`` follows them verbatim and
+        would write outside the destination directory.
+        """
+        dst_root = os.path.realpath(local_dir)
+        for src_key in self.fs.expand_path(self.path, recursive=True, **kwargs):
+            if self.fs.isdir(src_key):
+                continue
+            target = os.path.realpath(os.path.join(local_dir, os.path.relpath(src_key, self.path)))
+            if target != dst_root and os.path.commonpath([dst_root, target]) != dst_root:
+                raise ValueError(
+                    f"Refusing to copy remote object {src_key!r}: it resolves outside the "
+                    f"destination directory {local_dir!r}"
+                )
+
     def _cp_file(self, dst: ObjectStoragePath, **kwargs):
         """Copy a single file from this path to another location by streaming the data."""
         # create the directory or bucket if required
@@ -387,6 +407,8 @@ class ObjectStoragePath(ProxyUPath):
             return
 
         if dst.protocol == "file":
+            if recursive:
+                self._raise_if_remote_keys_escape(dst.path, **kwargs)
             self.fs.get(self.path, dst.path, recursive=recursive, **kwargs)
             return
 
