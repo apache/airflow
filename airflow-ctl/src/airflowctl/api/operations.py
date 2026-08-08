@@ -69,6 +69,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
@@ -733,6 +734,11 @@ class TasksOperations(BaseOperations):
             json=clear_task_instances.model_dump(mode="json", exclude_none=True),
         )
         return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+
+    def list(self, dag_id: str, order_by: str | None = None) -> TaskCollectionResponse | ServerResponseError:
+        """List tasks of a Dag."""
+        self.response = self.client.get(f"dags/{dag_id}/tasks", params=_build_query_params(order_by=order_by))
+        return TaskCollectionResponse.model_validate_json(self.response.content)
 
 
 class VariablesOperations(BaseOperations):
