@@ -21,13 +21,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
 	"github.com/apache/airflow/go-sdk/pkg/edgeapi"
 )
 
@@ -104,4 +109,60 @@ func TestFetchJobDoesNotLogToken(t *testing.T) {
 	require.Contains(t, logOutput, "example_task")
 	require.NotContains(t, logOutput, secretToken)
 	require.NotContains(t, logOutput, "\"token\"")
+}
+
+func TestActiveWorkloadsMapConcurrentAccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := edgeapi.NewClient(server.URL + "/")
+	require.NoError(t, err)
+
+	discovery := shared.NewDiscovery(t.TempDir(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	w := &worker{
+		Discovery:       discovery,
+		hostname:        "race-test-worker",
+		client:          client,
+		logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		maxConcurrency:  16,
+		activeWorkloads: map[uuid.UUID]bundlev1.ExecuteTaskWorkload{},
+	}
+	w.freeConcurrency.Store(16)
+
+	stopReaders := make(chan struct{})
+	var readers sync.WaitGroup
+	for range 4 {
+		readers.Add(1)
+		go func() {
+			defer readers.Done()
+			for {
+				select {
+				case <-stopReaders:
+					return
+				default:
+					w.activeWorkloadsMu.Lock()
+					_ = len(w.activeWorkloads)
+					w.activeWorkloadsMu.Unlock()
+				}
+			}
+		}()
+	}
+
+	var writers sync.WaitGroup
+	for range 20 {
+		writers.Add(1)
+		go func() {
+			defer writers.Done()
+			workload := bundlev1.ExecuteTaskWorkload{}
+			workload.TI.Id = uuid.New()
+			_ = w.runWorkload(context.Background(), 1, workload)
+		}()
+	}
+	writers.Wait()
+	close(stopReaders)
+	readers.Wait()
 }
