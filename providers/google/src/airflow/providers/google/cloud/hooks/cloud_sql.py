@@ -66,6 +66,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
     get_field,
+    is_operation_in_progress_exception,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -333,9 +334,13 @@ class CloudSQLHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.operation_in_progress_retry()
     def export_instance(self, instance: str, body: dict, project_id: str):
         """
         Export data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
+
+        Cloud SQL runs one admin operation at a time per instance, so this submit can come back
+        409 — hence the retry decorator.
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
@@ -354,10 +359,42 @@ class CloudSQLHook(GoogleBaseHook):
         operation_name = response["name"]
         return operation_name
 
+    @GoogleBaseHook.operation_in_progress_retry()
+    def _submit_import(self, instance: str, body: dict, project_id: str) -> str:
+        """
+        Submit an import request for a Cloud SQL instance, retrying while an operation is in progress.
+
+        Cloud SQL runs one admin operation at a time per instance, so this submit can come back 409.
+        The retry covers the submit only: repeating a rejected submit is safe, repeating an accepted
+        one is not.
+
+        :param instance: Database instance ID. This does not include the project ID.
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
+        :param project_id: Project ID of the project that contains the instance.
+        :return: The name of the accepted import operation.
+        """
+        try:
+            response = (
+                self.get_conn()
+                .instances()
+                .import_(project=project_id, instance=instance, body=body)
+                .execute(num_retries=self.num_retries)
+            )
+            return response["name"]
+        except HttpError as ex:
+            # The decorator retries HttpError, not AirflowException, so don't wrap the 409.
+            if is_operation_in_progress_exception(ex):
+                raise
+            raise AirflowException(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
+
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
         """
         Import data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
+
+        The submit retries on 409 (see ``_submit_import``). The polling below stays outside that
+        retry: re-submitting an accepted import would load the same data twice.
 
         :param instance: Database instance ID. This does not include the
             project ID.
@@ -367,17 +404,11 @@ class CloudSQLHook(GoogleBaseHook):
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: None
         """
+        operation_name = self._submit_import(instance=instance, body=body, project_id=project_id)
         try:
-            response = (
-                self.get_conn()
-                .instances()
-                .import_(project=project_id, instance=instance, body=body)
-                .execute(num_retries=self.num_retries)
-            )
-            operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException(f"Importing instance {instance} failed: {ex.content}")
+            raise AirflowException(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def clone_instance(self, instance: str, body: dict, project_id: str) -> None:
@@ -404,7 +435,7 @@ class CloudSQLHook(GoogleBaseHook):
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
+            raise AirflowException(f"Cloning of instance {instance} failed: {ex.content.decode('utf-8')}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_ssl_certificate(self, instance: str, body: dict, project_id: str):
