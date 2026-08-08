@@ -691,7 +691,7 @@ class TestAsyncSensor:
     @pytest.mark.parametrize(
         ("soft_fail", "expected_exception"),
         [
-            (True, AirflowSkipException),
+            (True, AirflowException),
             (False, AirflowException),
         ],
     )
