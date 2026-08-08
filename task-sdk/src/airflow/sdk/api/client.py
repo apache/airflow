@@ -50,6 +50,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     AssetStateStorePutBody,
     AssetStateStoreResponse,
+    CallbackRunResponse,
     ConnectionResponse,
     ConnectionTestConnectionResponse,
     ConnectionTestResultBody,
@@ -1067,6 +1068,25 @@ class HITLOperations:
         return HITLDetailResponse.model_validate_json(resp.read())
 
 
+class CallbackOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def run(self, callback_id: uuid.UUID) -> CallbackRunResponse:
+        """
+        Claim a callback for execution, transitioning it to RUNNING on the server.
+
+        Called by the callback supervisor *before* the callback is imported and invoked. The
+        request carries the workload token minted for this callback; the server rejects it if the
+        token is missing, forged, or minted for a different callback, so this call is what stops
+        an unauthenticated message on the broker from reaching callback execution.
+        """
+        resp = self.client.post(f"callbacks/{callback_id}/run")
+        return CallbackRunResponse.model_validate_json(resp.read())
+
+
 class ConnectionTestOperations:
     __slots__ = ("client",)
 
@@ -1297,6 +1317,12 @@ class Client(httpx.Client):
     def connection_tests(self) -> ConnectionTestOperations:
         """Operations related to Connection Tests."""
         return ConnectionTestOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def callbacks(self) -> CallbackOperations:
+        """Operations related to Callbacks."""
+        return CallbackOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
