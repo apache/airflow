@@ -19,6 +19,13 @@
 
 .. _howto/operator:OracleOperator:
 
+.. warning::
+    ``apache-airflow-providers-oracle`` is deprecated. Install
+    ``apache-airflow-providers-oracle-oracledb`` instead and see its
+    `operators documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle-oracledb/stable/operators.html>`__.
+    The classes below keep working from their old import paths for now, but emit a
+    deprecation warning; see the :doc:`changelog <changelog>` for the full migration guide.
+
 SQLExecuteQueryOperator to connect to Oracle
 ============================================
 

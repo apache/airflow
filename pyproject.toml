@@ -1829,6 +1829,7 @@ apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-opensearch = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
 apache-airflow-providers-oracle = { workspace = true }
+apache-airflow-providers-oracle-oracledb = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-papermill = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
@@ -1970,6 +1971,7 @@ members = [
     "providers/opensearch",
     "providers/opsgenie",
     "providers/oracle",
+    "providers/oracle/oracledb",
     "providers/pagerduty",
     "providers/papermill",
     "providers/pgvector",

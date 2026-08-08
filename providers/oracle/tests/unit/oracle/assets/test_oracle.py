@@ -14,112 +14,44 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import urllib.parse
+import warnings
 
-import pytest
-
-from airflow.providers.common.compat.assets import Asset
-from airflow.providers.oracle.assets.oracle import (
-    convert_asset_to_openlineage,
-    create_asset,
-    sanitize_uri,
-)
+from airflow.providers.oracle.oracledb.assets import oracle as oracledb_asset
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 
-@pytest.mark.parametrize(
-    ("original", "normalized"),
-    [
-        pytest.param(
-            "oracle://example.com:1234/orcl/HR/employees",
-            "oracle://example.com:1234/orcl/HR/employees",
-            id="normalized",
-        ),
-        pytest.param(
-            "oracle://example.com/orcl/HR/employees",
-            "oracle://example.com:1521/orcl/HR/employees",
-            id="default-port",
-        ),
-    ],
-)
-def test_sanitize_uri_pass(original: str, normalized: str) -> None:
-    uri_i = urllib.parse.urlsplit(original)
-    uri_o = sanitize_uri(uri_i)
-    assert urllib.parse.urlunsplit(uri_o) == normalized
+class TestDeprecatedAssetsImport:
+    """`airflow.providers.oracle.assets.oracle` is deprecated; it must keep re-exporting
+    the real functions from `airflow.providers.oracle.oracledb.assets.oracle` unchanged."""
 
+    def test_sanitize_uri_redirects_and_warns(self):
+        import airflow.providers.oracle.assets.oracle as deprecated_module
 
-@pytest.mark.parametrize(
-    "value",
-    [
-        pytest.param("oracle://", id="blank"),
-        pytest.param("oracle:///orcl/HR/employees", id="no-host"),
-        pytest.param("oracle://example.com/orcl/employees", id="missing-component"),
-        pytest.param("oracle://example.com/orcl/HR/employees/column", id="extra-component"),
-    ],
-)
-def test_sanitize_uri_fail(value: str) -> None:
-    uri_i = urllib.parse.urlsplit(value)
-    with pytest.raises(ValueError, match="URI format oracle:// must contain"):
-        sanitize_uri(uri_i)
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            sanitize_uri = deprecated_module.sanitize_uri
 
+        assert sanitize_uri is oracledb_asset.sanitize_uri
+        assert any(issubclass(w.category, DeprecatedImportWarning) for w in captured_warnings)
 
-def test_sanitize_uri_fail_non_port() -> None:
-    uri_i = urllib.parse.urlsplit("oracle://example.com:abcd/orcl/HR/employees")
-    with pytest.raises(ValueError, match="Port could not be cast to integer value as 'abcd'"):
-        sanitize_uri(uri_i)
+    def test_create_asset_redirects_and_warns(self):
+        import airflow.providers.oracle.assets.oracle as deprecated_module
 
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            create_asset = deprecated_module.create_asset
 
-@pytest.mark.parametrize(
-    ("host", "service_name", "schema", "table", "port", "expected_uri"),
-    [
-        pytest.param(
-            "example.com",
-            "orcl",
-            "HR",
-            "employees",
-            1521,
-            "oracle://example.com:1521/orcl/HR/employees",
-            id="default-port",
-        ),
-        pytest.param(
-            "example.com",
-            "orcl",
-            "HR",
-            "employees",
-            1522,
-            "oracle://example.com:1522/orcl/HR/employees",
-            id="custom-port",
-        ),
-    ],
-)
-def test_create_asset(
-    host: str, service_name: str, schema: str, table: str, port: int, expected_uri: str
-) -> None:
-    result = create_asset(host=host, service_name=service_name, schema=schema, table=table, port=port)
-    assert result == Asset(uri=expected_uri)
+        assert create_asset is oracledb_asset.create_asset
+        assert any(issubclass(w.category, DeprecatedImportWarning) for w in captured_warnings)
 
+    def test_convert_asset_to_openlineage_redirects_and_warns(self):
+        import airflow.providers.oracle.assets.oracle as deprecated_module
 
-@pytest.mark.parametrize(
-    ("uri", "expected_namespace", "expected_name"),
-    [
-        pytest.param(
-            "oracle://example.com:1521/orcl/HR/employees",
-            "oracle://example.com:1521",
-            "orcl.HR.employees",
-            id="default-port",
-        ),
-        pytest.param(
-            "oracle://db-host:1522/prod/SCHEMA/users",
-            "oracle://db-host:1522",
-            "prod.SCHEMA.users",
-            id="custom-port",
-        ),
-    ],
-)
-def test_convert_asset_to_openlineage(uri: str, expected_namespace: str, expected_name: str) -> None:
-    asset = Asset(uri=uri)
-    ol_dataset = convert_asset_to_openlineage(asset=asset, lineage_context=None)
-    assert ol_dataset.namespace == expected_namespace
-    assert ol_dataset.name == expected_name
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            convert_asset_to_openlineage = deprecated_module.convert_asset_to_openlineage
+
+        assert convert_asset_to_openlineage is oracledb_asset.convert_asset_to_openlineage
+        assert any(issubclass(w.category, DeprecatedImportWarning) for w in captured_warnings)

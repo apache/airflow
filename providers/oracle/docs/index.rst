@@ -19,6 +19,10 @@
 ``apache-airflow-providers-oracle``
 ===================================
 
+.. warning::
+    This provider is **deprecated**. All functionality has moved, unchanged, to
+    ``apache-airflow-providers-oracle-oracledb``. See the :doc:`changelog <changelog>`
+    for the migration guide.
 
 .. toctree::
     :hidden:
@@ -76,14 +80,17 @@ apache-airflow-providers-oracle package
 
 `Oracle <https://www.oracle.com/database/technologies/>`__
 
+This provider is deprecated. All functionality has moved, unchanged, to
+``apache-airflow-providers-oracle-oracledb``.
 
-Release: 4.6.2
+Release: 4.6.3
 
 Provider package
 ----------------
 
 This package is for the ``oracle`` provider.
-All classes for this package are included in the ``airflow.providers.oracle`` python package.
+All classes for this package are included in the ``airflow.providers.oracle`` python package,
+and now re-export the equivalent classes from ``airflow.providers.oracle.oracledb``.
 
 Installation
 ------------
@@ -97,14 +104,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ==================
-PIP package                                 Version required
-==========================================  ==================
-``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``oracledb``                                ``>=2.3.0``
-==========================================  ==================
+===========================================  ==================
+PIP package                                  Version required
+===========================================  ==================
+``apache-airflow``                           ``>=2.11.0``
+``apache-airflow-providers-common-compat``   ``>=1.8.0``
+``apache-airflow-providers-common-sql``      ``>=1.32.0``
+``apache-airflow-providers-oracle-oracledb`` ``>=4.6.3``
+===========================================  ==================
 
 Optional cross provider package dependencies
 --------------------------------------------
@@ -149,5 +156,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-oracle 4.6.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-oracle 4.6.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-oracle 4.6.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-oracle 4.6.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3-py3-none-any.whl.sha512>`__)

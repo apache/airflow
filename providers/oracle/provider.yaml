@@ -21,14 +21,22 @@ name: Oracle
 description: |
     `Oracle <https://www.oracle.com/database/technologies/>`__
 
+    .. deprecated::
+        This provider is deprecated. It now only re-exports the classes from
+        ``apache-airflow-providers-oracle-oracledb`` for backward compatibility.
+        Install ``apache-airflow-providers-oracle-oracledb`` and update your imports
+        from ``airflow.providers.oracle`` to ``airflow.providers.oracle.oracledb``.
+        See the changelog for a migration guide.
+
 state: ready
-lifecycle: production
+lifecycle: deprecated
 source-date-epoch: 1783356304
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.6.3
   - 4.6.2
   - 4.6.1
   - 4.6.0

@@ -23,20 +23,23 @@
 
 Package ``apache-airflow-providers-oracle``
 
-Release: ``4.6.2``
+Release: ``4.6.3``
 
 
 `Oracle <https://www.oracle.com/database/technologies/>`__
 
+**Deprecated.** All functionality has moved, unchanged, to
+``apache-airflow-providers-oracle-oracledb``. See the changelog below for the migration guide.
 
 Provider package
 ----------------
 
 This is a provider package for ``oracle`` provider. All classes for this provider package
-are in ``airflow.providers.oracle`` python package.
+are in ``airflow.providers.oracle`` python package, and now re-export the equivalent
+classes from ``airflow.providers.oracle.oracledb``.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.6.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.6.3/>`_.
 
 Installation
 ------------
@@ -50,14 +53,14 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ==================
-PIP package                                 Version required
-==========================================  ==================
-``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``oracledb``                                ``>=2.3.0``
-==========================================  ==================
+===========================================  ==================
+PIP package                                  Version required
+===========================================  ==================
+``apache-airflow``                           ``>=2.11.0``
+``apache-airflow-providers-common-compat``   ``>=1.8.0``
+``apache-airflow-providers-common-sql``      ``>=1.32.0``
+``apache-airflow-providers-oracle-oracledb`` ``>=4.6.3``
+===========================================  ==================
 
 Optional cross provider package dependencies
 --------------------------------------------
@@ -89,4 +92,4 @@ Extra            Dependencies
 ===============  ============================================================================================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.6.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.6.3/changelog.html>`_.

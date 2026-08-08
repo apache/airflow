@@ -22,7 +22,10 @@ from datetime import datetime
 from airflow import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.oracle.hooks.oracle import OracleHook
+
+# `apache-airflow-providers-oracle` is deprecated; import from
+# `apache-airflow-providers-oracle-oracledb` instead.
+from airflow.providers.oracle.oracledb.hooks.oracle import OracleHook
 
 DOC = """
 ### Example: Simple Oracle fetch
