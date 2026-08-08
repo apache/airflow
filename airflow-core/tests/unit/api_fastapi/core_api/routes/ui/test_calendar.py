@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from airflow._shared.timezones import timezone
 from airflow.models.deadline import Deadline
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import CronPartitionTimetable
+from airflow.sdk import CronPartitionTimetable, CronTriggerTimetable
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -188,6 +188,49 @@ class TestCalendar:
         body = response.json()
 
         assert body == result
+
+
+class TestCalendarCronNonUTCTimezone:
+    """Planned runs for a cron timetable must be computed in the timetable's own timezone, not UTC."""
+
+    DAG_NAME = "test_dag_non_utc_tz"
+
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.DAG_NAME,
+            schedule=CronTriggerTimetable("0 8 * * *", timezone="Asia/Seoul"),
+            start_date=datetime(2025, 1, 1),
+            catchup=True,
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="test_task1")
+        dag_maker.create_dagrun(
+            run_id="run_1",
+            state=DagRunState.SUCCESS,
+            logical_date=pendulum.datetime(2025, 1, 1, 23, 0, 0, tz="UTC"),
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_planned_runs_use_timetable_timezone_not_utc(self, test_client):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}", params={"granularity": "hourly"})
+        assert response.status_code == 200
+        body = response.json()
+
+        planned = [r for r in body["dag_runs"] if r["state"] == "planned"]
+        assert planned, "expected at least one planned run"
+
+        assert all(r["date"].endswith("T23:00:00Z") for r in planned), planned
 
 
 class TestPartitionedCalendar:
