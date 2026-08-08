@@ -373,10 +373,14 @@ scheduled run, because the next run is advanced one period to avoid colliding
 with the previous run's ``logical_date``. The reverse direction (data
 interval -> trigger) does not skip a run.
 
-This transition can happen without editing a Dag, in two ways:
+This transition can happen without editing a Dag, in three ways:
 
 - Flipping ``[scheduler] create_cron_data_intervals`` changes how every Dag
   with a bare cron string in ``schedule=`` resolves its timetable.
+- Flipping ``[scheduler] create_delta_data_intervals`` changes how every Dag
+  with a ``timedelta`` or ``relativedelta`` in ``schedule=`` resolves its timetable.
+  The same one-period skip applies when switching from ``DeltaTriggerTimetable``
+  to ``DeltaDataIntervalTimetable``.
 - Crossing a version boundary where the default differs. Airflow 3 defaults
   to ``False``; Airflow 2.x defaults to ``True``.
 

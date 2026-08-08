@@ -24,6 +24,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import (
     DAG,
@@ -38,8 +39,12 @@ from airflow.sdk import (
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.param import DagParam, ParamsDict
+from airflow.sdk.definitions.timetables.interval import DeltaDataIntervalTimetable
+from airflow.sdk.definitions.timetables.trigger import DeltaTriggerTimetable
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.config import conf_vars
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -446,6 +451,31 @@ class TestDag:
 
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
+
+    @pytest.mark.parametrize("schedule", [timedelta(days=1), relativedelta(days=1)])
+    @pytest.mark.parametrize(
+        ("delta", "cron", "expected"),
+        [
+            pytest.param("False", "False", DeltaTriggerTimetable, id="both-false"),
+            pytest.param("True", "False", DeltaDataIntervalTimetable, id="delta-true"),
+            pytest.param("False", "True", DeltaTriggerTimetable, id="cron-true"),
+        ],
+    )
+    def test_timedelta_schedule_respects_create_delta_data_intervals_config(
+        self, schedule, delta, cron, expected
+    ):
+        """Regression guard: create_delta_data_intervals must control DeltaTriggerTimetable vs
+        DeltaDataIntervalTimetable for timedelta/relativedelta schedules, independently of
+        create_cron_data_intervals (which governs only cron-string schedules).
+        """
+        with conf_vars(
+            {
+                ("scheduler", "create_delta_data_intervals"): delta,
+                ("scheduler", "create_cron_data_intervals"): cron,
+            }
+        ):
+            dag = DAG("test_dag", start_date=DEFAULT_DATE, schedule=schedule)
+            assert isinstance(dag.timetable, expected)
 
     def test_only_partitioned_at_runtime_has_partitioned_at_runtime_flag(self):
         """Regression guard: across every BaseTimetable subclass, only PartitionedAtRuntime sets partitioned_at_runtime=True."""
