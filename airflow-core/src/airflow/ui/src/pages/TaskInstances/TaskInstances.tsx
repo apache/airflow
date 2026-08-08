@@ -431,6 +431,8 @@ export const TaskInstances = () => {
         nextCursor={nextCursor}
         onStateChange={setTableURLState}
         previousCursor={previousCursor}
+        total={data?.total_entries ?? 0}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>

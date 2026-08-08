@@ -37,7 +37,12 @@ from airflow.api_fastapi.common.cursors import (
     parse_cursor,
 )
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
+from airflow.api_fastapi.common.db.common import (
+    SessionDep,
+    apply_filters_to_select,
+    bounded_total_entries,
+    paginated_select,
+)
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
@@ -585,7 +590,8 @@ def get_dag_runs(
     **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 
     **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-    When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+    When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+    `total_entries_limit` (a value equal to that limit means at least that many runs match).
     ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
     on the first page.
     """
@@ -695,8 +701,13 @@ def get_dag_runs(
         attach_dag_versions_to_runs(dag_runs, session=session)
         attach_team_names(dag_runs, session=session)
 
+        total_entries, total_entries_limit = bounded_total_entries(
+            statement=query, filters=filters, session=session
+        )
         return DAGRunCollectionResponse(
             dag_runs=dag_runs,
+            total_entries=total_entries,
+            total_entries_limit=total_entries_limit,
             next_cursor=(encode_cursor(dag_runs[-1], order_by) if has_next and dag_runs else None),
             previous_cursor=(
                 make_backward_cursor(encode_cursor(dag_runs[0], order_by)) if has_prev and dag_runs else None
