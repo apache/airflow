@@ -309,3 +309,50 @@ def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
 )
 def test_issue_match_in_body(body: str, expected: list[int]):
     assert [int(m.group(1)) for m in ISSUE_MATCH_IN_BODY.finditer(body)] == expected
+
+
+@pytest.mark.parametrize(
+    ("skip_git_fetch", "expected_fetches"),
+    [
+        pytest.param(False, 1, id="fetch-by-default"),
+        pytest.param(True, 0, id="skipped-when-requested"),
+    ],
+)
+def test_prepare_provider_distributions_skip_git_fetch(
+    monkeypatch, tmp_path, skip_git_fetch, expected_fetches
+):
+    fetches = []
+    monkeypatch.setattr(
+        release_management_commands,
+        "make_sure_remote_apache_exists_and_fetch",
+        lambda **kwargs: fetches.append(kwargs),
+    )
+    for name in (
+        "perform_environment_checks",
+        "check_flit_worktree_compatibility",
+        "fix_ownership_using_docker",
+        "cleanup_python_generated_files",
+        "run_command",
+    ):
+        monkeypatch.setattr(release_management_commands, name, lambda *args, **kwargs: None)
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_ROOT_PATH", tmp_path)
+    monkeypatch.setattr(release_management_commands, "get_packages_list_to_act_on", lambda **kwargs: [])
+
+    with pytest.raises(SystemExit) as exc_info:
+        release_management_commands.prepare_provider_distributions.callback(
+            clean_dist=False,
+            distributions_list="",
+            github_repository="apache/airflow",
+            include_not_ready_providers=False,
+            include_removed_providers=False,
+            distribution_format="wheel",
+            distributions_list_file=None,
+            provider_distributions=(),
+            skip_deleting_generated_files=False,
+            skip_git_fetch=skip_git_fetch,
+            skip_tag_check=False,
+            version_suffix="",
+        )
+
+    assert exc_info.value.code == 0
+    assert len(fetches) == expected_fetches
