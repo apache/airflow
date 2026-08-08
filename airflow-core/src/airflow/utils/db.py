@@ -90,8 +90,10 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection
     from airflow.typing_compat import Self
 
-    # TODO: Import this from sqlalchemy.orm instead when switching to SQLA 2.
-    # https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.MappedClassProtocol
+    # Note: SQLAlchemy 2.x (already required by this package) ships its own
+    # sqlalchemy.orm.MappedClassProtocol, but it checks for __table__/__mapper__/__call__
+    # rather than __tablename__, so it isn't a drop-in replacement for this local protocol.
+    # See https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.MappedClassProtocol
     class MappedClassProtocol(Protocol):
         """Protocol for SQLALchemy model base."""
 
