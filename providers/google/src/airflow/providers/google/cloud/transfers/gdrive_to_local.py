@@ -66,6 +66,7 @@ class GoogleDriveToLocalOperator(BaseOperator):
         drive_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -75,12 +76,14 @@ class GoogleDriveToLocalOperator(BaseOperator):
         self.file_name = file_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.subject = subject
 
     def execute(self, context: Context):
         self.log.info("Executing download: %s into %s", self.file_name, self.output_file)
         gdrive_hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            subject=self.subject,
         )
         file_metadata = gdrive_hook.get_file_id(
             folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id
