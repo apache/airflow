@@ -123,6 +123,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
+    create_savepoint,
     get_dialect_name,
     is_lock_not_available_error,
     prohibit_commit,
@@ -2583,7 +2584,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             new_active_runs = active_runs_of_dags[dag_model.dag_id] + 1
             try:
-                with session.begin_nested():
+                with create_savepoint(session):
                     next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
                     if TYPE_CHECKING:
                         assert next_info is not None

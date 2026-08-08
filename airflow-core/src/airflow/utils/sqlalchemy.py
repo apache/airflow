@@ -627,6 +627,29 @@ def with_db_lock_timeout(session: Session, lock_timeout: int = 30) -> Generator[
             session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {old_mysql_timeout}"))
 
 
+_EXPECTED_SAVEPOINT_COMMIT = "_airflow_expected_savepoint_commit"
+
+
+@contextlib.contextmanager
+def create_savepoint(session: Session) -> Generator[None, None, None]:
+    savepoint = session.begin_nested()
+    try:
+        yield
+    except Exception:
+        savepoint.rollback()
+        raise
+    else:
+        session.info[_EXPECTED_SAVEPOINT_COMMIT] = session.info.get(_EXPECTED_SAVEPOINT_COMMIT, 0) + 1
+        try:
+            savepoint.commit()
+        finally:
+            remaining = session.info[_EXPECTED_SAVEPOINT_COMMIT] - 1
+            if remaining:
+                session.info[_EXPECTED_SAVEPOINT_COMMIT] = remaining
+            else:
+                session.info.pop(_EXPECTED_SAVEPOINT_COMMIT, None)
+
+
 class CommitProhibitorGuard:
     """Context manager class that powers prohibit_commit."""
 
@@ -635,9 +658,11 @@ class CommitProhibitorGuard:
     def __init__(self, session: Session):
         self.session = session
 
-    def _validate_commit(self, _):
+    def _validate_commit(self, session):
         if self.expected_commit:
             self.expected_commit = False
+            return
+        if session.info.get(_EXPECTED_SAVEPOINT_COMMIT) and session.in_nested_transaction():
             return
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
