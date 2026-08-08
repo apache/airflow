@@ -145,6 +145,14 @@ class TestGetPool(TestPoolsEndpoint):
             "team_name": "test",
         }
 
+    def test_get_pool_shows_config_fixed_include_deferred(self, test_client):
+        self.create_pools()
+        # POOL2 is stored with include_deferred=False, but the cluster config fixes it to True
+        with conf_vars({("core", "pool_include_deferred"): "True"}):
+            response = test_client.get(f"/pools/{POOL2_NAME}")
+        assert response.status_code == 200
+        assert response.json()["include_deferred"] is True
+
     def test_get_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/pools/{POOL1_NAME}")
         assert response.status_code == 401
@@ -460,6 +468,23 @@ class TestPatchPool(TestPoolsEndpoint):
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
 
+    def test_patch_pool_with_cluster_fixed_include_deferred(self, test_client):
+        self.create_pools()
+        with conf_vars({("core", "pool_include_deferred"): "False"}):
+            # conflicting explicit value is rejected
+            response = test_client.patch(
+                f"/pools/{POOL2_NAME}",
+                json={"name": POOL2_NAME, "slots": 5, "include_deferred": True},
+            )
+            assert response.status_code == 422
+            assert "include_deferred is fixed to False" in response.json()["detail"][0]["msg"]
+            # matching value is accepted
+            response = test_client.patch(
+                f"/pools/{POOL2_NAME}",
+                json={"name": POOL2_NAME, "slots": 5, "include_deferred": False},
+            )
+            assert response.status_code == 200
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_patch_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
         self.create_pools()
@@ -586,6 +611,39 @@ class TestPostPool(TestPoolsEndpoint):
             },
         )
         assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        ("conf_value", "body_include_deferred", "expected_status_code", "expected_include_deferred"),
+        [
+            ("True", None, 201, True),
+            ("True", True, 201, True),
+            ("False", True, 422, None),
+            ("True", False, 422, None),
+        ],
+    )
+    def test_post_pool_with_cluster_fixed_include_deferred(
+        self,
+        test_client,
+        session,
+        conf_value,
+        body_include_deferred,
+        expected_status_code,
+        expected_include_deferred,
+    ):
+        body = {"name": "locked_pool", "slots": 1}
+        if body_include_deferred is not None:
+            body["include_deferred"] = body_include_deferred
+        with conf_vars({("core", "pool_include_deferred"): conf_value}):
+            response = test_client.post("/pools", json=body)
+        assert response.status_code == expected_status_code
+        if expected_status_code == 201:
+            assert response.json()["include_deferred"] is expected_include_deferred
+            assert (
+                session.scalar(select(Pool.include_deferred).where(Pool.pool == "locked_pool"))
+                is expected_include_deferred
+            )
+        else:
+            assert "include_deferred is fixed to" in response.json()["detail"][0]["msg"]
 
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
