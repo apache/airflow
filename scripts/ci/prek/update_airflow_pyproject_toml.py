@@ -98,6 +98,13 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "opensearch": parse_version("1.9.3"),
 }
 
+# These same-named apache-airflow extras must activate an extra on the provider distribution.
+# Keep them out of ``all_provider_lines`` so ``apache-airflow[all]`` does not install Category X
+# dependencies that users have not explicitly selected.
+PROVIDER_EXTRAS_FOR_AIRFLOW_EXTRAS: dict[str, tuple[str, ...]] = {
+    "oci": ("oci",),
+}
+
 
 def get_optional_dependencies(pyproject_toml_path: Path) -> list[str]:
     try:
@@ -284,6 +291,10 @@ if __name__ == "__main__":
     all_provider_lines = []
     for provider_id in released_providers:
         distribution_name = provider_distribution_name(provider_id)
+        provider_extras = PROVIDER_EXTRAS_FOR_AIRFLOW_EXTRAS.get(provider_id, ())
+        airflow_extra_distribution_name = distribution_name
+        if provider_extras:
+            airflow_extra_distribution_name += f"[{','.join(provider_extras)}]"
         min_provider_version, comment = find_min_provider_version(provider_id)
         exclusion_marker = get_exclusion_marker(all_providers_dependencies.get(provider_id, {}))
 
@@ -292,10 +303,13 @@ if __name__ == "__main__":
                 f'    "{distribution_name}>={min_provider_version}{exclusion_marker}",{comment}\n'
             )
             all_optional_dependencies.append(
-                f'"{provider_id}" = [\n    "{distribution_name}>={min_provider_version}{exclusion_marker}"{comment}\n]\n'
+                f'"{provider_id}" = [\n    "{airflow_extra_distribution_name}>={min_provider_version}'
+                f'{exclusion_marker}"{comment}\n]\n'
             )
         else:
-            all_optional_dependencies.append(f'"{provider_id}" = [\n    "{distribution_name}"\n]\n')
+            all_optional_dependencies.append(
+                f'"{provider_id}" = [\n    "{airflow_extra_distribution_name}"\n]\n'
+            )
             all_provider_lines.append(f'    "{distribution_name}",\n')
     all_optional_dependencies.append('"all" = [\n')
     optional_apache_airflow_dependencies = get_optional_dependencies(AIRFLOW_PYPROJECT_TOML_FILE)
