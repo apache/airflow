@@ -511,13 +511,16 @@ class TestSimpleAuthManager:
 
     @conf_vars({("core", "simple_auth_manager_all_admins"): "false"})
     def test_get_fastapi_middlewares_disabled(self, auth_manager):
-        assert auth_manager.get_fastapi_middlewares() == []
+        assert auth_manager.get_fastapi_middlewares() == [auth_manager.get_jwt_refresh_middleware()]
 
     @conf_vars({("core", "simple_auth_manager_all_admins"): "true"})
     def test_get_fastapi_middlewares_enabled(self, auth_manager):
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
-        assert auth_manager.get_fastapi_middlewares() == [(SimpleAllAdminMiddleware, {})]
+        assert auth_manager.get_fastapi_middlewares() == [
+            auth_manager.get_jwt_refresh_middleware(),
+            (SimpleAllAdminMiddleware, {}),
+        ]
 
     def test_generate_password_uses_expected_alphabet_and_length(self):
         alphabet = set("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789")

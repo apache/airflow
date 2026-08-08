@@ -62,7 +62,7 @@ from airflow.providers.common.compat.security.access_view import (
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
-from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
@@ -373,11 +373,14 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
         """Register the FAB public-access middleware when public access is configured."""
+        middleware = super().get_fastapi_middlewares() if AIRFLOW_V_3_3_PLUS else []
+
         if not self._get_auth_role_public():
-            return []
+            return middleware
+
         from airflow.providers.fab.auth_manager.middleware import FabAuthRolePublicMiddleware
 
-        return [(FabAuthRolePublicMiddleware, {})]
+        return middleware + [(FabAuthRolePublicMiddleware, {})]
 
     def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User | None:
         """
