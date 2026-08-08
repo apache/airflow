@@ -2258,6 +2258,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         upstream: Operator,
         ti_count: int | None,
         *,
+        use_post_expansion_placeholder: bool = False,
         session: Session,
     ) -> int | range | None:
         if TYPE_CHECKING:
@@ -2269,6 +2270,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             task=self.task,
             relative=upstream,
             session=session,
+            use_post_expansion_placeholder=use_post_expansion_placeholder,
         )
 
     def clear_db_references(self, session: Session):
@@ -2401,6 +2403,7 @@ def _get_relevant_map_indexes(
     relative: Operator,
     ti_count: int | None,
     session: Session,
+    use_post_expansion_placeholder: bool = False,
 ) -> int | range | None:
     """
     Infer the map indexes of a relative that's "relevant" to this ti.
