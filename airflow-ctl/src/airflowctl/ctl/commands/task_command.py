@@ -61,6 +61,15 @@ def _find_run_id_by_logical_date(api_client, dag_id: str, value: str) -> str:
     return dag_runs[0].dag_run_id
 
 
+def _task_instance_not_found_message(dag_id: str, run_id: str, task_id: str, map_index: int) -> str:
+    """Build the message shown when a task instance is not found."""
+    map_index_part = f" with map index {map_index}" if map_index >= 0 else ""
+    return (
+        f"Task instance for task {task_id!r}{map_index_part} in Dag run "
+        f"{run_id!r} of Dag {dag_id!r} not found"
+    )
+
+
 def _format_task_instance(ti: TaskInstanceResponse, has_mapped_instances: bool) -> dict[str, str]:
     data = {
         "dag_id": ti.dag_id,
@@ -109,10 +118,8 @@ def failed_deps(args, api_client=NEW_API_CLIENT) -> None:
         )
     except ServerResponseError as e:
         if e.response.status_code == 404:
-            map_index_part = f" with map index {args.map_index}" if args.map_index >= 0 else ""
             rich.print(
-                f"[red]Task instance for task {args.task_id!r}{map_index_part} in Dag run "
-                f"{run_id!r} of Dag {args.dag_id!r} not found[/red]"
+                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index)}[/red]"
             )
             sys.exit(1)
         raise
@@ -149,3 +156,31 @@ def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
         data=[_format_task_instance(ti, has_mapped_instances) for ti in task_instances],
         output=args.output,
     )
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def state(args, api_client=NEW_API_CLIENT) -> None:
+    """Get the state of a task instance."""
+    if (args.run_id is None) == (args.logical_date is None):
+        rich.print("[red]Provide either run_id or --logical-date, but not both[/red]")
+        sys.exit(1)
+
+    run_id = args.run_id or _find_run_id_by_logical_date(api_client, args.dag_id, args.logical_date)
+
+    try:
+        task_instance = api_client.task_instances.get(
+            dag_id=args.dag_id,
+            dag_run_id=run_id,
+            task_id=args.task_id,
+            map_index=args.map_index,
+            suppress_error_log=True,
+        )
+    except ServerResponseError as e:
+        if e.response.status_code == 404:
+            rich.print(
+                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index)}[/red]"
+            )
+            sys.exit(1)
+        raise
+
+    print(task_instance.state.value if task_instance.state else None)
