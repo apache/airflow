@@ -157,7 +157,7 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 
 # Migrations
 /airflow-core/src/airflow/migrations/ @ephraimbuddy
-/providers/fab/src/airflow-core/src/airflow/providers/fab/migrations/ @ephraimbuddy
+/providers/fab/src/airflow/providers/fab/migrations/ @ephraimbuddy
 
 # AIP-72 - Task SDK
 # Python SDK

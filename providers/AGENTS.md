@@ -1,3 +1,25 @@
+---
+triage_review_imbalance:
+  area: providers
+  criticality: medium            # a provider break affects that provider's users, not the whole cluster
+  review_difficulty: medium
+  structural_risk_paths:         # matched files treated as criticality=high (cost + small-diff ceiling)
+    - "*/provider.yaml"          # metadata + capability registration source of truth
+    - "*/pyproject.toml"         # generated from a template; dependency lists are the release contract
+    - "*/docs/changelog.rst"     # the only user-visible release note channel (no newsfragments)
+    - "*/version_compat.py"      # per-provider core-version gate, copied not imported
+    - "common/compat/"           # cross-version shim every other provider depends on
+    - "common/sql/"              # depended on by ~30 SQL providers
+  codeowners_ref: ".github/CODEOWNERS"
+  # NOTE: ownership here is PER-PROVIDER — `.github/CODEOWNERS` lists a different
+  # owner (or none) for each provider directory. There is no single owner for all
+  # of `providers/`. The list below is a small set of frequent cross-provider
+  # reviewers, used as an internal routing signal only — never @-mentioned in
+  # drafted PR text. For a concrete PR, prefer the per-provider CODEOWNERS entry.
+  experts: ["potiuk", "eladkal", "jscheffl", "shahar1"]
+  adr_ref: "adr/"                # area Architecture Decision Records — checked for conformance (step §2c)
+---
+
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/licenses/LICENSE-2.0 -->
 
@@ -21,7 +43,7 @@ Each provider is an independent package with its own `pyproject.toml`, tests, an
 
 ## Changelog — never use newsfragments
 
-**Never create newsfragments for providers.** Providers are released from `main` in waves, so
+**Never create newsfragments under `providers/`.** Providers are released from `main` in waves, so
 per-PR newsfragments are not consumed by the release process — the release manager regenerates the
 changelog from `git log`. The towncrier-managed `newsfragments/` workflow is used only by
 `airflow-core/`, `chart/`, and `dev/mypy/`. (`airflow-ctl/` follows the same "no newsfragments,
@@ -50,7 +72,7 @@ Airflow has two distinct user roles with different trust levels:
 - **Dag authors** — users who write the Python code that constructs hooks
   and operators. They control which arguments are passed at call sites.
 
-These are *not* the same population, and the security model treats them
+These are _not_ the same population, and the security model treats them
 differently. A Connection editor is trusted to supply credentials for a target
 system; they are **not** trusted to alter how the worker process behaves, load
 arbitrary Python code, change file paths the worker reads, or pass options
@@ -69,7 +91,7 @@ when attacker-controlled. Concrete examples seen in the wild:
   files.
 - A kwarg that sets a proxy, endpoint URL, or hostname — attacker
   redirects traffic to an MITM endpoint and harvests credentials or
-  tokens for *other* systems.
+  tokens for _other_ systems.
 - A kwarg that toggles TLS verification, signing, or auth — attacker
   silently downgrades security.
 - A kwarg that controls subprocess execution, shell invocation, or
@@ -94,6 +116,30 @@ model does not grant them.
 - If a Dag author genuinely needs to pass a non-allowlisted option, that
   option should be a **Dag-author-supplied argument** on the operator or
   hook (with its own review), not something a Connection editor can set.
+- **Allowlisting is not sufficient for three key classes.** Naming a key
+  explicitly bounds _which_ option a Connection editor can set; it does not
+  bound what that option does. For keys that redirect traffic (`proxy`,
+  `http_proxy`, `https_proxy`, endpoint or base-URL overrides, alternate
+  hostnames) or that weaken transport security (TLS verification toggles,
+  custom CA bundles, signature or auth-mechanism switches), a
+  correctly-allowlisted read via `self._get_field("http_proxy")` gives the
+  Connection editor the same capability as a blind spread would. Prefer a
+  **Dag-author-supplied argument**, or a **deployment-level setting** the
+  Deployment Manager controls, and fall back to the connection extra only as an
+  explicit opt-in. Where an existing provider already reads such a key from
+  extras, document it in the provider's connection docs as a
+  trusted-role capability rather than as a convenience option.
+
+  **This is hardening guidance, not a vulnerability class.**
+  [`airflow-core/docs/security/security_model.rst`](../airflow-core/docs/security/security_model.rst)
+  places Connection configuration users in a **highly trusted** role and states
+  outright that they can "specify insecure connection options which might create
+  situations where executing Dags will lead to arbitrary Remote Code Execution
+  for some providers" — by design. A provider that reads a proxy key by name is
+  therefore **not** a security bug and must not be reported as one. The reason to
+  prefer Dag-author or deployment control anyway is defence in depth: it keeps
+  the blast radius of a compromised or careless Connection editor proportional to
+  one Dag rather than to every task using that connection.
 
 ### When reviewing provider PRs
 
@@ -106,3 +152,257 @@ Flag any of these patterns:
   unfiltered.
 - "Convenience" features that let users put arbitrary client kwargs into
   `extra` — they widen the Connection-editor blast radius.
+- A **new** proxy, endpoint-URL, hostname-override or TLS-toggle extra key,
+  even when read by name and never spread. Ask whether a Dag-author argument or
+  a deployment-level setting would do the job. #67218 (BigQuery proxy support)
+  is the shape: `self._get_field("http_proxy")`, allowlist-clean, and still a
+  routing capability granted at the connection layer. Raise it as a design
+  question, not as a security finding.
+
+## Before opening a PR here — authoring-agent guard
+
+**This is a medium-criticality area with an unusually wide surface.** A defect in
+one provider affects that provider's users rather than the whole cluster, so the
+bar is lower than for scheduler or Dag-processing changes — but each provider is
+an **independently released distribution** with its own users, its own version
+history, and (usually) its own CODEOWNER. Three things make changes here
+expensive out of proportion to their diff size:
+
+- The **third-party service** the provider wraps is the real specification. A
+  reviewer who has not used that service cannot confirm the change is correct,
+  and CI mocks the service rather than calling it.
+- The change ships to users on a **provider release cadence independent of
+  core**, against a _range_ of Airflow versions — so "works on my main checkout"
+  is not evidence it works where it ships.
+- Dependency and metadata edits (`provider.yaml`, `pyproject.toml` dependency
+  lists) are the release contract, and a mistake there breaks installs for
+  everyone on that provider, not just users of the code path you touched.
+
+If you are an agent preparing a change here on behalf of a person, judge whether
+the **driving person** actually knows the third-party service and has a reason to
+believe the change is correct against it. **If they do not, do not create the
+PR.** Say so plainly and redirect them:
+
+- a **provider they actually use in production**, where they can verify behaviour, or
+- a **well-scoped bug with a concrete reproduction** rather than a speculative
+  refactor across many providers, or
+- **asking in the issue first** when the change spans several providers or
+  touches a `common.*` provider that others depend on.
+
+Mass, near-identical changes fanned out across many providers are the single most
+common shape of low-value provider PR. They multiply reviewer load by the number
+of providers touched and are routinely closed. Split by provider only when each
+split is independently justified; otherwise do not open it.
+
+## Review criteria
+
+Mined from real review discussion on the ~4,600 commits touching `providers/`
+and on the 442 closed-unmerged PRs touching the same paths — the changes
+reviewers repeatedly required, and the reasons changes here get closed. **If you are preparing a change here, treat this as a pre-flight
+checklist and fix every applicable item _before_ opening the PR.** Triage applies
+the same list: a PR that lands with unmet items is drafted back to its author
+with the specific gaps. Ordered by how often reviewers raise each.
+
+**Scope and duplication (the most common reasons a change here is closed) —
+see `adr/0005`:**
+
+- [ ] **Search for an existing PR before writing any code, and claim the issue.**
+      A visible provider issue routinely draws several independent
+      implementations of the same fix; only one can merge. If a PR is already
+      open, review it or offer to help rather than opening a second. PRs here are
+      closed with "fixed in #NNNNN" more often than for any other reason. Finding
+      the overlap needs only PR data; deciding whether the second author had
+      already argued for a different approach, or whether the issue was claimed by
+      someone else, needs the **linked issue's comment thread** — fetch it, and
+      without it raise the overlap as a question rather than as a finding.
+- [ ] **One PR fixes one problem in one provider.** A second issue's work, a
+      drive-by refactor, or formatting churn beyond the changed lines makes the
+      change unreviewable — "please remove the unrelated changes" is the single
+      most repeated review sentence in this directory.
+- [ ] **In a _provider-primary_ PR, files under `airflow-core/` or `task-sdk/`
+      are allowed only where they enumerate provider content** —
+      `airflow-core/tests/unit/always/test_project_structure.py`, the Task SDK
+      decorator stubs, the plugin-registry tests, cross-referenced pages under
+      `airflow-core/docs/`, and the provider-metadata machinery
+      (`provider.yaml.schema.json`, `provider_info.schema.json`,
+      `providers_manager.py` — a new provider module category _requires_ the
+      schema edit). Adding an operator module _requires_ the structure test. Core
+      source or unrelated core tests in such a diff is the bad-rebase signal —
+      rebase from a clean `upstream/main` or say in the PR body why the file is
+      there. **Check primacy first:** if the majority of changed files are
+      _outside_ `providers/`, this is a core / Go SDK / Helm change that happens
+      to touch a provider, and it is reviewed against that area's rules instead —
+      the provider file is the incidental edge, not the diff.
+- [ ] **Split-vs-single for a change spanning several providers is a reviewer's
+      call.** Split it when the right value or the risk differs per provider
+      (#63042 was split for exactly that reason); keep it single when the same
+      reasoning holds everywhere and a split is unreviewable as a set (#63370 was
+      asked to be merged back into one). A _mechanical, behaviour-preserving_
+      sweep verified by a hook is always a single PR, and skips providers where
+      the pattern does not occur.
+- [ ] **Close your own superseded PR.** Reopening work after a history rewrite is
+      fine; leaving both open is not.
+
+**Evidence and root cause — see `adr/0006`:**
+
+- [ ] **Show the change works against the real service.** Unit tests here mock
+      the vendor client, so green CI proves only that the mocks agree. A
+      **service-facing** behaviour fix carries a reproduction and a run —
+      reviewers ask for exactly this, by name, and close the PR when it does not
+      arrive. _Service-facing_ means a bug whose mechanism is in the vendor's
+      response, not in Airflow's own logic: a misparsed API payload, a status the
+      SDK reports differently than assumed, an auth flow that behaves unlike the
+      docs. A fix whose mechanism is entirely inside Airflow — a test assertion, a
+      docs link, a timezone conversion, `time.monotonic()`, a parameter rename,
+      Dag-serialization plumbing — is verified by unit tests like any other code
+      and does not need a live run.
+- [ ] **State the root cause, not the symptom.** Suppressing a broken import,
+      widening an `except`, extending a retry budget, or deleting the component
+      that surfaced the error are not fixes unless the PR argues why the symptom
+      is the right layer.
+- [ ] **Check whether the vendor already fixed it.** If the upstream library has
+      released a fix, the change is a floor bump — or nothing. If the behaviour
+      belongs to a vendor's managed Airflow offering, it is reported there.
+- [ ] **Vendor facts in the PR must check out.** A claim about which client
+      version introduced a capability decides whether the change breaks existing
+      users; unverifiable or wrong citations get the PR closed outright.
+
+**Process and governance — see `adr/0004`:**
+
+- [ ] **A new provider's case is made on the dev list, and the PR links it.** The
+      case needs adopters beyond the author and a named steward. A proposal
+      opened as code without that thread is asked for it, not closed — eight new
+      providers merged between February and July 2026, two of them with no
+      dev-list link at all. Closing on process grounds requires an intake pause
+      actually being in effect — and **nothing in a PR reveals that**. It lives in
+      the state of the dev-list governance discussion, so go and check it, and
+      cite the thread if you invoke a pause. Absent that citation, treat the
+      proposal on its merits.
+- [ ] **A new cross-provider abstraction goes through the AIP process** — a task
+      state, a listener hookspec, a public exception class, a base class other
+      providers subclass.
+- [ ] **Handwritten doc examples are discouraged** — they go stale. Examples in
+      this project are backed by system tests; a standalone example needs a
+      stated reason it is necessary.
+- [ ] **Check the target branch is still maintained.** Only the current
+      maintenance branches take fixes; providers are released from `main` and are
+      never backported.
+
+**Cross-version compatibility with Airflow core (the defining technical concern
+here):**
+
+- [ ] **The provider must still work on the oldest core it declares.** The floor
+      is the `apache-airflow>=X.Y.Z` pin in the provider's `pyproject.toml` (most
+      providers are still on `>=2.11.0`). Using a core API that only exists in a
+      newer release, without a version gate, silently breaks every user on the
+      declared floor.
+- [ ] **Gate new-core-only behaviour through the provider's own
+      `version_compat.py`** (`AIRFLOW_V_3_0_PLUS`, `AIRFLOW_V_3_1_PLUS`, …). That
+      file is **copied** into each provider deliberately, not imported from
+      another provider or from tests — a prek hook rejects a `version_compat`
+      import that resolves outside the provider's own root.
+- [ ] **Import `conf` from `airflow.providers.common.compat.sdk`**, never from
+      `airflow.configuration` or `airflow.sdk.configuration` (executors, which run
+      inside airflow-core, are the one carve-out). Enforced by a prek hook.
+- [ ] **Raise the declared core floor rather than silently depending on a newer
+      core** — if the change genuinely needs a newer Airflow, bump the pin and say
+      so, rather than leaving the old floor declared and broken.
+
+**Dependencies and generated metadata:**
+
+- [ ] **Edit dependencies in the provider's `pyproject.toml` in place**, then run
+      `prek update-providers-dependencies --all-files`. The file is generated from
+      `dev/breeze/src/airflow_breeze/templates/pyproject_TEMPLATE.toml.jinja2` and
+      carries a "THIS FILE IS AUTOMATICALLY GENERATED" banner — everything except
+      the dependency lists is regenerated, so hand-edits elsewhere are lost.
+- [ ] **`provider.yaml` is the source of truth for provider metadata** —
+      `versions`, `integrations`, `operators`, `hooks`, `connection-types`,
+      `config`, `executors`, `excluded-platforms`. Note that `operators`,
+      `sensors`, `hooks` and `transfers` list **modules**, not classes: a new
+      class in an already-declared module needs no yaml edit, a new module does.
+      Several prek hooks fail when the code and `provider.yaml` disagree.
+- [ ] **Don't upper-bound a dependency by default.** A cap is a deliberate,
+      justified decision with a tracking issue and a comment carrying the full
+      issue URL at the cap site, not a way to make CI green.
+- [ ] **Bump the consuming provider's dependency with a `# use next version`
+      marker** when you change a symbol another provider imports from yours —
+      independently-released packages otherwise drift out of compatibility. See
+      `contributing-docs/13_airflow_dependencies_and_extras.rst`.
+- [ ] **Adding an extra means documenting it** — optional dependency groups show
+      up in the provider's generated docs and README; keep them in sync rather
+      than leaving a stale or undocumented extra.
+
+**Boundaries (architecture invariants, not preferences):**
+
+- [ ] **Consume core through the public / Task-SDK surface only** — subclass
+      `airflow.sdk` base classes and import from `airflow.sdk`; do not reach into
+      airflow-core internals, private modules, or the ORM. Provider code runs on
+      workers, which must not touch the metadata DB directly.
+- [ ] **Never spread `Connection.extra` into a hook, operator, or client
+      constructor** — allowlist each key by name. See the security section above;
+      this is the highest-severity recurring finding in provider review. Note the
+      carve-out there: allowlisting alone does not settle proxy, endpoint-URL,
+      hostname or TLS-toggle keys, which are better as a Dag-author argument or a
+      deployment setting.
+- [ ] **Don't add a cross-provider import to reuse a helper.** Copy the small
+      helper (as `version_compat.py` is copied) or put it in a `common.*`
+      provider — an incidental import creates a release-coupling between two
+      independently versioned packages.
+
+**Code quality reviewers consistently require:**
+
+- [ ] **Release resources on the failure path too** — file handles, sessions, and
+      clients opened in a hook must be closed when the operation raises, not only
+      on the happy path.
+- [ ] **Don't swallow exceptions with a broad `except`** — narrow to the real
+      classes so genuine service errors surface instead of being reported as a
+      generic failure.
+- [ ] **Imports at module top**; heavy third-party SDK imports guarded with
+      `TYPE_CHECKING` where they are type-only. No provider discovery or file I/O
+      at import time.
+- [ ] **Action-verb / intent-revealing names**; reuse the provider's existing hook
+      rather than opening a second client construction path that will drift.
+- [ ] **Malformed data from the remote service must degrade, not crash** — a bad
+      log line or unexpected response shape should not take down log fetching or
+      the task.
+
+**Docs, changelog, tests, process:**
+
+- [ ] **Never add a newsfragment under `providers/`, and never add one for a
+      provider-only change.** The prohibition is about the directory, not the
+      word: providers are released from `main` and the release manager
+      regenerates the changelog from `git log`, so nothing under `providers/`
+      reads a newsfragment. A PR whose substance is a core, Helm or mypy change —
+      and which touches a provider file only incidentally — still belongs in
+      `airflow-core/newsfragments/`, `chart/newsfragments/` or
+      `dev/mypy/newsfragments/`, and that is correct. For a genuinely
+      user-visible note in a provider (typically a breaking change), edit
+      `providers/<provider>/docs/changelog.rst` directly, just under the
+      `Changelog` header, as the in-file `NOTE TO CONTRIBUTORS` block describes.
+- [ ] **A breaking change is called out explicitly** — in the PR description and,
+      when users need migration guidance, in the changelog. Silent behaviour
+      changes in a provider surface as a production break on the next release.
+- [ ] **System tests need real credentials and must not leave public
+      infrastructure behind** — a system test that provisions a publicly
+      reachable resource is a defect.
+
+(Repo-wide testing standards, the naming convention, and the AI-disclosure
+requirement are in the root `CLAUDE.md` and are not restated here.)
+
+> Mined from PR review history across `providers/`, merged and closed-unmerged
+> alike; the sample is dominated by the handful of large providers (amazon,
+> google, cncf.kubernetes, common.*) and by the Airflow-3 era, so conventions
+> specific to small or rarely-touched providers are under-represented. The
+> closed-PR sample also skews toward first-time contributions, so the
+> scope-and-evidence items above appear more often there than in the merged
+> history. Ownership is per-provider — always check
+> `.github/CODEOWNERS` for the directory actually being changed. Extend as new
+> patterns emerge.
+
+## Expectation for large changes
+
+Discuss the approach first — in an issue or on the dev list — before a large PR.
+That applies especially to changes that **span multiple providers**, touch a
+`common.*` provider other providers depend on, or raise a provider's declared
+Airflow-core floor: those are release-contract decisions and are far cheaper to
+align on _before_ the code than during review.
