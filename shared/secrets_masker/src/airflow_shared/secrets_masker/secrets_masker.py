@@ -344,7 +344,7 @@ class SecretsMasker(logging.Filter):
             return list(
                 self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
             )
-        return item
+        return replacement
 
     def _redact(
         self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
