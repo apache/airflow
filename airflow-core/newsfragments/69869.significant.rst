@@ -33,7 +33,7 @@ DAGs (i.e. you need contiguous data intervals and ``ds``/``ts`` anchored at
     create_delta_data_intervals = True
 
 You can safely set this flag on current ``main`` (before this fix ships) because
-``create_delta_data_intervals`` was previously a no-op — setting it to ``True``
+``create_delta_data_intervals`` was previously a no-op - setting it to ``True``
 will have no effect until the fix is in place, so there is no risk of an
 unexpected timetable switch during the transition.
 
