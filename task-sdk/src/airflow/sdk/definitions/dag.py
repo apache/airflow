@@ -45,7 +45,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
-from airflow.sdk.definitions.asset import AssetAll, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
@@ -234,6 +234,60 @@ def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> l
     return list(deadline)
 
 
+def _collect_from_input(value_or_values: Any | Collection[Any] | None) -> list[Any]:
+    if not value_or_values:
+        return []
+    if isinstance(value_or_values, Collection) and not isinstance(value_or_values, str):
+        return list(value_or_values)
+    return [value_or_values]
+
+
+def _emit_dag_asset_events(*, context: Context) -> None:
+    """Emit asset events for Dag-level outlets on successful Dag run."""
+    dag = context.get("dag")
+    if dag is None:
+        return
+
+    from airflow.assets.manager import asset_manager
+    from airflow.models.asset import AssetModel
+    from airflow.serialization.definitions.assets import SerializedAsset
+    from airflow.utils.session import create_session
+
+    run_id = context.get("run_id")
+    with create_session() as session:
+        for outlet in dag.outlets:
+            if not isinstance(outlet, BaseAsset):
+                continue
+            if not isinstance(outlet, Asset):
+                # Dag-level outlets only emit concrete assets as events.
+                continue
+
+            serialized_asset = SerializedAsset(
+                name=outlet.name,
+                uri=outlet.uri,
+                group=outlet.group,
+                extra=outlet.extra,
+                watchers=[],
+            )
+            event = asset_manager.register_asset_change(
+                asset=serialized_asset,
+                source_dag_id=dag.dag_id,
+                source_run_id=run_id,
+                partition_key=getattr(context.get("dag_run"), "partition_key", None),
+                session=session,
+            )
+            if event is None:
+                session.add(AssetModel.from_serialized(serialized_asset))
+                session.flush()
+                asset_manager.register_asset_change(
+                    asset=serialized_asset,
+                    source_dag_id=dag.dag_id,
+                    source_run_id=run_id,
+                    partition_key=getattr(context.get("dag_run"), "partition_key", None),
+                    session=session,
+                )
+
+
 def _convert_doc_md(doc_md: str | None) -> str | None:
     if doc_md is None:
         return doc_md
@@ -418,6 +472,7 @@ class DAG:
     :param owner_links: Dict of owners and their links, that will be clickable on the Dags view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
+    :param outlets: List of outlets that the Dag should emit when the Dag run is successful.
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
@@ -532,6 +587,7 @@ class DAG:
     render_template_as_native_obj: bool = attrs.field(default=False, converter=bool)
     tags: MutableSet[str] = attrs.field(factory=set, converter=_convert_tags)
     owner_links: dict[str, str] = attrs.field(factory=dict)
+    outlets: list[Any] = attrs.field(factory=list, converter=_collect_from_input)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
     allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
@@ -599,6 +655,12 @@ class DAG:
                 f"Invalid max_active_runs: {type(self.timetable)} "
                 f"requires max_active_runs <= {active_runs_limit}"
             )
+
+        if self.outlets:
+            callbacks = _collect_from_input(self.on_success_callback)
+            callbacks.append(_emit_dag_asset_events)
+            self.on_success_callback = callbacks
+            self.has_on_success_callback = True
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
@@ -744,6 +806,28 @@ class DAG:
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
+
+    def __gt__(self, other):
+        """
+        Return [Dag] > [Outlet].
+
+        If other is an attr annotated object it is set as an outlet of this Dag.
+        """
+        if isinstance(other, str) or not isinstance(other, Iterable):
+            other = [other]
+        else:
+            other = list(other)
+
+        for obj in other:
+            if not attrs.has(obj):
+                raise TypeError(f"Left hand side ({obj}) is not an outlet")
+        self.add_outlets(other)
+
+        return self
+
+    def add_outlets(self, outlets: Iterable[Any]) -> None:
+        """Define the outlets of this Dag."""
+        self.outlets.extend(outlets)
 
     def __enter__(self) -> Self:
         from airflow.sdk.definitions._internal.contextmanager import DagContext
@@ -1282,25 +1366,31 @@ class DAG:
             scheduler_dag = DagSerialization.deserialize_dag(DagSerialization.serialize_dag(self))
 
             # Allow users to explicitly pass None. If it isn't set, we default to current time.
-            logical_date = logical_date if is_arg_set(logical_date) else timezone.utcnow()
+            logical_date_val: datetime | None = (
+                logical_date if is_arg_set(logical_date) else timezone.utcnow()
+            )
 
-            log.debug("Clearing existing task instances for logical date %s", logical_date)
+            log.debug("Clearing existing task instances for logical date %s", logical_date_val)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point
             SerializedDAG.clear_dags(
                 dags=[scheduler_dag],
-                start_date=logical_date,
-                end_date=logical_date,
+                start_date=logical_date_val,
+                end_date=logical_date_val,
                 dag_run_state=False,
             )
 
             log.debug("Getting dagrun for dag %s", self.dag_id)
-            logical_date = timezone.coerce_datetime(logical_date)
-            run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
-            if logical_date is None:
+            logical_date_val = timezone.coerce_datetime(logical_date_val)
+            run_after_val: datetime = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(
+                timezone.utcnow()
+            )
+            if logical_date_val is None:
                 data_interval: DataInterval | None = None
             else:
                 timetable = coerce_to_core_timetable(self.timetable)
-                data_interval = timetable.infer_manual_data_interval(run_after=logical_date)
+                # logical_date_val is not None here, but mypy might still be unsure about its type
+                # We cast to Any because the core Timetable expects pendulum.DateTime which is a subclass of datetime
+                data_interval = timetable.infer_manual_data_interval(run_after=cast(Any, logical_date_val))
             # These imports are intentionally lazy: this Task SDK module must not
             # pull in airflow-core at import time (worker isolation).
             from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -1363,14 +1453,14 @@ class DAG:
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date or run_after,
-                logical_date=logical_date,
+                start_date=logical_date_val or run_after_val,
+                logical_date=logical_date_val,
                 data_interval=data_interval,
-                run_after=run_after,
+                run_after=run_after_val,
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.MANUAL,
-                    logical_date=logical_date,
-                    run_after=run_after,
+                    logical_date=logical_date_val,
+                    run_after=run_after_val,
                 ),
                 session=session,
                 conf=run_conf,
@@ -1640,6 +1730,7 @@ if TYPE_CHECKING:
         render_template_as_native_obj: bool = False,
         tags: Collection[str] | None = None,
         owner_links: dict[str, str] | None = None,
+        outlets: Any | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
         allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
