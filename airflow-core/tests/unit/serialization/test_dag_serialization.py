@@ -1573,6 +1573,7 @@ class TestStringifiedDAGs:
             "has_on_failure_callback",
             "dag_dependencies",
             "params",
+            "is_mixed_language_dag",
         }
 
         keys_for_backwards_compat: set = {
@@ -2406,6 +2407,85 @@ class TestStringifiedDAGs:
         deserialized_dag = DagSerialization.from_dict(serialized_dag)
 
         assert deserialized_dag.has_on_failure_callback is expected_value
+
+    def _serialize_simple_dag(self, dag_id):
+        dag = DAG(dag_id=dag_id, schedule=None)
+        BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+        return DagSerialization.to_dict(dag)
+
+    def test_is_mixed_language_dag_absent_without_stub_tasks(self):
+        """A pure-Python Dag omits the key entirely, so every reader falls back to the False default."""
+        serialized_dag = self._serialize_simple_dag("test_is_mixed_language_dag_absent")
+
+        assert "is_mixed_language_dag" not in serialized_dag["dag"]
+        assert DagSerialization.from_dict(serialized_dag).is_mixed_language_dag is False
+        assert LazyDeserializedDAG(data=serialized_dag).is_mixed_language_dag is False
+
+    def test_is_mixed_language_dag_derived_from_stub_tasks(self):
+        """A Dag holding a @task.stub task is mixed-language, and serialization records that."""
+        from airflow.providers.standard.decorators.stub import stub
+
+        def run_on_golang(): ...
+
+        with DAG(
+            dag_id="test_is_mixed_language_dag_derived",
+            schedule=None,
+            start_date=datetime(2019, 8, 1),
+        ) as dag:
+            BaseOperator(task_id="python_task", start_date=datetime(2019, 8, 1))
+            stub(run_on_golang, queue="golang")()
+
+        assert dag.is_mixed_language_dag is True
+
+        serialized_dag = DagSerialization.to_dict(dag)
+
+        assert serialized_dag["dag"]["is_mixed_language_dag"] is True
+        assert DagSerialization.from_dict(serialized_dag).is_mixed_language_dag is True
+        assert LazyDeserializedDAG(data=serialized_dag).is_mixed_language_dag is True
+
+    @pytest.mark.parametrize("flag", [True, False])
+    def test_is_mixed_language_dag_roundtrip(self, flag):
+        """A producer-supplied flag validates against the schema and survives deserialization."""
+        serialized_dag = self._serialize_simple_dag(f"test_is_mixed_language_dag_roundtrip_{flag}")
+        serialized_dag["dag"]["is_mixed_language_dag"] = flag
+        DagSerialization.validate_schema(serialized_dag)
+
+        assert DagSerialization.from_dict(serialized_dag).is_mixed_language_dag is flag
+        assert LazyDeserializedDAG(data=serialized_dag).is_mixed_language_dag is flag
+
+    def test_is_mixed_language_dag_not_author_settable(self):
+        """
+        The flag is derived, never authored. Neither the constructor nor attribute assignment may set
+        it, so a Dag can never claim to be mixed-language without actually holding a stub task.
+        """
+        assert "is_mixed_language_dag" not in {a.name for a in attrs.fields(DAG)}
+        assert "is_mixed_language_dag" not in DAG.get_serialized_fields()
+
+        with pytest.raises(TypeError, match="is_mixed_language_dag"):
+            DAG(dag_id="test_is_mixed_language_dag_rejected", schedule=None, is_mixed_language_dag=True)
+
+        dag = DAG(dag_id="test_is_mixed_language_dag_not_leaked", schedule=None)
+        BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+
+        with pytest.raises(AttributeError, match="can not be set"):
+            dag.is_mixed_language_dag = True
+
+        serialized_dag = DagSerialization.to_dict(dag)
+
+        assert "is_mixed_language_dag" not in serialized_dag["dag"]
+        assert DagSerialization.from_dict(serialized_dag).is_mixed_language_dag is False
+
+    @pytest.mark.parametrize("raw", ["false", "true", 0, 1, None, [], {"a": 1}])
+    def test_is_mixed_language_dag_fails_closed_on_non_boolean(self, raw):
+        """
+        The read path runs no schema validation, so a malformed producer value must fall back to False.
+        Truthiness would read "false" and 1 as True and wrongly discard a native Lang-SDK Dag.
+        """
+        serialized_dag = self._serialize_simple_dag("test_is_mixed_language_dag_non_boolean")
+        serialized_dag["dag"]["is_mixed_language_dag"] = raw
+
+        assert DagSerialization.from_dict(serialized_dag).is_mixed_language_dag is False
+        assert LazyDeserializedDAG(data=serialized_dag).is_mixed_language_dag is False
 
     @pytest.mark.parametrize(
         ("dag_arg", "conf_arg", "expected"),

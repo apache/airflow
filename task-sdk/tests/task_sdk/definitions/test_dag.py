@@ -37,6 +37,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions.dag import STUB_OPERATOR_NAME
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
@@ -658,6 +659,42 @@ def test__tags_mutable():
     test_dag.tags.add("8")
     test_dag.tags.remove("8")
     assert test_dag.tags == expected_tags
+
+
+class _FakeStubOperator(BaseOperator):
+    """Stands in for providers.standard's ``@task.stub``, which task-sdk must not import."""
+
+    custom_operator_name = STUB_OPERATOR_NAME
+
+
+@pytest.mark.parametrize(
+    ("task_classes", "expected"),
+    [
+        pytest.param([], False, id="no-tasks"),
+        pytest.param([BaseOperator], False, id="python-only"),
+        pytest.param([_FakeStubOperator], True, id="stub-only"),
+        pytest.param([BaseOperator, _FakeStubOperator], True, id="mixed"),
+        pytest.param([_FakeStubOperator, _FakeStubOperator], True, id="several-stubs"),
+    ],
+)
+def test_is_mixed_language_dag_derived_from_stub_tasks(task_classes, expected):
+    with DAG(dag_id="derived") as test_dag:
+        for i, task_class in enumerate(task_classes):
+            task_class(task_id=f"task_{i}")
+
+    assert test_dag.is_mixed_language_dag is expected
+
+
+def test_is_mixed_language_dag_cannot_be_set():
+    """It is derived from the Dag's tasks, so no author-facing way to set it may exist."""
+    with pytest.raises(TypeError, match="is_mixed_language_dag"):
+        DAG(dag_id="rejected", is_mixed_language_dag=True)
+
+    test_dag = DAG(dag_id="not_settable")
+    with pytest.raises(AttributeError, match="can not be set"):
+        test_dag.is_mixed_language_dag = True
+
+    assert test_dag.is_mixed_language_dag is False
 
 
 def test_create_dag_while_active_context():
