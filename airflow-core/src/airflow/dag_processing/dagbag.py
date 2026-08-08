@@ -579,4 +579,5 @@ def sync_bag_to_db(
         session=session,
         version_data=version_data,
         files_parsed=files_parsed,
+        bundle_path=dagbag.bundle_path,
     )
