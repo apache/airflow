@@ -827,11 +827,17 @@ class SerializedDAG:
         else:
             tasks_to_set_state = [(task, map_index) for map_index in map_indexes]
 
+        # Only set the state on the targeted task instances here. We do not pass
+        # ``downstream`` through to ``set_state`` because that helper would mark
+        # downstream task instances as the same state, which would then prevent the
+        # explicit downstream-clearing block below from finding them in the
+        # FAILED/UPSTREAM_FAILED state. Downstream handling is therefore done
+        # explicitly in the ``if downstream:`` block below.
         altered = set_state(
             tasks=tasks_to_set_state,
             run_id=run_id,
             upstream=upstream,
-            downstream=downstream,
+            downstream=False,
             future=future,
             past=past,
             state=state,
@@ -843,45 +849,49 @@ class SerializedDAG:
             return altered
 
         # Clear downstream tasks that are in failed/upstream_failed state to resume them.
-        # Flush the session so that the tasks marked success are reflected in the db.
-        session.flush()
-        subset = self.partial_subset(
-            task_ids={task_id},
-            include_downstream=True,
-            include_upstream=False,
-        )
-
-        # Raises an error if not found
-        dr_id, logical_date = session.execute(
-            select(DagRun.id, DagRun.logical_date).where(
-                DagRun.run_id == run_id, DagRun.dag_id == self.dag_id
+        # Only clear downstreams when ``downstream=True`` is explicitly passed, so that
+        # marking a single task instance as success (e.g. from the Task Instances view)
+        # does not unexpectedly resume downstream tasks — restoring Airflow 2 behavior.
+        if downstream:
+            # Flush the session so that the tasks marked success are reflected in the db.
+            session.flush()
+            subset = self.partial_subset(
+                task_ids={task_id},
+                include_downstream=True,
+                include_upstream=False,
             )
-        ).one()
 
-        # Now we want to clear downstreams of tasks that had their state set...
-        clear_kwargs = {
-            "only_failed": True,
-            "session": session,
-            # Exclude the task itself from being cleared.
-            "exclude_task_ids": frozenset((task_id,)),
-        }
-        if not future and not past:  # Simple case 1: we're only dealing with exactly one run.
-            clear_kwargs["run_id"] = run_id
-            subset.clear(**clear_kwargs)
-        elif future and past:  # Simple case 2: we're clearing ALL runs.
-            subset.clear(**clear_kwargs)
-        else:  # Complex cases: we may have more than one run, based on a date range.
-            # Make 'future' and 'past' make some sense when multiple runs exist
-            # for the same logical date. We order runs by their id and only
-            # clear runs have larger/smaller ids.
-            exclude_run_id_stmt = select(DagRun.run_id).where(DagRun.logical_date == logical_date)
-            if future:
-                clear_kwargs["start_date"] = logical_date
-                exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id > dr_id)
-            else:
-                clear_kwargs["end_date"] = logical_date
-                exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
-            subset.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
+            # Raises an error if not found
+            dr_id, logical_date = session.execute(
+                select(DagRun.id, DagRun.logical_date).where(
+                    DagRun.run_id == run_id, DagRun.dag_id == self.dag_id
+                )
+            ).one()
+
+            # Now we want to clear downstreams of tasks that had their state set...
+            clear_kwargs = {
+                "only_failed": True,
+                "session": session,
+                # Exclude the task itself from being cleared.
+                "exclude_task_ids": frozenset((task_id,)),
+            }
+            if not future and not past:  # Simple case 1: we're only dealing with exactly one run.
+                clear_kwargs["run_id"] = run_id
+                subset.clear(**clear_kwargs)
+            elif future and past:  # Simple case 2: we're clearing ALL runs.
+                subset.clear(**clear_kwargs)
+            else:  # Complex cases: we may have more than one run, based on a date range.
+                # Make 'future' and 'past' make some sense when multiple runs exist
+                # for the same logical date. We order runs by their id and only
+                # clear runs have larger/smaller ids.
+                exclude_run_id_stmt = select(DagRun.run_id).where(DagRun.logical_date == logical_date)
+                if future:
+                    clear_kwargs["start_date"] = logical_date
+                    exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id > dr_id)
+                else:
+                    clear_kwargs["end_date"] = logical_date
+                    exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
+                subset.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
         return altered
 
     @provide_session
