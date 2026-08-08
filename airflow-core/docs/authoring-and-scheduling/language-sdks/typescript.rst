@@ -278,7 +278,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the Node.js subprocess to connect after launch. Increase this if your bundle
-       startup is slow (e.g. on constrained hardware).
+       startup is slow (e.g. on constrained hardware). The task is already ``running`` while the
+       coordinator waits, so exceeding this fails the task rather than leaving it ``queued``, and
+       whatever the bundle printed goes to the task log.
 
 Limitations
 -----------
@@ -292,3 +294,6 @@ Limitations
   bundles. To serve multiple bundles, register multiple coordinators on separate queues.
 * **One Node.js subprocess per task instance.** Tasks that need to share in-process state between instances
   should use XCom or an external store instead.
+* **The pid recorded on the task instance is the Airflow supervisor's, not the Node.js process's.** The
+  supervisor reports the task as running before it launches the bundle, and the server ties the run to the pid
+  it was given at that point, so that is the pid the API and UI show. The bundle's own pid goes to the task log.

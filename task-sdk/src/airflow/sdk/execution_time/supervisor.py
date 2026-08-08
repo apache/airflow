@@ -56,6 +56,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TaskInstance,
     TaskInstanceState,
+    TIRunContext,
 )
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
@@ -175,7 +176,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
+__all__ = ["ActivitySubprocess", "Heartbeater", "WatchedSubprocess", "supervise", "supervise_task"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -205,6 +206,7 @@ STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
         SERVER_TERMINATED,
     }
 )
+
 
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
@@ -1359,6 +1361,115 @@ def _remote_logging_conn(client: Client):
 
 
 @attrs.define(kw_only=True)
+class Heartbeater:
+    """
+    Send periodic task-instance heartbeats and track their success/failure state.
+
+    Standalone from :class:`ActivitySubprocess` so a caller can heartbeat outside a
+    subprocess's lifetime (e.g. a coordinator materializing a Dag bundle before the
+    task subprocess exists). The server rejects a heartbeat whose pid differs from
+    the one registered at task start as "running elsewhere", so the pid is fixed at
+    construction for the task instance's lifetime rather than read from a process
+    handle. Reactions to fatal heartbeat outcomes (killing the process, recording a
+    terminal state) are injected as callbacks.
+    """
+
+    client: Client
+    """The HTTP client to use for communication with the API server."""
+
+    ti_id: UUID
+    """ID of the task instance to heartbeat."""
+
+    pid: int
+    """The pid registered with the server at task start; presented on every heartbeat."""
+
+    on_server_terminated: Callable[[Any], None]
+    """Called with the response detail when the server says the task should no longer run."""
+
+    on_fatal_failures: Callable[[], None] | None = None
+    """Called when consecutive heartbeat failures reach ``MAX_FAILED_HEARTBEATS``.
+
+    ``None`` disables the cap: failures are logged and retried indefinitely, for
+    callers that have no process to kill (e.g. heartbeating before the task
+    subprocess exists).
+    """
+
+    _last_successful_heartbeat: float = attrs.field(default=0, init=False)
+    _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
+
+    # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
+    # will kill the process. This is to handle temporary network issues etc. ensuring that the process
+    # does not hang around forever.
+    failed_heartbeats: int = attrs.field(default=0, init=False)
+
+    def record_successful_heartbeat(self) -> None:
+        """Record an out-of-band beat the server already counted (e.g. the task-start API call)."""
+        self._last_successful_heartbeat = time.monotonic()
+
+    def compute_max_wait_time(self) -> float:
+        """How long the monitor loop may block in ``select`` before the next heartbeat is due."""
+        last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
+        return max(
+            0,  # Make sure this value is never negative,
+            min(
+                # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout time
+                HEARTBEAT_TIMEOUT - last_heartbeat_ago * 0.75,
+                MIN_HEARTBEAT_INTERVAL,
+            ),
+        )
+
+    def send_heartbeat_if_needed(self) -> None:
+        """Send a heartbeat to the client if heartbeat interval has passed."""
+        # Respect the minimum interval between heartbeat attempts
+        if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
+            return
+
+        self.send_heartbeat()
+
+    def send_heartbeat(self) -> None:
+        """Send a heartbeat unconditionally; pacing is the caller's responsibility."""
+        self._last_heartbeat_attempt = time.monotonic()
+        try:
+            self.client.task_instances.heartbeat(self.ti_id, pid=self.pid)
+            # Update the last heartbeat time on success
+            self._last_successful_heartbeat = time.monotonic()
+
+            # Reset the counter on success
+            self.failed_heartbeats = 0
+        except ServerResponseError as e:
+            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.GONE, HTTPStatus.CONFLICT}:
+                log.error(
+                    "Server indicated the task shouldn't be running anymore",
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                    ti_id=self.ti_id,
+                )
+                self.on_server_terminated(e.detail)
+            else:
+                # If we get any other error, we'll just log it and try again next time
+                self._handle_heartbeat_failures(e)
+        except Exception as e:
+            self._handle_heartbeat_failures(e)
+
+    def _handle_heartbeat_failures(self, exc: Exception) -> None:
+        """Increment the failed heartbeats counter and kill the process if too many failures."""
+        self.failed_heartbeats += 1
+        log.warning(
+            "Failed to send heartbeat. Will be retried",
+            failed_heartbeats=self.failed_heartbeats,
+            ti_id=self.ti_id,
+            max_retries=MAX_FAILED_HEARTBEATS,
+            exc_info=exc,
+        )
+        # If we've failed to heartbeat too many times, kill the process
+        if self.on_fatal_failures is not None and self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
+            log.error(
+                "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
+            )
+            self.on_fatal_failures()
+
+
+@attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
     client: Client
     """The HTTP client to use for communication with the API server."""
@@ -1378,16 +1489,11 @@ class ActivitySubprocess(WatchedSubprocess):
         SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
     ) = attrs.field(default=None, init=False)
 
-    _last_successful_heartbeat: float = attrs.field(default=0, init=False)
-    _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
+    heartbeater: Heartbeater = attrs.field(init=False)
+    """Sends periodic heartbeats for this task instance while the subprocess runs."""
 
     _should_retry: bool = attrs.field(default=False, init=False)
     """Whether the task should retry or not as decided by the API server."""
-
-    # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
-    # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
-    # does not hang around forever.
-    failed_heartbeats: int = attrs.field(default=0, init=False)
 
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
@@ -1395,6 +1501,38 @@ class ActivitySubprocess(WatchedSubprocess):
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     ti: RuntimeTI | None = None
+
+    reported_pid: int | None = None
+    """
+    Pid to report to the server in place of the supervised process's own.
+
+    The server treats ``(hostname, pid)`` as the run's ownership token: it rejects a
+    heartbeat whose pid differs from the one ``task_instances.start`` reported, so the
+    RUNNING transition and every heartbeat read the one value seeded into
+    :attr:`Heartbeater.pid` from here. A coordinator that reports RUNNING before the
+    runtime exists passes its own pid; ``None`` uses the supervised process's.
+    """
+
+    def __attrs_post_init__(self) -> None:
+        self.heartbeater = Heartbeater(
+            client=self.client,
+            ti_id=self.id,
+            pid=self.reported_pid if self.reported_pid is not None else self._process.pid,
+            on_server_terminated=self._on_heartbeat_server_terminated,
+            on_fatal_failures=self._kill_on_heartbeat_failure,
+        )
+
+    def _on_heartbeat_server_terminated(self, detail: Any) -> None:
+        self.process_log.error(
+            "Server indicated the task shouldn't be running anymore. Terminating process",
+            detail=detail,
+        )
+        self.kill(signal.SIGTERM, force=True)
+        self.process_log.error("Task killed!")
+        self._terminal_state = SERVER_TERMINATED
+
+    def _kill_on_heartbeat_failure(self) -> None:
+        self.kill(signal.SIGTERM, force=True)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -1423,14 +1561,30 @@ class ActivitySubprocess(WatchedSubprocess):
             new_process_group=True,
             **kwargs,
         )
+        # We've forked, but the task won't start doing anything until we send it the StartupDetails
+        # message. But before we do that, we need to tell the server it's started (so it has the chance to
+        # tell us "no, stop!" for any reason)
+        running_since = datetime.now(tz=timezone.utc)
+        ti_context = proc._report_running(ti=what, when=running_since)
         # Tell the task process what it needs to do!
         proc._on_child_started(
             ti=what,
             dag_rel_path=dag_rel_path,
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
+            ti_context=ti_context,
+            running_since=running_since,
         )
         return proc
+
+    def _report_running(self, *, ti: TaskInstance, when: datetime) -> TIRunContext:
+        """Transition the task instance to RUNNING, killing the child if the server refuses."""
+        try:
+            return self.client.task_instances.start(ti.id, self.heartbeater.pid, when)
+        except Exception:
+            # On any error kill that subprocess!
+            self.kill(signal.SIGKILL)
+            raise
 
     def _on_child_started(
         self,
@@ -1439,26 +1593,33 @@ class ActivitySubprocess(WatchedSubprocess):
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
+        ti_context: TIRunContext,
+        running_since: datetime,
     ) -> None:
-        """Send startup message to the subprocess."""
+        """
+        Send startup message to the subprocess.
+
+        :param ti_context: Run context from the ``task_instances.start`` call that
+            already put the task in RUNNING — :meth:`_report_running` here, or an
+            earlier call by a coordinator that has to report RUNNING before it can
+            get this far. Re-reporting it would be rejected with a 409.
+        :param running_since: The timestamp that same call reported, so the task sees
+            the start date the server recorded. Reading the clock again here would
+            drift by however long the caller took to get the child talking, which for
+            a coordinator is a whole artifact resolution.
+        """
         self.ti = ti  # type: ignore[assignment]
-        try:
-            # We've forked, but the task won't start doing anything until we send it the StartupDetails
-            # message. But before we do that, we need to tell the server it's started (so it has the chance to
-            # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
-            self._should_retry = ti_context.should_retry
-            self._last_successful_heartbeat = time.monotonic()
-        except Exception:
-            # On any error kill that subprocess!
-            self.kill(signal.SIGKILL)
-            raise
+        # should_retry is optional in the schema; absent means "no retries left".
+        self._should_retry = bool(ti_context.should_retry)
+        # The start call that produced ti_context updated last_heartbeat_at on the server.
+        self.heartbeater.record_successful_heartbeat()
 
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
-        # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
-        # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
-        # for more context. Do not remove this without updating related comments and deferral handling.
-        start_date = ti_context.start_date or datetime.now(tz=timezone.utc)
+        # original start_date rather than using the resume time). We fall back to the transition's own
+        # timestamp otherwise. This ensures that `context["ti"].start_date` always reflects the *first* start
+        # time. See TIRunContext.start_date for more context. Do not remove this without updating related
+        # comments and deferral handling.
+        start_date = ti_context.start_date or running_since
 
         msg = StartupDetails.model_construct(
             ti=ti,
@@ -1610,17 +1771,9 @@ class ActivitySubprocess(WatchedSubprocess):
         - Sends heartbeats to ensure the process is alive and checks if the subprocess has exited.
         """
         while self._exit_code is None or self._open_sockets:
-            last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
             # so we notice the subprocess finishing as quick as we can.
-            max_wait_time = max(
-                0,  # Make sure this value is never negative,
-                min(
-                    # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout time
-                    HEARTBEAT_TIMEOUT - last_heartbeat_ago * 0.75,
-                    MIN_HEARTBEAT_INTERVAL,
-                ),
-            )
+            max_wait_time = self.heartbeater.compute_max_wait_time()
             # Block until events are ready or the timeout is reached
             # This listens for activity (e.g., subprocess output) on registered file objects
             alive = self._service_subprocess(max_wait_time=max_wait_time) is None
@@ -1666,60 +1819,12 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
-        # Respect the minimum interval between heartbeat attempts
-        if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
-            return
-
         if self._terminal_state:
             # If the task has finished, and we are in "overtime" (running OL listeners etc) we shouldn't
             # heartbeat
             return
 
-        self._last_heartbeat_attempt = time.monotonic()
-        try:
-            self.client.task_instances.heartbeat(self.id, pid=self._process.pid)
-            # Update the last heartbeat time on success
-            self._last_successful_heartbeat = time.monotonic()
-
-            # Reset the counter on success
-            self.failed_heartbeats = 0
-        except ServerResponseError as e:
-            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.GONE, HTTPStatus.CONFLICT}:
-                log.error(
-                    "Server indicated the task shouldn't be running anymore",
-                    detail=e.detail,
-                    status_code=e.response.status_code,
-                    ti_id=self.id,
-                )
-                self.process_log.error(
-                    "Server indicated the task shouldn't be running anymore. Terminating process",
-                    detail=e.detail,
-                )
-                self.kill(signal.SIGTERM, force=True)
-                self.process_log.error("Task killed!")
-                self._terminal_state = SERVER_TERMINATED
-            else:
-                # If we get any other error, we'll just log it and try again next time
-                self._handle_heartbeat_failures(e)
-        except Exception as e:
-            self._handle_heartbeat_failures(e)
-
-    def _handle_heartbeat_failures(self, exc: Exception):
-        """Increment the failed heartbeats counter and kill the process if too many failures."""
-        self.failed_heartbeats += 1
-        log.warning(
-            "Failed to send heartbeat. Will be retried",
-            failed_heartbeats=self.failed_heartbeats,
-            ti_id=self.id,
-            max_retries=MAX_FAILED_HEARTBEATS,
-            exc_info=exc,
-        )
-        # If we've failed to heartbeat too many times, kill the process
-        if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
-            log.error(
-                "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
-            )
-            self.kill(signal.SIGTERM, force=True)
+        self.heartbeater.send_heartbeat_if_needed()
 
     @property
     def final_state(self):

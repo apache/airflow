@@ -681,7 +681,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
-       JVM startup is slow (e.g. on constrained hardware or with a large classpath).
+       JVM startup is slow (e.g. on constrained hardware or with a large classpath). The task
+       is already ``running`` while the coordinator waits, so exceeding this fails the task
+       rather than leaving it ``queued``, and whatever the JVM printed goes to the task log.
 
 .. note::
 
@@ -724,5 +726,8 @@ Limitations
 
 * **One JVM subprocess per task instance.**  Each task instance spawns a fresh JVM. Tasks that need to share
   in-process state between instances should use XCom or an external store instead.
+* **The pid recorded on the task instance is the Airflow supervisor's, not the JVM's.** The supervisor reports
+  the task as running before it launches the JVM, and the server ties the run to the pid it was given at that
+  point, so that is the pid the API and UI show. The JVM's own pid is logged to the task log when it starts.
 * **Limited support for assets, deferral, and other Airflow features.** They may be implemented in the future
   based on user feedback and demand.
