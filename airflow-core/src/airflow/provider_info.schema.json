@@ -385,6 +385,13 @@
                 "type": "string"
             }
         },
+        "db-cleanup-tables": {
+            "type": "array",
+            "description": "Import paths of callables returning `airflow db clean` table configs contributed by the provider",
+            "items": {
+                "type": "string"
+            }
+        },
         "cli": {
             "type": "array",
             "description": "CLI command functions exposed by the provider",

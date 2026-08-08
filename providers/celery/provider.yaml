@@ -114,6 +114,9 @@ executors:
 cli:
   - airflow.providers.celery.cli.definition.get_celery_cli_commands
 
+db-cleanup-tables:
+  - airflow.providers.celery.cleanup.get_db_cleanup_table_configs
+
 config:
   celery_kubernetes_executor:
     description: |
@@ -251,6 +254,17 @@ config:
         type: string
         sensitive: true
         example: "db+postgresql+psycopg://postgres:airflow@postgres/airflow"
+        default: ~
+      result_backend_schema:
+        description: |
+          The database schema that the Celery result backend tables (``celery_taskmeta``,
+          ``celery_tasksetmeta``) live in, when they are provisioned into a schema other than
+          the one used by ``sql_alchemy_conn``. When set, ``airflow db clean`` (and the
+          archived-table export/drop commands) operate on these tables in this schema instead
+          of silently skipping them.
+        version_added: ~
+        type: string
+        example: "celery"
         default: ~
       result_backend_sqlalchemy_engine_options:
         description: |
