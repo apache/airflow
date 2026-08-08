@@ -1495,6 +1495,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run java e2e tests when java compose override changes",
         ),
         pytest.param(
+            ("airflow-e2e-tests/java-test-bundle/src/java/org/apache/airflow/e2e/TestBundleBuilder.java",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when the java test-fixture bundle changes",
+        ),
+        pytest.param(
             ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
             {
                 "run-java-sdk-e2e-tests": "true",
