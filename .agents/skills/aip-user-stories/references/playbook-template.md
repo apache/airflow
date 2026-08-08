@@ -3,8 +3,9 @@
 
 # {AIP Title} — Playbook
 
-> **Airflow version:** {version}
-> **Required packages:** {packages, if any beyond core}
+> **Release availability:** {minimum version with evidence, unreleased on the current checkout, or release unknown}
+> **Required packages:** {distribution package names and version constraints, if known}
+> **Runtime prerequisites:** {services, configuration, or authentication required}
 
 ## Prerequisites
 
@@ -26,11 +27,13 @@
 
 **Prerequisites:** {Anything specific to this recipe beyond the global prerequisites — a provider package, a configuration flag, an external service.}
 
+**Verification:** {Verified, Adapted, or Unverified}
+
+**Evidence:** {For Verified, the repository-relative path and symbol/test containing the complete pattern. For Adapted, every path and symbol used. For Unverified, the motivating AIP section or source.}
+
 ```python
 {Code block — verified, adapted, or placeholder per the three-tier system.}
 ```
-
-{If adapted, note below the block: *"Adapted from [source file path]"*}
 
 {Explanation: WHY this pattern works, not line-by-line narration. What makes this the right approach for this use case.}
 
@@ -43,6 +46,10 @@
 ### {Story Title}
 
 **Goal:** {One sentence — the user's objective.}
+
+**Verification:** Unverified
+
+**Evidence:** {The AIP section or example that motivates this proposed API.}
 
 ```python
 # PROPOSED API — not yet implemented
