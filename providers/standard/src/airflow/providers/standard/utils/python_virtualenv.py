@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -134,6 +135,18 @@ def _index_urls_to_uv_env_vars(index_urls: list[str] | None = None) -> dict[str,
     return uv_index_env_vars
 
 
+_LEVEL_PREFIX_RE = re.compile(r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL): ")
+_MAX_PREFIX_LEN = len("CRITICAL: ")  # longest possible prefix — regex never sees beyond this
+
+
+def _log_subprocess_line(log: logging.Logger, line: str) -> None:
+    match = _LEVEL_PREFIX_RE.match(line[:_MAX_PREFIX_LEN])
+    if match:
+        log.log(getattr(logging, match.group(1)), "%s", line[match.end() :])
+    else:
+        log.info("%s", line)
+
+
 def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str, str] | None = None) -> None:
     """
     Execute a process and stream output to logger.
@@ -158,7 +171,7 @@ def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str
         if proc.stdout:
             with proc.stdout:
                 for line in iter(proc.stdout.readline, b""):
-                    log.info("%s", line.decode().rstrip())
+                    _log_subprocess_line(log, line.decode().rstrip())
 
         exit_code = proc.wait()
     if exit_code != 0:
