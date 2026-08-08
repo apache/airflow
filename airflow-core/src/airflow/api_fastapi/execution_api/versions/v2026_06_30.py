@@ -53,6 +53,16 @@ class AddConnectionTestEndpoint(VersionChange):
     )
 
 
+class AddFirstTaskRescheduleStartDateField(VersionChange):
+    """Add first_task_reschedule_start_date field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
+
+
 class AddTaskInstanceQueueField(VersionChange):
     """Add the `queue` field to the TaskInstance model."""
 

@@ -402,6 +402,9 @@ class TIRunContext(BaseModel):
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
 
+    first_task_reschedule_start_date: UtcDateTime | None = None
+    """The first reschedule start date for the task instance, if it has been rescheduled."""
+
     max_tries: int
     """Maximum number of tries for the task instance (from DB)."""
 
