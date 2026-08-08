@@ -120,16 +120,10 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         "spark_submit_params",
     )
     caller = "_CreateDatabricksWorkflowOperator"
-    # Conditionally set operator_extra_links based on Airflow version
-    if AIRFLOW_V_3_0_PLUS:
-        # In Airflow 3, disable "Repair All Failed Tasks" since we can't pre-determine failed tasks
-        operator_extra_links = (WorkflowJobRunLink(),)
-    else:
-        # In Airflow 2.x, keep both links
-        operator_extra_links = (  # type: ignore[assignment]
-            WorkflowJobRunLink(),
-            WorkflowJobRepairAllFailedLink(),
-        )
+    operator_extra_links = (
+        WorkflowJobRunLink(),
+        WorkflowJobRepairAllFailedLink(),
+    )
 
     def __init__(
         self,
