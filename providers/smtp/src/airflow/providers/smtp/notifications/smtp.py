@@ -124,7 +124,7 @@ class SmtpNotifier(BaseNotifier):
             if smtp.from_email is not None:
                 self.from_email = smtp.from_email
             else:
-                raise ValueError("You should provide `from_email` or define it in the connection")
+                self.from_email = conf.get("email", "from_email", fallback="airflow@airflow")
             fields_to_re_render.append("from_email")
         if self.subject is None:
             smtp_default_templated_subject_path: str

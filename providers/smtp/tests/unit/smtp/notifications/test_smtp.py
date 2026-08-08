@@ -175,6 +175,8 @@ class TestSmtpNotifier:
     def test_notifier_with_nondefault_connection_extra(
         self, mock_smtphook_hook, create_dag_without_db, mock_task_instance
     ):
+        """When the connection extra defines `from_email` (and no config `[email] from_email` is set),
+        the connection's from_email is used, including template rendering."""
         # TODO: we can use create_runtime_ti fixture in place of mock_task_instance once provider has minimum AF to Airflow 3.0+
         ti = mock_task_instance(
             dag_id=TEST_DAG_ID,
@@ -210,6 +212,70 @@ class TestSmtpNotifier:
                 smtp_conn_id=SMTP_CONN_ID,
                 **DEFAULT_EMAIL_PARAMS,
             )
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_from_email_falls_back_to_config(self, mock_smtphook_hook, create_dag_without_db):
+        """When config [email] from_email is set and the SMTP connection extra `from_email` is NOT set, `[email] from_email` config is used."""
+        mock_smtphook_hook.return_value.__enter__.return_value.from_email = None
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
+
+        with conf_vars({("email", "from_email"): "config@example.com"}):
+            notifier = SmtpNotifier(to=TEST_RECEIVER, subject=TEST_SUBJECT, html_content=TEST_BODY)
+            notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
+
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+            from_email="config@example.com",
+            to=TEST_RECEIVER,
+            subject=TEST_SUBJECT,
+            html_content=TEST_BODY,
+            smtp_conn_id=SMTP_CONN_ID,
+            **DEFAULT_EMAIL_PARAMS,
+        )
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_connection_extra_takes_precedence_over_config(
+        self, mock_smtphook_hook, create_dag_without_db
+    ):
+        """The SMTP connection extra `from_email` must win over the `[email] from_email` config."""
+        mock_smtphook_hook.return_value.__enter__.return_value.from_email = "conn@example.com"
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
+
+        with conf_vars({("email", "from_email"): "config@example.com"}):
+            notifier = SmtpNotifier(to=TEST_RECEIVER, subject=TEST_SUBJECT, html_content=TEST_BODY)
+            notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
+
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+            from_email="conn@example.com",
+            to=TEST_RECEIVER,
+            subject=TEST_SUBJECT,
+            html_content=TEST_BODY,
+            smtp_conn_id=SMTP_CONN_ID,
+            **DEFAULT_EMAIL_PARAMS,
+        )
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_from_email_default_when_nothing_configured(
+        self, mock_smtphook_hook, create_dag_without_db
+    ):
+        """Falls back to the hard-coded default when neither the connection nor config define from_email."""
+        mock_smtphook_hook.return_value.__enter__.return_value.from_email = None
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
+
+        with conf_vars({("email", "from_email"): None}):
+            notifier = SmtpNotifier(to=TEST_RECEIVER, subject=TEST_SUBJECT, html_content=TEST_BODY)
+            notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
+
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+            from_email="airflow@airflow",
+            to=TEST_RECEIVER,
+            subject=TEST_SUBJECT,
+            html_content=TEST_BODY,
+            smtp_conn_id=SMTP_CONN_ID,
+            **DEFAULT_EMAIL_PARAMS,
+        )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_custom_smtp_conn_id(self, mock_smtphook_hook, create_dag_without_db):
