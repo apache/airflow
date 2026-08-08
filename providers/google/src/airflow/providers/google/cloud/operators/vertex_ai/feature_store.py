@@ -192,6 +192,11 @@ class CreateFeatureOnlineStoreOperator(GoogleCloudBaseOperator, OperationHelper)
         op_result = self.wait_for_operation_result(operation=result_operation)
         self.log.info("The Feature Online Store has been created: %s", self.feature_online_store_id)
         result = type(op_result).to_dict(op_result)
+        if (feature_online_store_name := result.get("name")) is not None:
+            ti = context.get("ti")
+            if ti is not None:
+                ti.xcom_push(key="feature_online_store_name", value=feature_online_store_name)
+                ti.xcom_push(key="feature_online_store_id", value=feature_online_store_name.split("/")[-1])
         return result
 
 
