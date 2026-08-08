@@ -171,7 +171,7 @@ services:
     command: celery worker
     healthcheck:
       # yamllint disable rule:line-length
-      test: ["CMD-SHELL", 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"']
+      test: ["CMD-SHELL", 'airflow celery check-worker -H "celery@$${HOSTNAME}" || { status=$$?; [ "$$status" -eq 2 ] && exec celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"; exit "$$status"; }']
       interval: 30s
       timeout: 10s
       retries: 5

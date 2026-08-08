@@ -189,6 +189,12 @@ CELERY_COMMANDS = (
         args=(ARG_OUTPUT,),
     ),
     ActionCommand(
+        name="check-worker",
+        help="Check that a Celery worker is consuming from at least one queue",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.check_worker"),
+        args=(ARG_FULL_CELERY_HOSTNAME,),
+    ),
+    ActionCommand(
         name="shutdown-worker",
         help="Request graceful shutdown of celery workers",
         func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.shutdown_worker"),

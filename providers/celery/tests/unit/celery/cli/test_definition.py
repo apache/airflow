@@ -52,8 +52,8 @@ class TestCeleryCliDefinition:
         assert len(CELERY_CLI_COMMANDS) == 1
 
     def test_celery_commands_count(self):
-        """Test that CELERY_COMMANDS contains all 9 subcommands."""
-        assert len(CELERY_COMMANDS) == 9
+        """Test that CELERY_COMMANDS contains all 10 subcommands."""
+        assert len(CELERY_COMMANDS) == 10
 
     @pytest.mark.parametrize(
         "command",
@@ -62,6 +62,7 @@ class TestCeleryCliDefinition:
             "flower",
             "stop",
             "list-workers",
+            "check-worker",
             "shutdown-worker",
             "shutdown-all-workers",
             "add-queue",
@@ -116,6 +117,12 @@ class TestCeleryCliDefinition:
         params = ["celery", "list-workers", "--output", "json"]
         args = self.arg_parser.parse_args(params)
         assert args.output == "json"
+
+    def test_check_worker_command_args(self):
+        """Test check-worker command with celery hostname."""
+        params = ["celery", "check-worker", "--celery-hostname", "celery@worker1"]
+        args = self.arg_parser.parse_args(params)
+        assert args.celery_hostname == "celery@worker1"
 
     def test_shutdown_worker_command_args(self):
         """Test shutdown-worker command with celery hostname."""
