@@ -531,6 +531,32 @@ class TestConfigLint:
 
         assert "Invalid value" not in normalized_output
 
+    @conf_vars({("core", "execute_tasks_new_python_interpreter"): "True"})
+    def test_lint_detects_execute_tasks_new_python_interpreter(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+        output = temp_stdout.getvalue()
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert (
+            "Invalid value `True` set for `execute_tasks_new_python_interpreter` "
+            "configuration parameter in `core` section." in normalized_output
+        )
+        assert "Only the Edge worker still reads this setting." in normalized_output
+
+    @conf_vars({("core", "execute_tasks_new_python_interpreter"): "False"})
+    def test_lint_ignores_execute_tasks_new_python_interpreter(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+        output = temp_stdout.getvalue()
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert "execute_tasks_new_python_interpreter" not in normalized_output
+
 
 class TestCliConfigUpdate:
     @conf_vars({("core", "executor"): "SequentialExecutor"})

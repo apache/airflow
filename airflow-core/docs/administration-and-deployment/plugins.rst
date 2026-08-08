@@ -95,9 +95,9 @@ code you will need to restart those processes. However, it will not be reflected
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
 and re-parsing all of Airflow's code and startup routines. This approach offers significant benefits, especially for shorter tasks.
 This does mean that if you use plugins in your tasks, and want them to update you will either
-need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor). The other
-option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
-config setting to True, resulting in launching a whole new python interpreter for tasks.
+need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor). The
+``core.execute_tasks_new_python_interpreter`` setting used to offer a way around that, but since
+Airflow 3.0 it is only read by the Edge worker.
 
 (Modules only imported by Dag files on the other hand do not suffer this problem, as Dag files are not
 loaded/parsed in any long-running Airflow process.)
