@@ -39,9 +39,9 @@ import anyio
 import attrs
 import greenback
 import structlog
-from opentelemetry import trace
+from opentelemetry import propagate, trace
+from opentelemetry.propagate import get_global_textmap
 from opentelemetry.trace import Status, StatusCode
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
@@ -157,7 +157,7 @@ def _make_trigger_span(
     ti: TaskInstanceDTO | None, trigger_id: int, name: str
 ) -> _AgnosticContextManager[trace.Span]:
     parent_context = (
-        TraceContextTextMapPropagator().extract(ti.context_carrier) if ti and ti.context_carrier else None
+        get_global_textmap().extract(ti.context_carrier) if ti and ti.context_carrier else None
     )
     attributes: dict[str, str | int] = {
         "airflow.trigger.name": name,

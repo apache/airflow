@@ -161,10 +161,10 @@ try:
 except ImportError:
     send_fds = None  # type: ignore[assignment]
 
-from opentelemetry import context as otel_context, trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry import context as otel_context, propagate, trace
+from opentelemetry.propagate import get_global_textmap
 
-_trace_propagator = TraceContextTextMapPropagator()
+_trace_propagator = get_global_textmap()
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger

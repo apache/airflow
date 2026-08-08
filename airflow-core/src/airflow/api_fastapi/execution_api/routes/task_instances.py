@@ -29,9 +29,9 @@ import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, Response, Security, status
-from opentelemetry import trace
+from opentelemetry import propagate, trace
+from opentelemetry.propagate import get_global_textmap
 from opentelemetry.trace import StatusCode
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -546,7 +546,7 @@ def _emit_task_span(ti, state):
         return
     if not isinstance(ti.context_carrier, dict):
         return
-    dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
+    dr_ctx = get_global_textmap().extract(ti.dag_run.context_carrier)
 
     # Skip if the run was head-sampled out, so every span in the run agrees with the
     # carrier's decision. A parent-based sampler would already drop this child span,
@@ -558,7 +558,7 @@ def _emit_task_span(ti, state):
     if dr_span_context.is_valid and not dr_span_context.trace_flags.sampled:
         return
 
-    ti_ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
+    ti_ctx = get_global_textmap().extract(ti.context_carrier)
     ti_span = trace.get_current_span(context=ti_ctx)
     span_context = ti_span.get_span_context()
     start_time_candidates = (x for x in (ti.queued_dttm, ti.start_date, timezone.utcnow()) if x)
