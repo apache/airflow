@@ -533,3 +533,66 @@ class TestDisposeOrm:
             settings.dispose_orm(do_log=False)
 
         mock_close.assert_not_called()
+
+
+class TestInitializeStats:
+    """
+    Ensure the Stats singleton is initialized once for the process via settings.initialize().
+    """
+
+    def test_initializes_stats_with_factory(self):
+        """It initializes the Stats singleton using the configured factory."""
+        sentinel_factory = object()
+        with (
+            mock.patch("airflow._shared.observability.metrics.stats") as mock_stats,
+            mock.patch(
+                "airflow.observability.metrics.stats_utils.get_stats_factory",
+                return_value=sentinel_factory,
+            ) as mock_get_factory,
+        ):
+            settings._initialize_stats()
+
+            mock_get_factory.assert_called_once_with()
+            mock_stats.initialize.assert_called_once()
+            _, kwargs = mock_stats.initialize.call_args
+            assert kwargs["factory"] is sentinel_factory
+            assert isinstance(kwargs["export_legacy_names"], bool)
+
+    def test_stats_failure_does_not_break_initialize(self):
+        """A metrics misconfiguration must not prevent process initialization."""
+        with (
+            mock.patch("airflow._shared.observability.metrics.stats") as mock_stats,
+            mock.patch("airflow.observability.metrics.stats_utils.get_stats_factory"),
+            mock.patch("airflow.settings.log") as mock_logger,
+        ):
+            mock_stats.initialize.side_effect = RuntimeError("boom")
+
+            # Must not raise.
+            settings._initialize_stats()
+
+        mock_logger.warning.assert_called_once()
+
+    def test_stats_initialized_during_initialize(self):
+        """settings.initialize() must call _initialize_stats, not just define it."""
+        other_initialize_steps = [
+            "configure_vars",
+            "prepare_syspath_for_config_and_plugins",
+            "get_policy_plugin_manager",
+            "load_policy_plugins",
+            "import_local_settings",
+            "configure_logging",
+            "configure_otel",
+            "configure_adapters",
+            "_configure_secrets_masker",
+            "configure_orm",
+            "configure_action_logging",
+            "run_providers_custom_runtime_checks",
+        ]
+        with contextlib.ExitStack() as stack:
+            for name in other_initialize_steps:
+                stack.enter_context(mock.patch(f"airflow.settings.{name}"))
+            mock_initialize_stats = stack.enter_context(mock.patch("airflow.settings._initialize_stats"))
+
+            settings.initialize()
+
+        mock_initialize_stats.assert_called_once()

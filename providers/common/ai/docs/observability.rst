@@ -78,10 +78,13 @@ variables, for example:
 
 .. code-block:: bash
 
-    # Core tracing defaults the exporter to OTLP/gRPC. For an OTLP/HTTP
-    # endpoint (port 4318, ``/v1/traces`` path) also select the HTTP exporter:
-    export OTEL_TRACES_EXPORTER="otlp_proto_http"
+    # Core tracing defaults to OTLP over HTTP/protobuf (port 4318,
+    # ``/v1/traces`` path):
     export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://otel-collector:4318/v1/traces"
+
+    # To switch to OTLP/gRPC (port 4317, no path) set the protocol explicitly:
+    export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL="grpc"
+    export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://otel-collector:4317"
 
 Capturing prompt and completion content
 ---------------------------------------

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import os
 import time
 from collections.abc import Callable
 from unittest import mock
@@ -826,3 +827,39 @@ def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -
 
 def test_build_dag_metric_tags_accepts_generator() -> None:
     assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}
+
+
+class TestBackendResetAfterFork:
+    def teardown_method(self):
+        importlib.reload(airflow_shared.observability.metrics.stats)
+
+    def test_forked_child_rebuilds_backend(self):
+        importlib.reload(airflow_shared.observability.metrics.stats)
+        stats = airflow_shared.observability.metrics.stats
+        stats.initialize(
+            factory=get_statsd_logger_factory(stats_class=statsd.StatsClient), export_legacy_names=True
+        )
+        parent_backend = stats._get_backend()
+
+        read_fd, write_fd = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                reset_by_hook = stats._backend is None
+                rebuilt = stats._get_backend()
+                ok = (
+                    reset_by_hook
+                    and rebuilt is not parent_backend
+                    and isinstance(rebuilt.statsd, statsd.StatsClient)
+                )
+                os.write(write_fd, b"1" if ok else b"0")
+            finally:
+                os._exit(0)
+
+        os.close(write_fd)
+        os.waitpid(pid, 0)
+        child_result = os.read(read_fd, 1)
+        os.close(read_fd)
+
+        assert child_result == b"1"
+        assert stats._get_backend() is parent_backend
