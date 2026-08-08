@@ -4703,3 +4703,31 @@ class TestMakeBufferedSocketReader:
         finally:
             r.close()
             w.close()
+
+
+class TestCheckSubprocessExit:
+    @mock.patch("airflow.sdk.execution_time.supervisor.time.monotonic", return_value=123.456)
+    def test_subprocess_exit_status_consumed_by_init(self, mock_time):
+        """
+        Test that if wait() returns None (e.g., child process was already reaped by an init process like dumb-init),
+        the exit code is set to -1 to prevent an infinite loop, and _process_exit_monotonic is recorded.
+        """
+        from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+        from unittest.mock import MagicMock
+        import uuid
+        
+        watched_subprocess = WatchedSubprocess(
+            process_log=MagicMock(),
+            id=uuid.uuid4(),
+            pid=12345,
+            stdin=MagicMock(),
+            client=MagicMock(),
+            process=MagicMock(),
+        )
+        watched_subprocess._process.wait.return_value = None
+
+        exit_code = watched_subprocess._check_subprocess_exit()
+
+        assert exit_code == -1
+        assert watched_subprocess._exit_code == -1
+        assert watched_subprocess._process_exit_monotonic == 123.456
