@@ -1655,6 +1655,11 @@
                             "type": "integer",
                             "default": 1
                         },
+                        "readonlyKerberosCache": {
+                            "description": "Should the celery kerberos cache be readonly for the workers.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "revisionHistoryLimit": {
                             "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
                             "type": [
@@ -3014,6 +3019,11 @@
                                     }
                                 }
                             }
+                        },
+                        "readonlyKerberosCache": {
+                            "description": "Should the kubernetes kerberos cache be readonly for the workers.",
+                            "type": "boolean",
+                            "default": true
                         },
                         "resources": {
                             "description": "Resource configuration for pods created with pod-template-file.",
