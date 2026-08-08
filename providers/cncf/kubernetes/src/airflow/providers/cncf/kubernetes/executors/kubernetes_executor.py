@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
+    from airflow.executors.workloads import ExecuteTask
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
@@ -398,6 +399,105 @@ class KubernetesExecutor(BaseExecutor):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
+    def _should_create_pod_for_job(self, task: KubernetesJob) -> bool:
+        """
+        Check whether an executor job still represents the current queued task instance.
+
+        The scheduler creates an ``ExecuteTask`` workload while the task instance is queued, but the
+        Kubernetes pod may be created much later, for example after API-server throttling or quota
+        failures. In an HA scheduler deployment, the task instance may have been retried, cleared, or
+        otherwise replaced before this executor gets another chance to create the pod. Revalidating the
+        immutable task instance id and launch ownership here prevents an obsolete workload from creating
+        a stale worker pod.
+        """
+        try:
+            from airflow.executors.workloads import ExecuteTask
+        except ImportError:
+            # Compatibility with older Airflow versions tested by provider compatibility jobs.
+            return True
+
+        if not task.command or not isinstance(task.command[0], ExecuteTask):
+            return True
+
+        return self._should_create_pod_for_execute_task(task, task.command[0])
+
+    @provide_session
+    def _should_create_pod_for_execute_task(
+        self,
+        task: KubernetesJob,
+        workload: ExecuteTask,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> bool:
+        """Check that an ``ExecuteTask`` workload still owns the queued task instance row."""
+        from airflow.models.taskinstance import TaskInstance
+
+        workload_ti = workload.ti
+        try:
+            scheduler_job_id = int(self.scheduler_job_id) if self.scheduler_job_id is not None else None
+        except ValueError:
+            self.log.debug(
+                "Skipping stale Kubernetes workload check because scheduler_job_id %r is not numeric",
+                self.scheduler_job_id,
+            )
+            return True
+
+        # Bind the id as the mapped column's own Python type so the predicate stays sargable and
+        # uses the primary-key index. The column is a native ``Uuid`` on Airflow 3.2+ but a ``String``
+        # on older versions exercised by provider compatibility jobs, and SQLite rejects binding a
+        # ``UUID`` object against a string column.
+        try:
+            ti_id_python_type = TaskInstance.id.type.python_type
+        except NotImplementedError:
+            ti_id_python_type = str
+        ti_id = (
+            ti_id_python_type(str(workload_ti.id)) if ti_id_python_type is not str else str(workload_ti.id)
+        )
+
+        ti = session.execute(
+            select(
+                TaskInstance.id,
+                TaskInstance.state,
+                TaskInstance.try_number,
+                TaskInstance.queued_by_job_id,
+            ).where(TaskInstance.id == ti_id)
+        ).one_or_none()
+        if ti is None:
+            self.log.info(
+                "Dropping stale Kubernetes workload for %s because task instance id %s no longer exists",
+                task.key,
+                workload_ti.id,
+            )
+            return False
+
+        _, state, try_number, queued_by_job_id = ti
+        if (
+            state == TaskInstanceState.QUEUED
+            and try_number == workload_ti.try_number
+            and queued_by_job_id == scheduler_job_id
+        ):
+            return True
+
+        self.log.info(
+            "Dropping stale Kubernetes workload for %s because current task instance state does not "
+            "match the queued workload. task_instance_id=%s, state=%s, try_number=%s, "
+            "queued_by_job_id=%s, workload_try_number=%s, scheduler_job_id=%s",
+            task.key,
+            workload_ti.id,
+            state,
+            try_number,
+            queued_by_job_id,
+            workload_ti.try_number,
+            scheduler_job_id,
+        )
+        return False
+
+    def _discard_stale_pod_creation_task(self, task: KubernetesJob) -> None:
+        """Remove executor bookkeeping for a stale job that will not create a pod."""
+        self.running.discard(task.key)
+        if self.event_buffer.get(task.key) == (TaskInstanceState.QUEUED, self.scheduler_job_id):
+            self.event_buffer.pop(task.key, None)
+
     def sync(self) -> None:
         """Synchronize task state."""
         if TYPE_CHECKING:
@@ -486,6 +586,9 @@ class KubernetesExecutor(BaseExecutor):
                 task: KubernetesJob = self.task_queue.get_nowait()
                 created += 1
                 try:
+                    if not self._should_create_pod_for_job(task):
+                        self._discard_stale_pod_creation_task(task)
+                        continue
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(task.key, None)
                 except (
@@ -517,7 +620,12 @@ class KubernetesExecutor(BaseExecutor):
         jobs: list[KubernetesJob] = []
         with contextlib.suppress(Empty):
             for _ in range(self.kube_config.worker_pods_creation_batch_size):
-                jobs.append(self.task_queue.get_nowait())
+                task = self.task_queue.get_nowait()
+                if not self._should_create_pod_for_job(task):
+                    self._discard_stale_pod_creation_task(task)
+                    self.task_queue.task_done()
+                    continue
+                jobs.append(task)
         if not jobs:
             return
         start: float = time.monotonic()
