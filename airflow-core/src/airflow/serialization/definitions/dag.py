@@ -303,12 +303,13 @@ class SerializedDAG:
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids]
 
+        matched_task_ids = {t.task_id for t in matched_tasks}
         also_include_ids: set[str] = set()
         for t in matched_tasks:
             if include_downstream:
                 for rel in t.get_flat_relatives(upstream=False, depth=depth):
                     also_include_ids.add(rel.task_id)
-                    if rel not in matched_tasks:  # if it's in there, we're already processing it
+                    if rel.task_id not in matched_task_ids:  # if it's in there, we're already processing it
                         # need to include setups and teardowns for tasks that are in multiple
                         # non-collinear setup/teardown paths
                         if not rel.is_setup and not rel.is_teardown:
