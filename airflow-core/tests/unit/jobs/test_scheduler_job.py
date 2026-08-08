@@ -4116,6 +4116,44 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count(DagRun.state)).where(DagRun.state == State.QUEUED)) == 0
         assert orm_dag.next_dagrun_create_after is not None
 
+    def test_create_dag_runs_flushes_without_retaining_per_task_objects(self, dag_maker, session):
+        dag_count = 5
+        task_count = 20
+        dag_ids = []
+        for dag_index in range(dag_count):
+            dag_id = f"test_create_dag_runs_flushes_without_retaining_per_task_objects_{dag_index}"
+            with dag_maker(dag_id=dag_id, session=session):
+                for task_index in range(task_count):
+                    EmptyOperator(task_id=f"task_{task_index}")
+            dag_ids.append(dag_id)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        orm_dags = list(session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids))))
+        assert len(orm_dags) == dag_count
+        session.flush()
+        assert not session.new
+        assert not session.dirty
+
+        self.job_runner._create_dag_runs(orm_dags, session)
+
+        identity_map_counts = Counter(type(obj) for obj in session.identity_map.values())
+        assert not session.new
+        assert not session.dirty
+        assert identity_map_counts[DagRun] == 0
+        assert identity_map_counts[TaskInstance] == 0
+        assert (
+            session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id.in_(dag_ids)))
+            == dag_count
+        )
+        assert (
+            session.scalar(
+                select(func.count()).select_from(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids))
+            )
+            == dag_count * task_count
+        )
+
     def test_runs_are_created_after_max_active_runs_was_reached(self, dag_maker, session):
         """
         Test that when creating runs once max_active_runs is reached the runs does not stick
