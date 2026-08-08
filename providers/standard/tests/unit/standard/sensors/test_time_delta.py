@@ -256,6 +256,27 @@ class TestTimeDeltaSensorAsync:
         assert caught.value.trigger.moment == expected_time
 
     @pytest.mark.parametrize(
+        ("delta", "should_defer"), [(timedelta(minutes=1), True), (1, False), ("{{ 1*2 }}", True)]
+    )
+    def test_time_delta_sensor_templating(self, mocker, delta, should_defer):
+        defer_mock = mocker.patch(DEFER_PATH)
+        op = TimeDeltaSensor(task_id="time_sensor_check", delta=delta, dag=self.dag, deferrable=should_defer)
+
+        time = pendulum.datetime(year=2024, month=8, day=1, tz="UTC")
+
+        with time_machine.travel(time, tick=False):
+            if should_defer:
+                data_interval_end = time.add(hours=1)
+            else:
+                data_interval_end = time.subtract(minutes=2)
+
+            context = {"data_interval_end": data_interval_end}
+            op.render_template_fields(context)
+            op.execute(context)
+            if should_defer:
+                defer_mock.assert_called_once()
+
+    @pytest.mark.parametrize(
         "time_to_wait",
         [timedelta(minutes=1), 1, "{{ 1*2 }}"],
     )
