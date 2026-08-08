@@ -20,11 +20,13 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.connection import Connection
 from airflow.models.pool import Pool
@@ -33,6 +35,9 @@ from airflow.models.variable import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 NO_TEAMS_LIST_MSG = "No teams found."
 
@@ -58,6 +63,17 @@ def _extract_team_name(args):
     return team_name
 
 
+def _create_default_team_pool(team_name: str, *, session: Session) -> None:
+    Pool.create_or_update_pool(
+        name=Pool.get_default_team_pool_name(team_name),
+        slots=conf.getint("core", "default_pool_task_slot_count"),
+        description=f"Default pool for team '{team_name}'",
+        include_deferred=False,
+        team_name=team_name,
+        session=session,
+    )
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -74,8 +90,14 @@ def team_create(args, *, session=NEW_SESSION):
 
     try:
         session.add(new_team)
+        session.flush()
+
+        if conf.getboolean("core", "multi_team"):
+            _create_default_team_pool(team_name=team_name, session=session)
+
         session.commit()
         print(f"Team '{team_name}' created successfully.")
+
     except IntegrityError as e:
         session.rollback()
         raise SystemExit(f"Failed to create team '{team_name}': {e}")
@@ -118,7 +140,12 @@ def team_delete(args, *, session=NEW_SESSION):
         associations.append(f"{variable_count} variable(s)")
 
     # Check pool associations
-    if pool_count := session.scalar(select(func.count(Pool.id)).where(Pool.team_name == team.name)):
+    if pool_count := session.scalar(
+        select(func.count(Pool.id)).where(
+            Pool.team_name == team.name,
+            Pool.pool != Pool.get_default_team_pool_name(team.name),
+        )
+    ):
         associations.append(f"{pool_count} pool(s)")
 
     # If there are associations, prevent deletion
@@ -139,6 +166,17 @@ def team_delete(args, *, session=NEW_SESSION):
     # Delete the team
     try:
         session.delete(team)
+
+        default_pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == Pool.get_default_team_pool_name(team.name),
+                Pool.team_name == team.name,
+            )
+        )
+
+        if default_pool:
+            session.delete(default_pool)
+
         session.commit()
         print(f"Team '{team_name}' deleted successfully")
     except Exception as e:
@@ -163,6 +201,10 @@ def team_list(args, *, session=NEW_SESSION):
 @provide_session
 def team_sync(args, *, session=NEW_SESSION):
     """Sync missing teams from the dag bundle config."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Warning: multi-team is not enabled; nothing to synchronize.")
+        return
+
     dag_bundle_teams = {
         bundle.team_name
         for bundle in DagBundlesManager()._bundle_config.values()
@@ -172,10 +214,23 @@ def team_sync(args, *, session=NEW_SESSION):
     teams_added = 0
 
     try:
-        for team_name in dag_bundle_teams - Team.get_all_team_names(session=session):
-            team = Team(name=team_name)
-            session.add(team)
-            teams_added += 1
+        existing_teams = Team.get_all_team_names(session=session)
+        for team_name in dag_bundle_teams:
+            if team_name not in existing_teams:
+                session.add(Team(name=team_name))
+                session.flush()
+                teams_added += 1
+
+            pool = session.scalar(
+                select(Pool).where(
+                    Pool.pool == Pool.get_default_team_pool_name(team_name),
+                    Pool.team_name == team_name,
+                )
+            )
+
+            if pool is None:
+                _create_default_team_pool(team_name=team_name, session=session)
+
         session.commit()
     except Exception as e:
         session.rollback()
@@ -183,3 +238,46 @@ def team_sync(args, *, session=NEW_SESSION):
 
     if teams_added > 0:
         print(f"{teams_added} teams added.")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def team_verify(args, *, session=NEW_SESSION):
+    """Verify that the multi-team configuration is consistent."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Multi-team is not enabled.")
+        return
+
+    issues: list[str] = []
+
+    teams = session.scalars(select(Team)).all()
+
+    for team in teams:
+        default_pool_name = Pool.get_default_team_pool_name(team.name)
+
+        default_pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == default_pool_name,
+                Pool.team_name == team.name,
+            )
+        )
+
+        if default_pool is None:
+            issues.append(f"Team '{team.name}' is missing default pool '{default_pool_name}'.")
+
+    existing_teams = {team.name for team in teams}
+
+    for bundle_name, bundle in DagBundlesManager()._bundle_config.items():
+        if bundle.team_name and bundle.team_name not in existing_teams:
+            issues.append(f"DAG bundle '{bundle_name}' references unknown team '{bundle.team_name}'.")
+
+    if issues:
+        print("Verification failed.\n")
+
+        for issue in issues:
+            print(f"✗ {issue}")
+
+        raise SystemExit(1)
+
+    print("Verification succeeded.")

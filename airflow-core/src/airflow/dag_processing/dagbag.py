@@ -43,6 +43,7 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.pool import Pool
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.file import correct_maybe_zipped
@@ -159,6 +160,30 @@ def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
                 "Make sure it is listed in your [core] executors configuration, or update the task's "
                 "executor to use one of the configured executors."
             )
+
+
+def _assign_default_team_pools(
+    dag: DAG,
+    bundle_name: str | None = None,
+) -> None:
+    """Assign the default team pool to tasks that do not explicitly specify a pool."""
+    dag_team_name = None
+
+    if conf.getboolean("core", "multi_team"):
+        if bundle_name:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle_manager = DagBundlesManager()
+            bundle_config = bundle_manager._bundle_config[bundle_name]
+
+            dag_team_name = bundle_config.team_name
+
+    if not dag_team_name:
+        return
+
+    for task in dag.tasks:
+        if task.pool == Pool.DEFAULT_POOL_NAME:
+            task.pool = Pool.get_default_team_pool_name(dag_team_name)
 
 
 class DagBag(LoggingMixin):
@@ -344,6 +369,7 @@ class DagBag(LoggingMixin):
                 # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
                 _validate_executor_fields(dag, self.bundle_name)
+                _assign_default_team_pools(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
             except AirflowClusterPolicySkipDag:
