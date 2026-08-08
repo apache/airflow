@@ -6021,12 +6021,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -6067,6 +6061,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: all_map_indices
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: All Map Indices
       - name: map_index
         in: query
         required: false
@@ -6075,13 +6076,6 @@ paths:
           minimum: -1
           default: -1
           title: Map Index
-      - name: all_map_indices
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: All Map Indices
       responses:
         '204':
           description: Successful Response
@@ -6120,6 +6114,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6138,12 +6138,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
@@ -6193,6 +6187,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6211,12 +6211,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
@@ -6268,6 +6262,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6286,12 +6286,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
@@ -6347,6 +6341,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6365,12 +6365,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
