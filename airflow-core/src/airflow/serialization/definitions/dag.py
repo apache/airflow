@@ -55,7 +55,7 @@ from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from airflow.timetables.base import DagRunInfo, DataInterval, SkippedIntervalsSummary, TimeRestriction
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -122,6 +122,7 @@ class SerializedDAG:
     fail_fast: bool = False
     has_on_failure_callback: bool = False
     has_on_success_callback: bool = False
+    has_on_skipped_intervals_callback: bool = False
     is_paused_upon_creation: bool | None = None
     max_active_runs: int = 16
     max_active_tasks: int = 16
@@ -522,6 +523,48 @@ class SerializedDAG:
                 last_dagrun_info=info,
                 dag_id=self.dag_id,
             )
+
+    def summarize_skipped_intervals_between(
+        self,
+        prev_info: DagRunInfo,
+        new_info: DagRunInfo,
+    ) -> SkippedIntervalsSummary | None:
+        """
+        Summarize intervals skipped between two automated Dag runs.
+
+        Asks the timetable for the immediate successor of *prev_info* with
+        catchup enabled. Returns a summary only when that expected successor's
+        logical date is strictly earlier than *new_info*'s logical date — i.e.
+        when at least one scheduled run was skipped.
+
+        Returns ``None`` when there is no schedulable gap (including consecutive
+        zero-width trigger-timetable runs, where wall-clock endpoints differ
+        but the expected next logical date matches the new run).
+        """
+        if prev_info.data_interval is None or new_info.data_interval is None:
+            return None
+        if new_info.logical_date is None:
+            return None
+
+        prev_interval_end = prev_info.data_interval.end
+        new_interval_start = new_info.data_interval.start
+        if prev_interval_end >= new_interval_start:
+            return None
+
+        expected = self.next_dagrun_info(last_automated_run_info=prev_info, restricted=False)
+        if expected is None or expected.logical_date is None:
+            return None
+        if expected.logical_date >= new_info.logical_date:
+            return None
+
+        from airflow._shared.timezones import timezone
+
+        return SkippedIntervalsSummary(
+            skipped_range=DataInterval(
+                start=timezone.coerce_datetime(prev_interval_end),
+                end=timezone.coerce_datetime(new_interval_start),
+            ),
+        )
 
     @provide_session
     def get_concurrency_reached(self, *, session=NEW_SESSION) -> bool:

@@ -32,6 +32,7 @@ from airflow._shared.observability.metrics import stats
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
+    DagSkippedIntervalsCallbackRequest,
     EmailRequest,
     TaskCallbackRequest,
 )
@@ -104,7 +105,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.context import Context, SkippedIntervalsCallbackContext
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.typing_compat import Self
@@ -344,6 +345,8 @@ def _execute_callbacks(
                 _execute_task_callbacks(dagbag, request, log)
             elif isinstance(request, DagCallbackRequest):
                 _execute_dag_callbacks(dagbag, request, log)
+            elif isinstance(request, DagSkippedIntervalsCallbackRequest):
+                _execute_dag_skipped_intervals_callback(dagbag, request, log)
             elif isinstance(request, EmailRequest):
                 _execute_email_callbacks(dagbag, request, log)
 
@@ -403,6 +406,32 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
                     }
                 ),
             )
+
+
+def _execute_dag_skipped_intervals_callback(
+    dagbag: DagBag, request: DagSkippedIntervalsCallbackRequest, log: FilteringBoundLogger
+) -> None:
+    dag, _ = _get_dag_with_task(dagbag, request.dag_id)
+    callbacks = dag.on_skipped_intervals_callback
+    if not callbacks:
+        log.warning("Skipped intervals callback requested, but dag didn't have any", dag_id=request.dag_id)
+        return
+
+    callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+    summary = request.to_summary()
+    context: SkippedIntervalsCallbackContext = {
+        "dag": dag,
+        "reason": "skipped_intervals",
+        "skipped_range": summary.skipped_range,
+    }
+
+    for callback in callbacks:
+        log.info("Executing on_skipped_intervals_callback", dag_id=request.dag_id)
+        try:
+            callback(context)
+        except Exception:
+            log.exception("Callback failed", dag_id=request.dag_id)
+            stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:

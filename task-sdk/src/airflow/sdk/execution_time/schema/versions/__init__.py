@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from cadwyn import VersionBundle
 
+from airflow.sdk.execution_time.schema.versions.v2026_06_23 import AddDagSkippedIntervalsCallbackRequest
+
 
 @functools.cache
 def get_bundle() -> VersionBundle:
@@ -39,6 +41,7 @@ def get_bundle() -> VersionBundle:
 
     return VersionBundle(
         HeadVersion(),
+        Version("2026-06-23", AddDagSkippedIntervalsCallbackRequest),
         Version("2026-06-16"),
     )
 
