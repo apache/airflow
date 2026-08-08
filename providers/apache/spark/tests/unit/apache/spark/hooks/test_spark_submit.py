@@ -88,6 +88,20 @@ class TestSparkSubmitHook:
                 extra='{"queue": "root.etl", "deploy-mode": "cluster"}',
             )
         )
+
+    def test_public_properties_and_methods(self):
+        hook = SparkSubmitHook(conn_id="spark_yarn_cluster", conf={"spark.app.name": "test"})
+        assert hook.conf == {"spark.app.name": "test"}
+        assert hook.yarn_application_id is None
+        assert hook.driver_id is None
+        assert hook.driver_status is None
+        assert isinstance(hook.connection, dict)
+
+        hook.kubernetes_driver_pod = "my-driver-pod"
+        assert hook.kubernetes_driver_pod == "my-driver-pod"
+
+        hook.driver_id = "driver-12345"
+        assert hook.driver_id == "driver-12345"
         create_connection_without_db(
             Connection(
                 conn_id="spark_k8s_cluster",
