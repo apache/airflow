@@ -44,6 +44,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
 
 if TYPE_CHECKING:
     import httpx
@@ -139,33 +140,33 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
 
+        # Reuse claims already validated by JWTBearer (cached on the ASGI scope).
+        # Re-calling avalidated_claims here is a TOCTOU race: the token can expire
+        # between auth and this middleware, raising ExpiredSignatureError which was
+        # swallowed so no Refreshed-API-Token was returned and the next heartbeat 403'd.
+        token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
+        if not token:
+            return response
+
         refreshed_token: str | None = None
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1]
-            try:
+        try:
+            claims = token.claims.model_dump()
+
+            # Workload tokens are long-lived and meant to survive queue wait times.
+            if claims.get("scope") == "workload":
+                return response
+
+            now = int(time.time())
+            token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+            refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
+            valid_left = int(claims.get("exp", 0)) - now
+            if valid_left <= refresh_when_less_than:
                 async with svcs.Container(request.app.state.svcs_registry) as services:
-                    validator: JWTValidator = await services.aget(JWTValidator)
-                    claims = await validator.avalidated_claims(token, {})
-
-                    # Workload tokens are long-lived and meant to survive queue
-                    # wait times so avoid refreshing them. If avalidated_claims
-                    # raises for a workload token, the outer except handles it.
-                    if claims.get("scope") == "workload":
-                        return response
-
-                    now = int(time.time())
-                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
-                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
-                    valid_left = int(claims.get("exp", 0)) - now
-                    if valid_left <= refresh_when_less_than:
-                        generator: JWTGenerator = await services.aget(JWTGenerator)
-                        refreshed_token = generator.generate(claims)
-            except Exception as err:
-                # Do not block the response if refreshing fails; log a warning for visibility
-                logger.warning(
-                    "JWT reissue middleware failed to refresh token", error=str(err), exc_info=True
-                )
+                    generator: JWTGenerator = await services.aget(JWTGenerator)
+                    refreshed_token = generator.generate(claims)
+        except Exception as err:
+            # Do not block the response if refreshing fails; log a warning for visibility
+            logger.warning("JWT reissue middleware failed to refresh token", error=str(err), exc_info=True)
 
         if refreshed_token:
             response.headers["Refreshed-API-Token"] = refreshed_token
