@@ -260,6 +260,38 @@ code.
     ``[celery] json_logs = True`` is the safe way to enable JSON logs regardless
     of the core version.
 
+Task log forwarding to stdout
+------------------------------
+
+Task logs are normally only written to the task-log handler (and surfaced in the
+UI). To also forward each task's subprocess stdout/stderr to the Celery worker's
+own stdout — so a container-level log collector (e.g. Kubernetes/Loki) captures
+them too — enable it via the ``[logging]`` section (applies to all executors that
+supervise task subprocesses) or override it for the Celery worker alone with the
+``[celery]`` section:
+
+.. code-block:: ini
+
+    # Global — affects any executor that supervises task subprocesses:
+    [logging]
+    task_logs_to_stdout = True
+
+    # Or override for the Celery worker only, leaving other components unchanged:
+    [celery]
+    task_logs_to_stdout = True
+
+The lookup order is:
+
+1. ``[celery] task_logs_to_stdout`` — if set, takes precedence.
+2. ``[logging] task_logs_to_stdout`` — used when the celery-specific key is absent.
+3. ``False`` — the default when neither key is configured.
+
+.. note::
+
+    This is Airflow 3+ only. On ``apache-airflow<3.0.0``, Celery tasks are routed
+    through ``execute_command`` and never reach ``supervise``, so setting either key
+    has no effect there.
+
 .. _celery_executor:queue:
 
 Queues

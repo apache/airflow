@@ -910,6 +910,17 @@ logging:
       type: boolean
       example: "True"
       default: "False"
+    task_logs_to_stdout:
+      description: |
+        Also forward task subprocess stdout/stderr to the worker's own stdout, so task logs reach
+        a container-level log collector (e.g. Kubernetes/Loki) in addition to the task-log handler
+        and the UI. This is the core default consulted by executors that supervise task subprocesses
+        (e.g. the Celery executor's ``[celery] task_logs_to_stdout`` acts as a worker-level override
+        of this setting). Disabled by default to preserve existing behaviour.
+      version_added: 3.4.0
+      type: boolean
+      example: "True"
+      default: "False"
     uvicorn_logging_level:
       description: |
         Logging level for uvicorn (API server and serve-logs).

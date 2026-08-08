@@ -98,6 +98,20 @@ OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
 
+def _celery_task_logs_to_stdout_override() -> bool | None:
+    """
+    Resolve the ``[celery] task_logs_to_stdout`` worker-level override.
+
+    Returns ``None`` when unset so callers can fall back to the core
+    ``[logging] task_logs_to_stdout`` default, mirroring the ``[celery] json_logs`` /
+    ``[logging] json_logs`` two-level lookup.
+    """
+    value = conf.get("celery", "task_logs_to_stdout", fallback="")
+    if value and value.lower() != "none":
+        return conf.getboolean("celery", "task_logs_to_stdout")
+    return None
+
+
 @cache
 def get_celery_configuration() -> dict[str, Any]:
     """Get the Celery configuration dictionary."""
@@ -240,7 +254,10 @@ def execute_workload(input: str) -> None:
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     try:
-        BaseExecutor.run_workload(workload)
+        BaseExecutor.run_workload(
+            workload,
+            subprocess_logs_to_stdout=_celery_task_logs_to_stdout_override(),
+        )
     except Exception as e:
         from airflow.sdk.exceptions import TaskAlreadyRunningError
 
@@ -277,6 +294,10 @@ def _execute_workload_pre_3_3(input: str) -> None:
 
     try:
         if isinstance(workload, workloads.ExecuteTask):
+            subprocess_logs_to_stdout = _celery_task_logs_to_stdout_override()
+            if subprocess_logs_to_stdout is None:
+                # No run_workload() to apply the core default on this pre-3.3 path, so resolve it here.
+                subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                 ti=workload.ti,  # type: ignore[arg-type]
@@ -285,6 +306,7 @@ def _execute_workload_pre_3_3(input: str) -> None:
                 token=workload.token,
                 server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             )
         else:
             raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")

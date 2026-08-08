@@ -229,6 +229,22 @@ config:
         type: boolean
         example: ~
         default: ~
+      task_logs_to_stdout:
+        description: |
+          Also forward task subprocess stdout/stderr to the Celery worker's own stdout,
+          so task logs reach a container-level log collector (e.g. Kubernetes/Loki) in
+          addition to the task-log handler and the UI. This gives the Celery worker parity
+          with the LocalExecutor and the KubernetesExecutor per-task pod, which always
+          forward task logs to stdout. When set, this takes precedence over the global
+          ``[logging] task_logs_to_stdout`` setting, allowing the Celery worker to override
+          it independently. When unset (the default), the value falls back to
+          ``[logging] task_logs_to_stdout``, which itself defaults to ``False``. Airflow 3+
+          only. On apache-airflow<3.0.0 tasks are still routed through ``execute_command``
+          rather than ``supervise``.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: ~
       broker_url:
         description: |
           The Celery broker URL. Celery supports multiple broker types. See:
