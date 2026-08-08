@@ -1,0 +1,1 @@
+``[api] dag_cache_ttl`` is now honored when ``[api] dag_cache_size = 0``, giving the API server TTL-based eviction of cached serialized Dags with no size cap. Previously ``dag_cache_size = 0`` disabled eviction entirely and silently ignored ``dag_cache_ttl``. To keep the previous fully-unbounded behavior, set ``dag_cache_ttl = 0`` as well.
