@@ -73,45 +73,37 @@ describe("registry", () => {
     const registry = new TaskRegistry();
     expect(() =>
       registry.register({ dagId: "", taskId: "my_task" }, async () => undefined),
-    ).toThrowError(/dagId must be made of alphanumeric/);
+    ).toThrowError(/dagId must be a non-empty string/);
   });
 
   it("rejects an empty taskId", () => {
     const registry = new TaskRegistry();
     expect(() =>
       registry.register({ dagId: "example_dag", taskId: "" }, async () => undefined),
-    ).toThrowError(/taskId must be made of alphanumeric/);
+    ).toThrowError(/taskId must be a non-empty string/);
   });
 
-  it.each(["   ", "\t", "my dag", "a/b", "task@1"])(
-    "rejects a dagId with characters no Python dag_id allows: %j",
+  // The server would reject these ids; the registry accepts them and
+  // airflow-ts-pack warns at build time instead of failing at task runtime.
+  it.each(["   ", "my dag", "a/b", "task@1", "d".repeat(251)])(
+    "accepts a dagId the server would reject: %j",
     (dagId) => {
       const registry = new TaskRegistry();
-      expect(() =>
-        registry.register({ dagId, taskId: "my_task" }, async () => undefined),
-      ).toThrowError(/dagId must be made of alphanumeric/);
+      const handler = async () => undefined;
+      registry.register({ dagId, taskId: "my_task" }, handler);
+      expect(registry.get(dagId, "my_task")).toBe(handler);
     },
   );
 
-  it.each(["   ", "\t", "my task", "a/b", "task@1"])(
-    "rejects a taskId with characters no Python task_id allows: %j",
+  it.each(["   ", "my task", "a/b", "task@1", "t".repeat(251)])(
+    "accepts a taskId the server would reject: %j",
     (taskId) => {
       const registry = new TaskRegistry();
-      expect(() =>
-        registry.register({ dagId: "example_dag", taskId }, async () => undefined),
-      ).toThrowError(/taskId must be made of alphanumeric/);
+      const handler = async () => undefined;
+      registry.register({ dagId: "example_dag", taskId }, handler);
+      expect(registry.get("example_dag", taskId)).toBe(handler);
     },
   );
-
-  it.each([
-    ["dagId", { dagId: "d".repeat(251), taskId: "my_task" }],
-    ["taskId", { dagId: "example_dag", taskId: "t".repeat(251) }],
-  ])("rejects a %s longer than 250 characters", (name, registration) => {
-    const registry = new TaskRegistry();
-    expect(() => registry.register(registration, async () => undefined)).toThrowError(
-      new RegExp(`${name} must be less than 250 characters, not 251`),
-    );
-  });
 
   it("accepts a Unicode dagId that Python's word-character rule allows", () => {
     const registry = new TaskRegistry();

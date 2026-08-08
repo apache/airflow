@@ -19,21 +19,6 @@
 
 import type { TaskHandler } from "./task.js";
 
-// Mirrors the Python task-SDK KEY_REGEX and validate_key in airflow.sdk.definitions._internal.node.
-const KEY_REGEX = /^[\p{L}\p{N}_.-]+$/u;
-const MAX_KEY_LENGTH = 250;
-
-function validateKey(name: string, value: string): void {
-  if (typeof value !== "string" || !KEY_REGEX.test(value)) {
-    throw new Error(
-      `${name} must be made of alphanumeric characters, dashes, dots, and underscores`,
-    );
-  }
-  if (value.length > MAX_KEY_LENGTH) {
-    throw new Error(`${name} must be less than ${MAX_KEY_LENGTH} characters, not ${value.length}`);
-  }
-}
-
 /** Identifies the Airflow task handled by a TypeScript function. */
 export interface TaskRegistration {
   /** Identifier of the Dag containing this task. */
@@ -51,11 +36,19 @@ export class TaskRegistry {
    *
    * `dagId` must match the Python Dag's `dag_id`. `taskId` must match the
    * Dag-side operator's `task_id` exactly, including any TaskGroup prefix.
+   *
+   * ID content is not validated here: `airflow-ts-pack` warns at build time
+   * about IDs the Airflow server would reject, and the server stays the
+   * source of truth.
    */
   register<TReturn = unknown>(registration: TaskRegistration, handler: TaskHandler<TReturn>): void {
     const { dagId, taskId } = registration;
-    validateKey("dagId", dagId);
-    validateKey("taskId", taskId);
+    if (!dagId || typeof dagId !== "string") {
+      throw new Error("dagId must be a non-empty string");
+    }
+    if (!taskId || typeof taskId !== "string") {
+      throw new Error("taskId must be a non-empty string");
+    }
     if (typeof handler !== "function") {
       throw new Error(`handler for Dag "${dagId}" task "${taskId}" must be a function`);
     }

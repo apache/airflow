@@ -21,9 +21,9 @@
 // artifact NodeCoordinator consumes — `bundle.mjs` with the airflow
 // metadata embedded as a leading `//# airflowMetadata=<base64>` comment.
 //
-// Mirrors airflow-go-pack: build first, then run the built bundle with
-// --airflow-metadata so the manifest comes from the bundle's own task
-// registry and schema version, never from a hand-written sidecar.
+// Build first, then run the built bundle with --airflow-metadata so the
+// manifest comes from the bundle's own task registry and schema version,
+// never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -34,6 +34,7 @@ import {
   AIRFLOW_METADATA_SENTINEL,
   type BundleManifest,
 } from "../coordinator/manifest.js";
+import { warnOnSuspiciousIds } from "./validate.js";
 
 const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const BUNDLE_FILENAME = "bundle.mjs";
@@ -198,6 +199,7 @@ export async function runPack(argv: readonly string[]): Promise<void> {
         `${args.entry} registered no tasks; call registerTask(...) before startCoordinator()`,
       );
     }
+    warnOnSuspiciousIds(manifest.dags);
 
     const metadataYaml = renderMetadataYaml({
       airflow_bundle_metadata_version: AIRFLOW_BUNDLE_METADATA_VERSION,
