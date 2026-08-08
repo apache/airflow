@@ -358,3 +358,50 @@ class TestBranchOperator:
                     assert ti.state == State.NONE
                 else:
                     raise Exception
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="TaskGroup branching via SDK requires Airflow 3+")
+    @pytest.mark.parametrize(
+        "branch_return",
+        [
+            pytest.param("tg.path_a", id="absolute-task-id"),
+            pytest.param("path_a", id="relative-task-id"),
+        ],
+    )
+    def test_branch_inside_task_group(self, dag_maker, branch_return):
+        """Branch inside a TaskGroup skips non-selected siblings, for full-qualified or relative paths."""
+        from airflow.sdk import task
+
+        dag_id = f"branch_in_task_group_{branch_return.replace('.', '_')}"
+
+        with dag_maker(
+            dag_id=dag_id,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
+            serialized=True,
+        ):
+            with TaskGroup(group_id="tg"):
+
+                @task.branch
+                def choose_path():
+                    return branch_return
+
+                path_a = EmptyOperator(task_id="path_a")
+                path_b = EmptyOperator(task_id="path_b")
+                choose_path() >> [path_a, path_b]
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            logical_date=DEFAULT_DATE,
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        dag_maker.run_ti("tg.choose_path", dr)
+
+        states = {
+            ti.task_id: ti.state for ti in dag_maker.session.scalars(select(TI).where(TI.dag_id == dag_id))
+        }
+
+        assert states["tg.choose_path"] == State.SUCCESS
+        assert states["tg.path_a"] is None
+        assert states["tg.path_b"] == State.SKIPPED
