@@ -384,6 +384,43 @@ For batch pipelines, if a job is currently running and you want to update its co
 
 If the batch pipeline has already been completed successfully, then there is no running job to update; the new configuration will only be applied to the next job submission.
 
+.. _howto/operator:DataflowJobMetricsOperator:
+
+Collecting Dataflow Job Metrics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To collect and process metrics from a running Dataflow job, use :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowJobMetricsOperator`.
+This operator fetches job metrics and can either pass them to a callback function for processing or return them directly for XCom consumption by downstream tasks.
+
+Here is an example of collecting Dataflow job metrics with a callback function:
+
+.. exampleinclude::
+    /../../google/tests/system/google/cloud/dataflow/example_dataflow_get_metrics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataflow_get_metrics_with_callback]
+    :end-before: [END howto_operator_dataflow_get_metrics_with_callback]
+
+You can also collect metrics without a callback, which will return them directly for downstream consumption:
+
+.. exampleinclude::
+    /../../google/tests/system/google/cloud/dataflow/example_dataflow_get_metrics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataflow_get_metrics_no_callback]
+    :end-before: [END howto_operator_dataflow_get_metrics_no_callback]
+
+For deferrable (async) mode which releases the worker slot during job monitoring:
+
+.. exampleinclude::
+    /../../google/tests/system/google/cloud/dataflow/example_dataflow_get_metrics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataflow_get_metrics_deferrable]
+    :end-before: [END howto_operator_dataflow_get_metrics_deferrable]
+
+See the `Dataflow metrics documentation <https://cloud.google.com/dataflow/docs/guides/using-monitoring-intf/>`__ for more information.
+
 .. _howto/operator:DataflowJobStatusSensor:
 .. _howto/operator:DataflowJobMetricsSensor:
 .. _howto/operator:DataflowJobMessagesSensor:

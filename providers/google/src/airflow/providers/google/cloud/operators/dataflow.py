@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -31,10 +31,12 @@ from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
+    DataflowJobStatus,
 )
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink, DataflowPipelineLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataflow import (
+    DataflowJobMetricsTrigger,
     DataflowStartYamlJobTrigger,
     TemplateJobStartTrigger,
 )
@@ -1176,3 +1178,145 @@ class DataflowDeletePipelineOperator(GoogleCloudBaseOperator):
             raise AirflowException(self.response)
 
         return None
+
+
+class DataflowJobMetricsOperator(GoogleCloudBaseOperator):
+    """
+    Fetches metrics for a single Dataflow job and executes a callback function with the result.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobMetricsOperator`
+
+    :param job_id: Dataflow job ID. Jinja-templated.
+    :param callback: Callback function that accepts the metrics list.
+        If provided, the function is called with the metrics and its result is returned.
+        If not provided, metrics are pushed to XCom and returned directly.
+        See: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
+    :param fail_on_terminal_state: If set to True, raises an exception when the job
+        is in a terminal state. Default is False.
+    :param project_id: Optional, the Google Cloud project ID in which the Dataflow job runs.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        Jinja-templated.
+    :param location: The location of the Dataflow job (for example europe-west1).
+        See: https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        Jinja-templated.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the
+        access_token of the last account in the list, which will be impersonated in the
+        request. If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role. If set as a sequence, the identities
+        from the list must grant Service Account Token Creator IAM role to the directly
+        preceding identity, with first account from the list granting this role to the
+        originating account (templated).
+    :param deferrable: If True, run the operator in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+    """
+
+    template_fields: Sequence[str] = (
+        "job_id",
+        "project_id",
+        "location",
+    )
+    ui_color = "#4285F4"
+
+    def __init__(
+        self,
+        *,
+        job_id: str,
+        callback: Callable | None = None,
+        fail_on_terminal_state: bool = False,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 10,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_id = job_id
+        self.project_id = project_id
+        self.callback = callback
+        self.fail_on_terminal_state = fail_on_terminal_state
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
+
+    @cached_property
+    def hook(self) -> DataflowHook:
+        return DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def _fetch_metrics(self) -> Any:
+        """Fetch metrics from the Dataflow job."""
+        return self.hook.fetch_job_metrics_by_id(
+            job_id=self.job_id,
+            project_id=self.project_id,
+            location=self.location,
+        )
+
+    def execute(self, context: Context) -> Any:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        self.log.info(
+            "DataflowJobMetricsOperator | job_id=%s project=%s location=%s deferrable=%s",
+            self.job_id,
+            self.project_id,
+            self.location,
+            self.deferrable,
+        )
+
+        if not self.location:
+            raise ValueError(
+                "DataflowJobMetricsOperator requires 'location' to be set "
+                "(e.g. 'us-central1'). Dataflow job regions cannot be inferred."
+            )
+
+        if not self.deferrable:
+            if self.fail_on_terminal_state:
+                job = self.hook.get_job(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                )
+                job_status = job["currentState"]
+                if job_status in DataflowJobStatus.TERMINAL_STATES:
+                    raise RuntimeError(
+                        f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                    )
+
+            result = self._fetch_metrics()
+            return result["metrics"] if self.callback is None else self.callback(result["metrics"])
+
+        self.defer(
+            trigger=DataflowJobMetricsTrigger(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                poll_sleep=self.poll_interval,
+                fail_on_terminal_state=self.fail_on_terminal_state,
+            ),
+            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
+        """
+        Execute this method when the task resumes its execution on the worker after deferral.
+
+        If the trigger returns an event with success status - passes the event
+        result to the callback function. Returns the event result if no callback
+        function is provided. If the trigger returns an event with error status
+        - raises an exception.
+        """
+        if event["status"] == "success":
+            self.log.info(event.get("message"))
+            result = event.get("result")
+            return result if self.callback is None else self.callback(result)
+        raise RuntimeError(f"Operator failed with the following message: {event['message']}")
