@@ -444,6 +444,21 @@ class MockLazySelectSequence(LazySelectSequence):
             equal_exception,
         ),
         (
+            KeyError("boom"),
+            DAT.BASE_EXC_SER,
+            lambda a, b: a.__class__ == b.__class__ and a.args == b.args,
+        ),
+        (
+            AttributeError("boom"),
+            DAT.BASE_EXC_SER,
+            lambda a, b: a.__class__ == b.__class__ and a.args == b.args,
+        ),
+        (
+            KeyError("a", "b"),
+            DAT.BASE_EXC_SER,
+            lambda a, b: a.__class__ == b.__class__ and a.args == b.args,
+        ),
+        (
             DAG_WITH_TASKS,
             DAT.DAG,
             lambda _, b: list(b.task_group.children.keys()) == sorted(b.task_group.children.keys()),
