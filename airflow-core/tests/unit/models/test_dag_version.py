@@ -52,6 +52,16 @@ class TestDagVersion:
         assert latest_version.version_number == 1
         assert latest_version.dag_id == dag.dag_id
 
+    @pytest.mark.need_serialized_dag
+    def test_get_version_treats_zero_as_a_real_filter(self, dag_maker, session):
+        """version_number=0 must filter (and find nothing), not fall through to 'latest'."""
+        with dag_maker("zero_guard_dag"):
+            EmptyOperator(task_id="task1")
+
+        assert DagVersion.get_version("zero_guard_dag", 0, session=session) is None
+        # version_number=None still returns the latest version.
+        assert DagVersion.get_version("zero_guard_dag", session=session).version_number == 1
+
     def test_writing_dag_version_with_changes(self, dag_maker, session):
         """This also tested the get_latest_version method"""
         with dag_maker("test1") as dag:
