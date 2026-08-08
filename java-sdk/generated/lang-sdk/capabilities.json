@@ -1,0 +1,154 @@
+{
+  "sdk": "java",
+  "supervisor_schema_version": "2026-06-16",
+  "min_airflow_version": "3.3",
+  "states": {
+    "success": {
+      "supported": true,
+      "since": "3.3",
+      "note": ""
+    },
+    "failed": {
+      "supported": true,
+      "since": "3.3",
+      "note": ""
+    },
+    "up_for_retry": {
+      "supported": true,
+      "since": "3.3",
+      "note": "RetryTask"
+    },
+    "skipped": {
+      "supported": false,
+      "since": null,
+      "note": "runtime does not emit TaskState skipped yet"
+    },
+    "deferred": {
+      "supported": false,
+      "since": null,
+      "note": "runtime does not emit DeferTask yet"
+    },
+    "up_for_reschedule": {
+      "supported": false,
+      "since": null,
+      "note": "runtime does not emit RescheduleTask yet"
+    },
+    "awaiting_input": {
+      "supported": false,
+      "since": null,
+      "note": "runtime does not emit AwaitInputTask yet"
+    },
+    "removed": {
+      "supported": true,
+      "since": "3.3",
+      "note": ""
+    }
+  },
+  "capabilities": {
+    "mixed-lang-stub-target": {
+      "supported": true,
+      "since": "3.3",
+      "note": "@task.stub"
+    },
+    "task-logging": {
+      "supported": true,
+      "since": "3.3",
+      "note": "SLF4J + JPL bridged to the task log"
+    },
+    "xcom-read-write": {
+      "supported": true,
+      "since": "3.3",
+      "note": ""
+    },
+    "connection-read": {
+      "supported": true,
+      "since": "3.3",
+      "note": ""
+    },
+    "variable-read-write": {
+      "supported": false,
+      "since": null,
+      "note": "getVariable only; no write over the comm socket yet"
+    },
+    "self-contained-bundle": {
+      "supported": true,
+      "since": "3.3",
+      "note": "Airflow metadata embedded in the jar artifact"
+    },
+    "task-state-store": {
+      "supported": false,
+      "since": null,
+      "note": "no task-facing state-store API yet"
+    },
+    "asset-state-store": {
+      "supported": false,
+      "since": null,
+      "note": "no task-facing state-store API yet"
+    },
+    "asset-event-emit": {
+      "supported": false,
+      "since": null,
+      "note": "runtime does not emit asset events yet"
+    },
+    "asset-event-read": {
+      "supported": false,
+      "since": null,
+      "note": "no task-facing asset-event API yet"
+    },
+    "native-dag-authoring": {
+      "supported": false,
+      "since": null,
+      "note": "native Dag authoring not implemented yet"
+    },
+    "task-args": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "dag-params": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "taskflow-dependencies": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "branching": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "dag-test": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "task-group": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "dynamic-task-mapping": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "asset-inlets-outlets": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "asset-scheduling": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    },
+    "object-store": {
+      "supported": false,
+      "since": null,
+      "note": ""
+    }
+  }
+}

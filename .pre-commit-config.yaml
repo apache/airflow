@@ -280,6 +280,37 @@ repos:
           (?x)
           ^java-sdk/gradle\.properties$|
           ^java-sdk/sdk/schema/schema\.json$
+      - id: check-java-sdk-capabilities-in-sync
+        name: Check java-sdk/generated/lang-sdk/capabilities.json matches the Kotlin capability constant
+        entry: ./scripts/ci/prek/check_java_sdk_capabilities_in_sync.py
+        # system so the JDK/Gradle wrapper the dump task needs is taken from the host toolchain,
+        # matching sync-java-sdk-supervisor-schema above. The Python entry only imports the
+        # dependency-free lang_sdk_compat_matrix/common_prek_utils (no rich), so system Python suffices.
+        language: system
+        files: >
+          (?x)
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/conformance/.*\.kt$|
+          ^java-sdk/sdk/build\.gradle\.kts$|
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/generated/lang-sdk/capabilities\.json$|
+          ^scripts/ci/prek/check_java_sdk_capabilities_in_sync\.py$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$
+        pass_filenames: false
+        require_serial: true
+      - id: update-java-sdk-readme-matrix
+        name: Update the Java SDK compatibility matrix in java-sdk/README.md and Dokka module doc
+        entry: ./scripts/ci/prek/update_java_sdk_readme_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^java-sdk/generated/lang-sdk/capabilities\.json$|
+          ^java-sdk/README\.md$|
+          ^java-sdk/sdk/module\.md$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_java_sdk_readme_matrix\.py$
+        additional_dependencies: ['rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
