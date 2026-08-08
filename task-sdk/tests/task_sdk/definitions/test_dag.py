@@ -23,8 +23,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest import mock
 
-from dateutil.relativedelta import relativedelta
 import pytest
+from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import (
     DAG,
@@ -38,9 +38,9 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.definitions.timetables.interval import DeltaDataIntervalTimetable
 from airflow.sdk.definitions.timetables.trigger import DeltaTriggerTimetable
-from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
