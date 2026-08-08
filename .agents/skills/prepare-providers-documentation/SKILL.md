@@ -176,6 +176,25 @@ How to read it:
 > back as `needs_llm`. The rules live in `classify_change_deterministically`
 > (`dev/breeze/src/airflow_breeze/prepare_providers/provider_documentation.py`).
 
+The range the classifier reports is not fixed for the whole run — it widens once
+a provider actually gets a version bump:
+
+> [!WARNING]
+> **A version bump supersedes the provider's doc-only marker — re-run discovery
+> after Phase 4a.** When `docs/.latest-doc-only-change.txt` is present the
+> classifier starts the range at that commit, so anything older (earlier doc-only
+> changes, tooling churn) is hidden for as long as the provider has no pending
+> release. That is correct while nothing ships — but the moment the provider gets
+> a real version bump the marker no longer applies, and those commits are part of
+> what the release publishes.
+>
+> Re-run `classify-provider-changes` **after** bumping versions and fold in every
+> commit that newly appears; otherwise the release silently drops doc-only
+> entries that were only ever suppressed by the marker. The tell is a provider
+> whose commit count grows between two runs without any new merges. Observed in
+> the 2026-08-01 wave: `cohere` gained #69649, `dbt.cloud`/`presto`/`trino` gained
+> #69478, and `papermill` gained #68322 — all invisible in the first pass.
+
 Then regenerate the auto-generated build files (this does **no** classification,
 so nothing random is produced):
 
@@ -545,6 +564,33 @@ Rules:
   indent, double backticks).
 - Subjects must be the original commit subject with backticks replaced by
   single quotes (matches `message_without_backticks`). Don't paraphrase.
+- **Exception — rewrite subjects written in project-internal language.** The
+  don't-paraphrase rule keeps you honest about *what* shipped; it does not
+  oblige you to publish a subject the reader cannot act on. The changelog is
+  read by users, not by us. Rewrite the entry — keeping every `(#NNNN)` — when
+  the subject is only meaningful inside the project:
+  - **Spell out internal abbreviations.** `KPO`, `DFP`, `TI`, `RTIF`, `OL` and
+    friends are our shorthand. Write ``Add '--min-completed-minutes' to
+    'cleanup-pods' to prevent KubernetesPodOperator race condition (#70595)``,
+    not ``… to prevent KPO race condition (#70595)``.
+  - **Name what a grouped dependency bump actually changed.** Dependabot group
+    subjects such as ``Bump the fab-ui-package-updates group across 1 directory
+    with 3 updates (#70604)`` tell the reader nothing. Read the PR diff and list
+    the packages with their versions: ``Bump prettier to 3.9.6, stylelint to
+    17.14.1, webpack to 5.109.0 (#70604)``. A single-package bump still needs
+    its target version: ``Bump eslint to 10.8.0 (#70697)``.
+  - **Describe the user-visible effect, not the internal mechanic.** ``Remove
+    noqa:S101 from production code (#70378)`` names a lint directive; the reader
+    wants ``Mark asserts under 'TYPE_CHECKING' in 'DocumentLoaderOperator'
+    (#70378)``.
+  - **Drop our test vocabulary.** A system test is just an example Dag to the
+    user, so ``Remove hard-coded deferrable crawler run from example_glue system
+    test (#70206)`` becomes ``Remove hard-coded deferrable crawler run from
+    example_glue (#70206)``.
+
+  Rewrite the *wording*, never the *claim* — do not describe behaviour that did
+  not ship. When a subject is too vague to rewrite honestly, read the PR diff
+  before writing the entry.
 - **Exception — collapse within-wave "add then rename/rework" chains into one
   net entry.** When several pending commits are steps toward *one* net change —
   a feature added in one PR and renamed or reworked in a later PR, both since
@@ -672,6 +718,20 @@ provider-by-provider:
   heading and the first version), notify the release manager immediately —
   it likely means a breaking-change or min-version note was accidentally
   written at the wrong indentation level or position.
+
+  Two variants to check for, both seen in the 2026-08-01 wave:
+  - **Already misplaced on the base branch.** A contributor adds a note for
+    their own change directly under the `Changelog` header instead of inside
+    the version section it belongs to, so it renders page-wide. Move it into
+    the section that ships the change (`google` #70869).
+  - **Pushed out of place by your own prepend.** When a note was sitting above
+    the first version header and you prepend a new section, the note ends up
+    *between* your new excluded block and the previous version — still wrong,
+    but no longer above the first header, so a scan that only looks at the top
+    of the file misses it (`openai` #69506). Check **inside every section you
+    touched** that no `.. note::` appears after the
+    `.. Below changes are excluded …` marker; a note belongs directly under the
+    version underline, before the first `~~~` header.
 - Confirm Phase 4d ran: no `# use next version` comment remains where the
   referenced provider was bumped in this wave.
 - **If any inter-provider `>=` floor changed** (Phase 4d resolved a pin, or a
@@ -681,14 +741,18 @@ provider-by-provider:
   *"Provider dependency version bumps detected that should only be performed
   by Release Managers!"*. `git diff` the changed `pyproject.toml` files for
   `apache-airflow-providers-*` `>=` changes and list them for the RM.
-- **Scan the new changelog sections for three entry defects** — grep the lines
+- **Scan the new changelog sections for these entry defects** — grep the lines
   you added: (1) a bullet whose text starts with a lowercase letter → capitalize
   it (Phase 4b); (2) a bullet in a *visible* section (Features / Bug Fixes /
   Misc / Doc-only) with no `(#NNNN)` suffix → usually no-PR release-tooling that
   belongs in the excluded block (Phase 4b); (3) an "add then rename" pair for
   the same feature left as two separate entries → collapse into one net entry
-  naming both PRs (Phase 4b). Reviewers reliably catch all three, so fix them
-  before handing off.
+  naming both PRs (Phase 4b); (4) an internal abbreviation (`KPO`, `DFP`, `TI`,
+  `RTIF`, `OL`) or the phrase "system test" → rewrite in user-facing language
+  (Phase 4b); (5) a dependency bump that names no version, or a Dependabot group
+  subject of the form "… group … with N updates" → replace with the actual
+  packages and versions from the PR diff (Phase 4b). Reviewers reliably catch
+  all of these, so fix them before handing off.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
 
 Stop here. Do not commit, do not push — the release manager opens the PR

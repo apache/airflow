@@ -153,14 +153,14 @@ class HookMetaService:
         ]:
             try:
                 if not find_spec(mod_name):
-                    raise ModuleNotFoundError
+                    raise ModuleNotFoundError(f"No module named {mod_name!r}", name=mod_name)
             except ModuleNotFoundError:
                 sys.modules[mod_name] = MagicMock()
 
         # We conditionally inject mock classes for missing dependencies
         # to ensure `ProvidersManager` can initialize hook connection widgets
         # without crashing when FAB/WTForms are not installed.
-        if "wtforms.StringField" not in sys.modules:
+        if isinstance(sys.modules.get("wtforms"), MagicMock):
             # Only apply mocks if the actual module wasn't loaded beforehand.
             # This avoids thread-safety issues caused by `unittest.mock.patch` mutating global states.
             with (
