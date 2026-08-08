@@ -538,6 +538,12 @@ option_executor_start_airflow = click.option(
     "SimpleAuthManager always has all roles available.",
     is_flag=True,
 )
+@click.option(
+    "--mcp-server",
+    help="Start the internal development MCP server alongside other Airflow components.",
+    is_flag=True,
+    envvar="MCP_SERVER",
+)
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
@@ -616,6 +622,7 @@ def start_airflow(
     install_selected_providers: str,
     load_default_connections: bool,
     load_example_dags: bool,
+    mcp_server: bool,
     mount_sources: str,
     mount_ui_dist: bool,
     mysql_version: str,
@@ -721,6 +728,7 @@ def start_airflow(
         install_airflow_with_constraints=install_airflow_with_constraints,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
+        mcp_server=mcp_server,
         mount_sources=mount_sources,
         mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,

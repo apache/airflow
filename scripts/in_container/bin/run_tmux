@@ -177,6 +177,13 @@ if [[ ${GO_WORKER} == "true" ]]; then
     tmux send-keys "go run ./cmd/airflow-go-edge-worker/main.go run" C-m
 fi
 
+if [[ ${MCP_SERVER=} == "true" ]]; then
+    tmux select-pane -t 0
+    tmux split-window -h
+    tmux set-option -p @airflow_component "MCP Server"
+    tmux send-keys "/opt/airflow/scripts/in_container/bin/run_mcp_server" C-m
+fi
+
 # Attach Session, on the Main window
 tmux select-pane -t 0
 tmux send-keys "/opt/airflow/scripts/in_container/run_tmux_welcome.sh" C-m

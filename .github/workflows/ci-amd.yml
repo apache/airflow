@@ -155,6 +155,7 @@ jobs:
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
+      run-mcp-server-tests: ${{ steps.selective-checks.outputs.run-mcp-server-tests }}
       runner-type: '["ubuntu-22.04"]'
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
@@ -257,6 +258,7 @@ jobs:
       canary-run: ${{needs.build-info.outputs.canary-run}}
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
+      run-mcp-server-tests: ${{needs.build-info.outputs.run-mcp-server-tests}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
