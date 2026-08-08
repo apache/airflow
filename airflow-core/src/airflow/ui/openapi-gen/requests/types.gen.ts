@@ -3289,6 +3289,8 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    tags?: Array<(string)>;
+    tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".

@@ -55,6 +55,18 @@ describe("DagRuns logical date filter", () => {
   });
 });
 
+// dag_runs mock handler (see src/mocks/handlers/dag_runs.ts) tags "tagged_dag"
+// with "example_tag"; "test_dag" has no tags.
+describe("DagRuns tags filter", () => {
+  it("filters runs by the tags query param", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs?tags=example_tag"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_tagged_dag")).toBeInTheDocument());
+    expect(screen.queryByText("run_in_range")).not.toBeInTheDocument();
+    expect(screen.queryByText("run_before_filter")).not.toBeInTheDocument();
+  });
+});
+
 describe("DagRuns conf expand/collapse", () => {
   beforeEach(() => {
     // The conf column is hidden by default; reveal it so the JSON viewer renders.

@@ -35,7 +35,7 @@ from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.exceptions import ParamValidationError
-from airflow.models import DagModel, DagRun, Log
+from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
@@ -363,6 +363,19 @@ def _detach_dag_from_team(
     session.commit()
 
 
+def _attach_tags_to_dag(session, dag_id: str, tag_names: list[str]) -> None:
+    """Assign Dag tags for tag-filter tests."""
+    for tag_name in tag_names:
+        session.add(DagTag(dag_id=dag_id, name=tag_name))
+    session.commit()
+
+
+def _detach_tags_from_dag(session, dag_id: str) -> None:
+    """Undo :func:`_attach_tags_to_dag`."""
+    session.execute(delete(DagTag).where(DagTag.dag_id == dag_id))
+    session.commit()
+
+
 class TestGetDagRun:
     @pytest.mark.parametrize(
         ("dag_id", "run_id", "state", "run_type", "triggered_by", "dag_run_note"),
@@ -513,6 +526,45 @@ class TestGetDagRuns:
                 team_name="team-filter",
                 original_bundle_name=original_bundle_name,
             )
+
+    def test_get_dag_runs_filtered_by_tag(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-only"])
+        try:
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["tag-filter-only"]})
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG1_ID}
+
+            # A tag with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["nonexistent-tag"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+        finally:
+            _detach_tags_from_dag(session, DAG1_ID)
+
+    def test_get_dag_runs_filtered_by_tags_match_mode(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-a"])
+        _attach_tags_to_dag(session, DAG2_ID, ["tag-filter-a", "tag-filter-b"])
+        try:
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "any"},
+            )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 4
+
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "all"},
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG2_ID}
+        finally:
+            _detach_tags_from_dag(session, DAG1_ID)
+            _detach_tags_from_dag(session, DAG2_ID)
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
