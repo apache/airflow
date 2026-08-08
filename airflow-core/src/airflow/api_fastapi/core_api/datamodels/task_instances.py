@@ -30,7 +30,6 @@ from pydantic import (
     NonNegativeInt,
     StringConstraints,
     Tag,
-    ValidationError,
     field_validator,
     model_validator,
 )
@@ -233,18 +232,18 @@ class ClearTaskInstancesBody(StrictBaseModel):
     def validate_model(cls, data: Any) -> Any:
         """Validate clear task instance form."""
         if data.get("only_failed") and data.get("only_running"):
-            raise ValidationError("only_failed and only_running both are set to True")
+            raise ValueError("only_failed and only_running both are set to True")
         if data.get("start_date") and data.get("end_date"):
             if data.get("start_date") > data.get("end_date"):
-                raise ValidationError("end_date is sooner than start_date")
+                raise ValueError("end_date is sooner than start_date")
         if data.get("start_date") and data.get("end_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
+            raise ValueError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
         if data.get("start_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or start_date must be provided")
+            raise ValueError("Exactly one of dag_run_id or start_date must be provided")
         if data.get("end_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or end_date must be provided")
+            raise ValueError("Exactly one of dag_run_id or end_date must be provided")
         if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
-            raise ValidationError("task_ids list should have at least 1 element.")
+            raise ValueError("task_ids list should have at least 1 element.")
         return data
 
 
