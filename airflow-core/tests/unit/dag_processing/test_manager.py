@@ -3620,3 +3620,18 @@ class TestMultiTeamMetrics:
         # Two bundles resolved in a single batched query; the repeat call is served from cache.
         mock_get_team_names.assert_called_once()
         assert manager._bundle_name_to_team_name == {"bundle_a": "team_alpha", "bundle_b": "team_alpha"}
+
+
+@pytest.mark.parametrize(("log_target", "expect_file"), [("stdout", False), ("file", True)])
+def test_get_logger_for_dag_file_respects_log_target(
+    tmp_path, log_target, expect_file, configure_testing_dag_bundle
+):
+    dag_file_info = DagFileInfo(bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path("test.py"))
+    with conf_vars({("logging", "dag_processor_log_target"): log_target}):
+        with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
+            manager = DagFileProcessorManager(max_runs=1, base_log_dir=str(tmp_path))
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            logger, filehandle = manager._get_logger_for_dag_file(dag_file_info)
+            assert (filehandle is not None) == expect_file
+            log_files = list(tmp_path.rglob("*.log"))
+            assert bool(log_files) == expect_file
