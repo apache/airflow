@@ -18,7 +18,9 @@
 package worker_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -31,6 +33,7 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"resty.dev/v3"
 
@@ -69,6 +72,65 @@ func newTestWorkLoad(id string, dagId string) api.ExecuteTaskWorkload {
 		},
 		LogPath: &log,
 	}
+}
+
+func TestStartTaskHTTPErrorDoesNotLogToken(t *testing.T) {
+	secretToken := "super-secret-workload-token"
+	workload := newTestWorkLoad(uuid.New().String(), "start-error-dag")
+	workload.Token = secretToken
+	workload.LogPath = nil
+	request, err := http.NewRequest(
+		http.MethodPatch,
+		"https://api.example.test/execution/task-instances/"+workload.TI.Id.String()+"/run?access_token="+secretToken,
+		nil,
+	)
+	require.NoError(t, err)
+	request.Header.Set("Authorization", "Bearer "+secretToken)
+	request.Header.Set("Correlation-Id", "test-correlation-id")
+
+	httpError := &api.GeneralHTTPError{Response: &resty.Response{
+		Request: &resty.Request{
+			Header:     request.Header,
+			Method:     request.Method,
+			RawRequest: request,
+		},
+		RawResponse: &http.Response{StatusCode: http.StatusBadRequest},
+	}}
+	registry := bundlev1.New()
+	registry.AddDag(workload.TI.DagId).AddTaskWithName(workload.TI.TaskId, func() error {
+		return nil
+	})
+	client := &mocks.ClientInterface{}
+	taskInstances := &mocks.TaskInstancesClient{}
+	taskInstances.EXPECT().Run(mock.Anything, workload.TI.Id, mock.Anything).Return(nil, httpError)
+	client.EXPECT().TaskInstances().Return(taskInstances)
+
+	var logBuffer bytes.Buffer
+	testWorker := worker.NewWithBundle(registry, slog.New(slog.NewJSONHandler(&logBuffer, nil))).
+		WithClient(client)
+	err = testWorker.ExecuteTaskWorkload(context.Background(), workload)
+	require.Error(t, err)
+	client.AssertExpectations(t)
+	taskInstances.AssertExpectations(t)
+	require.NotContains(t, logBuffer.String(), secretToken)
+
+	var logEntry struct {
+		Level      string `json:"level"`
+		Message    string `json:"msg"`
+		StatusCode int    `json:"status_code"`
+		Request    struct {
+			CorrelationID string `json:"correlation_id"`
+			Method        string `json:"method"`
+			Path          string `json:"path"`
+		} `json:"request"`
+	}
+	require.NoError(t, json.Unmarshal(logBuffer.Bytes(), &logEntry))
+	require.Equal(t, "ERROR", logEntry.Level)
+	require.Equal(t, "Server reported error when attempting to start task", logEntry.Message)
+	require.Equal(t, http.StatusBadRequest, logEntry.StatusCode)
+	require.Equal(t, request.Header.Get("Correlation-Id"), logEntry.Request.CorrelationID)
+	require.Equal(t, request.Method, logEntry.Request.Method)
+	require.Equal(t, request.URL.Path, logEntry.Request.Path)
 }
 
 type WorkerSuite struct {
