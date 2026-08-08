@@ -512,19 +512,63 @@ class AsyncHttpSession(LoggingMixin):
         url = _url_from_endpoint(self.base_url, endpoint)
         merged_headers = {**(self.headers or {}), **(headers or {})}
         extra_options = {**(self.extra_options or {}), **(extra_options or {})}
+        # Track which headers came from the connection so they can be dropped
+        # on a cross-host redirect (aiohttp only strips Authorization).
+        connection_header_names = set(self.headers.keys()) if self.headers else set()
 
         async def request_func() -> ClientResponse:
-            response = await self._request(
-                url,
-                params=data if self.method == "GET" else None,
-                data=data if self.method in {"POST", "PUT", "PATCH"} else None,
-                json=json,
-                headers=merged_headers,
-                auth=self.auth,
-                **extra_options,
+            nonlocal url
+            # aiohttp does not drop custom headers on cross-host redirects,
+            # so we disable automatic redirect following and walk the chain
+            # manually, dropping connection-supplied headers when the target
+            # changes host.
+            max_redirects = 5
+            current_headers = merged_headers
+            remaining_connection_headers = connection_header_names.copy()
+
+            for _ in range(max_redirects):
+                response = await self._request(
+                    url,
+                    params=data if self.method == "GET" else None,
+                    data=data if self.method in {"POST", "PUT", "PATCH"} else None,
+                    json=json,
+                    headers=current_headers,
+                    auth=self.auth,
+                    allow_redirects=False,
+                    **extra_options,
+                )
+
+                if response.status in (301, 302, 303, 307, 308):
+                    redirect_url = response.headers.get("Location")
+                    if not redirect_url:
+                        response.raise_for_status()
+                        return response
+
+                    # Resolve relative Location URLs against the current URL.
+                    redirect_url = _url_from_endpoint(url, redirect_url)
+                    redirect_parsed = urlparse(redirect_url)
+                    current_parsed = urlparse(url)
+
+                    if current_parsed.netloc != redirect_parsed.netloc:
+                        # Cross-host redirect: drop connection-supplied headers,
+                        # keeping only headers the caller explicitly passed in.
+                        current_headers = {k: v for k, v in merged_headers.items() if k not in remaining_connection_headers}
+                        remaining_connection_headers.clear()
+
+                    url = redirect_url
+                    await response.release()
+                    continue
+
+                response.raise_for_status()
+                return response
+
+            raise ClientResponseError(
+                request_info=response.request_info,
+                history=(),
+                status=599,
+                message=f"Too many redirects ({max_redirects})",
+                headers=response.headers,
             )
-            response.raise_for_status()
-            return response
 
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self.retry_limit),

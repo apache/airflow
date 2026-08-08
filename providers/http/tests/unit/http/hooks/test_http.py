@@ -898,3 +898,52 @@ class TestHttpAsyncHook:
             async with aiohttp.ClientSession() as session:
                 await hook.run(session=session, endpoint="test.com:8080/v1/test")
                 assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("location", "expected_forwarded_key"),
+        [
+            pytest.param("http://other.host/v1/redirected", None, id="cross-host"),
+            pytest.param("http://test:8080/v1/redirected", "secret-key", id="same-host"),
+        ],
+    )
+    async def test_async_connection_header_is_only_forwarded_on_a_same_host_redirect(
+        self, create_connection_without_db, location, expected_forwarded_key
+    ):
+        """Connection extra headers must not be forwarded on a cross-host redirect (async)."""
+        create_connection_without_db(
+            Connection(
+                conn_id="http_conn_with_api_key",
+                conn_type="http",
+                host="test:8080/",
+                extra='{"X-API-Key": "secret-key"}',
+            )
+        )
+        hook = HttpAsyncHook(http_conn_id="http_conn_with_api_key")
+
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            redirect_response = MockAiohttpClientResponse(
+                status=302,
+                method="GET",
+                url="http://test:8080/v1/test",
+                headers={"Location": location},
+            )
+            final_response = MockAiohttpClientResponse(
+                status=200,
+                payload={"message": "OK"},
+                method="GET",
+                url=location,
+            )
+            mocked_get.side_effect = [redirect_response, final_response]
+
+            async with aiohttp.ClientSession() as session:
+                resp = await hook.run(session=session, endpoint="v1/test")
+                assert resp.status == 200
+
+            # First request should carry the connection header
+            first_headers = mocked_get.call_args_list[0].kwargs["headers"]
+            assert first_headers.get("X-API-Key") == "secret-key"
+
+            # Second request should only carry it on a same-host redirect
+            second_headers = mocked_get.call_args_list[1].kwargs["headers"]
+            assert second_headers.get("X-API-Key") == expected_forwarded_key
