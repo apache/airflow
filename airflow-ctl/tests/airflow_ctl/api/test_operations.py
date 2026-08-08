@@ -86,6 +86,7 @@ from airflowctl.api.datamodels.generated import (
     PluginResponse,
     PoolBody,
     PoolCollectionResponse,
+    PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
     ProviderResponse,
@@ -830,6 +831,16 @@ class TestConnectionsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.bulk(connections=connection_bulk_body)
         assert response == self.connection_bulk_response
+
+    def test_create_defaults(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/connections/defaults"
+            assert request.method == "POST"
+            return httpx.Response(200, json={})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.connections.create_defaults()
+        assert response is None
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1636,6 +1647,7 @@ class TestPoolsOperations:
         pools=[pool_response],
         total_entries=1,
     )
+    pool_patch_body = PoolPatchBody(pool=pool_name, description="description")
     pool_bulk_response = BulkResponse(
         create=BulkActionResponse(success=[pool_name], errors=[]),
         update=None,
@@ -1686,6 +1698,16 @@ class TestPoolsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.delete(self.pool_name)
         assert response == self.pool_name
+
+    def test_update(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            assert request.method == "PATCH"
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(pool_body=self.pool_patch_body)
+        assert response == self.pool_response
 
 
 class TestProvidersOperations:
