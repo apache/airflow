@@ -76,7 +76,7 @@ class Templater:
         # for most of the functionalities. It is imported by get_template_env()
         # though, so we don't need to put this after the 'if dag' check.
 
-        if dag:
+        if dag and hasattr(dag, "get_template_env"):
             return dag.get_template_env(force_sandboxed=False)
         return SandboxedEnvironment(cache_size=0)
 
