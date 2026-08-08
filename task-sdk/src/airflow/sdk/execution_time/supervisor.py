@@ -513,8 +513,10 @@ See: https://github.com/python/cpython/issues/105912
 
 
 def _should_use_exec() -> bool:
-    """Whether forked children should ``exec`` a fresh interpreter on this platform."""
-    return sys.platform in _FORK_EXEC_PLATFORMS
+    """Whether forked children should ``exec`` a fresh interpreter."""
+    return sys.platform in _FORK_EXEC_PLATFORMS or conf.getboolean(
+        "core", "execute_tasks_new_python_interpreter", fallback=False
+    )
 
 
 def _resolve_child_target(dotted: str) -> Callable[[], None]:
