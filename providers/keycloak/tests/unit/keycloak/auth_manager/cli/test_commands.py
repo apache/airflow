@@ -639,6 +639,7 @@ class TestCommands:
                 "Team:team-a",
                 "Variable:team-a",
             ],
+            decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
         mock_attach_policy.assert_any_call(
