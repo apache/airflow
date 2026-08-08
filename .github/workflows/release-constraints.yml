@@ -20,10 +20,11 @@
 #
 # The stage is derived from the version, so the two cannot be mismatched by hand:
 #
-#   * a candidate (`3.1.3rc1`) resolves with pre-releases allowed - the providers of the wave
-#     being voted on exist on PyPI only as rc versions - and lands on a branch of its own, so a
-#     candidate never moves the branch every other build reads;
-#   * a final (`3.1.3`) resolves without them, against the providers now published as finals, and
+#   * a candidate (`3.1.3rc1`) pins the providers at the versions PyPI holds - the wave being
+#     voted on exists there only as rc versions - and lands on a branch of its own, so a candidate
+#     never moves the branch every other build reads. Re-running it for the same candidate
+#     replaces that branch and its tag, so the two always describe the run that produced them;
+#   * a final (`3.1.3`) pins the providers at their released versions, ignoring any candidate, and
 #     commits onto `constraints-X-Y` itself, which is what makes the released constraints the
 #     baseline everything downstream reads.
 #
@@ -203,6 +204,7 @@ jobs:
       VERSION: ${{ inputs.version }}
       CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.constraints-branch }}
       TARGET_BRANCH: ${{ needs.build-info.outputs.target-branch }}
+      ALLOW_PRE_RELEASES: ${{ needs.build-info.outputs.allow-pre-releases }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -226,6 +228,26 @@ jobs:
         with:
           pattern: constraints-*
           path: ./files
+      # A candidate's branch and tag belong to that candidate alone, so re-running for the same
+      # rc replaces them rather than adding to them: the branch would otherwise already hold the
+      # previous run's constraints (making the push a non-fast-forward) and the tag already exist.
+      # A final never gets this - it commits onto the shared constraints-X-Y branch, whose history
+      # every other build reads.
+      - name: "Delete the previous ${{ needs.build-info.outputs.target-branch }} branch and tag"
+        if: needs.build-info.outputs.allow-pre-releases == 'true'
+        working-directory: "constraints"
+        shell: bash
+        run: |
+          if git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" > /dev/null; then
+            echo "Deleting the existing '${TARGET_BRANCH}' branch."
+            git push origin --delete "refs/heads/${TARGET_BRANCH}"
+          fi
+          if git ls-remote --exit-code origin "refs/tags/constraints-${VERSION}" > /dev/null; then
+            echo "Deleting the existing 'constraints-${VERSION}' tag."
+            git push origin --delete "refs/tags/constraints-${VERSION}"
+          fi
+          git tag --delete "constraints-${VERSION}" > /dev/null 2>&1 || true
+          git branch --delete --force "${TARGET_BRANCH}" > /dev/null 2>&1 || true
       - name: "Switch to ${{ needs.build-info.outputs.target-branch }}"
         working-directory: "constraints"
         shell: bash
