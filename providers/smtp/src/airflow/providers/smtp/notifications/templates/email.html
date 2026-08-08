@@ -4,57 +4,97 @@
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <meta name="viewport" content="width=device-width">
     </head>
-<body>
-    <table role="presentation">
-        {% if ti is defined %}
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;padding:24px 0;">
         <tr>
-            <td>Run ID:</td>
-            <td>{{ ti.run_id }}</td>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:6px;">
+                    {% if ti is defined %}
+                    <tr>
+                        <td style="padding:16px 24px;background-color:#dc2626;color:#ffffff;font-size:18px;font-weight:bold;border-top-left-radius:6px;border-top-right-radius:6px;">
+                            Airflow Task Failed
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:24px;">
+                            <table role="presentation" width="100%" cellpadding="6" cellspacing="0" border="0" style="font-size:14px;color:#1f2937;">
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">DAG:</td>
+                                    <td style="vertical-align:top;">{{ ti.dag_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">Task:</td>
+                                    <td style="vertical-align:top;">{{ ti.task_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">Run ID:</td>
+                                    <td style="vertical-align:top;">{{ ti.run_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">Try:</td>
+                                    <td style="vertical-align:top;">{{ ti.try_number }} of {{ ti.max_tries + 1 }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">State:</td>
+                                    <td style="vertical-align:top;">{{ ti.state }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">Host:</td>
+                                    <td style="vertical-align:top;">{{ ti.hostname }}</td>
+                                </tr>
+                            </table>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
+                                <tr>
+                                    <td align="left">
+                                        <a href="{{ ti.log_url }}" style="display:inline-block;padding:10px 18px;background-color:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;border-radius:4px;">View Logs</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-top:10px;font-size:12px;color:#6b7280;word-break:break-all;">
+                                        <a href="{{ ti.log_url }}" style="color:#2563eb;text-decoration:underline;">{{ ti.log_url }}</a>
+                                    </td>
+                                </tr>
+                                {% if ti.mark_success_url is defined %}
+                                <tr>
+                                    <td style="padding-top:14px;font-size:12px;color:#6b7280;word-break:break-all;">
+                                        Mark Success: <a href="{{ ti.mark_success_url }}" style="color:#2563eb;text-decoration:underline;">{{ ti.mark_success_url }}</a>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </td>
+                    </tr>
+                    {% elif slas is defined %}
+                    <tr>
+                        <td style="padding:24px;">
+                            <table role="presentation" width="100%" cellpadding="6" cellspacing="0" border="0" style="font-size:14px;color:#1f2937;">
+                                <tr>
+                                    <td style="width:160px;color:#6b7280;font-weight:bold;vertical-align:top;">Dag:</td>
+                                    <td style="vertical-align:top;">{{ dag.dag_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:160px;color:#6b7280;font-weight:bold;vertical-align:top;">Task List:</td>
+                                    <td style="vertical-align:top;">{{ task_list }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:160px;color:#6b7280;font-weight:bold;vertical-align:top;">Blocking Task List:</td>
+                                    <td style="vertical-align:top;">{{ blocking_task_list }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:160px;color:#6b7280;font-weight:bold;vertical-align:top;">SLAs:</td>
+                                    <td style="vertical-align:top;">{{ slas }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width:160px;color:#6b7280;font-weight:bold;vertical-align:top;">Blocking TI's</td>
+                                    <td style="vertical-align:top;">{{ blocking_tis }}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </td>
         </tr>
-        <tr>
-            <td>Try:</td>
-            <td>{{ ti.try_number }} of {{ ti.max_tries + 1 }}</td>
-        </tr>
-        <tr>
-            <td>Task State:</td>
-            <td>{{ ti.state }}</td>
-        </tr>
-        <tr>
-            <td>Host:</td>
-            <td>{{ ti.hostname }}</td>
-        </tr>
-        <tr>
-            <td>Log Link:</td>
-            <td><a href="{{ ti.log_url }}" style="text-decoration:underline;">{{ ti.log_url }}</a></td>
-        </tr>
-        {% if ti.mark_success_url is defined %}
-        <tr>
-            <td>Mark Success Link:</td>
-            <td><a href="{{ ti.mark_success_url }}" style="text-decoration:underline;">{{ ti.mark_success_url }}</a></td>
-        </tr>
-        {% endif %}
-        {% elif slas is defined %}
-        <tr>
-            <td>Dag:</td>
-            <td>{{ dag.dag_id }}</td>
-        </tr>
-        <tr>
-            <td>Task List:</td>
-            <td>{{ task_list }}</td>
-        </tr>
-        <tr>
-            <td>Blocking Task List:</td>
-            <td>{{ blocking_task_list }}</td>
-        </tr>
-        <tr>
-            <td>SLAs:</td>
-            <td>{{ slas }}</td>
-        </tr>
-        <tr>
-            <td>Blocking TI's</td>
-            <td>{{ blocking_tis }}</td>
-        </tr>
-        {% endif %}
     </table>
 </body>
 </html>
