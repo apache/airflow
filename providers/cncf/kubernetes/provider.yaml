@@ -375,7 +375,7 @@ config:
           per-call latency is high (network round-trip, admission webhooks). Pod
           templates are still built synchronously; only the create API calls are
           parallelized.
-        version_added: 10.20.0
+        version_added: 10.21.0
         type: boolean
         example: ~
         default: "False"
@@ -386,7 +386,7 @@ config:
           server (and admission webhooks) to avoid tripping API priority-and-fairness or
           rate limits. Has no effect when ``async_pod_creation`` is False. When set to 0
           the limit falls back to ``worker_pods_creation_batch_size``.
-        version_added: 10.20.0
+        version_added: 10.21.0
         type: integer
         example: "16"
         default: "0"

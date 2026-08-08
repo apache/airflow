@@ -403,9 +403,11 @@ def _check_constructor_field_logic(
     if findings:
         console.print(
             f"{class_node.name}'s constructor applies logic to template fields. Template fields "
-            f"are rendered after the constructor runs, so validation or transformation here acts "
-            f"on the un-rendered Jinja expression and should move to execute() "
-            f"(see contributing-docs/05_pull_requests.rst):"
+            f"are rendered after the constructor runs, so value-dependent validation or transformation "
+            f"here acts on the un-rendered Jinja expression and should run in execute() or another method "
+            f"called after rendering. Checks that only ask whether an argument was passed belong in "
+            f"__init__ and should use explicit is None / is not None comparisons rather than truthiness. "
+            f"See https://github.com/apache/airflow/issues/70296#false-positives"
         )
         for lineno in sorted(findings):
             source = source_lines[lineno - 1].strip() if lineno <= len(source_lines) else ""

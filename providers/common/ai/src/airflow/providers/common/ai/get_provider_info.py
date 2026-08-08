@@ -120,6 +120,17 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
                 "hook-name": "Pydantic AI",
                 "connection-type": "pydanticai",
+                "external-services": [
+                    "OpenAI",
+                    "Anthropic",
+                    "Google",
+                    "AWS Bedrock",
+                    "Groq",
+                    "Mistral AI",
+                    "DeepSeek",
+                    "Ollama",
+                    "vLLM",
+                ],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
@@ -137,6 +148,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
                 "hook-name": "Pydantic AI (Azure OpenAI)",
                 "connection-type": "pydanticai-azure",
+                "external-services": ["Azure OpenAI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
@@ -159,6 +171,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
                 "hook-name": "Pydantic AI (AWS Bedrock)",
                 "connection-type": "pydanticai-bedrock",
+                "external-services": ["AWS Bedrock"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
@@ -221,6 +234,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
                 "hook-name": "Pydantic AI (Google Vertex AI)",
                 "connection-type": "pydanticai-vertex",
+                "external-services": ["Google Vertex AI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
@@ -295,6 +309,15 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.langchain.LangChainHook",
                 "hook-name": "LangChain",
                 "connection-type": "langchain",
+                "external-services": [
+                    "OpenAI",
+                    "Anthropic",
+                    "Groq",
+                    "Mistral AI",
+                    "DeepSeek",
+                    "Ollama",
+                    "vLLM",
+                ],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
@@ -319,6 +342,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook",
                 "hook-name": "LlamaIndex",
                 "connection-type": "llamaindex",
+                "external-services": ["OpenAI", "Ollama", "vLLM"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
