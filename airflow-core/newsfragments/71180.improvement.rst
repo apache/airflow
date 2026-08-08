@@ -1,0 +1,1 @@
+Documented how to populate enum Dag Params from external config files for the trigger Dag form.
