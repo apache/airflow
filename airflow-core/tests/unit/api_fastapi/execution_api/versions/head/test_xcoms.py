@@ -328,6 +328,58 @@ class TestXComsGetEndpoint:
 
         assert set(response.json()) == set(expected_xcoms)
 
+    def test_xcom_get_include_prior_dates_cross_dag(self, client, exec_app, dag_maker, session):
+        """Regression test for #70173: cross-DAG ``xcom_pull`` with ``include_prior_dates=True``.
+
+        An upstream DAG task pushes ``return_value``; a downstream task in a *different* DAG and a
+        *different* run pulls it. The SDK issues the request with ``dag_id=upstream`` (target) but
+        ``run_id=downstream`` (the caller's own run). The prior-dates cutoff must be resolved from
+        the caller's task instance so the upstream value is returned instead of ``None``.
+        """
+        from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+        from airflow.api_fastapi.execution_api.security import require_auth
+
+        # Upstream DAG pushes a return_value XCom on an earlier logical date.
+        with dag_maker(dag_id="cross_dag_xcom_upstream"):
+            EmptyOperator(task_id="push_to_xcom")
+        upstream_run = dag_maker.create_dagrun(
+            run_id="upstream_run", logical_date=timezone.parse("2024-01-01T00:00:00Z")
+        )
+        upstream_ti = upstream_run.get_task_instance("push_to_xcom")
+        upstream_xcom = XComModel(
+            key="return_value",
+            value="Hello!",
+            dag_run_id=upstream_ti.dag_run.id,
+            run_id=upstream_ti.run_id,
+            task_id=upstream_ti.task_id,
+            dag_id=upstream_ti.dag_id,
+        )
+        session.add(upstream_xcom)
+
+        # Downstream DAG pulls — different dag_id AND different run_id, on a later logical date.
+        with dag_maker(dag_id="cross_dag_xcom_downstream"):
+            EmptyOperator(task_id="pull_from_xcom")
+        downstream_run = dag_maker.create_dagrun(
+            run_id="downstream_run", logical_date=timezone.parse("2024-01-02T00:00:00Z")
+        )
+        downstream_ti = downstream_run.get_task_instance("pull_from_xcom")
+        session.commit()
+
+        # The pulling task instance is the downstream TI; make the auth token resolve to it.
+        async def _caller_token() -> TIToken:
+            return TIToken(id=downstream_ti.id, claims=TIClaims(scope="execution"))
+
+        exec_app.dependency_overrides[require_auth] = _caller_token
+
+        # Mirrors the SDK request: dag_id=upstream (target), run_id=downstream (caller's own run).
+        response = client.get(
+            "/execution/xcoms/cross_dag_xcom_upstream/downstream_run/push_to_xcom/return_value"
+            "?include_prior_dates=true"
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"key": "return_value", "value": "Hello!"}
+
 
 class TestXComsSetEndpoint:
     @pytest.mark.parametrize(

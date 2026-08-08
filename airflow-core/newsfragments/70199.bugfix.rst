@@ -1,0 +1,1 @@
+Fix cross-DAG ``xcom_pull`` with ``include_prior_dates=True`` returning ``None``. The prior-dates cutoff is now resolved from the pulling task instance's own DAG run (the caller), so pulling an XCom from a different DAG no longer keys the reference date on a non-existent run and drops every row.
