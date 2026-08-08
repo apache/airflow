@@ -79,6 +79,7 @@
     "queuedAt": "Queued At",
     "runAfter": "Run After",
     "runType": "Run Type",
+    "showInGrid": "Show in Grid View",
     "sourceAssetEvent": "Source Asset Event",
     "triggeredBy": "Triggered By",
     "triggeringUser": "Triggering User"

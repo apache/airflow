@@ -19,6 +19,8 @@
 import { HStack, Text, Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
+import { LuScanSearch } from "react-icons/lu";
+import { useSearchParams } from "react-router-dom";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -31,7 +33,7 @@ import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import NotePreview from "src/components/NotePreview";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
+import { IconButton, RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import DeleteRunButton from "src/pages/DagRuns/DeleteRunButton";
 import { useDagRunNote } from "src/queries/useDagRunNote";
@@ -42,9 +44,22 @@ import { DeadlineStatus } from "./DeadlineStatus";
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
+  const [, setSearchParams] = useSearchParams();
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
+
+  const showInGrid = () =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        next.set(SearchParamsKeys.RUN_ID_PATTERN, dagRunId);
+
+        return next;
+      },
+      { replace: true },
+    );
 
   const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
   const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
@@ -54,6 +69,9 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
       <HeaderCard
         actions={
           <>
+            <IconButton label={translate("dagRun.showInGrid")} onClick={showInGrid}>
+              <LuScanSearch />
+            </IconButton>
             <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
             <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />

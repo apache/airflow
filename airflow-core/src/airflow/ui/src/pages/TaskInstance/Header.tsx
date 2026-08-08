@@ -19,7 +19,9 @@
 import { Box } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LuScanSearch } from "react-icons/lu";
 import { MdOutlineTask } from "react-icons/md";
+import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
@@ -29,12 +31,27 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NotePreview from "src/components/NotePreview";
 import Time from "src/components/Time";
+import { IconButton } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
+  const [, setSearchParams] = useSearchParams();
+
+  const showInGrid = () =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        next.set(SearchParamsKeys.RUN_ID_PATTERN, taskInstance.dag_run_id);
+
+        return next;
+      },
+      { replace: true },
+    );
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -70,6 +87,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       <HeaderCard
         actions={
           <>
+            <IconButton label={translate("dagRun.showInGrid")} onClick={showInGrid}>
+              <LuScanSearch />
+            </IconButton>
             <ClearTaskInstanceButton
               isHotkeyEnabled
               onOpen={() => setClearOpen(true)}
