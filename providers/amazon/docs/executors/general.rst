@@ -312,6 +312,21 @@ You will be prompted to enter the password if the connection is successful.
 .. END DATABASE_CONNECTION
 
 
+.. BEGIN SQL_ALCHEMY_CONN
+
+.. code-block:: bash
+
+   postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
+
+.. note::
+   ``psycopg2`` works on every Airflow version these executors support. From Airflow 3.2.0 you may use
+   ``postgresql+psycopg://`` instead, provided ``psycopg`` (v3) is installed. Airflow before 3.2.0 does not
+   guarantee SQLAlchemy 2.0 (2.11 and 3.0.x pin ``<2.0``), and SQLAlchemy 1.4 has no
+   ``postgresql+psycopg`` dialect — Airflow fails to start with ``sqlalchemy.exc.NoSuchModuleError``.
+
+.. END SQL_ALCHEMY_CONN
+
+
 .. BEGIN ECR_STEPS
 
 Create an ECR Repository
