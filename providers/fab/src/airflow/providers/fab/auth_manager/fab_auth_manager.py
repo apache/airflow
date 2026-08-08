@@ -315,6 +315,11 @@ class FabAuthManager(BaseAuthManager[User]):
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
 
+    def refresh_user(self, *, user: User) -> User | None:
+        if not user or user.is_anonymous:
+            return None
+        return user
+
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         user = self.get_user()
