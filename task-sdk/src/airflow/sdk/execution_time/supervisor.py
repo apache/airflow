@@ -2409,7 +2409,13 @@ def process_log_messages_from_subprocess(
             event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
 
         if exc := event.pop("exception", None):
-            # TODO: convert the dict back to a pretty stack trace
+            # Left structured on purpose. Every WatchedSubprocess shares this relay, so where a
+            # record lands depends on the caller: the task log when a task runs, the DAG
+            # processor's own log file when a file is parsed. The task log is read by the log
+            # view in the UI, which renders the frames itself and would lose that if handed a
+            # string. Picking a format per destination is not open to us in any case, because
+            # the loop below gives this one event to every target logger, and there can be more
+            # than one of those at a time.
             event["error_detail"] = exc
 
         if level := NAME_TO_LEVEL.get(event.pop("level")):
