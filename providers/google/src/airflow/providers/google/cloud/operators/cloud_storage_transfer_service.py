@@ -257,19 +257,19 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.body = body
-        if isinstance(self.body, dict):
-            self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.project_id = project_id
         self.google_impersonation_chain = google_impersonation_chain
-        self._validate_inputs()
 
     def _validate_inputs(self) -> None:
         TransferJobValidator(body=self.body).validate_body()
 
     def execute(self, context: Context) -> dict:
+        if isinstance(self.body, dict):
+            self.body = deepcopy(self.body)
+        self._validate_inputs()
         TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
