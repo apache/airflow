@@ -215,34 +215,53 @@ class _RunInfo(NamedTuple):
         return cls(latest_run, active_run_counts.get(dag.dag_id, 0))
 
 
-def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
-    orm_tags = {t.name: t for t in dm.tags}
-    tags_to_delete = []
-    for name, orm_tag in orm_tags.items():
-        if name not in tag_names:
-            session.delete(orm_tag)
-            tags_to_delete.append(orm_tag)
+def _update_dag_tags(updates: Iterable[tuple[DagModel, set[str]]], *, session: Session) -> None:
+    rows_to_add: list[dict[str, str]] = []
+    dms_to_expire: list[DagModel] = []
+    for dm, tag_names in updates:
+        orm_tags = {t.name: t for t in dm.tags}
+        for name, orm_tag in orm_tags.items():
+            if name not in tag_names:
+                session.delete(orm_tag)
+                # Remove the deleted tag from the collection to keep it in sync
+                dm.tags.remove(orm_tag)
+        if tags_to_add := tag_names.difference(orm_tags):
+            rows_to_add.extend({"name": name, "dag_id": dm.dag_id} for name in tags_to_add)
+            dms_to_expire.append(dm)
 
-    tags_to_add = tag_names.difference(orm_tags)
-    if tags_to_delete:
-        # Remove deleted tags from the collection to keep it in sync
-        for tag in tags_to_delete:
-            dm.tags.remove(tag)
+    if not rows_to_add:
+        return
 
-        # Check if there's a potential case-only rename on MySQL (e.g., 'tag' -> 'TAG').
-        # MySQL uses case-insensitive collation for the (name, dag_id) primary key by default,
-        # which can cause duplicate key errors when renaming tags with only case changes.
-        if get_dialect_name(session) == "mysql":
-            orm_tags_lower = {name.lower(): name for name in orm_tags}
-            has_case_only_change = any(tag.lower() in orm_tags_lower for tag in tags_to_add)
+    # Flush so the DELETE operations above hit the database before the INSERT.
+    # This is required for case-only renames (e.g. 'tag' -> 'TAG') on MySQL,
+    # where the (name, dag_id) primary key is case-insensitive by default, and
+    # it also guarantees newly-added DagModel rows exist to satisfy the
+    # dag_tag foreign key.
+    session.flush()
 
-            if has_case_only_change:
-                # Force DELETE operations to execute before INSERT operations.
-                session.flush()
-                # Refresh the tags relationship from the database to reflect the deletions.
-                session.expire(dm, ["tags"])
+    # Insert with a conflict-ignoring statement instead of via the ORM
+    # relationship: multiple dag processors running in HA can parse the same
+    # file concurrently, and a plain INSERT of a tag that another processor
+    # has just committed raises a unique-constraint violation that poisons the
+    # session and crashes the processor.
+    if (dialect_name := get_dialect_name(session)) == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
-    dm.tags.extend(DagTag(name=name, dag_id=dm.dag_id) for name in tags_to_add)
+        stmt: Any = postgresql_insert(DagTag).on_conflict_do_nothing()
+    elif dialect_name == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        # MySQL does not support "do nothing"; this updates the row in
+        # conflict with its own value to achieve the same idea.
+        stmt = mysql_insert(DagTag).on_duplicate_key_update(name=DagTag.name)
+    else:
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(DagTag).on_conflict_do_nothing()
+    session.execute(stmt, rows_to_add)
+    # The new rows bypassed the ORM relationships; reload them on next access.
+    for dm in dms_to_expire:
+        session.expire(dm, ["tags"])
 
 
 def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, session: Session) -> None:
@@ -629,6 +648,7 @@ class DagModelOperation(NamedTuple):
         session: Session,
     ) -> None:
         # we exclude backfill from active run counts since their concurrency is separate
+        tag_updates: list[tuple[DagModel, set[str]]] = []
         for dag_id, dm in sorted(orm_dags.items()):
             run_info = _RunInfo.calculate(dag=self.dags[dag_id], session=session)
             dag = self.dags[dag_id]
@@ -704,13 +724,17 @@ class DagModelOperation(NamedTuple):
             # FIXME: STORE NEW REFERENCES.
 
             if dag.tags:
-                _update_dag_tags(set(dag.tags), dm, session=session)
+                # Collected here and applied in one batch below so the whole
+                # bulk write costs a constant number of extra queries.
+                tag_updates.append((dm, set(dag.tags)))
             else:  # Optimization: no references at all, just clear everything.
                 dm.tags = []
             if dag.owner_links:
                 _update_dag_owner_links(dag.owner_links, dm, session=session)
             else:  # Optimization: no references at all, just clear everything.
                 dm.dag_owner_links = []
+
+        _update_dag_tags(tag_updates, session=session)
 
     def update_dag_asset_expression(
         self,

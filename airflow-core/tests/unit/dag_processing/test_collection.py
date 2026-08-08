@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, inspect as sa_inspect, select
+from sqlalchemy import delete, func, insert, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -1442,7 +1442,7 @@ class TestUpdateDagTags:
     @pytest.fixture(autouse=True)
     def setup_teardown(self, session):
         yield
-        session.execute(delete(DagModel).where(DagModel.dag_id == "test_dag"))
+        session.execute(delete(DagModel).where(DagModel.dag_id.in_(("test_dag", "test_dag_2"))))
         session.commit()
 
     @pytest.mark.parametrize(
@@ -1461,10 +1461,63 @@ class TestUpdateDagTags:
         session.add(dag_model)
         session.commit()
 
-        _update_dag_tags(new_tags, dag_model, session=session)
+        _update_dag_tags([(dag_model, new_tags)], session=session)
         session.commit()
 
         assert {t.name for t in dag_model.tags} == expected_tags
+
+    def test_update_dag_tags_ignores_concurrently_inserted_tag(self, testing_dag_bundle, session):
+        """
+        A tag inserted by another dag processor must not crash the update.
+
+        With multiple dag processors running in HA, two processors can parse the
+        same file concurrently: both read the (empty) tags relationship, then both
+        insert the same tag row. The plain ORM INSERT raised a unique-constraint
+        violation (e.g. ``UniqueViolation`` on ``dag_tag_pkey``), poisoning the
+        session and crashing the processor. The insert must tolerate the conflict
+        and keep the remaining tags.
+        """
+        dag_model = DagModel(dag_id="test_dag", bundle_name="testing")
+        session.add(dag_model)
+        session.commit()
+
+        # Load the (empty) tags relationship, as update_dags does...
+        assert dag_model.tags == []
+        # ...then simulate another dag processor committing the same tag in the
+        # meantime, bypassing the already-loaded relationship.
+        session.execute(insert(DagTag).values(name="shared", dag_id="test_dag"))
+
+        _update_dag_tags([(dag_model, {"shared", "extra"})], session=session)
+        session.commit()
+
+        assert {t.name for t in dag_model.tags} == {"shared", "extra"}
+
+    def test_update_dag_tags_batches_multiple_dags(self, testing_dag_bundle, session):
+        """Tag changes for several dags are applied in one batched statement."""
+        dag_model_1 = DagModel(dag_id="test_dag", bundle_name="testing")
+        dag_model_1.tags = [DagTag(name="stale", dag_id="test_dag")]
+        dag_model_2 = DagModel(dag_id="test_dag_2", bundle_name="testing")
+        session.add_all([dag_model_1, dag_model_2])
+        session.commit()
+
+        _update_dag_tags(
+            [(dag_model_1, {"fresh"}), (dag_model_2, {"shared", "other"})],
+            session=session,
+        )
+        session.commit()
+
+        assert {t.name for t in dag_model_1.tags} == {"fresh"}
+        assert {t.name for t in dag_model_2.tags} == {"shared", "other"}
+
+    def test_update_dag_tags_flushes_new_dag_before_insert(self, testing_dag_bundle, session):
+        """A not-yet-flushed DagModel is flushed first so the dag_tag FK is satisfied."""
+        dag_model = DagModel(dag_id="test_dag", bundle_name="testing")
+        session.add(dag_model)
+
+        _update_dag_tags([(dag_model, {"new"})], session=session)
+        session.commit()
+
+        assert {t.name for t in dag_model.tags} == {"new"}
 
 
 @pytest.mark.db_test
