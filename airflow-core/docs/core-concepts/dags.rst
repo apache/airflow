@@ -422,6 +422,41 @@ You can also say a task can only run if the *previous* run of the task in the pr
 
 Note that if you are running the Dag at the very start of its life---specifically, its first ever *automated* run---then the Task will still run, as there is no previous run to depend on.
 
+.. _concepts:depends-on-previous-tasks:
+
+Depends on Previous Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In stateful or partially retryable pipelines, you may need a task to wait for
+*multiple specific tasks* from the previous Dag Run to complete successfully
+before it can run. Use the ``depends_on_previous_tasks`` parameter:
+
+.. code-block:: python
+
+    C = PythonOperator(
+        task_id="C",
+        depends_on_previous_tasks=["C", "D", "E"],
+    )
+
+In this example, task ``C`` in ``dag_run(N)`` will only be scheduled if tasks
+``C``, ``D``, and ``E`` in ``dag_run(N-1)`` all finished with ``success`` or
+``skipped``. The first Dag Run is never blocked.
+
+``depends_on_previous_tasks`` **cannot** be combined with
+``depends_on_past`` or ``wait_for_downstream``. It is a superset of both:
+
+- To replicate ``depends_on_past=True`` for a task with ``task_id="C"``,
+  include ``"C"`` in the list. This ensures task C in ``dag_run(N)`` waits
+  for task C in ``dag_run(N-1)`` to succeed --- the same behavior as
+  ``depends_on_past=True``.
+- To replicate ``wait_for_downstream=True`` for task C with downstream
+  task D, use ``depends_on_previous_tasks=["C", "D"]``.
+
+.. note::
+
+    All task IDs in the list must exist in the same Dag. Invalid task IDs
+    produce a validation error at parse time.
+
 
 .. _concepts:trigger-rules:
 

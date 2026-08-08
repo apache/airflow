@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 
 from airflow.models.backfill import BackfillDagRun
 from airflow.models.dagrun import DagRun
@@ -135,7 +136,9 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason=reason)
             return
 
-        if not ti.task.depends_on_past:
+        depends_on_previous_tasks = getattr(ti.task, "depends_on_previous_tasks", None)
+
+        if not ti.task.depends_on_past and not depends_on_previous_tasks:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="The task did not have depends_on_past set.")
             return
@@ -180,6 +183,27 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
+        # depends_on_previous_tasks (mutually exclusive with depends_on_past)
+        if depends_on_previous_tasks:
+            task_status = self._check_previous_tasks(last_dagrun, depends_on_previous_tasks, session=session)
+            for prev_task_id in depends_on_previous_tasks:
+                exists, unsuccessful = task_status[prev_task_id]
+                if not exists:
+                    yield self._failing_status(
+                        reason=f"depends_on_previous_tasks requires task '{prev_task_id}' "
+                        f"but it was not found in the previous dagrun."
+                    )
+                    return
+                if unsuccessful > 0:
+                    yield self._failing_status(
+                        reason=f"depends_on_previous_tasks requires task '{prev_task_id}' "
+                        f"to have succeeded in the previous dagrun, "
+                        f"but it has {unsuccessful} unsuccessful instance(s)."
+                    )
+                    return
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+            return
+
         if not self._has_tis(last_dagrun, ti.task_id, session=session):
             if ti.task.ignore_first_depends_on_past:
                 if not self._has_any_prior_tis(ti, session=session):
@@ -217,3 +241,39 @@ class PrevDagrunDep(BaseTIDep):
             return
 
         self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+
+    @staticmethod
+    def _check_previous_tasks(
+        dagrun: DagRun, task_ids: Collection[str], *, session: Session
+    ) -> dict[str, tuple[bool, int]]:
+        """
+        Batch-check presence and unsuccessful count for multiple task IDs in one query.
+
+        Returns a dict mapping task_id -> (exists, unsuccessful_count).
+        Task IDs not found in the DAG run are mapped to (False, 0).
+
+        This function exists for easy mocking in tests.
+        """
+        results = session.execute(
+            select(
+                TI.task_id,
+                func.count().label("total"),
+                func.count(
+                    case(
+                        (or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)), TI.task_id),
+                    )
+                ).label("unsuccessful"),
+            )
+            .where(
+                TI.dag_id == dagrun.dag_id,
+                TI.run_id == dagrun.run_id,
+                TI.task_id.in_(task_ids),
+            )
+            .group_by(TI.task_id)
+        ).all()
+
+        found: dict[str, tuple[bool, int]] = {row.task_id: (True, row.unsuccessful) for row in results}
+        for tid in task_ids:
+            if tid not in found:
+                found[tid] = (False, 0)
+        return found
