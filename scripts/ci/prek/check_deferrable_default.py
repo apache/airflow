@@ -41,13 +41,27 @@ DEFERRABLE_DOC = (
     "authoring-and-scheduling/deferring.rst#writing-deferrable-operators"
 )
 
+# Operators allowed to default ``deferrable`` to a plain ``False`` instead of reading the
+# ``operators/default_deferrable`` config. SQLExecuteQueryOperator opts out because its deferrable
+# mode runs the query in the triggerer behind a replay cursor that drops live-cursor semantics, so
+# silently honouring a global ``default_deferrable=True`` would change behaviour for existing users.
+DEFERRABLE_DEFAULT_EXEMPT_CLASSES = frozenset({"SQLExecuteQueryOperator"})
+
 
 class DefaultDeferrableVisitor(ast.NodeVisitor):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, *kwargs)
         self.error_linenos: list[int] = []
+        self._class_stack: list[str] = []
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self._class_stack.append(node.name)
+        self.generic_visit(node)
+        self._class_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        if self._class_stack and self._class_stack[-1] in DEFERRABLE_DEFAULT_EXEMPT_CLASSES:
+            return node
         if node.name == "__init__":
             args = node.args
             arguments = reversed([*args.args, *args.posonlyargs, *args.kwonlyargs])
@@ -69,7 +83,21 @@ class DefaultDeferrableVisitor(ast.NodeVisitor):
 
 
 class DefaultDeferrableTransformer(cst.CSTTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self._class_stack: list[str] = []
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
+        self._class_stack.append(node.name.value)
+        return True
+
+    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+        self._class_stack.pop()
+        return updated_node
+
     def leave_Param(self, original_node: cst.Param, updated_node: cst.Param) -> cst.Param:
+        if self._class_stack and self._class_stack[-1] in DEFERRABLE_DEFAULT_EXEMPT_CLASSES:
+            return updated_node
         if original_node.name.value == "deferrable":
             expected_default_cst = cst.parse_expression(
                 'conf.getboolean("operators", "default_deferrable", fallback=False)'
@@ -97,9 +125,16 @@ def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
     yield from (f"{module_filename}:{lineno}" for lineno in visitor.error_linenos)
 
 
+def _conf_import_module(module_filename: str) -> str:
+    """Provider files must import ``conf`` from the compat SDK; everything else from core."""
+    if f"{os.sep}providers{os.sep}" in os.path.abspath(module_filename):
+        return "airflow.providers.common.compat.sdk"
+    return "airflow.configuration"
+
+
 def _fix_invalid_deferrable_default_value(module_filename: str) -> None:
     context = CodemodContext(filename=module_filename)
-    AddImportsVisitor.add_needed_import(context, "airflow.configuration", "conf")
+    AddImportsVisitor.add_needed_import(context, _conf_import_module(module_filename), "conf")
     transformer = DefaultDeferrableTransformer()
 
     source_cst_tree = cst.parse_module(open(module_filename).read())
