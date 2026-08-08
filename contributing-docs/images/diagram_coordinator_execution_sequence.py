@@ -22,22 +22,26 @@
 # ]
 # ///
 """
-UML-style sequence diagram for a Java (JVM) task run.
+UML-style sequence diagram for a Coordinator task run (Java and Go language SDKs).
 
 Each participant gets its own vertical lifeline; messages are horizontal arrows
 between lifelines, read top to bottom. The **Supervisor** (Python) sits in the
-middle so the JVM <-> Supervisor round-trip (the JVM asks for a
+middle so the subprocess <-> Supervisor round-trip (the language task asks for a
 Connection/Variable/XCom over loopback TCP and gets the answer back) and the
 Supervisor <-> Execution API round-trip are both drawn as adjacent request/
-response pairs. The JVM task never talks to the Execution API — the Supervisor
-proxies every call, so the JVM never holds the task JWT.
+response pairs. The language task never talks to the Execution API — the
+Supervisor proxies every call, so the task never holds the task JWT.
+
+Only the spawn step differs per language: Java runs ``java -classpath ... <main
+class>``; Go execs the self-contained packed bundle binary directly. Everything
+after the TCP connect-back is identical.
 
 Arrows are colored by sender:
 
 * teal   — Scheduler
-* purple — Coordinator layer (CoordinatorManager / JavaCoordinator)
-* blue   — Supervisor (_JavaActivitySubprocess)  → JVM / Execution API
-* orange — JVM SDK runtime / user code  → Supervisor  (over loopback TCP)
+* purple — Coordinator layer (CoordinatorManager / SubprocessCoordinator)
+* blue   — Supervisor (_PopenActivitySubprocess)  → subprocess / Execution API
+* orange — language SDK runtime / user code  → Supervisor  (over loopback TCP)
 * red    — Execution API  → Supervisor  (responses)
 
 Graphviz has no native sequence-diagram shape, so lifelines are drawn as dashed
@@ -62,10 +66,10 @@ console = Console(width=400, color_system="standard")
 SCHED = ("#e0f2f1", "#00695c")  # scheduler (teal)
 COORD = ("#ede7f6", "#5e35b1")  # coordinator layer (purple)
 SUP = ("#e3f2fd", "#1565c0")  # supervisor (blue)
-JVM = ("#fbe9e7", "#d84315")  # JVM runtime + user code (orange)
+LANG = ("#fbe9e7", "#d84315")  # language runtime + user code — JVM or compiled binary (orange)
 API = ("#fdecea", "#c62828")  # execution API (red)
 
-SCHED_C, COORD_C, SUP_C, JVM_C, API_C = SCHED[1], COORD[1], SUP[1], JVM[1], API[1]
+SCHED_C, COORD_C, SUP_C, LANG_C, API_C = SCHED[1], COORD[1], SUP[1], LANG[1], API[1]
 
 LIFELINE = "#b0bec5"
 
@@ -73,8 +77,8 @@ LIFELINE = "#b0bec5"
 # drawn between neighboring lifelines.
 PARTICIPANTS = [
     ("sched", "Scheduler", "creates the ExecuteTask workload", SCHED),
-    ("jvm", "JVM subprocess", "Server · Task · user code", JVM),
-    ("sup", "Supervisor (Python)", "Coordinator · _JavaActivitySubprocess", SUP),
+    ("lang", "Language subprocess", "bundle entry point · task · user code", LANG),
+    ("sup", "Supervisor (Python)", "Coordinator · _PopenActivitySubprocess", SUP),
     ("api", "Execution API", "FastAPI · TEI / AIP-72", API),
 ]
 
@@ -86,26 +90,27 @@ STEPS: list[dict[str, Any]] = [
         "from": "sched",
         "to": "sup",
         "color": SCHED_C,
-        "label": 'ExecuteTask workload\n(carries queue="java")',
+        "label": "ExecuteTask workload\n(carries queue java / golang)",
     },
     {
         "kind": "self",
         "actor": "sup",
         "theme": COORD,
-        "text": 'CoordinatorManager.for_queue("java") → JavaCoordinator\nopen two loopback-TCP servers',
+        "text": "CoordinatorManager.for_queue(queue) → SubprocessCoordinator\n"
+        "(JavaCoordinator / ExecutableCoordinator) · open two loopback-TCP servers",
     },
     {
         "kind": "msg",
         "from": "sup",
-        "to": "jvm",
+        "to": "lang",
         "color": COORD_C,
-        "label": "subprocess.Popen(java -jar bundle)\n(spawn the JVM)",
+        "label": "spawn bundle subprocess (--comm / --logs)\nJava: java -classpath … · Go: exec packed binary",
     },
     {
         "kind": "msg",
-        "from": "jvm",
+        "from": "lang",
         "to": "sup",
-        "color": JVM_C,
+        "color": LANG_C,
         "label": "TCP connect back\n(comm + logs channels)",
     },
     {"kind": "msg", "from": "sup", "to": "api", "color": SUP_C, "label": "PATCH .../run\n(TI started)"},
@@ -120,16 +125,21 @@ STEPS: list[dict[str, Any]] = [
     {
         "kind": "msg",
         "from": "sup",
-        "to": "jvm",
+        "to": "lang",
         "color": SUP_C,
         "label": "StartupDetails (msgpack over TCP)\n→ build Context",
     },
-    {"kind": "self", "actor": "jvm", "theme": JVM, "text": "Task.execute(Context, Client)  [USER CODE]"},
+    {
+        "kind": "self",
+        "actor": "lang",
+        "theme": LANG,
+        "text": "run the task function  [USER CODE]\n(Java Task.execute / Go task func)",
+    },
     {
         "kind": "msg",
-        "from": "jvm",
+        "from": "lang",
         "to": "sup",
-        "color": JVM_C,
+        "color": LANG_C,
         "label": "getConnection / getVariable / getXCom / setXCom\n(_RequestFrame, msgpack over TCP)",
     },
     {
@@ -143,15 +153,15 @@ STEPS: list[dict[str, Any]] = [
     {
         "kind": "msg",
         "from": "sup",
-        "to": "jvm",
+        "to": "lang",
         "color": SUP_C,
         "label": "*Result (msgpack over TCP)\nabove 4 messages repeat per lookup",
     },
     {
         "kind": "msg",
-        "from": "jvm",
+        "from": "lang",
         "to": "sup",
-        "color": JVM_C,
+        "color": LANG_C,
         "label": "final state (success / failed / up-for-retry)\nmsgpack over TCP",
     },
     {"kind": "msg", "from": "sup", "to": "api", "color": SUP_C, "label": "PATCH .../state\n(+ upload logs)"},
@@ -161,7 +171,7 @@ STEPS: list[dict[str, Any]] = [
         "to": "sched",
         "color": SCHED_C,
         "style": "dashed",
-        "label": "JVM process exits →\nexecute_task() returns the exit code",
+        "label": "language subprocess exits →\nexecute_task() returns the exit code",
     },
 ]
 
@@ -265,9 +275,9 @@ def _build_sequence(g) -> None:
 def _legend(g) -> None:
     entries = [
         ("lg_sched", "Scheduler  →  Supervisor", SCHED),
-        ("lg_coord", "Coordinator layer  (CoordinatorManager / JavaCoordinator)", COORD),
-        ("lg_sup", "Supervisor  →  JVM / Execution API", SUP),
-        ("lg_jvm", "JVM (user code)  →  Supervisor  (loopback TCP)", JVM),
+        ("lg_coord", "Coordinator layer  (CoordinatorManager / SubprocessCoordinator)", COORD),
+        ("lg_sup", "Supervisor  →  subprocess / Execution API", SUP),
+        ("lg_lang", "Language subprocess (user code)  →  Supervisor  (loopback TCP)", LANG),
         ("lg_api", "Execution API  →  Supervisor  (response)", API),
     ]
     with g.subgraph(name="cluster_legend") as legend:
@@ -299,11 +309,11 @@ def _legend(g) -> None:
     g.edge(f"sched__{len(STEPS) - 1}", "lg_sched", style="invis")
 
 
-def generate_java_sdk_execution_sequence_diagram():
+def generate_coordinator_execution_sequence_diagram():
     image_file = MY_DIR / f"{MY_FILENAME}.png"
     console.print(f"[bright_blue]Generating sequence image {image_file}")
 
-    g = graphviz.Digraph("java_sdk_execution_sequence")
+    g = graphviz.Digraph("coordinator_execution_sequence")
     g.attr(
         rankdir="TB",
         splines="line",
@@ -324,4 +334,4 @@ def generate_java_sdk_execution_sequence_diagram():
 
 
 if __name__ == "__main__":
-    generate_java_sdk_execution_sequence_diagram()
+    generate_coordinator_execution_sequence_diagram()
