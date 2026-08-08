@@ -106,7 +106,6 @@ providers/amazon/src/airflow/providers/amazon/aws/sensors/kinesis_analytics.py::
 providers/amazon/src/airflow/providers/amazon/aws/sensors/lambda_function.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/mwaa.py::4
 providers/amazon/src/airflow/providers/amazon/aws/sensors/opensearch_serverless.py::1
-providers/amazon/src/airflow/providers/amazon/aws/sensors/quicksight.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/rds.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/redshift_cluster.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/s3.py::3
