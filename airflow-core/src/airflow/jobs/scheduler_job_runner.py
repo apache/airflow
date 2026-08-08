@@ -41,6 +41,7 @@ from sqlalchemy import (
     case,
     cast as sql_cast,
     delete,
+    exc,
     exists,
     func,
     inspect,
@@ -357,6 +358,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        # Edge-triggers the "partition dag run cap reached" audit Log row: True once that row
+        # has been committed for the current backlog episode, reset to False once the backlog
+        # drains below the cap.
+        self._partition_cap_backlog_reported = False
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -2250,7 +2255,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
         # two APDRs share a `created_at` under bulk asset-event ingestion.
         # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
-        pending_apdrs = session.scalars(
+        # LIMIT cap + 1: a row beyond the cap is the cheapest way to tell "there is a real
+        # backlog" apart from "this batch is the entire backlog" without a separate COUNT
+        # query. Only the first `cap` rows are sliced off and processed below — the extra
+        # probe row is never touched.
+        rows = session.scalars(
             with_row_locks(
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
@@ -2259,13 +2268,55 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     DagModel.is_stale.is_(False),
                 )
                 .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
-                .limit(self._max_partition_dag_runs_per_loop),
+                .limit(self._max_partition_dag_runs_per_loop + 1),
                 of=AssetPartitionDagRun,
                 skip_locked=True,
                 key_share=False,
                 session=session,
             )
         ).all()
+        has_backlog = len(rows) > self._max_partition_dag_runs_per_loop
+        pending_apdrs = rows[: self._max_partition_dag_runs_per_loop]
+        if has_backlog:
+            self.log.warning(
+                "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
+                "will be evaluated over subsequent scheduler ticks",
+                cap=self._max_partition_dag_runs_per_loop,
+                pending_count=len(pending_apdrs),
+            )
+            # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
+            # and writing a `Log` row that often would flood the audit table. Write it once per
+            # backlog episode; `_partition_cap_backlog_reported` is cleared below once the
+            # backlog drains.
+            if not self._partition_cap_backlog_reported:
+                # A separate, independently-committed session is required here: the caller
+                # (`_create_dagruns_for_dags`) runs under `@retry_db_transaction`, which rolls
+                # back *session* on a `DBAPIError` — sharing that transaction would silently
+                # discard this audit row along with the rest of the tick's work.
+                # Invariant: this must run before *session* makes any writes this tick, or the
+                # new connection's commit can lock-contend with it on SQLite.
+                try:
+                    with create_session(scoped=False) as audit_session:
+                        audit_session.add(
+                            Log(
+                                event="partition dag run cap reached",
+                                extra=(
+                                    f"The scheduler evaluated {len(pending_apdrs)} pending partitioned Dag "
+                                    f"runs this tick, reaching the internal per-tick cap of "
+                                    f"{self._max_partition_dag_runs_per_loop}. This cap is a hardcoded "
+                                    "scheduler safety limit, not a configurable setting; the remaining "
+                                    "backlog will be evaluated over subsequent ticks."
+                                ),
+                            )
+                        )
+                except (OperationalError, exc.TimeoutError):
+                    # Purely observational — must not fail or retry the tick's actual DagRun
+                    # creation work. Leave the flag False so the next tick retries the write.
+                    self.log.warning("Failed to write the partition dag run cap audit Log row", exc_info=True)
+                else:
+                    self._partition_cap_backlog_reported = True
+        else:
+            self._partition_cap_backlog_reported = False
         if not pending_apdrs:
             return set()
 
