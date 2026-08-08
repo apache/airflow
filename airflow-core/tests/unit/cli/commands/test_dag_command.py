@@ -21,6 +21,7 @@ import argparse
 import json
 import logging
 import os
+import textwrap
 from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
@@ -1115,6 +1116,90 @@ class TestCliDags:
             # However, "test_sensor.py" should exist
             dag = get_bagged_dag(bundle_names=["testing"], dag_id="test_sensor")
             assert dag.dag_id == "test_sensor"
+
+    def test_stability_check_passes_for_stable_dag(self, tmp_path, stdout_capture):
+        dag_file = tmp_path / "stable_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                import pendulum
+
+                from airflow.sdk import DAG
+                from airflow.providers.standard.operators.empty import EmptyOperator
+
+                with DAG(
+                    dag_id="stable_dag",
+                    schedule=None,
+                    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+                ):
+                    EmptyOperator(task_id="stable_task")
+                """
+            )
+        )
+
+        with stdout_capture as temp_stdout:
+            dag_command.dag_stability_check(
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path)])
+            )
+
+        assert "Dag stability check passed for 1 Dag(s)." in temp_stdout.getvalue()
+
+    def test_stability_check_fails_for_unstable_dag(self, tmp_path, stdout_capture):
+        dag_file = tmp_path / "unstable_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                import pendulum
+                import uuid
+
+                from airflow.sdk import DAG
+                from airflow.providers.standard.operators.empty import EmptyOperator
+
+                with DAG(
+                    dag_id="unstable_dag",
+                    schedule=None,
+                    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+                ):
+                    EmptyOperator(task_id=f"unstable_task_{uuid.uuid4()}")
+                """
+            )
+        )
+
+        with pytest.raises(SystemExit) as exit_info, stdout_capture as temp_stdout:
+            dag_command.dag_stability_check(
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path)])
+            )
+
+        assert exit_info.value.code == 1
+        out = temp_stdout.getvalue()
+        assert "Dag stability check failed." in out
+        assert "unstable_dag:" in out
+        assert "--- parse 1: unstable_dag" in out
+        assert "+++ parse 2: unstable_dag" in out
+        assert "unstable_task_" in out
+
+    def test_stability_check_fails_for_missing_dag_id(self, tmp_path):
+        dag_file = tmp_path / "stable_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                import pendulum
+
+                from airflow.sdk import DAG
+
+                DAG(
+                    dag_id="stable_dag",
+                    schedule=None,
+                    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+                )
+                """
+            )
+        )
+
+        with pytest.raises(SystemExit, match="Dag 'missing_dag' was not found."):
+            dag_command.dag_stability_check(
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path), "--dag-id", "missing_dag"])
+            )
 
 
 class TestCliDagsReserialize:

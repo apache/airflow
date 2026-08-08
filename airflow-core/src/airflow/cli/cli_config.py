@@ -279,6 +279,16 @@ ARG_LIST_LOCAL = Arg(
     action="store_true",
     help="Shows local parsed DAGs and their import errors, ignores content serialized in DB",
 )
+ARG_DAG_FOLDER = Arg(
+    ("dag_folder",),
+    nargs="?",
+    help="Path to the Dag folder or file to parse. Defaults to the configured Dags folder.",
+)
+ARG_STABILITY_CHECK_FAIL_FAST = Arg(
+    ("--fail-fast",),
+    action="store_true",
+    help="Stop after the first unstable Dag is detected.",
+)
 
 # list_dag_runs
 ARG_NO_BACKFILL = Arg(
@@ -1241,6 +1251,21 @@ DAGS_COMMANDS = (
         help="Show DagBag loading report",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_report"),
         args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="stability",
+        help="Check that serialized Dags are stable across repeated parses to prevent dag_version inflation",
+        description=(
+            "Parse Dags twice, serialize each parsed Dag, compare Airflow's serialized Dag "
+            "hashes, and report a unified diff for Dags whose serialized output changes."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_command.dag_stability_check"),
+        args=(
+            ARG_DAG_FOLDER,
+            ARG_DAG_ID_OPT,
+            ARG_STABILITY_CHECK_FAIL_FAST,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="list-runs",
