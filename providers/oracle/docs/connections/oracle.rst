@@ -19,6 +19,12 @@
 
 .. _howto/connection:oracle:
 
+.. warning::
+    ``apache-airflow-providers-oracle`` is deprecated. Install
+    ``apache-airflow-providers-oracle-oracledb`` instead and see its
+    `connection documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle-oracledb/stable/connections/oracle.html>`__.
+    The ``oracle`` connection type and its configuration are unchanged.
+
 Oracle Connection
 =================
 The Oracle connection type provides connection to a Oracle database.

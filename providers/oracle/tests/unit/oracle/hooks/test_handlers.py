@@ -17,33 +17,32 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import warnings
 
-from airflow.providers.oracle.hooks.handlers import (
-    fetch_all_handler,
-    fetch_one_handler,
-)
-
-from unit.oracle.test_utils import mock_oracle_lob
+from airflow.providers.oracle.oracledb.hooks import handlers as oracledb_handlers
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 
-class TestHandlers:
-    def test_fetch_all_handler(self):
-        cursor = MagicMock()
-        cursor.description = [("col1", "int"), ("col2", "string")]
-        cursor.fetchall.return_value = [(1, mock_oracle_lob("hello"))]
+class TestDeprecatedHandlersImport:
+    """`airflow.providers.oracle.hooks.handlers` is deprecated; it must keep re-exporting
+    the real functions from `airflow.providers.oracle.oracledb.hooks.handlers` unchanged."""
 
-        assert fetch_all_handler(cursor) == [(1, "hello")]
+    def test_fetch_all_handler_redirects_and_warns(self):
+        import airflow.providers.oracle.hooks.handlers as deprecated_module
 
-        cursor.description = None
-        assert fetch_all_handler(cursor) is None
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            fetch_all_handler = deprecated_module.fetch_all_handler
 
-    def test_fetch_one_handler(self):
-        cursor = MagicMock()
-        cursor.description = [("col1", "int")]
-        cursor.fetchone.return_value = (mock_oracle_lob("hello"),)
+        assert fetch_all_handler is oracledb_handlers.fetch_all_handler
+        assert any(issubclass(w.category, DeprecatedImportWarning) for w in captured_warnings)
 
-        assert fetch_one_handler(cursor) == ("hello",)
+    def test_fetch_one_handler_redirects_and_warns(self):
+        import airflow.providers.oracle.hooks.handlers as deprecated_module
 
-        cursor.description = None
-        assert fetch_one_handler(cursor) is None
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            fetch_one_handler = deprecated_module.fetch_one_handler
+
+        assert fetch_one_handler is oracledb_handlers.fetch_one_handler
+        assert any(issubclass(w.category, DeprecatedImportWarning) for w in captured_warnings)

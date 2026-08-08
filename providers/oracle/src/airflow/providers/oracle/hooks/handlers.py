@@ -15,43 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Deprecated. Use ``airflow.providers.oracle.oracledb.hooks.handlers`` instead."""
+
 from __future__ import annotations
 
-import oracledb
+from airflow.utils.deprecation_tools import add_deprecated_classes
 
+__deprecated_classes = {
+    __name__: {
+        "fetch_all_handler": "airflow.providers.oracle.oracledb.hooks.handlers.fetch_all_handler",
+        "fetch_one_handler": "airflow.providers.oracle.oracledb.hooks.handlers.fetch_one_handler",
+    },
+}
 
-def _read_lob(val):
-    if isinstance(val, oracledb.LOB):
-        return val.read()
-    return val
-
-
-def _read_lobs(row):
-    if row is not None:
-        return tuple([_read_lob(value) for value in row])
-    return row
-
-
-def fetch_all_handler(cursor) -> list[tuple] | None:
-    """Return results for DbApiHook.run(). If oracledb.LOB objects are present, then those will be read."""
-    if not hasattr(cursor, "description"):
-        raise RuntimeError(
-            "The database we interact with does not support DBAPI 2.0. Use operator and "
-            "handlers that are specifically designed for your database."
-        )
-    if cursor.description is not None:
-        results = [_read_lobs(row) for row in cursor.fetchall()]
-        return results
-    return None
-
-
-def fetch_one_handler(cursor) -> tuple | None:
-    """Return first result for DbApiHook.run(). If oracledb.LOB objects are present, then those will be read."""
-    if not hasattr(cursor, "description"):
-        raise RuntimeError(
-            "The database we interact with does not support DBAPI 2.0. Use operator and "
-            "handlers that are specifically designed for your database."
-        )
-    if cursor.description is not None:
-        return _read_lobs(cursor.fetchone())
-    return None
+add_deprecated_classes(
+    __deprecated_classes,
+    __name__,
+    extra_message="`apache-airflow-providers-oracle` is deprecated, install `apache-airflow-providers-oracle-oracledb` instead",
+)

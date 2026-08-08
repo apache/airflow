@@ -19,7 +19,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.oracle.operators.oracle import OracleStoredProcedureOperator
+
+# `apache-airflow-providers-oracle` is deprecated; import from
+# `apache-airflow-providers-oracle-oracledb` instead.
+from airflow.providers.oracle.oracledb.operators.oracle import OracleStoredProcedureOperator
 
 with DAG(
     max_active_runs=1,
