@@ -153,10 +153,11 @@ def log_filename_template_renderer() -> Callable[..., str]:
         return jinja2.Template(template).render
 
     def f_str_format(ti: TaskInstance, try_number: int | None = None):
+        logical_date = ti.logical_date.isoformat() if ti.logical_date is not None else None
         return template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
-            logical_date=ti.logical_date.isoformat(),
+            logical_date=logical_date,
             try_number=try_number or ti.try_number,
         )
 
