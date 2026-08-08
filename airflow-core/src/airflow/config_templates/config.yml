@@ -1142,6 +1142,9 @@ logging:
         A comma separated list of keywords related to errors whose presence should display the line in red
         color in UI
       version_added: 2.10.0
+      version_deprecated: 3.4.0
+      deprecation_reason: |
+        This parameter is no longer used.
       type: string
       example: ~
       default: "error,exception"
@@ -1150,6 +1153,9 @@ logging:
         A comma separated list of keywords related to warning whose presence should display the line in yellow
         color in UI
       version_added: 2.10.0
+      version_deprecated: 3.4.0
+      deprecation_reason: |
+        This parameter is no longer used.
       type: string
       example: ~
       default: "warn"
@@ -2742,6 +2748,9 @@ scheduler:
         in the DB with a logical_date earlier than it., i.e. no manual marking
         success will be needed for a newly added task to be scheduled.
       version_added: 2.3.0
+      version_deprecated: 3.4.0
+      deprecation_reason: |
+        This parameter is no longer used.
       type: boolean
       example: ~
       default: "True"
