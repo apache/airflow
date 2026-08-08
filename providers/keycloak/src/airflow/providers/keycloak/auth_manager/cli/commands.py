@@ -481,6 +481,7 @@ def _get_permissions_to_create(
                         "type": "resource-based",
                         "resources": [
                             f"{KeycloakResource.CONNECTION.value}:{team}",
+                            f"{KeycloakResource.DAG.value}:{team}",
                             f"{KeycloakResource.POOL.value}:{team}",
                             f"{KeycloakResource.VARIABLE.value}:{team}",
                         ],
@@ -831,6 +832,7 @@ def _attach_team_permissions(
         policy_name=_team_role_policy_name(team, "Op"),
         resource_names=[
             f"{KeycloakResource.CONNECTION.value}:{team}",
+            f"{KeycloakResource.DAG.value}:{team}",
             f"{KeycloakResource.POOL.value}:{team}",
             f"{KeycloakResource.VARIABLE.value}:{team}",
         ],
