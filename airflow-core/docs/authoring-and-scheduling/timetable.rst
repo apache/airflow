@@ -368,7 +368,7 @@ scheduled run, because the next run is advanced one period to avoid colliding
 with the previous run's ``logical_date``. The reverse direction (data
 interval -> trigger) does not skip a run.
 
-This transition can happen without editing a Dag, in two ways:
+This transition can happen without editing a Dag, in three ways:
 
 - Flipping ``[scheduler] create_cron_data_intervals`` changes how every Dag
   with a bare cron string in ``schedule=`` resolves its timetable.
