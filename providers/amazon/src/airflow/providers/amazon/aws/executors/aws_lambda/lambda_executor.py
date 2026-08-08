@@ -46,6 +46,19 @@ from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import prune_dict
 
+try:
+    from airflow.sdk._shared.observability.traces import start_debug_span
+except ImportError:
+
+    def start_debug_span(name, **_kwargs):
+        """No-op fallback so executor code can decorate methods unconditionally."""
+
+        def _decorator(func):
+            return func
+
+        return _decorator
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -242,6 +255,7 @@ class AwsLambdaExecutor(BaseExecutor):
             return
         raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
+    @start_debug_span("lambda_executor._process_workloads")
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
