@@ -3558,9 +3558,7 @@ class TestMultiTeamMetrics:
         ],
     )
     @mock.patch("airflow.dag_processing.manager.stats.decr")
-    def test_collect_results_emits_decr_on_success(
-        self, mock_decr, multi_team, team_name, expected_tags
-    ):
+    def test_collect_results_emits_decr_on_success(self, mock_decr, multi_team, team_name, expected_tags):
         manager = DagFileProcessorManager(max_runs=1)
         manager._multi_team = multi_team
         dag_file = DagFileInfo(
