@@ -16,27 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
+import { Box, Field } from "@chakra-ui/react";
+import { CreatableSelect, type MultiValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
-import { StateBadge } from "src/components/StateBadge";
-
 type Props = {
-  readonly needsReview: boolean;
-  readonly onToggle: () => void;
+  readonly onChange: (owners: Array<string>) => void;
+  readonly values: Array<string>;
 };
 
-export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
-  const { t: translate } = useTranslation("hitl");
+type OwnerOption = { label: string; value: string };
+
+export const OwnerFilter = ({ onChange, values }: Props) => {
+  const { t: translate } = useTranslation("common");
+  const options = values.map((owner) => ({ label: owner, value: owner }));
 
   return (
-    <Button
-      data-testid="dags-needs-review-filter"
-      onClick={onToggle}
-      variant={needsReview ? "solid" : "outline"}
-    >
-      <StateBadge state="awaiting_input" />
-      {translate("requiredAction_other")}
-    </Button>
+    <Box flex="0 1 200px" maxWidth="100%" width="200px">
+      <Field.Root>
+        <CreatableSelect<OwnerOption, true>
+          aria-label={translate("owner")}
+          isClearable
+          isMulti
+          onChange={(selected: MultiValue<OwnerOption>) => onChange(selected.map(({ value }) => value))}
+          options={options}
+          placeholder={translate("owner")}
+          value={options}
+        />
+      </Field.Root>
+    </Box>
   );
 };

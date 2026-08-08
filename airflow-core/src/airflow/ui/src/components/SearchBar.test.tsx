@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -51,6 +52,16 @@ describe("Test SearchBar", () => {
 
     expect((input as HTMLInputElement).value).toBe("");
     expect(onChange).toHaveBeenCalledWith("");
+    expect(input).toHaveFocus();
+  });
+
+  it("uses an explicit accessible name when provided", () => {
+    render(
+      <SearchBar ariaLabel="Search workflows" defaultValue="" onChange={vi.fn()} placeholder="Find a Dag" />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByRole("textbox", { name: "Search workflows" })).toBeInTheDocument();
   });
 
   it("cancels pending debounced changes when clearing", () => {

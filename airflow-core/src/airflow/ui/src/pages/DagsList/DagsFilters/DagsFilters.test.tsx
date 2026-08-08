@@ -38,6 +38,11 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
 }));
 
+const openFilterHub = async () => {
+  fireEvent.click(screen.getByTestId("hub-filter-trigger"));
+  await screen.findByLabelText("filters.timetableType");
+};
+
 describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   afterEach(() => {
     mockConfig.multi_team = false;
@@ -56,7 +61,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
-    // PausedFilter is the only filter using the "All" (filters.paused.all) label.
+    await openFilterHub();
     screen.getByText("filters.paused.all").click();
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
@@ -67,6 +72,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
+    await openFilterHub();
     screen.getByText("filters.paused.paused").click();
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
@@ -78,6 +84,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
 
+    await openFilterHub();
     const timetableTypeFilter = screen.getByLabelText("filters.timetableType");
 
     fireEvent.change(timetableTypeFilter, { target: { value: "Cron" } });
@@ -125,8 +132,8 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
       expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
       expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
     });
-    expect(screen.getByText("CronTriggerTimetable")).toBeInTheDocument();
-    expect(screen.getByText("NullTimetable")).toBeInTheDocument();
+    expect(screen.getByTestId("hub-edit-timetableTypes")).toHaveTextContent("CronTriggerTimetable");
+    expect(screen.getByTestId("hub-edit-timetableTypes")).toHaveTextContent("NullTimetable");
   });
 
   it("ignores an empty timetable type from the URL", async () => {
@@ -141,6 +148,29 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     render(<AppWrapper initialEntries={["/dags"]} />);
 
+    await openFilterHub();
     expect(await screen.findByLabelText("dagDetails.team")).toBeInTheDocument();
+  });
+
+  it("restores search and active chips from the URL", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags?name_pattern=tutorial&timetable_type=CronTriggerTimetable"]} />,
+    );
+
+    expect(await screen.findByTestId("hub-filter-trigger")).toHaveTextContent("2");
+    expect(screen.getByTestId("search-dags")).toHaveValue("tutorial");
+    expect(screen.getByTestId("hub-edit-paused")).toBeInTheDocument();
+    expect(screen.getByTestId("hub-edit-timetableTypes")).toHaveTextContent("CronTriggerTimetable");
+  });
+
+  it("exposes and removes the effective active-only default", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("hub-remove-paused"));
+
+    await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
   });
 });

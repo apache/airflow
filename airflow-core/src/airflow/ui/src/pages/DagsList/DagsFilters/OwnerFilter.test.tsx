@@ -16,12 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FilterHub } from "./FilterHub";
-import type { DagsFiltersProps } from "./types";
-import { useDagsFilterModel } from "./useDagsFilterModel";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-export const DagsFilters = (props: DagsFiltersProps) => {
-  const model = useDagsFilterModel();
+import { Wrapper } from "src/utils/Wrapper";
 
-  return <FilterHub {...props} model={model} />;
-};
+import { OwnerFilter } from "./OwnerFilter";
+
+describe("OwnerFilter", () => {
+  it("shows deep-linked owners and clears them", () => {
+    const onChange = vi.fn();
+
+    render(<OwnerFilter onChange={onChange} values={["airflow"]} />, { wrapper: Wrapper });
+
+    expect(screen.getByText("airflow")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "owner" }), {
+      code: "Backspace",
+      key: "Backspace",
+    });
+    expect(onChange).toHaveBeenCalledWith([]);
+  });
+});

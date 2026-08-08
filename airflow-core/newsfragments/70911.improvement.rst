@@ -1,0 +1,1 @@
+Consolidate Dag list filters into a responsive filter hub with visible, editable active-filter chips while preserving shareable URLs and browser navigation.

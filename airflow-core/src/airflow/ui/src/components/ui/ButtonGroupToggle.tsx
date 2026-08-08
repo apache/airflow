@@ -55,6 +55,7 @@ export const ButtonGroupToggle = <T extends string = string>({
         return (
           <ButtonComponent
             aria-label={option.title}
+            aria-pressed={isSelected}
             data-testid={option.dataTestId}
             disabled={option.disabled}
             key={option.value}

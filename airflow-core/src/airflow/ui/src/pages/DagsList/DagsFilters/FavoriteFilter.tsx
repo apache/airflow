@@ -33,6 +33,11 @@ export const FavoriteFilter = ({ onChange, value }: Props) => {
 
   return (
     <ButtonGroupToggle<FavoriteValue>
+      attached={false}
+      css={{ "& > button": { flex: "1 1 auto", minWidth: "fit-content" } }}
+      flexWrap="wrap"
+      gap={1}
+      maxWidth="100%"
       onChange={onChange}
       options={[
         { label: translate("filters.favorite.all"), value: "all" },
@@ -56,6 +61,7 @@ export const FavoriteFilter = ({ onChange, value }: Props) => {
         },
       ]}
       value={value}
+      width="full"
     />
   );
 };

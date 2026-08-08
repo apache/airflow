@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { BaseWrapper } from "src/utils/Wrapper";
@@ -71,6 +71,18 @@ describe("useTagFilter — initial state", () => {
     });
 
     expect(result.current.selectedTags).toEqual(["saved-tag-1", "saved-tag-2"]);
+  });
+
+  it("can expose saved tags without materializing them into the URL", () => {
+    localStorage.setItem("tags", JSON.stringify(["saved-tag"]));
+
+    const { result } = renderHook(
+      () => ({ filter: useTagFilter({ materializeSavedTags: false }), location: useLocation() }),
+      { wrapper: createWrapper() },
+    );
+
+    expect(result.current.filter.selectedTags).toEqual(["saved-tag"]);
+    expect(result.current.location.search).toBe("");
   });
 
   it("restores match mode from localStorage when using saved tags with 2+ tags", () => {
@@ -158,15 +170,16 @@ describe("useTagFilter — setSelectedTags", () => {
   });
 
   it("resets offset when tags change", () => {
-    const { result } = renderHook(() => useTagFilter(), {
+    const { result } = renderHook(() => ({ filter: useTagFilter(), location: useLocation() }), {
       wrapper: createWrapper(["/?tags=a&offset=20"]),
     });
 
     act(() => {
-      result.current.setSelectedTags(["b"]);
+      result.current.filter.setSelectedTags(["b"]);
     });
 
-    expect(result.current.selectedTags).toEqual(["b"]);
+    expect(result.current.filter.selectedTags).toEqual(["b"]);
+    expect(result.current.location.search).toBe("?tags=b");
   });
 });
 
@@ -200,15 +213,16 @@ describe("useTagFilter — setTagFilterMode", () => {
   });
 
   it("resets offset when mode changes", () => {
-    const { result } = renderHook(() => useTagFilter(), {
+    const { result } = renderHook(() => ({ filter: useTagFilter(), location: useLocation() }), {
       wrapper: createWrapper(["/?tags=a&tags=b&tags_match_mode=any&offset=20"]),
     });
 
     act(() => {
-      result.current.setTagFilterMode("all");
+      result.current.filter.setTagFilterMode("all");
     });
 
-    expect(result.current.tagFilterMode).toBe("all");
+    expect(result.current.filter.tagFilterMode).toBe("all");
+    expect(result.current.location.search).toBe("?tags=a&tags=b&tags_match_mode=all");
   });
 
   it("persists mode to localStorage", () => {
@@ -271,5 +285,35 @@ describe("useTagFilter — tag count transitions preserve match mode", () => {
     });
 
     expect(result.current.tagFilterMode).toBe("all");
+  });
+});
+
+describe("useTagFilter — browser history", () => {
+  it("restores the prior empty URL state after adding tags", async () => {
+    const { result } = renderHook(() => ({ filter: useTagFilter(), navigate: useNavigate() }), {
+      wrapper: createWrapper(),
+    });
+
+    act(() => result.current.filter.setSelectedTags(["new-tag"]));
+    expect(result.current.filter.selectedTags).toEqual(["new-tag"]);
+
+    act(() => void result.current.navigate(-1));
+
+    await waitFor(() => expect(result.current.filter.selectedTags).toEqual([]));
+  });
+
+  it("restores the prior pagination URL after changing tags", async () => {
+    const { result } = renderHook(
+      () => ({ filter: useTagFilter(), location: useLocation(), navigate: useNavigate() }),
+      { wrapper: createWrapper(["/?tags=old&offset=20"]) },
+    );
+
+    act(() => result.current.filter.setSelectedTags(["new"]));
+    expect(result.current.location.search).toBe("?tags=new");
+
+    act(() => void result.current.navigate(-1));
+
+    await waitFor(() => expect(result.current.location.search).toBe("?tags=old&offset=20"));
+    expect(result.current.filter.selectedTags).toEqual(["old"]);
   });
 });

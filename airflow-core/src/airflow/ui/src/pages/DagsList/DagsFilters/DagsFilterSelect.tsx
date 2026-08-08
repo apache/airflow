@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field } from "@chakra-ui/react";
+import { Button, Field, HStack, Text } from "@chakra-ui/react";
 import { Select as ReactSelect } from "chakra-react-select";
+import { useTranslation } from "react-i18next";
 
 type FilterOption = {
   label: string;
@@ -26,11 +27,15 @@ type FilterOption = {
 
 type Props = {
   readonly ariaLabel: string;
+  readonly hasError?: boolean;
+  readonly hasNextPage?: boolean;
+  readonly isLoading?: boolean;
   readonly noOptionsMessage: string;
   readonly onChange: (values: Array<string>) => void;
   readonly onInputChange?: (value: string) => void;
   readonly onMenuScrollToBottom?: () => void;
   readonly onMenuScrollToTop?: () => void;
+  readonly onRetry?: () => void;
   readonly options: Array<string>;
   readonly placeholder: string;
   readonly values: Array<string>;
@@ -38,46 +43,74 @@ type Props = {
 
 export const DagsFilterSelect = ({
   ariaLabel,
+  hasError = false,
+  hasNextPage = false,
+  isLoading = false,
   noOptionsMessage,
   onChange,
   onInputChange,
   onMenuScrollToBottom,
   onMenuScrollToTop,
+  onRetry,
   options,
   placeholder,
   values,
-}: Props) => (
-  <Field.Root>
-    <ReactSelect<FilterOption, true>
-      aria-label={ariaLabel}
-      chakraStyles={{
-        clearIndicator: (provided) => ({
-          ...provided,
-          color: "gray.fg",
-        }),
-        container: (provided) => ({
-          ...provided,
-          width: "100%",
-        }),
-        control: (provided) => ({
-          ...provided,
-          colorPalette: "brand",
-        }),
-        menu: (provided) => ({
-          ...provided,
-          zIndex: 2,
-        }),
-      }}
-      isClearable
-      isMulti
-      noOptionsMessage={() => noOptionsMessage}
-      onChange={(selected) => onChange(selected.map(({ value }) => value))}
-      onInputChange={onInputChange}
-      onMenuScrollToBottom={onMenuScrollToBottom}
-      onMenuScrollToTop={onMenuScrollToTop}
-      options={options.map((option) => ({ label: option, value: option }))}
-      placeholder={placeholder}
-      value={values.map((value) => ({ label: value, value }))}
-    />
-  </Field.Root>
-);
+}: Props) => {
+  const { t: translate } = useTranslation("dags");
+
+  return (
+    <Field.Root invalid={hasError}>
+      <ReactSelect<FilterOption, true>
+        aria-label={ariaLabel}
+        chakraStyles={{
+          clearIndicator: (provided) => ({
+            ...provided,
+            color: "gray.fg",
+          }),
+          container: (provided) => ({
+            ...provided,
+            width: "100%",
+          }),
+          control: (provided) => ({
+            ...provided,
+            colorPalette: "brand",
+          }),
+          menu: (provided) => ({
+            ...provided,
+            zIndex: 2,
+          }),
+        }}
+        isClearable
+        isLoading={isLoading}
+        isMulti
+        loadingMessage={() => translate("filters.suggestionsLoading")}
+        noOptionsMessage={() => (hasError ? translate("filters.suggestionsError") : noOptionsMessage)}
+        onChange={(selected) => onChange(selected.map(({ value }) => value))}
+        onInputChange={onInputChange}
+        onMenuScrollToBottom={onMenuScrollToBottom}
+        onMenuScrollToTop={onMenuScrollToTop}
+        options={options.map((option) => ({ label: option, value: option }))}
+        placeholder={placeholder}
+        value={values.map((value) => ({ label: value, value }))}
+      />
+      {hasError ? (
+        <HStack role="alert">
+          <Field.ErrorText>{translate("filters.suggestionsError")}</Field.ErrorText>
+          {onRetry === undefined ? undefined : (
+            <Button onClick={onRetry} size="xs" variant="outline">
+              {translate("filters.retrySuggestions")}
+            </Button>
+          )}
+        </HStack>
+      ) : isLoading ? (
+        <Text aria-live="polite" as="output" fontSize="xs">
+          {translate("filters.suggestionsLoading")}
+        </Text>
+      ) : hasNextPage ? (
+        <Text aria-live="polite" as="output" fontSize="xs">
+          {translate("filters.moreSuggestionsAvailable")}
+        </Text>
+      ) : undefined}
+    </Field.Root>
+  );
+};

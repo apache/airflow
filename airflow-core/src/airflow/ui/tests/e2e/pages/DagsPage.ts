@@ -32,6 +32,7 @@ export class DagsPage extends BasePage {
 
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
+  public readonly filterTrigger: Locator;
   public readonly hitlReviewModal: HITLReviewModal;
   public readonly lastRunStateFilter: Locator;
   public readonly needsReviewBadges: Locator;
@@ -61,11 +62,12 @@ export class DagsPage extends BasePage {
     this.retriesFilter = page.getByTestId("retries-filter");
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
-    this.lastRunStateFilter = page.getByTestId("dags-last-run-state-filter");
+    this.filterTrigger = page.getByTestId("hub-filter-trigger");
+    this.lastRunStateFilter = page.getByTestId("hub-last-run-state-filter");
     this.hitlReviewModal = new HITLReviewModal(page);
     this.needsReviewBadges = page.getByTestId("needs-review-badge");
     // Uses testId because this button's text is driven by an i18n key.
-    this.needsReviewFilter = page.getByTestId("dags-needs-review-filter");
+    this.needsReviewFilter = page.getByTestId("hub-needs-review-filter");
   }
 
   public static getDagDetailUrl(dagName: string): string {
@@ -76,26 +78,52 @@ export class DagsPage extends BasePage {
     return `/dags/${dagName}/runs/${dagRunId}/details`;
   }
 
+  public async clearFilters(): Promise<void> {
+    await this.openFilters();
+    await this.page.getByRole("button", { name: "Clear filters" }).last().click();
+    await expect
+      .poll(() => {
+        const params = new URL(this.page.url()).searchParams;
+
+        const hasNoFacetParams = [
+          "dag_run_state",
+          "favorite",
+          "last_dag_run_state",
+          "needs_review",
+          "owners",
+          "tags",
+          "tags_match_mode",
+          "teams",
+          "timetable_type",
+        ].every((param) => !params.has(param));
+
+        return hasNoFacetParams && ["all", null].includes(params.get("paused"));
+      })
+      .toBe(true);
+    await expect(this.page.getByTestId("hub-active-filters")).toBeHidden();
+    await expect(this.filterTrigger).toBeFocused();
+  }
+
   /**
    * Clear the search input and wait for list to reset
    */
   public async clearSearch(): Promise<void> {
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
-        timeout: 10_000,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && !error.message.includes("Timeout")) {
-          throw error;
-        }
-      });
-
     // Click the clear button instead of programmatically clearing the input.
     // The SearchBar component uses a 200ms debounce on keystroke changes,
     // but the clear button calls onChange("") directly, bypassing the debounce.
     await this.page.getByTestId("clear-search").click();
-    await responsePromise;
+    await expect.poll(() => new URL(this.page.url()).searchParams.get("name_pattern")).toBeNull();
+    await expect(this.searchInput).toHaveValue("");
+    await expect(this.searchInput).toBeFocused();
     await this.waitForDagList();
+  }
+
+  public async closeFilters(): Promise<void> {
+    if (await this.lastRunStateFilter.isVisible()) {
+      await this.page.keyboard.press("Escape");
+      await expect(this.lastRunStateFilter).toBeHidden();
+      await expect(this.filterTrigger).toBeFocused();
+    }
   }
 
   public async filterByOperator(operator: string): Promise<void> {
@@ -111,26 +139,25 @@ export class DagsPage extends BasePage {
    */
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
+    additionalExpectedParams: Readonly<Record<string, string | null>> = {},
   ): Promise<void> {
     // Set up response listener before the click so we don't miss a fast response.
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
-        timeout: 10_000,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && !error.message.includes("Timeout")) {
-          throw error;
-        }
-      });
+    await this.openFilters();
+    const responsePromise = this.waitForDagsResponse(
+      status === "needs_review"
+        ? { ...additionalExpectedParams, has_pending_actions: "true" }
+        : { ...additionalExpectedParams, last_dag_run_state: status },
+    );
 
     if (status === "needs_review") {
       await this.needsReviewFilter.click();
     } else {
       // Run-state filters live in the "Last run" dropdown.
       await this.lastRunStateFilter.getByRole("combobox").click();
-      await this.page.getByTestId(`dags-last-run-state-filter-${status}`).click();
+      await this.page.getByTestId(`hub-last-run-state-filter-${status}`).click();
     }
     await responsePromise;
+    await this.closeFilters();
   }
 
   public async filterByTriggerRule(rule: string): Promise<void> {
@@ -311,21 +338,30 @@ export class DagsPage extends BasePage {
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
+  public async openFilters(): Promise<void> {
+    if (!(await this.lastRunStateFilter.isVisible())) {
+      await this.filterTrigger.click();
+      await expect(this.lastRunStateFilter).toBeVisible();
+    }
+  }
+
+  public async removeFilter(
+    facet: string,
+    expectedParams: Readonly<Record<string, string | null>>,
+  ): Promise<void> {
+    const responsePromise = this.waitForDagsResponse(expectedParams);
+
+    await this.page.getByTestId(`hub-remove-${facet}`).click();
+    await responsePromise;
+  }
+
   /**
    * Search for a Dag by name
    */
   public async searchDag(searchTerm: string): Promise<void> {
     const currentNames = await this.getDagNames();
 
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/dags") && resp.status() === 200, {
-        timeout: 30_000,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && !error.message.includes("Timeout")) {
-          throw error;
-        }
-      });
+    const responsePromise = this.waitForDagsResponse({ dag_display_name_prefix_pattern: searchTerm });
 
     await this.searchInput.fill(searchTerm);
     await responsePromise;
@@ -402,6 +438,24 @@ export class DagsPage extends BasePage {
     const noDagFound = this.page.getByText(/no dag/i);
 
     await expect(dagCard.or(dagLink).or(noDagFound)).toBeVisible({ timeout: 60_000 });
+  }
+
+  public async waitForDagsResponse(
+    expectedParams: Readonly<Record<string, string | null>>,
+  ): Promise<Response> {
+    return this.page.waitForResponse(
+      (response: Response) => {
+        const url = new URL(response.url());
+
+        return (
+          response.request().method() === "GET" &&
+          url.pathname === "/api/v2/ui/dags" &&
+          response.status() === 200 &&
+          Object.entries(expectedParams).every(([key, value]) => url.searchParams.get(key) === value)
+        );
+      },
+      { timeout: 30_000 },
+    );
   }
 
   /**

@@ -16,12 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FilterHub } from "./FilterHub";
-import type { DagsFiltersProps } from "./types";
-import { useDagsFilterModel } from "./useDagsFilterModel";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-export const DagsFilters = (props: DagsFiltersProps) => {
-  const model = useDagsFilterModel();
+import { Wrapper } from "src/utils/Wrapper";
 
-  return <FilterHub {...props} model={model} />;
-};
+import { TagFilter } from "./TagFilter";
+
+describe("TagFilter", () => {
+  it("gives the any/all match-mode switch an accessible name", () => {
+    render(
+      <TagFilter
+        onMenuScrollToBottom={vi.fn()}
+        onMenuScrollToTop={vi.fn()}
+        onSelectTagsChange={vi.fn()}
+        onTagModeChange={vi.fn()}
+        onUpdate={vi.fn()}
+        selectedTags={["team-a", "critical"]}
+        tagFilterMode="any"
+        tags={["team-a", "critical"]}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const matchMode = screen.getByRole("checkbox", { name: "table.tagMode.label" });
+
+    expect(matchMode).not.toBeChecked();
+  });
+});

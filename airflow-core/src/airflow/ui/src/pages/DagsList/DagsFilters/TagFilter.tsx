@@ -24,8 +24,12 @@ import { Switch } from "src/components/ui";
 import { DagsFilterSelect } from "./DagsFilterSelect";
 
 type Props = {
+  readonly hasError?: boolean;
+  readonly hasNextPage?: boolean;
+  readonly isLoading?: boolean;
   readonly onMenuScrollToBottom: () => void;
   readonly onMenuScrollToTop: () => void;
+  readonly onRetry?: () => void;
   readonly onSelectTagsChange: (tags: Array<string>) => void;
   readonly onTagModeChange: ({ checked }: { checked: boolean }) => void;
   readonly onUpdate: (newValue: string) => void;
@@ -35,8 +39,12 @@ type Props = {
 };
 
 export const TagFilter = ({
+  hasError,
+  hasNextPage,
+  isLoading,
   onMenuScrollToBottom,
   onMenuScrollToTop,
+  onRetry,
   onSelectTagsChange,
   onTagModeChange,
   onUpdate,
@@ -50,11 +58,15 @@ export const TagFilter = ({
     <Box flex="0 1 300px" maxWidth="100%" width="300px">
       <DagsFilterSelect
         ariaLabel={translate("table.filterByTag")}
+        hasError={hasError}
+        hasNextPage={hasNextPage}
+        isLoading={isLoading}
         noOptionsMessage={translate("table.noTagsFound")}
         onChange={onSelectTagsChange}
         onInputChange={onUpdate}
         onMenuScrollToBottom={onMenuScrollToBottom}
         onMenuScrollToTop={onMenuScrollToTop}
+        onRetry={onRetry}
         options={tags}
         placeholder={translate("table.tagPlaceholder")}
         values={selectedTags}
@@ -68,7 +80,12 @@ export const TagFilter = ({
           >
             {translate("table.tagMode.any")}
           </Text>
-          <Switch checked={tagFilterMode === "all"} onCheckedChange={onTagModeChange} variant="raised" />
+          <Switch
+            checked={tagFilterMode === "all"}
+            inputProps={{ "aria-label": translate("table.tagMode.label") }}
+            onCheckedChange={onTagModeChange}
+            variant="raised"
+          />
           <Text
             color={tagFilterMode === "all" ? "fg.info" : "fg.muted"}
             fontSize="sm"

@@ -31,7 +31,6 @@ import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
-import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink } from "src/components/ui";
@@ -49,6 +48,10 @@ import { DagCard } from "./DagCard";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
+import {
+  getNormalizedDagsFilterSearchParams,
+  getUniqueSearchParamValues,
+} from "./DagsFilters/normalizeDagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
 import { useTagFilter } from "./useTagFilter";
@@ -244,6 +247,7 @@ export const DagsList = () => {
   useDocumentTitle(translate("common:nav.dags"));
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const normalizedFilterParams = getNormalizedDagsFilterSearchParams(searchParams);
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
 
@@ -251,16 +255,16 @@ export const DagsList = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
 
-  const showPaused = searchParams.get(PAUSED);
-  const showFavorites = searchParams.get(FAVORITE);
+  const showPaused = normalizedFilterParams.get(PAUSED);
+  const showFavorites = normalizedFilterParams.get(FAVORITE);
 
-  const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
-  const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
+  const lastDagRunState = normalizedFilterParams.get(LAST_DAG_RUN_STATE) as DagRunState;
+  const dagRunState = normalizedFilterParams.get(DAG_RUN_STATE) as DagRunState;
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
-  const pendingReviews = searchParams.get(NEEDS_REVIEW);
-  const owners = searchParams.getAll(OWNERS);
-  const teams = searchParams.getAll(TEAMS);
-  const timetableType = searchParams.getAll(TIMETABLE_TYPE).filter((value) => value !== "");
+  const pendingReviews = normalizedFilterParams.get(NEEDS_REVIEW);
+  const owners = getUniqueSearchParamValues(normalizedFilterParams, OWNERS);
+  const teams = getUniqueSearchParamValues(normalizedFilterParams, TEAMS);
+  const timetableType = getUniqueSearchParamValues(normalizedFilterParams, TIMETABLE_TYPE);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -272,10 +276,6 @@ export const DagsList = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
 
   const handleSearchChange = (value: string) => {
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
     if (value) {
       searchParams.set(NAME_PATTERN, value);
     } else {
@@ -324,7 +324,7 @@ export const DagsList = () => {
     pendingHitl,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
-    teams: teams.length > 0 ? teams : undefined,
+    teams: multiTeamEnabled && teams.length > 0 ? teams : undefined,
     timetableType: timetableType.length > 0 ? timetableType : undefined,
   });
 
@@ -358,13 +358,11 @@ export const DagsList = () => {
   return (
     <DagsLayout>
       <VStack alignItems="none">
-        <SearchBar
+        <DagsFilters
           advancedSearch={advancedSearch}
-          defaultValue={dagDisplayNamePattern}
-          onChange={handleSearchChange}
-          placeholder={translate("dags:search.dags")}
+          onSearchChange={handleSearchChange}
+          searchValue={dagDisplayNamePattern}
         />
-        <DagsFilters />
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
