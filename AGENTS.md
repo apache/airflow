@@ -172,7 +172,7 @@ Write commit messages focused on user impact, not implementation details.
 
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
-- **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `Initialize Dag bundles in CLI get_dag function(#12345)`
 - **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
   (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
   prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
@@ -187,6 +187,8 @@ Use the **imperative mood** and a plain message — do **not** use Conventional 
 (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
 convention. (Area tags the project already uses, like `UI:` / `API:` / `Helm:`, are fine;
 Conventional-Commit `type:` tokens are not.) The same rule applies to PR titles.
+
+Do not include the issue number, a commit hash, or any other tracking identifier in the title (e.g. `(#12345)` or a trailing hash) — reference the issue in the PR **body** instead, using `closes: #ISSUE` or `related: #ISSUE`, so GitHub auto-links it.
 
 The commit message **body** should describe **why** the change is made — the motivation and
 context — and **never what** the change is. The diff already shows what changed; restating it in
