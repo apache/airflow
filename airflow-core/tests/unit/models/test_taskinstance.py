@@ -4108,8 +4108,28 @@ async def empty_callback_for_deadline():
     pass
 
 
-def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, session):
+def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, session, monkeypatch):
     """Test that clearing tasks recalculates all (and only) DAGRUN_QUEUED_AT deadlines."""
+    evaluation_calls = []
+
+    class QueuedDeadlineReference:
+        def evaluate_with(self, *, session, interval, dagrun, dag_id, run_id):
+            evaluation_calls.append(
+                {
+                    "session": session,
+                    "interval": interval,
+                    "dagrun": dagrun,
+                    "dag_id": dag_id,
+                    "run_id": run_id,
+                }
+            )
+            return dagrun.queued_at + interval
+
+    monkeypatch.setattr(
+        "airflow.models.taskinstance.decode_deadline_reference",
+        lambda reference: QueuedDeadlineReference(),
+    )
+
     with dag_maker(
         dag_id="test_recalculate_deadlines",
         schedule=datetime.timedelta(days=1),
@@ -4188,6 +4208,11 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
             assert deadline.deadline_time == expected_time
 
     assert recalculated_count == 2
+    assert len(evaluation_calls) == 2
+    assert all(call["session"] is session for call in evaluation_calls)
+    assert all(call["dagrun"] is dag_run for call in evaluation_calls)
+    assert all(call["dag_id"] == dag_run.dag_id for call in evaluation_calls)
+    assert all(call["run_id"] == dag_run.run_id for call in evaluation_calls)
 
 
 def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):

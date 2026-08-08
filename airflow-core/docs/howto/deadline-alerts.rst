@@ -440,9 +440,9 @@ choose a different time.
     class MyCustomDecoratedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are created."""
 
-        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            # Add your business logic here
-            return your_datetime
+        def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+            my_datetime = my_business_logic(dagrun.logical_date)
+            return my_datetime
 
 
     # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
@@ -450,14 +450,9 @@ choose a different time.
     class MyQueuedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are queued."""
 
-        # Ask for the Dag run context values supplied by Airflow; see notes below.
-        required_kwargs = {"dag_id", "run_id"}
-
-        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            dag_id = kwargs["dag_id"]
-            run_id = kwargs["run_id"]
-            # Use dag_id and run_id in your calculation
-            return your_datetime
+        def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+            my_datetime = my_business_logic(dagrun.queued_at)
+            return my_datetime
 
 
 **Using a Custom Reference in a Dag**
@@ -530,8 +525,5 @@ followed by a more urgent escalation if the Dag is still running.
   and give every field a default value.
 * **Plugin Placement**: One convenient place for custom references is in the plugins directory.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
-* **Required Parameters**: ``required_kwargs`` declares which Dag run context values Airflow should
-  forward to ``_evaluate_with()``. Only ``dag_id`` and ``run_id`` are available; declaring anything
-  else raises a ``ValueError`` when the deadline is evaluated. To configure a reference itself, give
-  it constructor fields or read from an Airflow Variable.
+* **Dag run context**: Add a ``dagrun`` parameter to ``_evaluate_with()`` to use the Dag run being evaluated.
 * **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.
