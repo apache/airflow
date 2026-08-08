@@ -17,7 +17,6 @@ providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::Datap
 providers/google/src/airflow/providers/google/cloud/operators/functions.py::CloudFunctionDeployFunctionOperator
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSFileTransformOperator
 providers/google/src/airflow/providers/google/cloud/sensors/bigquery_dts.py::BigQueryDataTransferServiceTransferRunSensor
-providers/google/src/airflow/providers/google/cloud/sensors/cloud_composer.py::CloudComposerExternalTaskSensor
 providers/google/src/airflow/providers/google/cloud/transfers/azure_fileshare_to_gcs.py::AzureFileShareToGCSOperator
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_bigquery.py::GCSToBigQueryOperator
 providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::GoogleCampaignManagerDeleteReportOperator
