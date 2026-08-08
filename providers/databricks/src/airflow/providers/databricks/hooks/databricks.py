@@ -307,13 +307,6 @@ class WarehouseState:
     def __repr__(self) -> str:
         return str(self.__dict__)
 
-    def to_json(self) -> str:
-        return json.dumps(self.__dict__)
-
-    @classmethod
-    def from_json(cls, data: str) -> WarehouseState:
-        return WarehouseState(**json.loads(data))
-
 
 class DatabricksHook(BaseDatabricksHook):
     """

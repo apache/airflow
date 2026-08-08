@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers.databricks.exceptions import DatabricksWarehouseError
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, WarehouseState
-from airflow.providers.databricks.operators.databricks_warehouse import (
+from airflow.providers.databricks.operators.warehouse import (
     DatabricksStartWarehouseOperator,
     DatabricksStopWarehouseOperator,
 )
@@ -37,7 +37,7 @@ class TestDatabricksStartWarehouseOperator:
         ["STARTING", "STOPPED"],
         ids=["transitioning", "stale-stopped"],
     )
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.warehouse.time.sleep")
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
     def test_starts_then_waits_until_running(self, mock_hook_property, mock_sleep, first_polled_state):
         hook = mock.MagicMock(spec=DatabricksHook)
@@ -87,7 +87,7 @@ class TestDatabricksStartWarehouseOperator:
         hook.start_warehouse.assert_not_called()
         hook.get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
 
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.warehouse.time.sleep")
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
     def test_starts_while_stopping_and_waits_until_running(self, mock_hook_property, mock_sleep):
         hook = mock.MagicMock(spec=DatabricksHook)
@@ -111,7 +111,7 @@ class TestDatabricksStartWarehouseOperator:
 
 
 class TestDatabricksStopWarehouseOperator:
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.warehouse.time.sleep")
     @mock.patch.object(DatabricksStopWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
     def test_stops_then_waits_until_stopped(self, mock_hook_property, mock_sleep):
         hook = mock.MagicMock(spec=DatabricksHook)
@@ -206,7 +206,7 @@ class TestDatabricksWarehouseOperatorBase:
             (DatabricksStopWarehouseOperator, "STOPPING", "STOPPED", "stop_warehouse"),
         ],
     )
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.warehouse.time.sleep")
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
     @mock.patch.object(DatabricksStopWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
     def test_transition_in_progress_skips_request_and_continues_waiting(
@@ -271,9 +271,9 @@ class TestDatabricksWarehouseOperatorBase:
         getattr(hook, transition_method).assert_called_once_with(WAREHOUSE_ID)
         hook.get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
 
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.warehouse.time.sleep")
     @mock.patch(
-        "airflow.providers.databricks.operators.databricks_warehouse.time.monotonic",
+        "airflow.providers.databricks.operators.warehouse.time.monotonic",
         return_value=0,
     )
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
@@ -304,9 +304,9 @@ class TestDatabricksWarehouseOperatorBase:
         hook.get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
         mock_sleep.assert_called_once_with(10)
 
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.warehouse.time.sleep")
     @mock.patch(
-        "airflow.providers.databricks.operators.databricks_warehouse.time.monotonic",
+        "airflow.providers.databricks.operators.warehouse.time.monotonic",
         return_value=0,
     )
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
@@ -332,9 +332,9 @@ class TestDatabricksWarehouseOperatorBase:
         hook.get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
         mock_sleep.assert_not_called()
 
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.warehouse.time.sleep")
     @mock.patch(
-        "airflow.providers.databricks.operators.databricks_warehouse.time.monotonic",
+        "airflow.providers.databricks.operators.warehouse.time.monotonic",
         return_value=0,
     )
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
@@ -384,7 +384,7 @@ class TestDatabricksWarehouseOperatorBase:
         with pytest.raises(ValueError, match="warehouse_id must be provided"):
             operator.execute(None)
 
-    @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.DatabricksHook", autospec=True)
+    @mock.patch("airflow.providers.databricks.operators.warehouse.DatabricksHook", autospec=True)
     def test_operator_builds_hook(self, mock_hook_class):
         retry_args = {"reraise": True}
         operator = DatabricksStartWarehouseOperator(

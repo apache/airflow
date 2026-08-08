@@ -21,8 +21,8 @@
 Databricks SQL warehouse lifecycle operators
 ============================================
 
-Use :class:`~airflow.providers.databricks.operators.databricks_warehouse.DatabricksStartWarehouseOperator`
-and :class:`~airflow.providers.databricks.operators.databricks_warehouse.DatabricksStopWarehouseOperator`
+Use :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
+and :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStopWarehouseOperator`
 to start and stop an existing Databricks SQL warehouse through the
 `Databricks SQL Warehouses API <https://docs.databricks.com/api/workspace/warehouses>`_.
 Both operators require the warehouse ID and use the :ref:`Databricks connection
@@ -46,8 +46,8 @@ Start a SQL warehouse
 Stop a SQL warehouse
 --------------------
 
-The system-test example marks the stop task with the ``all_done`` trigger rule so it runs as cleanup
-even when an upstream task fails.
+The stop task uses the ``all_done`` trigger rule so the warehouse is stopped even when an upstream
+task fails.
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
     :language: python

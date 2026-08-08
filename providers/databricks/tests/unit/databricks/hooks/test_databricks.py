@@ -1614,15 +1614,6 @@ class TestWarehouseLifecycle:
         with pytest.raises(ValueError, match="Unexpected warehouse state: FOO"):
             WarehouseState("FOO")
 
-    def test_warehouse_state_json_roundtrip(self):
-        state = WarehouseState("STARTING")
-        restored = WarehouseState.from_json(state.to_json())
-
-        assert restored == state
-        assert restored != object()
-        assert hash(restored) == hash(state)
-        assert repr(restored) == "{'state': 'STARTING'}"
-
 
 class TestRunState:
     def test_is_terminal_true(self):

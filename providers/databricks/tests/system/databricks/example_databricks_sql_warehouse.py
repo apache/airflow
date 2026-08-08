@@ -22,7 +22,7 @@ import os
 from datetime import datetime
 
 from airflow.providers.common.compat.sdk import DAG
-from airflow.providers.databricks.operators.databricks_warehouse import (
+from airflow.providers.databricks.operators.warehouse import (
     DatabricksStartWarehouseOperator,
     DatabricksStopWarehouseOperator,
 )

@@ -77,7 +77,7 @@ def get_provider_info():
                 "integration-name": "Databricks SQL",
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks_sql",
-                    "airflow.providers.databricks.operators.databricks_warehouse",
+                    "airflow.providers.databricks.operators.warehouse",
                 ],
             },
             {
