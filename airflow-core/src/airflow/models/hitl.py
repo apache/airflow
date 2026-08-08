@@ -61,11 +61,21 @@ def compile_postgres(element: JSONExtract, compiler: SQLCompiler, **kwargs: dict
     return compiler.process(func.json_extract_path_text(column, key), **kwargs)
 
 
-@compiles(JSONExtract, "sqlite")
 @compiles(JSONExtract, "mysql")
-def compile_sqlite_mysql(element: JSONExtract, compiler: SQLCompiler, **kwargs: dict[str, Any]) -> str:
+def compile_mysql(element: JSONExtract, compiler: SQLCompiler, **kwargs: dict[str, Any]) -> str:
     """
-    Compile JSONExtract for SQLite/MySQL.
+    Compile JSONExtract for MySQL.
+
+    :meta: private
+    """
+    column, key = element.clauses
+    return compiler.process(func.json_unquote(func.json_extract(column, f"$.{key.value}")), **kwargs)
+
+
+@compiles(JSONExtract, "sqlite")
+def compile_sqlite(element: JSONExtract, compiler: SQLCompiler, **kwargs: dict[str, Any]) -> str:
+    """
+    Compile JSONExtract for SQLite.
 
     :meta: private
     """
