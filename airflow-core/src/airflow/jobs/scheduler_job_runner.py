@@ -3406,8 +3406,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 TI.task_id,
                                 TI.run_id,
                                 TI.map_index,
+                                TI.try_number,
                                 TI.state,
                                 TI.external_executor_id,
+                                # Execution-metadata needed by TaskInstanceHistory.record_ti().
+                                # Including them here loads all required fields in a single
+                                # round-trip against the already-locked row, instead of
+                                # triggering a separate lazy-SELECT per deferred attribute
+                                # when TaskInstanceHistory.__init__ iterates the history columns.
+                                TI.hostname,
+                                TI.start_date,
+                                TI.end_date,
+                                TI.duration,
                             )
                         )
                     )
