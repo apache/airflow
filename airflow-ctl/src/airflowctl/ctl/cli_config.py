@@ -205,6 +205,14 @@ def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     return parsed
 
 
+def iso_date_type(val: str) -> datetime.date:
+    """Parse ISO 8601 date argument."""
+    try:
+        return datetime.date.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"invalid ISO 8601 date: {val!r}") from e
+
+
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
     """Load the help texts yaml for the auto-generated commands."""
     help_texts_path = Path(__file__).parent / "help_texts.yaml"
@@ -636,7 +644,7 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
-            "datetime.date": datetime.date,
+            "datetime.date": iso_date_type,
             "datetime.datetime": datetime.datetime,
             "dict[str, typing.Any]": json_dict_type,
         }

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 from argparse import BooleanOptionalAction
 from pathlib import Path
 from textwrap import dedent
@@ -34,6 +35,7 @@ from airflowctl.ctl.cli_config import (
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
+    iso_date_type,
     json_dict_type,
     merge_commands,
     safe_call_command,
@@ -363,6 +365,40 @@ class TestCommandFactory:
         """Valid JSON that is not an object raises an ArgumentTypeError."""
         with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
             json_dict_type(value)
+
+    def test_command_factory_parses_date_datamodel_fields(self):
+        """Date datamodel fields should parse ISO 8601 date CLI values."""
+        command_factory = CommandFactory()
+        dagrun_list_args = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "dagrun":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "list":
+                    dagrun_list_args = list(sub_command.args)
+                    break
+
+        partition_date_arg = next(arg for arg in dagrun_list_args if arg.flags == ("--partition-date-gte",))
+        parsed_partition_date = partition_date_arg.kwargs["type"]("2026-07-01")
+
+        assert parsed_partition_date == datetime.date(2026, 7, 1)
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [("2026-07-01", datetime.date(2026, 7, 1)), ("20260701", datetime.date(2026, 7, 1))],
+    )
+    def test_iso_date_type_parses_iso_date(self, value, expected):
+        """An ISO 8601 date string is parsed into a date."""
+        assert iso_date_type(value) == expected
+
+    @pytest.mark.parametrize(
+        "value",
+        ["", "2026-7-1", "01/07/2026", "2026-07-01T00:00:00", "yesterday"],
+    )
+    def test_iso_date_type_rejects_invalid_date(self, value):
+        """A value that is not an ISO 8601 date raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid ISO 8601 date"):
+            iso_date_type(value)
 
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
