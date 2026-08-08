@@ -25,7 +25,7 @@ PythonOperator
 Use the :class:`~airflow.providers.standard.operators.python.PythonOperator` to execute Python callables.
 
 .. tip::
-    The ``@task`` decorator is recommended over the classic ``PythonOperator`` to execute Python callables.
+    The ``@task`` decorator is the Taskflow equivalent of ``PythonOperator`` to execute Python callables.
 
 .. tab-set::
 
@@ -160,7 +160,7 @@ Cloudpickle offers a strong advantage for its focus on standard pickling protoco
 smoother data exchange, while still effectively handling common Python objects and global variables within functions.
 
 .. tip::
-    The ``@task.virtualenv`` decorator is recommended over the classic ``PythonVirtualenvOperator``
+    The ``@task.virtualenv`` decorator is the Taskflow equivalent of ``PythonVirtualenvOperator``
     to execute Python callables inside new Python virtual environments.
 
 .. tab-set::
@@ -284,7 +284,7 @@ In case ``dill`` is used, it has to be preinstalled in the environment (the same
 in main Airflow environment).
 
 .. tip::
-    The ``@task.external_python`` decorator is recommended over the classic ``ExternalPythonOperator``
+    The ``@task.external_python`` decorator is the Taskflow equivalent of ``ExternalPythonOperator``
     to execute Python code in pre-defined Python environments.
 
 .. tab-set::
@@ -341,7 +341,7 @@ Use the :class:`~airflow.providers.standard.operators.python.BranchPythonOperato
 tasks.
 
 .. tip::
-    The ``@task.branch`` decorator is recommended over the classic ``BranchPythonOperator``
+    The ``@task.branch`` decorator is the Taskflow equivalent of ``BranchPythonOperator``
     to execute Python code.
 
 .. tab-set::
@@ -378,7 +378,7 @@ Use the :class:`~airflow.providers.standard.operators.python.BranchPythonVirtual
 tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` with execution in a virtual environment.
 
 .. tip::
-    The ``@task.branch_virtualenv`` decorator is recommended over the classic
+    The ``@task.branch_virtualenv`` decorator is the Taskflow equivalent of
     ``BranchPythonVirtualenvOperator`` to execute Python code.
 
 .. tab-set::
@@ -416,7 +416,7 @@ tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.pytho
 external Python environment.
 
 .. tip::
-    The ``@task.branch_external_python`` decorator is recommended over the classic
+    The ``@task.branch_external_python`` decorator is the Taskflow equivalent of
     ``BranchExternalPythonOperator`` to execute Python code.
 
 .. tab-set::
@@ -461,7 +461,7 @@ based on the configured short-circuiting (more on this later). In the example be
 skipped.
 
 .. tip::
-    The ``@task.short_circuit`` decorator is recommended over the classic ``ShortCircuitOperator``
+    The ``@task.short_circuit`` decorator is the Taskflow equivalent of ``ShortCircuitOperator``
     to short-circuit pipelines via Python callables.
 
 .. tab-set::
