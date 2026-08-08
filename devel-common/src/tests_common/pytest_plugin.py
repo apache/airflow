@@ -3128,6 +3128,14 @@ def mock_xcom_backend():
 
 
 @pytest.fixture
+def load_provider_testing_dags():
+    from tests_common.test_utils.config import conf_vars
+
+    with conf_vars({("core", "load_testing_dags"): "True"}):
+        yield
+
+
+@pytest.fixture
 def testing_dag_bundle():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

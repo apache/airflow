@@ -481,6 +481,47 @@ def test_example_dags_bundle_added():
         assert "example_dags" not in manager._bundle_config
 
 
+@pytest.fixture
+def fake_provider_dag_folders(tmp_path):
+    """Stand in for an installed provider shipping both ``example_dags`` and ``testing_dags``."""
+    module_path = tmp_path / "airflow" / "providers" / "fake"
+    (module_path / "example_dags").mkdir(parents=True)
+    (module_path / "testing_dags").mkdir(parents=True)
+
+    with patch(
+        "airflow.dag_processing.bundles.manager._iter_provider_module_paths",
+        side_effect=lambda: iter([("apache-airflow-providers-fake", str(module_path))]),
+    ):
+        yield module_path
+
+
+def test_provider_testing_dags_bundle_added(fake_provider_dag_folders):
+    with conf_vars({("core", "LOAD_TESTING_DAGS"): "True"}):
+        manager = DagBundlesManager()
+        manager.parse_config()
+
+    bundle_config = manager._bundle_config["apache-airflow-providers-fake-testing-dags"]
+    assert bundle_config.kwargs["path"] == str(fake_provider_dag_folders / "testing_dags")
+
+
+def test_provider_testing_dags_not_loaded_by_default(fake_provider_dag_folders):
+    manager = DagBundlesManager()
+    manager.parse_config()
+
+    assert "apache-airflow-providers-fake-example-dags" in manager._bundle_config
+    assert "apache-airflow-providers-fake-testing-dags" not in manager._bundle_config
+
+
+def test_provider_testing_dags_load_without_example_dags(fake_provider_dag_folders):
+    with conf_vars({("core", "LOAD_EXAMPLES"): "False", ("core", "LOAD_TESTING_DAGS"): "True"}):
+        manager = DagBundlesManager()
+        manager.parse_config()
+
+    assert "example_dags" not in manager._bundle_config
+    assert "apache-airflow-providers-fake-example-dags" not in manager._bundle_config
+    assert "apache-airflow-providers-fake-testing-dags" in manager._bundle_config
+
+
 def test_example_dags_name_is_reserved():
     reserved_name_config = [{"name": "example_dags", "classpath": "yo face", "kwargs": {}}]
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):

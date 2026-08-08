@@ -230,6 +230,7 @@ function environment_initialization() {
             export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
         fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+        export AIRFLOW__CORE__LOAD_TESTING_DAGS=${LOAD_TESTING_DAGS}
         if [[ ${SKIP_ASSETS_COMPILATION:="false"} == "false" ]]; then
             wait_for_asset_compilation
         fi

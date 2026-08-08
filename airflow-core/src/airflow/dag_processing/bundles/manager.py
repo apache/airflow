@@ -39,7 +39,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -145,9 +145,9 @@ def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
     )
 
 
-def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundleConfig]):
+def _iter_provider_module_paths() -> Iterator[tuple[str, str]]:
     """
-    Add an ``example_dags`` folder of every installed provider as a bundle.
+    Yield ``(package_name, module_path)`` for every installed provider.
 
     Provider locations are resolved through ``ProvidersManager`` instead of
     walking ``airflow.providers.__path__`` so that:
@@ -157,13 +157,6 @@ def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundl
     - providers installed outside the ``airflow.providers`` namespace package
       are discovered via their entry point.
     """
-    # Dedup on the resolved on-disk folder rather than the bundle name: distributions
-    # under ``airflow.providers.common.*`` use ``pkgutil.extend_path``, so when several
-    # ``common-*`` packages are installed ``airflow.providers.common.__path__`` has
-    # multiple entries and the inner loop iterates more than once. Path-based dedup
-    # only skips when the same folder is seen twice; distinct folders are preserved.
-    seen: set[str] = set()
-
     for package_name in ProvidersManager().providers:
         # Heuristic: derive the import path from the canonical
         # ``apache-airflow-providers-*`` distribution name. Tracked as a follow-up
@@ -178,26 +171,40 @@ def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundl
             module = importlib.import_module(module_name)
             module_paths = list(getattr(module, "__path__", []))
         except Exception:
-            log.exception("Could not load provider module %s for example DAG discovery", module_name)
+            log.exception("Could not load provider module %s for DAG discovery", module_name)
             continue
 
         for module_path in module_paths:
-            example_dag_folder = os.path.join(module_path, "example_dags")
-            if not os.path.isdir(example_dag_folder):
-                continue
-            if example_dag_folder in seen:
-                continue
-            seen.add(example_dag_folder)
-            bundle_name = f"{package_name}-example-dags"
-            bundle_config_list.append(
-                _ExternalBundleConfig(
-                    name=bundle_name,
-                    classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
-                    kwargs={
-                        "path": example_dag_folder,
-                    },
-                )
+            yield package_name, module_path
+
+
+def _add_provider_dags_to_bundle(
+    bundle_config_list: list[_ExternalBundleConfig], *, folder_name: str, bundle_name_suffix: str
+) -> None:
+    """Add a ``folder_name`` folder of every installed provider as a bundle."""
+    # Dedup on the resolved on-disk folder rather than the bundle name: distributions
+    # under ``airflow.providers.common.*`` use ``pkgutil.extend_path``, so when several
+    # ``common-*`` packages are installed ``airflow.providers.common.__path__`` has
+    # multiple entries and the loop iterates more than once. Path-based dedup
+    # only skips when the same folder is seen twice; distinct folders are preserved.
+    seen: set[str] = set()
+
+    for package_name, module_path in _iter_provider_module_paths():
+        dag_folder = os.path.join(module_path, folder_name)
+        if not os.path.isdir(dag_folder):
+            continue
+        if dag_folder in seen:
+            continue
+        seen.add(dag_folder)
+        bundle_config_list.append(
+            _ExternalBundleConfig(
+                name=f"{package_name}-{bundle_name_suffix}",
+                classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
+                kwargs={
+                    "path": dag_folder,
+                },
             )
+        )
 
 
 def _is_safe_bundle_url(url: str) -> bool:
@@ -285,7 +292,13 @@ class DagBundlesManager(LoggingMixin):
         bundle_config_list = _parse_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
             _add_example_dag_bundle(bundle_config_list)
-            _add_provider_example_dags_to_bundle(bundle_config_list)
+            _add_provider_dags_to_bundle(
+                bundle_config_list, folder_name="example_dags", bundle_name_suffix="example-dags"
+            )
+        if conf.getboolean("core", "LOAD_TESTING_DAGS"):
+            _add_provider_dags_to_bundle(
+                bundle_config_list, folder_name="testing_dags", bundle_name_suffix="testing-dags"
+            )
 
         for bundle_config in bundle_config_list:
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):

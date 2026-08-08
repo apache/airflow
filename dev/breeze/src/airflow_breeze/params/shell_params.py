@@ -208,6 +208,7 @@ class ShellParams:
     keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
+    load_testing_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
     mount_ui_dist: bool = False
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
@@ -692,6 +693,7 @@ services:
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
+        _set_var(_env, "LOAD_TESTING_DAGS", self.load_testing_dags)
         _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
