@@ -64,6 +64,7 @@ from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,
     prepare_virtualenv,
+    resolve_requirements_versions,
     write_python_script,
 )
 from airflow.providers.standard.version_compat import (
@@ -821,6 +822,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
         in a temp folder for every execution.
+    :param hash_resolved_requirements: Only used with ``venv_cache_path``. If True, the cache checksum
+        additionally includes the resolved versions of the requirements, obtained by a dependency
+        resolution (without installing) at the start of every task run. A new release of any
+        (transitively) unpinned dependency then results in a new cached virtual environment. Each run
+        pays the resolution overhead and outdated environments accumulate in ``venv_cache_path``.
+        Requires pip >= 23.0 when pip is the configured install method.
     :param env_vars: A dictionary containing additional environment variables to set for the virtual
         environment when it is executed.
     :param inherit_env: Whether to inherit the current environment variables when executing the virtual
@@ -855,6 +862,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         index_urls: None | Collection[str] | str = None,
         index_urls_from_connection_ids: None | Collection[str] | str = None,
         venv_cache_path: None | os.PathLike[str] = None,
+        hash_resolved_requirements: bool = False,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         **kwargs,
@@ -895,6 +903,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         else:
             self.index_urls_from_connection_ids = None
         self.venv_cache_path = venv_cache_path
+        self.hash_resolved_requirements = hash_resolved_requirements
+        self._resolved_requirements_cache: dict[tuple[str, ...], list[str]] = {}
         super().__init__(
             python_callable=python_callable,
             serializer=serializer,
@@ -925,18 +935,32 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         requirements.sort()  # Ensure a hash is stable
         return requirements
 
+    @property
+    def _python_bin(self) -> str:
+        return f"python{self.python_version}" if self.python_version else "python"
+
     def _prepare_venv(self, venv_path: Path) -> None:
         """Prepare the requirements and installs the virtual environment."""
         requirements_file = venv_path / "requirements.txt"
         requirements_file.write_text("\n".join(self._requirements_list()))
         prepare_virtualenv(
             venv_directory=str(venv_path),
-            python_bin=f"python{self.python_version}" if self.python_version else "python",
+            python_bin=self._python_bin,
             system_site_packages=self.system_site_packages,
             requirements_file_path=str(requirements_file),
             pip_install_options=self.pip_install_options,
             index_urls=self.index_urls,
         )
+
+    def _resolve_requirements(self, exclude_cloudpickle: bool = False) -> list[str]:
+        """Resolve the requirements to pinned versions, once per distinct requirements list."""
+        requirements = self._requirements_list(exclude_cloudpickle=exclude_cloudpickle)
+        cache_key = tuple(requirements)
+        if cache_key not in self._resolved_requirements_cache:
+            self._resolved_requirements_cache[cache_key] = resolve_requirements_versions(
+                requirements=requirements, python_bin=self._python_bin, index_urls=self.index_urls
+            )
+        return self._resolved_requirements_cache[cache_key]
 
     def _calculate_cache_hash(self, exclude_cloudpickle: bool = False) -> tuple[str, str]:
         """
@@ -949,6 +973,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         - python version
         - Variable to override the hash with a cache key
         - Index URLs
+        - resolved requirement versions (only with ``hash_resolved_requirements``)
 
         Returns a hash and the data dict which is the base for the hash as text.
         """
@@ -960,6 +985,10 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             "python_version": self.python_version,
             "system_site_packages": self.system_site_packages,
         }
+        if self.hash_resolved_requirements:
+            hash_dict["resolved_requirements"] = self._resolve_requirements(
+                exclude_cloudpickle=exclude_cloudpickle
+            )
         hash_text = json.dumps(hash_dict, sort_keys=True)
         hash_object = hashlib_wrapper.md5(hash_text.encode())
         requirements_hash = hash_object.hexdigest()
@@ -1045,6 +1074,11 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
             python_path = venv_path / "bin" / "python"
             return self._execute_python_callable_in_subprocess(python_path)
+
+        if self.hash_resolved_requirements:
+            self.log.warning(
+                "The 'hash_resolved_requirements' option has no effect unless 'venv_cache_path' is set."
+            )
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)

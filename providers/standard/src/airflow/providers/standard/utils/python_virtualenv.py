@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shlex
@@ -26,11 +27,13 @@ import shutil
 import subprocess
 import warnings
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import jinja2
 from jinja2 import select_autoescape
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.standard.exceptions import RequirementsResolutionError
 
 
 def _is_uv_installed() -> bool:
@@ -225,6 +228,90 @@ def prepare_virtualenv(
         _execute_in_subprocess(pip_cmd, env={**os.environ, **_index_urls_to_uv_env_vars(index_urls)})
 
     return f"{venv_directory}/bin/python"
+
+
+def _generate_uv_resolve_cmd(python_bin: str, requirements_file_path: str) -> list[str]:
+    return [
+        "uv",
+        "pip",
+        "compile",
+        "--python",
+        python_bin,
+        "--no-header",
+        "--no-annotate",
+        "--quiet",
+        requirements_file_path,
+    ]
+
+
+def _generate_pip_resolve_cmd(
+    python_bin: str, requirements_file_path: str, index_urls: list[str] | None
+) -> list[str]:
+    cmd = [python_bin, "-m", "pip", "install", "--dry-run", "--ignore-installed", "--quiet"]
+    cmd += ["--report", "-", "-r", requirements_file_path]
+    if index_urls is not None:
+        if not index_urls:
+            cmd += ["--no-index"]
+        else:
+            cmd += ["--index-url", index_urls[0]]
+            for url in index_urls[1:]:
+                cmd += ["--extra-index-url", url]
+    return cmd
+
+
+def _parse_pip_installation_report(report_text: str) -> list[str]:
+    try:
+        report = json.loads(report_text)
+        return sorted(
+            f"{entry['metadata']['name']}=={entry['metadata']['version']}" for entry in report["install"]
+        )
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        raise RequirementsResolutionError(f"Cannot parse pip installation report: {e}") from e
+
+
+def resolve_requirements_versions(
+    requirements: list[str],
+    python_bin: str,
+    index_urls: list[str] | None = None,
+) -> list[str]:
+    """
+    Resolve requirements to pinned package versions without installing them.
+
+    Runs a full dependency resolution via ``uv pip compile`` or ``pip install --dry-run --report``,
+    depending on the configured install method (pip needs to be at least 23.0 for this).
+    Install options are not applied during resolution.
+
+    :param requirements: list of requirement specifiers to resolve.
+    :param python_bin: path to the Python executable to resolve for.
+    :param index_urls: an optional list of index urls to load Python packages from.
+        If not provided the system pip conf will be used to source packages from.
+    :return: sorted list of ``package==version`` pins.
+    """
+    log = logging.getLogger(__name__)
+    use_uv = _use_uv()
+    with TemporaryDirectory(prefix="requirements-resolve") as tmp_dir:
+        requirements_file = Path(tmp_dir) / "requirements.txt"
+        requirements_file.write_text("\n".join(requirements))
+        if use_uv:
+            cmd = _generate_uv_resolve_cmd(python_bin, str(requirements_file))
+            env = {**os.environ, **_index_urls_to_uv_env_vars(index_urls)}
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=False, env=env)
+        else:
+            cmd = _generate_pip_resolve_cmd(python_bin, str(requirements_file), index_urls)
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        raise RequirementsResolutionError(
+            f"Resolving requirement versions failed with exit code {proc.returncode} "
+            f"(command: {' '.join(shlex.quote(c) for c in cmd)}): {proc.stderr}"
+        )
+    if use_uv:
+        pins = sorted(
+            line.strip() for line in proc.stdout.splitlines() if line.strip() and not line.startswith("#")
+        )
+    else:
+        pins = _parse_pip_installation_report(proc.stdout)
+    log.debug("Resolved requirements %s to %s", requirements, pins)
+    return pins
 
 
 def write_python_script(
