@@ -183,6 +183,10 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.context import Context
 
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="Supervisor uses POSIX-only process primitives"
+)
+
 log = logging.getLogger(__name__)
 TI_ID = uuid7()
 
