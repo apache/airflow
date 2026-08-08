@@ -1217,10 +1217,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
+        if self.end_date is None:
+            self.end_date = timezone.utcnow()
+
         # Check for a policy-driven delay override.
         if self.retry_delay_override is not None:
-            base = self.end_date if self.end_date is not None else timezone.utcnow()
-            return base + timedelta(seconds=self.retry_delay_override)
+            return self.end_date + timedelta(seconds=self.retry_delay_override)
 
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
