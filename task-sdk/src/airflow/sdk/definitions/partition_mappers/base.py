@@ -50,6 +50,10 @@ class PartitionMapper:
         default=None, kw_only=True, validator=_validate_max_downstream_keys
     )
 
+    def validate_source_key(self, key: str) -> None:
+        """Validate that a source partition key is in a supported format."""
+        return None
+
 
 @attrs.define
 class RollupMapper(PartitionMapper):
