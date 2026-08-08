@@ -48,6 +48,7 @@ class TestCloudBatchSubmitJobOperator:
         operator = CloudBatchSubmitJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
         )
+        operator.prepare_template()
 
         completed_job = operator.execute(context=mock.MagicMock())
 
@@ -118,6 +119,18 @@ def _job_dict_with_template() -> dict:
 class TestCloudBatchSubmitJobOperatorTemplating:
     def test_template_fields_includes_job(self):
         assert "job" in CloudBatchSubmitJobOperator.template_fields
+
+    def test_protobuf_job_is_normalized_by_prepare_template_not_init(self):
+        job = batch_v1.Job.from_json(json.dumps(_job_dict_with_template()))
+        operator = CloudBatchSubmitJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=job
+        )
+
+        assert isinstance(operator.job, batch_v1.Job)
+
+        operator.prepare_template()
+
+        assert isinstance(operator.job, dict)
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
