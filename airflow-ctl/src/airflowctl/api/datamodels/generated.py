@@ -698,24 +698,6 @@ class Destination(str, Enum):
     BASE = "base"
 
 
-class ExternalViewResponse(BaseModel):
-    """
-    Serializer for External View Plugin responses.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    name: Annotated[str, Field(title="Name")]
-    icon: Annotated[str | None, Field(title="Icon")] = None
-    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
-    url_route: Annotated[str | None, Field(title="Url Route")] = None
-    category: Annotated[str | None, Field(title="Category")] = None
-    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
-    href: Annotated[str, Field(title="Href")]
-    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
-
-
 class ExtraLinkCollectionResponse(BaseModel):
     """
     Extra Links Response.
@@ -842,6 +824,20 @@ class NewTaskResponse(BaseModel):
     task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
+class PluginAppliesToResponse(BaseModel):
+    """
+    Serializer for the optional Dag/task scoping criteria of a UI plugin.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    dag_tags: Annotated[list[str] | None, Field(title="Dag Tags")] = None
+    dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
+    task_ids: Annotated[list[str] | None, Field(title="Task Ids")] = None
+    operators: Annotated[list[str] | None, Field(title="Operators")] = None
+
+
 class PluginImportErrorResponse(BaseModel):
     """
     Plugin Import Error serializer for responses.
@@ -952,6 +948,7 @@ class ReactAppResponse(BaseModel):
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
+    applies_to: PluginAppliesToResponse | None = None
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
 
@@ -1941,6 +1938,25 @@ class EventLogCollectionResponse(BaseModel):
 
     event_logs: Annotated[list[EventLogResponse], Field(title="Event Logs")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class ExternalViewResponse(BaseModel):
+    """
+    Serializer for External View Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
+    applies_to: PluginAppliesToResponse | None = None
+    href: Annotated[str, Field(title="Href")]
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
 
 class HITLDetailResponse(BaseModel):
