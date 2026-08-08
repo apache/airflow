@@ -43,7 +43,9 @@ from sqlalchemy import (
     delete,
     exists,
     func,
+    insert,
     inspect,
+    literal,
     or_,
     select,
     text,
@@ -138,6 +140,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
+    from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql.selectable import Subquery
 
@@ -161,6 +164,23 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 # Internal constant rather than a user setting — this is a performance
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
+
+
+def _associate_asset_events_with_dag_run(
+    *,
+    dag_run: DagRun,
+    asset_event_ids_select: Select[tuple[int]],
+    session: Session,
+) -> None:
+    """Associate selected asset events without materializing ORM objects."""
+    selected_event_ids = asset_event_ids_select.subquery()
+    session.execute(
+        insert(association_table).from_select(
+            ["dag_run_id", "event_id"],
+            select(literal(dag_run.id), selected_event_ids.c.event_id),
+        )
+    )
+    session.expire(dag_run, ["consumed_asset_events"])
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -2425,13 +2445,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            asset_events = session.scalars(
-                select(AssetEvent).where(
-                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                    PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
-                )
+            asset_event_ids_select = select(AssetEvent.id.label("event_id")).where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
             )
-            dag_run.consumed_asset_events.extend(asset_events)
+            _associate_asset_events_with_dag_run(
+                dag_run=dag_run,
+                asset_event_ids_select=asset_event_ids_select,
+                session=session,
+            )
             session.flush()
             apdr.created_dag_run_id = dag_run.id
             session.flush()
@@ -2688,26 +2710,33 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                     ),
                 )
-            asset_events = list(
-                session.scalars(
-                    select(AssetEvent)
-                    .where(
-                        event_predicate,
-                        ~(
-                            select(association_table.c.event_id)
-                            .join(DagRun, DagRun.id == association_table.c.dag_run_id)
-                            .where(
-                                DagRun.dag_id == dag.dag_id,
-                                association_table.c.event_id == AssetEvent.id,
-                            )
-                            .exists()
-                        ),
-                    )
-                    .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
+            selected_asset_events = (
+                select(
+                    AssetEvent.id.label("event_id"),
+                    AssetEvent.timestamp.label("timestamp"),
                 )
+                .where(
+                    event_predicate,
+                    ~(
+                        select(association_table.c.event_id)
+                        .join(DagRun, DagRun.id == association_table.c.dag_run_id)
+                        .where(
+                            DagRun.dag_id == dag.dag_id,
+                            association_table.c.event_id == AssetEvent.id,
+                        )
+                        .exists()
+                    ),
+                )
+                .cte()
             )
-            if asset_events:
-                triggered_date = timezone.coerce_datetime(max(event.timestamp for event in asset_events))
+            triggered_date, max_selected_event_id = session.execute(
+                select(
+                    func.max(selected_asset_events.c.timestamp),
+                    func.max(selected_asset_events.c.event_id),
+                )
+            ).one()
+            if triggered_date is not None and max_selected_event_id is not None:
+                triggered_date = timezone.coerce_datetime(triggered_date)
                 self.log.debug(
                     "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
                     dag.dag_id,
@@ -2733,12 +2762,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     else None
                 )
                 stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
-                dag_run.consumed_asset_events.extend(asset_events)
+                _associate_asset_events_with_dag_run(
+                    dag_run=dag_run,
+                    asset_event_ids_select=select(selected_asset_events.c.event_id)
+                    .where(
+                        selected_asset_events.c.timestamp <= triggered_date,
+                        selected_asset_events.c.event_id <= max_selected_event_id,
+                    )
+                    .order_by(
+                        selected_asset_events.c.timestamp.asc(),
+                        selected_asset_events.c.event_id.asc(),
+                    ),
+                    session=session,
+                )
+                consumed_asset_event_count = (
+                    session.scalar(
+                        select(func.count())
+                        .select_from(association_table)
+                        .where(association_table.c.dag_run_id == dag_run.id)
+                    )
+                    or 0
+                )
                 self.log.info(
                     "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
                     dag.dag_id,
                     dag_run.run_id,
-                    len(asset_events),
+                    consumed_asset_event_count,
                 )
             else:
                 self.log.info(
