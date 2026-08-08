@@ -45,6 +45,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     ListOfDictsExpandInput,
     is_mappable,
 )
+from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
@@ -621,6 +622,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         if task_group:
             task_id = task_group.child_id(task_id)
+        validate_key(task_id)
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if partial_kwargs.get("wait_for_downstream"):

@@ -345,6 +345,7 @@ else:
             task_group = task_group or TaskGroupContext.get_current(dag)
         if task_group:
             task_id = task_group.child_id(task_id)
+        validate_key(task_id)
 
         # Merge Dag and task group level defaults into user-supplied values.
         dag_default_args, partial_params = get_merged_defaults(
