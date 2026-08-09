@@ -97,6 +97,7 @@ dependencies = [
     # It was added in https://github.com/apache/airflow/pull/47990/files
     # maybe this should be set from upstream
     "msal-extensions>=1.3.0",
+    "requests>=2.32.0,<3",
 ]
 
 # The optional dependencies should be modified in place in the generated file
