@@ -68,7 +68,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "cloud_id" = [
-    "akeyless_cloud_id",
+    "akeyless-cloud-id>=0.3.0",
 ]
 
 [dependency-groups]
