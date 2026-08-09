@@ -192,7 +192,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
         with:
           version: 9
           run_install: false
@@ -203,7 +203,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/restore@6a8cc443005eb76c9e5619da00205d6181966b5a
+        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           # yamllint disable-line rule:line-length
@@ -214,7 +214,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@6a8cc443005eb76c9e5619da00205d6181966b5a
+        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
@@ -222,7 +222,7 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
       - name: "Restore eslint cache (simple auth manager UI)"
-        uses: apache/infrastructure-actions/stash/restore@6a8cc443005eb76c9e5619da00205d6181966b5a
+        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
@@ -234,7 +234,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@6a8cc443005eb76c9e5619da00205d6181966b5a
+        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
