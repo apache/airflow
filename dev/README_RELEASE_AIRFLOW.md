@@ -1408,8 +1408,8 @@ disagree with the version:
 
 | `--version` | Provider pins | Lands on | Tagged |
 |---|---|---|---|
-| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3.3.1rc1`, branched off `constraints-3-1` | `constraints-3.3.1rc1` |
-| `3.3.1` | newest final in PyPI | `constraints-3-1` (commit) | `constraints-3.3.1` |
+| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3.3.1rc1`, branched off `constraints-3-3` | `constraints-3.3.1rc1` |
+| `3.3.1` | newest final in PyPI | `constraints-3-3` (commit) | `constraints-3.3.1` |
 
 The providers are pinned rather than resolved: every `apache-airflow-providers-*` is named with
 `==` at the newest version PyPI can install, so the constraints record what is actually published
