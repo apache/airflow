@@ -43,8 +43,9 @@ def _mysql_drop_unique_constraint_if_exists(conn, table: str, index_name: str) -
     """
     Drop a MySQL unique constraint only if it is actually present.
 
-    MySQL has no ``DROP INDEX IF EXISTS``, and PyMySQL does not support the
-    ``prepare``/``execute``/``deallocate prepare`` sequence in a single
+    MySQL has no ``DROP INDEX IF EXISTS``, and PyMySQL does not enable
+    ``CLIENT.MULTI_STATEMENTS``, so it cannot run the
+    ``prepare``/``execute``/``deallocate prepare`` script in a single
     ``cursor.execute()`` call, so the existence check and the drop are issued as two
     separate single statements. In offline (``--sql``) mode there is no live connection
     to query information_schema against, so the guarded dynamic SQL is emitted as literal
@@ -70,12 +71,13 @@ def _mysql_drop_unique_constraint_if_exists(conn, table: str, index_name: str) -
     existing_indexes = {
         row[0]
         for row in conn.execute(
-            sa.text(f"""
+            sa.text("""
                 SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
                 WHERE CONSTRAINT_SCHEMA = DATABASE()
-                AND TABLE_NAME = '{table}'
+                AND TABLE_NAME = :table
                 AND CONSTRAINT_TYPE = 'UNIQUE'
-            """)
+            """),
+            {"table": table},
         )
     }
     if index_name in existing_indexes:
