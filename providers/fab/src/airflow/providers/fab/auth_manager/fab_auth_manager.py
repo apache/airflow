@@ -30,7 +30,7 @@ from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
 from flask_appbuilder.const import AUTH_LDAP
-from sqlalchemy import select
+from sqlalchemy import false, func, select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
@@ -60,7 +60,15 @@ from airflow.providers.common.compat.security.access_view import (
     AUDIT_LOGS_ALL_ACCESS_VIEW,
     IMPORT_ERRORS_ALL_ACCESS_VIEW,
 )
-from airflow.providers.fab.auth_manager.models import Permission, Role, User
+from airflow.providers.fab.auth_manager.models import (
+    Action,
+    Permission,
+    Resource,
+    Role,
+    User,
+    assoc_permission_role,
+    assoc_user_role,
+)
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
@@ -99,6 +107,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
+    from sqlalchemy import Select
     from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -574,6 +583,43 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         rows = session.execute(select(Connection.conn_id)).scalars().all()
         return set(rows)
+
+    def get_authorized_dag_ids_select(
+        self,
+        *,
+        user: User,
+        method: ResourceMethod = "GET",
+    ) -> Select | None:
+        """
+        Get a select of the Dag ids the user has access to.
+
+        The grants already live in the Airflow metadata database, so this hands the API a
+        subquery rather than every authorized Dag id. A user authorized on all Dags gets an
+        unfiltered select; otherwise the select is restricted to the Dags their roles name.
+        """
+        if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
+            return select(DagModel.dag_id)
+        if isinstance(user, AnonymousUser):
+            return select(DagModel.dag_id).where(false())
+
+        fab_action = get_fab_action_from_method_map().get(method)
+        resource_names = (
+            select(Resource.name)
+            .join(Permission, Permission.resource_id == Resource.id)
+            .join(Action, Permission.action_id == Action.id)
+            .join(
+                assoc_permission_role,
+                assoc_permission_role.c.permission_view_id == Permission.id,
+            )
+            .join(Role, Role.id == assoc_permission_role.c.role_id)
+            .join(assoc_user_role, assoc_user_role.c.role_id == Role.id)
+            .where(assoc_user_role.c.user_id == user.id)
+            .where(Action.name == fab_action)
+            .where(Resource.name.startswith(permissions.RESOURCE_DAG_PREFIX))
+        ).subquery()
+
+        dag_id_from_resource = func.substr(resource_names.c.name, len(permissions.RESOURCE_DAG_PREFIX) + 1)
+        return select(DagModel.dag_id).where(DagModel.dag_id.in_(select(dag_id_from_resource)))
 
     @provide_session
     def get_authorized_dag_ids(

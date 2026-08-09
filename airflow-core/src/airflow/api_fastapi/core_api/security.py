@@ -30,6 +30,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import (
@@ -80,8 +81,6 @@ from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
-    from sqlalchemy.sql import Select
-
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 
@@ -246,23 +245,61 @@ def requires_access_dag_from_file_token(
 class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
+    def __init__(
+        self,
+        value: set[str] | None = None,
+        *,
+        subquery: Select | None = None,
+        materialize: Callable[[], set[str]] | None = None,
+    ):
+        self._materialized = value
+        self._subquery = subquery
+        self._materialize = materialize
+
+    @property
+    def value(self) -> set[str] | None:
+        """
+        The permitted dag ids.
+
+        Reading this materializes the whole authorized set when the auth manager answered
+        with a subquery, since callers that ask for the ids need them in memory.
+        """
+        if self._materialized is None and self._materialize is not None:
+            self._materialized = self._materialize()
+        return self._materialized
+
+    @value.setter
+    def value(self, value: set[str] | None) -> None:
+        self._materialized = value
+
+    @property
+    def permitted(self) -> set[str] | Select:
+        """
+        The operand for ``in_()``, preferring the subquery so nothing is materialized.
+
+        Not ``self.value or set()``: a select has no truth value, and an empty set is a
+        legitimate answer meaning nothing is permitted.
+        """
+        if self._subquery is not None:
+            return self._subquery
+        return self.value if self.value is not None else set()
+
     def to_orm(self, select: Select) -> Select:
-        # self.value may be None (OrmClause holds Optional), ensure we pass an Iterable to in_
-        return select.where(DagModel.dag_id.in_(self.value or set()))
+        return select.where(DagModel.dag_id.in_(self.permitted))
 
 
 class PermittedDagRunFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag runs for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagRun.dag_id.in_(self.value or set()))
+        return select.where(DagRun.dag_id.in_(self.permitted))
 
 
 class PermittedDagWarningFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag warnings for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagWarning.dag_id.in_(self.value or set()))
+        return select.where(DagWarning.dag_id.in_(self.permitted))
 
 
 class PermittedEventLogFilter(PermittedDagFilter):
@@ -273,7 +310,7 @@ class PermittedEventLogFilter(PermittedDagFilter):
         self.include_non_dag_logs = include_non_dag_logs
 
     def to_orm(self, select: Select) -> Select:
-        permitted_dag_logs = Log.dag_id.in_(self.value or set())
+        permitted_dag_logs = Log.dag_id.in_(self.permitted)
         if not self.include_non_dag_logs:
             return select.where(permitted_dag_logs)
         # Event logs not related to a Dag have dag_id as None. They record Connection,
@@ -288,35 +325,35 @@ class PermittedTIFilter(PermittedDagFilter):
     """A parameter that filters the permitted task instances for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(TI.dag_id.in_(self.value or set()))
+        return select.where(TI.dag_id.in_(self.permitted))
 
 
 class PermittedXComFilter(PermittedDagFilter):
     """A parameter that filters the permitted XComs for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(XComModel.dag_id.in_(self.value or set()))
+        return select.where(XComModel.dag_id.in_(self.permitted))
 
 
 class PermittedTagFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag tags for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagTag.dag_id.in_(self.value or set()))
+        return select.where(DagTag.dag_id.in_(self.permitted))
 
 
 class PermittedDagVersionFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag versions for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagVersion.dag_id.in_(self.value or set()))
+        return select.where(DagVersion.dag_id.in_(self.permitted))
 
 
 class PermittedBackfillFilter(PermittedDagFilter):
     """A parameter that filters the permitted backfills for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Backfill.dag_id.in_(self.value or set()))
+        return select.where(Backfill.dag_id.in_(self.permitted))
 
 
 def permitted_dag_filter_factory(
@@ -333,8 +370,13 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
-        authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
-        return filter_class(authorized_dags)
+        subquery = auth_manager.get_authorized_dag_ids_select(user=user, method=method)
+        if subquery is not None:
+            return filter_class(
+                subquery=subquery,
+                materialize=lambda: auth_manager.get_authorized_dag_ids(user=user, method=method),
+            )
+        return filter_class(auth_manager.get_authorized_dag_ids(user=user, method=method))
 
     return depends_permitted_dags_filter
 

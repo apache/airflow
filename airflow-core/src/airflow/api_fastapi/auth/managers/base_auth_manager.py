@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from fastapi import FastAPI
-    from sqlalchemy import Row
+    from sqlalchemy import Row, Select
     from sqlalchemy.orm import Session
     from starlette.middleware import _MiddlewareFactory
 
@@ -624,6 +624,33 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
 
         return {conn_id for conn_id in conn_ids if _is_authorized_connection(conn_id)}
+
+    def get_authorized_dag_ids_select(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+    ) -> Select | None:
+        """
+        Get a select of the Dag ids the user has access to, to be used as a subquery.
+
+        Returning ``None``, the default, makes the API materialize the whole authorized set
+        through :meth:`get_authorized_dag_ids` instead. Auth managers that keep their grants in
+        the Airflow metadata database can return a select here, which the API applies as
+        ``dag_id IN (subquery)`` so that filtering and pagination happen in one statement rather
+        than after every authorized Dag id has been loaded into memory.
+
+        The select must produce a single column of Dag ids.
+
+        Returning a select replaces :meth:`get_authorized_dag_ids` entirely, including its
+        per-team grouping, so a multi-team deployment has to scope the select itself. Join
+        ``DagBundleModel`` and ``dag_bundle_team_association_table`` the way
+        :meth:`get_authorized_dag_ids` does, or return ``None`` and keep the default fan-out.
+
+        :param user: the user
+        :param method: the method to filter on
+        """
+        return None
 
     @provide_session
     def get_authorized_dag_ids(

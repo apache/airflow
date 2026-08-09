@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from fastapi import HTTPException, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
+from sqlalchemy import false, select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -42,6 +43,8 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    PermittedDagFilter,
+    PermittedDagRunFilter,
     _build_dag_run_access_requests,
     get_user,
     is_safe_url,
@@ -56,10 +59,11 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_variable_bulk,
     resolve_user_from_token,
 )
-from airflow.models import Connection, Pool, Variable
+from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.models.backfill import Backfill
-from airflow.models.dag import DagModel
-from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dag import DagTag
+from airflow.models.dagbundle import DagBundleModel, dag_bundle_team_association_table
+from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -1505,3 +1509,87 @@ class TestAuthManagerDependency:
         assert auth_manager is not None
         assert hasattr(auth_manager, "get_url_login")
         assert hasattr(auth_manager, "get_url_logout")
+
+
+class TestPermittedDagFilterSubquery:
+    """A manager keeping grants in the metadata database can hand back a select instead of a set.
+
+    Without this the whole authorized set is loaded into memory before pagination is applied,
+    which is what makes a list view cost O(all dags) even when the grants are already in SQL.
+    """
+
+    @staticmethod
+    def _compiled(orm_clause) -> str:
+        stmt = orm_clause.to_orm(select(DagModel.dag_id))
+        return str(stmt.compile(compile_kwargs={"literal_binds": True}))
+
+    def test_a_set_still_becomes_an_in_list(self):
+        sql = self._compiled(PermittedDagFilter({"dag_a", "dag_b"}))
+        assert "IN (" in sql
+        assert "SELECT" in sql.split("IN (", 1)[1] or "dag_a" in sql
+
+    def test_a_select_becomes_a_subquery_rather_than_a_materialized_set(self):
+        sql = self._compiled(PermittedDagFilter(subquery=select(DagModel.dag_id).where(DagModel.is_paused)))
+        after_in = sql.split("IN (", 1)[1]
+        assert after_in.lstrip().upper().startswith("SELECT"), sql
+
+    def test_none_permits_nothing(self):
+        """None has to stay deny-all; an empty select is a legitimate value, so `or` would be wrong."""
+        sql = self._compiled(PermittedDagFilter(None))
+        assert "IN (" in sql
+
+    def test_an_empty_select_is_not_treated_as_no_value(self):
+        empty = select(DagModel.dag_id).where(false())
+        sql = self._compiled(PermittedDagFilter(subquery=empty))
+        after_in = sql.split("IN (", 1)[1]
+        assert after_in.lstrip().upper().startswith("SELECT"), sql
+
+    def test_the_subquery_reaches_the_dag_run_filter_too(self):
+        """Every permitted-* filter inherits the behaviour, so they all get it at once."""
+        stmt = PermittedDagRunFilter(subquery=select(DagModel.dag_id)).to_orm(select(DagRun.dag_id))
+        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        after_in = sql.split("IN (", 1)[1]
+        assert after_in.lstrip().upper().startswith("SELECT"), sql
+
+    def test_a_tag_based_manager_needs_no_fab(self):
+        """The docs point custom managers at Dag attributes like tags, which live in the database.
+
+        Without a select such a manager has to load every dag id carrying the tag into memory
+        before the API can page over them.
+        """
+        by_tag = select(DagTag.dag_id).where(DagTag.name.in_({"team-a", "team-b"}))
+        sql = self._compiled(PermittedDagFilter(subquery=by_tag))
+        after_in = sql.split("IN (", 1)[1]
+        assert after_in.lstrip().upper().startswith("SELECT"), sql
+        assert "dag_tag" in sql
+
+    def test_a_team_scoped_select_stays_one_statement(self):
+        """Returning a select replaces the per-team fan-out, so the select carries the scoping."""
+        by_team = (
+            select(DagModel.dag_id)
+            .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
+            .join(
+                dag_bundle_team_association_table,
+                DagBundleModel.name == dag_bundle_team_association_table.c.dag_bundle_name,
+            )
+            .where(dag_bundle_team_association_table.c.team_name == "team-a")
+        )
+        sql = self._compiled(PermittedDagFilter(subquery=by_team))
+        after_in = sql.split("IN (", 1)[1]
+        assert after_in.lstrip().upper().startswith("SELECT"), sql
+        assert "team_name" in sql
+
+    def test_reading_value_materializes_only_when_asked(self):
+        """Callers that need the ids still get them, and nothing is loaded until one asks."""
+        calls = []
+
+        def materialize() -> set[str]:
+            calls.append(1)
+            return {"dag_a"}
+
+        f = PermittedDagFilter(subquery=select(DagModel.dag_id), materialize=materialize)
+        self._compiled(f)
+        assert calls == []
+        assert f.value == {"dag_a"}
+        assert f.value == {"dag_a"}
+        assert calls == [1]

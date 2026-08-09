@@ -594,6 +594,10 @@ class TestBaseAuthManager:
         result = auth_manager.get_authorized_dag_ids(user=user, session=session)
         assert result == expected
 
+    def test_get_authorized_dag_ids_select_defaults_to_none(self, auth_manager):
+        """Returning None is what keeps every existing manager on the materializing path."""
+        assert auth_manager.get_authorized_dag_ids_select(user=Mock()) is None
+
     @pytest.mark.parametrize(
         ("access_per_connection", "access_per_team", "rows", "expected"),
         [
