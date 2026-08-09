@@ -287,3 +287,12 @@ def test_create_shared_stream_producer_raises_by_default():
     """
     with pytest.raises(NotImplementedError, match="create_shared_stream_producer"):
         _PlainEventTrigger.create_shared_stream_producer({})
+
+
+def test_base_event_trigger_supports_triggerer_queue():
+    assert BaseEventTrigger.supports_triggerer_queue is True
+
+
+def test_base_event_trigger_queue_defaults_to_none():
+    trigger = _PlainEventTrigger()
+    assert trigger.queue is None

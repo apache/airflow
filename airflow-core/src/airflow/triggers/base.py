@@ -293,15 +293,24 @@ class BaseEventTrigger(BaseTrigger):
     See :mod:`airflow.triggers.shared_stream` for the full ack-mode design,
     including snapshot-at-fan-out semantics, per-event timeout behavior, and
     triggerer-restart redeliver notes.
+
+    **Triggerer queue assignment**
+
+    Pass ``queue`` to assign this trigger to a specific triggerer queue (see
+    :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of
+    ``airflow triggerer``). When used with team-based triggerer node assignment,
+    the team and queue function as a logical 'AND'.
     """
 
-    supports_triggerer_queue: bool = False
+    supports_triggerer_queue: bool = True
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, queue: str | None = None, **kwargs):
         super().__init__(**kwargs)
 
         # Injected by the triggerer before run() is called
         self.asset_state_store: AssetStateStoreAccessors | None = None
+        # Read by Dag processing when registering the trigger; unused once running.
+        self.queue = queue
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:
