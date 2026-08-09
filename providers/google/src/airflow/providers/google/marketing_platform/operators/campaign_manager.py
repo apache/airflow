@@ -84,11 +84,6 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if not (report_name or report_id):
-            raise AirflowException("Please provide `report_name` or `report_id`.")
-        if report_name and report_id:
-            raise AirflowException("Please provide only one parameter `report_name` or `report_id`.")
-
         self.profile_id = profile_id
         self.report_name = report_name
         self.report_id = report_id
@@ -97,6 +92,11 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
+        if not (self.report_name or self.report_id):
+            raise AirflowException("Please provide `report_name` or `report_id`.")
+        if self.report_name and self.report_id:
+            raise AirflowException("Please provide only one parameter `report_name` or `report_id`.")
+
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

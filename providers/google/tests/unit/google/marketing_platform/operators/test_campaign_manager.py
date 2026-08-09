@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete
 
+from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance as TI
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -86,6 +87,34 @@ class TestGoogleCampaignManagerDeleteReportOperator:
         hook_mock.return_value.delete_report.assert_called_once_with(
             profile_id=PROFILE_ID, report_id=REPORT_ID
         )
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
+    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
+    def test_execute_raises_when_both_report_name_and_id(self, mock_base_op, hook_mock):
+        op = GoogleCampaignManagerDeleteReportOperator(
+            profile_id=PROFILE_ID,
+            report_name=REPORT_NAME,
+            report_id=REPORT_ID,
+            api_version=API_VERSION,
+            task_id="test_task",
+        )
+        with pytest.raises(AirflowException, match="only one parameter"):
+            op.execute(context=None)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
+    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
+    def test_execute_raises_when_neither_report_name_nor_id(self, mock_base_op, hook_mock):
+        op = GoogleCampaignManagerDeleteReportOperator(
+            profile_id=PROFILE_ID,
+            api_version=API_VERSION,
+            task_id="test_task",
+        )
+        with pytest.raises(AirflowException, match="Please provide"):
+            op.execute(context=None)
 
 
 @pytest.mark.db_test
