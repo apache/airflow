@@ -315,7 +315,7 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        dag_run.update_state()
+        dag_run.schedule_dag_run()
         assert dag_run.state == DagRunState.SUCCESS
 
     def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, dag_maker, session):
@@ -340,7 +340,7 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        dag_run.update_state()
+        dag_run.schedule_dag_run()
         assert dag_run.state == DagRunState.SUCCESS
 
     def test_dagrun_success_conditions(self, dag_maker, session):
@@ -366,14 +366,14 @@ class TestDagRun:
         ti_op4 = dr.get_task_instance(task_id=op4.task_id)
 
         # root is successful, but unfinished tasks
-        dr.update_state()
+        dr.schedule_dag_run()
         assert dr.state == DagRunState.RUNNING
 
         # one has failed, but root is successful
         ti_op2.set_state(state=TaskInstanceState.FAILED, session=session)
         ti_op3.set_state(state=TaskInstanceState.SUCCESS, session=session)
         ti_op4.set_state(state=TaskInstanceState.SUCCESS, session=session)
-        dr.update_state()
+        dr.schedule_dag_run()
         assert dr.state == DagRunState.SUCCESS
 
     def test_dagrun_deadlock(self, dag_maker, session):
@@ -390,12 +390,12 @@ class TestDagRun:
         ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
         ti_op2.set_state(state=None, session=session)
 
-        dr.update_state(session=session)
+        dr.schedule_dag_run(session=session)
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
         ti_op2.task.trigger_rule = "invalid"
-        dr.update_state(session=session)
+        dr.schedule_dag_run(session=session)
         assert dr.state == DagRunState.FAILED
 
     def test_dagrun_no_deadlock_with_restarting(self, dag_maker, session):
@@ -408,7 +408,7 @@ class TestDagRun:
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
         upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
 
-        dr.update_state()
+        dr.schedule_dag_run()
         assert dr.state == DagRunState.RUNNING
 
     def test_dagrun_no_deadlock_with_depends_on_past(self, dag_maker, session):
@@ -432,14 +432,14 @@ class TestDagRun:
         ti2_op1 = dr.get_task_instance(task_id="tc")
         dr.get_task_instance(task_id="tc")
         ti1_op1.set_state(state=TaskInstanceState.RUNNING, session=session)
-        dr.update_state()
-        dr2.update_state()
+        dr.schedule_dag_run()
+        dr2.schedule_dag_run()
         assert dr.state == DagRunState.RUNNING
         assert dr2.state == DagRunState.RUNNING
 
         ti2_op1.set_state(state=TaskInstanceState.RUNNING, session=session)
-        dr.update_state()
-        dr2.update_state()
+        dr.schedule_dag_run()
+        dr2.schedule_dag_run()
         assert dr.state == DagRunState.RUNNING
         assert dr2.state == DagRunState.RUNNING
 
@@ -464,7 +464,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dag_run.update_state()
+            _, callback = dag_run.schedule_dag_run()
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success")
         ]
@@ -474,7 +474,7 @@ class TestDagRun:
         assert ti_passed.task_id == "test_state_succeeded2"
 
         assert dag_run.state == DagRunState.SUCCESS
-        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        # Callbacks are not added until handle_callback = False is passed to dag_run.schedule_dag_run()
         assert callback is None
 
     def test_dagrun_failure_callback(self, dag_maker, session):
@@ -498,7 +498,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dag_run.update_state()
+            _, callback = dag_run.schedule_dag_run()
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure")
         ]
@@ -508,7 +508,7 @@ class TestDagRun:
         assert ti_passed.task_id == "test_state_failed2"
 
         assert dag_run.state == DagRunState.FAILED
-        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        # Callbacks are not added until handle_callback = False is passed to dag_run.schedule_dag_run()
         assert callback is None
 
     def test_dagrun_failure_callback_on_tasks_deadlocked(self, dag_maker, session):
@@ -540,7 +540,7 @@ class TestDagRun:
         serialized_dag = dr.get_dag()
 
         with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dr.update_state(execute_callbacks=True)
+            _, callback = dr.schedule_dag_run(execute_callbacks=True)
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=serialized_dag, success=False, relevant_ti=ti_middle, reason="all_tasks_deadlocked")
         ]
@@ -558,7 +558,7 @@ class TestDagRun:
         mock_on_success.__name__ = "mock_on_success"
 
         dag = DAG(
-            dag_id="test_dagrun_update_state_with_handle_callback_success",
+            dag_id="test_dagrun_schedule_dag_run_with_handle_callback_success",
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=mock_on_success,
             schedule=datetime.timedelta(days=1),
@@ -582,20 +582,22 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(scheduler_dag, task_states=initial_task_states, session=session)
-        _, _ = dag_run.update_state(execute_callbacks=True)
+        _, _ = dag_run.schedule_dag_run(execute_callbacks=True)
         task = dag_run.get_task_instances()[0]
 
         assert task.state == TaskInstanceState.SKIPPED
         assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
 
-    def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, dag_maker, session):
+    def test_dagrun_schedule_dag_run_with_handle_callback_success(
+        self, testing_dag_bundle, dag_maker, session
+    ):
         def on_success_callable(context):
-            assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
+            assert context["dag_run"].dag_id == "test_dagrun_schedule_dag_run_with_handle_callback_success"
 
-        relative_fileloc = "test_dagrun_update_state_with_handle_callback_success.py"
+        relative_fileloc = "test_dagrun_schedule_dag_run_with_handle_callback_success.py"
         with dag_maker(
-            dag_id="test_dagrun_update_state_with_handle_callback_success",
+            dag_id="test_dagrun_schedule_dag_run_with_handle_callback_success",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
@@ -619,12 +621,12 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.dag_model = dm
 
-        _, callback = dag_run.update_state(execute_callbacks=False)
+        _, callback = dag_run.schedule_dag_run(execute_callbacks=False)
         assert dag_run.state == DagRunState.SUCCESS
-        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        # Callbacks are not added until handle_callback = False is passed to dag_run.schedule_dag_run()
         assert callback == DagCallbackRequest(
             filepath=dag_run.dag.relative_fileloc,
-            dag_id="test_dagrun_update_state_with_handle_callback_success",
+            dag_id="test_dagrun_schedule_dag_run_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
             bundle_name="dag_maker",
@@ -636,13 +638,15 @@ class TestDagRun:
             msg="success",
         )
 
-    def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, dag_maker, session):
+    def test_dagrun_schedule_dag_run_with_handle_callback_failure(
+        self, testing_dag_bundle, dag_maker, session
+    ):
         def on_failure_callable(context):
-            assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
+            assert context["dag_run"].dag_id == "test_dagrun_schedule_dag_run_with_handle_callback_failure"
 
-        relative_fileloc = "test_dagrun_update_state_with_handle_callback_failure.py"
+        relative_fileloc = "test_dagrun_schedule_dag_run_with_handle_callback_failure.py"
         with dag_maker(
-            dag_id="test_dagrun_update_state_with_handle_callback_failure",
+            dag_id="test_dagrun_schedule_dag_run_with_handle_callback_failure",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
@@ -666,13 +670,13 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.dag_model = dm
 
-        _, callback = dag_run.update_state(execute_callbacks=False)
+        _, callback = dag_run.schedule_dag_run(execute_callbacks=False)
         assert dag_run.state == DagRunState.FAILED
-        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        # Callbacks are not added until handle_callback = False is passed to dag_run.schedule_dag_run()
 
         assert callback == DagCallbackRequest(
             filepath=dag.relative_fileloc,
-            dag_id="test_dagrun_update_state_with_handle_callback_failure",
+            dag_id="test_dagrun_schedule_dag_run_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
             msg="task_failure",
@@ -721,7 +725,7 @@ class TestDagRun:
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
 
-    def test_dagrun_update_state_end_date(self, dag_maker, session):
+    def test_dagrun_schedule_dag_run_end_date(self, dag_maker, session):
         # A -> B
         with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="A")
@@ -742,7 +746,7 @@ class TestDagRun:
         ti_op2 = dr.get_task_instance(task_id=op2.task_id)
         ti_op2.set_state(state=TaskInstanceState.SUCCESS, session=session)
 
-        dr.update_state()
+        dr.schedule_dag_run()
 
         dr_database = session.scalar(select(DagRun).where(DagRun.run_id == dr.run_id))
         assert dr_database.end_date is not None
@@ -750,7 +754,7 @@ class TestDagRun:
 
         ti_op1.set_state(state=TaskInstanceState.RUNNING, session=session)
         ti_op2.set_state(state=TaskInstanceState.RUNNING, session=session)
-        dr.update_state()
+        dr.schedule_dag_run()
 
         dr_database = session.scalar(select(DagRun).where(DagRun.run_id == dr.run_id))
 
@@ -760,7 +764,7 @@ class TestDagRun:
 
         ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
         ti_op2.set_state(state=TaskInstanceState.FAILED, session=session)
-        dr.update_state()
+        dr.schedule_dag_run()
 
         dr_database = session.scalar(select(DagRun).where(DagRun.run_id == dr.run_id))
 
@@ -1122,7 +1126,7 @@ class TestDagRun:
         scheduler_dag = sync_dag_to_db(dag, session=session)
         initial_task_states = {dag_task.task_id: TaskInstanceState.SUCCESS}
         dag_run = self.create_dag_run(scheduler_dag, task_states=initial_task_states, session=session)
-        dag_run.update_state(session=session)
+        dag_run.schedule_dag_run(session=session)
         assert call(f"dagrun.{dag.dag_id}.first_task_scheduling_delay") not in stats_mock.mock_calls
 
     @pytest.mark.parametrize(
@@ -1136,7 +1140,7 @@ class TestDagRun:
     def test_emit_scheduling_delay(self, session, schedule, expected, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
-        dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
+        dag_run.schedule_dag_run() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
         dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule)
         dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
@@ -1181,7 +1185,7 @@ class TestDagRun:
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session=session)
+                dag_run.schedule_dag_run(session=session)
 
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
 
@@ -1270,7 +1274,7 @@ class TestDagRun:
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session=session)
+                dag_run.schedule_dag_run(session=session)
 
             start_delay_call = call("dagrun.first_task_start_delay", mock.ANY, tags=expected_stat_tags)
             if expected:
@@ -1305,14 +1309,14 @@ class TestDagRun:
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
 
-    def test_update_state_one_unfinished(self, dag_maker, session):
+    def test_schedule_dag_run_one_unfinished(self, dag_maker, session):
         """
         Previously this lived in test_scheduler_job.py
 
-        It only really tested the behavior of DagRun.update_state.
+        It only really tested the behavior of DagRun.schedule_dag_run.
 
         As far as I can tell, it checks that if you null out the state on a TI of a finished dag,
-        and then you call ``update_state``, then the DR will be set to running.
+        and then you call ``schedule_dag_run``, then the DR will be set to running.
         """
         with dag_maker(session=session) as dag:
             PythonOperator(task_id="t1", python_callable=lambda: print)
@@ -1330,10 +1334,19 @@ class TestDagRun:
         dr = session.get(DagRun, dr.id)
         assert dr.state == DagRunState.FAILED
         dr.dag = dag
-        dr.update_state(session=session)
+        dr.schedule_dag_run(session=session)
         session.commit()
         dr = session.get(DagRun, dr.id)
         assert dr.state == State.RUNNING
+
+    def test_update_state_delegates_to_schedule_dag_run(self):
+        dag_run = DagRun()
+        with mock.patch.object(dag_run, "schedule_dag_run", return_value=([], None)) as schedule_dag_run:
+            assert dag_run.update_state(execute_callbacks=False) == ([], None)
+
+        schedule_dag_run.assert_called_once()
+        assert schedule_dag_run.call_args.kwargs["session"] is not None
+        assert schedule_dag_run.call_args.kwargs["execute_callbacks"] is False
 
     def test_dag_run_dag_versions_method(self, dag_maker, session):
         with dag_maker(
@@ -1418,7 +1431,7 @@ class TestDagRun:
         dag_run.dag = scheduler_dag
 
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dag_run.update_state()
+            _, callback = dag_run.schedule_dag_run()
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success")
         ]
@@ -1428,7 +1441,7 @@ class TestDagRun:
         assert ti_passed.task_id == "task_2"
 
         assert dag_run.state == DagRunState.SUCCESS
-        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        # Callbacks are not added until handle_callback = False is passed to dag_run.schedule_dag_run()
         assert callback is None
 
     @mock.patch.object(Deadline, "prune_deadlines")
@@ -1452,7 +1465,7 @@ class TestDagRun:
         )
         dag_run.dag = scheduler_dag
 
-        dag_run.update_state(session=session)
+        dag_run.schedule_dag_run(session=session)
 
         assert mock_get_by_id.call_count == len(deadline_ids)
         for deadline_id in deadline_ids:
@@ -1484,7 +1497,7 @@ class TestDagRun:
         dag.deadline = [deadline_id]
         dag_run.dag = dag
 
-        dag_run.update_state(session=session)
+        dag_run.schedule_dag_run(session=session)
 
         mock_get_by_id.assert_called_once_with(deadline_id, session=session)
         mock_prune.assert_not_called()
@@ -1504,7 +1517,7 @@ class TestDagRun:
         dag.deadline = []
         dag_run.dag = dag
 
-        dag_run.update_state(session=session)
+        dag_run.schedule_dag_run(session=session)
 
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
@@ -1533,7 +1546,7 @@ class TestDagRun:
         dag_run.dag = scheduler_dag
 
         # First update resolve interval to "5".
-        dag_run.update_state(session=session)
+        dag_run.schedule_dag_run(session=session)
 
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         first_deadline_time = deadline.deadline_time
@@ -1542,7 +1555,7 @@ class TestDagRun:
         mock_get.return_value = "120"
 
         # Run again (This should not change existing deadline).
-        dag_run.update_state(session=session)
+        dag_run.schedule_dag_run(session=session)
 
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert deadline.deadline_time == first_deadline_time
@@ -2446,7 +2459,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
     make_list_ti.state = TaskInstanceState.FAILED
     session.flush()
 
-    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    tis, _ = dr.schedule_dag_run(execute_callbacks=False, session=session)
     assert tis == []
     tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
 
@@ -2456,7 +2469,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
     ]
     # Bug/possible source of optimization: The DR isn't marked as failed until
     # in the loop that marks the last task as UPSTREAM_FAILED
-    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    tis, _ = dr.schedule_dag_run(execute_callbacks=False, session=session)
     assert tis == []
     assert dr.state == DagRunState.FAILED
 
@@ -3076,9 +3089,9 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
     tis["say_hi"].state = TaskInstanceState.SUCCESS
     session.flush()
 
-    dr.update_state(session=session)  # expands the mapped tasks
-    dr.update_state(session=session)  # marks the task as skipped
-    dr.update_state(session=session)  # marks dagrun as success
+    dr.schedule_dag_run(session=session)  # expands the mapped tasks
+    dr.schedule_dag_run(session=session)  # marks the task as skipped
+    dr.schedule_dag_run(session=session)  # marks dagrun as success
     assert dr.state == DagRunState.SUCCESS
     assert tis["add_one__1"].state == TaskInstanceState.SKIPPED
 
@@ -3129,7 +3142,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
             session.merge(ti)
     session.commit()
     # The Upstream is done with 2 removed tis and 3 success tis
-    (tis, _) = dr.update_state()
+    (tis, _) = dr.schedule_dag_run()
     assert len(tis) == 3
     assert dr.state != DagRunState.FAILED
 
@@ -3330,7 +3343,7 @@ def test_rerun_with_upstream_task_removed(session, dag_maker):
     assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
 
     dag_maker.run_ti("downstream", dr)
-    dr.update_state(session=session)
+    dr.schedule_dag_run(session=session)
     assert dr.state == DagRunState.SUCCESS
 
     # Rerun with upstream_1 removed
@@ -3359,7 +3372,7 @@ def test_rerun_with_upstream_task_removed(session, dag_maker):
     assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
 
     dag_maker.run_ti("downstream", dr)
-    dr.update_state(session=session)
+    dr.schedule_dag_run(session=session)
     assert dr.state == DagRunState.SUCCESS
 
 
@@ -3446,10 +3459,10 @@ def test_mapping_against_empty_list(dag_maker, session):
     session.merge(say_bye_ti)
     session.flush()
 
-    dr.update_state(session=session)
-    dr.update_state(session=session)  # marks first empty mapped task as skipped
-    dr.update_state(session=session)  # marks second empty mapped task as skipped
-    dr.update_state(session=session)  # marks the third empty mapped task as skipped and dagrun as success
+    dr.schedule_dag_run(session=session)
+    dr.schedule_dag_run(session=session)  # marks first empty mapped task as skipped
+    dr.schedule_dag_run(session=session)  # marks second empty mapped task as skipped
+    dr.schedule_dag_run(session=session)  # marks the third empty mapped task as skipped and dagrun as success
     tis = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
     assert tis["say_hi"] == TaskInstanceState.SUCCESS
     assert tis["say_bye"] == TaskInstanceState.SUCCESS
@@ -3660,7 +3673,7 @@ def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state,
     session.merge(ti1)
     session.merge(td1)
     session.flush()
-    dr.update_state()
+    dr.schedule_dag_run()
     session.flush()
     dr = session.scalar(select(DagRun))
     assert dr.state == dag_run_state
@@ -3699,7 +3712,7 @@ def test_teardown_failure_on_non_leaf_behaviour_on_dagrun(
     session.merge(td1)
     session.merge(td2)
     session.flush()
-    dr.update_state()
+    dr.schedule_dag_run()
     session.flush()
     dr = session.scalar(select(DagRun))
     assert dr.state == dag_run_state
@@ -3734,7 +3747,7 @@ def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session
     session.merge(td1)
     session.merge(t1)
     session.flush()
-    dr.update_state()
+    dr.schedule_dag_run()
     session.flush()
     dr = session.scalar(select(DagRun))
     assert dr.state == DagRunState.FAILED
@@ -3770,7 +3783,7 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
     session.merge(td1)
     session.merge(t1)
     session.flush()
-    dr.update_state()
+    dr.schedule_dag_run()
     session.flush()
     dr = session.scalar(select(DagRun))
     assert dr.state == DagRunState.FAILED
@@ -4319,7 +4332,7 @@ class TestDagRunTracing:
         dr.dag = dag
 
         with mock.patch.object(dr, "_emit_dagrun_span") as mock_emit:
-            dr.update_state(session=session)
+            dr.schedule_dag_run(session=session)
 
         mock_emit.assert_called_once_with(state=final_state)
 
@@ -4341,7 +4354,7 @@ class TestDagRunTracing:
         dr.dag = dag
 
         with mock.patch.object(dr, "_emit_dagrun_span") as mock_emit:
-            dr.update_state(session=session)
+            dr.schedule_dag_run(session=session)
 
         mock_emit.assert_not_called()
 
@@ -4362,7 +4375,7 @@ class TestDagRunTracing:
         dr.dag = dag
 
         with mock.patch("airflow.models.dagrun.tracer", test_tracer):
-            dr.update_state(session=session)
+            dr.schedule_dag_run(session=session)
 
         spans = in_mem_exporter.get_finished_spans()
         assert len(spans) == 1
@@ -4396,7 +4409,7 @@ class TestDagRunTracing:
         dr.dag = dag
 
         with mock.patch("airflow.models.dagrun.tracer", test_tracer):
-            dr.update_state(session=session)
+            dr.schedule_dag_run(session=session)
 
         spans = in_mem_exporter.get_finished_spans()
         assert len(spans) == 1
@@ -4450,7 +4463,7 @@ class TestDagRunTracing:
         dr.context_carrier = carrier_value
 
         with mock.patch("airflow.models.dagrun.tracer", test_tracer):
-            dr.update_state(session=session)
+            dr.schedule_dag_run(session=session)
 
         # A root span should still be emitted
         spans = in_mem_exporter.get_finished_spans()

@@ -1383,7 +1383,7 @@ class TestTriggerRuleDep:
 
     def test_UpstreamTIStates(self, session, dag_maker):
         """
-        this test tests the helper class '_UpstreamTIStates' as a unit and inside update_state
+        this test tests the helper class '_UpstreamTIStates' as a unit and inside schedule_dag_run
         """
         with dag_maker(session=session):
             op1 = EmptyOperator(task_id="op1")
@@ -1412,7 +1412,7 @@ class TestTriggerRuleDep:
         assert _UpstreamTIStates.calculate(_get_finished_tis("op4")) == (1, 0, 1, 0, 0, 2, 0, 0)
         assert _UpstreamTIStates.calculate(_get_finished_tis("op5")) == (2, 0, 1, 0, 0, 3, 0, 0)
 
-        dr.update_state(session=session)
+        dr.schedule_dag_run(session=session)
         assert dr.state == DagRunState.SUCCESS
 
     @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, REMOVED), (False, None)])

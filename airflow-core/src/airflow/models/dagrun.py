@@ -1241,7 +1241,7 @@ class DagRun(Base, LoggingMixin):
             span.end()
 
     @provide_session
-    def update_state(
+    def schedule_dag_run(
         self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
     ) -> tuple[list[TI], DagCallbackRequest | None]:
         """
@@ -1440,6 +1440,12 @@ class DagRun(Base, LoggingMixin):
         return schedulable_tis, callback
 
     @provide_session
+    def update_state(
+        self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
+    ) -> tuple[list[TI], DagCallbackRequest | None]:
+        return self.schedule_dag_run(session=session, execute_callbacks=execute_callbacks)
+
+    @provide_session
     def task_instance_scheduling_decisions(self, *, session: Session = NEW_SESSION) -> TISchedulingDecision:
         tis = self.get_task_instances(session=session, state=State.task_states)
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
@@ -1555,7 +1561,7 @@ class DagRun(Base, LoggingMixin):
     def execute_dag_callbacks(
         self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"
     ):
-        """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
+        """Only needed for `dag.test` where `execute_callbacks=True` is passed to `schedule_dag_run`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
             TaskInstance as TIDataModel,
             TIRunContext,
@@ -1755,7 +1761,7 @@ class DagRun(Base, LoggingMixin):
         The true scheduling delay stats is defined as the time when the first
         task in DAG starts minus the expected DAG run datetime.
 
-        This helper method is used in ``update_state`` when the state of the
+        This helper method is used in ``schedule_dag_run`` when the state of the
         DAG run is updated to a completed status (either success or failure).
         It finds the first started task within the DAG, calculates the run's
         expected start time based on the logical date and timetable, and gets

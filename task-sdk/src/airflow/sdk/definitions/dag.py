@@ -1396,7 +1396,7 @@ class DAG:
 
             while dr.state == DagRunState.RUNNING:
                 session.expire_all()
-                schedulable_tis, _ = dr.update_state(session=session)
+                schedulable_tis, _ = dr.schedule_dag_run(session=session)
                 for s in schedulable_tis:
                     if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         s.try_number += 1

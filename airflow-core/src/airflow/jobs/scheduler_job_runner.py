@@ -1752,13 +1752,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
-            # Team name should be added before listeners are called in update_state()
+            # Team name should be added before listeners are called in schedule_dag_run()
             self._stamp_team_names(paused_runs, session)
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
                     dag_run.dag = dag
-                    _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                    _, callback_to_run = dag_run.schedule_dag_run(execute_callbacks=False, session=session)
                     if callback_to_run:
                         self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
@@ -3012,8 +3012,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         dag_run.scheduled_by_job_id = self.job.id
 
-        # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+        schedulable_tis, callback_to_run = dag_run.schedule_dag_run(session=session, execute_callbacks=False)
 
         if dag_run.state in State.finished_dr_states and dag_run.run_type in (
             DagRunType.SCHEDULED,

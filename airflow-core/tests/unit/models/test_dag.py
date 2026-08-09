@@ -944,7 +944,7 @@ class TestDag:
             )
             ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
             ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
-            dr.update_state(session=session)
+            dr.schedule_dag_run(session=session)
 
         dag_id = "dag_paused_after_limit"
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
@@ -969,9 +969,9 @@ class TestDag:
 
     @staticmethod
     def _add_dag_run(scheduler_dag, op1, session, run_id, logical_date, run_after, ti_state, run_state):
-        """Create a dagrun, set the task-instance state, and call update_state.
+        """Create a dagrun, set the task-instance state, and call schedule_dag_run.
 
-        update_state triggers _check_last_n_dagruns_failed only when the run
+        schedule_dag_run triggers _check_last_n_dagruns_failed only when the run
         transitions to FAILED, so it is a no-op for SUCCESS runs.
         """
         dr = scheduler_dag.create_dagrun(
@@ -986,7 +986,7 @@ class TestDag:
         )
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.set_state(state=ti_state, session=session)
-        dr.update_state(session=session)
+        dr.schedule_dag_run(session=session)
         return dr
 
     def test_dag_paused_after_limit_orders_by_run_after(self, testing_dag_bundle):
@@ -1014,7 +1014,7 @@ class TestDag:
         assert not session.get(DagModel, dag.dag_id).is_paused
 
         # Run 1: oldest by run_after but LATEST logical_date — SUCCESS.
-        # update_state is a no-op here because _check_last_n_dagruns_failed
+        # schedule_dag_run is a no-op here because _check_last_n_dagruns_failed
         # is only invoked on the FAILED branch.
         self._add_dag_run(
             scheduler_dag,
