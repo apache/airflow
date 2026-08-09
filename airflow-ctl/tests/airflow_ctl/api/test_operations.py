@@ -86,6 +86,7 @@ from airflowctl.api.datamodels.generated import (
     PluginResponse,
     PoolBody,
     PoolCollectionResponse,
+    PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
     ProviderResponse,
@@ -250,6 +251,29 @@ class TestBaseOperations:
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
 
+    def test_execute_list_sends_offset_to_server(self):
+        """``offset`` must reach the server on the first request, not only on subsequent pages."""
+        rows = [{"name": name} for name in "abcdef"]
+
+        def paged(path, params):
+            # An absent ``offset`` is what the server would see as its own default of 0.
+            start = params.get("offset", 0)
+            return Mock(
+                content=json.dumps(
+                    {"hellos": rows[start : start + params["limit"]], "total_entries": len(rows)}
+                )
+            )
+
+        mock_client = Mock()
+        mock_client.get.side_effect = paged
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(
+            path="hello", data_model=HelloCollectionResponse, offset=2, limit=2
+        )
+
+        assert [hello.name for hello in response.hellos] == ["c", "d", "e", "f"]
+
     @pytest.mark.parametrize("limit", [0, -1])
     def test_execute_list_rejects_non_positive_limit(self, limit):
         mock_client = Mock()
@@ -263,6 +287,7 @@ class TestBaseOperations:
 
 class TestAssetsOperations:
     asset_id: int = 1
+    asset_alias_id: int = 2
     dag_id: str = "dag_id"
     before: str = "2024-12-31T23:59:59+00:00"
     asset_response = AssetResponse(
@@ -280,7 +305,7 @@ class TestAssetsOperations:
         group="group",
     )
     asset_alias_response = AssetAliasResponse(
-        id=asset_id,
+        id=asset_alias_id,
         name="asset",
         group="group",
     )
@@ -371,13 +396,13 @@ class TestAssetsOperations:
         response = client.assets.get(self.asset_id)
         assert response == self.asset_response
 
-    def test_get_by_alias(self):
+    def test_get_alias(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/assets/aliases/{self.asset_id}"
+            assert request.url.path == f"/api/v2/assets/aliases/{self.asset_alias_id}"
             return httpx.Response(200, json=json.loads(self.asset_alias_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.assets.get_by_alias(self.asset_id)
+        response = client.assets.get_alias(self.asset_alias_id)
         assert response == self.asset_alias_response
 
     def test_list(self):
@@ -807,6 +832,16 @@ class TestConnectionsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.bulk(connections=connection_bulk_body)
         assert response == self.connection_bulk_response
+
+    def test_create_defaults(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/connections/defaults"
+            assert request.method == "POST"
+            return httpx.Response(200, json={})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.connections.create_defaults()
+        assert response is None
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1613,6 +1648,7 @@ class TestPoolsOperations:
         pools=[pool_response],
         total_entries=1,
     )
+    pool_patch_body = PoolPatchBody(pool=pool_name, description="description")
     pool_bulk_response = BulkResponse(
         create=BulkActionResponse(success=[pool_name], errors=[]),
         update=None,
@@ -1663,6 +1699,16 @@ class TestPoolsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.delete(self.pool_name)
         assert response == self.pool_name
+
+    def test_update(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            assert request.method == "PATCH"
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(pool_body=self.pool_patch_body)
+        assert response == self.pool_response
 
 
 class TestProvidersOperations:

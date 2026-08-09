@@ -36,7 +36,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    and_,
     case,
     func,
     or_,
@@ -60,7 +59,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.models.asset import AssetDagRunQueue, AssetModel
+from airflow.models.asset import AssetDagRunQueue
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -261,47 +260,6 @@ def get_last_dagrun(dag_id: str, session: Session, include_manually_triggered: b
         query = query.where(DR.run_type != DagRunType.MANUAL)
     query = query.order_by(DR.logical_date.desc())
     return session.scalar(query.limit(1))
-
-
-def get_asset_triggered_next_run_info(
-    dag_ids: list[str], *, session: Session
-) -> dict[str, dict[str, int | str]]:
-    """
-    Get next run info for a list of dag_ids.
-
-    Given a list of dag_ids, get string representing how close any that are asset triggered are to
-    their next run, e.g. "1 of 2 assets updated".
-    """
-    from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
-
-    return {
-        x.dag_id: {
-            "uri": x.uri,
-            "ready": x.ready,
-            "total": x.total,
-        }
-        for x in session.execute(
-            select(
-                DagScheduleAssetReference.dag_id,
-                # This is a dirty hack to workaround group by requiring an aggregate,
-                # since grouping by asset is not what we want to do here...but it works
-                case((func.count() == 1, func.max(AssetModel.uri)), else_="").label("uri"),
-                func.count().label("total"),
-                func.sum(case((ADRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
-            )
-            .join(
-                ADRQ,
-                and_(
-                    ADRQ.asset_id == DagScheduleAssetReference.asset_id,
-                    ADRQ.target_dag_id == DagScheduleAssetReference.dag_id,
-                ),
-                isouter=True,
-            )
-            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.asset_id)
-            .group_by(DagScheduleAssetReference.dag_id)
-            .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
-        ).all()
-    }
 
 
 class DagTag(Base):
@@ -854,17 +812,6 @@ class DagModel(Base):
             next_dagrun_partition_key=self.next_dagrun_partition_key,
             next_dagrun_partition_date=str(self.next_dagrun_partition_date),
         )
-
-    @provide_session
-    def get_asset_triggered_next_run_info(
-        self, *, session: Session = NEW_SESSION
-    ) -> dict[str, int | str] | None:
-        if self.asset_expression is None:
-            return None
-
-        # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns
-        # an empty dict as there's no asset info to get. This method should thus return None.
-        return get_asset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
 
     @staticmethod
     @cached(_team_name_cache, key=lambda dag_id, **_: dag_id, lock=_team_name_cache_lock)

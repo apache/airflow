@@ -471,6 +471,14 @@
                         },
                         "additionalProperties": false
                     },
+                    "external-services": {
+                        "description": "Representative, non-exhaustive list of upstream provider/service names this connection type is known to reach over the network (e.g. 'Anthropic', 'AWS Bedrock', 'Ollama') -- examples, not an exhaustive compatibility matrix. Hooks that resolve the destination from a caller-supplied model identifier (as with pydantic-ai) can reach any service the model id names, so the list can never be complete. Not to be confused with the top-level 'integrations' key, which describes framework integrations and drives docs/logo/tag generation.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1
+                    },
                     "conn-fields": {
                         "description": "Custom connection fields stored in Connection.extra JSON",
                         "type": "object",
@@ -557,12 +565,22 @@
             "type": "array",
             "description": "Decorators to use with the TaskFlow API. Can be accessed by users via '@task.<name>'",
             "items": {
-                "name": {
-                    "type": "string"
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "Name the decorator is exposed under, following '@task.'",
+                        "type": "string"
+                    },
+                    "class-name": {
+                        "description": "Class name that implements the decorator",
+                        "type": "string"
+                    }
                 },
-                "path": {
-                    "type": "string"
-                }
+                "additionalProperties": false,
+                "required": [
+                    "name",
+                    "class-name"
+                ]
             }
         },
         "secrets-backends": {
@@ -680,24 +698,29 @@
             "type": "array",
             "description": "Plugins exposed by the provider",
             "items": {
-                "name": {
-                    "type": "string"
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "Name of the plugin",
+                        "type": "string"
+                    },
+                    "plugin-class": {
+                        "description": "Class name that implements the plugin",
+                        "type": "string"
+                    }
                 },
-                "plugin-class": {
-                    "type": "string"
-                }
+                "additionalProperties": false,
+                "required": [
+                    "name",
+                    "plugin-class"
+                ]
             }
         },
         "queues": {
             "type": "array",
-            "description": "Message Queues exposed by the provider",
+            "description": "Message queue provider class names",
             "items": {
-                "name": {
-                    "type": "string"
-                },
-                "message-queue-class": {
-                    "type": "string"
-                }
+                "type": "string"
             }
         },
         "source-date-epoch": {
