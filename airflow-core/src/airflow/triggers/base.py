@@ -93,6 +93,10 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         self.template_fields = ()
         self.template_ext = ()
         self.task_id = None
+        # Explicit triggerer queue assignment. None means no explicit assignment;
+        # subclasses that manage their own queue (e.g. BaseEventTrigger, CallbackTrigger)
+        # set this directly, see `trigger_queue_inherited_from_task`.
+        self.queue: str | None = None
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""

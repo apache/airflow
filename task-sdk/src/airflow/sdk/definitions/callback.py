@@ -162,6 +162,7 @@ class AsyncCallback(Callback):
         self,
         callback_callable: Callable | str,
         kwargs: dict | None = None,
+        *,
         queue: str | None = None,
     ):
         super().__init__(callback_callable=callback_callable, kwargs=kwargs)

@@ -1117,7 +1117,7 @@ def test_from_object_reads_queue_from_trigger():
     assert trigger_row.queue == "custom-queue"
 
 
-def test_from_object_defaults_queue_to_none_when_trigger_has_no_queue_attribute():
+def test_from_object_defaults_queue_to_none_when_not_set_on_trigger():
     trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
 
     trigger_row: Trigger = Trigger.from_object(trigger_instance)
