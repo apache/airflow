@@ -582,6 +582,59 @@ class TestGKEKubernetesAsyncHook:
         assert "Test string #1" in logs
         assert "Test string #2" in logs
 
+    @staticmethod
+    def _mock_token(tokens):
+        token = mock.AsyncMock()
+        token.get.side_effect = list(tokens)
+        return token
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    async def test_get_conn_caches_client_and_token(self, mock_build_client, mock_get_token, async_hook):
+        mock_get_token.return_value = self._mock_token(["token-1", "token-1"])
+        mock_build_client.return_value = mock.MagicMock(default_headers={})
+
+        async with async_hook.get_conn() as conn_first:
+            pass
+        async with async_hook.get_conn() as conn_second:
+            pass
+
+        assert conn_first is conn_second
+        mock_build_client.assert_called_once_with()
+        mock_get_token.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    async def test_get_conn_refreshes_authorization_header_per_entry(
+        self, mock_build_client, mock_get_token, async_hook
+    ):
+        mock_get_token.return_value = self._mock_token(["token-1", "token-2"])
+        kube_client = mock.MagicMock(default_headers={})
+        mock_build_client.return_value = kube_client
+
+        async with async_hook.get_conn():
+            assert kube_client.default_headers["Authorization"] == "Bearer token-1"
+        async with async_hook.get_conn():
+            assert kube_client.default_headers["Authorization"] == "Bearer token-2"
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    async def test_close_releases_client_and_token(self, mock_build_client, mock_get_token, async_hook):
+        mock_get_token.return_value = self._mock_token(["token-1"])
+        kube_client = mock.MagicMock(default_headers={}, close=mock.AsyncMock())
+        mock_build_client.return_value = kube_client
+
+        async with async_hook.get_conn():
+            pass
+        await async_hook.close()
+
+        kube_client.close.assert_awaited_once()
+        assert async_hook._cached_kube_client is None
+        assert async_hook._cached_token is None
+
 
 @pytest_asyncio.fixture
 async def async_gke_hook():
