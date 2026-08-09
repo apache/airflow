@@ -35,7 +35,9 @@ PAYLOAD_BODY_KEY = "body"
 class CallbackTrigger(BaseTrigger):
     """Trigger that executes a callback function asynchronously."""
 
-    supports_triggerer_queue: bool = True
+    # CallbackTrigger sets its own `queue` directly (see `__init__` below), so
+    # `_defer_task` must not overwrite it with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = False
 
     def __init__(
         self,

@@ -289,8 +289,9 @@ def test_create_shared_stream_producer_raises_by_default():
         _PlainEventTrigger.create_shared_stream_producer({})
 
 
-def test_base_event_trigger_supports_triggerer_queue():
-    assert BaseEventTrigger.supports_triggerer_queue is True
+def test_base_event_trigger_queue_not_inherited_from_task():
+    """False so `_defer_task` doesn't overwrite the trigger's own `queue` with the task's."""
+    assert BaseEventTrigger.trigger_queue_inherited_from_task is False
 
 
 def test_base_event_trigger_queue_defaults_to_none():

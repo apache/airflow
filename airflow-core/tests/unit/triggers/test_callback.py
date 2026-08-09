@@ -78,8 +78,9 @@ class TestCallbackTrigger:
             "callback_kwargs": expected_serialized_kwargs,
         }
 
-    def test_supports_triggerer_queue(self):
-        assert CallbackTrigger.supports_triggerer_queue is True
+    def test_queue_not_inherited_from_task(self):
+        """False so `_defer_task` doesn't overwrite the trigger's own `queue` with the task's."""
+        assert CallbackTrigger.trigger_queue_inherited_from_task is False
 
     def test_queue_attribute_is_not_part_of_serialized_kwargs(self):
         """``queue`` is read directly off the trigger by ``Trigger.from_object``, not via serialize()."""

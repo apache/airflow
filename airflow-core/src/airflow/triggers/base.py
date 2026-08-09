@@ -78,7 +78,11 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    supports_triggerer_queue: bool = True
+    # Whether a deferred task's queue should be inherited by this trigger when
+    # ``triggerer.queues_enabled`` is set. Subclasses that assign their own ``queue``
+    # directly (e.g. ``BaseEventTrigger``, ``CallbackTrigger``) must set this to False,
+    # or ``_defer_task`` will overwrite that queue with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = True
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -302,7 +306,9 @@ class BaseEventTrigger(BaseTrigger):
     the team and queue function as a logical 'AND'.
     """
 
-    supports_triggerer_queue: bool = True
+    # BaseEventTrigger sets its own `queue` directly (see `__init__` below), so
+    # `_defer_task` must not overwrite it with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = False
 
     def __init__(self, *, queue: str | None = None, **kwargs):
         super().__init__(**kwargs)
