@@ -493,6 +493,8 @@ According to `benchmarks <https://github.com/apache/airflow/pull/58803#pullreque
 
 You can determine a suitable value for your deployment by creating a large number of triggers (for example, by triggering a Dag with many deferrable tasks) and observing both how the load is distributed across Triggerers in your environment and how long it takes for all Triggerers to pick up the triggers.
 
+.. _deferring/triggerer_queue_assignment:
+
 Controlling Triggerer Host Assignment Per Trigger
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -508,7 +510,7 @@ Under some circumstances, it may be desirable to assign a Trigger to a specific 
     If you are using :doc:`Multi-Team mode</core-concepts/multi-team>`, the ``--team-name`` option provides
     native team-scoped triggerer assignment for all trigger types (task-created, event-driven, and callback).
     See :ref:`Team-scoped Triggerer <multi-team-triggerer>` in the Multi-Team documentation.
-    The ``--queues`` option described below is an older, queue-based mechanism that can be combined with
+    The ``--queues`` option described below is a distinct queue-based mechanism which may be combined with
     ``--team-name`` if needed.
 
 To enable queue assignment for triggers, do the following:
@@ -536,33 +538,35 @@ This feature is only compatible with executors which utilize the task ``queue`` 
 task-created triggers. :doc:`Event-Driven Triggers<../authoring-and-scheduling/event-scheduling>`
 are not tied to a task queue, but a :class:`~airflow.triggers.base.BaseEventTrigger` subclass can
 be assigned to a queue explicitly by passing ``queue=`` to ``super().__init__()``, independently
-of any executor.
+of any executor. Similarly, triggers from async
+:doc:`Callbacks<../administration-and-deployment/logging-monitoring/callbacks>` can be assigned to a
+queue by passing ``queue=`` to :class:`~airflow.sdk.AsyncCallback`.
 
-Queue assignment is not supported for triggers from async
-:doc:`Callbacks<../administration-and-deployment/logging-monitoring/callbacks>`.
++------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| Trigger Type                                                                                         | Triggerer assignment source when :ref:`config:triggerer__queues_enabled` is ``True``    |
++======================================================================================================+=========================================================================================+
+| Task-created Trigger instances                                                                       | Any triggerer with the task queue present in its ``--queues`` option                    |
++------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| :doc:`Event-Driven Triggers<../authoring-and-scheduling/event-scheduling>`                           | Any triggerer whose ``--queues`` includes the trigger's ``queue``, or any               |
+|                                                                                                      | triggerer without ``--queues`` if no ``queue`` was set                                  |
++------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| Triggers from async :doc:`Callbacks<../administration-and-deployment/logging-monitoring/callbacks>`  | Any triggerer whose ``--queues`` includes the callback's ``queue``, or any              |
+|                                                                                                      | triggerer without ``--queues`` if no ``queue`` was set                                  |
++------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
 
-+------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
-| Trigger Type                                                                                         | Supports queues?     | Triggerer assignment when :ref:`config:triggerer__queues_enabled` is ``True``    |
-+======================================================================================================+======================+==================================================================================+
-| Task-created Trigger instances                                                                       | Yes                  | Any triggerer with the task queue present in its ``--queues`` option             |
-+------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
-| :doc:`Event-Driven Triggers<../authoring-and-scheduling/event-scheduling>`                           | Yes                  | Any triggerer whose ``--queues`` includes the trigger's ``queue``, or any        |
-|                                                                                                      |                      | triggerer without ``--queues`` if no ``queue`` was set                           |
-+------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
-| Triggers from async :doc:`Callbacks<../administration-and-deployment/logging-monitoring/callbacks>`  | No                   | Any triggerer running without the ``--queues`` option                            |
-+------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
-
-If you use queues for task-based and/or event-driven triggers, while **also** using callback triggers
-(or event-driven triggers without an explicit ``queue``), you must run one or more triggerer hosts
+If you run a mix of triggers with queues **and** without queues assigned, (of any trigger type), you must run at least one triggerer host
 **without** the ``--queues`` option, so the latter are still run.
 
 .. note::
     To enable trigger queues, you must set the ``--queues`` option on one or more triggerers' startup command (these values may differ between the various triggerers).
-    If you set the ``--queue`` value of a triggerer to some value which no task queues or event-driven trigger queues exist for, that triggerer will never run any triggers.
-    Similarly, all ``triggerer`` instances running without the ``--queues`` option will only consume callback-based triggers and event-driven triggers that were not assigned an explicit ``queue``.
+    If you set the ``--queue`` value of a triggerer to some value which no triggers are assigned (either from their task queue, or from their explicit ``queue`` field), then that triggerer
+    will never run any triggers. Similarly, all triggerer instances running without the ``--queues`` option will only consume callback-based triggers and event-driven triggers that were not
+    assigned an explicit ``queue``.
 
 An event-driven trigger's ``queue`` is set once, when the trigger is registered for an
-:class:`~airflow.sdk.AssetWatcher` during Dag processing, and is independent of
+:class:`~airflow.sdk.AssetWatcher` during Dag processing. A callback trigger's ``queue`` is set
+from the ``queue`` passed to :class:`~airflow.sdk.AsyncCallback` when the deadline is missed and the
+callback is queued on the Triggerer. Both are independent of
 :doc:`Multi-Team mode</core-concepts/multi-team>`'s ``team_name`` scoping — the two can be
 combined.
 

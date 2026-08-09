@@ -151,15 +151,30 @@ class AsyncCallback(Callback):
     triggerer.
 
     It will be called with Airflow context and specified kwargs when a deadline is missed.
+
+    Pass ``queue`` to assign the resulting trigger to a specific triggerer queue (see
+    :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
     """
 
-    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+    queue: str | None
+
+    def __init__(
+        self,
+        callback_callable: Callable | str,
+        kwargs: dict | None = None,
+        queue: str | None = None,
+    ):
         super().__init__(callback_callable=callback_callable, kwargs=kwargs)
+        self.queue = queue
 
     @classmethod
     def verify_callable(cls, callback: Callable):
         if not (inspect.iscoroutinefunction(callback) or hasattr(callback, "__await__")):
             raise AttributeError(f"Provided callback {callback} is not awaitable.")
+
+    @classmethod
+    def serialized_fields(cls) -> tuple[str, ...]:
+        return super().serialized_fields() + ("queue",)
 
 
 class SyncCallback(Callback):

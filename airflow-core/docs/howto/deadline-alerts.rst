@@ -362,6 +362,21 @@ A **custom asynchronous callback** might look like this:
     ):
         EmptyOperator(task_id="example_task")
 
+.. tip::
+    ``AsyncCallback`` accepts an optional ``queue`` parameter to assign the resulting trigger to a
+    specific :ref:`triggerer queue <config:triggerer__queues_enabled>`. If not specified, the
+    callback trigger runs on any triggerer started without the ``--queues`` option. See
+    :ref:`Controlling Triggerer Host Assignment Per Trigger <deferring/triggerer_queue_assignment>`
+    for details.
+
+    .. code-block:: python
+
+        AsyncCallback(
+            my_callback,
+            kwargs={"msg": "deadline missed"},
+            queue="alerts",
+        )
+
 Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 

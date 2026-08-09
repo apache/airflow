@@ -78,6 +78,24 @@ class TestCallbackTrigger:
             "callback_kwargs": expected_serialized_kwargs,
         }
 
+    def test_supports_triggerer_queue(self):
+        assert CallbackTrigger.supports_triggerer_queue is True
+
+    def test_queue_attribute_is_not_part_of_serialized_kwargs(self):
+        """``queue`` is read directly off the trigger by ``Trigger.from_object``, not via serialize()."""
+        trigger = CallbackTrigger(
+            callback_path=TEST_CALLBACK_PATH,
+            callback_kwargs=None,
+            queue="custom-queue",
+        )
+
+        assert trigger.queue == "custom-queue"
+        _, kwargs = trigger.serialize()
+        assert "queue" not in kwargs
+
+    def test_queue_defaults_to_none(self, trigger):
+        assert trigger.queue is None
+
     @pytest.mark.asyncio
     async def test_run_success_with_async_function(self, trigger, mock_import_string):
         """Test trigger handles async functions correctly."""

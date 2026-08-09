@@ -102,6 +102,13 @@ class ImportPathExecutorCallbackDefProtocol(ImportPathCallbackDefProtocol, Proto
     executor: str | None
 
 
+@runtime_checkable
+class ImportPathAsyncCallbackDefProtocol(ImportPathCallbackDefProtocol, Protocol):
+    """Protocol for callbacks that use the import path fetch method and support triggerer queue assignment."""
+
+    queue: str | None
+
+
 class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
@@ -201,7 +208,7 @@ class Callback(Base, BaseWorkload):
         match type(callback_def).__name__:
             case "AsyncCallback":
                 if TYPE_CHECKING:
-                    assert isinstance(callback_def, ImportPathCallbackDefProtocol)
+                    assert isinstance(callback_def, ImportPathAsyncCallbackDefProtocol)
                 return TriggererCallback(callback_def, **kwargs)
 
             case "SyncCallback":
@@ -244,6 +251,7 @@ class TriggererCallback(Callback):
             CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
+                queue=self.data.get("queue"),
             )
         )
         self.trigger.team_name = team_name
