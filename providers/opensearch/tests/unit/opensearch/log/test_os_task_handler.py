@@ -288,6 +288,22 @@ class TestOpensearchTaskHandler:
         )
         assert handler.index_patterns == patterns
 
+    def test_client_no_auth(self):
+        handler = OpensearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            host="localhost",
+            port=9200,
+            username="",
+            password="",
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+        )
+        assert "http_auth" not in handler.client.transport.kwargs
+
     @pytest.mark.db_test
     @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
     def test_read(self, ti, metadata_mode):
@@ -785,6 +801,20 @@ class TestOpensearchRemoteLogIO:
         log_file = tmp_path / "1.log"
         log_file.write_text('{"message": "test"}\n')
         self.opensearch_io.upload(log_file, ti=None)
+
+    def test_client_no_auth(self):
+        opensearch_io = OpensearchRemoteLogIO(
+            write_to_opensearch=True,
+            write_stdout=True,
+            delete_local_copy=True,
+            host="localhost",
+            port=9200,
+            username="",
+            password="",
+            base_log_folder=self.opensearch_io.base_log_folder,
+            log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
+        assert "http_auth" not in opensearch_io.client.transport.kwargs
 
 
 class TestOpensearchRemoteLogIOFromConfig:
