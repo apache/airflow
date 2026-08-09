@@ -1406,15 +1406,22 @@ breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable
 The workflow derives the stage from `--version` alone, so there is no separate switch that could
 disagree with the version:
 
-| `--version` | Pre-releases | Lands on | Tagged |
+| `--version` | Provider pins | Lands on | Tagged |
 |---|---|---|---|
-| `3.1.3rc1` | providers only | `constraints-3.1.3rc1`, branched off `constraints-3-1` | `constraints-3.1.3rc1` |
-| `3.1.3` | none | `constraints-3-1` (commit) | `constraints-3.1.3` |
+| `3.1.3rc1` | newest in PyPI, `rcN` included | `constraints-3.1.3rc1`, branched off `constraints-3-1` | `constraints-3.1.3rc1` |
+| `3.1.3` | newest final in PyPI | `constraints-3-1` (commit) | `constraints-3.1.3` |
 
-"Providers only" is literal: the resolution names every `apache-airflow-providers-*` with a
-pre-release lower bound and runs under uv's `explicit` strategy, which permits a pre-release solely
-for a package marked that way. Nothing else in the dependency graph can resolve to one — which is
-why `--pre` is not used, since it would apply to the whole resolution.
+The providers are pinned rather than resolved: every `apache-airflow-providers-*` is named with
+`==` at the newest version PyPI can install, so the constraints record what is actually published
+instead of whatever the resolver settles on. A candidate takes the wave's `rcN` versions along with
+it - a pre-release only wins by sorting above every final release, so a provider without a
+candidate in the wave keeps its release. A final ignores candidates entirely, which is what makes
+it impossible for a released constraints file to carry an `rc` pin. Nothing else in the dependency
+graph can resolve to a pre-release, since no other requirement mentions one.
+
+Re-running the workflow for the same candidate deletes and re-creates that candidate's branch and
+tag, so redoing a candidate's constraints just works. A final is never treated this way - it commits
+onto the shared `constraints-X-Y` branch, whose history everything downstream reads.
 
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
