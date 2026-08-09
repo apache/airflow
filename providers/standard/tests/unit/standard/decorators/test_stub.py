@@ -308,9 +308,11 @@ class TestStubTaskflowArgs:
         }
         assert "_arg_bindings" not in result.operator.partial_kwargs
 
-        # The wrapping MappedOperator never inherits the stub marker, so it serializes
-        # cleanly with no materialized spec of its own.
-        assert _round_trip(dag).task_dict["fn_transform"].inherits_from_stub_operator is False
+        # The wrapping MappedOperator carries the is_stub marker too, but has no op_args/op_kwargs
+        # to bind against, so it serializes cleanly with no materialized spec of its own.
+        round_tripped = _round_trip(dag).task_dict["fn_transform"]
+        assert round_tripped.is_stub is True
+        assert round_tripped._arg_bindings is None
 
     def test_stub_with_args_inside_mapped_task_group_rejected(self):
         @task_group

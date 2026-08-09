@@ -105,7 +105,7 @@ class SerializedMappedOperator(DAGNode):
     _is_empty: bool = attrs.field(alias="is_empty", init=False, default=False)
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
-    _is_stub_operator: bool = attrs.field(alias="is_stub_operator", init=False, default=False)
+    is_stub: bool = attrs.field(init=False, default=False)
     _arg_bindings: list[dict[str, Any]] | None = attrs.field(alias="arg_bindings", init=False, default=None)
     _task_module: str
     task_type: str
@@ -187,10 +187,6 @@ class SerializedMappedOperator(DAGNode):
     @property
     def inherits_from_skipmixin(self) -> bool:
         return self._can_skip_downstream
-
-    @property
-    def inherits_from_stub_operator(self) -> bool:
-        return self._is_stub_operator
 
     @property
     def owner(self) -> str:

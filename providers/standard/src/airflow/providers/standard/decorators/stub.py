@@ -31,8 +31,8 @@ class _StubOperator(DecoratedOperator):
     custom_operator_name: str = "@task.stub"
 
     # Read by core Dag serialization (OperatorSerialization._serialize_node) to materialize
-    # the TaskFlow arg-binding spec generically; see airflow.serialization.stub_arg_bindings.
-    inherits_from_stub_operator = True
+    # the TaskFlow arg-binding spec generically.
+    is_stub: bool = True
 
     def __init__(
         self,

@@ -130,6 +130,8 @@ class AbstractOperator(Templater, DAGNode):
     _is_sensor: bool = False
     _is_mapped: bool = False
     _can_skip_downstream: bool = False
+    # Declared in Python, implemented by a Lang-SDK runtime. Set by ``@task.stub``.
+    is_stub: bool = False
 
     @property
     def dag_id(self) -> str:
@@ -197,11 +199,6 @@ class AbstractOperator(Templater, DAGNode):
     def inherits_from_skipmixin(self):
         """Used to determine if an Operator is inherited from SkipMixin or its subclasses (e.g., BranchMixin)."""
         return getattr(self, "_can_skip_downstream", False)
-
-    @property
-    def inherits_from_stub_operator(self):
-        """Used to determine if an Operator is inherited from the lang-SDK stub operator."""
-        return getattr(self, "_is_stub_operator", False)
 
     def as_setup(self):
         self.is_setup = True

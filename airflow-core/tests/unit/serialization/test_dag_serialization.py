@@ -3572,7 +3572,7 @@ def test_stub_task_args_round_trip():
     ]
 
     round_tripped = DagSerialization.from_dict(ser_dag)
-    assert round_tripped.task_dict["transform"].inherits_from_stub_operator is True
+    assert round_tripped.task_dict["transform"].is_stub is True
     assert round_tripped.task_dict["transform"]._arg_bindings == [
         {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
         {
@@ -3606,7 +3606,7 @@ def test_stub_task_args_round_trip():
             "value": {"threshold": {"warn": 1}},
         },
     ]
-    assert round_tripped.task_dict["extract"].inherits_from_stub_operator is True
+    assert round_tripped.task_dict["extract"].is_stub is True
     assert round_tripped.task_dict["extract"]._arg_bindings is None
 
     # The deserialized spec must be plain JSON (no {__type, __var} encoding sentinels) so the
@@ -3616,6 +3616,18 @@ def test_stub_task_args_round_trip():
 
     for task_id in ("transform", "aggregate"):
         get_arg_bindings_adapter().validate_python(round_tripped.task_dict[task_id]._arg_bindings)
+
+
+@pytest.mark.parametrize("raw", ["false", "true", 0, 1, None, [], {"a": 1}])
+def test_task_is_stub_fails_closed_on_non_boolean(raw):
+    """A task flag from a non-Python producer is never schema-validated, so it must fail closed."""
+    with DAG(dag_id="test_task_is_stub_non_boolean", schedule=None) as dag:
+        BaseOperator(task_id="simple_task", start_date=datetime(2019, 8, 1))
+
+    ser_dag = DagSerialization.to_dict(dag)
+    ser_dag["dag"]["tasks"][0][Encoding.VAR]["is_stub"] = raw
+
+    assert DagSerialization.from_dict(ser_dag).task_dict["simple_task"].is_stub is False
 
 
 def test_handle_v1_serdag():

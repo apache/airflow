@@ -479,8 +479,8 @@ def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
     """
     Bind the TaskFlow call arguments to the stub signature and build the ordered arg spec.
 
-    Called from ``OperatorSerialization._serialize_node`` for any operator flagged
-    ``inherits_from_stub_operator``. Each spec entry is a plain dict matching one variant of
+    Called from ``OperatorSerialization._serialize_node`` for any non-mapped operator flagged
+    ``is_stub``. Each spec entry is a plain dict matching one variant of
     the execution API's ``TaskArgBinding`` union: an ``XComArgBinding`` (``kind="xcom"``) for
     upstream TaskFlow outputs, or a ``LiteralArgBinding`` (``kind="literal"``) for everything
     else. ``name`` is always the stub function's parameter name, so a foreign runtime can bind
@@ -1308,12 +1308,13 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if op.inherits_from_skipmixin:
             serialize_op["_can_skip_downstream"] = True
 
-        # Used to determine if an Operator is a lang-SDK stub task, and to materialize its
-        # TaskFlow arg-binding spec (see airflow.serialization.stub_arg_bindings).
-        if op.inherits_from_stub_operator:
-            serialize_op["_is_stub_operator"] = True
-            # inherits_from_stub_operator is only ever True on a DecoratedOperator subclass.
-            if arg_bindings := build_arg_bindings(cast("DecoratedOperator", op)):
+        # Declared in Python but implemented by a Lang-SDK runtime -- see ``@task.stub``. A mapped
+        # stub carries the flag too (any future consumer needs it to tell a Dag pairs Python with a
+        # Lang-SDK runtime), but it has no op_args/op_kwargs to bind against here: per-map-index
+        # delivery is a follow-up, so only a non-mapped stub materializes an arg-binding spec.
+        if op.is_stub:
+            serialize_op["is_stub"] = True
+            if not op.is_mapped and (arg_bindings := build_arg_bindings(cast("DecoratedOperator", op))):
                 serialize_op["_arg_bindings"] = arg_bindings
 
         if op.start_trigger_args:
@@ -1433,6 +1434,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             elif k == "_arg_bindings":
                 # Plain JSON (not {__type, __var}-encoded); restored verbatim below.
                 continue
+            elif k == "is_stub":
+                # Set unconditionally below, so that a malformed producer value fails closed here
+                # instead of blowing up in the generic decoding this loop would otherwise apply.
+                continue
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1491,9 +1496,9 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # Used to determine if an Operator is inherited from SkipMixin
         setattr(op, "_can_skip_downstream", bool(encoded_op.get("_can_skip_downstream", False)))
 
-        # Used to determine if an Operator is a lang-SDK stub task, and to restore its
-        # materialized TaskFlow arg-binding spec.
-        setattr(op, "_is_stub_operator", bool(encoded_op.get("_is_stub_operator", False)))
+        # Fails closed like the Dag-level flag: a non-Python producer's blob is never schema-validated
+        # on this path, so anything that is not JSON ``true`` means "not a stub".
+        setattr(op, "is_stub", encoded_op.get("is_stub") is True)
         setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
 
         start_trigger_args = None

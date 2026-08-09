@@ -68,7 +68,6 @@ class SerializedBaseOperator(DAGNode):
 
     _can_skip_downstream: bool
     _is_empty: bool
-    _is_stub_operator: bool = False
     _arg_bindings: list[dict[str, Any]] | None = None
     _needs_expansion: bool
     _task_display_name: str | None = None
@@ -97,6 +96,7 @@ class SerializedBaseOperator(DAGNode):
 
     inlets: Sequence = []
     is_setup: bool = False
+    is_stub: bool = False
     is_teardown: bool = False
 
     map_index_template: str | None = None
@@ -296,10 +296,6 @@ class SerializedBaseOperator(DAGNode):
     @property
     def inherits_from_skipmixin(self) -> bool:
         return self._can_skip_downstream
-
-    @property
-    def inherits_from_stub_operator(self) -> bool:
-        return self._is_stub_operator
 
     @property
     def operator_name(self) -> str:
