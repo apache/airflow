@@ -197,30 +197,25 @@ code is never executed in the context of the *scheduler*.
 Task execution architecture
 ----------------------------
 
-The diagrams above show how Airflow's components are *deployed*. This section instead
-shows what happens *inside a worker when a task runs*, so you can reason about each
-process's lifecycle and how the processes relate.
+The diagrams above show how Airflow's components are *deployed*.
+This section covers what you should expect to be running on a *worker* while tasks execute, so you can size workers for the memory and start-up cost that each concurrent task instance adds.
 
-When a *worker* runs a task it does not execute the user's code directly. It first starts a
-**supervisor** process. The supervisor is the only side that holds the task's short-lived
-credentials and talks to the *Execution API* — it proxies every Connection, Variable and
-XCom lookup and every heartbeat on the task's behalf, so the code that runs the task never
-touches the database.
+A *worker* never runs task code in its own process.
+For every task instance it starts a **new subprocess**, supervises it, and tears it down once the task instance finishes.
+That is true whatever language the task is written in — only the kind of subprocess differs:
 
-Inside the supervisor, a ``CoordinatorManager`` selects a *coordinator* by matching the
-task's ``TaskInstance.queue``. Ordinary Python tasks run in the built-in coordinator under
-the same supervisor, with no separate language process. Non-Python tasks are routed to a
-language coordinator — a **Java** coordinator for JVM bundles, or an **Executable**
-coordinator for self-contained native bundles (for example, Go) — which launches the task's
-runtime as a **language SDK subprocess**. That subprocess talks back to the supervisor over
-a **MsgPack comm frame** protocol, so from the *Execution API*'s point of view a
-non-Python task behaves exactly like a Python one.
+* **Python** — a forked Python interpreter.
+* **Java** — a brand-new JVM instance.
+* **Go** — a brand-new process of the compiled task binary.
 
 .. image:: ../img/diagram_task_execution_architecture.png
 
-For the internal details — coordinator internals, subprocess drivers, the wire protocol
-and sequence diagrams — see the `task execution architecture developer guide
-<https://github.com/apache/airflow/blob/main/contributing-docs/31_task_execution_architecture.rst>`_.
+Nothing is pooled or reused between task instances, so *N* concurrent task instances cost *N* subprocesses plus anything the task code itself spawns.
+Sizing a worker therefore means budgeting for the peak number of task instances it runs at once, not for the worker process alone.
+
+The worker process is also the only side that holds the task's short-lived credentials and talks to the *Execution API*, so the subprocess running the task code never reaches the metadata database directly, in any language.
+
+For how the worker drives each runtime internally — the wire protocol and sequence diagrams — see the `task execution architecture developer guide <https://github.com/apache/airflow/blob/main/contributing-docs/31_task_execution_architecture.rst>`_.
 
 .. _overview:workloads:
 

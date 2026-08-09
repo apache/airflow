@@ -22,15 +22,21 @@
 # ]
 # ///
 """
-High-level task execution architecture for the *Architecture Overview* page.
+Worker process model for the *Architecture Overview* page.
 
-Deliberately coarse-grained: it shows only the process boundaries a Deployment
-Manager needs to reason about — the **Supervisor** process, the
-``CoordinatorManager`` that routes a task to a coordinator by its
-``TaskInstance.queue``, and the **language SDK subprocess** the coordinator
-launches for non-Python tasks. Internal plumbing (subprocess drivers, TCP port
-setup, schema versioning) is intentionally omitted; that detail lives in the
-developer guide under ``contributing-docs/`` instead.
+Answers the one question a Deployment Manager needs in order to size a worker:
+*what runs, and for how long, while a task instance executes?* Every task
+instance gets its own subprocess whatever language it is written in, and that
+subprocess lives exactly as long as the task instance — for Java and Go it is a
+fresh JVM / fresh binary process each time, not a pooled runtime.
+
+The worker process's own lifetime is deliberately left unstated: it is pooled and
+reused under the Local and Celery executors, but one-shot per task instance under
+the Kubernetes executor. Only the task subprocess behaves the same way everywhere.
+
+Deliberately omits how the worker and the subprocess talk to each other
+(coordinators, the msgpack comm frame, the Execution API); that detail is
+developer-facing and lives in ``contributing-docs/31_task_execution_architecture.rst``.
 """
 
 from __future__ import annotations
@@ -46,10 +52,16 @@ MY_FILENAME = Path(__file__).with_suffix("").name
 console = Console(width=400, color_system="standard")
 
 # (fill, border) per role — consistent with the detailed Task SDK diagrams.
-SUP = ("#e3f2fd", "#1565c0")  # Supervisor process (blue)
-COORD = ("#ede7f6", "#5e35b1")  # Coordinator layer (deep purple)
-PY = ("#e8f5e9", "#2e7d32")  # built-in Python coordinator (green)
-LANG = ("#fbe9e7", "#d84315")  # language SDK runtime — JVM or compiled binary (deep orange)
+WORKER = ("#e3f2fd", "#1565c0")  # the long-running worker process (blue)
+PY = ("#e8f5e9", "#2e7d32")  # Python task subprocess (green)
+LANG = ("#fbe9e7", "#d84315")  # JVM / native binary task subprocess (deep orange)
+
+# One box per task instance: (node id, heading, what the subprocess actually is, theme).
+TASK_INSTANCES = (
+    ("py", "Task instance   ·   Python", "a forked Python interpreter", PY),
+    ("java", "Task instance   ·   Java", "a brand-new JVM instance", LANG),
+    ("go", "Task instance   ·   Go", "a brand-new process of the compiled binary", LANG),
+)
 
 
 def _label(title: str, sub: str | None = None) -> str:
@@ -70,7 +82,7 @@ def _node(g, node_id: str, title: str, sub: str, *, shape: str, theme: tuple[str
         fillcolor=fill,
         color=border,
         penwidth="2",
-        margin="0.18,0.12",
+        margin="0.20,0.14",
     )
 
 
@@ -82,121 +94,56 @@ def generate_task_execution_architecture_diagram():
     g.attr(
         rankdir="TB",
         splines="spline",
-        nodesep="0.6",
-        ranksep="1.0",
+        nodesep="0.7",
+        ranksep="1.1",
         pad="0.5",
         bgcolor="white",
         fontname="Helvetica",
         newrank="true",
-        compound="true",
     )
     g.attr("node", fontname="Helvetica", fontsize="13", fontcolor="#102027")
-    g.attr("edge", fontname="Helvetica", fontsize="10", penwidth="1.8", color="#546e7a")
+    g.attr("edge", fontname="Helvetica", fontsize="11", penwidth="1.8", color="#546e7a")
 
     with g.subgraph(name="cluster_worker") as worker:
         worker.attr(
             label="Worker",
             labelloc="t",
             style="rounded,filled",
-            fillcolor="#f5f5f5",
+            fillcolor="#fafafa",
             color="#607d8b",
             penwidth="1.8",
             fontsize="19",
             fontname="Helvetica-Bold",
             margin="24",
         )
-
-        with worker.subgraph(name="cluster_sup") as sup:
-            sup.attr(
-                label="Supervisor process   ·   native OS process (Python)",
-                labelloc="t",
-                style="rounded,filled",
-                fillcolor="#eef0fb",
-                color=SUP[1],
-                penwidth="1.5",
-                fontsize="15",
-                fontname="Helvetica-Bold",
-                margin="16",
-            )
-            _node(
-                sup,
-                "coord_mgr",
-                "CoordinatorManager",
-                "matches TaskInstance.queue → a coordinator",
-                shape="box",
-                theme=SUP,
-            )
-            _node(
-                sup,
-                "pycoord",
-                "Python Coordinator   (default)",
-                "",
-                shape="box",
-                theme=PY,
-            )
-            _node(
-                sup,
-                "java",
-                "Java Coordinator",
-                "JAR bundles",
-                shape="box",
-                theme=COORD,
-            )
-            _node(
-                sup,
-                "exe",
-                "Executable Coordinator",
-                "self-contained native bundles (e.g. Go)",
-                shape="box",
-                theme=COORD,
-            )
-            sup.edge(
-                "coord_mgr", "pycoord", style="dotted", color=PY[1], arrowhead="vee", label="default queue"
-            )
-            sup.edge("coord_mgr", "java", style="dotted", color=COORD[1], arrowhead="vee", label="java queue")
-            sup.edge("coord_mgr", "exe", style="dotted", color=COORD[1], arrowhead="vee", label="other queue")
-
         _node(
             worker,
-            "jvm",
-            "JVM subprocess",
-            "each task-instance launches a new JVM instance   ·   runs USER CODE",
-            shape="box3d",
-            theme=LANG,
-        )
-        _node(
-            worker,
-            "gobin",
-            "Go subprocess",
-            "each task-instance launches a new native binary executable   ·   runs USER CODE",
-            shape="box3d",
-            theme=LANG,
-        )
-        _node(
-            worker,
-            "pysub",
-            "Python subprocess",
-            "runs the Python workload with the Task SDK<br/>execution_time task_runner   ·   runs USER CODE",
-            shape="box3d",
-            theme=PY,
+            "worker",
+            "Worker process",
+            "supervises the task instance   ·   holds its credentials   ·   runs NO user code",
+            shape="box",
+            theme=WORKER,
         )
 
-    g.edge("pycoord", "pysub", color=PY[1], arrowhead="vee", label="fork")
-    g.edge("java", "jvm", color=COORD[1], arrowhead="vee", label="launch")
-    g.edge("exe", "gobin", color=COORD[1], arrowhead="vee", label="launch")
-    # The comm frame is a channel to the Supervisor process, so clip the head at the
-    # supervisor cluster boundary (lhead); routing toward each subprocess's own coordinator
-    # keeps the arrow local and vertical instead of crossing the diagram.
-    for coord, subproc in (("pycoord", "pysub"), ("java", "jvm"), ("exe", "gobin")):
+        for node_id, heading, subprocess_kind, theme in TASK_INSTANCES:
+            _node(
+                worker,
+                node_id,
+                heading,
+                f"{subprocess_kind}   ·   runs USER CODE",
+                shape="box3d",
+                theme=theme,
+            )
+
+    for index, (node_id, _, _, theme) in enumerate(TASK_INSTANCES):
         g.edge(
-            subproc,
-            coord,
-            lhead="cluster_sup",
-            label="MsgPack comm frame",
-            color=LANG[1],
-            fontcolor=LANG[1],
-            dir="both",
-            penwidth="2.2",
+            "worker",
+            node_id,
+            color=theme[1],
+            arrowhead="vee",
+            # Label the middle edge only — all three edges mean the same thing, and repeating
+            # the text three times crowds the fan-out.
+            label="starts a new subprocess\nper task instance" if index == 1 else "",
         )
 
     g.render(outfile=str(image_file), format="png", cleanup=True)
