@@ -71,7 +71,7 @@ dependencies = [
     "apache-airflow-providers-google"
 ]
 "kerberos" = [
-    "krb5",
+    "krb5>=0.8.0",
     "smbprotocol[kerberos]>=1.5.0",
 ]
 

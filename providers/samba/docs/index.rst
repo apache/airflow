@@ -134,12 +134,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-samba[google]
 
 
-============  ==========================================
+============  =================================================
 Extra         Dependencies
-============  ==========================================
+============  =================================================
 ``google``    ``apache-airflow-providers-google``
-``kerberos``  ``krb5``, ``smbprotocol[kerberos]>=1.5.0``
-============  ==========================================
+``kerberos``  ``krb5>=0.8.0``, ``smbprotocol[kerberos]>=1.5.0``
+============  =================================================
 
 Downloading official packages
 -----------------------------
