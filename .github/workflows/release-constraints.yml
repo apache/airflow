@@ -40,7 +40,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       ref:
-        description: "Ref the constraints are resolved from, e.g. v3-3-stable or the release tag"
+        description: "Ref the constraints are resolved from, e.g. v3-1-stable or the release tag"
         required: true
         type: string
 permissions:
