@@ -3659,10 +3659,14 @@ class TestSchedulerJob:
     def test_adopt_or_reset_orphaned_tasks_handles_detached_tis(self, dag_maker, session, mock_executor):
         """
         Reset and adoption must not depend on the session state of the TaskInstances the
-        executor hands back: the reset path copies the full row into TaskInstanceHistory and
-        the adopt path reads last_heartbeat_at / dag_run.conf, none of which are loaded by the
-        orphan query — on a detached instance those reads raise DetachedInstanceError and
-        crash the scheduler loop.
+        executor hands back. An executor can open-and-close a scoped session while adopting
+        (KubernetesExecutor's completed-pod adoption did exactly that until #67850, and
+        released providers <= 10.17.x still do); closing the shared thread-scoped session
+        detaches every TaskInstance the orphan query loaded. The reset path then copies the
+        full row into TaskInstanceHistory and the adopt path reads last_heartbeat_at /
+        dag_run.conf — reads of unloaded attributes that raise DetachedInstanceError on a
+        detached instance and crash the scheduler loop; where attributes happen to be
+        loaded, the writes are silently lost instead.
         """
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
@@ -3689,8 +3693,12 @@ class TestSchedulerJob:
         session.expunge_all()
 
         def adopt_second_reset_first(tis):
-            for ti in tis:
-                session.expunge(ti)
+            # What KubernetesExecutor's completed-pod adoption does mid-adopt in released
+            # providers (<= 10.17.x; fixed on its side by #67850): create_session() returns
+            # the scheduler's own thread-scoped session, and closing it detaches every
+            # TaskInstance the orphan query loaded.
+            with create_session():
+                pass
             return [ti for ti in tis if ti.task_id == "op1"]
 
         mock_executor.try_adopt_task_instances.side_effect = adopt_second_reset_first
