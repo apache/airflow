@@ -21,6 +21,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 from registry_contract_models import (
+    ConnectionTypeContract,
     build_openapi_document,
     validate_modules_catalog,
     validate_provider_parameters,
@@ -108,6 +109,24 @@ def test_module_contract_accepts_legacy_modules_without_supports_deferrable():
 def test_module_contract_preserves_supports_deferrable_true():
     validated = validate_modules_catalog({"modules": [_module_payload(supports_deferrable=True)]})
     assert validated["modules"][0]["supports_deferrable"] is True
+
+
+def test_connection_type_contract_defaults_external_services_to_empty_list():
+    """Legacy connection-types entries (provider.yaml without `external-services`)
+    must still validate, with the field defaulting to an empty list."""
+    validated = ConnectionTypeContract.model_validate({"conn_type": "test", "hook_class": "x.y.Hook"})
+    assert validated.external_services == []
+
+
+def test_connection_type_contract_round_trips_external_services():
+    validated = ConnectionTypeContract.model_validate(
+        {
+            "conn_type": "test",
+            "hook_class": "x.y.Hook",
+            "external_services": ["openai", "anthropic"],
+        }
+    )
+    assert validated.external_services == ["openai", "anthropic"]
 
 
 def test_validate_version_metadata_accepts_legacy_version_modules_without_ids():
