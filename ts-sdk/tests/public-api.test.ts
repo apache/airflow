@@ -23,13 +23,12 @@ import type {
   DagSpec,
   GetXComOpts,
   SetXComOpts,
-  StartCoordinatorOptions,
-  Task,
   TaskClient,
   TaskContext,
   TaskHandler,
   TaskInputs,
   TaskOptions,
+  TaskRef,
   TaskSpec,
 } from "../src/index.js";
 import * as sdk from "../src/index.js";
@@ -37,29 +36,37 @@ import {
   ConnectionNotFoundError,
   Dag,
   registerDags,
-  startCoordinator,
   SUPERVISOR_API_VERSION,
   VariableNotFoundError,
 } from "../src/index.js";
 
 describe("public API", () => {
-  it("exports the Dag authoring surface", () => {
+  it("exports the Dag authoring surface", async () => {
     const dag = new Dag("public_api_dag");
     const upstream = dag.task("public_api_task", async () => undefined);
     const downstream = dag.task("public_api_downstream", async () => undefined, {
       inputs: { upstream },
     });
-    registerDags(dag);
     expect(upstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_task" });
     expect(downstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_downstream" });
-    expect(() => registerDags(new Dag("public_api_dag"))).toThrowError(/already registered/);
+    expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
+    // registerDags registers and then hands off to the runtime, which needs the
+    // supervisor's socket addresses that Airflow puts on argv.
+    await expect(registerDags(dag)).rejects.toThrow("Missing --comm");
+    // A second call would start a second runtime, racing the first for the Dags
+    // registered so far, so it is rejected outright.
+    expect(() => registerDags(new Dag("second_call_dag"))).toThrowError(
+      /registerDags\(\.\.\.\) was already called/,
+    );
   });
 
-  it("does not export the removed registerTask surface", () => {
-    expect("registerTask" in sdk).toBe(false);
-    expect("listRegisteredTasks" in sdk).toBe(false);
+  it("does not export the removed registerTask surface or the coordinator itself", () => {
+    for (const name of ["registerTask", "listRegisteredTasks", "startCoordinator"]) {
+      expect(name in sdk).toBe(false);
+    }
     expectTypeOf<typeof sdk>().not.toHaveProperty("registerTask");
     expectTypeOf<typeof sdk>().not.toHaveProperty("listRegisteredTasks");
+    expectTypeOf<typeof sdk>().not.toHaveProperty("startCoordinator");
   });
 
   it("exports public error classes", () => {
@@ -74,24 +81,17 @@ describe("public API", () => {
     expect(connErr.connId).toBe("missing_conn");
   });
 
-  it("exports the coordinator runtime entrypoint", () => {
-    expectTypeOf<typeof startCoordinator>().toEqualTypeOf<
-      (opts?: StartCoordinatorOptions) => Promise<void>
-    >();
-    expectTypeOf<StartCoordinatorOptions>().toEqualTypeOf<{
-      commAddr?: string;
-      logsAddr?: string;
-      argv?: readonly string[];
-    }>();
+  it("reaches the runtime only through registerDags", () => {
+    expectTypeOf<typeof registerDags>().toEqualTypeOf<(...dags: Dag[]) => Promise<void>>();
     expectTypeOf(SUPERVISOR_API_VERSION).toMatchTypeOf<string>();
   });
 
   it("keeps the Dag authoring signatures extensible via trailing specs", () => {
-    expectTypeOf<Task>().toEqualTypeOf<{
+    expectTypeOf<TaskRef>().toEqualTypeOf<{
       readonly dagId: string;
       readonly taskId: string;
     }>();
-    expectTypeOf<TaskInputs>().toEqualTypeOf<Readonly<Record<string, Task>>>();
+    expectTypeOf<TaskInputs>().toEqualTypeOf<Readonly<Record<string, TaskRef>>>();
     expectTypeOf<TaskOptions>().toEqualTypeOf<{
       readonly inputs?: TaskInputs;
       readonly spec?: TaskSpec;
@@ -102,9 +102,14 @@ describe("public API", () => {
         taskId: string,
         handler: TaskHandler<TReturn>,
         options?: TaskOptions,
-      ) => Task
+      ) => TaskRef
     >();
-    expectTypeOf<typeof registerDags>().toEqualTypeOf<(...dags: Dag[]) => void>();
+    expectTypeOf<Dag["taskIds"]>().toEqualTypeOf<readonly string[]>();
+    // Reserved with no fields yet, so only `{}` is expressible. Generated specs
+    // will be all-optional (weak) types, and `{}` stays assignable to those, so
+    // filling these in later cannot break a call site.
+    expectTypeOf<DagSpec>().toEqualTypeOf<Record<string, never>>();
+    expectTypeOf<TaskSpec>().toEqualTypeOf<Record<string, never>>();
   });
 
   it("uses idiomatic TypeScript names for public client types", () => {
@@ -196,12 +201,18 @@ describe("public API", () => {
       dag.task("transform", async () => undefined, { inputs: { count: 1 } });
       // @ts-expect-error inputs and spec are keyword-only, not positional.
       dag.task("transform2", async () => undefined, { upstream });
-      // @ts-expect-error the Task handle is data, not callable.
+      // @ts-expect-error a Dag spec is an options object, not a primitive.
+      new Dag("spec_dag", 42);
+      // @ts-expect-error DagSpec has no fields yet, so a schedule cannot be declared here.
+      new Dag("spec_dag", { schedule: "@daily" });
+      // @ts-expect-error TaskSpec has no fields yet, so retries cannot be declared here.
+      dag.task("transform3", async () => undefined, { spec: { retries: 2 } });
+      // @ts-expect-error the TaskRef handle is data, not callable.
       upstream();
     };
     void rejectsPositionalMisuse;
-    // @ts-expect-error the Task handle is opaque and does not expose the handler.
-    expectTypeOf<Task>().toHaveProperty("handler");
+    // @ts-expect-error the TaskRef handle is opaque and does not expose the handler.
+    expectTypeOf<TaskRef>().toHaveProperty("handler");
     // @ts-expect-error XCom values must be JSON-compatible.
     acceptsSetXComOpts({ key: "result", value: new Date() });
   });

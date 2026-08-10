@@ -18,11 +18,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { Dag, getDagTaskRecords, type Task } from "../../src/sdk/dag.js";
+import { Dag, getDagTaskRecords, getDeclaredDagIds, type TaskRef } from "../../src/sdk/dag.js";
 import { DagRegistry } from "../../src/sdk/registry.js";
 
 describe("Dag", () => {
-  it("returns a frozen Task handle with the Dag and task identity", () => {
+  it("returns a frozen TaskRef handle with the Dag and task identity", () => {
     const dag = new Dag("example_dag");
     const task = dag.task("my_task", async () => "hello");
     expect(task).toEqual({ dagId: "example_dag", taskId: "my_task" });
@@ -60,11 +60,13 @@ describe("Dag", () => {
   it("records frozen inputs that later mutation of the caller's object cannot change", () => {
     const dag = new Dag("example_dag");
     const extracted = dag.task("extract", async () => undefined);
-    const inputs: Record<string, Task> = { extracted };
+    const inputs: Record<string, TaskRef> = { extracted };
     dag.task("transform", async () => undefined, { inputs });
 
     inputs.sneaky = extracted;
-    expect(getDagTaskRecords(dag).get("transform")?.inputs).toEqual({ extracted });
+    const recorded = getDagTaskRecords(dag).get("transform")!.inputs;
+    expect(recorded).toEqual({ extracted });
+    expect(Object.isFrozen(recorded)).toBe(true);
   });
 
   it("rejects an input taken from another Dag", () => {
@@ -84,7 +86,7 @@ describe("Dag", () => {
     ["null", null],
   ])("rejects an input that is not a task handle: %s", (_label, value) => {
     const dag = new Dag("example_dag");
-    const extracted = value as unknown as Task;
+    const extracted = value as unknown as TaskRef;
     expect(() =>
       dag.task("transform", async () => undefined, { inputs: { extracted } }),
     ).toThrowError(
@@ -102,7 +104,7 @@ describe("Dag", () => {
     ).toThrowError(/Input "ghost" of task "transform" refers to unregistered task "ghost"/);
   });
 
-  it("retains its spec and each task's handler and spec", () => {
+  it("retains its spec and each task's handler and spec, copied and frozen", () => {
     const dagSpec = {};
     const taskSpec = {};
     const handler = async () => "hello";
@@ -110,10 +112,48 @@ describe("Dag", () => {
     dag.task("my_task", handler, { spec: taskSpec });
 
     expect(dag.dagId).toBe("example_dag");
-    expect(dag.spec).toBe(dagSpec);
+    expect(dag.spec).toEqual(dagSpec);
+    expect(Object.isFrozen(dag.spec)).toBe(true);
     const record = getDagTaskRecords(dag).get("my_task");
     expect(record?.handler).toBe(handler);
-    expect(record?.spec).toBe(taskSpec);
+    expect(record?.spec).toEqual(taskSpec);
+    expect(Object.isFrozen(record!.spec)).toBe(true);
+  });
+
+  it("exposes its task IDs in attachment order", () => {
+    const dag = new Dag("ordered_dag");
+    expect(dag.taskIds).toEqual([]);
+    dag.task("extract", async () => undefined);
+    dag.task("transform", async () => undefined);
+    expect(dag.taskIds).toEqual(["extract", "transform"]);
+  });
+
+  it.each([
+    ["a misspelled inputs key", { input: {} }],
+    ["a misspelled spec key", { specs: {} }],
+    ["an upstream handle passed positionally", { upstream: { dagId: "d", taskId: "t" } }],
+  ])("rejects %s in the task options", (_label, options) => {
+    const dag = new Dag("example_dag");
+    expect(() =>
+      dag.task("transform", async () => undefined, options as unknown as Record<string, never>),
+    ).toThrowError(/Unknown option ".+" for Dag "example_dag" task "transform"/);
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it.each([
+    ["null", null],
+    ["an array", []],
+    ["a string", "inputs"],
+  ])("rejects task options that are not an options object: %s", (_label, options) => {
+    const dag = new Dag("example_dag");
+    expect(() =>
+      dag.task("transform", async () => undefined, options as unknown as Record<string, never>),
+    ).toThrowError(/options for Dag "example_dag" task "transform" must be an object/);
+  });
+
+  it("reports every declared Dag id, registered or not", () => {
+    new Dag("declared_but_unregistered_dag");
+    expect(getDeclaredDagIds()).toContain("declared_but_unregistered_dag");
   });
 
   it("rejects duplicate taskIds within a Dag", () => {

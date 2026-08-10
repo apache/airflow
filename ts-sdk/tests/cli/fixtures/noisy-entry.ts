@@ -18,12 +18,11 @@
  * under the License.
  */
 
-import { Dag, registerDags, startCoordinator } from "../../../src/index.js";
+import { Dag, registerDags } from "../../../src/index.js";
 
 console.log("noise from an import-time dependency");
 
 const noisyDag = new Dag("noisy_dag");
 noisyDag.task("only", async () => undefined);
-registerDags(noisyDag);
 
-await startCoordinator();
+await registerDags(noisyDag);

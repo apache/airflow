@@ -17,6 +17,6 @@
  * under the License.
  */
 
-import { startCoordinator } from "../../../src/index.js";
+import { registerDags } from "../../../src/index.js";
 
-await startCoordinator();
+await registerDags();

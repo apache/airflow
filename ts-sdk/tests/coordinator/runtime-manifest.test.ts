@@ -26,16 +26,20 @@ import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
 describe("buildBundleManifest", () => {
   it("maps registered Dags to their tasks under the SDK's schema version", () => {
     expect(
-      buildBundleManifest([
-        { dagId: "dag_a", tasks: ["t1", "t3"] },
-        { dagId: "dag_b", tasks: ["t2"] },
-      ]),
+      buildBundleManifest(
+        [
+          { dagId: "dag_a", tasks: ["t1", "t3"] },
+          { dagId: "dag_b", tasks: ["t2"] },
+        ],
+        ["dag_a", "dag_b"],
+      ),
     ).toEqual({
       supervisor_schema_version: SUPERVISOR_API_VERSION,
       dags: {
         dag_a: { tasks: ["t1", "t3"] },
         dag_b: { tasks: ["t2"] },
       },
+      unregistered_dags: [],
     });
   });
 
@@ -43,6 +47,13 @@ describe("buildBundleManifest", () => {
     expect(buildBundleManifest([{ dagId: "empty_dag", tasks: [] }]).dags).toEqual({
       empty_dag: { tasks: [] },
     });
+  });
+
+  it("reports Dags that were declared but never registered", () => {
+    expect(
+      buildBundleManifest([{ dagId: "dag_a", tasks: ["t1"] }], ["dag_a", "dag_b"])
+        .unregistered_dags,
+    ).toEqual(["dag_b"]);
   });
 });
 
@@ -62,5 +73,6 @@ describe("startCoordinator --airflow-metadata", () => {
     const payload = JSON.parse(written.slice(AIRFLOW_METADATA_SENTINEL.length));
     expect(payload.supervisor_schema_version).toBe(SUPERVISOR_API_VERSION);
     expect(payload.dags).toEqual({});
+    expect(payload.unregistered_dags).toEqual([]);
   });
 });

@@ -151,19 +151,30 @@ function readBundleManifest(bundlePath: string): BundleManifest {
       cause: error,
     });
   }
-  if (!manifest.supervisor_schema_version || !manifest.dags || typeof manifest.dags !== "object") {
+  if (
+    !manifest.supervisor_schema_version ||
+    typeof manifest.dags !== "object" ||
+    manifest.dags === null ||
+    // An array would pass the typeof check and yield Dags named "0", "1", ...
+    Array.isArray(manifest.dags) ||
+    !isDagIdList(manifest.unregistered_dags ?? [])
+  ) {
     throw new Error(`Bundle produced incomplete ${AIRFLOW_METADATA_FLAG} output`);
   }
-  // The line is whatever the bundle printed, so the per-Dag shape is not
-  // guaranteed by the type assertion above.
+  // The line is whatever the bundle printed and nothing downstream re-validates
+  // it, so check each Dag entry down to the task-id element.
   for (const [dagId, dag] of Object.entries(manifest.dags)) {
-    if (dag == null || !Array.isArray(dag.tasks)) {
+    if (dag == null || !isDagIdList(dag.tasks)) {
       throw new Error(
         `Bundle produced ${AIRFLOW_METADATA_FLAG} output with a malformed entry for Dag "${dagId}"`,
       );
     }
   }
   return manifest;
+}
+
+function isDagIdList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 }
 
 // esbuild keeps an entry hashbang as line 1, where the metadata comment must go;
@@ -204,17 +215,19 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     const manifest = readBundleManifest(stagingPath);
     const dagEntries = Object.entries(manifest.dags);
     if (dagEntries.length === 0) {
-      throw new Error(
-        `${args.entry} registered no Dags; register Dags with registerDags(...) before startCoordinator()`,
-      );
+      throw new Error(`${args.entry} registered no Dags; register them with registerDags(...)`);
     }
-    const emptyDags = dagEntries
-      .filter(([, dag]) => dag.tasks.length === 0)
-      .map(([dagId]) => dagId);
-    if (emptyDags.length > 0) {
-      throw new Error(
-        `${args.entry} registered no tasks for Dag(s) ${emptyDags.map((id) => `"${id}"`).join(", ")}; ` +
-          "attach handlers with dag.task(...) before packing",
+    // Warn rather than fail, as airflow-go-pack does: the shared schema allows a
+    // Dag with no tasks.
+    for (const [dagId, dag] of dagEntries) {
+      if (dag.tasks.length === 0) {
+        process.stderr.write(`warning: dag ${JSON.stringify(dagId)} has no tasks\n`);
+      }
+    }
+    for (const dagId of manifest.unregistered_dags ?? []) {
+      process.stderr.write(
+        `warning: dag ${JSON.stringify(dagId)} was declared but never passed to registerDags(...); ` +
+          "its tasks will be marked removed at runtime\n",
       );
     }
 

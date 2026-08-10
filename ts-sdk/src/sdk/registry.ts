@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Dag, getDagTaskRecords, type Task } from "./dag.js";
+import { Dag, getDagTaskRecords, type TaskRef } from "./dag.js";
 import type { TaskHandler } from "./task.js";
 
 /** A registered Dag with its task IDs, empty Dags included — used for
@@ -64,7 +64,7 @@ export class DagRegistry {
   }
 
   /** List the task handles across registered Dags. */
-  listTasks(): Task[] {
+  listTasks(): TaskRef[] {
     return [...this.#dags.values()].flatMap((dag) =>
       [...getDagTaskRecords(dag).values()].map((record) => record.task),
     );
@@ -74,15 +74,10 @@ export class DagRegistry {
   listDags(): RegisteredDag[] {
     return [...this.#dags.values()].map((dag) => ({
       dagId: dag.dagId,
-      tasks: [...getDagTaskRecords(dag).keys()],
+      tasks: [...dag.taskIds],
     }));
   }
 }
 
 /** The registry `registerDags` writes to and the coordinator reads from. */
 export const defaultRegistry = new DagRegistry();
-
-/** Record Dags in the default registry so the coordinator can run their tasks. */
-export function registerDags(...dags: Dag[]): void {
-  defaultRegistry.register(...dags);
-}

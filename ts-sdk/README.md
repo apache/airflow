@@ -42,7 +42,8 @@ export async function sayHello({ ctx, client }: TaskHandlerArgs) {
 
 const dag = new Dag("example_dag");
 dag.task("say_hello", sayHello);
-registerDags(dag);
+
+await registerDags(dag);
 ```
 
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
@@ -97,7 +98,7 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { Dag, registerDags, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, registerDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
@@ -123,9 +124,8 @@ export async function transform({ client }: TaskHandlerArgs) {
 const salesPipeline = new Dag("sales_pipeline");
 salesPipeline.task("extract", extract);
 salesPipeline.task("transform", transform);
-registerDags(salesPipeline);
 
-await startCoordinator();
+await registerDags(salesPipeline);
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
@@ -133,24 +133,29 @@ the work and uses `TaskClient` for task-time Airflow data access. Create a
 `Dag` with the Python Dag's `dag_id` and attach each handler with the stub
 task's `task_id`. The handler function is the reusable task implementation;
 `dag.task` binds that handler to a Python stub task identity, and
-`registerDags` records the Dag for coordinator mode.
+`registerDags` hands the Dags to Airflow.
+
+`registerDags` is the entrypoint: pass every Dag to a single call. A Dag that is
+never registered is left out of the bundle, and `airflow-ts-pack` warns about it.
+
+`new Dag` and `dag.task` take a trailing options object — `spec` on both, plus
+`inputs` on a task. These are reserved for future use; do not set them.
 
 For larger projects, declare each Dag in its own module and keep one Airflow
-entrypoint that registers them all, then starts the coordinator:
+entrypoint that registers them all:
 
 ```ts
 import { salesDag } from "./sales/dag";
 import { billingDag } from "./billing/dag";
-import { registerDags, startCoordinator } from "@apache-airflow/ts-sdk";
+import { registerDags } from "@apache-airflow/ts-sdk";
 
-registerDags(salesDag, billingDag);
-await startCoordinator();
+await registerDags(salesDag, billingDag);
 ```
 
 Airflow launches the bundled entrypoint with `--comm=host:port` and
-`--logs=host:port`. `startCoordinator()` connects to those sockets, receives
-the task startup message, finds the registered handler for the Dag/task pair,
-and reports the terminal task state back to Airflow.
+`--logs=host:port`. `registerDags()` connects to those sockets, receives the
+task startup message, finds the registered handler for the Dag/task pair, and
+reports the terminal task state back to Airflow.
 
 See [`example/`](example/) for a coordinator-runtime example that packs a
 bundle with `airflow-ts-pack` and uses a Python stub Dag.

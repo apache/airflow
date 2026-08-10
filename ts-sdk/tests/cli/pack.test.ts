@@ -22,7 +22,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   EMBEDDED_METADATA_PREFIX,
@@ -95,10 +95,26 @@ describe("renderMetadataYaml", () => {
   });
 });
 
+function readEmbeddedMetadata(bundlePath: string): string {
+  const firstLine = readFileSync(bundlePath, "utf-8").split("\n")[0]!;
+  return Buffer.from(firstLine.slice(EMBEDDED_METADATA_PREFIX.length), "base64").toString("utf-8");
+}
+
+/** Collect what runPack writes to stderr; returns a reader for the text so far. */
+function captureStderr(): () => string {
+  const chunks: string[] = [];
+  vi.spyOn(process.stderr, "write").mockImplementation((chunk: string | Uint8Array) => {
+    chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf-8"));
+    return true;
+  });
+  return () => chunks.join("");
+}
+
 describe("runPack", () => {
   let outdir: string;
 
   afterEach(() => {
+    vi.restoreAllMocks();
     if (outdir) rmSync(outdir, { recursive: true, force: true });
   });
 
@@ -167,11 +183,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, registerDags, startCoordinator } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Dag, registerDags } from ${JSON.stringify(SDK_INDEX)};`,
         'const bigDag = new Dag("big_dag");',
         'for (let i = 0; i < 4000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
-        "registerDags(bigDag);",
-        "await startCoordinator();",
+        "await registerDags(bigDag);",
       ].join("\n"),
     );
 
@@ -182,7 +197,7 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("leaves no bundle behind when the entry registers no tasks", async () => {
+  it("leaves no bundle behind when the entry registers no Dags", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
 
     await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("registered no Dags");
@@ -190,43 +205,75 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("rejects a metadata line whose Dag entry is malformed", async () => {
+  // A bundle can print the sentinel itself, so nothing on that line is trusted.
+  it.each([
+    ['{ supervisor_schema_version: "1", dags: { broken_dag: {} } }', "malformed entry"],
+    [
+      '{ supervisor_schema_version: "1", dags: { broken_dag: { tasks: ["ok", 7] } } }',
+      "malformed entry",
+    ],
+    [
+      '{ supervisor_schema_version: "1", dags: { broken_dag: { tasks: [""] } } }',
+      "malformed entry",
+    ],
+    ['{ supervisor_schema_version: "1", dags: [{ tasks: ["a"] }] }', "incomplete"],
+    ['{ supervisor_schema_version: "1", dags: {}, unregistered_dags: [7] }', "incomplete"],
+  ])("rejects the metadata line %s", async (manifest, message) => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "malformed-entry.ts");
-    // A bundle can print the sentinel itself, so the per-Dag shape is untrusted.
     writeFileSync(
       entry,
-      [
-        `const manifest = { supervisor_schema_version: "1", dags: { broken_dag: {} } };`,
-        `console.log(${JSON.stringify(AIRFLOW_METADATA_SENTINEL)} + JSON.stringify(manifest));`,
-      ].join("\n"),
+      `console.log(${JSON.stringify(AIRFLOW_METADATA_SENTINEL)} + JSON.stringify(${manifest}));`,
     );
 
-    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
-      'malformed entry for Dag "broken_dag"',
-    );
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(message);
     expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("rejects a bundle whose registered Dag has no tasks, even alongside populated Dags", async () => {
+  it("warns but still packs a registered Dag with no tasks, as airflow-go-pack does", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "mixed-entry.ts");
     writeFileSync(
       entry,
       [
-        `import { Dag, registerDags, startCoordinator } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Dag, registerDags } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
         'salesDag.task("extract", async () => undefined);',
-        'registerDags(salesDag, new Dag("empty_dag"));',
-        "await startCoordinator();",
+        'await registerDags(salesDag, new Dag("empty_dag"));',
       ].join("\n"),
     );
+    const stderr = captureStderr();
 
-    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
-      'registered no tasks for Dag(s) "empty_dag"',
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(stderr()).toContain('warning: dag "empty_dag" has no tasks\n');
+    expect(readEmbeddedMetadata(path.join(outdir, "bundle.mjs"))).toContain(
+      '  "empty_dag":\n    tasks: []',
     );
-    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
-    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
+  it("warns about a Dag that was built but never passed to registerDags", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "forgotten-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Dag, registerDags } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        'salesDag.task("extract", async () => undefined);',
+        'const billingDag = new Dag("billing_dag");',
+        'billingDag.task("charge", async () => undefined);',
+        "await registerDags(salesDag);",
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(stderr()).toContain(
+      'warning: dag "billing_dag" was declared but never passed to registerDags(...)',
+    );
+    expect(readEmbeddedMetadata(path.join(outdir, "bundle.mjs"))).not.toContain("billing_dag");
   });
 });

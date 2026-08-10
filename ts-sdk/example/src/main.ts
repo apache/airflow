@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Dag, registerDags, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, registerDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 const dag = new Dag("typescript_example");
 
@@ -51,6 +51,5 @@ export async function readConnection({ client }: TaskHandlerArgs) {
 
 dag.task("build_message", buildMessage);
 dag.task("read_connection", readConnection);
-registerDags(dag);
 
-await startCoordinator();
+await registerDags(dag);

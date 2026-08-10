@@ -25,7 +25,7 @@
 //
 // where `my-bundle.mjs` is a user-bundled Node script that imports
 // the SDK, creates `Dag` objects, attaches a handler per task with
-// `dag.task(...)`, calls `registerDags(...)`, then `startCoordinator()`.
+// `dag.task(...)`, then awaits `registerDags(...)`.
 //
 // Lifecycle:
 //   1. Parse --comm / --logs from argv
@@ -52,11 +52,42 @@ import {
   type StartupDetails,
 } from "./protocol.js";
 import { defaultRegistry } from "../sdk/registry.js";
+import type { Dag } from "../sdk/dag.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
 export const COORDINATOR_RESPONSE_TIMEOUT_MS = 30_000;
+
+let entrypointCalled = false;
+
+/**
+ * Register Dags and run them. The entry point of a TypeScript Dag bundle.
+ *
+ * Build the Dags, attach a handler per task with `dag.task(...)`, then await
+ * this at module top level:
+ *
+ * ```ts
+ * const dag = new Dag("my_dag");
+ * dag.task("extract", extractFn);
+ * await registerDags(dag);
+ * ```
+ *
+ * Every Dag goes in one call: this both registers and hands off to the runtime,
+ * so a second call would start a second runtime and is rejected. Registering an
+ * already-registered `dagId` throws too, and a call that throws registers none
+ * of its Dags. Resolves when Airflow's supervisor has been sent the terminal
+ * frame for the work this process was started for; the same call also answers
+ * the build-time `--airflow-metadata` query `airflow-ts-pack` makes.
+ */
+export function registerDags(...dags: Dag[]): Promise<void> {
+  if (entrypointCalled) {
+    throw new Error("registerDags(...) was already called; pass every Dag to a single call");
+  }
+  defaultRegistry.register(...dags);
+  entrypointCalled = true;
+  return startCoordinator();
+}
 
 /** Options for `startCoordinator()`. */
 export interface StartCoordinatorOptions {
@@ -109,7 +140,11 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
 }
 
 /** Start the coordinator runtime. Resolves when the subprocess has
- *  delivered its terminal frame and closed both sockets. */
+ *  delivered its terminal frame and closed both sockets.
+ *
+ *  Internal: `registerDags()` is the entry point Dag authors call, so this is
+ *  deliberately absent from the package `"exports"` map. Tests drive it
+ *  directly to supply explicit socket addresses. */
 export async function startCoordinator(opts: StartCoordinatorOptions = {}): Promise<void> {
   const argv = opts.argv ?? process.argv;
   if (argv.includes(AIRFLOW_METADATA_FLAG)) {

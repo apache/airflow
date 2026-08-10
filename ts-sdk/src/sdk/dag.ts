@@ -37,40 +37,34 @@ function validateKey(name: string, value: string): void {
 }
 
 /**
- * Dag-level options.
+ * Dag-level options. **Reserved: no fields yet.**
  *
- * Empty today: native TypeScript Dag declaration (schedule, tags, ...) will add
- * optional fields here without changing the `Dag` constructor signature.
+ * Native TypeScript Dag declaration (schedule, tags, ...) will add optional
+ * fields here without changing the `Dag` constructor, generated from the
+ * serialized-Dag JSON schema the way `src/generated/supervisor.ts` is. Until
+ * then only `{}` is accepted, so a field that would be silently dropped —
+ * `new Dag("d", { schedule: "@daily" })` — is a compile error rather than a
+ * Dag that packs and runs without the schedule.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- extension point for future native-Dag fields
-export interface DagSpec {}
+export type DagSpec = Record<string, never>;
 
 /**
- * Task-level options.
+ * Task-level options. **Reserved: no fields yet.**
  *
- * Empty today: future task fields (retries, ...) will land here without
- * changing the `dag.task()` signature.
+ * Future task fields (retries, ...) will land here without changing the
+ * `dag.task()` signature. As with {@link DagSpec}, only `{}` is accepted today.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- extension point for future task fields
-export interface TaskSpec {}
+export type TaskSpec = Record<string, never>;
 
 /**
- * Opaque handle to a task registered on a {@link Dag}.
+ * Opaque handle to a task registered on a {@link Dag}, returned by
+ * `dag.task(...)`.
  *
- * Pass it as a downstream task's input to declare that the downstream task
- * consumes this task's return value:
- *
- * ```ts
- * const extracted = dag.task("extract", extractFn);
- * const transformed = dag.task("transform", transformFn, { inputs: { extracted } });
- * dag.task("load", loadFn, { inputs: { transformed } });
- * ```
- *
- * In today's Python-stub mode the stub Dag still defines task order; declared
- * inputs are retained for the serialized Dag JSON that native TypeScript Dag
- * declaration will emit. The handler is intentionally not exposed on the handle.
+ * Identity only — the handler is deliberately not exposed. Handles are what the
+ * reserved `inputs` option accepts, and what native TypeScript Dag declaration
+ * will use to wire dependencies.
  */
-export interface Task {
+export interface TaskRef {
   /** Identifier of the Dag this task belongs to. */
   readonly dagId: string;
   /** Airflow task ID, including any TaskGroup prefix. */
@@ -78,31 +72,42 @@ export interface Task {
 }
 
 /**
- * Upstream task handles a task consumes, keyed by input name.
+ * Upstream task handles keyed by input name. **Reserved: validated and
+ * retained, but inert today** — see {@link TaskOptions.inputs}.
  *
  * Values must be handles returned by `dag.task(...)`. Literal values are
  * deliberately out of scope for now; the future native-Dag work decides how
  * they are declared.
  */
-export type TaskInputs = Readonly<Record<string, Task>>;
+export type TaskInputs = Readonly<Record<string, TaskRef>>;
 
 /**
  * Named options for `dag.task()`.
  *
  * Keyword-only so neither field has to be positioned around the other, and so
- * future fields can be added without a new parameter.
+ * future fields can be added without a new parameter. Unknown keys are
+ * rejected, so a typo fails at import time rather than being ignored.
  */
 export interface TaskOptions {
-  /** Upstream task handles whose return values this task consumes. */
+  /**
+   * Upstream task handles this task consumes. **Reserved: validated and
+   * retained, but inert today.**
+   *
+   * Nothing reads it yet: a handler receives `{ctx, client}` only, and no
+   * dependency is declared from it — in today's Python-stub mode the stub Dag
+   * defines task order. To read an upstream task's return value, ask for it
+   * explicitly: `client.getXCom({ key: "return_value", taskId: "extract" })`.
+   * Omitting `taskId` there reads the *running* task's own XCom.
+   */
   readonly inputs?: TaskInputs;
-  /** Task-level options. */
+  /** Task-level options. **Reserved: retained, but inert today.** */
   readonly spec?: TaskSpec;
 }
 
 /** Per-task record a Dag retains: the handle, the handler, its spec, and the
  *  upstream handles feeding it. */
 export interface TaskRecord {
-  readonly task: Task;
+  readonly task: TaskRef;
   readonly handler: TaskHandler;
   readonly spec: TaskSpec;
   /** Upstream handles keyed by input name; empty when the task has no inputs. */
@@ -112,6 +117,10 @@ export interface TaskRecord {
 // Assigned inside Dag's static block: gives package-internal code read access
 // to the #tasks private field without a public accessor on the Dag class.
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
+
+// Every Dag ever constructed, so the bundle manifest can report the ones that
+// were never passed to registerDags(...) and airflow-ts-pack can warn about them.
+const declaredDagIds = new Set<string>();
 
 /**
  * A Dag declared in TypeScript.
@@ -125,7 +134,7 @@ let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 export class Dag {
   /** Identifier of this Dag. Must match the Python Dag's `dag_id`. */
   readonly dagId: string;
-  /** Dag-level options this instance was constructed with. */
+  /** Dag-level options this instance was constructed with, copied and frozen. */
   readonly spec: DagSpec;
   readonly #tasks = new Map<string, TaskRecord>();
 
@@ -136,22 +145,30 @@ export class Dag {
   constructor(dagId: string, spec: DagSpec = {}) {
     validateKey("dagId", dagId);
     this.dagId = dagId;
-    this.spec = spec;
+    // Copied and frozen, as task specs and inputs are: nothing reads a spec
+    // until the bundle manifest is built, long after the user's module has run,
+    // so a later mutation of their object would silently change what is packed.
+    // Shallow — a nested value in a future generated spec stays mutable.
+    this.spec = Object.freeze({ ...spec });
+    declaredDagIds.add(dagId);
+  }
+
+  /** Task IDs attached to this Dag, in attachment order. */
+  get taskIds(): readonly string[] {
+    return [...this.#tasks.keys()];
   }
 
   /**
    * Register a TypeScript handler for a task of this Dag.
    *
    * `taskId` must match the Dag-side operator's `task_id` exactly, including
-   * any TaskGroup prefix. `options.inputs` names the upstream task handles whose
-   * return values this task consumes. Returns this task's handle.
+   * any TaskGroup prefix. Returns this task's handle.
    */
   task<TReturn = unknown>(
     taskId: string,
     handler: TaskHandler<TReturn>,
     options: TaskOptions = {},
-  ): Task {
-    const { inputs = {}, spec = {} } = options;
+  ): TaskRef {
     validateKey("taskId", taskId);
     if (typeof handler !== "function") {
       throw new Error(`handler for Dag "${this.dagId}" task "${taskId}" must be a function`);
@@ -159,15 +176,31 @@ export class Dag {
     if (this.#tasks.has(taskId)) {
       throw new Error(`Task "${taskId}" is already registered for Dag "${this.dagId}"`);
     }
+    this.#validateOptions(taskId, options);
+    const { inputs = {}, spec = {} } = options;
     this.#validateInputs(taskId, inputs);
-    const task: Task = Object.freeze({ dagId: this.dagId, taskId });
+    const task: TaskRef = Object.freeze({ dagId: this.dagId, taskId });
     this.#tasks.set(taskId, {
       task,
       handler: handler as TaskHandler,
-      spec,
+      spec: Object.freeze({ ...spec }),
       inputs: Object.freeze({ ...inputs }),
     });
     return task;
+  }
+
+  // TypeScript is bypassable — from plain JavaScript, or an `as TaskOptions`
+  // cast — so an unknown key is rejected rather than silently ignored.
+  #validateOptions(taskId: string, options: TaskOptions): void {
+    const value: unknown = options;
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new Error(`options for Dag "${this.dagId}" task "${taskId}" must be an object`);
+    }
+    for (const key of Object.keys(value)) {
+      if (key !== "inputs" && key !== "spec") {
+        throw new Error(`Unknown option "${key}" for Dag "${this.dagId}" task "${taskId}"`);
+      }
+    }
   }
 
   #validateInputs(taskId: string, inputs: TaskInputs): void {
@@ -205,4 +238,14 @@ export class Dag {
  */
 export function getDagTaskRecords(dag: Dag): ReadonlyMap<string, TaskRecord> {
   return taskRecordsOf(dag);
+}
+
+/**
+ * Internal: IDs of every Dag constructed in this process, registered or not.
+ *
+ * The bundle manifest subtracts the registered ones so `airflow-ts-pack` can
+ * warn about a Dag that was built but never passed to `registerDags(...)`.
+ */
+export function getDeclaredDagIds(): string[] {
+  return [...declaredDagIds];
 }

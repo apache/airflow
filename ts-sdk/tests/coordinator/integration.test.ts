@@ -36,11 +36,13 @@ import {
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
-import { registerDags } from "../../src/sdk/registry.js";
+import { defaultRegistry } from "../../src/sdk/registry.js";
 
 const testDag = new Dag("test_dag");
 const otherDag = new Dag("other_dag");
-registerDags(testDag, otherDag);
+// The registry the runtime reads, populated directly: registerDags() would also
+// start the coordinator, and these tests drive it themselves with mock sockets.
+defaultRegistry.register(testDag, otherDag);
 
 interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;

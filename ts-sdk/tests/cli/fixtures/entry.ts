@@ -17,13 +17,12 @@
  * under the License.
  */
 
-import { Dag, registerDags, startCoordinator } from "../../../src/index.js";
+import { Dag, registerDags } from "../../../src/index.js";
 
 const fixtureDag = new Dag("fixture_dag");
 fixtureDag.task("extract", async () => "extracted");
 fixtureDag.task("transform", async () => "transformed");
 const otherDag = new Dag("other_dag");
 otherDag.task("solo", async () => undefined);
-registerDags(fixtureDag, otherDag);
 
-await startCoordinator();
+await registerDags(fixtureDag, otherDag);

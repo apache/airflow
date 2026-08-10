@@ -87,13 +87,12 @@ TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
-the ``dag_id`` it implements, attach each handler with ``dag.task``, register the Dag, then start the
-coordinator runtime; the registration and the top-level ``await startCoordinator()`` make the module a
-runnable bundle entry point.
+the ``dag_id`` it implements, attach each handler with ``dag.task``, then hand the Dags to Airflow with
+``registerDags``; that top-level ``await`` makes the module a runnable bundle entry point.
 
 .. code-block:: typescript
 
-    import { Dag, registerDags, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, registerDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -106,12 +105,16 @@ runnable bundle entry point.
 
     const dag = new Dag("typescript_example");
     dag.task("build_message", buildMessage);
-    registerDags(dag);
 
-    await startCoordinator();
+    await registerDags(dag);
 
 The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-passed to ``dag.task`` must match a ``@task.stub`` function in that Dag.
+passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. Every Dag goes in one
+``registerDags`` call; a second call is rejected. A Dag that is built but never registered is left out of
+the packed bundle, and ``airflow-ts-pack`` warns about it by name.
+
+``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
+These are reserved for future use; do not set them. Any other key is rejected.
 
 .. note::
 
