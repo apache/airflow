@@ -467,6 +467,18 @@ class CronPartitionTimetable(CronTriggerTimetable):
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
+    def _compute_current_partition_key(self, now: DateTime) -> str:
+        """
+        Return the key of the most recently elapsed partition as of *now*.
+
+        The tick is derived from the cron expression alone, so the suggestion is not
+        clamped by the Dag's ``start_date`` — a Dag that has not started scheduling yet
+        still gets the tick preceding *now*, which is a valid key for a manual run.
+        """
+        aligned = self._align_to_prev(coerce_datetime(now))
+        _, partition_key = self._get_partition_info(run_date=aligned)
+        return partition_key
+
     def iter_partition_dagrun_infos(
         self,
         *,
