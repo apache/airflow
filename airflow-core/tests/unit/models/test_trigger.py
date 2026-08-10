@@ -27,6 +27,7 @@ import pytest
 import pytz
 from cryptography.fernet import Fernet
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
@@ -339,6 +340,81 @@ def test_submit_failure(session, create_task_instance):
     # Call submit_event
     Trigger.submit_failure(trigger.id, session=session)
     # Check that the task instance is now scheduled to fail
+    updated_task_instance = session.scalar(select(TaskInstance))
+    assert updated_task_instance.state == State.SCHEDULED
+    assert updated_task_instance.next_method == "__fail__"
+
+
+def _deadlock_error() -> OperationalError:
+    """Build an OperationalError that mimics a MySQL/InnoDB deadlock (error 1213)."""
+    return OperationalError(
+        statement="UPDATE task_instance SET state='scheduled', trigger_id=NULL WHERE id = %s",
+        params=("some-ti-id",),
+        orig=Exception("(1213, 'Deadlock found when trying to get lock; try restarting transaction')"),
+    )
+
+
+def test_submit_event_retries_transient_deadlock(session, create_task_instance):
+    """
+    A transient deadlock raised while resuming a deferred task instance is retried rather than
+    propagated. Before this, a single MySQL 1213 in the submit_event -> handle_event_submit path
+    escaped up to the triggerer and killed the process. Regression test for issue #65818.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {"cheesecake": True}
+    session.commit()
+
+    real_handle_event_submit = handle_event_submit
+    calls = {"count": 0}
+
+    def flaky_handle_event_submit(event, *, task_instance, session):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            # Deadlock surfaces on the flush inside handle_event_submit, as in the reported stack.
+            raise _deadlock_error()
+        return real_handle_event_submit(event, task_instance=task_instance, session=session)
+
+    payload = "payload"
+    event = TriggerEvent(payload)
+    with patch("airflow.models.trigger.handle_event_submit", side_effect=flaky_handle_event_submit):
+        Trigger.submit_event(trigger.id, event, session=session)
+
+    # The first attempt deadlocked, the retry resumed the task instance successfully.
+    assert calls["count"] == 2
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_kwargs == {"event": payload, "cheesecake": True}
+
+
+def test_submit_failure_retries_transient_deadlock(session, create_task_instance):
+    """
+    submit_failure mutates the same ``task_instance`` rows as submit_event, so it is retried on a
+    transient deadlock too. Regression test for issue #65818.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(task_id="fake", logical_date=timezone.utcnow(), state=State.DEFERRED)
+    task_instance.trigger_id = trigger.id
+    session.commit()
+
+    calls = {"count": 0}
+
+    def flaky_format_exception(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            # A deadlock while marking the dependent task instances failed must be retried.
+            raise _deadlock_error()
+        return ["RuntimeError: boom\n"]
+
+    with patch("airflow.models.trigger.format_exception", side_effect=flaky_format_exception):
+        Trigger.submit_failure(trigger.id, exc=RuntimeError("boom"), session=session)
+
+    assert calls["count"] == 2
     updated_task_instance = session.scalar(select(TaskInstance))
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
