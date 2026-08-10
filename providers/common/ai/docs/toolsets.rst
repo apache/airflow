@@ -571,6 +571,14 @@ fresh sandbox and files from earlier calls are no longer available. Only
 infrastructure errors (the ``sbx`` CLI missing, the islo API unreachable) fail
 the task.
 
+This chooses the **code-execution tool boundary**: only the generated Python
+and its command lifecycle move into the sandbox. It does not sandbox the
+``AgentOperator``, the Airflow task, or the worker process. Boundary size is
+not a security level by itself; the selected runtime's image, credentials,
+network policy, resource limits, and host integration determine the effective
+isolation. Choose the smallest boundary that fits the workload, then configure
+the runtime independently.
+
 sbx backend (Docker Sandboxes)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

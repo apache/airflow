@@ -49,9 +49,9 @@ class SbxSandboxBackend(SandboxBackend):
 
     Drives the ``sbx`` CLI: ``create`` provisions a per-session microVM, ``exec``
     runs commands in it (``docker exec`` semantics), and ``rm`` tears it down.
-    Each sandbox is a genuine microVM with its own kernel, so agent code is far
-    better isolated than a shared-kernel container — the same isolation grade as
-    :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend`, but local.
+    Each sandbox is a microVM with its own kernel. Its effective isolation still
+    depends on the selected image, host policy, credentials, network access, and
+    resource limits.
 
     Requires the ``sbx`` binary on ``PATH`` (``brew install docker/tap/sbx`` /
     ``winget install Docker.sbx``) and a one-time ``sbx policy init`` on the host;

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -32,17 +33,16 @@ _ISLO_PATH = "airflow.providers.common.ai.sandbox.islo.Islo"
 
 
 def _make_mock_connection(password="secret-key", host=None, extra=None):
-    conn = MagicMock()
-    conn.password = password
-    conn.host = host
-    conn.extra_dejson = extra or {}
-    return conn
+    return SimpleNamespace(password=password, host=host, extra_dejson=extra or {})
 
 
 def _backend_with_mock_client(**kwargs) -> tuple[IsloSandboxBackend, MagicMock]:
     backend = IsloSandboxBackend(**kwargs)
-    mock_client = MagicMock()
-    mock_client.sandboxes.exec_in_sandbox.return_value.exec_id = "exec-1"
+    mock_client = MagicMock(spec=["sandboxes"])
+    mock_client.sandboxes = MagicMock(
+        spec=["create_sandbox", "exec_in_sandbox", "get_exec_result", "delete_sandbox"]
+    )
+    mock_client.sandboxes.exec_in_sandbox.return_value = SimpleNamespace(exec_id="exec-1")
     backend._client = mock_client
     return backend, mock_client
 
@@ -55,13 +55,13 @@ def _make_exec_result(
     exit_code=0,
     truncated=False,
 ):
-    result = MagicMock()
-    result.status = status
-    result.stdout = stdout
-    result.stderr = stderr
-    result.exit_code = exit_code
-    result.truncated = truncated
-    return result
+    return SimpleNamespace(
+        status=status,
+        stdout=stdout,
+        stderr=stderr,
+        exit_code=exit_code,
+        truncated=truncated,
+    )
 
 
 class TestIsloSandboxBackendClient:

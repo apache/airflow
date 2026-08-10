@@ -22,6 +22,8 @@ import threading
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_ai._run_context import RunContext
+from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.sandbox.base import SandboxBackend, SandboxResult
@@ -66,7 +68,12 @@ class _RecordingBackend(SandboxBackend):
 
 def _call_run_code(ts: SandboxToolset, code: str = "print('hi')"):
     return asyncio.run(
-        ts.call_tool("run_python_in_sandbox", {"code": code}, ctx=MagicMock(), tool=MagicMock())
+        ts.call_tool(
+            "run_python_in_sandbox",
+            {"code": code},
+            ctx=MagicMock(spec=RunContext),
+            tool=MagicMock(spec=ToolsetTool),
+        )
     )
 
 
@@ -90,8 +97,8 @@ class TestSandboxToolsetForRun:
         backend = _RecordingBackend()
         ts = SandboxToolset(backend, timeout=42.0, python_command="py")
 
-        a = asyncio.run(ts.for_run(MagicMock()))
-        b = asyncio.run(ts.for_run(MagicMock()))
+        a = asyncio.run(ts.for_run(MagicMock(spec=RunContext)))
+        b = asyncio.run(ts.for_run(MagicMock(spec=RunContext)))
 
         # Distinct instances so concurrent runs never share sandbox state...
         assert a is not ts
@@ -106,12 +113,12 @@ class TestSandboxToolsetForRun:
 class TestSandboxToolsetGetTools:
     def test_returns_run_code_tool(self):
         ts = SandboxToolset(_RecordingBackend())
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
         assert set(tools.keys()) == {"run_python_in_sandbox"}
 
     def test_tool_definition_shape(self):
         ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
         assert tool.tool_def.description
         assert tool.tool_def.sequential is True
         assert tool.tool_def.parameters_json_schema["required"] == ["code"]
@@ -122,7 +129,7 @@ class TestSandboxToolsetGetTools:
     def test_args_validator_rejects_malformed_args(self, bad_args):
         """A malformed call must raise ValidationError so pydantic-ai retries instead of failing the task."""
         ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
 
         with pytest.raises(ValidationError):
             tool.args_validator.validate_python(bad_args)
@@ -131,7 +138,7 @@ class TestSandboxToolsetGetTools:
 
     def test_args_validator_accepts_valid_args_and_ignores_extras(self):
         ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
 
         args = {"code": "print(1)", "unexpected": True}
         assert tool.args_validator.validate_python(args) == {"code": "print(1)"}
@@ -143,7 +150,7 @@ class TestSandboxToolsetGetTools:
     def test_tool_declares_string_return_schema(self):
         # run_code returns a JSON-encoded string, so code mode should see `-> str`.
         ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
         assert tool.tool_def.return_schema == {"type": "string"}
 
 
@@ -241,7 +248,14 @@ class TestSandboxToolsetCallTool:
         ts = SandboxToolset(_RecordingBackend())
 
         with pytest.raises(ValueError, match="Unknown tool"):
-            asyncio.run(ts.call_tool("other_tool", {}, ctx=MagicMock(), tool=MagicMock()))
+            asyncio.run(
+                ts.call_tool(
+                    "other_tool",
+                    {},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
 
 
 class TestSandboxToolsetLifecycle:
@@ -251,7 +265,12 @@ class TestSandboxToolsetLifecycle:
 
         async def scenario():
             async with ts:
-                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool(
+                    "run_python_in_sandbox",
+                    {"code": "1"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
 
         asyncio.run(scenario())
 
@@ -277,7 +296,12 @@ class TestSandboxToolsetLifecycle:
         async def scenario():
             async with ts:
                 backend.run_error = RuntimeError("boom")
-                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool(
+                    "run_python_in_sandbox",
+                    {"code": "1"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
 
         with pytest.raises(RuntimeError, match="boom"):
             asyncio.run(scenario())
@@ -291,7 +315,12 @@ class TestSandboxToolsetLifecycle:
 
         async def one_run():
             async with ts:
-                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool(
+                    "run_python_in_sandbox",
+                    {"code": "1"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
 
         asyncio.run(one_run())
         asyncio.run(one_run())
@@ -305,7 +334,12 @@ class TestSandboxToolsetLifecycle:
 
         async def one_run():
             async with ts:
-                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool(
+                    "run_python_in_sandbox",
+                    {"code": "1"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
 
         with pytest.raises(RuntimeError, match="delete failed"):
             asyncio.run(one_run())
@@ -333,7 +367,12 @@ class TestSandboxToolsetLifecycle:
         async def scenario():
             async with ts:
                 call = asyncio.create_task(
-                    ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                    ts.call_tool(
+                        "run_python_in_sandbox",
+                        {"code": "1"},
+                        ctx=MagicMock(spec=RunContext),
+                        tool=MagicMock(spec=ToolsetTool),
+                    )
                 )
                 assert await asyncio.to_thread(create_started.wait, 1)
                 call.cancel()
