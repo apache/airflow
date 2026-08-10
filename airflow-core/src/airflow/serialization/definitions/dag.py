@@ -761,8 +761,16 @@ class SerializedDAG:
 
                 interval = deserialized_deadline_alert.interval
 
+                # Resolve the DagRun's team once, so a team-scoped VariableInterval is looked up
+                # against the right team (not the global scope) and the stats tag is consistent.
+                team_name = (
+                    DagModel.get_team_name(self.dag_id, session=session)
+                    if airflow_conf.getboolean("core", "multi_team")
+                    else None
+                )
+
                 if isinstance(interval, VariableInterval):
-                    interval = self._resolve_variable_interval(interval, session=session)
+                    interval = self._resolve_variable_interval(interval, team_name=team_name, session=session)
 
                 if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                     deadline_time = deserialized_deadline_alert.reference.evaluate_with(
@@ -784,11 +792,6 @@ class SerializedDAG:
                                 bundle_name=orm_dagrun.dag_model.bundle_name,
                             )
                         )
-                        team_name = (
-                            DagModel.get_team_name(self.dag_id, session=session)
-                            if airflow_conf.getboolean("core", "multi_team")
-                            else None
-                        )
                         stats.incr(
                             "deadline_alerts.deadline_created",
                             tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
@@ -804,7 +807,9 @@ class SerializedDAG:
                 stats.incr("deadline_alerts.deadline_creation_failed", tags={"dag_id": self.dag_id})
 
     @staticmethod
-    def _resolve_variable_interval(interval: VariableInterval, *, session: Session) -> datetime.timedelta:
+    def _resolve_variable_interval(
+        interval: VariableInterval, *, team_name: str | None, session: Session
+    ) -> datetime.timedelta:
         """
         Resolve a ``VariableInterval`` to a concrete ``timedelta`` at DagRun creation.
 
@@ -813,6 +818,7 @@ class SerializedDAG:
         during DagRun creation.
 
         :param interval: The ``VariableInterval`` to resolve.
+        :param team_name: Team owning the DagRun, forwarded to scope the Variable lookup.
         :param session: Scheduler session used for metadata database lookups.
         :return: The resolved ``timedelta``.
         :raises ValueError: If the Variable cannot be resolved or converted to a valid ``timedelta``.
@@ -820,7 +826,7 @@ class SerializedDAG:
         for backend in ensure_secrets_loaded():
             value = call_secrets_backend_method(
                 backend.get_variable,
-                team_name=None,
+                team_name=team_name,
                 key=interval.key,
                 **({"session": session} if isinstance(backend, MetastoreBackend) else {}),
             )

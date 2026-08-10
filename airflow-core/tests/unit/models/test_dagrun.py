@@ -1586,6 +1586,47 @@ class TestDagRun:
         assert deadline is not None
         assert deadline.deadline_time == future_date + datetime.timedelta(seconds=7)
 
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name"),
+        [
+            pytest.param("true", "team_alpha", id="team_scoped"),
+            pytest.param("false", None, id="global"),
+        ],
+    )
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_scoped_to_team(
+        self, _, multi_team, team_name, session, deadline_test_dag
+    ):
+        """A VariableInterval must resolve against the DagRun's team, not the global scope."""
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("team_interval_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
+            mock.patch(
+                "airflow.serialization.definitions.dag.call_secrets_backend_method",
+                return_value="5",
+            ) as mock_call,
+        ):
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
+            )
+
+        assert dag_run is not None
+        # The team the DagRun belongs to must be forwarded to the backend lookup.
+        mock_call.assert_called_once()
+        assert mock_call.call_args.kwargs["team_name"] == team_name
+
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
