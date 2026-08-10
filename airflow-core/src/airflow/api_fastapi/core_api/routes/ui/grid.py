@@ -216,42 +216,24 @@ def get_dag_structure(
     _merge_node_dicts(merged_nodes, nodes)
     del latest_dag, latest_group_dict
 
-    # Identify the historical serialized Dags for the visible runs (ids only, cheap),
-    # then process them in small batches so we never hold a DB connection open across
-    # the CPU-bound deserialization/merge below.
-    #
-    # Deserializing (``serdag.dag``) and merging a large DAG's task groups is
-    # expensive. Streaming the rows with a server-side cursor (``yield_per``) and
-    # deserializing between fetches keeps the transaction — and, under PgBouncer
-    # transaction pooling, the pooled server connection — pinned for the entire
-    # render; at scale that exhausts the pool and starves task-instance heartbeats.
-    # See https://github.com/apache/airflow/issues/65712.
-    #
-    # Each batch is loaded and detached in its own short-lived session that is closed
-    # before the batch is deserialized, so the connection is released during the CPU
-    # work while peak memory stays bounded to one batch (``SerializedDagModel.dag``
-    # only reads the already-loaded ``data`` column, so it works on detached rows).
-    serdag_id_query = (
-        select(SerializedDagModel.id)
-        .where(
-            # Even though dag_id is filtered in base_query,
-            # adding this line here can improve the performance of this endpoint
-            SerializedDagModel.dag_id == dag_id,
-            SerializedDagModel.id != latest_serdag_id,
-            SerializedDagModel.dag_version_id.in_(
-                select(TaskInstance.dag_version_id)
-                .join(TaskInstance.dag_run)
-                .where(
-                    DagRun.id.in_(run_ids),
-                )
-                .distinct()
-            ),
-        )
-        .order_by(SerializedDagModel.id)
+    # we get the ids so that we can split serialization into batches and balance round trips and mem usage
+    serdag_id_query = select(SerializedDagModel.id).where(
+        # Even though dag_id is filtered in base_query,
+        # adding this line here can improve the performance of this endpoint
+        SerializedDagModel.dag_id == dag_id,
+        SerializedDagModel.id != latest_serdag_id,
+        SerializedDagModel.dag_version_id.in_(
+            select(TaskInstance.dag_version_id)
+            .join(TaskInstance.dag_run)
+            .where(
+                DagRun.id.in_(run_ids),
+            )
+            .distinct()
+        ),
     )
     serdag_ids = list(session.scalars(serdag_id_query))
     # Release the request session's transaction/connection before the batched work.
-    session.commit()
+    session.close()
 
     for serdag_id_batch in chunks(serdag_ids, 5):  # balance memory usage and round trips
         with create_session(scoped=False) as batch_session:
