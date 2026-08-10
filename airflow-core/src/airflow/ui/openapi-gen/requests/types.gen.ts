@@ -902,6 +902,7 @@ export type DAGDetailsResponse = {
     is_favorite?: boolean;
     active_runs_count?: number;
     team_name?: string | null;
+    suggested_partition_key?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
