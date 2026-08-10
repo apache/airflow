@@ -1166,3 +1166,35 @@ def test_cron_trigger_run_immediately_does_not_pick_future_run():
     assert info is not None
     assert info.run_after <= pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc)
     assert info.run_after == pendulum.DateTime(2024, 11, 2, 5, tzinfo=utc)
+
+
+@time_machine.travel(pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc), tick=False)
+def test_multi_cron_trigger_run_immediately_does_not_pick_future_run():
+    """Same DST fold as above, through ``MultipleCronTriggerTimetable``.
+
+    It wraps ``CronTriggerTimetable`` instances that share the same ``_get_prev``.
+    """
+    timetable = MultipleCronTriggerTimetable("0 1 * * *", timezone="America/New_York", run_immediately=True)
+    info = timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+    )
+    assert info is not None
+    assert info.run_after <= pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc)
+    assert info.run_after == pendulum.DateTime(2024, 11, 2, 5, tzinfo=utc)
+
+
+@time_machine.travel(pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc), tick=False)
+def test_cron_partition_run_immediately_does_not_pick_future_run():
+    """Same DST fold as above, through ``CronPartitionTimetable.next_dagrun_info_v2``.
+
+    This is the scheduler's scheduling path, and it shares ``CronMixin._get_prev`` too.
+    """
+    timetable = CoreCronPartitionTimetable("0 1 * * *", timezone="America/New_York", run_immediately=True)
+    info = timetable.next_dagrun_info_v2(
+        last_dagrun_info=None,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+    )
+    assert info is not None
+    assert info.run_after <= pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc)
+    assert info.run_after == pendulum.DateTime(2024, 11, 2, 5, tzinfo=utc)
