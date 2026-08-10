@@ -229,7 +229,6 @@ The **Events** tab surfaces structured events related to the Dag, such as Dag tr
 .. image:: img/ui-light/dag_overview_events.png
    :alt: Dag Events Tab (Light Mode)
 
-
 Code Tab
 ''''''''
 
