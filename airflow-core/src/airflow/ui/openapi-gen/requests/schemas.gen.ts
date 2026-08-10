@@ -6426,6 +6426,37 @@ export const $ReprocessBehavior = {
 :meta private:`
 } as const;
 
+export const $RunOnDemandSectionBody = {
+    properties: {
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run',
+            default: true
+        },
+        prevent_running_task: {
+            type: 'boolean',
+            title: 'Prevent Running Task',
+            default: false
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'RunOnDemandSectionBody',
+    description: 'Request body for running an on-demand section.'
+} as const;
+
 export const $SchedulerInfoResponse = {
     properties: {
         status: {

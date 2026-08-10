@@ -968,6 +968,19 @@ class ReprocessBehavior(str, Enum):
     NONE = "none"
 
 
+class RunOnDemandSectionBody(BaseModel):
+    """
+    Request body for running an on-demand section.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
+    prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
+    note: Annotated[Note | None, Field(title="Note")] = None
+
+
 class SchedulerInfoResponse(BaseModel):
     """
     Scheduler info serializer for responses.

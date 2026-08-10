@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import { RunOnDemandSectionButton } from "src/components/RunOnDemandSection";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
@@ -73,6 +74,7 @@ export const TaskLogPreview = ({
               : translate("overview.failedLogs.showLogs")}
           </Button>
           <ClearTaskInstanceButton taskInstance={taskInstance} />
+          <RunOnDemandSectionButton taskInstance={taskInstance} />
           <RouterLink fontSize="sm" to={getTaskInstanceLink(taskInstance)}>
             {translate("overview.failedLogs.viewFullLogs")}
           </RouterLink>

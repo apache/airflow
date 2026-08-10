@@ -68,6 +68,13 @@
       },
       "title": "Mark {{type}} as {{state}}"
     },
+    "onDemandSection": {
+      "button": "Run on-demand section",
+      "readyDescription": "This task skipped optional downstream tasks for this Dag run. Run the on-demand section when those tasks are needed.",
+      "readyTitle": "On-demand section ready",
+      "resourceName": "on-demand section",
+      "title": "Run on-demand section"
+    },
     "options": {
       "downstream": "Downstream",
       "existingTasks": "Clear existing tasks",

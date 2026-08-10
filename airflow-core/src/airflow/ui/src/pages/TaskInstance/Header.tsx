@@ -28,13 +28,21 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NotePreview from "src/components/NotePreview";
+import {
+  getOnDemandSectionTarget,
+  isRunnableOnDemandSection,
+  RunOnDemandSectionButton,
+} from "src/components/RunOnDemandSection";
 import Time from "src/components/Time";
+import { Alert } from "src/components/ui";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
+  const onDemandSectionTarget = getOnDemandSectionTarget(taskInstance);
+  const isOnDemandSectionRunnable = isRunnableOnDemandSection(onDemandSectionTarget);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -75,6 +83,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
             />
+            {isOnDemandSectionRunnable ? undefined : <RunOnDemandSectionButton taskInstance={taskInstance} />}
             <MarkTaskInstanceAsButton isHotkeyEnabled taskInstance={taskInstance} />
           </>
         }
@@ -83,6 +92,20 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
+      {isOnDemandSectionRunnable ? (
+        <Alert
+          endElement={
+            <Box flexShrink={0}>
+              <RunOnDemandSectionButton taskInstance={taskInstance} />
+            </Box>
+          }
+          mt={2}
+          status="info"
+          title={translate("dags:runAndTaskActions.onDemandSection.readyTitle")}
+        >
+          {translate("dags:runAndTaskActions.onDemandSection.readyDescription")}
+        </Alert>
+      ) : undefined}
       <NotePreview
         header={translate("note.taskInstance")}
         isPending={isPending}

@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import delete, or_, select
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -93,6 +93,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
+    RunOnDemandSectionBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
@@ -115,8 +116,10 @@ from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
+from airflow.models.xcom import XComModel
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
+from airflow.ti_deps.deps.not_previously_skipped_dep import XCOM_SKIPMIXIN_KEY
 from airflow.utils.db import get_query_count
 from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -124,6 +127,36 @@ log = structlog.get_logger(__name__)
 
 task_instances_router = AirflowRouter(tags=["Task Instance"], prefix="/dags/{dag_id}")
 task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
+ON_DEMAND_SECTION_OPERATOR_NAMES = frozenset({"OnDemandSectionOperator"})
+
+
+def _is_on_demand_section_task(task: Any) -> bool:
+    task_type = getattr(task, "task_type", None)
+    operator_name = getattr(task, "operator_name", None)
+    return task_type in ON_DEMAND_SECTION_OPERATOR_NAMES or operator_name in ON_DEMAND_SECTION_OPERATOR_NAMES
+
+
+def _get_on_demand_section_downstream_task_ids(task: Any) -> list[str]:
+    if getattr(task, "ignore_downstream_trigger_rules", True):
+        tasks = task.get_flat_relatives(upstream=False)
+    else:
+        tasks = task.get_direct_relatives(upstream=False)
+
+    return sorted(downstream_task.task_id for downstream_task in tasks if not downstream_task.is_teardown)
+
+
+def _delete_on_demand_section_skip_xcom(
+    *, dag_id: str, dag_run_id: str, task_id: str, session: Session
+) -> None:
+    session.execute(
+        delete(XComModel).where(
+            XComModel.dag_id == dag_id,
+            XComModel.run_id == dag_run_id,
+            XComModel.task_id == task_id,
+            XComModel.map_index == -1,
+            XComModel.key == XCOM_SKIPMIXIN_KEY,
+        )
+    )
 
 
 @task_instances_router.get(
@@ -981,12 +1014,128 @@ def post_clear_task_instances(
     # dag.clear() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if task_instances:
-        task_instances = session.scalars(
-            select(TI)
-            .options(joinedload(TI.rendered_task_instance_fields))
-            .where(TI.id.in_([ti.id for ti in task_instances]))
-            .execution_options(populate_existing=True)
-        ).all()
+        task_instances = list(
+            session.scalars(
+                select(TI)
+                .options(joinedload(TI.rendered_task_instance_fields))
+                .where(TI.id.in_([ti.id for ti in task_instances]))
+                .execution_options(populate_existing=True)
+            ).all()
+        )
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
+        total_entries=len(task_instances),
+    )
+
+
+@task_instances_router.post(
+    task_instances_prefix + "/{task_id}/runOnDemandSection",
+    operation_id="run_on_demand_section",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+)
+def post_run_on_demand_section(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    dag_bag: DagBagDep,
+    body: RunOnDemandSectionBody,
+    session: SessionDep,
+    user: GetUserDep,
+) -> TaskInstanceCollectionResponse:
+    """Run the downstream section controlled by an on-demand section task."""
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+    )
+    if dag_run is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag Run id {dag_run_id} not found in dag {dag_id}")
+
+    dag = get_dag_for_run(dag_bag, dag_run, session)
+    try:
+        task = dag.get_task(task_id)
+    except TaskNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task id {task_id} not found") from None
+
+    if not _is_on_demand_section_task(task):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Task id {task_id} is not an on-demand section task"
+        )
+
+    on_demand_section_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.map_index == -1,
+        )
+    )
+    if on_demand_section_ti is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The on-demand section task instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, "
+            f"task_id: `{task_id}` was not found",
+        )
+
+    if on_demand_section_ti.state != TaskInstanceState.SUCCESS:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "On-demand section task instance must be successful before the section can be run",
+        )
+
+    downstream_task_ids = _get_on_demand_section_downstream_task_ids(task)
+    task_instances: list[TI] = []
+    if downstream_task_ids:
+        task_instances = list(
+            dag.clear(
+                dry_run=True,
+                task_ids=downstream_task_ids,
+                run_id=dag_run_id,
+                session=session,
+                only_failed=False,
+                only_running=False,
+            )
+        )
+
+    if not body.dry_run:
+        try:
+            clear_task_instances(
+                task_instances,
+                session,
+                DagRunState.QUEUED,
+                prevent_running_task=body.prevent_running_task,
+            )
+        except AirflowClearRunningTaskException as e:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
+
+        _delete_on_demand_section_skip_xcom(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_id=task_id,
+            session=session,
+        )
+
+        if body.note is not None:
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=task_instances,
+                user=user,
+            )
+
+    if task_instances:
+        task_instances = list(
+            session.scalars(
+                select(TI)
+                .options(joinedload(TI.rendered_task_instance_fields))
+                .where(TI.id.in_([ti.id for ti in task_instances]))
+                .execution_options(populate_existing=True)
+            ).all()
+        )
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
