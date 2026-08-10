@@ -268,11 +268,30 @@ class AwsBatchExecutor(BaseExecutor):
         self.log.debug("Active Workers: %s", describe_job_response)
 
         for job in describe_job_response:
-            if job.get_job_state() == State.FAILED:
-                self._handle_failed_job(job)
-            elif job.get_job_state() == State.SUCCESS:
-                workload_key = self.active_workers.pop_by_id(job.job_id)
-                self.success(workload_key)
+            try:
+                if job.get_job_state() == State.FAILED:
+                    self._handle_failed_job(job)
+                elif job.get_job_state() == State.SUCCESS:
+                    workload_key = self.active_workers.pop_by_id(job.job_id)
+                    self.success(workload_key)
+            except Exception:
+                self.log.exception(
+                    "Evicting Batch job %s after an unexpected error while syncing it, "
+                    "so that one broken job cannot abort the sync cycle and stall task "
+                    "submission for the whole executor.",
+                    job.job_id,
+                )
+                self._evict_job(job.job_id)
+
+    def _evict_job(self, job_id: str) -> None:
+        """Remove a job from the collection and fail its workload, tolerating corrupted bookkeeping."""
+        workload_key = self.active_workers.remove_job(job_id)
+        if workload_key is None:
+            return
+        try:
+            self.fail(workload_key)
+        except Exception:
+            self.log.exception("Failed to fail workload %s of evicted Batch job %s", workload_key, job_id)
 
     def _handle_failed_job(self, job):
         """
