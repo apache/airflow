@@ -2303,6 +2303,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session=session,
             )
         ).all()
+        if not pending_apdrs:
+            return set()
+
         if len(pending_apdrs) >= self._max_partition_dag_runs_per_loop:
             backlog_total = (
                 session.scalar(
@@ -2318,19 +2321,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         else:
             backlog_total = len(pending_apdrs)
-        has_backlog = backlog_total > self._max_partition_dag_runs_per_loop
-        if has_backlog:
-            # Cap the dag_ids surfaced in logs/audit to the first 5 distinct target_dag_ids so a
-            # backlog spanning many Dags doesn't blow up the log line / audit row.
-            affected_dag_ids = list(dict.fromkeys(apdr.target_dag_id for apdr in pending_apdrs))
-            truncated_dag_ids = affected_dag_ids[:5]
-            extra_dag_id_count = len(affected_dag_ids) - len(truncated_dag_ids)
+            self._partition_cap_backlog_reported = False
+
+        if backlog_total > self._max_partition_dag_runs_per_loop:
+            affected_dag_ids = {apdr.target_dag_id for apdr in pending_apdrs}
             self.log.warning(
-                "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
-                "will be evaluated over subsequent scheduler ticks",
+                (
+                    "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
+                    "will be evaluated over subsequent scheduler ticks"
+                ),
                 cap=self._max_partition_dag_runs_per_loop,
                 backlog_total=backlog_total,
-                dag_ids=truncated_dag_ids,
+                dag_ids=affected_dag_ids,
             )
             # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
             # and writing a `Log` row that often would flood the audit table. Write it once per
@@ -2344,35 +2346,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Invariant: this must run before *session* makes any writes this tick, or the
                 # new connection's commit can lock-contend with it on SQLite.
                 try:
-                    dag_ids_note = f"Affected dag_ids: {', '.join(truncated_dag_ids)}"
-                    if extra_dag_id_count > 0:
-                        dag_ids_note += f" (and {extra_dag_id_count} more)"
-                    dag_ids_note += "."
+                    dag_ids_note = f"Affected dag_ids: {', '.join(affected_dag_ids)}."
                     with create_session(scoped=False) as audit_session:
                         audit_session.add(
                             Log(
-                                event="partition dag run cap reached",
+                                event="partition Dag run cap reached",
                                 extra=(
                                     f"The scheduler evaluated {len(pending_apdrs)} pending partitioned Dag "
                                     f"runs this tick, reaching the internal per-tick cap of "
-                                    f"{self._max_partition_dag_runs_per_loop}. This cap is a hardcoded "
-                                    "scheduler safety limit, not a configurable setting; the remaining "
-                                    f"backlog will be evaluated over subsequent ticks. A total of "
-                                    f"{backlog_total} partitioned Dag runs are currently eligible and "
-                                    f"pending across ticks. {dag_ids_note}"
+                                    f"{self._max_partition_dag_runs_per_loop}. The remaining backlog will "
+                                    f"be evaluated over subsequent ticks. A total of {backlog_total} "
+                                    f"partitioned Dag runs are currently eligible and pending across "
+                                    f"ticks. {dag_ids_note}"
                                 ),
                             )
                         )
                 except (DBAPIError, exc.TimeoutError):
                     # Purely observational — must not fail or retry the tick's actual DagRun
                     # creation work. Leave the flag False so the next tick retries the write.
-                    self.log.warning("Failed to write the partition dag run cap audit Log row", exc_info=True)
+                    self.log.warning("Failed to write the partition Dag run cap audit Log row", exc_info=True)
                 else:
                     self._partition_cap_backlog_reported = True
         else:
             self._partition_cap_backlog_reported = False
-        if not pending_apdrs:
-            return set()
 
         # Pre-fetch all required serialized Dags in one query. The same map
         # serves the stale-version cleanup below and the downstream rollup
