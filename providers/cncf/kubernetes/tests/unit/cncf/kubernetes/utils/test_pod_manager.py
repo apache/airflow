@@ -1292,8 +1292,30 @@ class TestPodManager:
             match=r"container is not running! Not possible to read xcom from pod:",
         ):
             self.pod_manager.extract_xcom(pod=mock_pod)
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_kill_failure_does_not_fail_task(
+        self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
+    ):
+        """test that XCom value is returned even when extract_xcom_kill raises PodCommandException."""
+        from airflow.providers.cncf.kubernetes.utils.pod_manager import PodCommandException
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_terminated")
+        xcom_json = """{"a": "true"}"""
+        mock_pod = MagicMock()
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_json
+        mock_kubernetes_stream.return_value = mock_client
+        mock_exec_xcom_kill.side_effect = PodCommandException("Permission denied")
+        ret = self.pod_manager.extract_xcom(pod=mock_pod)
+        assert ret == xcom_json
+        assert mock_exec_xcom_kill.call_count == 1
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_terminated")    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_terminated")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     def test_await_xcom_sidecar_container_timeout(
         self, mock_container_is_running, mock_container_is_terminated
