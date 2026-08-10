@@ -25,6 +25,16 @@
 Changelog
 ---------
 
+.. note::
+    Upgrading the provider does not update existing Keycloak permissions. For each existing team,
+    run ``airflow keycloak-auth-manager create-team <team>`` again to update the team ReadOnly
+    permission. For non-team installations, run
+    ``airflow keycloak-auth-manager create-permissions`` again without ``--teams`` to update the
+    global Admin permission.
+
+    Manually added policies attached to these permissions will also be evaluated under the
+    ``AFFIRMATIVE`` strategy after the update.
+
 0.9.0
 .....
 
