@@ -36,6 +36,7 @@ from airflow_breeze.commands.common_image_options import (
     option_additional_python_deps,
     option_airflow_constraints_reference_build,
     option_build_progress,
+    option_cache_from_image,
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -52,6 +53,7 @@ from airflow_breeze.commands.common_image_options import (
     option_push,
     option_python_image,
     option_skip_image_file_deletion,
+    option_tag_as,
     option_verify,
     option_wait_for_image,
 )
@@ -247,6 +249,7 @@ option_ci_image_file_to_load = click.option(
 @option_answer
 @option_build_progress
 @option_builder
+@option_cache_from_image
 @option_commit_sha
 @option_debian_version
 @option_debug_resources
@@ -286,6 +289,7 @@ def build(
     airflow_constraints_reference: str,
     build_progress: str,
     builder: str,
+    cache_from_image: str | None,
     commit_sha: str | None,
     debian_version: str,
     debug_resources: bool,
@@ -338,6 +342,7 @@ def build(
         airflow_constraints_reference=airflow_constraints_reference,
         build_progress=build_progress,
         builder=builder,
+        cache_from_image=cache_from_image,
         commit_sha=commit_sha,
         debian_version=debian_version,
         dev_apt_command=dev_apt_command,
@@ -558,6 +563,7 @@ def save(
 @option_platform_single
 @option_python
 @option_skip_image_file_deletion
+@option_tag_as
 @option_verbose
 def load(
     from_run: str | None,
@@ -569,6 +575,7 @@ def load(
     platform: str,
     python: str,
     skip_image_file_deletion: bool,
+    tag_as: str | None,
 ):
     """Load CI image from a file."""
     perform_environment_checks()
@@ -618,6 +625,15 @@ def load(
     if result.returncode != 0:
         console_print(f"[error]Error when loading image: {result.stdout}[/]")
         sys.exit(result.returncode)
+    if tag_as:
+        console_print(f"[info]Tagging {build_ci_params.airflow_image_name} as {tag_as}[/]")
+        result = run_command(
+            ["docker", "tag", build_ci_params.airflow_image_name, tag_as],
+            check=False,
+        )
+        if result.returncode != 0:
+            console_print(f"[error]Error when tagging image: {result.stdout}[/]")
+            sys.exit(result.returncode)
     if not skip_image_file_deletion:
         console_print(f"[info]Deleting image file {image_file_to_load}[/]")
         image_file_to_load.unlink()

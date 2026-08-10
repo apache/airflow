@@ -2211,6 +2211,10 @@ class TestDagFileProcessorProcess:
             conn_type="mysql",
             password="super-secret-password",
             extra='{"api_key":"super-secret-extra"}',
+            host=None,
+            schema=None,
+            login=None,
+            port=None,
         )
 
         with (
@@ -2241,6 +2245,10 @@ class TestDagFileProcessorProcess:
             "conn_type": "mysql",
             "password": "super-secret-password",
             "extra": '{"api_key":"super-secret-extra"}',
+            "host": None,
+            "schema": None,
+            "login": None,
+            "port": None,
             "type": "ConnectionResult",
         }
 

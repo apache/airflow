@@ -32,7 +32,9 @@ from opensearchpy import (
     AWSV4SignerAuth,
     OpenSearch,
     RequestsHttpConnection,
+    TransportError,
 )
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
@@ -271,6 +273,23 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
                 sleep(2)
             else:
                 raise
+
+    # An acknowledged index-creation call does not guarantee the index is ready for use;
+    # OpenSearch Serverless materializes it asynchronously and exposes no status API for it.
+    # Poll a trivial search as a readiness probe so downstream Bedrock ingestion does not
+    # start (and fail) before the index can serve requests.
+    @retry(
+        retry=retry_if_exception_type(TransportError),
+        stop=stop_after_attempt(30),
+        wait=wait_fixed(5),
+        before_sleep=before_sleep_log(log, logging.INFO),
+        reraise=True,
+    )
+    def _wait_for_index_readiness():
+        oss_client.search(index=index_name, body={"query": {"match_all": {}}, "size": 0})
+
+    _wait_for_index_readiness()
+    log.info("Index %s is ready.", index_name)
 
 
 @task

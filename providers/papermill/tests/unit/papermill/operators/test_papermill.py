@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.papermill.operators.papermill import PapermillOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TEST_INPUT_URL = "/foo/bar"

@@ -19,7 +19,7 @@
 import type { TFunction } from "i18next";
 import { describe, expect, it } from "vitest";
 
-import { getDownloadText, getHighlightColor, splitBySearchQuery } from "./utils";
+import { getDownloadText, getHighlightColor, isSelectionWithin, splitBySearchQuery } from "./utils";
 
 const translate = ((key: string) => key) as unknown as TFunction;
 
@@ -238,5 +238,81 @@ describe("splitBySearchQuery", () => {
 
   it("handles entire string as match", () => {
     expect(splitBySearchQuery("error", "error")).toEqual([{ highlight: true, text: "error" }]);
+  });
+});
+
+const makeSelectionForContainer = (options: {
+  anchor: Node | null;
+  collapsed?: boolean;
+  focus?: Node | null;
+  rangeCount?: number;
+}): Selection =>
+  ({
+    anchorNode: options.anchor,
+    focusNode: options.focus ?? options.anchor,
+    isCollapsed: options.collapsed ?? false,
+    rangeCount: options.rangeCount ?? 1,
+  }) as unknown as Selection;
+
+const buildSelectionContainer = () => {
+  const container = document.createElement("div");
+  const inside = document.createElement("span");
+
+  inside.textContent = "log line";
+  container.append(inside);
+
+  return { container, inside: inside.firstChild as Node };
+};
+
+describe("isSelectionWithin", () => {
+  it("returns true when a non-collapsed selection sits inside the container", () => {
+    const { container, inside } = buildSelectionContainer();
+
+    expect(isSelectionWithin(makeSelectionForContainer({ anchor: inside }), container)).toBe(true);
+  });
+
+  it("returns true when only one boundary is inside the container", () => {
+    const { container, inside } = buildSelectionContainer();
+    const outside = document.createElement("div");
+
+    outside.textContent = "elsewhere";
+
+    expect(
+      isSelectionWithin(makeSelectionForContainer({ anchor: outside.firstChild, focus: inside }), container),
+    ).toBe(true);
+  });
+
+  it("returns false for a collapsed selection (a plain click)", () => {
+    const { container, inside } = buildSelectionContainer();
+
+    expect(isSelectionWithin(makeSelectionForContainer({ anchor: inside, collapsed: true }), container)).toBe(
+      false,
+    );
+  });
+
+  it("returns false when the selection is entirely outside the container", () => {
+    const { container } = buildSelectionContainer();
+    const outside = document.createElement("div");
+
+    outside.textContent = "elsewhere";
+
+    expect(isSelectionWithin(makeSelectionForContainer({ anchor: outside.firstChild }), container)).toBe(
+      false,
+    );
+  });
+
+  it("returns false for a null selection or null container", () => {
+    const { container, inside } = buildSelectionContainer();
+
+    expect(isSelectionWithin(null, container)).toBe(false);
+    expect(isSelectionWithin(makeSelectionForContainer({ anchor: inside }), null)).toBe(false);
+  });
+
+  it("returns false when there is no range", () => {
+    const { container, inside } = buildSelectionContainer();
+
+    expect(isSelectionWithin(makeSelectionForContainer({ anchor: inside, rangeCount: 0 }), container)).toBe(
+      false,
+    );
   });
 });

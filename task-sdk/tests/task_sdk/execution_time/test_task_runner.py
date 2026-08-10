@@ -52,6 +52,7 @@ from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_s
 from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import (
     DAG,
     BaseOperator,
@@ -79,7 +80,13 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
-from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+from airflow.sdk.definitions.retry_policy import (
+    ExceptionRetryPolicy,
+    RetryAction,
+    RetryDecision,
+    RetryPolicy,
+    RetryRule,
+)
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -133,6 +140,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     RescheduleTask,
+    RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
     SetRenderedFields,
@@ -1051,6 +1059,214 @@ def test_defer_task_queue_assignment(
     assert actual_queue == expected_trigger_queue, (
         f"Expected DeferTask's queue value to be {mock_task_queue}, but got {actual_queue}"
     )
+
+
+@pytest.mark.parametrize(
+    ("should_retry", "expected_state"),
+    [
+        (True, TaskInstanceState.UP_FOR_RETRY),
+        (False, TaskInstanceState.FAILED),
+    ],
+)
+def test_defer_with_unserializable_kwargs_honours_retries_and_callbacks(
+    should_retry, expected_state, create_runtime_ti, mock_supervisor_comms
+):
+    """
+    A task that defers with a non-serializable ``next_kwargs`` value must fail like any
+    other task, rather than taking the whole run down.
+
+    ``_defer_task`` runs ``serde_serialize`` on the deferral kwargs, which raises
+    ``TypeError`` for anything it has no serializer for (a file handle, a client object,
+    a lambda). That raise happens inside ``run()``'s ``except TaskDeferred`` handler, so
+    before the fix it escaped ``run()`` without evaluating retries or running callbacks,
+    skipping the retry decision and callbacks even without involving the API server at
+    all.
+    """
+    callbacks_run = []
+
+    class _DeferWithBadKwargs(BaseOperator):
+        def execute(self, context):
+            raise TaskDeferred(
+                trigger=DateTimeTrigger(moment=timezone.datetime(2024, 11, 22)),
+                method_name="next",
+                # A live handle is the realistic version of this mistake.
+                kwargs={"client": object()},
+            )
+
+    task = _DeferWithBadKwargs(
+        task_id="defer_bad_kwargs",
+        on_failure_callback=lambda context: callbacks_run.append("failure"),
+        on_retry_callback=lambda context: callbacks_run.append("retry"),
+    )
+    ti = create_runtime_ti(
+        dag_id="test_defer_with_unserializable_kwargs",
+        run_id="test_run",
+        task=task,
+        should_retry=should_retry,
+    )
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+    context = ti.get_template_context()
+
+    state, _, error = run(ti, context, log)
+
+    assert state == expected_state
+    assert isinstance(error, TypeError)
+
+    context["exception"] = error
+    finalize(ti, state, context, log, error)
+
+    assert callbacks_run == ["retry" if should_retry else "failure"]
+
+
+def test_handler_failure_keeps_non_retryable_exceptions_non_retryable(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """
+    A handler that raises a non-retryable exception must still fail without retrying.
+
+    `AirflowFailException` means "do not retry" wherever it is raised. Routing handler
+    failures through `_handle_current_task_failed` would consult the retry count instead
+    and hand back UP_FOR_RETRY, so `_handle_handler_failure` keeps the main chain's
+    classification for these types.
+    """
+
+    class _FailingTrigger(DateTimeTrigger):
+        def serialize(self):
+            raise AirflowFailException("trigger cannot be serialized, do not retry")
+
+    class _DeferWithFailingTrigger(BaseOperator):
+        def execute(self, context):
+            raise TaskDeferred(
+                trigger=_FailingTrigger(moment=timezone.datetime(2024, 11, 22)),
+                method_name="next",
+            )
+
+    task = _DeferWithFailingTrigger(task_id="defer_fail_exc")
+    # Retries are available; the exception type must still win.
+    ti = create_runtime_ti(
+        dag_id="test_handler_failure_non_retryable",
+        run_id="test_run",
+        task=task,
+        should_retry=True,
+    )
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+
+    state, msg, error = run(ti, ti.get_template_context(), log)
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert isinstance(error, AirflowFailException)
+
+
+def test_handler_failure_lets_keyboard_interrupt_propagate(create_runtime_ti, mock_supervisor_comms):
+    """
+    A ``KeyboardInterrupt`` inside a handler must reach ``main()``, not become a task failure.
+
+    The supervisor's default termination signal is SIGINT, so swallowing it here would
+    convert an operator-initiated kill into an ordinary retry.
+    """
+
+    class _InterruptingTrigger(DateTimeTrigger):
+        def serialize(self):
+            raise KeyboardInterrupt
+
+    class _DeferWithInterrupt(BaseOperator):
+        def execute(self, context):
+            raise TaskDeferred(
+                trigger=_InterruptingTrigger(moment=timezone.datetime(2024, 11, 22)),
+                method_name="next",
+            )
+
+    task = _DeferWithInterrupt(task_id="defer_interrupt")
+    ti = create_runtime_ti(dag_id="test_handler_interrupt", run_id="test_run", task=task)
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+
+    with pytest.raises(KeyboardInterrupt):
+        run(ti, ti.get_template_context(), log)
+
+
+def test_handler_failure_fails_closed_when_failure_path_also_fails(create_runtime_ti, mock_supervisor_comms):
+    """
+    If the failure path itself raises, `run()` must still return a terminal state.
+
+    A `retry_policy` is user code and `RetryDecision` is an unvalidated dataclass, so a
+    policy handing back `retry_delay=30` (seconds, rather than a `timedelta`) reaches
+    `_finalize_task_failure`, which calls `.total_seconds()` on it. That `AttributeError`
+    is raised outside `_evaluate_retry_policy`'s own error handling, so it propagates out
+    of the failure path. Re-entering that path with its own exception would fail the same
+    way and escape `run()`, losing the callbacks this handling exists to preserve.
+    """
+
+    class _BadDelayPolicy(RetryPolicy):
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            # Seconds as an int, not a timedelta.
+            return RetryDecision(action=RetryAction.RETRY, retry_delay=30)
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(task_id="bad_delay_policy", retry_policy=_BadDelayPolicy())
+    ti = create_runtime_ti(
+        dag_id="test_handler_double_fault",
+        run_id="test_run",
+        task=task,
+        should_retry=True,
+    )
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+
+    state, msg, error = run(ti, ti.get_template_context(), log)
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.state == TaskInstanceState.FAILED
+    # The terminal state must actually reach the supervisor, not merely be returned.
+    assert any(call.kwargs.get("msg") is msg for call in mock_supervisor_comms.send.call_args_list)
+    # `error` is the exception that actually ended the run, so a callback sees the broken
+    # policy rather than a misleadingly clean task error. The task's own failure stays
+    # reachable on the implicit exception chain.
+    assert isinstance(error, AttributeError)
+    assert isinstance(error.__context__, RuntimeError)
+
+
+def test_handler_failure_counts_the_failure_once(create_runtime_ti, mock_supervisor_comms):
+    """
+    One failure is one increment, even when the failure path runs twice.
+
+    The first pass through `_finalize_task_failure` records the counters before the broken
+    retry delay makes it raise, so counting again on the second pass would report two
+    failures for a single task run.
+    """
+
+    class _BadDelayPolicy(RetryPolicy):
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            return RetryDecision(action=RetryAction.RETRY, retry_delay=30)
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(task_id="count_once", retry_policy=_BadDelayPolicy())
+    ti = create_runtime_ti(
+        dag_id="test_handler_failure_counts_once",
+        run_id="test_run",
+        task=task,
+        should_retry=True,
+    )
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+    stats_backend = mock.MagicMock(spec=StatsLogger)
+
+    with mock.patch("airflow.sdk.execution_time.task_runner.stats", stats_backend):
+        run(ti, ti.get_template_context(), log)
+
+    counted = [call.args[0] for call in stats_backend.incr.call_args_list if call.args]
+    assert counted.count("ti_failures") == 1
+    assert counted.count("operator_failures") == 1
 
 
 def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms, listener_manager):
@@ -2319,6 +2535,7 @@ class TestRuntimeTaskInstance:
             password="passwordvalue",
             schema="schemavalues",
             extra='{"extra__asana__workspace": "extra1"}',
+            port=None,
         )
 
         mock_supervisor_comms.send.return_value = conn
@@ -3018,6 +3235,10 @@ class TestRuntimeTaskInstance:
             run_type="scheduled",
             state="success",
             consumed_asset_events=[],
+            data_interval_start=None,
+            data_interval_end=None,
+            end_date=None,
+            partition_key=None,
         )
 
         mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
@@ -3047,6 +3268,10 @@ class TestRuntimeTaskInstance:
             run_type="scheduled",
             state="success",
             consumed_asset_events=[],
+            data_interval_start=None,
+            data_interval_end=None,
+            end_date=None,
+            partition_key=None,
         )
 
         mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
@@ -5217,10 +5442,10 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @time_machine.travel("2025-01-01 00:00:00", tick=False)
-    def test_handle_trigger_dag_run_reraises_original_error(self, create_runtime_ti, mock_supervisor_comms):
+    def test_handle_trigger_dag_run_surfaces_original_error(self, create_runtime_ti, mock_supervisor_comms):
         """
-        When an ``except`` handler in ``run()`` raises before binding ``state``,
-        the original exception must propagate
+        When an ``except`` handler in ``run()`` raises, the original exception must be
+        surfaced as the task failure, not an ``UnboundLocalError`` on ``state``.
         """
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
@@ -5233,7 +5458,7 @@ class TestTriggerDagRunOperator:
             trigger_run_id="test_run_id",
         )
         ti = create_runtime_ti(
-            dag_id="test_handle_trigger_dag_run_reraises_original_error",
+            dag_id="test_handle_trigger_dag_run_surfaces_original_error",
             run_id="test_run",
             task=task,
         )
@@ -5247,11 +5472,85 @@ class TestTriggerDagRunOperator:
 
         mock_supervisor_comms.send.side_effect = _send
 
-        log = mock.MagicMock()
+        log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
 
-        # The original error must surface, not UnboundLocalError on ``state``.
-        with pytest.raises(_TriggerSendError):
-            run(ti, ti.get_template_context(), log)
+        state, _, error = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, _TriggerSendError)
+
+    @pytest.mark.parametrize(
+        ("should_retry", "expected_state"),
+        [
+            (True, TaskInstanceState.UP_FOR_RETRY),
+            (False, TaskInstanceState.FAILED),
+        ],
+    )
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_missing_dag_honours_retries_and_callbacks(
+        self, should_retry, expected_state, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        A 404 from the API server for a missing target Dag must be handled like any other
+        task failure: the retry decision is made and ``finalize()`` fires the callbacks.
+
+        Regression test for https://github.com/apache/airflow/issues/70683 -- the
+        ``AirflowRuntimeError`` was raised from inside ``run()``'s
+        ``except DagRunTriggerException`` handler, so it escaped ``run()`` without
+        evaluating retries or running ``on_failure_callback`` / ``on_retry_callback``.
+        """
+        callbacks_run = []
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="this_dag_does_not_exist",
+            trigger_run_id="test_run_id",
+            on_failure_callback=lambda context: callbacks_run.append("failure"),
+            on_retry_callback=lambda context: callbacks_run.append("retry"),
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_missing_dag",
+            run_id="test_run",
+            task=task,
+            should_retry=should_retry,
+        )
+
+        not_found = AirflowRuntimeError(
+            error=ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={
+                    "status_code": 404,
+                    "message": "Client error message: Dag with dag_id: 'this_dag_does_not_exist' not found",
+                },
+            )
+        )
+
+        def _send(msg=None, **kwargs):
+            if isinstance(msg, TriggerDagRun):
+                raise not_found
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = _send
+
+        log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+        context = ti.get_template_context()
+
+        state, msg, error = run(ti, context, log)
+
+        assert state == expected_state
+        assert error is not_found
+        # The terminal message is what the server acts on, so assert the shape too:
+        # RetryTask drives UP_FOR_RETRY, TaskState(FAILED) ends the try.
+        if should_retry:
+            assert isinstance(msg, RetryTask)
+        else:
+            assert isinstance(msg, TaskState)
+            assert msg.state == TaskInstanceState.FAILED
+
+        context["exception"] = error
+        finalize(ti, state, context, log, error)
+
+        assert callbacks_run == ["retry" if should_retry else "failure"]
 
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),

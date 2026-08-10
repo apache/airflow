@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Escape attachment filename in Content-Disposition header (#69435)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.2
 .....
 

@@ -24,8 +24,7 @@ import pytest
 
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.common.compat.sdk import conf
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import conf, timezone
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.apache.hive import DEFAULT_DATE, MockSubProcess, TestHiveEnvironment
