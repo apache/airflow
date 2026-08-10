@@ -229,14 +229,15 @@ class TestMessageQueueTriggerScheme:
     def test_deprecated_queue_param_does_not_set_triggerer_queue(self):
         """Regression test: the deprecated `queue` (broker URI) must not leak into the unrelated
         `BaseEventTrigger.queue` attribute used for triggerer queue assignment (see #71346), or the
-        resulting Trigger row would never be picked up by any triggerer."""
+        resulting Trigger row would never be picked up by any triggerer. `BaseEventTrigger.queue` is
+        only present on Airflow versions that ship #71346, hence the `getattr` default."""
         trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE)
         assert trigger.queue_uri == PROVIDER_1_QUEUE
-        assert trigger.queue is None
+        assert getattr(trigger, "queue", None) is None
 
     def test_scheme_param_does_not_set_triggerer_queue(self):
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
-        assert trigger.queue is None
+        assert getattr(trigger, "queue", None) is None
 
     def test_scheme_provider_matching(self):
         """Test that scheme matching works correctly."""
