@@ -145,3 +145,68 @@ async def test_watches_the_requested_branch():
 
     assert payloads[0]["branch"] == "audit"
     assert payloads[0]["snapshot_id"] == 999
+
+
+@pytest.mark.asyncio
+async def test_resumes_from_the_stored_watermark():
+    """A restarted triggerer must not re-emit a snapshot it already reported.
+
+    ``serialize()`` is captured once, so the kwarg still holds the value from when the trigger
+    row was written; only the stored watermark reflects what was actually emitted.
+    """
+    store = MagicMock()
+    store.get.return_value = 222
+
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
+    trigger.asset_state_store = store
+
+    with patch(LOAD_TABLE, return_value=_table_at(222)):
+        payloads = await _collect(trigger, 1, timeout=0.2)
+
+    assert payloads == []
+    store.get.assert_called_once_with("snapshot_id")
+
+
+@pytest.mark.asyncio
+async def test_persists_the_watermark_on_each_event():
+    store = MagicMock()
+    store.get.return_value = None
+
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = store
+
+    with patch(LOAD_TABLE, side_effect=[_table_at(111), _table_at(222), _table_at(222)]):
+        payloads = await _collect(trigger, 2)
+
+    assert [p["snapshot_id"] for p in payloads] == [111, 222]
+    assert [c.args for c in store.set.call_args_list] == [("snapshot_id", 111), ("snapshot_id", 222)]
+
+
+@pytest.mark.asyncio
+async def test_runs_without_a_watermark_when_several_assets_watch_it():
+    """More than one watched asset leaves no single cursor, so it degrades instead of raising."""
+    store = MagicMock()
+    store.get.side_effect = ValueError("Task has 2 concrete inlets and outlets")
+
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = store
+
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        payloads = await _collect(trigger, 1)
+
+    assert [p["snapshot_id"] for p in payloads] == [111]
+    store.set.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_runs_on_airflow_without_an_asset_state_store():
+    """``asset_state_store`` postdates the oldest Airflow this provider supports."""
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    if hasattr(trigger, "asset_state_store"):
+        del trigger.asset_state_store
+    assert not hasattr(trigger, "asset_state_store")
+
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        payloads = await _collect(trigger, 1)
+
+    assert [p["snapshot_id"] for p in payloads] == [111]

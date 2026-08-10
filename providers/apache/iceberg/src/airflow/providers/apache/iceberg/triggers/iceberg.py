@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Hashable
 
 DEFAULT_BRANCH = "main"
+WATERMARK_KEY = "snapshot_id"
 
 
 class IcebergTableSnapshotTrigger(BaseEventTrigger):
@@ -115,11 +116,33 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
         return None
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+        # serialize() is captured once when the trigger row is created, so a value mutated on
+        # self is lost when the triggerer restarts and the current head would be re-emitted as
+        # a new commit. The watermark survives that; the kwarg only seeds the first run.
+        # getattr because asset_state_store postdates the Airflow versions this provider supports.
+        store = getattr(self, "asset_state_store", None)
+        if store is not None:
+            try:
+                stored = await asyncio.to_thread(store.get, WATERMARK_KEY)
+            except ValueError:
+                # Several assets watch this trigger, so there is no single cursor to keep.
+                self.log.warning(
+                    "%s is watched by more than one asset; not persisting a snapshot watermark, "
+                    "so a triggerer restart may re-emit the current head.",
+                    self.table,
+                )
+                store = None
+            else:
+                if stored is not None:
+                    self.last_seen_snapshot_id = int(stored)
+
         while True:
             # pyiceberg is synchronous, so keep the catalog call off the event loop.
             head = await asyncio.to_thread(self._head_snapshot_id)
             if head is not None and head != self.last_seen_snapshot_id:
                 previous, self.last_seen_snapshot_id = self.last_seen_snapshot_id, head
+                if store is not None:
+                    await asyncio.to_thread(store.set, WATERMARK_KEY, head)
                 yield TriggerEvent(
                     {
                         "table": self.table,
