@@ -39,6 +39,7 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
@@ -1489,13 +1490,16 @@ class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
         if self.value is None and self.skip_none:
             return select
 
-        # EXISTS seeks the (dag_id, state) index per Dag rather than scanning the whole table; the
-        # optional run_after bound is not covered by that index, so it is filtered within each Dag's
-        # matching rows (still bounded per Dag, not a full scan).
-        conditions = [DagRun.dag_id == DagModel.dag_id, DagRun.state == self.value]
+        # Alias DagRun so this EXISTS subquery cannot auto-correlate to a DagRun the outer query
+        # may already reference (e.g. the last_dag_run_state filter), which would strip the
+        # subquery's FROM and raise. EXISTS resolves each Dag via the (dag_id, state) index; the
+        # optional run_after bound is not covered by that index, so it is filtered within each
+        # Dag's matching rows (still bounded per Dag, not a full scan).
+        any_run = aliased(DagRun)
+        conditions = [any_run.dag_id == DagModel.dag_id, any_run.state == self.value]
         if self.within_hours is not None:
-            conditions.append(DagRun.run_after >= timezone.utcnow() - timedelta(hours=self.within_hours))
-        has_run_in_state = sql_select(DagRun.dag_id).where(*conditions).exists()
+            conditions.append(any_run.run_after >= timezone.utcnow() - timedelta(hours=self.within_hours))
+        has_run_in_state = sql_select(any_run.dag_id).where(*conditions).exists()
         return select.where(has_run_in_state)
 
     @classmethod
