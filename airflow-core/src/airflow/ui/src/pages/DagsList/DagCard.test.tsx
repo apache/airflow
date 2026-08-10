@@ -189,6 +189,7 @@ const mockDag = {
   tags: [],
   timetable_description: "Every minute",
   timetable_partitioned: false,
+  timetable_partitioned_at_runtime: false,
   timetable_periodic: true,
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
