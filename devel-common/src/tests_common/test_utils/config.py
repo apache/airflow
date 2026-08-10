@@ -98,6 +98,7 @@ def conf_vars(overrides):
 
     if "airflow.configuration" in sys.modules:
         settings.configure_vars()
+    _clear_dag_bundle_config_cache()
 
     try:
         yield
@@ -116,6 +117,18 @@ def conf_vars(overrides):
 
         if "airflow.configuration" in sys.modules:
             settings.configure_vars()
+        _clear_dag_bundle_config_cache()
+
+
+def _clear_dag_bundle_config_cache() -> None:
+    """Drop the per-process Dag bundle configuration cache so the new config is read."""
+    import sys
+
+    manager = sys.modules.get("airflow.dag_processing.bundles.manager")
+    # compat for airflow versions without the snapshot cache
+    cache = getattr(manager, "_load_bundle_config_snapshot", None)
+    if cache is not None:
+        cache.cache_clear()
 
 
 @overload
