@@ -84,6 +84,11 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
     # or ``_defer_task`` will overwrite that queue with the deferring task's queue.
     trigger_queue_inherited_from_task: bool = True
 
+    # Trigger queue assignment. None means no explicit assignment; ``BaseEventTrigger`` and
+    # ``CallbackTrigger`` set this in their ``__init__``, see `trigger_queue_inherited_from_task`.
+    # Declared as a class attribute since many provider triggers don't call ``super().__init__()``.
+    queue: str | None = None
+
     def __init__(self, **kwargs):
         super().__init__()
         # these values are set by triggerer when preparing to run the instance
@@ -93,10 +98,6 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         self.template_fields = ()
         self.template_ext = ()
         self.task_id = None
-        # Explicit triggerer queue assignment. None means no explicit assignment;
-        # subclasses that manage their own queue (e.g. BaseEventTrigger, CallbackTrigger)
-        # set this directly, see `trigger_queue_inherited_from_task`.
-        self.queue: str | None = None
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
