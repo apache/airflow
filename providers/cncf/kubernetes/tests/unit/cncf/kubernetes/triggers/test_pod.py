@@ -843,9 +843,11 @@ class TestKubernetesPodTrigger:
             on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
+        mock_hook.close = mock.AsyncMock()
         with mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=False):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
+        mock_hook.close.assert_awaited_once()
 
     @pytest.mark.skipif(
         AIRFLOW_V_3_3_PLUS,
@@ -1054,6 +1056,7 @@ class TestKubernetesPodTrigger:
             on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
+        mock_hook.close = mock.AsyncMock()
         with mock.patch(
             f"{TRIGGER_PATH}.safe_to_cancel",
             new_callable=mock.AsyncMock,
@@ -1061,3 +1064,4 @@ class TestKubernetesPodTrigger:
         ):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
+        mock_hook.close.assert_awaited_once()
