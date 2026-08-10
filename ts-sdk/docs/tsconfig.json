@@ -1,5 +1,5 @@
 {
-  "//": "Docs-only tsconfig for the TypeDoc analysis pass. It inherits the SDK's compiler settings verbatim and only narrows the program to the public sources: TypeDoc documents src/, and pulling tests/ in would slow the pass down without adding to the reference.",
+  "//": "Docs-only tsconfig for the TypeDoc analysis pass. It inherits the SDK's compiler settings verbatim and roots the program at the public entry point only: TypeScript pulls in whatever that entry point transitively imports, but a glob like `../src/**/*.ts` would also root unreachable internal modules (e.g. the `cli/` bin, which needs the optional `esbuild` peer dependency) that the docs toolchain has no reason to install.",
   "extends": "../tsconfig.json",
-  "include": ["../src/**/*.ts"]
+  "include": ["../src/index.ts"]
 }
