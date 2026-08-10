@@ -2952,7 +2952,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "akeyless", specifier = ">=5.0.0" },
-    { name = "akeyless-cloud-id", marker = "extra == 'cloud-id'" },
+    { name = "akeyless-cloud-id", marker = "extra == 'cloud-id'", specifier = ">=0.3.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
 ]
@@ -3906,7 +3906,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
-    { name = "pyspark" },
+    { name = "pyspark", specifier = ">=4.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
@@ -4442,7 +4442,7 @@ dev = [
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", specifier = ">=0.6.0" },
     { name = "pydantic-ai-skills", specifier = ">=0.11.0" },
-    { name = "pydantic-ai-slim", extras = ["mcp"] },
+    { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.0.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -8330,7 +8330,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest" }]
+dev = [{ name = "pytest", specifier = ">=9.1.1" }]
 
 [[package]]
 name = "apache-airflow-scripts"
