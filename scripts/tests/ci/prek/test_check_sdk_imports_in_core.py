@@ -251,6 +251,26 @@ class TestSdkImportsAllowlistRatchet:
         assert manager.check([path], allowlist) == 1
         assert manager.load() == {"airflow-core/src/airflow/models/improved.py": 1}
 
+    def test_unparseable_file_does_not_tighten_allowlist(self, create_fake_core_repo, tmp_path):
+        """A syntax error must not look like a legitimate drop to zero imports.
+
+        ``find_import_violations`` reports zero violations for a file it cannot parse,
+        indistinguishable from a file that genuinely has none -- the allowlist entry must
+        be left alone rather than tightened or deleted.
+        """
+        path = create_fake_core_repo(
+            "models/broken.py",
+            """\
+            from airflow.sdk import DAG
+            def broken(
+            """,
+        )
+        manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
+        manager.save({"airflow-core/src/airflow/models/broken.py": 1})
+
+        assert manager.check([path], manager.load()) == 0
+        assert manager.load() == {"airflow-core/src/airflow/models/broken.py": 1}
+
     def test_fixing_all_violations_removes_entry(self, create_fake_core_repo, tmp_path):
         path = create_fake_core_repo(
             "models/fixed.py",
@@ -360,6 +380,20 @@ class TestSdkImportsAllowlistGenerate:
 
         assert manager.generate_for([path]) == 0
         assert manager.load() == {"airflow-core/src/airflow/models/other.py": 3}
+
+    def test_generate_for_leaves_unparseable_file_untouched(self, create_fake_core_repo, tmp_path):
+        path = create_fake_core_repo(
+            "models/broken.py",
+            """\
+            from airflow.sdk import DAG
+            def broken(
+            """,
+        )
+        manager = SdkImportsAllowlistManager(tmp_path / "allowlist.txt")
+        manager.save({"airflow-core/src/airflow/models/broken.py": 1})
+
+        assert manager.generate_for([path]) == 0
+        assert manager.load() == {"airflow-core/src/airflow/models/broken.py": 1}
 
     def test_generate_for_skips_example_dags(self, create_fake_core_repo, tmp_path):
         path = create_fake_core_repo("example_dags/tutorial.py", "from airflow.sdk import DAG\n")

@@ -62,6 +62,7 @@ Default (files passed by prek/pre-commit):
 from __future__ import annotations
 
 import argparse
+import ast
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -89,6 +90,21 @@ def check_file_for_sdk_imports(file_path: Path) -> list[tuple[int, str]]:
     )
 
 
+def _can_parse(path: Path) -> bool:
+    """Whether *path* is valid enough Python for its import count to be trustworthy.
+
+    ``find_import_violations`` swallows parse failures and reports zero violations for
+    them, which is indistinguishable from a file that genuinely has none. Callers must
+    filter those files out *before* counting, so a file mid-edit with a syntax error
+    never looks like a legitimate drop in its allowlist entry.
+    """
+    try:
+        ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return False
+    return True
+
+
 class SdkImportsAllowlistManager(AllowlistManager):
     def __init__(self, allowlist_file: Path) -> None:
         super().__init__(allowlist_file, repo_root=REPO_ROOT)
@@ -97,10 +113,23 @@ class SdkImportsAllowlistManager(AllowlistManager):
         return not EXCLUDED_DIR_NAMES.isdisjoint(path.parts)
 
     def iter_files(self) -> Iterable[Path]:
-        return (path for path in CORE_SRC_ROOT.rglob("*.py") if not self.is_excluded(path))
+        return (
+            path for path in CORE_SRC_ROOT.rglob("*.py") if not self.is_excluded(path) and _can_parse(path)
+        )
 
     def check(self, files: list[Path], allowlist: dict[str, int]) -> int:
-        return super().check([path for path in files if not self.is_excluded(path)], allowlist)
+        checkable = []
+        for path in files:
+            if self.is_excluded(path):
+                continue
+            if path.exists() and path.suffix == ".py" and not _can_parse(path):
+                console.print(
+                    f"[yellow]Skipping unparsable file (not counted, allowlist entry left "
+                    f"untouched):[/yellow] {path}"
+                )
+                continue
+            checkable.append(path)
+        return super().check(checkable, allowlist)
 
     def count_occurrences(self, path: Path) -> int:
         return len(check_file_for_sdk_imports(path))
@@ -112,6 +141,9 @@ class SdkImportsAllowlistManager(AllowlistManager):
 
         for path in files:
             if self.is_excluded(path) or not path.exists() or path.suffix != ".py":
+                continue
+            if not _can_parse(path):
+                console.print(f"[yellow]Skipping unparsable file:[/yellow] {path}")
                 continue
             try:
                 rel = str(path.resolve().relative_to(self.repo_root.resolve()))
