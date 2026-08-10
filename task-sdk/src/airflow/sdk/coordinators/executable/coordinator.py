@@ -25,7 +25,7 @@ import pathlib
 import stat
 import struct
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, BinaryIO, ClassVar
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 import attrs
 import structlog
@@ -349,11 +349,10 @@ class ExecutableCoordinator(SubprocessCoordinator):
         converter=convert_roots,
         factory=list,
     )
-    _root_kwarg: ClassVar[str] = "executables_root"
 
     @property
-    def _explicit_artifact_roots(self) -> list[pathlib.Path]:
-        return self.executables_root
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "executables_root", self.executables_root
 
     def _build_execute_task_command(
         self, *, what: TaskInstance, roots: list[pathlib.Path]

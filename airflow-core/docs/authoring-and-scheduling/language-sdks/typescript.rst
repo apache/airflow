@@ -311,8 +311,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   are optional:
 
   * Set ``bundles_root`` to scan explicit filesystem directories you manage yourself.
-  * Set ``dag_bundle_name`` to load the bundle from a configured Dag bundle (its latest version), so it
-    is delivered and versioned through the same bundle machinery as your Dags.
+  * Set ``dag_bundle_name`` to load the bundle from a configured Dag bundle, so it is delivered
+    and versioned through the same bundle machinery as your Dags. The task uses the version that
+    bundle is on when it starts, pinned for the whole task.
   * Leave both unset (the default) to load the bundle from the **task's own** Dag bundle, pinned to the
     version the run was created with.
 

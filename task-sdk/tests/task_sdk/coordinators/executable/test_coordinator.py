@@ -371,7 +371,6 @@ class TestExecutableCoordinatorAttributes:
         assert coordinator.executables_root == [tmp_path, other]
 
     def test_executables_root_optional_defaults_to_empty(self):
-        # Neither an explicit root nor dag_bundle_name: co-located mode, valid.
         coordinator = ExecutableCoordinator()
         assert coordinator.executables_root == []
         assert coordinator.dag_bundle_name is None
@@ -384,13 +383,13 @@ class TestExecutableCoordinatorAttributes:
         with pytest.raises(ValueError, match="at most one of 'executables_root' or 'dag_bundle_name'"):
             ExecutableCoordinator(executables_root=[tmp_path], dag_bundle_name="artifacts")
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = False
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
             ExecutableCoordinator(dag_bundle_name="ghost")
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_configured_dag_bundle_name_accepted(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = True
         coordinator = ExecutableCoordinator(dag_bundle_name="artifacts")
@@ -398,8 +397,6 @@ class TestExecutableCoordinatorAttributes:
         mock_manager.is_bundle_configured.assert_called_once_with("artifacts")
 
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
-        # Co-located mode: no configured root, so the subclass must scan the roots
-        # the base hands in rather than a configured executables_root field.
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
         coordinator = ExecutableCoordinator()
         command, schema_version = coordinator._build_execute_task_command(

@@ -238,8 +238,7 @@ class TestJavaCoordinatorAttributes:
         assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
 
     def test_jars_root_optional_defaults_to_empty(self):
-        # Neither an explicit root nor dag_bundle_name: co-located mode. main_class
-        # is optional here — the entrypoint is auto-detected from the bundle scan.
+        # main_class stays optional: the entrypoint is auto-detected from the bundle scan.
         coordinator = JavaCoordinator()
         assert coordinator.jars_root == []
         assert coordinator.dag_bundle_name is None
@@ -253,15 +252,13 @@ class TestJavaCoordinatorAttributes:
         with pytest.raises(ValueError, match="at most one of 'jars_root' or 'dag_bundle_name'"):
             JavaCoordinator(jars_root="/airflow/java-bundles", dag_bundle_name="artifacts")
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = False
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
             JavaCoordinator(dag_bundle_name="ghost")
 
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
-        # Co-located mode: no configured root, so the subclass must scan the roots
-        # the base hands in rather than a configured jars_root field.
         _make_jar(tmp_path / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
         coordinator = JavaCoordinator(main_class="com.example.TaskRunner")
         command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])

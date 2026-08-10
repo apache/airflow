@@ -22,7 +22,7 @@ from __future__ import annotations
 import base64
 import os
 import pathlib
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import attrs
 import structlog
@@ -156,11 +156,10 @@ class NodeCoordinator(SubprocessCoordinator):
         converter=convert_roots,
         factory=list,
     )
-    _root_kwarg: ClassVar[str] = "bundles_root"
 
     @property
-    def _explicit_artifact_roots(self) -> list[pathlib.Path]:
-        return self.bundles_root
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "bundles_root", self.bundles_root
 
     def _build_execute_task_command(
         self, *, what: TaskInstance, roots: list[pathlib.Path]
