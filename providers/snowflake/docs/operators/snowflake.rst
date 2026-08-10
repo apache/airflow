@@ -189,6 +189,12 @@ between, the handles won't be there for the next retry, and the operator will su
 fresh instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
 ``retry_delay``.
 
+Clearing a task is treated the same as a retry, which matters specifically for a task whose
+statements already succeeded: clearing does not delete the stored handles, so the next attempt
+reads them back and returns immediately without submitting the SQL again. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
 To opt out and always submit fresh SQL on retry, set ``durable=False``:
 
 .. code-block:: python
