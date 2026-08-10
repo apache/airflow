@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.orm import selectinload
 
+from airflow._shared.timezones.timezone import coerce_datetime, utcnow
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -290,6 +291,9 @@ def get_dag_details(
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
     setattr(dag_model, "latest_dag_version", latest_dag_version)
+    setattr(
+        dag_model, "suggested_partition_key", dag.timetable.suggest_partition_key(coerce_datetime(utcnow()))
+    )
 
     details = DAGDetailsResponse.model_validate(dag_model)
     # The redaction lands on the response, not on `dag_model`: that is a live ORM instance whose

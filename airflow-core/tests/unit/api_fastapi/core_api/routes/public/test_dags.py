@@ -22,6 +22,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, insert, select, update
 
@@ -37,6 +38,7 @@ from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1751,6 +1753,7 @@ class TestDagDetails(TestDagEndpoint):
             "rerun_with_latest_version": None,
             "scheduling_state": "active",
             "start_date": start_date,
+            "suggested_partition_key": None,
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
@@ -2080,6 +2083,28 @@ class TestGetDag(TestDagEndpoint):
         body = response.json()
         assert body["dag_id"] == deadline_dag_id
         assert body["is_paused"] is False
+
+
+class TestSuggestedPartitionKey(TestDagEndpoint):
+    """Unit tests for the ``suggested_partition_key`` field of the Dag details endpoint."""
+
+    @time_machine.travel(datetime(2026, 2, 18, 9, 30, tzinfo=timezone.utc), tick=False)
+    def test_details_endpoint_suggests_last_elapsed_partition(self, session, test_client, dag_maker):
+        dag_id = "test_cron_partitioned_suggested_key"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        assert response.json()["suggested_partition_key"] == "2026-02-18T00:00:00"
 
 
 class TestDagWithoutFileloc(TestDagEndpoint):

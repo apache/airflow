@@ -228,6 +228,7 @@ class DAGDetailsResponse(DAGResponse):
     active_runs_count: int = 0
     team_name: str | None = None
     latest_dag_version: DagVersionResponse | None
+    suggested_partition_key: str | None = None
 
     @field_validator("timezone", mode="before")
     @classmethod
