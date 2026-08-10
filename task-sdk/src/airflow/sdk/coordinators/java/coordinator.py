@@ -24,7 +24,7 @@ import os
 import pathlib
 import stat
 import zipfile
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 import attrs
 import structlog
@@ -204,20 +204,16 @@ class JavaCoordinator(SubprocessCoordinator):
         factory=list,
     )
     main_class: str = ""
-    _root_kwarg: ClassVar[str] = "jars_root"
 
     @property
-    def _explicit_artifact_roots(self) -> list[pathlib.Path]:
-        return self.jars_root
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "jars_root", self.jars_root
 
     def _build_execute_task_command(
         self, *, what: TaskInstance, roots: list[pathlib.Path]
     ) -> tuple[list[str], str | None]:
-        # TODO: Scanning a whole Dag bundle without an explicit main_class lets
-        # _JarInfo.find pick the first executable JAR in walk order, so duplicate
-        # entrypoints across bundles resolve non-deterministically — the same
-        # duplicate-dag_id ambiguity the Python Dag path has. Reject it at the
-        # IMPORT_ERROR stage once AIP-85 exposes an interface to raise there.
+        # Without main_class, the first executable JAR in walk order wins; tracked at
+        # https://github.com/apache/airflow/issues/71134
         jar = _JarInfo.find(roots, self.main_class)
         command = [
             self.java_executable,

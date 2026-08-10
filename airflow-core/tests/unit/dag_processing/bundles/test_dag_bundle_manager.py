@@ -31,8 +31,9 @@ from sqlalchemy import func, select, update
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
-    _configured_bundle_names,
     _guess_best_bundle_for_fileloc,
+    _load_bundle_config_snapshot,
+    _parse_bundle_config_snapshot,
 )
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
@@ -172,19 +173,22 @@ def test_get_bundle():
 
 
 @pytest.fixture(autouse=True)
-def _clear_configured_bundle_names_cache():
-    # _configured_bundle_names is a process-global cache; clear it so tests that
-    # set different bundle configs don't observe each other's cached result.
-    _configured_bundle_names.cache_clear()
+def _clear_bundle_config_snapshot_cache():
+    _parse_bundle_config_snapshot.cache_clear()
     yield
-    _configured_bundle_names.cache_clear()
+    _parse_bundle_config_snapshot.cache_clear()
+
+
+def _bundle_config_env(config) -> dict[str, str]:
+    return {
+        "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
+        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(config),
+    }
 
 
 def test_is_bundle_configured():
     """is_bundle_configured reports membership without constructing the bundle."""
-    with patch.dict(
-        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
-    ):
+    with patch.dict(os.environ, _bundle_config_env(BASIC_BUNDLE_CONFIG)):
         assert DagBundlesManager.is_bundle_configured("my-test-bundle") is True
         assert DagBundlesManager.is_bundle_configured("bundle-that-doesn't-exist") is False
 
@@ -196,13 +200,36 @@ def test_is_bundle_configured_does_not_import_bundle_class():
     so an unimportable classpath must not make a coordinator fail at construction.
     """
     config = [{"name": "artifacts", "classpath": "does.not.exist.Bundle", "kwargs": {}}]
-    with patch.dict(os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(config)}):
+    with patch.dict(os.environ, _bundle_config_env(config)):
         assert DagBundlesManager.is_bundle_configured("artifacts") is True
 
 
 def test_is_bundle_configured_empty_config():
-    with patch.dict(os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": "[]"}):
+    with patch.dict(os.environ, _bundle_config_env([])):
         assert DagBundlesManager.is_bundle_configured("anything") is False
+
+
+def test_is_bundle_configured_sees_implicitly_added_bundles():
+    """Bundles parse_config adds implicitly are configured for the name check too."""
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__LOAD_EXAMPLES": "True",
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG),
+        },
+    ):
+        assert DagBundlesManager.is_bundle_configured("example_dags") is True
+
+
+def test_bundle_config_snapshot_is_shared_and_config_scoped():
+    """Readers of one configuration share a snapshot; a config change builds a new one."""
+    with patch.dict(os.environ, _bundle_config_env(BASIC_BUNDLE_CONFIG)):
+        first = _load_bundle_config_snapshot()
+        assert _load_bundle_config_snapshot() is first
+
+    other_config = [{"name": "other", "classpath": BASIC_BUNDLE_CONFIG[0]["classpath"], "kwargs": {}}]
+    with patch.dict(os.environ, _bundle_config_env(other_config)):
+        assert _load_bundle_config_snapshot().names == {"other"}
 
 
 @pytest.fixture

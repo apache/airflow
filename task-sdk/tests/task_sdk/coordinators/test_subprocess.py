@@ -25,7 +25,6 @@ import subprocess
 import sys
 import threading
 import time
-from typing import ClassVar
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
@@ -33,6 +32,7 @@ import psutil
 import pytest
 from uuid6 import uuid7
 
+from airflow.dag_processing.bundles.base import BundleVersion
 from airflow.sdk.api.client import Client, TaskInstanceOperations
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 from airflow.sdk.coordinators._subprocess import (
@@ -583,11 +583,10 @@ class _StubSubprocessCoordinator(SubprocessCoordinator):
     schema_version: str | None = None
     explicit_roots: list[pathlib.Path] = attrs.field(factory=lambda: [pathlib.Path(".")])
     recorded_roots: list[list[pathlib.Path]] = attrs.field(init=False, factory=list)
-    _root_kwarg: ClassVar[str] = "explicit_roots"
 
     @property
-    def _explicit_artifact_roots(self) -> list[pathlib.Path]:
-        return self.explicit_roots
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "explicit_roots", self.explicit_roots
 
     def _build_execute_task_command(self, *, what, roots):
         self.recorded_roots.append(roots)
@@ -897,13 +896,13 @@ class TestClassifyArtifactSource:
                 command=["x"], explicit_roots=[pathlib.Path("/artifacts")], dag_bundle_name="artifacts"
             )
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_rejects_unconfigured_dag_bundle_name(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = False
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
             _StubSubprocessCoordinator(command=["x"], explicit_roots=[], dag_bundle_name="ghost")
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_accepts_configured_dag_bundle_name(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = True
         coordinator = _StubSubprocessCoordinator(
@@ -923,9 +922,9 @@ class TestInitRootSource:
         assert roots == configured
         assert bundle is None
 
-    @patch("airflow.sdk.execution_time.task_runner.initialize_ti_bundle")
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
     def test_task_bundle_mode_uses_active_task_bundle(self, mock_initialize, tmp_path):
-        resolved = MagicMock(supports_versioning=False, path=tmp_path)
+        resolved = MagicMock(path=tmp_path, version="v3")
         mock_initialize.return_value = resolved
         coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
         bundle_info = BundleInfo(name="dags", version="v3", version_data={"k": "v"})
@@ -935,23 +934,49 @@ class TestInitRootSource:
 
         assert roots == [tmp_path]
         assert bundle is resolved
-        mock_initialize.assert_called_once_with(bundle_info, log)
+        mock_initialize.assert_called_once_with(bundle_info)
 
     def test_task_bundle_mode_without_active_task_raises(self):
         coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
         with pytest.raises(RuntimeError, match="requires an active task"):
             coordinator._init_root_source(log)
 
-    def test_unclassified_source_raises(self):
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
-        coordinator._artifact_source = None
-        with pytest.raises(RuntimeError, match="was not classified"):
-            coordinator._init_root_source(log)
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
+    def test_version_less_bundle_is_rematerialized_at_its_current_version(self, mock_initialize, tmp_path):
+        """A bundle resolved without a version is re-resolved at the version current now.
 
-    @patch("airflow.sdk.execution_time.task_runner.initialize_ti_bundle")
-    def test_named_bundle_mode_resolves_bundle(self, mock_initialize, tmp_path):
-        resolved = MagicMock(supports_versioning=False, path=tmp_path)
+        Otherwise the subprocess reads the bundle's shared mutable checkout, which no
+        version lock can protect and which another task's refresh can reset underneath it.
+        """
+        shared_checkout = tmp_path / "tracking_repo"
+        shared_checkout.mkdir()
+        pinned_tree = tmp_path / "versions" / "sha-abc"
+        pinned_tree.mkdir(parents=True)
+
+        unpinned = MagicMock(path=shared_checkout, version=None)
+        unpinned.get_current_version.return_value = BundleVersion(version="sha-abc", data={"k": "v"})
+        pinned = MagicMock(path=pinned_tree, version="sha-abc")
+        mock_initialize.side_effect = [unpinned, pinned]
+
+        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
+        coordinator.dag_bundle_name = "artifacts"
+        coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
+
+        roots, bundle = coordinator._init_root_source(log)
+
+        assert roots == [pinned_tree]
+        assert bundle is pinned
+        assert mock_initialize.call_args_list == [
+            call(BundleInfo(name="artifacts")),
+            call(BundleInfo(name="artifacts", version="sha-abc", version_data={"k": "v"})),
+        ]
+
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
+    def test_unversioned_bundle_keeps_its_single_path(self, mock_initialize, tmp_path):
+        resolved = MagicMock(path=tmp_path, version=None)
+        resolved.get_current_version.return_value = None
         mock_initialize.return_value = resolved
+
         coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
         coordinator.dag_bundle_name = "artifacts"
         coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
@@ -960,12 +985,12 @@ class TestInitRootSource:
 
         assert roots == [tmp_path]
         assert bundle is resolved
-        mock_initialize.assert_called_once_with(BundleInfo(name="artifacts"), log)
+        mock_initialize.assert_called_once_with(BundleInfo(name="artifacts"))
 
-    @patch("airflow.sdk.execution_time.task_runner.initialize_ti_bundle")
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
     def test_missing_resolved_path_raises(self, mock_initialize, tmp_path):
         missing = tmp_path / "nope"
-        mock_initialize.return_value = MagicMock(supports_versioning=False, path=missing)
+        mock_initialize.return_value = MagicMock(path=missing, version="v1")
         coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
         coordinator.dag_bundle_name = "artifacts"
         coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
@@ -975,19 +1000,18 @@ class TestInitRootSource:
 
 
 class TestExecuteTaskBundleWiring:
-    """execute_task binds the task bundle, forwards resolved roots, holds the version lock, uses the task log."""
+    """execute_task binds the task bundle, forwards resolved roots, and holds the version lock."""
 
-    @patch("airflow.dag_processing.bundles.base.BundleVersionLock")
-    @patch("airflow.sdk.execution_time.task_runner.initialize_ti_bundle")
+    @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock")
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
     @patch.object(_PopenActivitySubprocess, "start")
     def test_task_bundle_mode_binds_forwards_roots_and_locks(
         self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
     ):
-        resolved = MagicMock(supports_versioning=False, path=tmp_path, version="v9")
+        resolved = MagicMock(path=tmp_path, version="v9")
         resolved.name = "dags"
         mock_initialize.return_value = resolved
         mock_start.return_value.wait.return_value = 0
-        task_logger = MagicMock()
 
         coordinator = _StubSubprocessCoordinator(command=["/runtime"], explicit_roots=[])
         bundle_info = BundleInfo(name="dags", version="v9")
@@ -997,12 +1021,11 @@ class TestExecuteTaskBundleWiring:
             dag_rel_path="dag.py",
             bundle_info=bundle_info,
             client=mock_client,
-            logger=task_logger,
             subprocess_logs_to_stdout=False,
         )
 
-        # Resolution runs against the bound task bundle, using the task logger (not the module log).
-        mock_initialize.assert_called_once_with(bundle_info, task_logger)
+        # Resolution runs against the bound task bundle.
+        mock_initialize.assert_called_once_with(bundle_info)
         # The resolved root is forwarded to the subclass command builder.
         assert coordinator.recorded_roots == [[tmp_path]]
         # The version lock is held around the subprocess for the resolved bundle.
@@ -1010,7 +1033,7 @@ class TestExecuteTaskBundleWiring:
         mock_lock.return_value.__enter__.assert_called_once()
         mock_lock.return_value.__exit__.assert_called_once()
 
-    @patch("airflow.dag_processing.bundles.base.BundleVersionLock")
+    @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock")
     @patch.object(_PopenActivitySubprocess, "start")
     def test_explicit_root_mode_forwards_roots_without_locking(
         self, mock_start, mock_lock, mock_client, tmp_path
@@ -1029,20 +1052,21 @@ class TestExecuteTaskBundleWiring:
         assert coordinator.recorded_roots == [[tmp_path]]
         mock_lock.assert_not_called()
 
-    @patch("airflow.dag_processing.bundles.base.BundleVersionLock")
-    @patch("airflow.sdk.execution_time.task_runner.initialize_ti_bundle")
+    @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock")
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
     @patch.object(_PopenActivitySubprocess, "start")
-    def test_named_bundle_mode_locks_resolved_current_version(
+    def test_named_bundle_mode_locks_the_tree_it_scans(
         self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
     ):
-        # NAMED_BUNDLE resolves "latest" with version=None; the lock must pin the
-        # concrete current version so it does not silently become a no-op.
-        from airflow.dag_processing.bundles.base import BundleVersion
+        """The lock names the pinned version whose tree is handed to the subprocess."""
+        pinned_tree = tmp_path / "versions" / "sha-abc"
+        pinned_tree.mkdir(parents=True)
 
-        resolved = MagicMock(path=tmp_path, version=None)
-        resolved.name = "artifacts"
-        resolved.get_current_version.return_value = BundleVersion(version="sha-abc", data=None)
-        mock_initialize.return_value = resolved
+        unpinned = MagicMock(path=tmp_path, version=None)
+        unpinned.get_current_version.return_value = BundleVersion(version="sha-abc", data=None)
+        pinned = MagicMock(path=pinned_tree, version="sha-abc")
+        pinned.name = "artifacts"
+        mock_initialize.side_effect = [unpinned, pinned]
         mock_start.return_value.wait.return_value = 0
 
         coordinator = _StubSubprocessCoordinator(command=["/runtime"], explicit_roots=[])
@@ -1057,7 +1081,7 @@ class TestExecuteTaskBundleWiring:
             subprocess_logs_to_stdout=False,
         )
 
-        resolved.get_current_version.assert_called_once_with()
+        assert coordinator.recorded_roots == [[pinned_tree]]
         mock_lock.assert_called_once_with(bundle_name="artifacts", bundle_version="sha-abc")
 
 

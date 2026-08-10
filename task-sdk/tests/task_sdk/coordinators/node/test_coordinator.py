@@ -96,7 +96,6 @@ class TestNodeCoordinatorAttributes:
         assert coordinator.task_startup_timeout == 30.0
 
     def test_bundles_root_optional_defaults_to_empty(self):
-        # Neither an explicit root nor dag_bundle_name: co-located mode, valid.
         coordinator = NodeCoordinator()
         assert coordinator.bundles_root == []
         assert coordinator.dag_bundle_name is None
@@ -109,15 +108,13 @@ class TestNodeCoordinatorAttributes:
         with pytest.raises(ValueError, match="at most one of 'bundles_root' or 'dag_bundle_name'"):
             NodeCoordinator(bundles_root="/airflow/ts-bundles", dag_bundle_name="artifacts")
 
-    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
     def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = False
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
             NodeCoordinator(dag_bundle_name="ghost")
 
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
-        # Co-located mode: no configured root, so the subclass must scan the roots
-        # the base hands in rather than a configured bundles_root field.
         bundle = write_bundle(tmp_path)
         coordinator = NodeCoordinator()
         command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
