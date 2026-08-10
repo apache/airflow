@@ -61,5 +61,16 @@ bundle to that exact commit:
 
 Branches move as new commits are pushed, so combined with ``refresh_interval`` they pick up new code
 without a restart. Tags and commit SHAs are static (assuming tags aren't moved), pinning the bundle
-to known-good code — but promoting or rolling back a SHA means changing ``tracking_ref`` in
-``dag_bundle_config_list`` itself, which requires restarting the Dag processor to take effect.
+to known-good code — but changing a SHA-pinned ``tracking_ref`` is a ``dag_bundle_config_list``
+config change, not a ref move, so it only takes effect once the Dag processor is restarted and
+reloads the configuration. If ``[dag_processor] disable_bundle_versioning`` (or the
+``disable_bundle_versioning`` Dag parameter) is set, workers also resolve code from their own
+``tracking_ref`` rather than a recorded bundle version, so they need the updated configuration too.
+
+.. note::
+
+    Rolling back a SHA-pinned ``tracking_ref`` after a restart is reliable, since the commit's
+    objects are already present in the bundle's local storage. Promoting to a *new* SHA can fail
+    to check out that commit unless the bundle's local storage is cleared first (for example, a
+    fresh pod, or manually deleting the bundle's directory) — see
+    `GH-71388 <https://github.com/apache/airflow/issues/71388>`_ for the underlying limitation.
