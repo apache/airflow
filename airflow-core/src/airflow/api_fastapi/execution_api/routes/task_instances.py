@@ -76,7 +76,7 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.configuration import conf
-from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
+from airflow.exceptions import AirflowException, InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
@@ -309,6 +309,9 @@ def ti_run(
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
+
+        with contextlib.suppress(AirflowException):  # no LogTemplate row: worker falls back to conf
+            context.log_id_template = dr.get_log_template(session=session).elasticsearch_id
 
         # Only set if they are non-null
         if ti.next_method:
