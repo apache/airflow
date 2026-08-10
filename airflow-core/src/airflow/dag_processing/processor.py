@@ -160,6 +160,7 @@ ToManager = Annotated[
     | GetPreviousDagRun
     | GetPreviousTI
     | GetXCom
+    | GetXComByKeys
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
