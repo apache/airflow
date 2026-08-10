@@ -19,6 +19,9 @@
   "bugs": {
     "url": "https://github.com/apache/airflow/issues"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

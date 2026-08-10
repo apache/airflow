@@ -271,3 +271,17 @@ gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
 Use `destination=staging` first to check the output, then `live`. Confirm that
 `https://airflow.apache.org/docs/ts-sdk/stable/` resolves (allow time for cache
 invalidation) and that `/docs/ts-sdk/` redirects to it.
+
+## Publishing
+
+Releases are published from the `Publish TypeScript SDK` GitHub Actions
+workflow. Create a `ts-sdk/<version>` tag whose version exactly matches
+`package.json`, then dispatch the workflow with that tag. The protected
+`ts-sdk-npm` environment provides the release approval boundary. Prereleases
+publish under the npm `next` distribution tag; stable versions publish under
+`latest`.
+
+The npm package must configure `apache/airflow` and
+`ts-sdk-release.yml` as its trusted publisher workflow, restricted to
+the `ts-sdk-npm` environment. After the first successful OIDC publication,
+disable token-based publishing and revoke obsolete npm automation tokens.
