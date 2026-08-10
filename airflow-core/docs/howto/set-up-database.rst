@@ -278,10 +278,12 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 .. note::
 
-   PostgreSQL connection strings can include multiple fallback hosts. Use SQLAlchemy's documented PostgreSQL
-   URL format for this setup so each fallback host is passed correctly to the selected PostgreSQL driver. See
+   SQLAlchemy supports multiple fallback hosts for the psycopg2, psycopg, and asyncpg PostgreSQL dialects.
+   These dialects accept repeated ``host=<host>:<port>`` query parameters, with driver-specific port
+   requirements. See
    `Specifying multiple fallback hosts <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#specifying-multiple-fallback-hosts>`__
-   in the SQLAlchemy documentation.
+   and `asyncpg Multihost Connections <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#multihost-connections>`__
+   in the SQLAlchemy documentation for details.
 
 .. note::
 
