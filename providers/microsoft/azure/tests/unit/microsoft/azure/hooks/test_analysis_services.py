@@ -73,6 +73,7 @@ class TestAzureAnalysisServicesHook:
             AzureAnalysisServicesHook(CONN_ID, request_timeout=request_timeout)
 
     def test_defines_connection_form_widget(self):
+        pytest.importorskip("flask_appbuilder")
         assert set(AzureAnalysisServicesHook.get_connection_form_widgets()) == {"tenantId"}
 
     def test_defines_connection_ui_field_behaviour(self):
