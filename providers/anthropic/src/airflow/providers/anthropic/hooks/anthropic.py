@@ -309,6 +309,18 @@ class AnthropicHook(BaseHook):
         Anthropic access token. See
         https://platform.claude.com/docs/en/manage-claude/workload-identity-federation.
         """
+        required_fields = (
+            "identity_token_file",
+            "federation_rule_id",
+            "organization_id",
+            "service_account_id",
+        )
+        missing_fields = [field for field in required_fields if not wif.get(field)]
+        if missing_fields:
+            raise AnthropicError(
+                "The workload_identity configuration is missing required fields: "
+                f"{', '.join(missing_fields)}."
+            )
         kwargs: dict[str, Any] = {
             "identity_token_provider": IdentityTokenFile(wif["identity_token_file"]),
             "federation_rule_id": wif["federation_rule_id"],
