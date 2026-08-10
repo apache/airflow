@@ -300,7 +300,7 @@ class DagFileProcessorManager(LoggingMixin):
     )
 
     dag_discovery_safe_mode: bool = attrs.field(
-        factory=_config_bool_factory("core", "DAG_DISCOVERY_SAFE_MODE")
+        factory=_config_bool_factory("core", "dag_discovery_safe_mode")
     )
     """Resolved once per process so file discovery and the deactivation scan use the same value."""
 

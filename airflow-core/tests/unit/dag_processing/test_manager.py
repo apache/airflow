@@ -357,7 +357,8 @@ class TestDagFileProcessorManager:
         bundle.name = "testing"
         bundle.path = tmp_path
 
-        manager = DagFileProcessorManager(max_runs=1, dag_discovery_safe_mode=safe_mode)
+        with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
+            manager = DagFileProcessorManager(max_runs=1)
 
         expected = {Path("with_keywords.py")}
         if not safe_mode:
@@ -381,7 +382,8 @@ class TestDagFileProcessorManager:
         zip_path = tmp_path / "test_zip.zip"
         _create_zip_bundle_with_keywordless_dag(zip_path)
 
-        manager = DagFileProcessorManager(max_runs=1, dag_discovery_safe_mode=safe_mode)
+        with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
+            manager = DagFileProcessorManager(max_runs=1)
         observed_filelocs = manager._get_observed_filelocs(
             {DagFileInfo(bundle_name="testing", rel_path=Path("test_zip.zip"), bundle_path=tmp_path)}
         )
