@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import functools
 import importlib
-import json
 import logging
 import os
 import warnings
@@ -116,46 +115,24 @@ class _BundleConfigSnapshot(NamedTuple):
     names: frozenset[str]
 
 
-_EMPTY_BUNDLE_CONFIG_SNAPSHOT = _BundleConfigSnapshot(configs=(), names=frozenset())
-
-
 @functools.cache
-def _parse_bundle_config_snapshot(config_json: str, load_examples: bool) -> _BundleConfigSnapshot:
-    """
-    Build the snapshot for one configuration, without importing any bundle class.
-
-    Keyed on the configuration rather than cached outright, so every reader of the
-    same configuration shares one snapshot while a configuration change is still
-    picked up.
-    """
-    bundle_config_list = _parse_bundle_config(json.loads(config_json))
-    if load_examples:
-        _add_example_dag_bundle(bundle_config_list)
-        _add_provider_example_dags_to_bundle(bundle_config_list)
-    return _BundleConfigSnapshot(
-        configs=tuple(bundle_config_list),
-        names=frozenset(cfg.name for cfg in bundle_config_list),
-    )
-
-
 def _load_bundle_config_snapshot() -> _BundleConfigSnapshot:
-    """
-    Read and validate the configured Dag bundles.
-
-    Shared by :meth:`DagBundlesManager.parse_config`, which goes on to import each
-    bundle class, and by :meth:`DagBundlesManager.is_bundle_configured`, which only
-    needs the names, so both resolve to the same snapshot.
-    """
+    """Read and validate the configured Dag bundles, without importing their classes."""
     config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
     if not config_list:
-        return _EMPTY_BUNDLE_CONFIG_SNAPSHOT
+        return _BundleConfigSnapshot(configs=(), names=frozenset())
     if not isinstance(config_list, list):
         raise AirflowConfigException(
             "Section `dag_processor` key `dag_bundle_config_list` "
             f"must be list but got {config_list.__class__}"
         )
-    return _parse_bundle_config_snapshot(
-        json.dumps(config_list, sort_keys=True), conf.getboolean("core", "LOAD_EXAMPLES")
+    bundle_config_list = _parse_bundle_config(config_list)
+    if conf.getboolean("core", "LOAD_EXAMPLES"):
+        _add_example_dag_bundle(bundle_config_list)
+        _add_provider_example_dags_to_bundle(bundle_config_list)
+    return _BundleConfigSnapshot(
+        configs=tuple(bundle_config_list),
+        names=frozenset(cfg.name for cfg in bundle_config_list),
     )
 
 
