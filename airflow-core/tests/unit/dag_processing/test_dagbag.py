@@ -185,7 +185,7 @@ class TestValidateExecutorFields:
                     "Task 'task1' specifies executor 'invalid.executor', which is not available "
                     "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
                     "Make sure 'invalid.executor' is configured for team 'test_team' or globally in your "
-                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "[core] executor configuration, or update the task's executor to use one of the "
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
@@ -204,7 +204,7 @@ class TestValidateExecutorFields:
                 UnknownExecutorException,
                 match=re.escape(
                     "Task 'task1' specifies executor 'invalid.executor', which is not available. "
-                    "Make sure it is listed in your [core] executors configuration, or update the task's "
+                    "Make sure it is listed in your [core] executor configuration, or update the task's "
                     "executor to use one of the configured executors."
                 ),
             ):
@@ -258,7 +258,7 @@ class TestValidateExecutorFields:
                     "Task 'task1' specifies executor 'unknown.executor', which is not available "
                     "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
                     "Make sure 'unknown.executor' is configured for team 'test_team' or globally in your "
-                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "[core] executor configuration, or update the task's executor to use one of the "
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
@@ -330,7 +330,7 @@ def test_validate_executor_field_executor_not_configured():
         UnknownExecutorException,
         match=re.escape(
             "Task 't1' specifies executor 'test.custom.executor', which is not available. "
-            "Make sure it is listed in your [core] executors configuration, or update the task's "
+            "Make sure it is listed in your [core] executor configuration, or update the task's "
             "executor to use one of the configured executors."
         ),
     ):
