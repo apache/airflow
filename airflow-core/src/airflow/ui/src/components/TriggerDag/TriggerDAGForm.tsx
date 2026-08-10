@@ -42,6 +42,7 @@ type TriggerDAGFormProps = {
   readonly error?: unknown;
   readonly hasSchedule: boolean;
   readonly isPartitioned: boolean;
+  readonly isPartitionedAtRuntime: boolean;
   readonly isPaused: boolean;
   readonly isPending?: boolean;
   readonly onSubmitTrigger?: (params: DagRunTriggerParams) => void;
@@ -53,6 +54,7 @@ type TriggerDAGFormProps = {
         runId: string;
       }
     | undefined;
+  readonly suggestedPartitionKey?: string | null;
 };
 
 const TriggerDAGForm = ({
@@ -61,11 +63,13 @@ const TriggerDAGForm = ({
   error,
   hasSchedule,
   isPartitioned,
+  isPartitionedAtRuntime,
   isPaused,
   isPending = false,
   onSubmitTrigger,
   open,
   prefillConfig,
+  suggestedPartitionKey,
 }: TriggerDAGFormProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
@@ -87,12 +91,13 @@ const TriggerDAGForm = ({
       // For partitioned Dags, logical date is not applicable.
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
-      partitionKey: undefined,
+      partitionKey: suggestedPartitionKey ?? undefined,
     },
   });
 
   // Pre-fill form when prefillConfig is provided (priority over conf)
-  // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
+  // Only restore 'conf' (parameters), not logicalDate or runId, to avoid 409 conflicts.
+  // partitionKey still gets the suggested value (a guess, not a restore of the prior attempt).
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
@@ -105,7 +110,7 @@ const TriggerDAGForm = ({
         dataIntervalStart: "",
         logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
-        partitionKey: undefined,
+        partitionKey: suggestedPartitionKey ?? undefined,
       });
       // Also update the param store to keep it in sync. Seed the initial params (for stable
       // section ordering) only once they are available, but always push the conf so a run's
@@ -132,6 +137,7 @@ const TriggerDAGForm = ({
     initialParamDict,
     setInitialParamDict,
     isPartitioned,
+    suggestedPartitionKey,
   ]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
@@ -248,7 +254,12 @@ const TriggerDAGForm = ({
           setErrors={setErrors}
           setFormError={setFormError}
         >
-          <TriggerDAGAdvancedOptions control={control} isPartitioned={isPartitioned} />
+          <TriggerDAGAdvancedOptions
+            control={control}
+            isPartitioned={isPartitioned}
+            isPartitionedAtRuntime={isPartitionedAtRuntime}
+            suggestedPartitionKey={suggestedPartitionKey}
+          />
         </ConfigForm>
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
