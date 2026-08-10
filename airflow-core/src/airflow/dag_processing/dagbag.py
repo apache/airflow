@@ -39,6 +39,7 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    RemovedInAirflow4Warning,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
@@ -161,6 +162,16 @@ def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
             )
 
 
+def _warn_include_examples_deprecated() -> None:
+    warnings.warn(
+        "The 'include_examples' argument is deprecated, has no effect, and will be removed in "
+        "Airflow 4. Example Dags are loaded through per-provider Dag bundles when the "
+        "[core] load_examples configuration option is enabled.",
+        RemovedInAirflow4Warning,
+        stacklevel=3,
+    )
+
+
 class DagBag(LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high level configuration settings.
@@ -180,6 +191,8 @@ class DagBag(LoggingMixin):
         are not loaded to not run User code in Scheduler.
     :param collect_dags: when True, collects dags during class initialization.
     :param known_pools: If not none, then generate warnings if a Task attempts to use an unknown pool.
+    :param include_examples: Deprecated and ignored; example Dags are loaded through per-provider
+        Dag bundles when the ``[core] load_examples`` configuration option is enabled.
     """
 
     def __init__(
@@ -191,8 +204,11 @@ class DagBag(LoggingMixin):
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
+        include_examples: bool | ArgNotSet = NOTSET,
     ):
         super().__init__()
+        if is_arg_set(include_examples):
+            _warn_include_examples_deprecated()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
 
@@ -448,6 +464,7 @@ class DagBag(LoggingMixin):
         dag_folder: str | Path | None = None,
         only_if_updated: bool = True,
         safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
+        include_examples: bool | ArgNotSet = NOTSET,
     ):
         """
         Look for python modules in a given path, import them, and add them to the dagbag collection.
@@ -461,6 +478,8 @@ class DagBag(LoggingMixin):
         un-anchored regexes or gitignore-like glob expressions, depending on
         the ``DAG_IGNORE_FILE_SYNTAX`` configuration parameter.
         """
+        if is_arg_set(include_examples):
+            _warn_include_examples_deprecated()
         self.log.info("Filling up the DagBag from %s", dag_folder)
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
