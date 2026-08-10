@@ -527,7 +527,7 @@ class DagRunAssetReference(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
-    start_date: Annotated[datetime, Field(title="Start Date")]
+    start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")]

@@ -2008,6 +2008,8 @@ class TestGetDagRunAssetTriggerEvents:
             # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
             create_dagrun_kwargs["logical_date"] = None
         dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
+        dr.start_date = None
+        dr.state = DagRunState.QUEUED
         dr.consumed_asset_events.append(event)
 
         session.commit()
@@ -2040,8 +2042,8 @@ class TestGetDagRunAssetTriggerEvents:
                             "data_interval_start": from_datetime_to_zulu_without_ms(dr.data_interval_start),
                             "end_date": None,
                             "logical_date": from_datetime_to_zulu_without_ms(dr.logical_date),
-                            "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
-                            "state": "running",
+                            "start_date": None,
+                            "state": "queued",
                             "partition_key": partition_key,
                             "triggering": True,
                         }

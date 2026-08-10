@@ -929,6 +929,32 @@ class TestGetAssetEvents(TestAssets):
         assert events[1]["created_dagruns"][0]["triggering"] is False
         assert events[2]["created_dagruns"][0]["triggering"] is True
 
+    def test_should_return_created_dag_run_without_start_date(self, test_client, session):
+        self.create_assets(num=1, session=session)
+        asset_event = AssetEvent(
+            asset_id=1,
+            source_dag_id="producer_dag",
+            source_run_id="producer_run",
+            timestamp=DEFAULT_DATE,
+        )
+        dag_run = DagRun(
+            dag_id="consumer_dag",
+            run_id="asset-triggered-run",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=DEFAULT_DATE,
+            start_date=None,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=DagRunState.QUEUED,
+        )
+        dag_run.consumed_asset_events.append(asset_event)
+        session.add(dag_run)
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        assert response.json()["asset_events"][0]["created_dagruns"][0]["start_date"] is None
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/assets/events")
         assert response.status_code == 401
