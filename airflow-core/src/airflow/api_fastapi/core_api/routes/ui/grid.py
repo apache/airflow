@@ -84,11 +84,6 @@ grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
 
 def _get_latest_serdag(dag_id, session):
-    # Reuse latest_item_select_object: selecting the whole SerializedDagModel pulls the large
-    # data/data_compressed blob columns, and on MySQL the ORDER BY makes filesort load each
-    # candidate row (blob included) into the sort buffer, overflowing it with "Out of sort memory"
-    # for large serialized Dags.
-    # See https://github.com/apache/airflow/pull/55589
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     if not serdag:
         raise HTTPException(
