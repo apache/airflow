@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from contextlib import ExitStack
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
@@ -27,18 +26,19 @@ import pytest
 
 from airflow._shared.module_loading import qualname
 from airflow.exceptions import InvalidPartitionKeyError
-from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.allowed_key import AllowedKeyMapper
+from airflow.partition_mappers.base import PartitionMapper, RollupMapper
+from airflow.partition_mappers.chain import ChainMapper
+from airflow.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.partition_mappers.identity import IdentityMapper as IdentityMapper
-from airflow.partition_mappers.temporal import StartOfDayMapper
-from airflow.partition_mappers.window import DayWindow
+from airflow.partition_mappers.product import ProductMapper
+from airflow.partition_mappers.temporal import FanOutMapper, StartOfDayMapper, StartOfHourMapper
+from airflow.partition_mappers.window import DayWindow, WeekWindow
 from airflow.sdk import Asset, AssetAlias
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.timetables.simple import PartitionedAssetTimetable
-
-if TYPE_CHECKING:
-    from airflow.partition_mappers.base import PartitionMapper
 
 
 class Key1Mapper(IdentityMapper):
@@ -279,3 +279,95 @@ class TestPartitionedAssetTimetable:
             default_partition_mapper=StartOfDayMapper(),
         )
         assert timetable._decode_partition_date("2025-01-01") == pendulum.datetime(2025, 1, 1, tz="UTC")
+
+
+class _RaisingMapper(PartitionMapper):
+    """Mapper with a callable ``normalize``/``format`` pair where ``format`` always raises."""
+
+    def to_downstream(self, key: str) -> str:
+        return key
+
+    def normalize(self, dt):
+        return dt
+
+    def format(self, dt) -> str:
+        raise ValueError("boom")
+
+
+class TestPartitionedAssetTimetableSuggestPartitionKey:
+    """
+    ``suggest_partition_key`` enumeration of ``airflow.partition_mappers`` (Step 2):
+
+    - Can answer (has callable ``normalize`` and ``format``): the
+      ``_BaseTemporalMapper`` family — ``StartOfHourMapper``, ``StartOfDayMapper``,
+      ``StartOfWeekMapper``, ``StartOfMonthMapper``, ``StartOfQuarterMapper``,
+      ``StartOfYearMapper``. Only ``StartOfDayMapper``/``StartOfHourMapper`` are
+      exercised directly here; the others share the same base implementation.
+    - Cannot answer: ``RollupMapper``, ``FanOutMapper``, ``ChainMapper``,
+      ``ProductMapper``, ``IdentityMapper``, ``FixedKeyMapper``, ``AllowedKeyMapper``.
+    """
+
+    def test_suggest_partition_key_returns_mapper_answer_when_all_agree(self):
+        timetable = PartitionedAssetTimetable(
+            assets=Asset(name="daily", uri="s3://bucket/daily"),
+            default_partition_mapper=StartOfDayMapper(),
+        )
+        now = pendulum.datetime(2025, 1, 1, 10, tz="UTC")
+        assert timetable.suggest_partition_key(now) == "2025-01-01"
+
+    def test_suggest_partition_key_returns_none_when_mappers_disagree(self):
+        name_ref = ensure_serialized_asset(Asset.ref(name="daily"))
+        uri_ref = ensure_serialized_asset(Asset.ref(uri="s3://bucket/hourly"))
+        timetable = PartitionedAssetTimetable(
+            assets=[name_ref, uri_ref],
+            partition_mapper_config={
+                name_ref: StartOfDayMapper(),
+                uri_ref: StartOfHourMapper(),
+            },
+        )
+        now = pendulum.datetime(2025, 1, 1, 10, tz="UTC")
+        assert timetable.suggest_partition_key(now) is None
+
+    @pytest.mark.parametrize(
+        "mapper",
+        [
+            IdentityMapper(),
+            FixedKeyMapper("fixed"),
+            AllowedKeyMapper(["a", "b"]),
+            ChainMapper(IdentityMapper(), IdentityMapper()),
+            ProductMapper(IdentityMapper(), IdentityMapper()),
+            RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow()),
+            FanOutMapper(upstream_mapper=StartOfDayMapper(), window=WeekWindow()),
+        ],
+        ids=[
+            "IdentityMapper",
+            "FixedKeyMapper",
+            "AllowedKeyMapper",
+            "ChainMapper",
+            "ProductMapper",
+            "RollupMapper",
+            "FanOutMapper",
+        ],
+    )
+    def test_suggest_partition_key_returns_none_for_mappers_without_normalize_and_format(self, mapper):
+        timetable = PartitionedAssetTimetable(
+            assets=Asset(name="daily", uri="s3://bucket/daily"),
+            default_partition_mapper=mapper,
+        )
+        assert timetable.suggest_partition_key(pendulum.datetime(2025, 1, 1, tz="UTC")) is None
+
+    def test_suggest_partition_key_returns_none_when_no_asset(self):
+        timetable = PartitionedAssetTimetable(assets=AssetAlias(name="alias_only"))
+        assert timetable.suggest_partition_key(pendulum.datetime(2025, 1, 1, tz="UTC")) is None
+
+    @mock.patch("airflow.timetables.simple.log")
+    def test_suggest_partition_key_swallows_mapper_exceptions(self, mock_log):
+        timetable = PartitionedAssetTimetable(
+            assets=Asset(name="daily", uri="s3://bucket/daily"),
+            default_partition_mapper=_RaisingMapper(),
+        )
+        assert timetable.suggest_partition_key(pendulum.datetime(2025, 1, 1, tz="UTC")) is None
+        assert any(
+            call.args[0] == "Failed to suggest partition key from mapper; ignoring"
+            for call in mock_log.warning.mock_calls
+        )
