@@ -1081,6 +1081,27 @@ def test_iter_partition_dagrun_infos_inclusive_endpoint_pair() -> None:
     assert not any(i.partition_key == "2026-02-20T00:00:00" for i in infos_two)
 
 
+def test_suggest_partition_key_after_tick_returns_most_recently_elapsed() -> None:
+    """A *now* strictly after today's tick suggests today's already-elapsed partition."""
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)
+    now = pendulum.datetime(2026, 2, 18, 12, tz="Asia/Taipei")
+    assert timetable.suggest_partition_key(now) == "2026-02-18T00:00:00"
+
+
+def test_suggest_partition_key_exactly_on_tick_returns_that_tick() -> None:
+    """A *now* landing exactly on a tick (the inclusive boundary) suggests that tick itself."""
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)
+    now = pendulum.datetime(2026, 2, 18, tz="Asia/Taipei")
+    assert timetable.suggest_partition_key(now) == "2026-02-18T00:00:00"
+
+
+def test_suggest_partition_key_reflects_run_offset() -> None:
+    """A non-zero run_offset shifts the suggested partition the same way it shifts scheduled runs."""
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=-1)
+    now = pendulum.datetime(2026, 2, 18, 12, tz="Asia/Taipei")
+    assert timetable.suggest_partition_key(now) == "2026-02-17T00:00:00"
+
+
 def test_iter_partition_dagrun_infos_subday_window_does_not_expand_to_whole_day() -> None:
     """A sub-day window of an hourly timetable yields only the ticks inside it — not the whole day.
 
