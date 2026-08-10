@@ -208,6 +208,7 @@ class DAGDetailsResponse(DAGResponse):
     is_favorite: bool = False
     active_runs_count: int = 0
     team_name: str | None = None
+    suggested_partition_key: str | None = None
 
     @field_validator("timezone", mode="before")
     @classmethod

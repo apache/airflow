@@ -24,6 +24,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, update
 
+from airflow._shared.timezones.timezone import coerce_datetime, utcnow
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
@@ -268,6 +269,9 @@ def get_dag_details(
     # Add is_favorite and active_runs_count fields to the Dag model
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+    setattr(
+        dag_model, "suggested_partition_key", dag.timetable.suggest_partition_key(coerce_datetime(utcnow()))
+    )
 
     return DAGDetailsResponse.model_validate(dag_model)
 

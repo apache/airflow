@@ -21,6 +21,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+import time_machine
 from sqlalchemy import delete, insert, select, update
 
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
@@ -30,6 +31,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1292,6 +1294,7 @@ class TestDagDetails(TestDagEndpoint):
             "render_template_as_native_obj": False,
             "rerun_with_latest_version": None,
             "start_date": start_date,
+            "suggested_partition_key": None,
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
@@ -1395,6 +1398,7 @@ class TestDagDetails(TestDagEndpoint):
             "render_template_as_native_obj": False,
             "rerun_with_latest_version": None,
             "start_date": start_date,
+            "suggested_partition_key": None,
             "tags": [],
             "template_search_path": None,
             "timetable_summary": None,
@@ -1638,6 +1642,28 @@ class TestGetDag(TestDagEndpoint):
     def test_get_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 403
+
+
+class TestSuggestedPartitionKey(TestDagEndpoint):
+    """Unit tests for the ``suggested_partition_key`` field of the Dag details endpoint."""
+
+    @time_machine.travel(datetime(2026, 2, 18, 9, 30, tzinfo=timezone.utc), tick=False)
+    def test_details_endpoint_suggests_last_elapsed_partition(self, session, test_client, dag_maker):
+        dag_id = "test_cron_partitioned_suggested_key"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        assert response.json()["suggested_partition_key"] == "2026-02-18T00:00:00"
 
 
 class TestDagWithoutFileloc(TestDagEndpoint):
