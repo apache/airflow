@@ -37,13 +37,17 @@ import signal
 import socket
 import subprocess
 import time
-from typing import TYPE_CHECKING, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 import attrs
 import psutil
 import structlog
 
+from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.configuration import conf
+from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
@@ -56,7 +60,7 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -375,15 +379,43 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         return code
 
 
+def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+    """
+    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
+
+    A bundle resolved without a version points at the bundle's shared, mutable
+    checkout: another task refreshing the same bundle resets it underneath a running
+    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
+    lock is a no-op. Re-resolving at the version current now yields a private
+    ``versions/<version>`` tree that the lock does cover.
+
+    Bundles that do not track versions have nothing to pin and keep their single path.
+    """
+    bundle = initialize_ti_bundle(target)
+    if bundle.version is not None:
+        return bundle
+
+    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
+    if version is None:
+        return bundle
+    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
+    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
+
+
 class _ArtifactSource(enum.Enum):
     """How a subprocess coordinator locates the compiled task artifacts."""
 
     EXPLICIT_ROOT = enum.auto()
     """An explicit filesystem root (``jars_root`` / ``executables_root`` / ``bundles_root``)."""
     NAMED_BUNDLE = enum.auto()
-    """``dag_bundle_name`` names a configured Dag bundle; its latest version is used."""
+    """``dag_bundle_name`` names a configured Dag bundle; its version current at task start is used."""
     TASK_BUNDLE = enum.auto()
-    """Neither is set: the task's own (co-located) bundle, pinned to the run's version."""
+    """
+    Neither is set: artifacts are *co-located* with the Python stub Dag.
+
+    The task's own bundle is scanned, so the compiled artifacts ship in the same
+    bundle, at the same version, as the Dag that delegates to them.
+    """
 
 
 @attrs.define(kw_only=True)
@@ -403,46 +435,42 @@ class SubprocessCoordinator(BaseCoordinator):
     :param dag_bundle_name: Locate artifacts through a configured Dag bundle rather
         than an explicit root. Mutually exclusive with the subclass's explicit root;
         if neither is set, the task's own bundle is used. A named bundle resolves to
-        its latest version; the task's own bundle is pinned to the run's version.
+        the version current when the task starts; the task's own bundle uses the
+        run's version. Either way the resolved version is pinned for the whole task.
     """
 
     task_startup_timeout: float = 10.0
     dag_bundle_name: str | None = None
 
-    # Name of the subclass's explicit-root kwarg, used only in error messages.
-    # Subclasses that expose an explicit root set this and override
-    # :meth:`_explicit_artifact_roots`; a subclass that does neither lands on the
-    # task-bundle default instead of failing at execute time.
-    _root_kwarg: ClassVar[str] = "root"
-
-    # Classified once at construction by :meth:`_classify_artifact_source` and
-    # dispatched on by :meth:`_init_root_source` at execute time.
-    _artifact_source: _ArtifactSource | None = attrs.field(init=False, default=None)
+    _artifact_source: _ArtifactSource = attrs.field(init=False)
     # The subclass's explicit root, recorded at construction so the base can
     # resolve roots without knowing the subclass field name.
     _configured_roots: list[pathlib.Path] = attrs.field(init=False, factory=list)
-    # The task's own bundle, bound for the duration of a single :meth:`execute_task`
-    # call by :meth:`_set_current_bundle` so :meth:`_init_root_source` can resolve
-    # co-located artifacts.
     _active_bundle_info: BundleInfo | None = attrs.field(init=False, default=None)
 
     @property
-    def _explicit_artifact_roots(self) -> Sequence[pathlib.Path]:
-        """Subclass's explicit artifact roots; empty (the default) selects task-bundle mode."""
-        return []
+    def _explicit_artifact_roots(self) -> tuple[str, Sequence[pathlib.Path]]:
+        """
+        The subclass's explicit-root kwarg name and its configured value.
+
+        The name is only used in error messages. An empty value — the default, for a
+        subclass that does not override this — selects task-bundle mode rather than
+        failing at execute time.
+        """
+        return "root", ()
 
     def __attrs_post_init__(self) -> None:
-        self._classify_artifact_source(self._explicit_artifact_roots, root_kwarg=self._root_kwarg)
+        self._classify_artifact_source()
 
-    def _classify_artifact_source(self, configured: Sequence[pathlib.Path], *, root_kwarg: str) -> None:
+    def _classify_artifact_source(self) -> None:
         """
         Classify and validate how this coordinator locates artifacts (construction time).
 
-        Called from :meth:`__attrs_post_init__` with the subclass's explicit
-        roots. It rejects setting both an explicit root and ``dag_bundle_name``,
-        fails fast when ``dag_bundle_name`` names a bundle that is not configured,
-        and records the resulting :class:`_ArtifactSource` and explicit root.
+        Rejects setting both an explicit root and ``dag_bundle_name``, fails fast
+        when ``dag_bundle_name`` names a bundle that is not configured, and records
+        the resulting :class:`_ArtifactSource` and explicit root.
         """
+        root_kwarg, configured = self._explicit_artifact_roots
         if configured and self.dag_bundle_name is not None:
             raise ValueError(
                 f"Set at most one of {root_kwarg!r} or 'dag_bundle_name': {root_kwarg!r} for an "
@@ -454,8 +482,6 @@ class SubprocessCoordinator(BaseCoordinator):
             self._configured_roots = list(configured)
         elif self.dag_bundle_name is not None:
             source = _ArtifactSource.NAMED_BUNDLE
-            from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
-
             if not DagBundlesManager.is_bundle_configured(self.dag_bundle_name):
                 raise ValueError(
                     f"Coordinator 'dag_bundle_name' references unconfigured Dag bundle "
@@ -465,12 +491,12 @@ class SubprocessCoordinator(BaseCoordinator):
             source = _ArtifactSource.TASK_BUNDLE
 
         self._artifact_source = source
-        details: dict[str, str | list[str]] = {"mode": source.name}
-        if self.dag_bundle_name is not None:
-            details["dag_bundle_name"] = self.dag_bundle_name
-        if self._configured_roots:
-            details["configured_roots"] = [str(root) for root in self._configured_roots]
-        log.debug("Coordinator artifact source selected", **details)
+        log.debug(
+            "Coordinator artifact source selected",
+            mode=source.name,
+            dag_bundle_name=self.dag_bundle_name,
+            configured_roots=[str(root) for root in self._configured_roots],
+        )
 
     def _init_root_source(
         self, logger: FilteringBoundLogger
@@ -486,25 +512,15 @@ class SubprocessCoordinator(BaseCoordinator):
         if self._artifact_source is _ArtifactSource.EXPLICIT_ROOT:
             return self._configured_roots, None
 
-        from airflow.sdk.api.datamodels._generated import BundleInfo
-
         if self._artifact_source is _ArtifactSource.NAMED_BUNDLE:
             # NAMED_BUNDLE implies dag_bundle_name is set.
             target = BundleInfo(name=cast("str", self.dag_bundle_name))
-        elif self._artifact_source is _ArtifactSource.TASK_BUNDLE:
+        else:
             if self._active_bundle_info is None:
                 raise RuntimeError("_init_root_source requires an active task; call it during execute_task.")
             target = self._active_bundle_info
-        else:
-            raise RuntimeError(
-                "Coordinator artifact source was not classified; call _classify_artifact_source first."
-            )
 
-        # Lazy import: task_runner is a heavy module and importing it at module
-        # load would risk an import cycle through the supervisor.
-        from airflow.sdk.execution_time.task_runner import initialize_ti_bundle
-
-        bundle = initialize_ti_bundle(target, logger)
+        bundle = _initialize_pinned_bundle(target, logger)
         path = bundle.path
         if not path.exists():
             raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
@@ -562,23 +578,10 @@ class SubprocessCoordinator(BaseCoordinator):
                 # Hold the version lock across start()/wait() so bundle cleanup
                 # cannot rmtree a version this task is still reading from,
                 # mirroring task_runner.main() for the Python task path.
-                from airflow.dag_processing.bundles.base import (  # noqa: SDK002
-                    BundleVersionLock,
-                    unpack_bundle_version,
-                )
-
-                # NAMED_BUNDLE resolves "latest" with no pinned version, so
-                # resolved_bundle.version is None and the lock would be a silent
-                # no-op. Pin the concrete current version so the lock protects the read.
-                lock_version = resolved_bundle.version
-                if lock_version is None:
-                    lock_version, _ = unpack_bundle_version(
-                        resolved_bundle.get_current_version(), resolved_bundle
-                    )
                 stack.enter_context(
                     BundleVersionLock(
                         bundle_name=resolved_bundle.name,
-                        bundle_version=lock_version,
+                        bundle_version=resolved_bundle.version,
                     )
                 )
             command, subprocess_schema_version = self._build_execute_task_command(what=what, roots=roots)
