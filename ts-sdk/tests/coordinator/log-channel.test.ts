@@ -43,6 +43,13 @@ async function makeServer(): Promise<Fixture> {
   return { server, port, received, sockClosed };
 }
 
+async function connectChannel(addr: string, name?: string): Promise<LogChannel> {
+  const channel =
+    name === undefined ? LogChannel.createBuffered() : LogChannel.createBuffered(name);
+  await channel.connect(addr);
+  return channel;
+}
+
 function readRecords(received: Buffer[]): Record<string, unknown>[] {
   return Buffer.concat(received)
     .toString("utf8")
@@ -63,7 +70,7 @@ describe("LogChannel", () => {
   });
 
   it("defaults logger name to 'ts-sdk' and auto-stamps timestamp", async () => {
-    const ch = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const ch = await connectChannel(`127.0.0.1:${fx.port}`);
     ch.info("hello");
     await ch.close();
     await fx.sockClosed;
@@ -82,7 +89,7 @@ describe("LogChannel", () => {
   });
 
   it("accepts a custom root name", async () => {
-    const ch = await LogChannel.connect(`127.0.0.1:${fx.port}`, "ts-sdk.runtime");
+    const ch = await connectChannel(`127.0.0.1:${fx.port}`, "ts-sdk.runtime");
     ch.warning("started");
     await ch.close();
     await fx.sockClosed;
@@ -97,7 +104,7 @@ describe("LogChannel", () => {
   });
 
   it("child() creates a hierarchical sibling sharing the socket", async () => {
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const comm = root.child("comm");
     const client = root.child("client");
     expect(comm.loggerName).toBe("ts-sdk.comm");
@@ -115,7 +122,7 @@ describe("LogChannel", () => {
   });
 
   it("children must not close the shared socket", async () => {
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const child = root.child("comm");
     // Child.close() is a no-op. Root.close() ends the socket.
     await child.close();
@@ -133,7 +140,7 @@ describe("LogChannel", () => {
 
   it("handles post-connect socket errors on the root channel", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     root.child("child");
     const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
 
@@ -148,8 +155,54 @@ describe("LogChannel", () => {
     }
   });
 
+  it("buffers records emitted before connect and flushes them in order on connect", async () => {
+    const root = LogChannel.createBuffered();
+    const child = root.child("runtime");
+    child.debug("connecting", { attempt: 1 });
+    root.info("still starting");
+
+    await root.connect(`127.0.0.1:${fx.port}`);
+    root.info("connected");
+    await root.close();
+    await fx.sockClosed;
+
+    const records = readRecords(fx.received);
+    expect(records.map((r) => r["event"])).toEqual([
+      "[ts-sdk.runtime] connecting",
+      "[ts-sdk] still starting",
+      "[ts-sdk] connected",
+    ]);
+    expect(records[0]).toMatchObject({ attempt: 1, level: "debug" });
+  });
+
+  it("rejects connect() from a child and a second connect() on the root", async () => {
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    try {
+      await expect(root.child("runtime").connect(`127.0.0.1:${fx.port}`)).rejects.toThrow(
+        "root-only",
+      );
+      await expect(root.connect(`127.0.0.1:${fx.port}`)).rejects.toThrow("more than once");
+    } finally {
+      await root.close();
+      await fx.sockClosed;
+    }
+  });
+
+  it("close() before connect writes buffered records to stderr", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = LogChannel.createBuffered();
+    try {
+      root.info("never made it");
+      await root.close();
+      const line = write.mock.calls.find((c) => String(c[0]).includes("never made it"))?.[0];
+      expect(String(line)).toContain('"event":"[ts-sdk] never made it"');
+    } finally {
+      write.mockRestore();
+    }
+  });
+
   it("drops records sent after close instead of writing to the ended socket", async () => {
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const child = root.child("comm");
     root.info("before close");
     await root.close();
@@ -165,7 +218,7 @@ describe("LogChannel", () => {
 
   it("writes only the error message when error and close fire together", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
 
     try {
@@ -182,7 +235,7 @@ describe("LogChannel", () => {
 
   it("falls back to stderr when the socket is no longer writable", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
 
     try {
@@ -198,7 +251,7 @@ describe("LogChannel", () => {
   });
 
   it("close() resolves via timeout when the flush never completes", async () => {
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
     vi.spyOn(sock, "end").mockImplementation(() => sock);
     const destroy = vi.spyOn(sock, "destroy");
@@ -216,7 +269,7 @@ describe("LogChannel", () => {
 
   it("reports close-time socket errors", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
 
     try {
@@ -241,7 +294,7 @@ describe("LogChannel", () => {
     const port = (server.address() as net.AddressInfo).port;
 
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const root = await LogChannel.connect(`127.0.0.1:${port}`);
+    const root = await connectChannel(`127.0.0.1:${port}`);
     const child = root.child("comm");
     const shared = (root as unknown as { shared: { connected: boolean } }).shared;
     try {
@@ -279,7 +332,7 @@ describe("LogChannel", () => {
     const port = (server.address() as net.AddressInfo).port;
 
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const root = await LogChannel.connect(`127.0.0.1:${port}`);
+    const root = await connectChannel(`127.0.0.1:${port}`);
     try {
       await vi.waitFor(() => expect(serverSocks).toHaveLength(1));
       serverSocks[0]!.destroy();

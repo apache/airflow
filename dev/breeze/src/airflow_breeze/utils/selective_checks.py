@@ -117,6 +117,7 @@ class FileGroupForCi(Enum):
     DOC_FILES = auto()
     TEXT_NON_DOC_FILES = auto()
     UI_FILES = auto()
+    UI_OPENAPI_FILES = auto()
     SYSTEM_TEST_FILES = auto()
     KUBERNETES_FILES = auto()
     TASK_SDK_FILES = auto()
@@ -379,6 +380,17 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-core/src/airflow/ui/",
             r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/",
         ],
+        # The OpenAPI spec yamls that are inputs of the UI client codegen. Must cover the UNION of
+        # the openapi `files:` triggers of `ts-compile-lint-ui` and
+        # `ts-compile-lint-simple-auth-manager-ui` in `airflow-core/.pre-commit-config.yaml` —
+        # selective checks skip the two hooks as one unit, so this group is a strict superset of
+        # the first hook's triggers; do not "re-sync" it down to a single hook. A spec-only change
+        # (e.g. `_private_ui.yaml`) must not skip those hooks, otherwise a stale committed client
+        # masks type errors in CI (https://github.com/apache/airflow/pull/68919).
+        FileGroupForCi.UI_OPENAPI_FILES: [
+            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml",
+            r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/.*\.yaml",
+        ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes-tests",
@@ -399,6 +411,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES: [
             r"^providers/.*/pyproject\.toml$",
             r"^providers/.*/provider\.yaml$",
+            r"^providers/\.pre-commit-config\.yaml$",
         ],
         FileGroupForCi.ALL_DEV_PYTHON_FILES: [
             r"^dev/.*\.py$",
@@ -1670,7 +1683,9 @@ class SelectiveChecks:
             return ",".join(sorted(prek_hooks_to_skip))
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
-            or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
+            # An API_CODEGEN_FILES disjunct would be unreachable here — matching that group
+            # forces full_tests_needed, and skip_prek_hooks returns early above in that case.
+            or self._matching_files(FileGroupForCi.UI_OPENAPI_FILES, CI_FILE_GROUP_MATCHES)
         ):
             prek_hooks_to_skip.add("ts-compile-lint-ui")
             prek_hooks_to_skip.add("ts-compile-lint-simple-auth-manager-ui")
@@ -1696,9 +1711,12 @@ class SelectiveChecks:
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
             )
             or self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
+            or self._matching_files(FileGroupForCi.PREK_FILES, CI_FILE_GROUP_MATCHES)
         ):
-            # only skip provider validation if none of the provider.yaml and provider
-            # python files changed because validation also walks through all the provider python files
+            # Skip provider validation only when none of these changed:
+            # - provider.yaml / pyproject.toml / providers/.pre-commit-config.yaml
+            # - provider Python files (validation walks all provider Python files)
+            # - prek scripts (the check script itself may have changed)
             prek_hooks_to_skip.add("check-provider-yaml-valid")
         # Non-provider mypy checks run as prek hooks in static checks.
         # Skip them when their relevant files haven't changed, unless devel-common

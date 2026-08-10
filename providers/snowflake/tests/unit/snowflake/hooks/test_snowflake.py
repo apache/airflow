@@ -33,9 +33,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from requests.exceptions import ConnectionError, HTTPError
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from pathlib import Path
