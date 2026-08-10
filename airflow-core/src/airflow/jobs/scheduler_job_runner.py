@@ -2267,11 +2267,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
         # two APDRs share a `created_at` under bulk asset-event ingestion.
         # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
-        # LIMIT cap + 1: a row beyond the cap is the cheapest way to tell "there is a real
-        # backlog" apart from "this batch is the entire backlog" without a separate COUNT
-        # query. Only the first `cap` rows are sliced off and processed below — the extra
-        # probe row is never touched.
-        rows = session.scalars(
+        # The fetch is capped at `cap` rows. When it comes back full, we can't tell from the
+        # fetch alone whether that's the entire backlog or just this tick's slice of a larger
+        # one, so we pay for a separate lock-free `count()` query in that case only — trading
+        # an occasional extra read for not locking rows this process won't claim, and for a
+        # real number to report in logs/audit instead of the capped fetch size.
+        pending_apdrs = session.scalars(
             with_row_locks(
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
@@ -2280,15 +2281,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     DagModel.is_stale.is_(False),
                 )
                 .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
-                .limit(self._max_partition_dag_runs_per_loop + 1),
+                .limit(self._max_partition_dag_runs_per_loop),
                 of=AssetPartitionDagRun,
                 skip_locked=True,
                 key_share=False,
                 session=session,
             )
         ).all()
-        has_backlog = len(rows) > self._max_partition_dag_runs_per_loop
-        pending_apdrs = rows[: self._max_partition_dag_runs_per_loop]
+        if len(pending_apdrs) >= self._max_partition_dag_runs_per_loop:
+            backlog_total = (
+                session.scalar(
+                    select(func.count())
+                    .select_from(AssetPartitionDagRun)
+                    .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                    .where(
+                        AssetPartitionDagRun.created_dag_run_id.is_(None),
+                        DagModel.is_stale.is_(False),
+                    )
+                )
+                or 0
+            )
+        else:
+            backlog_total = len(pending_apdrs)
+        has_backlog = backlog_total > self._max_partition_dag_runs_per_loop
         if has_backlog:
             # Cap the dag_ids surfaced in logs/audit to the first 5 distinct target_dag_ids so a
             # backlog spanning many Dags doesn't blow up the log line / audit row.
@@ -2299,7 +2314,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
                 "will be evaluated over subsequent scheduler ticks",
                 cap=self._max_partition_dag_runs_per_loop,
-                pending_count=len(pending_apdrs),
+                backlog_total=backlog_total,
                 dag_ids=truncated_dag_ids,
             )
             # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
@@ -2327,7 +2342,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                     f"runs this tick, reaching the internal per-tick cap of "
                                     f"{self._max_partition_dag_runs_per_loop}. This cap is a hardcoded "
                                     "scheduler safety limit, not a configurable setting; the remaining "
-                                    f"backlog will be evaluated over subsequent ticks. {dag_ids_note}"
+                                    f"backlog will be evaluated over subsequent ticks. A total of "
+                                    f"{backlog_total} partitioned Dag runs are currently eligible and "
+                                    f"pending across ticks. {dag_ids_note}"
                                 ),
                             )
                         )
