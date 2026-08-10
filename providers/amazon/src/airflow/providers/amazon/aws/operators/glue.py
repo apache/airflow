@@ -74,10 +74,13 @@ if TYPE_CHECKING:
 
 # Glue job run states, see
 # https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-jobs-runs.html#aws-glue-api-jobs-runs-JobRun
-# STOPPED means the run was cancelled outside Airflow and it is treated as terminal-successful to match
-# ```GlueJobHook.job_completion`` and ``GlueJobCompleteTrigger``, which both accept it as finished.
-JOB_RUN_SUCCESS_STATES = ("SUCCEEDED", "STOPPED")
-JOB_RUN_TERMINAL_STATES = (*JOB_RUN_SUCCESS_STATES, "FAILED", "TIMEOUT", "ERROR", "EXPIRED")
+# STOPPED is deliberately NOT a success state here, even though GlueJobHook.job_completion and
+# GlueJobCompleteTrigger both treat it as finished: Glue's API gives no way to tell a run stopped
+# by a console cancellation from one this operator's own on_kill stopped (on SIGTERM,
+# execution_timeout, or a task clear). Treating STOPPED as terminal-failure means a self-inflicted
+# stop resubmits instead of being silently reported as a false success.
+JOB_RUN_SUCCESS_STATES = ("SUCCEEDED",)
+JOB_RUN_TERMINAL_STATES = (*JOB_RUN_SUCCESS_STATES, "STOPPED", "FAILED", "TIMEOUT", "ERROR", "EXPIRED")
 # Synthetic state for a run id Glue no longer knows about, so a retry submits fresh rather than failing.
 NOT_FOUND_STATE = "NOT_FOUND"
 
@@ -400,7 +403,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         if self.openlineage_inject_transport_info:
             self.log.info("Injecting OpenLineage transport information into Glue job arguments.")
             script_args = inject_transport_information_into_glue_arguments(script_args, context)
-        if self.durable:
+        if self.durable and not self.deferrable:
             script_args, _ = self._prepare_script_args_with_task_uuid(context, base_args=script_args)
         return script_args
 
@@ -443,7 +446,12 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     def submit_job(self, context: Context) -> str:
         """Start a Glue job run and return its run id, or reconnect to one this task already started."""
         script_args = self._build_script_args(context)
-        if self.durable:
+        # The --airflow_task_uuid tag is still written on every nondeferred attempt,
+        # including the first: a later retry's scan can only find it if it was there from the
+        # start. The lookup itself is skipped on the first attempt, since nothing tagged with this
+        # task's UUID could possibly exist yet -- paying for a full run-history scan there would
+        # be pure waste.
+        if self.durable and not self.deferrable and context["ti"].try_number > 1:
             existing_job_run_id = self._find_previous_job_run(context, script_args[self.TASK_UUID_ARG])
             if existing_job_run_id:
                 self._set_job_run_id(context, existing_job_run_id)
@@ -457,6 +465,10 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         # Set immediately (before any polling) so on_kill can stop the run even if the worker dies
         # before poll_until_complete runs.
         self._set_job_run_id(context, glue_job_run["JobRunId"])
+        # Pushed unconditionally, matching pre-durable-execution behavior: downstream tasks read
+        # this key directly, and it's also the only writer that makes _find_previous_job_run's
+        # XCom tier reachable on the next retry.
+        context["ti"].xcom_push(key="glue_job_run_id", value=glue_job_run["JobRunId"])
         return glue_job_run["JobRunId"]
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
@@ -468,18 +480,13 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             return self.hook.get_job_state(self.job_name, job_run_id)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                return "NOT_FOUND"
+                return NOT_FOUND_STATE
             raise
 
     def is_job_active(self, status: str) -> bool:
         return status not in (*JOB_RUN_TERMINAL_STATES, NOT_FOUND_STATE)
 
     def is_job_succeeded(self, status: str) -> bool:
-        if status == "STOPPED":
-            self.log.warning(
-                "Glue job run %s was stopped outside Airflow. Reporting success without resubmitting.",
-                self._job_run_id,
-            )
         return status in JOB_RUN_SUCCESS_STATES
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:

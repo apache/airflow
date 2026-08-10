@@ -157,14 +157,17 @@ On retry the operator checks the prior run's state:
 
 * if it is still starting, running, waiting for capacity, or being stopped, the operator
   reconnects and continues polling
-* if it already succeeded, or was stopped outside Airflow, the operator returns immediately
-  without resubmitting
-* if it failed terminally, or its id has expired and is no longer found, the operator submits the
-  job fresh
+* if it already succeeded, the operator returns immediately without resubmitting
+* if it stopped, failed terminally, or its id has expired and is no longer found, the operator
+  submits the job fresh
 
-A run that was stopped outside Airflow (for example, cancelled manually in the AWS console) is
-treated as a success rather than resubmitted, since the work is genuinely finished, just not the
-way the task expected - the operator logs a warning when this happens.
+A stopped run resubmits rather than being treated as a success. Glue's API has no way to tell a
+run that was cancelled manually (for example, in the AWS console) apart from one this operator's
+own :meth:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator.on_kill` stopped, which
+happens whenever ``stop_job_run_on_kill=True`` and the task is killed -- on SIGTERM, on
+``execution_timeout``, or when the task is cleared while running. Since the two cases can't be
+told apart, a stopped run always resubmits, so a self-inflicted stop never gets silently reported
+as a false success.
 
 This protection also applies when ``wait_for_completion=False`` -- even though that task attempt
 never polls at all, a retry after a successful submission still reconnects rather than
@@ -183,6 +186,12 @@ when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is 
 id won't be there for the next retry, and the operator falls back to the XCom/scan mechanism
 above rather than reconnecting via task state store. Avoid running cleanup on a schedule shorter
 than your longest ``retry_delay``.
+
+Clearing a task is treated the same as a retry, which matters specifically for a task whose job
+already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
+and returns immediately without submitting anything to Glue. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
 
 To opt out and always start a fresh run on retry, set ``durable=False``:
 
