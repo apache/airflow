@@ -22,13 +22,13 @@ import json
 import os
 from datetime import datetime, timezone
 
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import dag as airflow_dag, task
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = f"common_ai_sandbox_toolset_sbx_{ENV_ID}" if ENV_ID else "common_ai_sandbox_toolset_sbx"
 
 
-@dag(
+@airflow_dag(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -70,7 +70,10 @@ def example_sandbox_toolset_sbx():
                     ]
                 )
 
-            first_result = json.loads(tool_returns[0])
+            first_content = tool_returns[0]
+            if not isinstance(first_content, str):
+                raise RuntimeError(f"Unexpected first sandbox result type: {type(first_content).__name__}")
+            first_result = json.loads(first_content)
             if first_result != {"exit_code": 0, "stdout": "42\n", "stderr": "", "timed_out": False}:
                 raise RuntimeError(f"Unexpected first sandbox result: {first_result!r}")
             if len(tool_returns) == 1:
@@ -89,7 +92,10 @@ def example_sandbox_toolset_sbx():
                     ]
                 )
 
-            second_result = json.loads(tool_returns[1])
+            second_content = tool_returns[1]
+            if not isinstance(second_content, str):
+                raise RuntimeError(f"Unexpected second sandbox result type: {type(second_content).__name__}")
+            second_result = json.loads(second_content)
             if second_result != {
                 "exit_code": 0,
                 "stdout": "boundary-ok\n",
