@@ -160,6 +160,24 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert any_state.status_code == 200
         assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_last_and_any_run_state_filters_combined(self, test_client, session):
+        # Regression: combining the last-run and any-run state filters must return the
+        # intersection, not raise. The any-run EXISTS subquery must not correlate to the
+        # DagRun the last-run filter joins into the outer query.
+        latest_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_5")
+        )
+        latest_run.state = DagRunState.FAILED
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={"last_dag_run_state": "failed", "dag_run_state": "failed", "dag_ids": [DAG1_ID]},
+        )
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG1_ID]
+
     @pytest.fixture
     def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):
         """Setup HITL test data for parametrized tests."""
