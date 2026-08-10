@@ -35,7 +35,7 @@ except ImportError:
 console = Console(width=400, color_system="standard")
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
 
-provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
+provider_files_pattern = pathlib.Path(ROOT_DIR, "providers").rglob("provider.yaml")
 errors: list[str] = []
 
 OPERATORS: list[str] = ["sensors", "operators"]
@@ -121,6 +121,24 @@ def get_providers_modules() -> list[str]:
     return modules_container
 
 
+def path_to_module(pyfile: str) -> str:
+    """
+    Turn a repo-relative source path into the dotted module name provider.yaml uses.
+
+    Both distributions keep their sources under ``src``, and only the part after it
+    is importable::
+
+        providers/ftp/src/airflow/providers/ftp/operators/ftp.py
+            -> airflow.providers.ftp.operators.ftp
+        airflow-core/src/airflow/sensors/base.py
+            -> airflow.sensors.base
+    """
+    parts = pathlib.PurePosixPath(pyfile).with_suffix("").parts
+    if "src" in parts:
+        parts = parts[parts.index("src") + 1 :]
+    return ".".join(parts)
+
+
 def is_class_eligible(name: str) -> bool:
     for op in CLASS_IDENTIFIERS:
         if name.lower().endswith(op):
@@ -164,9 +182,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         py_files = sorted(sys.argv[1:])
         modules_to_validate = [
-            module_name
-            for pyfile in py_files
-            if (module_name := pyfile.rstrip(".py").replace("/", ".")) in provider_modules
+            module_name for pyfile in py_files if (module_name := path_to_module(pyfile)) in provider_modules
         ]
     else:
         modules_to_validate = provider_modules
