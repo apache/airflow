@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import attrs
+import jsonschema
 import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
@@ -3548,11 +3549,21 @@ def test_stub_task_args_round_trip():
         aggregate(data, ["metrics", "hourly"], {"threshold": {"warn": 1}})
 
     ser_dag = DagSerialization.to_dict(dag)
-    # The serialized form must satisfy schema.json (arg_binding / typed_dict definitions).
     DagSerialization.validate_schema(ser_dag)
 
     encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
     assert "_arg_bindings" not in encoded_tasks["extract"], "argless stubs must not serialize a spec"
+    # validate_schema above never reaches task objects: schema.json's `tasks` array hangs the
+    # operator sub-schema off `additionalProperties`, which JSON Schema ignores for arrays. Assert
+    # the `arg_binding` definition directly so it stays honest about the wire form.
+    jsonschema.validate(
+        encoded_tasks["transform"]["_arg_bindings"],
+        {
+            "definitions": load_dag_schema_dict()["definitions"],
+            "type": "array",
+            "items": {"$ref": "#/definitions/arg_binding"},
+        },
+    )
     # Materialized directly by _serialize_node (like _is_empty), not routed through the
     # generic per-field encoder, so the wire form stays plain JSON with no {__type, __var}
     # wrapping -- the execution API validates it straight off the serialized Dag.
@@ -3573,7 +3584,7 @@ def test_stub_task_args_round_trip():
 
     round_tripped = DagSerialization.from_dict(ser_dag)
     assert round_tripped.task_dict["transform"].is_stub is True
-    assert round_tripped.task_dict["transform"]._arg_bindings == [
+    assert round_tripped.task_dict["transform"].arg_bindings == [
         {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
         {
             "name": "extracted",
@@ -3583,7 +3594,7 @@ def test_stub_task_args_round_trip():
         },
     ]
     # The nested value_schema and dict/list literal values survive the round-trip intact.
-    assert round_tripped.task_dict["aggregate"]._arg_bindings == [
+    assert round_tripped.task_dict["aggregate"].arg_bindings == [
         {
             "name": "counts",
             "kind": "xcom",
@@ -3607,7 +3618,7 @@ def test_stub_task_args_round_trip():
         },
     ]
     assert round_tripped.task_dict["extract"].is_stub is True
-    assert round_tripped.task_dict["extract"]._arg_bindings is None
+    assert round_tripped.task_dict["extract"].arg_bindings is None
 
     # The deserialized spec must be plain JSON (no {__type, __var} encoding sentinels) so the
     # execution API can validate it straight off the serialized Dag -- this is the contract
@@ -3615,7 +3626,7 @@ def test_stub_task_args_round_trip():
     from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 
     for task_id in ("transform", "aggregate"):
-        get_arg_bindings_adapter().validate_python(round_tripped.task_dict[task_id]._arg_bindings)
+        get_arg_bindings_adapter().validate_python(round_tripped.task_dict[task_id].arg_bindings)
 
 
 @pytest.mark.parametrize("raw", ["false", "true", 0, 1, None, [], {"a": 1}])

@@ -298,6 +298,11 @@ class SerializedBaseOperator(DAGNode):
         return self._can_skip_downstream
 
     @property
+    def arg_bindings(self) -> list[dict[str, Any]] | None:
+        """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
+        return self._arg_bindings
+
+    @property
     def operator_name(self) -> str:
         # Overwrites operator_name of BaseOperator to use _operator_name instead of
         # __class__.operator_name.

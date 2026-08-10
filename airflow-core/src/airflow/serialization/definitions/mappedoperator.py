@@ -189,6 +189,11 @@ class SerializedMappedOperator(DAGNode):
         return self._can_skip_downstream
 
     @property
+    def arg_bindings(self) -> list[dict[str, Any]] | None:
+        """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
+        return self._arg_bindings
+
+    @property
     def owner(self) -> str:
         return self._get_partial_kwargs_or_operator_default("owner")
 

@@ -21,7 +21,11 @@ import ast
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.providers.common.compat.sdk import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -30,8 +34,7 @@ if TYPE_CHECKING:
 class _StubOperator(DecoratedOperator):
     custom_operator_name: str = "@task.stub"
 
-    # Read by core Dag serialization (OperatorSerialization._serialize_node) to materialize
-    # the TaskFlow arg-binding spec generically.
+    # Read by core Dag serialization to materialize the TaskFlow arg-binding spec.
     is_stub: bool = True
 
     def __init__(
@@ -60,10 +63,10 @@ class _StubOperator(DecoratedOperator):
         module = ast.parse(self.get_python_source())
 
         if len(module.body) != 1:
-            raise ValueError("Expected a single statement")
+            raise RuntimeError("Expected a single statement")
         fn = module.body[0]
         if not isinstance(fn, ast.FunctionDef):
-            raise ValueError("Expected a single sync function")
+            raise RuntimeError("Expected a single sync function")
         for stmt in fn.body:
             if isinstance(stmt, ast.Pass):
                 continue
@@ -74,6 +77,8 @@ class _StubOperator(DecoratedOperator):
             raise ValueError(
                 f"Functions passed to @task.stub must be an empty function (`pass`, or `...` only) (got {stmt})"
             )
+
+        ...
 
     def execute(self, context: Context) -> Any:
         raise RuntimeError(
@@ -94,15 +99,6 @@ def stub(
     Stub tasks exist in the Dag graph only, but the execution must happen in an external
     environment via the Task Execution Interface.
 
-    Stub functions may declare parameters and be called TaskFlow-style with upstream task
-    outputs or JSON-serializable literals; Dag serialization captures the resulting
-    argument-binding spec (parameter names, value schemas, and values, in declaration order)
-    and delivers it to the foreign runtime, which binds the values onto the native task
-    function.
-
-    Mapped (``.expand()``) stubs do not receive TaskFlow arguments yet -- their call args
-    keep the legacy ignored behavior; per-map-index delivery is part of
-    https://github.com/apache/airflow/issues/66937 and lands in a follow-up.
     """
     return task_decorator_factory(
         decorated_operator_class=_StubOperator,

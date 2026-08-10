@@ -142,47 +142,18 @@
       "description": "A python dictionary containing values of any type",
       "type": "object"
     },
-    "typed_dict": {
-      "type": "object",
-      "properties": {
-        "__type": {
-          "type": "string",
-          "const": "dict"
-        },
-        "__var": { "$ref": "#/definitions/dict" }
-      },
-      "required": [
-        "__type",
-        "__var"
-      ],
-      "additionalProperties": false
-    },
     "arg_binding": {
-      "$comment": "One captured TaskFlow call argument of a @task.stub task, in dict-encoded form. The inner object stays open so future binding fields keep validating on older cores",
+      "$comment": "One captured TaskFlow call argument of a @task.stub task. Materialized directly by _serialize_node, so it stays plain JSON with no {__type, __var} encoding. The object stays open so future binding fields keep validating on older cores",
       "type": "object",
       "properties": {
-        "__type": {
-          "type": "string",
-          "const": "dict"
-        },
-        "__var": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "kind": { "type": "string", "enum": [ "xcom", "literal" ] },
-            "value_schema": { "$ref": "#/definitions/typed_dict" },
-            "task_id": { "type": "string" },
-            "value": {},
-            "from_default": { "type": "boolean" }
-          },
-          "required": [ "name", "kind" ]
-        }
+        "name": { "type": "string" },
+        "kind": { "type": "string", "enum": [ "xcom", "literal" ] },
+        "value_schema": { "type": "object" },
+        "task_id": { "type": "string" },
+        "value": {},
+        "from_default": { "type": "boolean" }
       },
-      "required": [
-        "__type",
-        "__var"
-      ],
-      "additionalProperties": false
+      "required": [ "name", "kind" ]
     },
     "color": {
       "type": "string",

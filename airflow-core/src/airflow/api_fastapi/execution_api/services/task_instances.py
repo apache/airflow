@@ -58,4 +58,4 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
         return None
     if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
         return None
-    return task._arg_bindings
+    return task.arg_bindings

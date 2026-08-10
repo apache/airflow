@@ -24,7 +24,7 @@ from typing import Any
 import pendulum
 import pytest
 
-from airflow.serialization.serialized_objects import _infer_value_schema
+from airflow.serialization.stub_arg_bindings import _infer_value_schema
 
 
 @pytest.mark.parametrize(
@@ -159,12 +159,12 @@ def test_infer_value_schema_unhashable_annotation_generates_uncached():
 
 def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):
     """A bare TypeError from pydantic degrades to no schema rather than crashing Dag serialization."""
-    from airflow.serialization import serialized_objects
+    from airflow.serialization import stub_arg_bindings
 
     def _raise_type_error(_annotation):
         raise TypeError("pydantic cannot build a schema for this")
 
-    monkeypatch.setattr(serialized_objects, "TypeAdapter", _raise_type_error)
+    monkeypatch.setattr(stub_arg_bindings, "TypeAdapter", _raise_type_error)
 
     # A fresh class dodges the process-lifetime schema cache and exercises the hashable-but-
     # unschemable path, where a naive ``except TypeError`` retry would re-raise and crash.

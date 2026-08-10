@@ -25,25 +25,19 @@ from airflow.exceptions import SerializationError
 from airflow.providers.common.compat.sdk import DAG, task_group
 from airflow.providers.standard.decorators.stub import stub
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 
 def _to_dict(dag):
-    """Serialize a Dag through core Dag serialization -- _arg_bindings materializes here."""
-    try:
-        from airflow.serialization.serialized_objects import DagSerialization
-    except ImportError:  # Airflow 2 exposes the round-trip API on SerializedDAG
-        from airflow.serialization.serialized_objects import SerializedDAG as DagSerialization
+    """Serialize a Dag through core Dag serialization -- arg_bindings materializes here."""
+    from airflow.serialization.serialized_objects import DagSerialization
 
     return DagSerialization.to_dict(dag)
 
 
 def _round_trip(dag):
-    """Round-trip a Dag through core Dag serialization -- _arg_bindings materializes here."""
-    try:
-        from airflow.serialization.serialized_objects import DagSerialization
-    except ImportError:  # Airflow 2 exposes the round-trip API on SerializedDAG
-        from airflow.serialization.serialized_objects import SerializedDAG as DagSerialization
+    """Round-trip a Dag through core Dag serialization -- arg_bindings materializes here."""
+    from airflow.serialization.serialized_objects import DagSerialization
 
     return DagSerialization.from_dict(DagSerialization.to_dict(dag))
 
@@ -112,8 +106,12 @@ def fn_kwonly_varkw(**kwargs): ...
 def fn_context_key(ti): ...
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_4_PLUS,
+    reason="arg-binding materialization was added to core Dag serialization in Airflow 3.4",
+)
 class TestStubTaskflowArgs:
-    """The TaskFlow call on a stub captures the ordered positional-arg spec (``_arg_bindings``),
+    """The TaskFlow call on a stub captures the ordered positional-arg spec (``arg_bindings``),
     materialized by core Dag serialization from the stub's bound TaskFlow call args."""
 
     def test_literal_and_xcom_spec(self):
@@ -121,7 +119,7 @@ class TestStubTaskflowArgs:
             extracted = stub(fn_extract)()
             result = stub(fn_transform)("uk", extracted)
 
-        assert _round_trip(dag).task_dict["fn_transform"]._arg_bindings == [
+        assert _round_trip(dag).task_dict["fn_transform"].arg_bindings == [
             {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
             {
                 "name": "extracted",
@@ -144,7 +142,7 @@ class TestStubTaskflowArgs:
             extracted = stub(fn_extract)()
             stub(fn_transform)(extracted=extracted, country="fr", retries_num=7)
 
-        assert _round_trip(dag).task_dict["fn_transform"]._arg_bindings == [
+        assert _round_trip(dag).task_dict["fn_transform"].arg_bindings == [
             {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "fr"},
             {
                 "name": "extracted",
@@ -167,7 +165,7 @@ class TestStubTaskflowArgs:
             extracted = stub(fn_extract)()
             stub(fn_transform)("uk", extracted, retries_num=3)
 
-        assert _round_trip(dag).task_dict["fn_transform"]._arg_bindings[2] == {
+        assert _round_trip(dag).task_dict["fn_transform"].arg_bindings[2] == {
             "name": "retries_num",
             "kind": "literal",
             "value_schema": {"type": "integer", "format": "int64"},
@@ -186,14 +184,14 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d") as dag:
             stub(fn_pass)()
 
-        assert _round_trip(dag).task_dict["fn_pass"]._arg_bindings is None
+        assert _round_trip(dag).task_dict["fn_pass"].arg_bindings is None
 
     def test_untyped_params_omit_value_schema(self):
         """Key absence (never ``None``) is the wire contract for an unconstrained argument."""
         with DAG(dag_id="d") as dag:
             stub(fn_untyped)(1, "x")
 
-        assert _round_trip(dag).task_dict["fn_untyped"]._arg_bindings == [
+        assert _round_trip(dag).task_dict["fn_untyped"].arg_bindings == [
             {"name": "a", "kind": "literal", "value": 1},
             {"name": "b", "kind": "literal", "value": "x"},
         ]
@@ -205,7 +203,7 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d") as dag:
             stub(fn)("v")
 
-        assert _round_trip(dag).task_dict["fn"]._arg_bindings == [
+        assert _round_trip(dag).task_dict["fn"].arg_bindings == [
             {"name": "x", "kind": "literal", "value": "v"}
         ]
 
@@ -236,7 +234,7 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d") as dag:
             stub(fn)()
 
-        assert _round_trip(dag).task_dict[fn.__name__]._arg_bindings is None
+        assert _round_trip(dag).task_dict[fn.__name__].arg_bindings is None
 
     def test_argless_call_captures_no_spec_for_defaulted_params(self):
         def fn(limit: int = 10): ...
@@ -244,7 +242,7 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d") as dag:
             stub(fn)()
 
-        assert _round_trip(dag).task_dict["fn"]._arg_bindings is None
+        assert _round_trip(dag).task_dict["fn"].arg_bindings is None
 
     def test_non_json_literal_rejected(self):
         with DAG(dag_id="d") as dag:
@@ -312,7 +310,7 @@ class TestStubTaskflowArgs:
         # to bind against, so it serializes cleanly with no materialized spec of its own.
         round_tripped = _round_trip(dag).task_dict["fn_transform"]
         assert round_tripped.is_stub is True
-        assert round_tripped._arg_bindings is None
+        assert round_tripped.arg_bindings is None
 
     def test_stub_with_args_inside_mapped_task_group_rejected(self):
         @task_group

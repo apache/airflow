@@ -169,7 +169,6 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
-            TI.operator,
             TI.dag_version_id,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
