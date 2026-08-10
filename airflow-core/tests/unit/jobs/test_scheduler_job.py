@@ -13003,9 +13003,9 @@ def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, se
     [
         pytest.param(2, ["k1", "k2", "k3"], True, id="over-cap"),
         pytest.param(3, ["k1", "k2"], False, id="under-cap"),
-        # Regression guard for the ``LIMIT cap + 1`` probe: ``LIMIT cap`` alone cannot tell
-        # "exactly cap, nothing left" from "more than cap, backlog remains", and would wrongly
-        # claim a backlog here.
+        # Regression guard for the ``backlog_total > cap`` boundary: ``backlog_total == cap``
+        # must not be misreported as a backlog (that would be the "exactly cap, nothing left"
+        # case wrongly reported as "more than cap, backlog remains").
         pytest.param(3, ["k1", "k2", "k3"], False, id="exactly-cap"),
     ],
 )
@@ -13041,7 +13041,7 @@ def test_partition_cap_reporting(
             "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
             "will be evaluated over subsequent scheduler ticks",
             "cap": cap,
-            "pending_count": cap,
+            "backlog_total": 3,
             "dag_ids": [dag_id],
         } in caplog
         assert [row.event for row in audit_rows] == ["partition dag run cap reached"]
@@ -13052,6 +13052,107 @@ def test_partition_cap_reporting(
     else:
         assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
         assert audit_rows == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
+def test_partition_cap_reporting_excludes_already_fired_decoy(dag_maker: DagMaker, session: Session, caplog):
+    """
+    The ``backlog_total`` count query's ``WHERE`` clause must mirror the main query's.
+
+    ``exactly-cap`` in :func:`test_partition_cap_reporting` cannot catch a filter drift in the
+    count query (e.g. a dropped ``created_dag_run_id.is_(None)`` filter): every row in that
+    table at that point is a genuine, unfired, non-stale APDR, so a looser filter has nothing
+    extra to over-count. This test adds a decoy APDR that already fired
+    (``created_dag_run_id`` set) — a naive/unfiltered ``count()`` would wrongly include it.
+    """
+    cap = 3
+    asset = Asset(name="asset-cap-decoy")
+    _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-decoy",
+        asset=asset,
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    decoy = _produce_and_register_asset_event(
+        dag_id="asset-event-producer-decoy",
+        asset=asset,
+        partition_key="decoy",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    fired_dag_run_id = session.scalar(select(DagRun.id).order_by(DagRun.id.desc()).limit(1))
+    assert fired_dag_run_id is not None
+    decoy.created_dag_run_id = fired_dag_run_id
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = cap
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
+    audit_rows = session.scalars(select(Log).where(Log.event == "partition dag run cap reached")).all()
+    assert audit_rows == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
+def test_partition_cap_reporting_excludes_stale_dag_decoy(dag_maker: DagMaker, session: Session, caplog):
+    """
+    The ``backlog_total`` count query's ``WHERE`` clause must mirror the main query's.
+
+    Mirrors :func:`test_partition_cap_reporting_excludes_already_fired_decoy` for the fetch
+    query's other predicate: ``DagModel.is_stale.is_(False)``. This test adds a decoy pending
+    APDR whose target Dag has since gone stale (removed from its Dag file) — a count query
+    missing that filter would wrongly include it, over-counting the backlog even though the
+    fetch query (unaffected by this specific drift) never selects it.
+    """
+    cap = 3
+    _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-stale-decoy",
+        asset=Asset(name="asset-cap-stale-decoy"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    stale_consumer_dag_id = "cap-consumer-stale-decoy-stale"
+    stale_asset = Asset(name="asset-cap-stale-decoy-stale")
+    with dag_maker(
+        dag_id=stale_consumer_dag_id,
+        schedule=PartitionedAssetTimetable(assets=stale_asset, default_partition_mapper=IdentityMapper()),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    _produce_and_register_asset_event(
+        dag_id="asset-event-producer-stale-decoy",
+        asset=stale_asset,
+        partition_key="decoy",
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    dm = session.get(DagModel, stale_consumer_dag_id)
+    assert dm is not None
+    dm.is_stale = True
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = cap
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
+    audit_rows = session.scalars(select(Log).where(Log.event == "partition dag run cap reached")).all()
+    assert audit_rows == []
 
 
 @pytest.mark.need_serialized_dag
@@ -13102,7 +13203,7 @@ def test_partition_cap_reporting_truncates_dag_ids_over_five(dag_maker: DagMaker
         "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
         "will be evaluated over subsequent scheduler ticks",
         "cap": 6,
-        "pending_count": 6,
+        "backlog_total": 7,
         "dag_ids": expected_dag_ids,
     } in caplog
 
