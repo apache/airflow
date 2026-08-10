@@ -758,7 +758,6 @@ class DagRun(Base, LoggingMixin):
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
             .where(
-                DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
             .order_by(
