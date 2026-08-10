@@ -14728,6 +14728,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_partitioned_at_runtime:
+          type: boolean
+          title: Timetable Partitioned At Runtime
         timetable_periodic:
           type: boolean
           title: Timetable Periodic
@@ -14789,6 +14792,11 @@ components:
             type: string
           type: array
           title: Owners
+        suggested_partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Suggested Partition Key
         catchup:
           type: boolean
           title: Catchup
@@ -14928,6 +14936,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_partitioned_at_runtime
       - timetable_periodic
       - tags
       - max_active_tasks
@@ -15047,6 +15056,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_partitioned_at_runtime:
+          type: boolean
+          title: Timetable Partitioned At Runtime
         timetable_periodic:
           type: boolean
           title: Timetable Periodic
@@ -15108,6 +15120,11 @@ components:
             type: string
           type: array
           title: Owners
+        suggested_partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Suggested Partition Key
         is_backfillable:
           type: boolean
           title: Is Backfillable
@@ -15135,6 +15152,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_partitioned_at_runtime
       - timetable_periodic
       - tags
       - max_active_tasks
