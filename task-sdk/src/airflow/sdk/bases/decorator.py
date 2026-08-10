@@ -259,8 +259,30 @@ _TASK_DECORATOR_CALL_HINT = (
 )
 
 
-def _should_add_task_decorator_call_hint(err: TypeError, op_args: Collection[Any]) -> bool:
-    return bool(op_args) and "too many positional arguments" in str(err)
+def _is_python_callable_already_executing(python_callable: Callable) -> bool:
+    target_code = getattr(python_callable, "__code__", None)
+    if target_code is None:
+        return False
+
+    frame = inspect.currentframe()
+    try:
+        while frame is not None:
+            if frame.f_code is target_code:
+                return True
+            frame = frame.f_back
+        return False
+    finally:
+        del frame
+
+
+def _should_add_task_decorator_call_hint(
+    err: TypeError, python_callable: Callable, op_args: Collection[Any]
+) -> bool:
+    return (
+        bool(op_args)
+        and "too many positional arguments" in str(err)
+        and _is_python_callable_already_executing(python_callable)
+    )
 
 
 class DecoratedOperator(BaseOperator):
@@ -381,7 +403,7 @@ class DecoratedOperator(BaseOperator):
             else:
                 signature.bind(*op_args, **op_kwargs)
         except TypeError as err:
-            if _should_add_task_decorator_call_hint(err, op_args):
+            if _should_add_task_decorator_call_hint(err, python_callable, op_args):
                 raise TypeError(f"{err}. {_TASK_DECORATOR_CALL_HINT}") from err
             raise
 
