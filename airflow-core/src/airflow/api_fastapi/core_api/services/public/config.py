@@ -21,62 +21,9 @@ import warnings
 from fastapi import HTTPException, status
 from fastapi.responses import Response
 
-from airflow._shared.configuration.parser import base_section_name
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.config import Config
 from airflow.configuration import conf
-
-# Per-key environment-variable overrides for secrets-backend kwargs are
-# surfaced by ``conf.as_dict`` as synthetic options under the ``secrets``
-# and ``workers`` sections. They carry the same secrets-backend material
-# (e.g. Vault role_id / secret_id) as the registered ``backend_kwargs``
-# option, so they need the same redaction treatment when
-# ``display_sensitive=False``.
-# A team scoped spelling of the same option -- the ``[<team>=secrets]`` config-file section, or
-# ``AIRFLOW__<TEAM>___SECRETS__BACKEND_KWARG__*``, which is reported under a section named after
-# the team -- is resolved back to its base section via ``base_section_name`` before matching, so
-# it is masked the same way. See https://github.com/apache/airflow/issues/71037
-_PER_KEY_SENSITIVE_PREFIXES: dict[str, str] = {
-    "secrets": "backend_kwarg__",
-    "workers": "secrets_backend_kwarg__",
-}
-
-
-def _is_per_key_sensitive_option(section: str, option: str) -> bool:
-    """
-    Return True for synthetic per-key secrets-backend-kwarg options.
-
-    Resolves a team scoped section (e.g. ``myteam=secrets``) back to its base
-    section (``secrets``) before matching, so a team scoped spelling of the
-    same option is treated exactly like the base one.
-    """
-    prefix = _PER_KEY_SENSITIVE_PREFIXES.get(base_section_name(section))
-    return prefix is not None and option.startswith(prefix)
-
-
-def _mask_per_key_sensitive_options(conf_dict: dict) -> None:
-    """
-    Mask synthetic per-key secrets-backend-kwarg options in-place.
-
-    Iterates every section actually present in ``conf_dict`` -- rather than
-    only the literal ``secrets`` / ``workers`` keys -- and resolves each one
-    to its base section, so a team scoped section (config-file spelling) or a
-    team scoped env var (which ``conf.as_dict`` reports under a
-    team-derived section) is masked as well.
-    """
-    for section, options in conf_dict.items():
-        if not options:
-            continue
-        prefix = _PER_KEY_SENSITIVE_PREFIXES.get(base_section_name(section))
-        if prefix is None:
-            continue
-        for option in list(options):
-            if option.startswith(prefix):
-                current = options[option]
-                if isinstance(current, tuple):
-                    options[option] = ("< hidden >", current[1])
-                else:
-                    options[option] = "< hidden >"
 
 
 def _check_expose_config() -> bool:
