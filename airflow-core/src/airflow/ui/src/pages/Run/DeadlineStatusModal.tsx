@@ -18,8 +18,6 @@
  */
 import { Badge, Heading, HStack, Separator, Skeleton, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
@@ -31,9 +29,7 @@ import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 import { renderDuration } from "src/utils/datetimeUtils";
-
-dayjs.extend(duration);
-dayjs.extend(relativeTime);
+import { translateCompletionRule } from "src/utils/deadlines";
 
 const PAGE_LIMIT = 10;
 
@@ -57,22 +53,6 @@ export const DeadlineStatusModal = ({
   const { t: translate } = useTranslation("dag");
   const [page, setPage] = useState(1);
   const offset = (page - 1) * PAGE_LIMIT;
-
-  // A dynamic interval (e.g. VariableInterval) comes back as null — render a "dynamic interval"
-  // phrasing rather than a misleading "a few seconds" from dayjs.duration(null, ...).
-  const completionRule = (alert: DeadlineAlertResponse) =>
-    alert.interval === null || alert.interval === undefined
-      ? translate("deadlineAlerts.completionRuleDynamic", {
-          reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-            defaultValue: alert.reference_type,
-          }),
-        })
-      : translate("deadlineAlerts.completionRule", {
-          interval: dayjs.duration(alert.interval, "seconds").humanize(),
-          reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-            defaultValue: alert.reference_type,
-          }),
-        });
 
   const { data, error, isLoading } = useDeadlinesServiceGetDeadlines(
     {
@@ -115,6 +95,7 @@ export const DeadlineStatusModal = ({
               {deadlines.map((dl) => {
                 const alert =
                   dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
+                const completionRule = translateCompletionRule(translate, alert);
                 const deadlineTime = dayjs(dl.deadline_time);
 
                 let actualDurationLabel: string | undefined;
@@ -144,9 +125,9 @@ export const DeadlineStatusModal = ({
                         </Text>
                       )}
                     </HStack>
-                    {alert === undefined ? undefined : (
+                    {completionRule === undefined ? undefined : (
                       <Text color="fg.muted" fontSize="xs">
-                        {completionRule(alert)}
+                        {completionRule}
                       </Text>
                     )}
                     <HStack gap={1}>

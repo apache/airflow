@@ -33,8 +33,6 @@ from datamodel_code_generator import (
 from openapi_spec_validator import validate_spec
 
 os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
-# Set a placeholder secret to allow the in-process FastAPI app to run its lifecycle hooks.
-os.environ.setdefault("AIRFLOW__API_AUTH__JWT_SECRET", "task-sdk-model-generation")
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"

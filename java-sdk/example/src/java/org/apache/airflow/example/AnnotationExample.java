@@ -21,7 +21,10 @@ package org.apache.airflow.example;
 
 import static java.lang.System.Logger.Level.INFO;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 import org.apache.airflow.sdk.*;
 
 @SuppressWarnings("DuplicatedCode")
@@ -71,5 +74,26 @@ public class AnnotationExample {
       throw new RuntimeException("I failed");
     }
     log.log(INFO, "Recovered on retry, try number {0}", context.ti.tryNumber);
+  }
+
+  // Verify one supervisor channel can handle client calls across threads.
+  @Builder.Task(id = "concurrent")
+  public void concurrentClientCalls(Client client) throws Exception {
+    var pool = Executors.newFixedThreadPool(8);
+    try {
+      var calls = new ArrayList<Callable<String>>();
+      for (var i = 0; i < 32; i++) {
+        calls.add(() -> client.getConnection("test_http").host);
+      }
+      for (var future : pool.invokeAll(calls)) {
+        var host = future.get();
+        if (!"example.com".equals(host)) {
+          throw new RuntimeException("concurrent getConnection returned wrong host: " + host);
+        }
+      }
+      log.log(INFO, "All concurrent client calls returned the correct connection");
+    } finally {
+      pool.shutdown();
+    }
   }
 }

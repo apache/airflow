@@ -35,7 +35,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
-from airflow.utils.helpers import merge_dicts
+from airflow.utils.helpers import merge_dicts, prune_dict
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -116,7 +116,10 @@ class AwsBatchExecutor(BaseExecutor):
             from airflow.providers.common.compat.sdk import conf
 
             self.conf = conf
-
+        # TODO: Remove this fallback once the min Airflow version for providers is >= 3.1
+        # (BaseExecutor.team_name is always defined from Airflow 3.1 onward).
+        if not hasattr(self, "team_name"):
+            self.team_name = None
         self.attempts_since_last_successful_connection = 0
         self.load_batch_connection(check_connection=False)
         self.IS_BOTO_CONNECTION_HEALTHY = False
@@ -540,7 +543,9 @@ class AwsBatchExecutor(BaseExecutor):
 
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
         """
-        with Stats.timer("batch_executor.adopt_task_instances.duration"):
+        with Stats.timer(
+            "batch_executor.adopt_task_instances.duration", tags=prune_dict({"team_name": self.team_name})
+        ):
             adopted_tis: list[TaskInstance] = []
 
             if job_ids := [ti.external_executor_id for ti in tis if ti.external_executor_id]:

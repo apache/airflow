@@ -236,7 +236,10 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         *,
         access_view: AccessView,
         user: AwsAuthManagerUser,
+        team_name: str | None = None,
     ) -> bool:
+        # ``team_name`` is ignored: the VIEW entity is not team-scoped in the
+        # Verified Permissions schema.
         return self.avp_facade.is_authorized(
             method="GET",
             entity_type=AvpEntities.VIEW,

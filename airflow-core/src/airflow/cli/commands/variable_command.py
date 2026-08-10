@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import SENSITIVE_PLACEHOLDER, print_export_output
+from airflow.cli.utils import SENSITIVE_PLACEHOLDER, deprecated_for_airflowctl, print_export_output
 from airflow.exceptions import (
     AirflowFileParseException,
     AirflowUnsupportedFileTypeException,
@@ -63,6 +63,7 @@ class VariableDisplayMapper:
         return {"key": key, "val": val}
 
 
+@deprecated_for_airflowctl("airflowctl variables list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
@@ -92,6 +93,7 @@ def variables_list(args):
             AirflowConsole().print_as(data=variables, output=args.output, mapper=None)
 
 
+@deprecated_for_airflowctl("airflowctl variables get")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_get(args):
@@ -108,6 +110,7 @@ def variables_get(args):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl variables create")
 @providers_configuration_loaded
 def variables_set(args):
     """Create new variable with a given name, value and description."""
@@ -116,6 +119,7 @@ def variables_set(args):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl variables delete")
 @providers_configuration_loaded
 def variables_delete(args):
     """Delete variable by a given name."""
@@ -124,6 +128,7 @@ def variables_delete(args):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl variables import")
 @providers_configuration_loaded
 @provide_session
 def variables_import(args, *, session: Session = NEW_SESSION):

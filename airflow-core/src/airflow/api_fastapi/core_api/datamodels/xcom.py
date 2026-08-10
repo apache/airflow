@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
@@ -88,6 +89,19 @@ def _check_forbidden_xcom_keys(value: Any) -> Any:
     from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
 
     def _walk(obj: Any, path: str = "value") -> None:
+        if isinstance(obj, str):
+            # A value submitted as a JSON string literal (e.g. ``json.dumps({...})``)
+            # is stored verbatim and re-parsed into a dict/list on a
+            # ``deserialize=true`` read, which would otherwise smuggle reserved keys
+            # past the dict/list checks below. Re-parse and inspect the decoded
+            # structure the same way the read path does.
+            try:
+                decoded = json.loads(obj)
+            except (ValueError, TypeError):
+                return
+            if isinstance(decoded, (dict, list)):
+                _walk(decoded, path)
+            return
         if isinstance(obj, dict):
             found = FORBIDDEN_XCOM_KEYS & obj.keys()
             if found:

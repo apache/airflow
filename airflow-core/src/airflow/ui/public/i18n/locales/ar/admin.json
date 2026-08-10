@@ -205,6 +205,7 @@
           "title": "تخطي"
         }
       },
+      "parsingFile": "جارٍ تحليل الملف...",
       "title": "استيراد المتغيرات",
       "upload": "تحميل ملف JSON",
       "uploadPlaceholder": "حمل ملف JSON يحتوي علي متغيرات (مثال: {\"key\": \"value\", ...})"

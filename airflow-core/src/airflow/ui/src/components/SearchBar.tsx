@@ -18,12 +18,13 @@
  */
 import { CloseButton, HStack, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
 import { AdvancedSearchToggle, type AdvancedSearchToggleProps } from "src/components/AdvancedSearchToggle";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 import { getMetaKey } from "src/utils";
 
 const debounceDelay = 200;
@@ -74,13 +75,13 @@ export const SearchBar = ({
     onChange("");
   };
 
-  useHotkeys(
-    "mod+k",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.search.focusSearch,
+    callback: () => {
       searchRef.current?.focus();
     },
-    { enabled: !hotkeyDisabled, preventDefault: true },
-  );
+    options: { enabled: !hotkeyDisabled, preventDefault: true },
+  });
 
   const inputGroup = (
     <InputGroup

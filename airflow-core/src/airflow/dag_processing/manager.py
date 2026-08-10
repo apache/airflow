@@ -56,7 +56,6 @@ from airflow.dag_processing.bundles.base import (
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-from airflow.exceptions import AirflowException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -333,7 +332,16 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        # When this processor only parses a subset of bundles, it does not see the full
+        # bundle configuration and must not deactivate bundles owned by other processors.
+        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        # Best-effort legacy repair: a failure here must not crash DFP startup.
+        # Affected Dags self-heal on the next successful parse.
+        try:
+            dag_bundle_manager.reassign_dags_with_unconfigured_bundles()
+        except Exception:
+            self.log.exception("Failed to reassign Dags with unconfigured bundles during startup")
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
@@ -464,21 +472,44 @@ class DagFileProcessorManager(LoggingMixin):
         ).where(~DagModel.is_stale)
         dags_parsed = session.execute(query)
 
+        stuck_legacy_rows = 0
         for dag in dags_parsed:
             # Dags whose bundle has been removed from config (bundle no longer active) are stale —
             # the processor has stopped parsing their files, so the time-based check below would never fire.
-            if dag.bundle_name in inactive_bundles:
+            #
+            # A NULL bundle_name means the row predates bundles (carried over from Airflow 2.x) and has not
+            # been parsed since the upgrade — parsing is what fills bundle_name in. If the file was removed
+            # as part of the upgrade, no parse will ever happen, so bundle_name stays NULL forever. Such a
+            # row can never hit the time-based check below either, because that matches on
+            # (bundle_name, relative_fileloc) and there is no bundle to match against, so without this
+            # branch the Dag stays active in the UI indefinitely. If the file does still exist, the next
+            # parse fills in bundle_name and clears is_stale, so a Dag deactivated here is reactivated.
+            if dag.bundle_name is None or dag.bundle_name in inactive_bundles:
                 self.log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active.",
+                    "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
                     dag.dag_id,
                     dag.bundle_name,
                 )
                 to_deactivate.add(dag.dag_id)
                 continue
+            # A Dag upgraded from Airflow 2.x can still have a NULL relative_fileloc:
+            # the 0082 migration adds the column as nullable, and the startup repair
+            # in DagBundlesManager only backfills it when the Dag's fileloc resolves to
+            # a configured bundle. Rows whose fileloc matches no bundle stay NULL, so
+            # the time-based stale check below would build Path(None) and crash. Skip
+            # them here and count them so the total is surfaced after the loop.
+            # See https://github.com/apache/airflow/issues/63323.
+            if dag.relative_fileloc is None:
+                stuck_legacy_rows += 1
+                continue
             # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
             # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
             # This is especially relevant for Dag files that generate Dags in a dynamic manner.
-            file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
+            rel_path = Path(dag.relative_fileloc)
+            file_info = DagFileInfo(rel_path=rel_path, bundle_name=dag.bundle_name)
+            if file_info not in last_parsed:
+                # Zip-packaged dags are keyed by the archive path, not the inner file, so try the parent as well
+                file_info = DagFileInfo(rel_path=rel_path.parent, bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
                     self.log.info(
@@ -510,6 +541,15 @@ class DagFileProcessorManager(LoggingMixin):
                     session.rollback()
                 else:
                     raise
+
+        if stuck_legacy_rows:
+            # Surface how many legacy rows the startup repair could not route;
+            # each one keeps raising "Requested bundle is not configured." until
+            # a matching bundle is added to dag_bundle_config_list.
+            self.log.info(
+                "Skipped stale check for %d legacy Dag(s) with NULL relative_fileloc.",
+                stuck_legacy_rows,
+            )
 
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -705,7 +745,11 @@ class DagFileProcessorManager(LoggingMixin):
         Override to source the bundle from an API.
         """
         try:
-            bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
+            bundle = DagBundlesManager().get_bundle(
+                name=request.bundle_name,
+                version=request.bundle_version,
+                version_data=request.version_data,
+            )
         except ValueError:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
@@ -745,11 +789,11 @@ class DagFileProcessorManager(LoggingMixin):
 
         Returns ``None`` if the bundle has no database record.
         """
-        row = session.scalar(
-            select(DagBundleModel)
-            .where(DagBundleModel.name == bundle_name)
-            .options(load_only(DagBundleModel.last_refreshed, DagBundleModel.version))
-        )
+        row = session.execute(
+            select(DagBundleModel.last_refreshed, DagBundleModel.version).where(
+                DagBundleModel.name == bundle_name
+            )
+        ).one_or_none()
         if row is None:
             return None
         return BundleState(last_refreshed=row.last_refreshed, version=row.version)
@@ -808,10 +852,9 @@ class DagFileProcessorManager(LoggingMixin):
                 try:
                     bundle.initialize()
                     any_refreshed = True
-                except AirflowException as e:
+                except Exception as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
-            # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             try:
                 bundle_state = self.get_bundle_state(bundle.name)
             except Exception:
@@ -1181,7 +1224,7 @@ class DagFileProcessorManager(LoggingMixin):
                     ),
                 )
                 processor.kill(signal.SIGKILL)
-                processor.logger_filehandle.close()
+                processor.close()
                 self._file_stats.pop(file, None)
 
     @provide_session
@@ -1312,7 +1355,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file in finished:
             processor = self._processors.pop(file)
-            processor.logger_filehandle.close()
+            processor.close()
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -1618,7 +1661,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
-            processor.logger_filehandle.close()
+            processor.close()
 
     def _add_files_to_queue(
         self,

@@ -60,7 +60,14 @@ for this run.
 If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
 non-empty, ``params`` is forwarded as ``job_parameters`` as-is, so Airflow Dag params can
 be passed dynamically to a run without hardcoding them in ``json``. If ``json`` already
-contains ``job_parameters``, it is left untouched.
+contains ``job_parameters``, it is left untouched. You can set ``forward_dag_params=False`` to
+disable this parameter forwarding behavior.
+
+.. note::
+  The Databricks API does not permit ``job_parameters`` to be used in combination with
+  ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
+  ``python_named_params``, or ``dbt_commands``. Auto-forwarding is automatically skipped
+  when any of those parameter slots are used.
 
 .. code-block:: python
 
@@ -72,6 +79,52 @@ contains ``job_parameters``, it is left untouched.
   # The triggered run receives:
   #   job_parameters={"env": "staging", "batch_size": "42"}
   # i.e. the same dict, passed straight through to the run-now request body.
+
+
+Durable execution
+^^^^^^^^^^^^^^^^^
+
+``DatabricksRunNowOperator`` triggers a run of an existing job and then polls it to completion on
+the worker. By default the operator runs in a *durable* mode that makes this crash-safe: the
+Databricks run id is persisted to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>` before polling begins, so if the worker crashes
+or is preempted and the task is retried, the operator reconnects to the run that is already
+executing on Databricks instead of triggering a duplicate run of the same job.
+
+On retry the operator checks the prior run's state:
+
+* if it is still running, the operator reconnects and continues polling
+* if it already succeeded, the operator returns immediately without triggering a new run
+* if it failed terminally, or the run no longer exists because its history expired, the operator
+  triggers a fresh run
+
+This avoids triggering the same Databricks job twice when a worker is lost mid-run, which is common
+for long-running jobs.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On earlier
+Airflow versions the flag is a no-op and the operator always triggers a fresh run on retry,
+exactly as before. If the task state store is unavailable at runtime, the operator logs that crash
+recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
+run id won't be there for the next retry, and the operator will trigger a fresh run instead of
+reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
+
+To opt out and always trigger a fresh run on retry, set ``durable=False``:
+
+.. code-block:: python
+
+  run_now = DatabricksRunNowOperator(
+      task_id="run_now",
+      job_id=123,
+      durable=False,
+  )
+
+Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the Triggerer
+already tracks the run across the wait, so deferrable mode takes precedence and ``durable`` has no
+effect.
 
 
 DatabricksRunNowDeferrableOperator

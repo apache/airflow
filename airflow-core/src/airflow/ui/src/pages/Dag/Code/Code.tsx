@@ -18,7 +18,6 @@
  */
 import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { MdOutlineDifference, MdOutlineOpenInFull, MdWrapText } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -38,7 +37,9 @@ import Time from "src/components/Time";
 import { Dialog, IconButton, ProgressBar } from "src/components/ui";
 import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { useMonacoTheme } from "src/context/colorMode";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
 
@@ -118,8 +119,15 @@ export const Code = () => {
 
   const { beforeMount, theme } = useMonacoTheme();
 
-  useHotkeys("w", toggleWrap);
-  useHotkeys("f", toggleFullscreen);
+  useShortcut({
+    ...SHORTCUTS.code.toggleFullscreen,
+    callback: toggleFullscreen,
+  });
+
+  useShortcut({
+    ...SHORTCUTS.code.toggleWrap,
+    callback: toggleWrap,
+  });
 
   const editorOptions: EditorProps["options"] = {
     automaticLayout: true,

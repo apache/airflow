@@ -143,8 +143,9 @@ operations (HTTP requests, database queries, file reads) within a single task ex
 blocking the event loop while waiting for each one.
 
 The worker slot is held for the full duration of the task. Async tasks are not designed for
-long external waits or crash recovery; they are designed for high-throughput I/O work that
-completes within a single execution.
+long external waits; they are designed for high-throughput I/O work that completes within a
+single execution. To survive a worker crash, an async task can checkpoint its progress to
+:doc:`task state store <task-state-store>` with ``aget``/``aset`` and resume from the checkpoint on retry.
 
 For guidance on when to use async tasks versus deferrable operators, see
 :doc:`task-sdk:deferred-vs-async-operators`.

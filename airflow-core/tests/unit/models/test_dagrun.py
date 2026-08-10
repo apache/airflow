@@ -21,7 +21,7 @@ import datetime
 from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
-from functools import reduce
+from functools import partial, reduce
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, call
@@ -45,7 +45,10 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow._shared.observability.traces import OverrideableRandomIdGenerator
+from airflow._shared.observability.traces import (
+    DAGRUN_PARENT_TRACE_CONTEXT_KEY,
+    OverrideableRandomIdGenerator,
+)
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -73,6 +76,8 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
+from airflow.sdk.definitions.variable import Variable
+from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -140,7 +145,6 @@ def deadline_test_dag(session):
 class TestDagRun:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
-        self._clean_db()
         yield
         self._clean_db()
 
@@ -1082,10 +1086,12 @@ class TestDagRun:
         )
 
         if state == DagRunState.RUNNING:
-            func = DagRun.get_running_dag_runs_to_examine
+            fetch = partial(
+                DagRun.get_running_dag_runs_to_examine, session=session, eagerly_load_dag_tags=False
+            )
         else:
-            func = DagRun.get_queued_dag_runs_to_set_running
-        runs = func(session).all()
+            fetch = partial(DagRun.get_queued_dag_runs_to_set_running, session)
+        runs = fetch().all()
 
         assert runs == [dr]
 
@@ -1093,7 +1099,7 @@ class TestDagRun:
         session.merge(orm_dag)
         session.commit()
 
-        runs = func(session).all()
+        runs = fetch().all()
         assert runs == []
 
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
@@ -1384,27 +1390,16 @@ class TestDagRun:
             VariableInterval("my_key"),
         ],
     )
+    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_success_deadline(self, _, interval, session, deadline_test_dag):
+    def test_dagrun_success_deadline(self, _, mock_get, interval, session, deadline_test_dag):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
-        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
-        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
-        # the deadline_time UtcDateTime column accepts it on all backends.
-        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
-        # Seed a REAL Variable row so the VariableInterval resolves through the actual
-        # secrets chain (metastore backend) on the scheduler's session -- the code under test no
-        # longer calls Variable.get, so mocking it would be a false green (see regression: reading
-        # only the variable table bypassed env/secrets resolution).
-        if isinstance(interval, VariableInterval):
-            # Seed via the metastore model (not the SDK Variable imported above, whose set() routes
-            # through SUPERVISOR_COMMS) so the row really lands in the variable table on this session.
-            from airflow.models.variable import Variable as VariableModel
-
-            VariableModel.set(key="my_key", value="5", session=session)
-            session.flush()
+        # First value used during resolution
+        mock_get.return_value = "5"
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1514,122 +1509,71 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
+    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_missing_variable_is_isolated(
-        self, _, session, deadline_test_dag
-    ):
-        """A VariableInterval whose backing Variable is missing must NOT abort DagRun creation.
+    def test_dagrun_deadline_variable_interval_stable(self, _, mock_get, session, deadline_test_dag):
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
-        ``VariableInterval.resolve()`` raises ``ValueError`` for a missing/invalid Variable.
-        That resolution happens inside ``_process_dagrun_deadline_alerts`` during
-        ``create_dagrun``; previously the error propagated out and aborted the whole run,
-        silently stopping the DAG from scheduling. The per-alert ``try``/``except`` now isolates
-        the failure: the DagRun is created, the bad deadline is skipped (logged), and no Deadline
-        row is written. (Isolation must NOT use ``begin_nested`` here — ``create_dagrun`` runs
-        under the scheduler ``prohibit_commit`` guard, where a SAVEPOINT release would raise
-        ``UNEXPECTED COMMIT`` and skip every scheduled DagRun's deadlines.)
-        """
-        # No Variable named "missing_key" is seeded in any backend, so the scheduler-side resolver
-        # returns None -> ValueError(...could not be resolved...), isolated by the per-alert except.
-        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
-        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
-        # the deadline_time UtcDateTime column accepts it on all backends.
-        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        # First value used during resolution.
+        mock_get.return_value = "60"
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=VariableInterval("missing_key"),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-        )
-
-        # DagRun creation must succeed despite the unresolvable VariableInterval.
-        dag_run = self.create_dag_run(
-            dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS},
-            session=session,
-        )
-        assert dag_run is not None
-
-        # The bad deadline was skipped — no Deadline row created.
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline is None
-
-    @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_resolves_from_env_var(
-        self, _, session, deadline_test_dag, monkeypatch
-    ):
-        """A VariableInterval backed by an ``AIRFLOW_VAR_*`` env var (no DB row) must resolve.
-
-        Regression guard: the scheduler-side resolver must go through the full secrets chain
-        (env vars + secrets backends + metadata DB), not read only the ``variable`` table. A
-        table-only read returns None for an env/secrets-backed Variable, and the per-alert
-        ``except`` then silently drops the deadline. Here the Variable lives ONLY in the
-        environment, so a correct resolver creates the Deadline and a regressed one drops it.
-        """
-        # Variable exists only as an env var — never written to the variable table.
-        # VariableInterval values are interpreted as SECONDS (see coerce_to_timedelta).
-        monkeypatch.setenv("AIRFLOW_VAR_ENV_INTERVAL_KEY", "7")
-        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
-
-        scheduler_dag = deadline_test_dag(
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=VariableInterval("env_interval_key"),
+                interval=VariableInterval("my_key"),
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         )
 
         dag_run = self.create_dag_run(
             dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS},
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
             session=session,
         )
-        assert dag_run is not None
+        dag_run.dag = scheduler_dag
 
-        # The env-var-backed interval resolved (7 seconds) -> a Deadline row WAS created.
+        # First update resolve interval to "5".
+        dag_run.update_state(session=session)
+
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline is not None
-        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=7)
+        first_deadline_time = deadline.deadline_time
+
+        # Change Variable value after resolution.
+        mock_get.return_value = "120"
+
+        # Run again (This should not change existing deadline).
+        dag_run.update_state(session=session)
+
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline.deadline_time == first_deadline_time
 
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_decode_failure_is_isolated(self, _, session, deadline_test_dag):
-        """A deadline alert that fails to *decode* must NOT abort DagRun creation either.
+    def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
+        mock_err = mock.Mock()
+        mock_err.error.value = "MISSING_DEADLINE"
+        mock_err.detail = "missing deadline"
 
-        ``decode_deadline_alert`` can raise for a malformed/legacy serialized blob (e.g. a
-        None interval after a partial downgrade, an invalid interval type, or a corrupt
-        reference dict). That decode happens inside the per-alert SAVEPOINT, so the failure is
-        isolated just like a resolve-time failure: the DagRun is created and the bad deadline
-        skipped, rather than the corrupt row taking down scheduling for the whole DAG.
-        """
-        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
-        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
-        # the deadline_time UtcDateTime column accepts it on all backends.
-        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
-        scheduler_dag = deadline_test_dag(
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=datetime.timedelta(hours=1),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-        )
-
-        # Simulate a corrupt/legacy blob: decoding the alert raises.
-        with mock.patch(
-            "airflow.serialization.definitions.dag.decode_deadline_alert",
-            side_effect=ValueError("corrupt deadline alert blob"),
+        with mock.patch.object(
+            Variable,
+            "get",
+            side_effect=AirflowRuntimeError(mock_err),
         ):
-            dag_run = self.create_dag_run(
-                dag=scheduler_dag,
-                task_states={"task_1": TaskInstanceState.SUCCESS},
-                session=session,
+            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+
+            scheduler_dag = deadline_test_dag(
+                deadline=DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(future_date),
+                    interval=VariableInterval("missing_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
             )
 
-        assert dag_run is not None
-        # No Deadline row — the undecodable alert was skipped, not fatal.
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline is None
+            with pytest.raises(ValueError, match="not found"):
+                self.create_dag_run(
+                    dag=scheduler_dag,
+                    task_states={"task_1": TaskInstanceState.SUCCESS},
+                    session=session,
+                )
 
 
 @pytest.mark.parametrize(
@@ -4219,6 +4163,100 @@ class TestDagRunHandleDagCallback:
         mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
 
 
+_EXTERNAL_TRACE_ID = "11111111111111111111111111111111"
+_EXTERNAL_SPAN_ID = "2222222222222222"
+
+
+@pytest.mark.parametrize(
+    ("conf", "expected_trace_id"),
+    [
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+            _EXTERNAL_TRACE_ID,
+            id="traceparent-string",
+        ),
+        pytest.param(
+            {
+                DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+                    "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"
+                }
+            },
+            _EXTERNAL_TRACE_ID,
+            id="carrier-dict",
+        ),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: "not-a-traceparent"}, None, id="malformed"),
+        # An unknown version prefix is accepted by the propagator's forward-compat parsing,
+        # so a 99- traceparent still rides the external trace rather than being rejected.
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"99-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+            _EXTERNAL_TRACE_ID,
+            id="future-version-prefix",
+        ),
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-zz"},
+            None,
+            id="almost-valid-bad-flag-string",
+        ),
+        pytest.param(
+            {
+                DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+                    "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-zz"
+                }
+            },
+            None,
+            id="almost-valid-bad-flag-dict",
+        ),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: 123}, None, id="non-str"),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: {"nope": "x"}}, None, id="dict-without-traceparent"),
+        pytest.param({}, None, id="empty-conf"),
+        pytest.param(None, None, id="no-conf"),
+        pytest.param({"other": "x"}, None, id="unrelated-key"),
+    ],
+)
+def test_parent_trace_context(conf, expected_trace_id):
+    """Only a valid W3C traceparent (string or carrier dict) yields a parent context; else None."""
+    from airflow.models.dagrun import parent_trace_context
+
+    ctx = parent_trace_context(conf)
+    if expected_trace_id is None:
+        assert ctx is None
+    else:
+        span_ctx = otel_trace.get_current_span(ctx).get_span_context()
+        assert span_ctx.is_valid
+        assert format(span_ctx.trace_id, "032x") == expected_trace_id
+
+
+@pytest.mark.parametrize(
+    ("tracestate", "expected"),
+    [
+        pytest.param("foo=bar", "bar", id="str-preserved"),
+        pytest.param(123, None, id="non-str-dropped"),
+    ],
+)
+def test_parent_trace_context_tracestate(tracestate, expected):
+    """A str tracestate rides alongside the traceparent; a non-str one is dropped, not raised."""
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {
+        DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+            "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01",
+            "tracestate": tracestate,
+        }
+    }
+    span_ctx = otel_trace.get_current_span(parent_trace_context(conf)).get_span_context()
+    assert format(span_ctx.trace_id, "032x") == _EXTERNAL_TRACE_ID
+    assert span_ctx.trace_state.get("foo") == expected
+
+
+@mock.patch("airflow.models.dagrun.TraceContextTextMapPropagator.extract", side_effect=ValueError("boom"))
+def test_parent_trace_context_swallows_propagator_error(mock_extract):
+    """A propagator failure degrades to a root trace instead of failing run creation."""
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"}
+    assert parent_trace_context(conf) is None
+
+
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
 
@@ -4367,9 +4405,24 @@ class TestDagRunTracing:
         assert span.name == f"dag_run.{dr.dag_id}"
         assert span.attributes["airflow.dag_id"] == dr.dag_id
         assert span.attributes["airflow.dag_run.run_id"] == dr.run_id
+        # run_type is set via the shared dagrun_trace_attributes helper
+        assert span.attributes["airflow.dag_run.run_type"] == str(dr.run_type)
 
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
+
+    def test_dagrun_trace_attributes_helper(self, dag_maker, session):
+        """The shared helper returns dag_id, run_id and run_type as airflow.* attributes."""
+        from airflow.models.dagrun import dagrun_trace_attributes
+
+        with dag_maker("test_trace_attrs_helper", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        attrs = dagrun_trace_attributes(dr)
+        assert attrs["airflow.dag_id"] == dr.dag_id
+        assert attrs["airflow.dag_run.run_id"] == dr.run_id
+        assert attrs["airflow.dag_run.run_type"] == str(dr.run_type)
 
     @pytest.mark.parametrize("carrier_value", [None, {}])
     def test_emit_dagrun_span_with_none_or_empty_carrier(self, dag_maker, session, carrier_value):
@@ -4455,35 +4508,172 @@ class TestDagRunTracing:
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 2
 
+    @pytest.mark.parametrize(
+        ("conf", "expected"),
+        [
+            ({"airflow/trace_sampled": True}, True),
+            ({"airflow/trace_sampled": False}, False),
+            ({}, None),
+            (None, None),
+            ({"airflow/trace_sampled": "true"}, None),
+            ({"airflow/trace_sampled": 1}, None),
+            ({"other": True}, None),
+        ],
+    )
+    def test_trace_sampled_override(self, conf, expected):
+        """Only an explicit bool conf value is honored; anything else falls through to the sampler."""
+        from airflow.models.dagrun import trace_sampled_override
 
-class TestDagRunStatsTagsTeamName:
-    def test_stats_tags_without_team_name(self, dag_maker):
-        """stats_tags should not include team_name when _team_name is not set."""
-        with dag_maker("test_dag"):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        tags = dr.stats_tags
-        assert "team_name" not in tags
-        assert tags == {"dag_id": "test_dag", "run_type": "manual"}
+        assert trace_sampled_override(conf) is expected
 
-    def test_stats_tags_with_team_name(self, dag_maker):
-        """stats_tags should include team_name when _team_name is set."""
-        with dag_maker("test_dag"):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        dr._team_name = "my_team"
-        tags = dr.stats_tags
-        assert tags["team_name"] == "my_team"
-        assert tags == {"dag_id": "test_dag", "run_type": "manual", "team_name": "my_team"}
+    @pytest.mark.parametrize("flag", [True, False])
+    def test_context_carrier_honors_trace_sampled_conf(self, dag_maker, flag):
+        """airflow/trace_sampled in conf forces the carrier's SAMPLED flag regardless of the sampler."""
+        from opentelemetry import trace
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-    def test_stats_tags_with_none_team_name(self, dag_maker):
-        """stats_tags should not include team_name when _team_name is None."""
-        with dag_maker("test_dag"):
+        with dag_maker("test_trace_sampled_conf"):
             EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        dr._team_name = None
-        tags = dr.stats_tags
-        assert "team_name" not in tags
+        dr = dag_maker.create_dagrun(conf={"airflow/trace_sampled": flag})
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        span_ctx = trace.get_current_span(ctx).get_span_context()
+        assert span_ctx.trace_flags.sampled is flag
+
+    @pytest.mark.parametrize(
+        ("conf", "embeds"),
+        [
+            pytest.param(
+                {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+                True,
+                id="with-parent-conf-embeds",
+            ),
+            pytest.param(None, False, id="without-parent-conf-is-root"),
+        ],
+    )
+    def test_context_carrier_parent_conf(self, dag_maker, conf, embeds):
+        """The carrier rides the external trace only when the parent conf key is set; else a root trace."""
+        with dag_maker("test_tracing_parent_conf"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(conf=conf)
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        trace_id = format(otel_trace.get_current_span(ctx).get_span_context().trace_id, "032x")
+        if embeds:
+            assert trace_id == _EXTERNAL_TRACE_ID
+        else:
+            assert trace_id != _EXTERNAL_TRACE_ID
+
+
+def test_stats_tags_without_team_name(dag_maker):
+    """stats_tags omits team_name when _team_name is not set."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type}
+
+
+def test_stats_tags_with_team_name(dag_maker):
+    """stats_tags includes team_name when _team_name is set."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    dr._team_name = "my_team"
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type, "team_name": "my_team"}
+
+
+def test_stats_tags_with_none_team_name(dag_maker):
+    """stats_tags omits team_name when _team_name is None."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    dr._team_name = None
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type}
+
+
+def test_stats_tags_dag_tags_disabled_by_default(dag_maker, session):
+    """With the flag off (the default), dag tags must not leak into metrics."""
+    with dag_maker("disabled_tag_dag", tags=["production", "env:prod"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "disabled_tag_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_without_dag_tags(dag_maker, session):
+    with dag_maker("no_tags_dag", session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "no_tags_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_standalone_dag_tag(dag_maker, session):
+    with dag_maker("standalone_tag_dag", tags=["production"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags  # eager-load so _dag_tags_for_stats sees the tags
+    tags = dr.stats_tags
+    assert tags == {"dag_id": "standalone_tag_dag", "run_type": "manual", "production": ""}
+    # run_type is the bare value, not a DagRunType enum (serializes as "manual", not "dagruntype.manual")
+    assert type(tags["run_type"]) is str
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_key_value_dag_tag(dag_maker, session):
+    with dag_maker("kv_tag_dag", tags=["env:staging"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "kv_tag_dag", "run_type": dr.run_type, "env": "staging"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_builtin_keys_win_on_collision(dag_maker, session):
+    with dag_maker("collision_dag", tags=["dag_id:sneaky"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    # built-in dag_id wins over the colliding "dag_id:sneaky" tag
+    assert dr.stats_tags == {"dag_id": "collision_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_lazy_loads_dag_tags_when_not_eager_loaded(dag_maker, session):
+    """When dag_model is not eager-loaded, stats_tags lazy-loads it in-session so tags still appear."""
+    from sqlalchemy import inspect as sa_inspect
+
+    with dag_maker("lazy_tag_dag", tags=["env:prod"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    session.expire(dr, ["dag_model"])  # not eager-loaded
+    assert "dag_model" in sa_inspect(dr).unloaded
+
+    # lazy fallback loads dag_model.tags in-session, so the tags are still emitted
+    assert dr.stats_tags == {"dag_id": "lazy_tag_dag", "run_type": dr.run_type, "env": "prod"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_get_running_dag_runs_to_examine_eager_loads_dag_tags(dag_maker, session):
+    """With the flag on, the scheduler query eager-loads dag_model.tags so stats_tags fires no lazy load."""
+    from sqlalchemy import inspect as sa_inspect
+
+    with dag_maker("eager_tag_dag", tags=["env:prod"], session=session):
+        pass
+    dag_maker.create_dagrun(state=DagRunState.RUNNING)
+    session.commit()
+
+    dr = next(
+        r
+        for r in DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=True)
+        if r.dag_id == "eager_tag_dag"
+    )
+    # dag_model and its tags are already populated — no lazy load needed at metric-emission time.
+    assert "dag_model" not in sa_inspect(dr).unloaded
+    assert "tags" not in sa_inspect(dr.dag_model).unloaded
+    assert dr.stats_tags == {"dag_id": "eager_tag_dag", "run_type": dr.run_type, "env": "prod"}
 
 
 class TestClearPartitionRuns:

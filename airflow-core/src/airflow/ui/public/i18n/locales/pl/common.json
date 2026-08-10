@@ -8,6 +8,7 @@
     "Variables": "Zmienne"
   },
   "allOperators": "Wszystkie operatory",
+  "allTeams": "Wszystkie zespoły",
   "appearance": {
     "appearance": "Wygląd",
     "darkMode": "Tryb ciemny",
@@ -67,7 +68,8 @@
     "owner": "Właściciel",
     "params": "Parametry",
     "schedule": "Harmonogram",
-    "tags": "Etykiety"
+    "tags": "Etykiety",
+    "team": "Zespół"
   },
   "dagId": "Identyfikator Daga",
   "dagRun": {
@@ -82,6 +84,7 @@
     "expectedDuration": "Oczekiwany Czas Trwania",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
     "mappedPartitionKey": "Zmapowany klucz partycji",
+    "partitionDate": "Data partycji",
     "partitionKey": "Klucz partycji",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
@@ -157,6 +160,9 @@
     "selectDateRange": "Wybierz zakres dat",
     "startTime": "Czas rozpoczęcia"
   },
+  "fullscreen": {
+    "tooltip": "Naciśnij {{hotkey}}, aby przejść na pełny ekran"
+  },
   "generateToken": "Wygeneruj token",
   "key": "Klucz",
   "logicalDate": "Data logiczna",
@@ -188,9 +194,12 @@
   "note": {
     "add": "Dodaj notatkę",
     "dagRun": "Notatki wykonania",
+    "edit": "Edytuj notatkę",
     "label": "Notatka",
     "placeholder": "Dodaj notatkę...",
-    "taskInstance": "Notatka instancji zadania"
+    "preview": "Podgląd",
+    "taskInstance": "Notatka instancji zadania",
+    "write": "Napisz"
   },
   "overallStatus": "Stan ogólny",
   "partitionedDagRun_few": "Partycjonowane wykonania Dagów",
@@ -204,6 +213,23 @@
   "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
   "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
   "pendingDagRun_other": "{{count}} oczekujących wykonań Dagów",
+  "presetFilters": {
+    "deleteTitle": "Usuń zapisany filtr",
+    "deleteWarning": "Zapisane filtry są przechowywane wyłącznie w tej przeglądarce.",
+    "duplicate": "Zapisany filtr \"{{name}}\" zawiera już dokładnie taką konfigurację.",
+    "empty": "Brak zapisanych filtrów",
+    "info": {
+      "default": "Przypnij zapisany filtr jako domyślny, a zostanie zastosowany automatycznie, gdy wejdziesz na tę stronę bez żadnych filtrów.",
+      "save": "Zapisz bieżące filtry i sortowanie jako nazwany filtr, aby móc do niego wrócić w dowolnej chwili.",
+      "storage": "Zapisane filtry są przechowywane w tej przeglądarce."
+    },
+    "namePlaceholder": "Nazwa zapisanego filtra",
+    "nothingToSave": "Nie ma czego zapisać. Zastosuj filtry lub sortowanie, aby zapisać filtr.",
+    "save": "Zapisz",
+    "setDefault": "Ustaw jako domyślny",
+    "title": "Zapisane filtry",
+    "unsetDefault": "Usuń ustawienie domyślne"
+  },
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
@@ -235,6 +261,47 @@
   },
   "selectLanguage": "Wybierz język",
   "selected": "Wybrano",
+  "shortcuts": {
+    "categories": {
+      "code": "Kod",
+      "dagView": "Widok Daga",
+      "filters": "Filtry",
+      "global": "Globalne",
+      "logs": "Logi",
+      "navigation": "Nawigacja",
+      "runActions": "Akcje wykonań i zadań",
+      "search": "Wyszukiwanie"
+    },
+    "descriptions": {
+      "clearRun": "Wyczyść wykonanie",
+      "clearTaskInstance": "Wyczyść instancję zadania",
+      "downloadLogs": "Pobierz logi",
+      "focusFilterSearch": "Przejdź do wyszukiwania filtrów",
+      "focusLogSearch": "Szukaj w logach",
+      "focusSearch": "Przejdź do wyszukiwania",
+      "markRunFailed": "Oznacz wykonanie jako nieudane",
+      "markRunSuccess": "Oznacz wykonanie jako udane",
+      "markTaskFailed": "Oznacz zadanie jako nieudane",
+      "markTaskGroupFailed": "Oznacz grupę zadań jako nieudaną",
+      "markTaskGroupSuccess": "Oznacz grupę zadań jako udaną",
+      "markTaskSuccess": "Oznacz zadanie jako udane",
+      "navigateTasks": "Nawiguj po zadaniach",
+      "openGraphFilters": "Otwórz filtry grafu",
+      "scrollBottom": "Przewiń do dołu",
+      "scrollTop": "Przewiń do góry",
+      "searchDags": "Szukaj Dagów",
+      "showHelp": "Pokaż skróty klawiszowe",
+      "toggleExpand": "Rozwiń lub zwiń wszystkie grupy",
+      "toggleFullscreen": "Przełącz pełny ekran",
+      "toggleGraphGrid": "Przełącz widok grafu / siatki",
+      "toggleSource": "Przełącz źródła",
+      "toggleTaskGroup": "Rozwiń lub zwiń grupę zadań",
+      "toggleTimestamp": "Przełącz znaczniki czasu",
+      "toggleWrap": "Przełącz zawijanie"
+    },
+    "empty": "Na tej stronie nie ma dostępnych skrótów klawiszowych.",
+    "title": "Skróty klawiszowe"
+  },
   "showDetailsPanel": "Pokaż panel szczegółów",
   "signedInAs": "Zalogowano jako",
   "source": {
@@ -279,6 +346,7 @@
     "from": "Od",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "noTagsFound": "Nie znaleziono etykiet",
+    "noTeamsFound": "Nie znaleziono zespołów",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"
@@ -309,10 +377,12 @@
   "taskGroup_other": "Grupy zadań",
   "taskId": "Identyfikator Zadania",
   "taskInstance": {
+    "additionalAttributes": "Dodatkowe atrybuty instancji zadania",
     "dagVersion": "Wersja Daga",
     "executor": "Wykonawca",
     "executorConfig": "Konfiguracja wykonawcy",
     "hostname": "Nazwa hosta",
+    "id": "ID",
     "maxTries": "Maksymalna liczba prób",
     "pid": "PID",
     "pool": "Pula",
@@ -322,11 +392,13 @@
     "queuedWhen": "Zakolejkowano o",
     "renderedMapIndex": "Wyrenderowany indeks mapowania",
     "scheduledWhen": "Zaplanowano o",
+    "trigger": "Wyzwalacz",
     "triggerer": {
       "assigned": "Przypisany wyzwalacz",
       "class": "Klasa wyzwalacza",
       "createdAt": "Czas utworzenia wyzwalacza",
       "id": "Identyfikator wyzwalacza",
+      "job": "Zadanie wyzwalacza",
       "latestHeartbeat": "Ostatni heartbeat wyzwalacza",
       "title": "Informacje o wyzwalaczu"
     },

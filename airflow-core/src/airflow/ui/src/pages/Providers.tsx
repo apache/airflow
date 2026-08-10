@@ -27,6 +27,7 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { urlRegex } from "src/constants/urlRegex";
+import { useDocumentTitle } from "src/utils";
 
 const createColumns = (translate: TFunction): Array<ColumnDef<ProviderResponse>> => [
   {
@@ -77,6 +78,9 @@ const createColumns = (translate: TFunction): Array<ColumnDef<ProviderResponse>>
 
 export const Providers = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
+  useDocumentTitle(translate("common:admin.Providers"));
+
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const columns = createColumns(translate);

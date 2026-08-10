@@ -34,7 +34,7 @@ from copy import deepcopy
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from multiprocessing import Pool
+from multiprocessing import get_context
 from pathlib import Path
 from subprocess import DEVNULL
 from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple
@@ -100,6 +100,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
+    SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
     get_airflow_version,
     get_airflowctl_version,
@@ -254,7 +255,8 @@ MY_DIR_PATH = os.path.dirname(__file__)
 # always correct regardless of how breeze is launched.
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+PR_REFERENCE_PATTERN = re.compile(r"#([0-9]+)")
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)(?![0-9])")
 # Release-management commits (provider documentation / release preparation) are pure
 # release-process noise: they are not user-facing changes and existing providers already
 # exclude them (the release tooling parks them in the changelog's excluded section). Match
@@ -284,12 +286,12 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.21"
+AIRFLOW_UV_VERSION = "0.11.29"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.50"
+GITPYTHON_VERSION = "3.1.52"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.5"
-HATCH_VERSION = "1.17.0"
+PREK_VERSION = "0.4.10"
+HATCH_VERSION = "1.17.1"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -1546,6 +1548,7 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
+@option_allow_pre_releases
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1553,6 +1556,7 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1597,6 +1601,7 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
+                allow_pre_releases=allow_pre_releases,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1615,6 +1620,7 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
+            allow_pre_releases=allow_pre_releases,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
@@ -2034,7 +2040,8 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name == "helm-chart":
         return chart_version()
 
-    if package_name in ("docker-stack", "apache-airflow-providers"):
+    if package_name in ("docker-stack", "apache-airflow-providers", "java-sdk"):
+        # Non-versioned packages; java-sdk is versioned but only via a staged stable.txt.
         return None
 
     if package_name.startswith("apache-airflow-providers-"):
@@ -2609,8 +2616,8 @@ def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str 
 
 
 def get_prs_for_package(provider_id: str, current_release_version: str | None = None) -> list[int]:
-    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    prs = []
+    prs: list[int] = []
+    seen_prs: set[int] = set()
     if current_release_version is None:
         provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
         if not provider_yaml_dict:
@@ -2634,9 +2641,12 @@ def get_prs_for_package(provider_id: str, current_release_version: str | None = 
             if line.startswith(".. Below changes are excluded from the changelog"):
                 # The reminder of PRs is not important skipping it
                 break
-            match_result = pr_matcher.match(line.strip())
-            if match_result:
-                prs.append(int(match_result.group(1)))
+            if line.lstrip().startswith("*"):
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    pr_number = int(pr_match)
+                    if pr_number not in seen_prs:
+                        seen_prs.add(pr_number)
+                        prs.append(pr_number)
     return prs
 
 
@@ -2730,7 +2740,6 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
     Returns list of PRs that are commented out in the changelog.
     :return: list of PR numbers that appear only in comments in changelog.rst files in "providers" dir
     """
-    pr_matcher = re.compile(r".*\(#([0-9]+)\).*")
     commented_prs = set()
 
     # Get all provider distributions
@@ -2768,9 +2777,8 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
 
             # Extract PRs from excluded sections
             if in_excluded_section and line.strip().startswith("*"):
-                match_result = pr_matcher.search(line)
-                if match_result:
-                    commented_prs.add(int(match_result.group(1)))
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    commented_prs.add(int(pr_match))
 
     return sorted(commented_prs)
 
@@ -2875,7 +2883,11 @@ def generate_issue_content_providers(
             all_prs.update(prs)
             provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
-        github_token = retrieve_github_token(github_token)
+        github_token = retrieve_github_token(
+            github_token,
+            description="airflow-generate-provider-release-issue",
+            scopes="repo:status",
+        )
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
@@ -3485,7 +3497,14 @@ def generate_airflowctl_changelog(
     verbose = get_verbose()
 
     prs = _get_airflowctl_prs(verbose, previous_release, current_release, excluded_pr_list)
-    github_token = retrieve_github_token(github_token) or ""
+    github_token = (
+        retrieve_github_token(
+            github_token,
+            description="airflow-generate-airflowctl-changelog",
+            scopes="repo:status",
+        )
+        or ""
+    )
 
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
@@ -3598,7 +3617,10 @@ def generate_providers_metadata(
     )
 
     console_print("\n[info]Checking provider.yaml versions[1:] against PyPI for stale entries...[/]\n")
-    with Pool() as pypi_pool:
+    # "spawn" (not the platform-default fork): the parent has already used GitPython and
+    # opened network sockets before reaching here, and forking that state into workers
+    # deadlocks. See get_all_constraint_files_and_airflow_releases for the same reasoning.
+    with get_context("spawn").Pool() as pypi_pool:
         pruned_per_provider = pypi_pool.map(prune_unreleased_versions_from_provider_yaml, package_ids)
     total_pruned = 0
     for pid, pruned in zip(package_ids, pruned_per_provider):
@@ -3623,7 +3645,7 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    with Pool() as pool:
+    with get_context("spawn").Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
             package_ids,
@@ -3949,7 +3971,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.23.0"
+OPENAPI_GENERATOR_CLI_VER = "7.24.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -4663,7 +4685,14 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
-    github_token = retrieve_github_token(github_token) or ""
+    github_token = (
+        retrieve_github_token(
+            github_token,
+            description="airflow-generate-release-issue",
+            scopes="repo:status",
+        )
+        or ""
+    )
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}
@@ -4831,6 +4860,67 @@ def publish_docs_to_s3(
             "Please check the version in the docs and try again.[/]"
         )
         sys.exit(1)
+
+
+@release_management_group.command(
+    name="publish-schemas-to-s3",
+    help="Publishes generated JSON schema artifacts (Execution API, Supervisor) to S3.",
+)
+@click.option(
+    "--execution-api",
+    help="Path to the generated Execution API OpenAPI JSON file.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--supervisor",
+    help="Path to the generated Supervisor schema JSON file.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--destination-location",
+    help="S3 location to publish the schemas under, e.g. "
+    "s3://live-docs-airflow-apache-org/schemas/. Each schema is written to "
+    "<location>/<schema-type>/<version>.json.",
+    type=NotVerifiedBetterChoice(SCHEMA_DESTINATION_LOCATIONS),
+    required=True,
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite the dated schema file if it already exists in S3.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Dry run - only print what would be done.",
+)
+def publish_schemas_to_s3(
+    execution_api: Path | None,
+    supervisor: Path | None,
+    destination_location: str,
+    overwrite: bool,
+    dry_run: bool,
+):
+    from airflow_breeze.utils.publish_docs_to_s3 import publish_schemas_to_s3 as _publish_schemas_to_s3
+
+    if not execution_api and not supervisor:
+        console_print("[error]Provide at least one of --execution-api or --supervisor[/]")
+        sys.exit(1)
+
+    console_print("[info]Publishing schemas to S3[/]")
+    console_print(f"[info]Destination bucket location: {destination_location}[/]")
+    if execution_api:
+        console_print(f"[info]Execution API schema: {execution_api}[/]")
+    if supervisor:
+        console_print(f"[info]Supervisor schema: {supervisor}[/]")
+
+    _publish_schemas_to_s3(
+        destination_location=destination_location.rstrip("/"),
+        execution_api_schema=execution_api,
+        supervisor_schema=supervisor,
+        overwrite=overwrite,
+        dry_run=dry_run,
+    )
 
 
 @release_management_group.command(

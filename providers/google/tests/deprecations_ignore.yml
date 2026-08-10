@@ -57,6 +57,13 @@
 - providers/google/tests/unit/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_query_with_arg
 - providers/google/tests/unit/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_with_auto_detect
 - providers/google/tests/unit/google/cloud/hooks/test_gcs.py::TestGCSHook::test_list__error_match_glob_and_invalid_delimiter
+- providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryCheckOperator
+- providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryCheckOperators
+- providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryColumnCheckOperator
+- providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryGetDataOperator
+- providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryIntervalCheckOperator
+- providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryTableCheckOperator
+- providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryValueCheckOperator
 - providers/google/tests/unit/google/cloud/operators/test_dataproc.py::TestDataprocClusterScaleOperator::test_execute
 - providers/google/tests/unit/google/cloud/operators/test_bigquery.py::TestBigQueryInsertJobOperator
 - providers/google/tests/unit/google/cloud/operators/test_dataproc.py::test_create_cluster_operator_extra_links

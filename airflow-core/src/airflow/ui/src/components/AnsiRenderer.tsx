@@ -131,7 +131,7 @@ const createChakraProps = (bundle: AnserJsonEntry) => {
     case "underline":
       props.textDecoration = "underline";
       break;
-    // eslint-disable-next-line unicorn/no-useless-switch-case
+
     case null:
     default:
       break;

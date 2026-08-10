@@ -22,6 +22,7 @@ from unittest.mock import Mock
 import pytest
 
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+from airflow.providers.openai.hooks.openai import OpenAIHook
 
 
 @pytest.mark.parametrize(
@@ -32,7 +33,7 @@ from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIB
     ],
 )
 def test_wait_for_batch_raise_exception(exception_class):
-    mock_hook_instance = Mock()
+    mock_hook_instance = Mock(spec=OpenAIHook)
     mock_hook_instance.wait_for_batch.side_effect = exception_class
     hook = mock_hook_instance
     with pytest.raises(exception_class):

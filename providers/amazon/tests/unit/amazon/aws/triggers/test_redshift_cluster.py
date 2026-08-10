@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterSettledTrigger,
     RedshiftClusterTrigger,
     RedshiftCreateClusterSnapshotTrigger,
     RedshiftCreateClusterTrigger,
@@ -54,7 +55,32 @@ class TestRedshiftClusterTrigger:
             "cluster_identifier": "mock_cluster_identifier",
             "target_status": "available",
             "poke_interval": POLLING_PERIOD_SECONDS,
+            "region_name": None,
+            "verify": None,
+            "botocore_config": None,
         }
+
+    def test_redshift_cluster_trigger_serializes_generic_hook_params(self):
+        """Asserts the generic AWS hook params are serialized and used to build the hook."""
+        trigger = RedshiftClusterTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            target_status="available",
+            poke_interval=POLLING_PERIOD_SECONDS,
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["region_name"] == "eu-west-1"
+        assert kwargs["verify"] is False
+        assert kwargs["botocore_config"] == {"read_timeout": 42}
+
+        hook = trigger.hook
+        assert hook.aws_conn_id == "test_redshift_conn_id"
+        assert hook._region_name == "eu-west-1"
+        assert hook._verify is False
+        assert hook._config.read_timeout == 42
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
@@ -127,43 +153,64 @@ WAITER_TRIGGER_PARAMS = [
         RedshiftCreateClusterTrigger,
         15,
         999999,
+        "cluster_available",
         id="RedshiftCreateClusterTrigger",
     ),
     pytest.param(
         RedshiftPauseClusterTrigger,
         15,
         999999,
+        "cluster_paused",
         id="RedshiftPauseClusterTrigger",
     ),
     pytest.param(
         RedshiftCreateClusterSnapshotTrigger,
         15,
         999999,
+        "snapshot_available",
         id="RedshiftCreateClusterSnapshotTrigger",
     ),
     pytest.param(
         RedshiftResumeClusterTrigger,
         15,
         999999,
+        "cluster_resumed",
         id="RedshiftResumeClusterTrigger",
     ),
     pytest.param(
         RedshiftDeleteClusterTrigger,
         30,
         30,
+        "cluster_deleted",
         id="RedshiftDeleteClusterTrigger",
+    ),
+    pytest.param(
+        RedshiftClusterSettledTrigger,
+        30,
+        30,
+        "cluster_deletable",
+        id="RedshiftClusterSettledTrigger",
     ),
 ]
 
 
 class TestRedshiftWaiterTriggers:
-    """Tests for the five Redshift triggers that inherit from ``AwsBaseWaiterTrigger``."""
+    """Tests for the Redshift triggers that inherit from ``AwsBaseWaiterTrigger``."""
 
     @pytest.mark.parametrize(
-        ("trigger_cls", "default_delay", "default_max_attempts"),
+        ("trigger_cls", "default_delay", "default_max_attempts", "waiter_name"),
         WAITER_TRIGGER_PARAMS,
     )
-    def test_serialization(self, trigger_cls, default_delay, default_max_attempts):
+    def test_waiter_name(self, trigger_cls, default_delay, default_max_attempts, waiter_name):
+        trigger = trigger_cls(cluster_identifier="test_cluster")
+        assert trigger.waiter_name == waiter_name
+        assert trigger.waiter_args == {"ClusterIdentifier": "test_cluster"}
+
+    @pytest.mark.parametrize(
+        ("trigger_cls", "default_delay", "default_max_attempts", "waiter_name"),
+        WAITER_TRIGGER_PARAMS,
+    )
+    def test_serialization(self, trigger_cls, default_delay, default_max_attempts, waiter_name):
         trigger = trigger_cls(
             cluster_identifier="test_cluster",
             aws_conn_id="aws_default",
@@ -181,11 +228,11 @@ class TestRedshiftWaiterTriggers:
         }
 
     @pytest.mark.parametrize(
-        ("trigger_cls", "default_delay", "default_max_attempts"),
+        ("trigger_cls", "default_delay", "default_max_attempts", "waiter_name"),
         WAITER_TRIGGER_PARAMS,
     )
     def test_serialization_with_verify_and_botocore_config(
-        self, trigger_cls, default_delay, default_max_attempts
+        self, trigger_cls, default_delay, default_max_attempts, waiter_name
     ):
         trigger = trigger_cls(
             cluster_identifier="test_cluster",
@@ -200,12 +247,12 @@ class TestRedshiftWaiterTriggers:
         assert "region_name" not in kwargs
 
     @pytest.mark.parametrize(
-        ("trigger_cls", "default_delay", "default_max_attempts"),
+        ("trigger_cls", "default_delay", "default_max_attempts", "waiter_name"),
         WAITER_TRIGGER_PARAMS,
     )
     @mock.patch("airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftHook")
     def test_hook_propagates_verify_and_botocore_config(
-        self, mock_hook_cls, trigger_cls, default_delay, default_max_attempts
+        self, mock_hook_cls, trigger_cls, default_delay, default_max_attempts, waiter_name
     ):
         trigger = trigger_cls(
             cluster_identifier="test_cluster",

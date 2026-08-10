@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 from typing import Annotated
+from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Query, status
@@ -49,6 +50,7 @@ from airflow.state import get_state_backend
 from airflow.state.metastore import MetastoreBackend
 
 _TIWriterFields = tuple[str, str, str, int]
+NULL_UUID = UUID(int=0)
 
 
 def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
@@ -130,18 +132,30 @@ def _put_asset_state_store(
 ) -> None:
     backend = get_state_backend()
     if isinstance(backend, MetastoreBackend):
-        dag_id, run_id, task_id, map_index = _fetch_ti_writer_fields(token, session)
-        backend.set_asset_state_store(
-            scope,
-            key,
-            json.dumps(body.value),
-            kind=AssetStateStoreWriterKind.TASK,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            session=session,
-        )
+        if token.id == NULL_UUID:
+            # Since the asset state store routes do not have `task_instance_id` in their path params, the default kicks in which is"00000000-0000-0000-0000-000000000000"
+            backend.set_asset_state_store(
+                scope,
+                key,
+                json.dumps(body.value),
+                kind=AssetStateStoreWriterKind.WATCHER,
+                session=session,
+            )
+        else:
+            ti_fields = _fetch_ti_writer_fields(token, session)
+            dag_id, run_id, task_id, map_index = ti_fields
+
+            backend.set_asset_state_store(
+                scope,
+                key,
+                json.dumps(body.value),
+                kind=AssetStateStoreWriterKind.TASK,
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+                session=session,
+            )
     else:
         backend.set(scope, key, json.dumps(body.value), session=session)
 

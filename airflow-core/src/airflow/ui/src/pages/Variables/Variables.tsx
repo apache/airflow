@@ -42,6 +42,7 @@ import { ActionBar } from "src/components/ui/ActionBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
+import { useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -136,6 +137,9 @@ const getColumns = ({
 
 export const Variables = () => {
   const { t: translate } = useTranslation("admin");
+
+  useDocumentTitle(translate("common:admin.Variables"));
+
   const { setTableURLState, tableURLState } = useTableURLState({
     pagination: { pageIndex: 0, pageSize: 30 },
     sorting: [{ desc: false, id: "key" }],

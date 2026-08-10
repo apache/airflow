@@ -155,15 +155,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
     def execute(self, context: Context) -> Any:
-        if self.require_approval and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The approval review body renders the prompt as text. Return a "
-                f"str prompt, or disable require_approval."
-            )
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
 
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
+        agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
         result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)

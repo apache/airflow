@@ -36,6 +36,9 @@ Using the Operator
 | **site_id**: The id of the site where the workbook belongs to. **str** - Default: **None**
 | **blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**
 | **check_interval**: time in seconds that the job should wait in between each instance state checks until operation is completed. **float** - Default: **20**
+| **timeout**: maximum total time in seconds to wait for a blocking refresh before giving up with a ``TimeoutError``. **float** - Default: **None** (wait indefinitely)
+| **exponential_backoff**: grow the wait between status checks by 50% each time, starting from ``check_interval``, instead of staying fixed. **bool** - Default: **False**
+| **max_check_interval**: maximum interval in seconds between two consecutive status checks when ``exponential_backoff`` is enabled. **float** - Default: **None** (uncapped)
 | **tableau_conn_id**: The credentials to authenticate to the Tableau Server. **str** - Default: **tableau_default**
 |
 |

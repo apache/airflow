@@ -15,6 +15,7 @@ Each provider is an independent package with its own `pyproject.toml`, tests, an
 
 - Keep `provider.yaml` metadata, docs, and tests in sync.
 - Don't upper-bound dependencies by default; add limits only with justification.
+- Changing a symbol another provider imports from yours? Bump the consuming provider's dependency with a `# use next version` marker so independently-released packages stay compatible — see [`contributing-docs/13_airflow_dependencies_and_extras.rst`](../contributing-docs/13_airflow_dependencies_and_extras.rst).
 - Tests live alongside the provider — mirror source paths in test directories.
 - Full guide: [`contributing-docs/12_provider_distributions.rst`](../contributing-docs/12_provider_distributions.rst)
 

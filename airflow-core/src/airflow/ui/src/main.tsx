@@ -29,8 +29,10 @@ import * as ReactRouterDOM from "react-router-dom";
 import * as ReactJSXRuntime from "react/jsx-runtime";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
+import { pruneLegacyDependencyKeys } from "src/constants/localStorage";
 import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
+import { ShortcutRegistryProvider } from "src/context/keyboardShortcuts";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 import { getNextHref, getRedirectPath } from "src/utils/links.ts";
@@ -94,6 +96,8 @@ axios.interceptors.response.use(
   },
 );
 
+pruneLegacyDependencyKeys();
+
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>
@@ -101,7 +105,9 @@ createRoot(document.querySelector("#root") as HTMLDivElement).render(
         <ChakraCustomProvider>
           <ColorModeProvider>
             <TimezoneProvider>
-              <RouterProvider router={router} />
+              <ShortcutRegistryProvider>
+                <RouterProvider router={router} />
+              </ShortcutRegistryProvider>
             </TimezoneProvider>
           </ColorModeProvider>
         </ChakraCustomProvider>

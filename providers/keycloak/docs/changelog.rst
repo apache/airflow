@@ -25,6 +25,82 @@
 Changelog
 ---------
 
+.. note::
+    Upgrading the provider does not update existing Keycloak permissions. For each existing team,
+    run ``airflow keycloak-auth-manager create-team <team>`` again to update the team ReadOnly
+    permission. For non-team installations, run
+    ``airflow keycloak-auth-manager create-permissions`` again without ``--teams`` to update the
+    global Admin permission.
+
+    Manually added policies attached to these permissions will also be evaluated under the
+    ``AFFIRMATIVE`` strategy after the update.
+
+0.9.0
+.....
+
+.. note::
+    For Airflow v3.3.0+ Keycloak's access and refresh tokens are now stored in dedicated
+    ``_access_token`` and ``_refresh_token`` cookies instead of being carried inside the
+    Airflow JWT claims. Sessions established before this release carry the tokens in the old form,
+    so the first request after the upgrade cannot be refreshed and the session is cleared --
+    **every logged-in user is signed out once when you upgrade**. No action is required
+    beyond logging back in; this is a one-time effect of the move and does not recur.
+
+Features
+~~~~~~~~
+
+* ``Implement bulk authorization methods in KeycloakAuthManager (#70647)``
+* ``Move keycloak JWT tokens to separate cookies (#70550)``
+* ``Add KeycloakJWTMiddleware to KeycloakAuthManager (#70800)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add tests for Keycloak token models (#70689)``
+
+0.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Derive keycloak oauth redirect_uri from configured base url (#69801)``
+* ``Set 'secure' flag on keycloak login cookies behind a tls proxy (#69594)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Hide non-user-facing entries from ad-hoc provider release notes``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+   * ``Prepare ad-hoc providers release 2026-07-01``
+
+
+0.8.1
+.....
+
+.. note::
+    The ``get_cli_user`` method added to the Keycloak auth manager in 0.8.0 has been
+    removed together with the revert of the airflowctl CLI client integration in Airflow
+    core. If you relied on ``airflowctl`` CLI authentication via the Keycloak service
+    account, provide an API token via the ``AIRFLOW_CLI_TOKEN`` environment variable
+    instead.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix keycloak missing resource error check (#69028)``
+* ``Handle missing Keycloak resources as access denied (#68951)``
+
+Misc
+~~~~
+
+* ``Parallelize per-dag auth checks in KeycloakAuthManager (#69107)``
+* ``Revert airflowctl dependency from airflow-core (#68856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+
 0.8.0
 .....
 

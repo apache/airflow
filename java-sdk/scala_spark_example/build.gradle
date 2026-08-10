@@ -1,0 +1,58 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+plugins {
+    id("scala")
+    id("org.apache.airflow.sdk") version "${projectVersion}"
+}
+
+repositories {
+    mavenLocal()  // Not needed for your own project.
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.apache.airflow:airflow-sdk:${projectVersion}")
+
+    // Routes this bundle's Log4j 2 logging (and Spark's own) into Airflow task logs.
+    implementation("org.apache.airflow:airflow-sdk-log4j2:${projectVersion}")
+
+    // Spark 3.5.x ships its 2.13 artifacts built against Scala 2.13.8.
+    implementation("org.scala-lang:scala-library:2.13.8")
+    implementation("org.apache.spark:spark-sql_2.13:3.5.8")
+
+    // Spark pins Log4j 2 to 2.20.0 and airflow-sdk-log4j2 to 2.26.0; align the
+    // whole family onto one version so the AirflowAppender's api/core agree.
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.26.0"))
+}
+
+java {
+    // Spark 3.5.x supports Java 8/11/17; match the Java 17 worker runtime.
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+airflowBundle {
+    mainClass = "org.apache.airflow.example.ScalaSparkBundleBuilder"
+    // Spark drags in hundreds of dependency JARs; a thin bundle copies every
+    // runtime JAR alongside the bundle JAR (JavaCoordinator globs them all)
+    // rather than shadow-merging, which collides on Log4j2Plugins.dat.
+    fatJar = false
+}

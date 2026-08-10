@@ -33,10 +33,6 @@ pytestmark = pytest.mark.db_test
 
 
 class TestDagBundleModel:
-    def setup_method(self):
-        clear_db_dag_bundles()
-        clear_db_teams()
-
     def teardown_method(self):
         clear_db_dag_bundles()
         clear_db_teams()

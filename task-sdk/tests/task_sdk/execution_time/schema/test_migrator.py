@@ -28,6 +28,8 @@ schema diverges from head.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from typing import Literal
 
 import pytest
@@ -334,3 +336,36 @@ class TestResolveBodyClass:
     def test_extra_fields_in_body_do_not_affect_resolution(self, mock_registry):
         body = {"type": "_LangSdkRequest", "ti_id": "t1", "field_a": 7}
         assert resolve_body_class(body) is _LangSdkRequest
+
+
+class TestLazyCadwynImport:
+    """``cadwyn`` (which imports FastAPI/Starlette/Jinja2) must stay off the worker import path.
+
+    The Task SDK supervisor imports the schema package on every Celery pool worker, but ``cadwyn`` is
+    only needed on the foreign-language-SDK migration path, so its import is deferred. Each check runs
+    in a fresh interpreter because ``sys.modules`` is process-global and other tests import cadwyn.
+    """
+
+    @pytest.mark.parametrize(
+        "module",
+        [
+            "airflow.sdk.execution_time.schema",
+            "airflow.sdk.execution_time.supervisor",
+        ],
+    )
+    def test_importing_worker_path_does_not_load_cadwyn(self, module):
+        code = (
+            f"import sys; import {module}; "
+            "assert 'cadwyn' not in sys.modules, sorted(m for m in sys.modules if 'cadwyn' in m); "
+            "assert 'fastapi' not in sys.modules, 'fastapi was imported'"
+        )
+        subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
+    def test_accessing_bundle_loads_cadwyn(self):
+        # The foreign-SDK migration path does need cadwyn; accessing the bundle is where it loads.
+        code = (
+            "import sys; from airflow.sdk.execution_time.schema import bundle; "
+            "assert bundle.versions, 'bundle should be built'; "
+            "assert 'cadwyn' in sys.modules, 'cadwyn should load when the bundle is accessed'"
+        )
+        subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)

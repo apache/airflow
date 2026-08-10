@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -154,6 +154,7 @@ class DagVersion(Base):
         bundle_version: str | None = None,
         load_dag_model: bool = False,
         load_bundle_model: bool = False,
+        load_serialized_dag: bool = False,
     ) -> Select:
         """
         Get the select object to get the latest version of the DAG.
@@ -162,7 +163,7 @@ class DagVersion(Base):
         :return: The select object.
         """
         query = select(cls).where(cls.dag_id == dag_id)
-        if bundle_version:
+        if bundle_version is not None:
             query = query.where(cls.bundle_version == bundle_version)
 
         if load_dag_model:
@@ -170,6 +171,9 @@ class DagVersion(Base):
 
         if load_bundle_model:
             query = query.options(joinedload(cls.bundle))
+
+        if load_serialized_dag:
+            query = query.options(joinedload(cls.serialized_dag))
 
         # Order by version_number, not created_at: version_number is monotonic and unique per
         # dag_id, so it is deterministic even when two versions share a created_at timestamp.
@@ -188,6 +192,7 @@ class DagVersion(Base):
         bundle_version: str | None = None,
         load_dag_model: bool = False,
         load_bundle_model: bool = False,
+        load_serialized_dag: bool = False,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
@@ -197,6 +202,7 @@ class DagVersion(Base):
         :param session: The database session.
         :param load_dag_model: Whether to load the DAG model.
         :param load_bundle_model: Whether to load the DagBundle model.
+        :param load_serialized_dag: Whether to eagerly load the serialized DAG.
         :return: The latest version of the DAG or None if not found.
         """
         return session.scalar(
@@ -205,6 +211,7 @@ class DagVersion(Base):
                 bundle_version=bundle_version,
                 load_dag_model=load_dag_model,
                 load_bundle_model=load_bundle_model,
+                load_serialized_dag=load_serialized_dag,
             )
         )
 
@@ -235,3 +242,15 @@ class DagVersion(Base):
     def version(self) -> str:
         """A human-friendly representation of the version."""
         return f"{self.dag_id}-{self.version_number}"
+
+
+def _resolve_version_data(
+    dag_version: DagVersion | None, bundle_version: str | None
+) -> dict[str, Any] | None:
+    """Return a bundle version's ``version_data`` manifest, but only for pinned runs."""
+    # Expose version_data only when the run is pinned (bundle_version set) and a DagVersion is
+    # present, so the bundle initializes against the exact version the run used. Unpinned runs
+    # follow the latest bundle state, and legacy rows have no DagVersion.
+    if dag_version is not None and bundle_version is not None:
+        return dag_version.version_data
+    return None

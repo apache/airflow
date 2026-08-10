@@ -78,39 +78,9 @@ def truncate_rendered_value(rendered: str, max_length: int) -> str:
     return result
 
 
-def render_callback_kwargs(kwargs: dict, context: dict) -> dict:
-    """
-    Render Jinja templates in string-valued deadline-callback kwargs using ``context``.
-
-    Only plain string values containing ``{{`` are rendered. Non-string values, the
-    ``context`` key itself, and strings without template markers are passed through
-    unchanged. A template that fails to render falls back to the raw value (logged at
-    warning), so a bad template never aborts the callback.
-
-    Shared between the synchronous executor path (``callback_supervisor``) and the
-    asynchronous triggerer path (``airflow.triggers.callback.CallbackTrigger``) so the two
-    render kwargs identically — keeping them in lockstep instead of one path silently
-    skipping rendering.
-    """
-    from jinja2 import Template
-
-    rendered = {}
-    for key, val in kwargs.items():
-        if key == "context" or not isinstance(val, str) or "{{" not in val:
-            rendered[key] = val
-            continue
-        try:
-            rendered[key] = Template(val).render(context)
-        except Exception:
-            log.warning("Failed to render Jinja template in kwarg %s, using raw value", key)
-            rendered[key] = val
-    return rendered
-
-
 __all__ = [
     "TRUNCATE_MIN_CONTENT_LENGTH",
     "TRUNCATE_PREFIX",
     "TRUNCATE_SUFFIX",
-    "render_callback_kwargs",
     "truncate_rendered_value",
 ]

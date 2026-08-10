@@ -61,6 +61,24 @@ Configuring Dag bundles
 
 Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list`. You can add one or more Dag bundles here.
 
+.. warning:: Reference credentials through a Connection — do not inline them
+
+    Bundle ``kwargs`` are stored in the ``[dag_processor] dag_bundle_config_list``
+    configuration, which Airflow exposes through the Config API when
+    :ref:`config:api__expose_config` is enabled. Any user authorized to read the
+    configuration can read these values verbatim, so they must not contain secrets.
+
+    Do **not** embed credentials directly in bundle ``kwargs`` — for example a
+    token placed directly in a ``repo_url`` like
+    ``https://x-access-token:<token>@github.com/org/repo.git``. Instead reference
+    an Airflow :doc:`Connection <../authoring-and-scheduling/connections>`
+    (``git_conn_id`` for Git, ``aws_conn_id`` for S3, ``gcp_conn_id`` for GCS) and
+    keep the credential in your
+    :doc:`secrets backend <../security/secrets/secrets-backend/index>`. Connection
+    fields are resolved at runtime and are not written into
+    ``dag_bundle_config_list``.
+
+
 By default, Airflow adds a ``LocalDagBundle`` pointing at the configured Dags folder, maintaining the same behaviour as Airflow 2's Dags folder. The only kwarg is ``path``, which defaults to the value of :ref:`config:core__dags_folder` when omitted:
 
 .. code-block:: ini

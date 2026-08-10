@@ -36,6 +36,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
     DagNotPartitionedError,
+    DagVersionNotFound,
     InvalidPartitionKeyError,
     NodeNotFound,
     TaskNotFound,
@@ -116,6 +117,7 @@ class SerializedDAG:
     rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
+    bundle_name: str | None = None
     end_date: datetime.datetime | None = None
     fail_fast: bool = False
     has_on_failure_callback: bool = False
@@ -181,6 +183,7 @@ class SerializedDAG:
                 "task_group",
                 "timetable",
                 "timezone",
+                "bundle_name",
             }
         )
 
@@ -581,8 +584,10 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        bundle_version: str | None = None,
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
+        dag_version: DagVersion | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -650,10 +655,28 @@ class SerializedDAG:
                     f"is reserved for {inferred_run_type.value} runs"
                 )
 
-        self.validate_partition_key(partition_key)
-
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-        copied_params = self.params.deep_merge(conf)
+
+        # When triggering against a specific bundle version, resolve that version first so
+        # partition_key and conf are validated against it (not the live/latest dag).
+        if bundle_version is not None:
+            if self.disable_bundle_versioning:
+                raise ValueError(f"DAG with dag_id: '{self.dag_id}' does not support bundle versioning")
+            if dag_version is None:
+                dag_version = DagVersion.get_latest_version(
+                    self.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session
+                )
+                if not dag_version:
+                    raise DagVersionNotFound(
+                        f"DAG with dag_id: '{self.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                    )
+            params_dag = dag_version.serialized_dag.dag
+        else:
+            params_dag = self
+
+        params_dag.validate_partition_key(partition_key)
+
+        copied_params = params_dag.params.deep_merge(conf)
         copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
@@ -670,12 +693,15 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            bundle_version=bundle_version,
             partition_date=partition_date,
             note=note,
+            dag_version=dag_version,
+            resolved_dag=params_dag if bundle_version is not None else None,
             session=session,
         )
 
-        if self.deadline:
+        if params_dag.deadline:
             self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
         return orm_dagrun
@@ -715,110 +741,51 @@ class SerializedDAG:
             if not deadline_alert:
                 continue
 
-            # Isolate each deadline alert: creating a deadline is auxiliary to creating the
-            # DagRun itself, and must never prevent the DagRun from being created. A single bad
-            # alert — e.g. a ``VariableInterval`` whose backing Variable is missing / non-integer
-            # / <= 0 (``resolve()`` raises ``ValueError``), or a reference whose ``evaluate_with``
-            # fails — would otherwise propagate out of ``create_dagrun`` and abort the whole run,
-            # silently stopping the DAG from scheduling.
-            #
-            # Isolation is done with a plain ``try``/``except`` and MUST NOT use
-            # ``session.begin_nested()``: ``create_dagrun`` runs on the scheduler session inside
-            # the ``prohibit_commit`` guard, and releasing a SAVEPOINT issues a commit, which trips
-            # that guard (``RuntimeError("UNEXPECTED COMMIT ...")``) and — because this very block
-            # swallows it — silently skips deadline creation for *every* scheduled DagRun. The
-            # try/except alone is sufficient: the only DB mutation in the loop body is the final
-            # ``session.add`` (everything before it is a decode, an in-memory ``resolve()``, or a
-            # read-only ``evaluate_with`` query), so an exception leaves no partial state to undo,
-            # and the pending ``Deadline`` is persisted by the caller's outer transaction.
-            try:
-                deserialized_deadline_alert = decode_deadline_alert(
-                    {
-                        Encoding.TYPE: DAT.DEADLINE_ALERT,
-                        Encoding.VAR: {
-                            DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                            DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                            DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
-                        },
-                    }
+            deserialized_deadline_alert = decode_deadline_alert(
+                {
+                    Encoding.TYPE: DAT.DEADLINE_ALERT,
+                    Encoding.VAR: {
+                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+                    },
+                }
+            )
+
+            interval = deserialized_deadline_alert.interval
+
+            if isinstance(interval, VariableInterval):
+                interval = interval.resolve()
+
+            if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
+                deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                    session=session,
+                    interval=interval,
+                    # TODO : Pretty sure we can drop these last two; verify after testing is complete
+                    dag_id=self.dag_id,
+                    run_id=orm_dagrun.run_id,
                 )
 
-                interval = deserialized_deadline_alert.interval
-
-                if isinstance(interval, VariableInterval):
-                    # Resolve the VariableInterval through the full secrets chain (env vars,
-                    # configured secrets backends, then the metadata DB) -- the same resolution
-                    # order as ``Variable.get`` -- rather than reading only the ``variable`` table.
-                    # Reading the table directly would bypass ``AIRFLOW_VAR_*`` env vars and secrets
-                    # backends, so a Variable that lives there resolves to ``None`` and the deadline
-                    # is silently dropped by the per-alert ``except`` below.
-                    #
-                    # We must NOT call ``Variable.get`` / ``get_variable_from_secrets`` here: the
-                    # metastore backend's ``get_variable`` is ``@provide_session`` and, given no
-                    # session, opens the thread-local scoped session (the SAME one the scheduler
-                    # holds) whose context-manager exit COMMITS -- tripping the ``prohibit_commit``
-                    # guard ``create_dagrun`` runs under. Instead iterate the backends ourselves and
-                    # pass the scheduler's ``session`` through to the metastore backend (env/custom
-                    # backends ignore it), so the DB read happens on our session with no commit.
-                    from airflow._shared.secrets_backend.base import call_secrets_backend_method
-                    from airflow.configuration import ensure_secrets_loaded
-                    from airflow.secrets.metastore import MetastoreBackend
-
-                    var_val = None
-                    for secrets_backend in ensure_secrets_loaded():
-                        kwargs = {"session": session} if isinstance(secrets_backend, MetastoreBackend) else {}
-                        var_val = call_secrets_backend_method(
-                            secrets_backend.get_variable, team_name=None, key=interval.key, **kwargs
+                if deadline_time is not None:
+                    session.add(
+                        Deadline(
+                            deadline_time=deadline_time,
+                            callback=deserialized_deadline_alert.callback,
+                            dagrun_id=orm_dagrun.id,
+                            deadline_alert_id=deadline_alert.id,
+                            dag_id=orm_dagrun.dag_id,
+                            bundle_name=orm_dagrun.dag_model.bundle_name,
                         )
-                        if var_val is not None:
-                            break
-                    if var_val is None:
-                        # Fail loudly (the per-alert ``except`` isolates it): the Variable does not
-                        # exist in any backend, so we cannot resolve the interval. Not a silent skip.
-                        raise ValueError(
-                            f"VariableInterval '{interval.key}' could not be resolved from any "
-                            f"secrets backend, environment variable, or the metadata database"
-                        )
-                    interval = interval.coerce_to_timedelta(var_val)
-
-                if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
-                    deadline_time = deserialized_deadline_alert.reference.evaluate_with(
-                        session=session,
-                        interval=interval,
-                        # TODO : Pretty sure we can drop these last two; verify after testing is complete
-                        dag_id=self.dag_id,
-                        run_id=orm_dagrun.run_id,
                     )
-
-                    if deadline_time is not None:
-                        session.add(
-                            Deadline(
-                                deadline_time=deadline_time,
-                                callback=deserialized_deadline_alert.callback,
-                                dagrun_id=orm_dagrun.id,
-                                deadline_alert_id=deadline_alert.id,
-                                dag_id=orm_dagrun.dag_id,
-                                bundle_name=orm_dagrun.dag_model.bundle_name,
-                            )
-                        )
-                        team_name = (
-                            DagModel.get_team_name(self.dag_id, session=session)
-                            if airflow_conf.getboolean("core", "multi_team")
-                            else None
-                        )
-                        stats.incr(
-                            "deadline_alerts.deadline_created",
-                            tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
-                        )
-            except Exception:
-                log.exception(
-                    "Failed to create deadline for alert %s on DagRun %s (dag_id=%s); "
-                    "skipping this deadline, the DagRun is unaffected",
-                    getattr(deadline_alert, "id", "<unknown>"),
-                    orm_dagrun.run_id,
-                    self.dag_id,
-                )
-                stats.incr("deadline_alerts.deadline_creation_failed", tags={"dag_id": self.dag_id})
+                    team_name = (
+                        DagModel.get_team_name(self.dag_id, session=session)
+                        if airflow_conf.getboolean("core", "multi_team")
+                        else None
+                    )
+                    stats.incr(
+                        "deadline_alerts.deadline_created",
+                        tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
+                    )
 
     @provide_session
     def set_task_instance_state(
@@ -1450,16 +1417,25 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    bundle_version: str | None = None,
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
+    dag_version: DagVersion | None = None,
+    resolved_dag: SerializedDAG | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
-    if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    resolved_bundle_version: str | None = None
+    use_resolved_dag = False
+    if dag_version is not None:
+        resolved_bundle_version = bundle_version
+        use_resolved_dag = True
+    else:
+        if not dag.disable_bundle_versioning:
+            resolved_bundle_version = session.scalar(
+                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
+            )
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 
@@ -1477,7 +1453,7 @@ def _create_orm_dagrun(
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
-        bundle_version=bundle_version,
+        bundle_version=resolved_bundle_version,
         partition_key=partition_key,
         partition_date=partition_date,
         note=note,
@@ -1490,6 +1466,8 @@ def _create_orm_dagrun(
     session.add(run)
     session.flush()
     run.dag = dag
+    if use_resolved_dag:
+        run.dag = resolved_dag if resolved_dag is not None else dag_version.serialized_dag.dag
     # create the associated task instances
     # state is None at the moment of creation
     run.verify_integrity(session=session, dag_version_id=dag_version.id)

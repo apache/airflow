@@ -41,6 +41,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.deadline import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
@@ -129,7 +130,7 @@ def get_deadlines(
         session=session,
     )
 
-    deadlines = session.scalars(deadlines_select).unique()
+    deadlines = session.scalars(deadlines_select)
 
     if dag_run_id != "~" and total_entries == 0:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
@@ -165,36 +166,37 @@ def get_dag_deadline_alerts(
     order_by: Annotated[
         SortParam,
         Depends(
-            # NOTE: ``interval`` is intentionally NOT a sortable key. ``DeadlineAlert.interval`` is a
-            # JSON column holding the Airflow-serialized interval — a dict such as
-            # ``{"__classname__": "datetime.timedelta", "__data__": 300.0}`` for a fixed interval, or a
-            # structurally different dict for a ``VariableInterval``. Ordering by it at the DB level
-            # sorts by the JSON text/structure, not the duration, so the result is arbitrary and
-            # misleading (e.g. a dynamic VariableInterval sorts before/after fixed intervals by shape,
-            # and "300" vs "3600" compare lexicographically). Meaningful sorting would need a computed
-            # seconds column. Allow only columns that sort correctly.
             SortParam(
                 ["id", "created_at", "name"],
                 DeadlineAlert,
             ).dynamic_depends(default="created_at")
         ),
     ],
+    version_number: int | None = None,
 ) -> DeadlineAlertCollectionResponse:
     """Get all deadline alerts defined on a Dag."""
-    serialized_dag = session.scalar(
-        select(SerializedDagModel)
+    serialized_dag_select = (
+        select(SerializedDagModel.id)
+        .join(DagVersion, SerializedDagModel.dag_version_id == DagVersion.id)
         .where(SerializedDagModel.dag_id == dag_id)
-        .order_by(SerializedDagModel.id.desc())
     )
+    if version_number is None:
+        serialized_dag_select = serialized_dag_select.order_by(DagVersion.version_number.desc()).limit(1)
+        not_found_detail = f"Dag with id {dag_id} was not found"
+    else:
+        serialized_dag_select = serialized_dag_select.where(DagVersion.version_number == version_number)
+        not_found_detail = f"Dag with id {dag_id} and version number {version_number} was not found"
 
-    if not serialized_dag:
+    serialized_dag_id = session.scalar(serialized_dag_select)
+
+    if not serialized_dag_id:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"Dag with id {dag_id} was not found",
+            not_found_detail,
         )
 
     query = select(DeadlineAlert).where(
-        DeadlineAlert.serialized_dag_id == serialized_dag.id,
+        DeadlineAlert.serialized_dag_id == serialized_dag_id,
     )
 
     alerts_select, total_entries = paginated_select(

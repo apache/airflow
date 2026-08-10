@@ -28,7 +28,7 @@ type DataTableProps<TData> = {
 };
 
 export const CardList = <TData,>({ cardDef, isLoading, rows }: DataTableProps<TData>) => (
-  <SimpleGrid data-testid="card-list" {...{ column: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
+  <SimpleGrid data-testid="card-list" {...{ columns: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
     {rows.map((row) => (
       <Box key={row.id}>
         {Boolean(isLoading) &&

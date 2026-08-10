@@ -27,7 +27,10 @@ public class ExampleBundleBuilder implements BundleBuilder {
   @NotNull
   @Override
   public Iterable<Dag> getDags() {
-    return List.of(InterfaceExampleBuilder.build(), AnnotationExampleBuilder.build());
+    return List.of(
+        InterfaceExampleBuilder.build(),
+        AnnotationExampleBuilder.build(),
+        XComCastingExampleBuilder.build());
   }
 
   public static void main(String[] args) {

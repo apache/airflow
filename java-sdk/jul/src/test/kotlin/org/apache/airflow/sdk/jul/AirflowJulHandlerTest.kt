@@ -30,9 +30,11 @@ import org.apache.airflow.sdk.execution.Level
 import org.apache.airflow.sdk.execution.Log
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.logging.ConsoleHandler
 import java.util.logging.LogRecord
 import java.util.logging.Logger
 import java.util.logging.Level as JLevel
@@ -51,9 +53,59 @@ class AirflowJulHandlerTest {
   @AfterEach
   fun tearDown() {
     unmockkAll()
-    // Remove any handlers installed by install() tests so they don't leak between tests.
+    // Remove any handlers installed by setup() tests so they don't leak between tests.
     val root = Logger.getLogger("")
     root.handlers.filterIsInstance<AirflowJulHandler>().forEach { root.removeHandler(it) }
+  }
+
+  @Test
+  fun `setup replaces root handlers with a single AirflowJulHandler`() {
+    val root = Logger.getLogger("")
+    val original = root.handlers.toList()
+    val preexisting = ConsoleHandler()
+    try {
+      original.forEach { root.removeHandler(it) }
+      root.addHandler(preexisting)
+
+      AirflowJulHandler.setup()
+
+      assertEquals(1, root.handlers.size)
+      assertTrue(root.handlers[0] is AirflowJulHandler)
+      assertFalse(root.handlers.contains(preexisting))
+
+      // Idempotent: a second call still leaves exactly one AirflowJulHandler.
+      AirflowJulHandler.setup()
+      assertEquals(1, root.handlers.size)
+      assertTrue(root.handlers[0] is AirflowJulHandler)
+    } finally {
+      root.handlers.forEach { root.removeHandler(it) }
+      original.forEach { root.addHandler(it) }
+    }
+  }
+
+  @Test
+  fun `setup with clean false keeps existing root handlers`() {
+    val root = Logger.getLogger("")
+    val original = root.handlers.toList()
+    val preexisting = ConsoleHandler()
+    try {
+      original.forEach { root.removeHandler(it) }
+      root.addHandler(preexisting)
+
+      AirflowJulHandler.setup(clean = false)
+
+      assertEquals(2, root.handlers.size)
+      assertTrue(root.handlers.contains(preexisting))
+      assertEquals(1, root.handlers.count { it is AirflowJulHandler })
+
+      // Idempotent: a second call does not add another AirflowJulHandler.
+      AirflowJulHandler.setup(clean = false)
+      assertEquals(2, root.handlers.size)
+      assertEquals(1, root.handlers.count { it is AirflowJulHandler })
+    } finally {
+      root.handlers.forEach { root.removeHandler(it) }
+      original.forEach { root.addHandler(it) }
+    }
   }
 
   // Mapping:

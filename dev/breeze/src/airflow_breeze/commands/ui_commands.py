@@ -191,7 +191,7 @@ def get_locale_files() -> list[LocaleFiles]:
             locale=locale_dir.name, files=[f.name for f in locale_dir.iterdir() if f.suffix == ".json"]
         )
         for locale_dir in LOCALES_DIR.iterdir()
-        if locale_dir.is_dir()
+        if locale_dir.is_dir() and not locale_dir.name.startswith(".")
     ]
 
 

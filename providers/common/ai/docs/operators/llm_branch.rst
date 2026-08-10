@@ -24,7 +24,7 @@ Use :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
 for LLM-driven branching — where the LLM decides which downstream task(s) to
 execute.
 
-The operator discovers downstream tasks automatically from the DAG topology
+The operator discovers downstream tasks automatically from the Dag topology
 and presents them to the LLM as a constrained enum via pydantic-ai structured
 output. No text parsing or manual validation is needed.
 
@@ -75,12 +75,40 @@ With multiple branches:
     :start-after: [START howto_decorator_llm_branch_multi]
     :end-before: [END howto_decorator_llm_branch_multi]
 
+Human-in-the-Loop Approval
+--------------------------
+
+Set ``require_approval=True`` to pause the task after the LLM chooses the
+branch(es) and wait for a human reviewer to approve the choice before any
+downstream task is skipped. The review form shows the LLM's choice and the
+valid downstream task IDs. When ``allow_modifications=True``, the reviewer
+can also change the choice — rendered as a dropdown of the downstream task
+IDs, or a multi-select of them with ``allow_multiple_branches=True``. The
+reviewed branch(es) are validated
+against the downstream task IDs before branching:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_branch.py
+    :language: python
+    :start-after: [START howto_operator_llm_branch_approval]
+    :end-before: [END howto_operator_llm_branch_approval]
+
+Rejecting the review, or letting ``approval_timeout`` expire, **fails** the
+task (``HITLRejectException`` / ``HITLTimeoutError``), so downstream tasks
+end up ``upstream_failed`` rather than skipped.
+
+``require_approval=True`` requires a string prompt: a decorated callable
+returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
+call.
+
+``approval_timeout`` and the rest of the approval behaviour are inherited
+from :ref:`LLMOperator <howto/operator:llm>`.
+
 How It Works
 ------------
 
 At execution time, the operator:
 
-1. Reads ``self.downstream_task_ids`` from the DAG topology.
+1. Reads ``self.downstream_task_ids`` from the Dag topology.
 2. Creates a dynamic ``Enum`` with one member per downstream task ID.
 3. Passes that enum as ``output_type`` to ``pydantic-ai``, constraining the LLM to
    valid task IDs only.
@@ -99,6 +127,12 @@ Parameters
   task ID. When ``True`` the LLM may return one or more task IDs.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``). Supports Jinja templating.
+- ``require_approval``: If ``True``, the task pauses after the LLM chooses the
+  branch(es) and waits for human review before branching.  Default ``False``.
+- ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
+  means wait indefinitely.  Default ``None``.
+- ``allow_modifications``: If ``True``, the reviewer can change the chosen
+  branch(es) before approving.  Default ``False``.
 
 Logging
 -------

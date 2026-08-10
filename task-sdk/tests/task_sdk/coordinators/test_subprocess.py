@@ -372,6 +372,41 @@ class TestConnectionFromProcess:
             client.close()
             server.close()
 
+    def test_matches_dual_stack_ipv4_compatible_connection(self):
+        """A dual-stack child whose loopback is rendered in IPv4-compatible form is accepted.
+
+        Companion to :meth:`test_matches_dual_stack_ipv4_mapped_connection` for macOS
+        (#68938): there the JVM's loopback connection is reported by ``psutil`` as the
+        deprecated IPv4-compatible ``::127.0.0.1`` rather than the IPv4-mapped
+        ``::ffff:127.0.0.1`` seen on Linux. Both forms must canonicalize to plain
+        ``127.0.0.1`` or the ownership check rejects the Java task. The OS will not
+        reliably establish a routable ``::`` connection on demand, so ``psutil``'s view of
+        the child's connections is mocked to the form macOS actually reports.
+        """
+        server = _start_server()
+        _, server_port = server.getsockname()
+        client = socket.socket()
+        client.connect(("127.0.0.1", server_port))
+        conn, _ = server.accept()
+        child_port = conn.getpeername()[1]
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        # On macOS psutil reports the child's dual-stack loopback in IPv4-compatible form.
+        compat_conn = MagicMock(
+            laddr=("::127.0.0.1", child_port),
+            raddr=("::127.0.0.1", server_port),
+        )
+        try:
+            with patch("airflow.sdk.coordinators._subprocess.psutil.Process") as mock_process:
+                mock_process.return_value.children.return_value = []
+                mock_process.return_value.net_connections.return_value = [compat_conn]
+                assert _is_connection_from_process(conn, mock_proc) is True
+        finally:
+            conn.close()
+            client.close()
+            server.close()
+
     def test_rejects_tcp_connection_not_owned_by_child_process(self):
         server = _start_server()
         _, port = server.getsockname()

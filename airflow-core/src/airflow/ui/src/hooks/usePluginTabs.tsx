@@ -44,11 +44,10 @@ export const usePluginTabs = (destination: string): Array<TabPlugin> => {
 
   return externalViews.map((view) => {
     // Choose icon based on theme - prefer dark mode icon if available and in dark mode
-    let iconSrc = view.icon;
-
-    if (colorMode === "dark" && view.icon_dark_mode !== undefined && view.icon_dark_mode !== null) {
-      iconSrc = view.icon_dark_mode;
-    }
+    const iconSrc =
+      colorMode === "dark" && view.icon_dark_mode !== undefined && view.icon_dark_mode !== null
+        ? view.icon_dark_mode
+        : view.icon;
 
     const icon =
       iconSrc !== undefined && iconSrc !== null ? (

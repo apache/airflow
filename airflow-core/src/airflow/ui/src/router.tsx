@@ -137,6 +137,7 @@ export const routerConfig = [
         children: [
           { element: <AssetEvents />, index: true },
           { element: <AssetStateStore />, path: "asset-state-store" },
+          pluginRoute,
         ],
         element: <Asset />,
         path: "assets/:assetId",
@@ -192,6 +193,7 @@ export const routerConfig = [
           // deep links alive by rendering the overview, where the route sync opens the modal.
           { element: <Overview />, path: "required_actions" },
           { element: <Backfills />, path: "backfills" },
+          { element: <Backfills />, path: "backfills/:backfillId" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagDetails />, path: "details" },

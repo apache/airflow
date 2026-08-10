@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 from abc import ABC
 from collections.abc import Callable
 from typing import Any
@@ -27,6 +26,18 @@ import structlog
 from airflow.sdk._shared.module_loading import import_string, is_valid_dotpath
 
 log = structlog.getLogger(__name__)
+
+
+class _SerializedCallbackPath(str):
+    """
+    A callback path which was read back from serialized data.
+
+    See :meth:`Callback.get_callback_path` for what the marker buys.
+
+    :meta private:
+    """
+
+    __slots__ = ()
 
 
 class Callback(ABC):
@@ -67,6 +78,14 @@ class Callback(ABC):
 
         stripped_callback = _callback.strip()
 
+        if isinstance(_callback, _SerializedCallbackPath):
+            # This path was already checked when the Callback it belongs to was created, so
+            # rebuilding that Callback keeps it as it is. Reconstruction happens in components
+            # which never call the callback themselves, and resolving the path there is neither
+            # needed nor wanted: the module it names is not necessarily importable in that
+            # process, and importing it has no bearing on the path we return either way.
+            return stripped_callback
+
         try:
             # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
             callback = import_string(stripped_callback)
@@ -96,6 +115,8 @@ class Callback(ABC):
     @classmethod
     def deserialize(cls, data: dict, version):
         path = data.pop("path")
+        if isinstance(path, str):
+            path = _SerializedCallbackPath(path)
         return cls(callback_callable=path, **data)
 
     @classmethod
@@ -111,15 +132,14 @@ class Callback(ABC):
         return self.serialize() == other.serialize()
 
     def __hash__(self):
-        # ``serialize()`` is JSON-serializable by contract (it is persisted to a JSON column),
-        # and ``kwargs`` may legally contain NESTED dicts/lists (e.g. ``kwargs={"config": {...}}``
-        # or ``kwargs={"tags": [...]}``). The previous implementation only flattened the top level
-        # (``tuple(sorted(v.items()))``), so a nested dict/list value remained unhashable and
-        # ``hash(callback)`` — and therefore ``hash(DeadlineAlert(...))`` and any ``set``/dict use —
-        # raised ``TypeError: unhashable type``. Hash a canonical JSON encoding instead: it handles
-        # arbitrary nesting, and ``sort_keys=True`` keeps it consistent with ``__eq__`` (which
-        # compares ``serialize()``) regardless of key insertion order.
-        return hash(json.dumps(self.serialize(), sort_keys=True, default=str))
+        serialized = self.serialize()
+        hashable_items = []
+        for k, v in serialized.items():
+            if isinstance(v, dict):
+                hashable_items.append((k, tuple(sorted(v.items()))))
+            else:
+                hashable_items.append((k, v))
+        return hash(tuple(sorted(hashable_items)))
 
 
 class AsyncCallback(Callback):

@@ -44,4 +44,4 @@ def test_render_lines_produces_bullet_list():
     assert any("uv run --project <PROJECT> pytest" in line for line in lines)
     assert any("breeze testing helm-tests" in line for line in lines)
     assert any("prek run mypy-<project>" in line for line in lines)
-    assert any("breeze selective-checks" in line for line in lines)
+    assert any("breeze ci selective-check --commit-ref" in line for line in lines)

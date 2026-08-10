@@ -58,7 +58,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
 
 .. code-block:: python
 
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
     from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
@@ -110,14 +110,14 @@ Airflow provides several built-in reference points that you can use with Deadlin
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
 ``DeadlineReference.AVERAGE_RUNTIME``
-    Calculates deadlines based on the average runtime of previous Dag runs. This reference
+    Calculates deadlines based on the average runtime of previous successful Dag runs. This reference
     analyzes historical execution data to predict when the current run should complete.
     The deadline is set to the current time plus the calculated average runtime plus the interval.
     If insufficient historical data exists, no deadline is created.
 
     Parameters:
-        * ``max_runs`` (int, optional): Maximum number of recent Dag runs to analyze. Defaults to 10.
-        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
+        * ``max_runs`` (int, optional): Maximum number of successful recent Dag runs to analyze. Defaults to 10.
+        * ``min_runs`` (int, optional): Minimum number of successful recent Dag runs required to calculate average. Defaults to same value as ``max_runs``.
 
     Example usage:
 
@@ -165,9 +165,7 @@ Here's an example using a fixed datetime:
 
 .. code-block:: python
 
-    tomorrow_at_ten = datetime.combine(
-        datetime.now().date() + timedelta(days=1), time(10, 0), tzinfo=timezone.utc
-    )
+    tomorrow_at_ten = datetime.combine(datetime.now().date() + timedelta(days=1), time(10, 0))
 
     with DAG(
         dag_id="fixed_deadline_alert",
@@ -367,19 +365,12 @@ A **custom asynchronous callback** might look like this:
 Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 
-A relatively simple version of the Airflow context is passed to callables, and Airflow runs
-:ref:`concepts:jinja-templating` on string-valued callback ``kwargs`` using that context. String
-kwargs that contain ``{{ ... }}`` are rendered before the callback runs; non-string kwargs and
-strings without template markers are passed through untouched, and a template that fails to render
-falls back to its raw value (logged at warning) rather than failing the callback. Templating works
-identically on both the synchronous (executor) and asynchronous (triggerer) callback paths.
-
-The variables available for templating are those in the simplified context: the ID and the
-calculated deadline time of the Deadline Alert (``{{ deadline.id }}``, ``{{ deadline.deadline_time }}``),
-plus the Dag Run fields included in the ``GET`` REST API response for Dag Run (e.g.
-``{{ dag_run.run_id }}``, ``{{ run_id }}``, ``{{ logical_date }}``, ``{{ ds }}``, ``{{ ts }}``).
-Notifiers continue to run their own templating as part of their execution. Support for a more
-comprehensive context will be added in future versions.
+Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
+:ref:`concepts:jinja-templating` on the kwargs. However, Notifiers already run templating with the
+provided context as part of their execution. This means that templating can be used when using a Notifier
+as long as the variables being templated are included in the simplified context. This currently includes the
+ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
+response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
@@ -392,7 +383,7 @@ In the following examples, ``notify_team`` is either a SyncCallback or AsyncCall
 
 .. code-block:: python
 
-    next_meeting = datetime(2025, 6, 26, 9, 30, tzinfo=timezone.utc)
+    next_meeting = datetime(2025, 6, 26, 9, 30)
 
     DeadlineAlert(
         reference=DeadlineReference.FIXED_DATETIME(next_meeting),
@@ -429,6 +420,10 @@ references for specific integrations like calendars or other data sources. To do
 a class that inherits from BaseDeadlineReference, add the ``@deadline_reference`` decorator, and
 implement an ``_evaluate_with()`` method.
 
+The decorator may be used with or without parentheses. Used bare, or with empty parentheses, the
+reference is evaluated when a new Dag run is created; pass a ``DeadlineReference.TYPES`` value to
+choose a different time.
+
 
 **Creating a Custom Reference**
 
@@ -436,8 +431,7 @@ implement an ``_evaluate_with()`` method.
 
     from sqlalchemy.orm import Session
 
-    from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import BaseDeadlineReference, deadline_reference
+    from airflow.sdk import BaseDeadlineReference, DeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 
@@ -456,17 +450,19 @@ implement an ``_evaluate_with()`` method.
     class MyQueuedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are queued."""
 
-        required_kwargs = {"custom_param"}
+        # Ask for the Dag run context values supplied by Airflow; see notes below.
+        required_kwargs = {"dag_id", "run_id"}
 
         def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            custom_value = kwargs["custom_param"]
-            # Use custom_value in your calculation
+            dag_id = kwargs["dag_id"]
+            run_id = kwargs["run_id"]
+            # Use dag_id and run_id in your calculation
             return your_datetime
 
 
 **Using a Custom Reference in a Dag**
 
-Once registered [see notes below], use your custom references in Dag definitions like any other reference:
+Once registered, use your custom references in Dag definitions like any other reference:
 
 .. code-block:: python
 
@@ -476,7 +472,7 @@ Once registered [see notes below], use your custom references in Dag definitions
     with DAG(
         dag_id="custom_reference_example",
         deadline=DeadlineAlert(
-            reference=DeadlineReference.MyCustomDecoratedReference(),
+            reference=DeadlineReference.MyCustomDecoratedReference,
             interval=timedelta(hours=2),
             callback=AsyncCallback(my_callback),
         ),
@@ -529,7 +525,13 @@ followed by a more urgent escalation if the Dag is still running.
 **Important Notes:**
 
 * **Timezone Awareness**: Always return timezone-aware datetime objects.
+* **No-argument Construction**: Custom references are instantiated during registration, so they must be
+  constructible with no arguments. If your reference takes parameters, decorate it with ``@dataclass``
+  and give every field a default value.
 * **Plugin Placement**: One convenient place for custom references is in the plugins directory.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
-* **Required Parameters**: Use ``required_kwargs`` to specify parameters your reference needs.
+* **Required Parameters**: ``required_kwargs`` declares which Dag run context values Airflow should
+  forward to ``_evaluate_with()``. Only ``dag_id`` and ``run_id`` are available; declaring anything
+  else raises a ``ValueError`` when the deadline is evaluated. To configure a reference itself, give
+  it constructor fields or read from an Airflow Variable.
 * **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.

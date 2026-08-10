@@ -94,12 +94,36 @@ to manually configure these properties in every Spark operator.
 
 Automatic injection is supported for the following operators:
 
+- :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`
+- :class:`~airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`
+- :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartJobOperator`
+- :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator`
 - :class:`~airflow.providers.apache.livy.operators.livy.LivyOperator`
 - :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`
 - :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`
+
+.. note::
+
+    :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator` receives the injected properties
+    through the Glue job's ``--conf`` argument (in ``script_args``) rather than a Spark ``conf`` dictionary.
+    As with the other operators, injection only propagates the parent job and transport information; the Glue
+    job itself must still have the Spark OpenLineage integration (the ``OpenLineageSparkListener``) enabled for
+    lineage to be emitted.
+
+.. note::
+
+    :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator` supports parent job information
+    injection for classic EMR steps that use ``command-runner.jar`` to launch ``spark-submit`` or ``run-example``.
+    It adds each property as a separate ``--conf key=value`` argument before the existing Spark arguments.
+    Steps with manually configured ``spark.openlineage.parent*`` properties and non-Spark steps are left unchanged.
+    Automatic transport injection is not supported for this operator.
+
+    :class:`~airflow.providers.amazon.aws.operators.emr.EmrContainerOperator` and
+    :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartJobOperator` inject parent and transport
+    properties through their ``spark-defaults`` configuration.
 
 
 .. _options:spark_inject_parent_job_info:
@@ -206,6 +230,29 @@ This allows you to customize the injection behavior for specific operators while
         conf={
             # Your Spark configuration
         },
+    )
+
+For a classic EMR Spark step, enable parent job information injection on
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`:
+
+.. code-block:: python
+
+    from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
+
+    EmrAddStepsOperator(
+        task_id="submit_spark_step",
+        job_flow_id="j-1234567890",
+        steps=[
+            {
+                "Name": "process-data",
+                "ActionOnFailure": "CONTINUE",
+                "HadoopJarStep": {
+                    "Jar": "command-runner.jar",
+                    "Args": ["spark-submit", "s3://example-bucket/jobs/process_data.py"],
+                },
+            }
+        ],
+        openlineage_inject_parent_job_info=True,
     )
 
 

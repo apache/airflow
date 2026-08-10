@@ -32,6 +32,7 @@ import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useDocumentTitle } from "src/utils";
 
 import { EventsFilters } from "./EventsFilters";
 
@@ -65,6 +66,7 @@ const eventsColumn = (
   },
   {
     accessorKey: "owner",
+    cell: ({ row: { original } }) => original.owner_display_name,
     enableSorting: true,
     header: translate("auditLog.columns.user"),
     meta: {
@@ -161,6 +163,10 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
+
+  // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:browse.auditLog") : undefined);
+
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -198,8 +204,8 @@ export const Events = () => {
     value: eventTypeFilter,
   });
   const ownerArg = useAdvancedSearchArg({
-    patternApiKey: "ownerPattern",
-    prefixApiKey: "ownerPrefixPattern",
+    patternApiKey: "ownerDisplayNamePattern",
+    prefixApiKey: "ownerDisplayNamePrefixPattern",
     storageKey: USER_PARAM,
     value: userFilter,
   });

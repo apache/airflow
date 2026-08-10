@@ -185,6 +185,7 @@
         "fail_fast": { "type": "boolean", "default": false },
         "fileloc": { "type" : "string"},
         "relative_fileloc": { "type" : "string"},
+        "bundle_name": { "anyOf": [{ "type": "null" }, { "type": "string" }] },
         "_processor_dags_folder": {
             "anyOf": [
                 { "type": "null" },

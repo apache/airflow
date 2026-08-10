@@ -369,8 +369,29 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            # Avoid spending too much effort on pattern-based masking of
-            # deeply nested non-dict structures.
+            # Always walk lists/tuples/sets too, mirroring the unconditional dict
+            # walk above, so a sensitive key wrapped in an iterable is still
+            # caught at any nesting depth. Self-referential iterables hit Python's
+            # own recursion limit and are caught by the except clause below, which
+            # fails closed.
+            if isinstance(item, (tuple, set)):
+                # Turn set in to tuple!
+                return tuple(
+                    self._redact(
+                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
+                    )
+                    for subval in item
+                )
+            if isinstance(item, list):
+                return [
+                    self._redact(
+                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
+                    )
+                    for subval in item
+                ]
+            # The depth cutoff only bounds the work of pattern-based string
+            # masking below — key-name redaction (dicts and iterables above) is
+            # unbounded so sensitive keys fail closed at any depth.
             if depth > max_depth:
                 return item
             if isinstance(item, Enum):
@@ -393,21 +414,6 @@ class SecretsMasker(logging.Filter):
                     # the structure.
                     return self.replacer.sub(replacement, str(item))
                 return item
-            if isinstance(item, (tuple, set)):
-                # Turn set in to tuple!
-                return tuple(
-                    self._redact(
-                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
-                    )
-                    for subval in item
-                )
-            if isinstance(item, list):
-                return [
-                    self._redact(
-                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
-                    )
-                    for subval in item
-                ]
             return item
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)

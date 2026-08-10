@@ -110,6 +110,18 @@ when a group stops while events are still awaiting persist confirmation
 event): the pending advances are abandoned and the broker redelivers
 those events.
 
+When multiple triggers sharing the same key restart together, the first
+to re-subscribe creates a fresh group and polling begins immediately.
+Triggers that re-subscribe later join as ordinary late subscribers (not
+counted in the snapshot of earlier events), so they may miss events
+committed during the window between the first subscription and their own.
+Set ``[triggerer] shared_stream_cohort_grace_period`` to a positive
+number of seconds to delay the start of polling after a group is created,
+giving concurrent re-subscriptions time to join before any event is
+broadcast. This is a best-effort window: triggers that take longer than
+the grace period to re-subscribe still miss events committed after
+polling starts.
+
 **``shared_stream_subscriber_queue_size`` in ack mode**: the bound is
 still "unprocessed raw events per subscriber". The manager does **not**
 wait for outstanding resolutions before pulling the next event from the
@@ -508,6 +520,7 @@ class _SharedStreamGroup:
         on_poll_terminate: Callable[[_SharedStreamGroup], None],
         max_subscriber_queue: int,
         ack_timeout: float,
+        cohort_grace_period: float = 0.0,
         log: BoundLogger,
         _now: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -518,6 +531,7 @@ class _SharedStreamGroup:
         self._on_poll_terminate = on_poll_terminate
         self._max_subscriber_queue = max_subscriber_queue
         self._ack_timeout = ack_timeout
+        self._cohort_grace_period = cohort_grace_period
         self._now = _now
         self._subscribers: dict[int, asyncio.Queue] = {}
         # Subscribers already force-failed (queue overflow or ack timeout);
@@ -685,6 +699,8 @@ class _SharedStreamGroup:
         producer: SharedStreamProducer | None = None
         terminal_exc: BaseException | None = None
         try:
+            if self._cohort_grace_period > 0:
+                await asyncio.sleep(self._cohort_grace_period)
             if ack_required:
                 # A factory failure flows through the terminal broadcast
                 # path below, like any other poll failure.
@@ -1161,6 +1177,17 @@ class SharedStreamManager:
 
     The manager is single-event-loop and not thread-safe. The triggerer's
     ``TriggerRunner`` is its sole owner.
+
+    :param log: Bound logger; defaults to the module logger.
+    :param max_subscriber_queue: Per-subscriber buffer size. A subscriber whose queue is full
+        is force-failed rather than blocking the poll loop.
+    :param ack_timeout: Per-event ack timeout in seconds. A subscriber that has not finished
+        processing an event within this window is force-failed via :class:`AckTimeout`.
+    :param cohort_grace_period: Seconds to delay the start of polling after a new group is
+        created. When > 0, the poll loop sleeps for this duration before calling
+        ``open_stream``/``open_shared_stream``, giving triggers that share the same key a window
+        to subscribe before any event is broadcast — useful on triggerer restart where concurrent
+        re-subscriptions would otherwise race against the first poll. Default 0 (no delay).
     """
 
     def __init__(
@@ -1169,11 +1196,13 @@ class SharedStreamManager:
         log: BoundLogger | None = None,
         max_subscriber_queue: int = DEFAULT_SUBSCRIBER_QUEUE_MAX,
         ack_timeout: float = DEFAULT_ACK_TIMEOUT,
+        cohort_grace_period: float = 0.0,
         _now: Callable[[], float] = time.monotonic,
     ) -> None:
         self.log = log or structlog.get_logger(__name__)
         self._max_subscriber_queue = max_subscriber_queue
         self._ack_timeout = ack_timeout
+        self._cohort_grace_period = cohort_grace_period
         self._now = _now
         self._groups: dict[Hashable, _SharedStreamGroup] = {}
         # Allocator for trigger-event persist-confirmation seqs; unique per
@@ -1205,6 +1234,7 @@ class SharedStreamManager:
                 on_poll_terminate=self._handle_poll_terminate,
                 max_subscriber_queue=self._max_subscriber_queue,
                 ack_timeout=self._ack_timeout,
+                cohort_grace_period=self._cohort_grace_period,
                 log=self.log,
                 _now=self._now,
             )

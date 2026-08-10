@@ -97,6 +97,11 @@ class TestLLMSchemaCompareOperator:
                 "at-least two combinations",
                 id="one_datasource_only",
             ),
+            pytest.param(
+                {"require_approval": True},
+                "require_approval=True is not supported",
+                id="require_approval",
+            ),
         ],
     )
     def test_init_validation(self, kwargs, expected_error):

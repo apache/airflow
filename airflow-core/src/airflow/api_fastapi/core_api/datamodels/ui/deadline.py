@@ -69,24 +69,17 @@ class DeadlineAlertResponse(BaseModel):
         """
         Coerce the stored ``interval`` into seconds.
 
-        ``DeadlineAlert.interval`` is a JSON column holding the Airflow-serialized form
-        of the SDK interval, not a plain number. A fixed ``timedelta`` serializes to
-        ``{"__classname__": "datetime.timedelta", "__data__": <seconds>}`` and a dynamic
-        ``VariableInterval`` to ``{"__classname__": ".../VariableInterval", "__data__": {...}}``.
-        Without this coercion Pydantic cannot turn that dict into ``float`` and the
-        ``/ui/dags/{dag_id}/deadlineAlerts`` endpoint raises a 500, which breaks the
-        run-page deadline status badge. Return the seconds for a fixed interval, or
-        ``None`` for a dynamic one (resolved later by the scheduler).
+        ``interval`` is the Airflow-serialized SDK interval: a dict
+        ``{"__classname__": ..., "__data__": <seconds|dict>}``, not a plain number.
+        Return the seconds for a fixed ``timedelta``, or ``None`` for a dynamic
+        interval (resolved later by the scheduler). Without this, Pydantic 500s on the dict.
         """
         if value is None or isinstance(value, (int, float)):
             return value
         if isinstance(value, dict):
             data = value.get("__data__")
-            # Fixed timedelta: __data__ is the total seconds as a number.
             if isinstance(data, (int, float)):
                 return float(data)
-            # Dynamic interval (e.g. VariableInterval): no fixed seconds to report.
-            return None
         return None
 
 

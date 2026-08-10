@@ -185,7 +185,7 @@ class TestValidateExecutorFields:
                     "Task 'task1' specifies executor 'invalid.executor', which is not available "
                     "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
                     "Make sure 'invalid.executor' is configured for team 'test_team' or globally in your "
-                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "[core] executor configuration, or update the task's executor to use one of the "
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
@@ -204,7 +204,7 @@ class TestValidateExecutorFields:
                 UnknownExecutorException,
                 match=re.escape(
                     "Task 'task1' specifies executor 'invalid.executor', which is not available. "
-                    "Make sure it is listed in your [core] executors configuration, or update the task's "
+                    "Make sure it is listed in your [core] executor configuration, or update the task's "
                     "executor to use one of the configured executors."
                 ),
             ):
@@ -258,7 +258,7 @@ class TestValidateExecutorFields:
                     "Task 'task1' specifies executor 'unknown.executor', which is not available "
                     "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
                     "Make sure 'unknown.executor' is configured for team 'test_team' or globally in your "
-                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "[core] executor configuration, or update the task's executor to use one of the "
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
@@ -330,49 +330,9 @@ def test_validate_executor_field_executor_not_configured():
         UnknownExecutorException,
         match=re.escape(
             "Task 't1' specifies executor 'test.custom.executor', which is not available. "
-            "Make sure it is listed in your [core] executors configuration, or update the task's "
+            "Make sure it is listed in your [core] executor configuration, or update the task's "
             "executor to use one of the configured executors."
         ),
-    ):
-        _validate_executor_fields(dag)
-
-
-def _deadline_dag(callback):
-    from datetime import timedelta
-
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-
-    return DAG(
-        "deadline-dag",
-        schedule=None,
-        deadline=DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=timedelta(seconds=1),
-            callback=callback,
-        ),
-    )
-
-
-def _deadline_sync_callback(executor=None):
-    from airflow.sdk.definitions.callback import SyncCallback
-
-    def _cb(**kwargs):
-        pass
-
-    return SyncCallback(_cb, executor=executor)
-
-
-def test_validate_executor_field_deadline_callback_invalid_executor():
-    """A deadline SyncCallback pinned to an unknown executor is rejected at parse time.
-
-    Without this validation the queued ExecutorCallback would sit PENDING forever (the
-    scheduler can't route it to a non-existent executor), re-warning every loop. This
-    mirrors the task-executor validation so the author gets immediate feedback instead.
-    """
-    dag = _deadline_dag(_deadline_sync_callback(executor="bogus.deadline.executor"))
-    with pytest.raises(
-        UnknownExecutorException,
-        match=re.escape("specifies executor 'bogus.deadline.executor', which is not available"),
     ):
         _validate_executor_fields(dag)
 
@@ -399,6 +359,29 @@ class TestDagBag:
         # Test with None (default)
         dagbag2 = DagBag(dag_folder=os.fspath(tmp_path))
         assert dagbag2.bundle_name is None
+
+    def test_dag_with_bundle_name(self, tmp_path):
+        """Test that bundle_name is attached to each Dag in the DagBag."""
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text(
+            "from airflow.sdk import dag\n\n"
+            "@dag(schedule=None)\n"
+            "def test_bundle_dag(): pass\n\n"
+            "test_bundle_dag()\n"
+        )
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_name="test_bundle")
+
+        assert len(dagbag.dags) > 0
+
+        for dag in dagbag.dags.values():
+            assert dag.bundle_name == "test_bundle"
+
+        dagbag2 = DagBag(dag_folder=os.fspath(tmp_path))
+
+        assert len(dagbag2.dags) > 0
+
+        for dag in dagbag2.dags.values():
+            assert dag.bundle_name is None
 
     def test_get_existing_dag(self, tmp_path, standard_example_dags_folder):
         """

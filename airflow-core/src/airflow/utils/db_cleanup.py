@@ -24,11 +24,11 @@ See:
 from __future__ import annotations
 
 import csv
+import dataclasses
 import logging
 import os
 from collections.abc import Generator
-from contextlib import contextmanager
-from dataclasses import dataclass
+from contextlib import contextmanager, suppress
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
@@ -63,12 +63,27 @@ ARCHIVED_TABLES_FROM_DB_MIGRATIONS = [
 ]
 
 
-@dataclass
+def _split_schema_table(table_name: str) -> tuple[str | None, str]:
+    """Split a possibly schema-qualified table name (``schema.table``) into ``(schema, table)``."""
+    schema, sep, name = table_name.partition(".")
+    if sep:
+        return schema, name
+    return None, table_name
+
+
+def _format_table_name(schema: str | None, table: str) -> str:
+    """Format a fully qualified table name from schema and table names."""
+    if schema:
+        return f"{schema}.{table}"
+    return table
+
+
+@dataclasses.dataclass
 class _TableConfig:
     """
     Config class for performing cleanup on a table.
 
-    :param table_name: the table
+    :param table_name: the table name; may be schema-qualified with dot notation
     :param extra_columns: any columns besides recency_column_name that we'll need in queries
     :param recency_column_name: date column to filter by
     :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
@@ -101,20 +116,29 @@ class _TableConfig:
     skip_if_referenced: list[tuple[str, str]] | None = None
     referenced_pk_column: str = "id"
 
+    # Calculated from table_name and populated in __post_init__.
+    schema_name: str = dataclasses.field(init=False)
+    bare_table_name: str = dataclasses.field(init=False)
+
     def __post_init__(self):
+        self.schema_name, self.bare_table_name = _split_schema_table(self.table_name)
         self.recency_column = column(self.recency_column_name)
         if self.dag_id_column_name is None:
             self.dag_id_column = None
             self.orm_model: Base = table(
-                self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
+                self.bare_table_name,
+                *[column(x) for x in self.extra_columns or []],
+                self.recency_column,
+                schema=self.schema_name,
             )
         else:
             self.dag_id_column = column(self.dag_id_column_name)
             self.orm_model: Base = table(
-                self.table_name,
+                self.bare_table_name,
                 *[column(x) for x in self.extra_columns or []],
                 self.dag_id_column,
                 self.recency_column,
+                schema=self.schema_name,
             )
 
         # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
@@ -133,7 +157,7 @@ class _TableConfig:
     @property
     def readable_config(self):
         return {
-            "table": self.orm_model.name,
+            "table": self.table_name,
             "recency_column": str(self.recency_column),
             "dag_id_column": str(self.dag_id_column),
             "keep_last": self.keep_last,
@@ -223,7 +247,7 @@ if (
 ):
     config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
-config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
+config_dict: dict[str, _TableConfig] = {x.table_name: x for x in sorted(config_list)}
 
 
 def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
@@ -264,6 +288,7 @@ def _do_delete(
     bind = session.get_bind()
     dialect_name = bind.dialect.name
     batch_counter = itertools.count(1)
+    source_table_name = _format_table_name(orm_model.schema, orm_model.name)
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
@@ -283,15 +308,22 @@ def _do_delete(
         # using bulk delete
         # create a new table and copy the rows there
         timestamp_str = re.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
-        target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}"
+        target_table_name = _format_table_name(
+            orm_model.schema,
+            f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
+        )
         print(f"Moving data to table {target_table_name}")
         target_table = None
+        # Lets the ``finally`` cleanup below tell the failure path (don't let a
+        # cleanup error mask the original) from the success path (a cleanup error
+        # is a real problem and must propagate).
+        error_raised = False
 
         try:
             if dialect_name == "mysql":
                 # MySQL with replication needs this split into two queries, so just do it for all MySQL
                 # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-                session.execute(text(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}"))
+                session.execute(text(f"CREATE TABLE {target_table_name} LIKE {source_table_name}"))
                 metadata = reflect_tables([target_table_name], session)
                 target_table = metadata.tables[target_table_name]
                 insert_stm = target_table.insert().from_select(target_table.c, limited_query)
@@ -304,8 +336,8 @@ def _do_delete(
             session.commit()
 
             # delete the rows from the old table
-            metadata = reflect_tables([orm_model.name, target_table_name], session)
-            source_table = metadata.tables[orm_model.name]
+            metadata = reflect_tables([source_table_name, target_table_name], session)
+            source_table = metadata.tables[source_table_name]
             target_table = metadata.tables[target_table_name]
             logger.debug("rows moved; purging from %s", source_table.name)
             if dialect_name == "sqlite":
@@ -323,13 +355,41 @@ def _do_delete(
             session.execute(delete)
             session.commit()
 
-        except BaseException as e:
-            raise e
+        except BaseException:
+            error_raised = True
+            # Roll back the failed transaction so its locks are released before
+            # the archive table is dropped in the ``finally`` block below.
+            # ``rollback()`` itself can raise (e.g. the connection died); suppress
+            # it so it does not shadow the original error being re-raised.
+            with suppress(Exception):
+                session.rollback()
+            raise
         finally:
             if target_table is not None and skip_archive:
-                bind = session.get_bind()
-                target_table.drop(bind=bind)
-                session.commit()
+                # Drop the archive table on the session's own connection. Binding
+                # the drop to ``session.get_bind()`` (the Engine) would check out a
+                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
+                # indefinitely on the metadata lock still held by this session's
+                # open transaction when the DELETE above failed -- the ``db clean``
+                # hang reported in #66177.
+                try:
+                    target_table.drop(bind=session.connection())
+                    session.commit()
+                except Exception:
+                    # If we are already unwinding from a delete failure, a cleanup
+                    # error here must not replace the original exception (Python
+                    # makes a ``finally``-raised error the top-level one). Log and
+                    # let the original delete error keep propagating. On the success
+                    # path (no delete error), a drop/commit failure is a real
+                    # problem, so re-raise it.
+                    if not error_raised:
+                        raise
+                    logger.warning(
+                        "Failed to drop archive table %s while cleaning up after a "
+                        "delete failure; propagating the original delete error instead.",
+                        target_table_name,
+                        exc_info=True,
+                    )
 
     print("Finished Performing Delete")
 
@@ -603,21 +663,26 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
 
 def _get_archived_table_names(table_names: list[str] | None, session: Session) -> list[str]:
     inspector = inspect(session.bind)
-    db_table_names = [
-        x
-        for x in (inspector.get_table_names() if inspector else [])
-        if x.startswith(ARCHIVE_TABLE_PREFIX) or x in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
-    ]
-    effective_table_names, _ = _effective_table_names(table_names=table_names)
-    # Filter out tables that don't start with the archive prefix
-    archived_table_names = [
-        table_name
-        for table_name in db_table_names
-        if (
-            any("__" + x + "__" in table_name for x in effective_table_names)
-            or table_name in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
+    _, effective_config_dict = _effective_table_names(table_names=table_names)
+    schemas = {config.schema_name for config in effective_config_dict.values()}
+
+    archived_table_names: list[str] = []
+    for schema in schemas:
+        db_table_names = [
+            name
+            for name in (inspector.get_table_names(schema=schema) if inspector else [])
+            if name.startswith(ARCHIVE_TABLE_PREFIX)
+            or (schema is None and name in ARCHIVED_TABLES_FROM_DB_MIGRATIONS)
+        ]
+        # Further filter to tables belonging to one of the effective configs
+        archived_table_names.extend(
+            _format_table_name(schema, name)
+            for name in db_table_names
+            if (
+                any(f"__{config.bare_table_name}__" in name for config in effective_config_dict.values())
+                or (schema is None and name in ARCHIVED_TABLES_FROM_DB_MIGRATIONS)
+            )
         )
-    ]
     return archived_table_names
 
 
@@ -680,9 +745,12 @@ def run_cleanup(
             dag_ids=dag_ids,
             exclude_dag_ids=exclude_dag_ids,
         )
-    existing_tables = reflect_tables(tables=None, session=session).tables
+    existing_tables: set[str] = {
+        table
+        for schema in {config.schema_name for config in effective_config_dict.values()}
+        for table in reflect_tables(tables=None, session=session, schema=schema).tables
+    }
     failed_tables: list[str] = []
-
     for table_name, table_config in effective_config_dict.items():
         if table_name in existing_tables:
             with _suppress_with_logging(table_name, session) as ctx:

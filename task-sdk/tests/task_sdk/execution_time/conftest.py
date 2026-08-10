@@ -18,8 +18,20 @@
 from __future__ import annotations
 
 import sys
+from socket import socketpair
 
 import pytest
+
+
+@pytest.fixture
+def socket_pair():
+    """Yield a connected ``(read_sock, write_sock)`` pair and guarantee both are closed on teardown."""
+    r, w = socketpair()
+    try:
+        yield r, w
+    finally:
+        r.close()
+        w.close()
 
 
 @pytest.fixture

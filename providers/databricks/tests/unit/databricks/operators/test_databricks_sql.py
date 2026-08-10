@@ -29,7 +29,6 @@ from databricks.sql.types import Row
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksSqlOperator,
-    _get_airflow_query_tags,
 )
 
 DATE = "2017-04-20"
@@ -461,11 +460,6 @@ def test_parse_gcs_path():
 
 class TestDatabricksSqlOperatorQueryTags:
     """Tests for query tags support in DatabricksSqlOperator."""
-
-    def test_get_airflow_query_tags_returns_empty_dict_without_task_instance(self):
-        """_get_airflow_query_tags must return {} when context has no 'ti' key."""
-        result = _get_airflow_query_tags({})
-        assert result == {}
 
     def test_get_query_tags_with_none_context_returns_custom_tags_only(self):
         """When context is None, only custom tags are returned (no Airflow tags)."""

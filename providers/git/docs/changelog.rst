@@ -19,6 +19,41 @@
 Changelog
 ---------
 
+0.4.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use private key when pulling submodules (#62938)``
+
+Misc
+~~~~
+
+* ``Use ValueError for conflicting Git connection key arguments (#70538)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Verify SSH host keys by default in the Git provider hook (#69103)``
+
+Misc
+~~~~
+
+* ``Correct README.rst common compat version reference inconsistency (#67554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
+   * ``Prepare provider documentation 2026-06-02 (#67920)``
+
 0.4.0
 .....
 

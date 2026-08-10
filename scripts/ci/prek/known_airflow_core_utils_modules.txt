@@ -31,7 +31,6 @@ retries
 scheduler_health
 serve_logs
 session
-span_status
 sqlalchemy
 state
 strings

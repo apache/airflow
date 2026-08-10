@@ -56,10 +56,10 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
         pytest.param("sqlite:///:memory:", "\n\t", True, id="sqlite-whitespace"),
         pytest.param("sqlite:///:memory:", "a" * 1501, True, id="sqlite-too-long"),
         pytest.param("sqlite:///:memory:", "😊", False, id="sqlite-non-ascii"),
-        pytest.param("postgresql://localhost/db", "", True, id="postgres-empty"),
-        pytest.param("postgresql://localhost/db", "\n\t", True, id="postgres-whitespace"),
-        pytest.param("postgresql://localhost/db", "a" * 1501, True, id="postgres-too-long"),
-        pytest.param("postgresql://localhost/db", "😊", False, id="postgres-non-ascii"),
+        pytest.param("postgresql+psycopg2://localhost/db", "", True, id="postgres-empty"),
+        pytest.param("postgresql+psycopg2://localhost/db", "\n\t", True, id="postgres-whitespace"),
+        pytest.param("postgresql+psycopg2://localhost/db", "a" * 1501, True, id="postgres-too-long"),
+        pytest.param("postgresql+psycopg2://localhost/db", "😊", False, id="postgres-non-ascii"),
     ],
 )
 def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
@@ -84,13 +84,16 @@ def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
         pytest.param("sqlite:///:memory:", "a" * 1501, True, id="sqlite-too-long"),
         pytest.param("sqlite:///:memory:", "airflow://xcom/dag/task", True, id="sqlite-reserved-scheme"),
         pytest.param("sqlite:///:memory:", "😊", False, id="sqlite-non-ascii"),
-        pytest.param("postgresql://localhost/db", "", True, id="postgres-empty"),
-        pytest.param("postgresql://localhost/db", "\n\t", True, id="postgres-whitespace"),
-        pytest.param("postgresql://localhost/db", "a" * 1501, True, id="postgres-too-long"),
+        pytest.param("postgresql+psycopg2://localhost/db", "", True, id="postgres-empty"),
+        pytest.param("postgresql+psycopg2://localhost/db", "\n\t", True, id="postgres-whitespace"),
+        pytest.param("postgresql+psycopg2://localhost/db", "a" * 1501, True, id="postgres-too-long"),
         pytest.param(
-            "postgresql://localhost/db", "airflow://xcom/dag/task", True, id="postgres-reserved-scheme"
+            "postgresql+psycopg2://localhost/db",
+            "airflow://xcom/dag/task",
+            True,
+            id="postgres-reserved-scheme",
         ),
-        pytest.param("postgresql://localhost/db", "😊", False, id="postgres-non-ascii"),
+        pytest.param("postgresql+psycopg2://localhost/db", "😊", False, id="postgres-non-ascii"),
     ],
 )
 def test_invalid_uris(sql_conn_value, uri, should_raise, monkeypatch):

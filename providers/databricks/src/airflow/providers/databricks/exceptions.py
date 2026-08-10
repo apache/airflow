@@ -34,3 +34,11 @@ class DatabricksSqlExecutionTimeout(DatabricksSqlExecutionError):
 
 class DatabricksOperatorPayloadError(AirflowException):
     """Raised when a Databricks operator payload is invalid."""
+
+
+class DatabricksApiError(AirflowException):
+    """Raised when a Databricks REST API call returns an error response."""
+
+    def __init__(self, message: str, *, http_status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.http_status_code = http_status_code

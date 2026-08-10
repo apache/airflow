@@ -472,6 +472,38 @@ class TestFabAirflowSecurityManagerOverride:
             assert user_info["email"] == "jane.smith@example.com"
             assert user_info["role_keys"] == ["admin-group", "viewer-group"]
 
+    def test_decode_and_validate_azure_jwt_verifies_signature_by_default(self):
+        """Azure AD id_token signatures are verified by default (verify_signature defaults to True)."""
+        sm = EmptySecurityManager()
+        # client_kwargs does not set verify_signature -> it must default to verifying
+        sm.oauth_remotes = {"azure": Mock(client_kwargs={})}
+
+        with mock.patch.object(
+            EmptySecurityManager, "_get_microsoft_jwks", side_effect=RuntimeError("verify-branch-reached")
+        ) as mock_jwks:
+            with pytest.raises(RuntimeError, match="verify-branch-reached"):
+                sm._decode_and_validate_azure_jwt("header.payload.signature")
+
+        # entering the verifying branch means the Microsoft JWKS were fetched
+        mock_jwks.assert_called_once()
+
+    def test_decode_and_validate_azure_jwt_skips_verification_when_opted_out(self):
+        """With verify_signature explicitly False, the token is decoded without signature verification."""
+        import base64
+        import json as _json
+
+        payload = base64.urlsafe_b64encode(_json.dumps({"oid": "user-1"}).encode()).decode().rstrip("=")
+        id_token = f"header.{payload}.signature"
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {"azure": Mock(client_kwargs={"verify_signature": False})}
+
+        with mock.patch.object(EmptySecurityManager, "_get_microsoft_jwks") as mock_jwks:
+            result = sm._decode_and_validate_azure_jwt(id_token)
+
+        mock_jwks.assert_not_called()
+        assert result == {"oid": "user-1"}
+
 
 def test_ldap_search_escapes_username_and_validates_filter():
     """Test that LDAP search properly escapes username and validates search filter."""

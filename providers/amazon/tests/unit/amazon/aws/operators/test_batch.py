@@ -149,16 +149,22 @@ class TestBatchOperator:
     def test_template_fields_overrides(self):
         validate_template_fields(self.batch)
 
+    @mock.patch.object(BatchClientHook, "get_job_all_awslogs_info")
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
     @mock.patch.object(BatchClientHook, "check_job_success")
-    def test_execute_without_failures(self, check_mock, wait_mock, job_description_mock):
+    def test_execute_without_failures(
+        self, check_mock, wait_mock, job_description_mock, get_job_all_awslogs_info_mock
+    ):
         # JOB_ID is in RESPONSE_WITHOUT_FAILURES
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
         self.batch.job_id = None
         self.batch.waiters = None  # use default wait
+        get_job_all_awslogs_info_mock.return_value = []
+        # Use a real dict so "ti" in context works correctly for link persistence
+        context = {"ti": mock.MagicMock()}
 
-        self.batch.execute(self.mock_context)
+        self.batch.execute(context)
 
         self.client_mock.submit_job.assert_called_once_with(
             jobQueue="queue",
@@ -175,9 +181,10 @@ class TestBatchOperator:
         wait_mock.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)
 
-        # First Call: Retrieve Batch Queue and Job Definition
-        # Second Call: Retrieve CloudWatch information
-        assert job_description_mock.call_count == 2
+        # get_job_description called once in _persist_links
+        assert job_description_mock.call_count == 1
+        # get_job_all_awslogs_info called once in _persist_cloudwatch_link
+        get_job_all_awslogs_info_mock.assert_called_once_with(JOB_ID)
 
     def test_execute_with_failures(self):
         self.client_mock.submit_job.side_effect = Exception()
@@ -463,7 +470,7 @@ class TestBatchOperator:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
     def test_defer_but_failed_due_to_job_id_not_found(self, mock_client):
-        """Test that an AirflowException is raised if job_id is not set before deferral."""
+        """Test that a ValueError is raised if job_id is not set before deferral."""
         mock_client.return_value.submit_job.return_value = {
             "jobName": JOB_NAME,
             "jobId": None,
@@ -477,9 +484,8 @@ class TestBatchOperator:
             do_xcom_push=False,
             deferrable=True,
         )
-        with pytest.raises(AirflowException) as exc:
+        with pytest.raises(ValueError, match="AWS Batch job - job_id was not found"):
             batch.execute(self.mock_context)
-        assert "AWS Batch job - job_id was not found" in str(exc.value)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
@@ -545,10 +551,29 @@ class TestBatchOperator:
 
     @patch.object(BatchOperator, "log", new_callable=MagicMock)
     @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
-    @patch.object(BatchOperator, "monitor_job")
-    def test_execute_complete_success_with_logs(self, mock_monitor_job, mock_validate, mock_log):
+    @patch.object(BatchClientHook, "check_job_success")
+    @patch.object(BatchClientHook, "get_job_awslogs_info")
+    @patch.object(BatchClientHook, "get_job_all_awslogs_info")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_execute_complete_success_with_logs(
+        self,
+        mock_client,
+        mock_get_job_all_awslogs_info,
+        mock_get_job_awslogs_info,
+        mock_check_job_success,
+        mock_validate,
+        mock_log,
+    ):
         # Setup
         mock_validate.return_value = {"status": "success", "job_id": "12345"}
+        mock_get_job_awslogs_info.return_value = {
+            "awslogs_region": "us-east-1",
+            "awslogs_group": "/aws/batch/job",
+            "awslogs_stream_name": "stream1",
+        }
+        mock_get_job_all_awslogs_info.return_value = [
+            {"awslogs_group": "/aws/batch/job", "awslogs_stream_name": "stream1"}
+        ]
         batch = BatchOperator(
             task_id="test_task",
             job_name=JOB_NAME,
@@ -556,21 +581,47 @@ class TestBatchOperator:
             job_definition="dummy_definition",
             deferrable=True,
             awslogs_enabled=True,
+            do_xcom_push=True,  # Enable xcom push so _persist_cloudwatch_link runs
         )
+        # Add task instance to context
+        context = {"ti": mock.MagicMock()}
 
-        result = batch.execute_complete(context={}, event={"dummy": "event"})
+        # Mock the log fetcher
+        with patch("airflow.providers.amazon.aws.operators.batch.AwsTaskLogFetcher") as mock_log_fetcher:
+            mock_fetcher_instance = mock.MagicMock()
+            mock_fetcher_instance.get_last_log_messages.return_value = ["log line 1", "log line 2"]
+            mock_log_fetcher.return_value = mock_fetcher_instance
 
-        # Assertion
+            result = batch.execute_complete(context=context, event={"dummy": "event"})
+
+            # Assertion - verify logs were fetched
+            mock_get_job_awslogs_info.assert_called_once_with("12345")
+            mock_log_fetcher.assert_called_once()
+            mock_fetcher_instance.get_last_log_messages.assert_called_once_with(10000)
+
         assert result == "12345"
-        mock_monitor_job.assert_called_once_with({})
+        mock_get_job_all_awslogs_info.assert_called_once_with("12345")
+        mock_check_job_success.assert_called_once_with("12345")
         mock_log.info.assert_called_with("Job completed successfully for job_id: %s", "12345")
 
     @patch.object(BatchOperator, "log", new_callable=MagicMock)
     @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
-    @patch.object(BatchOperator, "monitor_job")
-    def test_execute_complete_success_without_logs(self, mock_monitor_job, mock_validate, mock_log):
+    @patch.object(BatchClientHook, "check_job_success")
+    @patch.object(BatchClientHook, "get_job_awslogs_info")
+    @patch.object(BatchClientHook, "get_job_all_awslogs_info")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_execute_complete_success_without_logs(
+        self,
+        mock_client,
+        mock_get_job_all_awslogs_info,
+        mock_get_job_awslogs_info,
+        mock_check_job_success,
+        mock_validate,
+        mock_log,
+    ):
         # Setup
         mock_validate.return_value = {"status": "success", "job_id": "12345"}
+        mock_get_job_all_awslogs_info.return_value = []
         batch = BatchOperator(
             task_id="test_task",
             job_name=JOB_NAME,
@@ -578,19 +629,42 @@ class TestBatchOperator:
             job_definition="dummy_definition",
             deferrable=True,
             awslogs_enabled=False,
+            do_xcom_push=True,  # Enable xcom push so _persist_cloudwatch_link runs
         )
+        # Add task instance to context
+        context = {"ti": mock.MagicMock()}
 
-        result = batch.execute_complete(context={}, event={"dummy": "event"})
+        # Mock the log fetcher to ensure it's not called
+        with patch("airflow.providers.amazon.aws.operators.batch.AwsTaskLogFetcher") as mock_log_fetcher:
+            result = batch.execute_complete(context=context, event={"dummy": "event"})
+
+            # Verify logs were NOT fetched when awslogs_enabled=False
+            mock_get_job_awslogs_info.assert_not_called()
+            mock_log_fetcher.assert_not_called()
 
         # Assertions
         assert result == "12345"
-        mock_monitor_job.assert_not_called()
+        mock_get_job_all_awslogs_info.assert_called_once_with("12345")
+        mock_check_job_success.assert_called_once_with("12345")
         mock_log.info.assert_called_with("Job completed successfully for job_id: %s", "12345")
 
     @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
-    def test_execute_complete_failure(self, mock_validate):
+    @patch.object(BatchClientHook, "get_job_awslogs_info")
+    @patch.object(BatchClientHook, "get_job_all_awslogs_info")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_execute_complete_failure(
+        self, mock_client, mock_get_job_all_awslogs_info, mock_get_job_awslogs_info, mock_validate
+    ):
         # Setup
         mock_validate.return_value = {"status": "failed", "job_id": "12345"}
+        mock_get_job_awslogs_info.return_value = {
+            "awslogs_region": "us-east-1",
+            "awslogs_group": "/aws/batch/job",
+            "awslogs_stream_name": "stream1",
+        }
+        mock_get_job_all_awslogs_info.return_value = [
+            {"awslogs_group": "/aws/batch/job", "awslogs_stream_name": "stream1"}
+        ]
         batch = BatchOperator(
             task_id="test_task",
             job_name=JOB_NAME,
@@ -600,9 +674,54 @@ class TestBatchOperator:
             awslogs_enabled=True,
         )
 
-        # Assertions
-        with pytest.raises(AirflowException, match="Error while running job"):
-            batch.execute_complete(context={}, event={"dummy": "event"})
+        # Assertions - even on failure, logs should be fetched before raising
+        context = {"ti": mock.MagicMock()}
+        with patch("airflow.providers.amazon.aws.operators.batch.AwsTaskLogFetcher") as mock_log_fetcher:
+            mock_fetcher_instance = mock.MagicMock()
+            mock_fetcher_instance.get_last_log_messages.return_value = ["error log 1", "error log 2"]
+            mock_log_fetcher.return_value = mock_fetcher_instance
+
+            with pytest.raises(AirflowException, match="Error while running job"):
+                batch.execute_complete(context=context, event={"dummy": "event"})
+
+            # Verify logs were fetched even on failure
+            mock_get_job_awslogs_info.assert_called_once_with("12345")
+            mock_fetcher_instance.get_last_log_messages.assert_called_once_with(10000)
+
+    @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
+    @patch.object(BatchClientHook, "get_job_awslogs_info")
+    @patch.object(BatchClientHook, "get_job_all_awslogs_info")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_execute_complete_failure_without_logs(
+        self, mock_client, mock_get_job_all_awslogs_info, mock_get_job_awslogs_info, mock_validate
+    ):
+        # Setup
+        mock_validate.return_value = {"status": "failed", "job_id": "12345"}
+        mock_get_job_all_awslogs_info.return_value = [
+            {"awslogs_group": "/aws/batch/job", "awslogs_stream_name": "stream1"}
+        ]
+        batch = BatchOperator(
+            task_id="test_task",
+            job_name=JOB_NAME,
+            job_queue="dummy_queue",
+            job_definition="dummy_definition",
+            deferrable=True,
+            awslogs_enabled=False,  # Logs disabled
+            do_xcom_push=True,  # Enable xcom push so _persist_cloudwatch_link runs
+        )
+
+        # Assertions - CloudWatch links should still be persisted even on failure without logs
+        context = {"ti": mock.MagicMock()}
+        with patch("airflow.providers.amazon.aws.operators.batch.AwsTaskLogFetcher") as mock_log_fetcher:
+            with pytest.raises(AirflowException, match="Error while running job"):
+                batch.execute_complete(context=context, event={"dummy": "event"})
+
+            # Verify logs were NOT fetched when awslogs_enabled=False
+            mock_get_job_awslogs_info.assert_not_called()
+            mock_log_fetcher.assert_not_called()
+
+            # Verify CloudWatch links were still persisted despite failure
+            mock_get_job_all_awslogs_info.assert_called_once_with("12345")
 
 
 class TestBatchCreateComputeEnvironmentOperator:

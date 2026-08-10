@@ -1,0 +1,174 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_with_hook"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in1.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/in2.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host2",
+                "name": "/out1.txt"
+            },
+            {
+                "namespace": "file://host2",
+                "name": "/out2.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_with_hook"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_no_hook"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_no_hook"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook.query.1",
+            "facets": {
+                "sql": {
+                    "query": "SELECT 1 AS test_col"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_with_sql_hook.query.1",
+            "facets": {
+                "sql": {
+                    "query": "SELECT 1 AS test_col"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook"
+        }
+    },
+    {
+        "$absent": "hook_lineage=False suppresses SQL child query events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.query.1"
+        }
+    },
+    {
+        "$absent": "hook_lineage=False suppresses SQL child query events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.query.1"
+        }
+    },
+    {
+        "$absent": "hook_lineage=False suppresses SQL child query events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_no_sql_hook.query.1"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_hook_extract_false"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_hook_extract_false"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false"
+        }
+    },
+    {
+        "$absent": "extract_operator_metadata=False skips all extraction incl. SQL child events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.query.1"
+        }
+    },
+    {
+        "$absent": "extract_operator_metadata=False skips all extraction incl. SQL child events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.query.1"
+        }
+    },
+    {
+        "$absent": "extract_operator_metadata=False skips all extraction incl. SQL child events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_hook_lineage_dag.t_sql_extract_false.query.1"
+        }
+    }
+]

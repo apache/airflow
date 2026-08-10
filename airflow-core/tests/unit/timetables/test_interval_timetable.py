@@ -43,6 +43,8 @@ OLD_INTERVAL = DataInterval(start=YESTERDAY, end=CURRENT_TIME)
 HOURLY_CRON_TIMETABLE = CronDataIntervalTimetable("@hourly", utc)
 HOURLY_TIMEDELTA_TIMETABLE = DeltaDataIntervalTimetable(datetime.timedelta(hours=1))
 HOURLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedelta.relativedelta(hours=1))
+MONTHLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedelta.relativedelta(months=1))
+YEARLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedelta.relativedelta(years=1))
 
 CRON_TIMETABLE = CronDataIntervalTimetable("30 16 * * *", utc)
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
@@ -137,6 +139,88 @@ def test_no_catchup_next_info_starts_at_current_time(
     )
     expected_start = CURRENT_TIME - datetime.timedelta(hours=1)
     assert next_info == DagRunInfo.interval(start=expected_start, end=CURRENT_TIME)
+
+
+@pytest.mark.parametrize(
+    "last_automated_data_interval",
+    [
+        pytest.param(None, id="first-run"),
+        pytest.param(
+            DataInterval(
+                pendulum.DateTime(2020, 1, 1, tzinfo=utc),
+                pendulum.DateTime(2020, 2, 1, tzinfo=utc),
+            ),
+            id="subsequent",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("timetable", "start_date", "expected_start", "expected_end"),
+    [
+        pytest.param(
+            MONTHLY_RELATIVEDELTA_TIMETABLE,
+            pendulum.DateTime(2025, 1, 15, tzinfo=utc),
+            pendulum.DateTime(2026, 5, 15, tzinfo=utc),
+            pendulum.DateTime(2026, 6, 15, tzinfo=utc),
+            id="monthly",
+        ),
+        pytest.param(
+            YEARLY_RELATIVEDELTA_TIMETABLE,
+            pendulum.DateTime(2020, 3, 10, tzinfo=utc),
+            pendulum.DateTime(2025, 3, 10, tzinfo=utc),
+            pendulum.DateTime(2026, 3, 10, tzinfo=utc),
+            id="yearly",
+        ),
+    ],
+)
+@time_machine.travel(pendulum.DateTime(2026, 6, 29, tzinfo=utc))
+def test_no_catchup_calendar_delta_aligns_to_start_date(
+    timetable: Timetable,
+    start_date: pendulum.DateTime,
+    expected_start: pendulum.DateTime,
+    expected_end: pendulum.DateTime,
+    last_automated_data_interval: DataInterval | None,
+) -> None:
+    """``catchup=False`` with a relativedelta in months/years must stay aligned
+    to ``start_date`` and not drift onto a fixed 30-day/365-day epoch grid."""
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=last_automated_data_interval,
+        restriction=TimeRestriction(earliest=start_date, latest=None, catchup=False),
+    )
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
+
+
+@time_machine.travel(pendulum.DateTime(2026, 6, 29, 12, tzinfo=utc))
+def test_no_catchup_calendar_delta_without_start_date_ends_now() -> None:
+    """With no ``start_date`` to anchor on, the interval simply ends at now."""
+    next_info = MONTHLY_RELATIVEDELTA_TIMETABLE.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+    )
+    assert next_info == DagRunInfo.interval(
+        start=pendulum.DateTime(2026, 5, 29, 12, tzinfo=utc),
+        end=pendulum.DateTime(2026, 6, 29, 12, tzinfo=utc),
+    )
+
+
+@time_machine.travel(pendulum.DateTime(2026, 6, 29, tzinfo=utc))
+def test_no_catchup_calendar_delta_uses_one_period_at_a_time_clamping() -> None:
+    """Boundaries advance one relativedelta period at a time, so day-clamping is
+    path-dependent: Jan 31 + 1 month clamps to Feb 28, and because each step starts
+    from the previous boundary (not from Jan 31), the 28 then sticks --
+    Feb 28 -> Mar 28 -> ... -> May 28 -> Jun 28. A single multiplied jump off
+    ``start_date`` would instead re-clamp from the 31st and land elsewhere
+    (Jan 31 + 5 months -> Jun 30)."""
+    next_info = MONTHLY_RELATIVEDELTA_TIMETABLE.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=TimeRestriction(
+            earliest=pendulum.DateTime(2025, 1, 31, tzinfo=utc), latest=None, catchup=False
+        ),
+    )
+    assert next_info == DagRunInfo.interval(
+        start=pendulum.DateTime(2026, 5, 28, tzinfo=utc),
+        end=pendulum.DateTime(2026, 6, 28, tzinfo=utc),
+    )
 
 
 @pytest.mark.parametrize(

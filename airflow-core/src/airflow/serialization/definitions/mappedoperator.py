@@ -263,6 +263,10 @@ class SerializedMappedOperator(DAGNode):
         return self._get_partial_kwargs_or_operator_default("has_on_skipped_callback")
 
     @property
+    def has_retry_policy(self) -> bool:
+        return self._get_partial_kwargs_or_operator_default("has_retry_policy")
+
+    @property
     def run_as_user(self) -> str | None:
         return self._get_partial_kwargs_or_operator_default("run_as_user")
 

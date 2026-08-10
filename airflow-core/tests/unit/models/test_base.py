@@ -28,7 +28,7 @@ pytestmark = pytest.mark.db_test
 @pytest.mark.parametrize(
     ("dsn", "expected", "extra"),
     [
-        pytest.param("postgresql://host/the_database", {}, {}, id="postgres"),
+        pytest.param("postgresql+psycopg2://host/the_database", {}, {}, id="postgres"),
         pytest.param("mysql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql"),
         pytest.param(
             "mysql+pymysql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql+pymysql"
@@ -40,7 +40,7 @@ pytestmark = pytest.mark.db_test
             id="mysql with explicit config",
         ),
         pytest.param(
-            "postgresql://host/the_database",
+            "postgresql+psycopg2://host/the_database",
             {"collation": "ascii"},
             {("database", "sql_engine_collation_for_ids"): "ascii"},
             id="postgres with explicit config",

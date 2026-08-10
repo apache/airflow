@@ -50,49 +50,6 @@ vi.mock("./AlertContent", () => ({
   AlertContent: ({ alert }: { readonly alert: UIAlert }) => <div>{alert.text}</div>,
 }));
 
-// Ark UI's accordion machine does not respond to synthetic clicks under happy-dom, so this
-// stand-in wires the controlled value/onValueChange contract manually.
-vi.mock("src/components/ui", async () => {
-  const { createContext, useContext } = await import("react");
-
-  type AccordionContextValue = {
-    onValueChange: (details: { value: Array<string> }) => void;
-    value: Array<string>;
-  };
-  const AccordionContext = createContext<AccordionContextValue>({
-    onValueChange: () => undefined,
-    value: [],
-  });
-
-  type RootProps = { readonly children: React.ReactNode } & AccordionContextValue;
-  const passthrough = ({ children }: { readonly children: React.ReactNode }) => <div>{children}</div>;
-
-  return {
-    Accordion: {
-      Item: passthrough,
-      ItemContent: passthrough,
-      ItemTrigger: ({ children }: { readonly children: React.ReactNode }) => {
-        const { onValueChange, value } = useContext(AccordionContext);
-        const isOpen = value.includes("ui_alerts");
-
-        return (
-          <button
-            data-part="item-trigger"
-            data-state={isOpen ? "open" : "closed"}
-            onClick={() => onValueChange({ value: isOpen ? [] : ["ui_alerts"] })}
-            type="button"
-          >
-            {children}
-          </button>
-        );
-      },
-      Root: ({ children, onValueChange, value }: RootProps) => (
-        <AccordionContext.Provider value={{ onValueChange, value }}>{children}</AccordionContext.Provider>
-      ),
-    },
-  };
-});
-
 vi.mock("./Deadlines", () => ({ DashboardDeadlines: () => null }));
 vi.mock("./FavoriteDags", () => ({ FavoriteDags: () => null }));
 vi.mock("./Health", () => ({ Health: () => null }));
@@ -107,10 +64,13 @@ const setAlerts = (alerts: Array<UIAlert>) => {
   mockConfig.instance_name = "Airflow";
 };
 
-const accordionState = (container: HTMLElement) =>
-  container.querySelector<HTMLElement>('[data-part="item-trigger"]')?.dataset.state;
+const threeAlerts: Array<UIAlert> = [
+  { category: "info", text: "Alert one" },
+  { category: "warning", text: "Alert two" },
+  { category: "error", text: "Alert three" },
+];
 
-describe("Dashboard alerts accordion", () => {
+describe("Dashboard alerts collapse toggle", () => {
   beforeEach(() => {
     globalThis.localStorage.clear();
   });
@@ -127,78 +87,67 @@ describe("Dashboard alerts accordion", () => {
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBeNull();
   });
 
-  it("shows every alert expanded by default with no show-more button", () => {
-    setAlerts([
-      { category: "info", text: "Alert one" },
-      { category: "warning", text: "Alert two" },
-      { category: "error", text: "Alert three" },
-    ]);
+  it("shows every alert expanded by default with a collapse toggle", () => {
+    setAlerts(threeAlerts);
 
-    const { container } = render(<Dashboard />, { wrapper: Wrapper });
+    render(<Dashboard />, { wrapper: Wrapper });
 
     expect(screen.getByText("Alert one")).toBeInTheDocument();
     expect(screen.getByText("Alert two")).toBeInTheDocument();
     expect(screen.getByText("Alert three")).toBeInTheDocument();
-    expect(accordionState(container)).toBe("open");
-    expect(screen.queryByRole("button", { name: /more alerts/u })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show fewer alerts" })).toBeVisible();
+    expect(screen.queryByText("+2 more alerts")).not.toBeInTheDocument();
   });
 
-  it("persists the collapsed state to localStorage when the accordion is collapsed", () => {
-    setAlerts([
-      { category: "info", text: "Alert one" },
-      { category: "warning", text: "Alert two" },
-      { category: "error", text: "Alert three" },
-    ]);
+  it("persists the collapsed state and hides extra alerts when collapsed", () => {
+    setAlerts(threeAlerts);
 
-    const { container } = render(<Dashboard />, { wrapper: Wrapper });
+    render(<Dashboard />, { wrapper: Wrapper });
 
-    expect(accordionState(container)).toBe("open");
-
-    fireEvent.click(container.querySelector('[data-part="item-trigger"]') as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer alerts" }));
 
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBe("true");
-    expect(accordionState(container)).toBe("closed");
-    expect(screen.getByRole("button", { name: "+2 more alerts" })).toBeVisible();
+    expect(screen.getByText("Alert one")).toBeInTheDocument();
+    expect(screen.queryByText("Alert two")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alert three")).not.toBeInTheDocument();
+    expect(screen.getByText("+2 more alerts")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Show 2 more alerts" })).toBeVisible();
   });
 
-  it("restores the collapsed state from localStorage on reload and surfaces a show-more button", () => {
+  it("restores the collapsed state from localStorage on reload", () => {
+    globalThis.localStorage.setItem(COLLAPSED_UI_ALERTS_KEY, "true");
+    setAlerts(threeAlerts);
+
+    render(<Dashboard />, { wrapper: Wrapper });
+
+    expect(screen.getByText("Alert one")).toBeInTheDocument();
+    expect(screen.queryByText("Alert two")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show 2 more alerts" })).toBeVisible();
+  });
+
+  it("expands and clears the persisted collapsed state when the toggle is clicked", () => {
     globalThis.localStorage.setItem(COLLAPSED_UI_ALERTS_KEY, "true");
     setAlerts([
       { category: "info", text: "Alert one" },
       { category: "warning", text: "Alert two" },
-      { category: "error", text: "Alert three" },
     ]);
 
-    const { container } = render(<Dashboard />, { wrapper: Wrapper });
+    render(<Dashboard />, { wrapper: Wrapper });
 
-    expect(accordionState(container)).toBe("closed");
-    expect(screen.getByRole("button", { name: "+2 more alerts" })).toBeVisible();
-  });
-
-  it("expands and clears the persisted collapsed state when show-more is clicked", () => {
-    globalThis.localStorage.setItem(COLLAPSED_UI_ALERTS_KEY, "true");
-    setAlerts([
-      { category: "info", text: "Alert one" },
-      { category: "warning", text: "Alert two" },
-    ]);
-
-    const { container } = render(<Dashboard />, { wrapper: Wrapper });
-
-    fireEvent.click(screen.getByRole("button", { name: "+1 more alert" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show 1 more alert" }));
 
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBe("false");
-    expect(accordionState(container)).toBe("open");
-    expect(screen.queryByRole("button", { name: /more alert/u })).not.toBeInTheDocument();
+    expect(screen.getByText("Alert two")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show fewer alerts" })).toBeVisible();
   });
 
-  it("renders a single alert without an accordion trigger or show-more button", () => {
+  it("renders a single alert without a collapse toggle", () => {
     setAlerts([{ category: "info", text: "Only alert" }]);
 
-    const { container } = render(<Dashboard />, { wrapper: Wrapper });
+    render(<Dashboard />, { wrapper: Wrapper });
 
     expect(screen.getByText("Only alert")).toBeInTheDocument();
-    expect(container.querySelector('[data-part="item-trigger"]')).toBeNull();
-    expect(screen.queryByRole("button", { name: /more alert/u })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /alert/u })).not.toBeInTheDocument();
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBeNull();
   });
 });

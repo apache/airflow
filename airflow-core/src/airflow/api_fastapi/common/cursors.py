@@ -28,7 +28,7 @@ from typing import Any
 
 import msgspec
 from fastapi import HTTPException, status
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, false, or_, true
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.sqltypes import Uuid
@@ -43,55 +43,57 @@ def _b64url_decode_padded(token: str) -> bytes:
     return base64.urlsafe_b64decode(token.encode("ascii"))
 
 
-def _nonstrict_bound(col: ColumnElement, value: Any, is_desc: bool) -> ColumnElement[bool]:
+def _dialect_nulls_last(is_desc: bool, dialect: str) -> bool:
     """
-    Inclusive range edge on the leading column at each nesting level (``>=`` / ``<=``).
+    Where a plain ``ORDER BY col`` puts NULLs on this backend.
 
-    When *value* is ``None`` the column is nullable and the cursor sits at a
-    NULL boundary.  ``col IS NULL`` is used instead of ``col >= NULL`` (which
-    SQLAlchemy rejects and SQL evaluates as UNKNOWN).
+    PostgreSQL sorts NULLs last for ASC, first for DESC; MySQL and SQLite treat
+    NULL as the lowest value, so NULLs come first for ASC and last for DESC.
     """
+    return (not is_desc) if dialect == "postgresql" else is_desc
+
+
+def _bounds(
+    col: ColumnElement, value: Any, is_desc: bool, dialect: str
+) -> tuple[ColumnElement[bool], ColumnElement[bool]]:
+    """
+    ``(non_strict, strict)`` keyset bounds matching the backend's native NULL placement.
+
+    A NULL *value* means the cursor sits in the NULL block; otherwise a trailing
+    NULL block (when NULLs sort last) is also admitted after a non-NULL cursor.
+    The ``col IS NULL`` terms are vacuous for non-nullable columns.
+    """
+    nulls_last = _dialect_nulls_last(is_desc, dialect)
     if value is None:
-        return col.is_(None)
-    return col <= value if is_desc else col >= value
-
-
-def _strict_bound(col: ColumnElement, value: Any, is_desc: bool) -> ColumnElement[bool]:
-    """
-    Strict inequality for ``or_`` branches (``<`` / ``>``).
-
-    When *value* is ``None`` the cursor is at a NULL boundary.  The only rows
-    that can be "strictly after" a NULL are non-NULL rows (regardless of
-    whether the database sorts NULLs first or last), so ``col IS NOT NULL`` is
-    used.  When the surrounding ``_nonstrict_bound`` already constrains
-    ``col IS NULL``, this branch evaluates to FALSE and the inner keyset
-    predicate takes over — which is the correct behaviour.
-    """
-    if value is None:
-        return col.is_not(None)
-    return col < value if is_desc else col > value
+        if nulls_last:
+            return col.is_(None), false()
+        return true(), col.is_not(None)
+    ge = col <= value if is_desc else col >= value
+    gt = col < value if is_desc else col > value
+    if nulls_last:
+        return or_(ge, col.is_(None)), or_(gt, col.is_(None))
+    return ge, gt
 
 
 def _nested_keyset_predicate(
-    resolved: list[tuple[str, ColumnElement, bool]], values: list[Any]
+    resolved: list[tuple[str, ColumnElement, bool]], values: list[Any], dialect: str
 ) -> ColumnElement[bool]:
     """
     Keyset predicate for rows strictly after the cursor in ``ORDER BY`` order.
 
     Uses nested ``and_(non-strict, or_(strict, ...))`` so leading sort keys use
     inclusive range bounds and inner branches use strict inequalities—friendly
-    for composite index range scans. Logically equivalent to an OR-of-prefix-
-    equalities formulation.
+    for composite index range scans. NULL placement follows each backend's
+    native ordering for a plain ``ORDER BY`` (see :func:`_bounds`), so the
+    ``ORDER BY`` stays a bare column and can still use an index.
     """
     n = len(resolved)
     _, col, is_desc = resolved[n - 1]
-    inner: ColumnElement[bool] = _strict_bound(col, values[n - 1], is_desc)
+    _, inner = _bounds(col, values[n - 1], is_desc, dialect)
     for i in range(n - 2, -1, -1):
         _, col_i, is_desc_i = resolved[i]
-        inner = and_(
-            _nonstrict_bound(col_i, values[i], is_desc_i),
-            or_(_strict_bound(col_i, values[i], is_desc_i), inner),
-        )
+        non_strict, strict = _bounds(col_i, values[i], is_desc_i, dialect)
+        inner = and_(non_strict, or_(strict, inner))
     return inner
 
 
@@ -163,7 +165,7 @@ def decode_cursor(token: str) -> list[Any]:
 
 
 def apply_cursor_filter(
-    statement: Select, token: str, sort_param: SortParam, *, is_backward: bool = False
+    statement: Select, token: str, sort_param: SortParam, dialect: str, *, is_backward: bool = False
 ) -> Select:
     """
     Apply a keyset pagination WHERE clause from a cursor token.
@@ -173,6 +175,10 @@ def apply_cursor_filter(
     flipped so the predicate selects rows strictly *before* the cursor in the
     original sort order.  The caller is responsible for reversing the ORDER BY
     and the final result list when using a backward cursor.
+
+    *dialect* is the backend dialect name (``session.get_bind().dialect.name``);
+    the predicate matches that backend's native NULL placement, so the keyset
+    ``ORDER BY`` stays a bare column and keeps using indexes.
     """
     raw_values = decode_cursor(token)
 
@@ -185,4 +191,4 @@ def apply_cursor_filter(
     if is_backward:
         resolved = [(name, col, not is_desc) for name, col, is_desc in resolved]
 
-    return statement.where(_nested_keyset_predicate(resolved, parsed_values))
+    return statement.where(_nested_keyset_predicate(resolved, parsed_values, dialect))

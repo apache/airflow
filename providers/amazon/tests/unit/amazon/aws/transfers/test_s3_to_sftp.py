@@ -24,6 +24,7 @@ from moto import mock_aws
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
+from airflow.providers.amazon.aws.utils import validate_destination_path
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
@@ -375,3 +376,22 @@ class TestS3ToSFTPOperatorInit:
             with patch.object(op.log, "info") as mock_log:
                 op._download_from_s3(MagicMock(), mock_s3_hook, S3_KEY, SFTP_PATH)
             mock_log.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "object_suffix",
+        [
+            pytest.param("../../../../etc/cron.d/evil", id="dotdot-segments"),
+            pytest.param("subdir/../../../escape", id="dotdot-cancels-base"),
+        ],
+    )
+    def test_validate_destination_path_rejects_escape(self, object_suffix):
+        # In multi-file mode the destination is ``sftp_path`` plus a key suffix
+        # returned by ``list_keys``; a crafted object name must not place the
+        # upload outside the configured ``sftp_path`` on the SFTP server.
+        sftp_path = "/srv/sftp/incoming/"
+        with pytest.raises(ValueError, match="escapes configured sftp_path"):
+            validate_destination_path(sftp_path + object_suffix, sftp_path, base_name="sftp_path")
+
+    def test_validate_destination_path_allows_contained(self):
+        sftp_path = "/srv/sftp/incoming/"
+        validate_destination_path(sftp_path + "sub/dir/report.csv", sftp_path, base_name="sftp_path")

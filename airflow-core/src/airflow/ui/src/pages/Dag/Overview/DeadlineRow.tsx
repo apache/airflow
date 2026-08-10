@@ -17,18 +17,13 @@
  * under the License.
  */
 import { Badge, HStack, Text, VStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import type { DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
-
-dayjs.extend(duration);
-dayjs.extend(relativeTime);
+import { translateCompletionRule } from "src/utils/deadlines";
 
 type DeadlineRowProps = {
   readonly alert?: DeadlineAlertResponse;
@@ -38,24 +33,7 @@ type DeadlineRowProps = {
 export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
   const { t: translate } = useTranslation("dag");
 
-  const reference = alert
-    ? translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-        defaultValue: alert.reference_type,
-      })
-    : undefined;
-  // A fixed interval reports its seconds; a dynamic interval (e.g. VariableInterval) comes back as
-  // null, resolved only at scheduler evaluation time — render a "dynamic interval" phrasing rather
-  // than a misleading "a few seconds" from dayjs.duration(null). When there is no alert at all,
-  // completionRule stays undefined so the rule line is omitted (preserving prior behavior).
-  const completionRule =
-    alert === undefined
-      ? undefined
-      : alert.interval === null || alert.interval === undefined
-        ? translate("deadlineAlerts.completionRuleDynamic", { reference })
-        : translate("deadlineAlerts.completionRule", {
-            interval: dayjs.duration(alert.interval, "seconds").humanize(),
-            reference,
-          });
+  const completionRule = translateCompletionRule(translate, alert);
 
   return (
     <HStack justifyContent="space-between" px={2} py={1.5} width="100%">

@@ -965,6 +965,12 @@ components:
           - type: string
           - type: 'null'
           title: Version
+        version_data:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Version Data
       type: object
       required:
       - name
@@ -1379,6 +1385,11 @@ components:
           - type: string
           - type: 'null'
           title: Queue
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         type:
           type: string
           const: TestConnection

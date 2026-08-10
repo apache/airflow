@@ -31,6 +31,7 @@ __all__ = [
     "AsyncCallback",
     "BaseAsyncOperator",
     "BaseBranchOperator",
+    "BaseDeadlineReference",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
@@ -67,7 +68,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
-    "PartitionAtRuntime",
+    "PartitionedAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
@@ -105,6 +106,7 @@ __all__ = [
     "conf",
     "cross_downstream",
     "dag",
+    "deadline_reference",
     "get_current_context",
     "get_parsing_context",
     "literal",
@@ -117,7 +119,7 @@ __all__ = [
     "teardown",
 ]
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
@@ -151,7 +153,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import (
+        BaseDeadlineReference,
+        DeadlineAlert,
+        DeadlineReference,
+        deadline_reference,
+    )
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
@@ -199,8 +206,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetOrTimeSchedule,
-        PartitionAtRuntime,
         PartitionedAssetTimetable,
+        PartitionedAtRuntime,
     )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
@@ -234,6 +241,7 @@ __lazy_imports: dict[str, str] = {
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
     "BaseBranchOperator": ".bases.branch",
+    "BaseDeadlineReference": ".definitions.deadline",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
@@ -269,7 +277,7 @@ __lazy_imports: dict[str, str] = {
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
-    "PartitionAtRuntime": ".definitions.timetables.assets",
+    "PartitionedAtRuntime": ".definitions.timetables.assets",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
@@ -308,6 +316,7 @@ __lazy_imports: dict[str, str] = {
     "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "deadline_reference": ".definitions.deadline",
     "NEVER_EXPIRE": ".execution_time.context",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",

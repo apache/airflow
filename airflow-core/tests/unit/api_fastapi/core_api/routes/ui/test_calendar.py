@@ -23,13 +23,17 @@ import pendulum
 import pytest
 from sqlalchemy.orm import Session
 
+from airflow._shared.timezones import timezone
+from airflow.models.deadline import Deadline
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import CronPartitionTimetable
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_deadline, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -320,3 +324,199 @@ class TestPartitionedCalendar:
         assert response.status_code == 200
         body = response.json()
         assert body == result
+
+
+_CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.ui.test_calendar._noop_callback"
+
+
+async def _noop_callback(**kwargs):
+    """No-op callback used to satisfy Deadline creation in tests."""
+
+
+def _cb() -> AsyncCallback:
+    return AsyncCallback(_CALLBACK_PATH)
+
+
+class TestCalendarDeadlines:
+    """Tests for the GET /calendar/{dag_id}/deadlines endpoint."""
+
+    DAG_NAME = "test_deadlines_calendar_dag"
+
+    @pytest.fixture(autouse=True)
+    def setup_deadlines(self, dag_maker, session) -> None:
+        clear_db_deadline()
+        clear_db_runs()
+        clear_db_dags()
+
+        with dag_maker(self.DAG_NAME, serialized=True, session=session):
+            EmptyOperator(task_id="task")
+
+        run1 = dag_maker.create_dagrun(
+            run_id="run_active",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.SCHEDULED,
+            logical_date=timezone.datetime(2025, 1, 1),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(
+            Deadline(
+                deadline_time=timezone.datetime(2025, 1, 1, 12, 0, 0),
+                callback=_cb(),
+                dagrun_id=run1.id,
+                deadline_alert_id=None,
+            )
+        )
+
+        run2 = dag_maker.create_dagrun(
+            run_id="run_missed",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.SCHEDULED,
+            logical_date=timezone.datetime(2025, 1, 2),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        missed_dl = Deadline(
+            deadline_time=timezone.datetime(2025, 1, 2, 8, 0, 0),
+            callback=_cb(),
+            dagrun_id=run2.id,
+            deadline_alert_id=None,
+        )
+        missed_dl.missed = True
+        session.add(missed_dl)
+
+        run3 = dag_maker.create_dagrun(
+            run_id="run_multi",
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+            logical_date=timezone.datetime(2025, 1, 3),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        for hour in (6, 18):
+            session.add(
+                Deadline(
+                    deadline_time=timezone.datetime(2025, 1, 1, hour, 0, 0),
+                    callback=_cb(),
+                    dagrun_id=run3.id,
+                    deadline_alert_id=None,
+                )
+            )
+
+        run4 = dag_maker.create_dagrun(
+            run_id="run_missed_jan1",
+            state=DagRunState.FAILED,
+            run_type=DagRunType.SCHEDULED,
+            logical_date=timezone.datetime(2025, 1, 4),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        missed_dl_jan1 = Deadline(
+            deadline_time=timezone.datetime(2025, 1, 1, 20, 0, 0),
+            callback=_cb(),
+            dagrun_id=run4.id,
+            deadline_alert_id=None,
+        )
+        missed_dl_jan1.missed = True
+        session.add(missed_dl_jan1)
+
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_deadline()
+        clear_db_runs()
+        clear_db_dags()
+
+    @pytest.mark.parametrize(
+        ("query_params", "expected"),
+        [
+            (
+                {},
+                {
+                    "total_entries": 3,
+                    "deadlines": [
+                        {"date": "2025-01-01T00:00:00Z", "missed": False, "count": 3},
+                        {"date": "2025-01-01T00:00:00Z", "missed": True, "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "missed": True, "count": 1},
+                    ],
+                },
+            ),
+            (
+                {
+                    "deadline_time_gte": "2025-01-01T00:00:00Z",
+                    "deadline_time_lte": "2025-01-01T23:59:59Z",
+                },
+                {
+                    "total_entries": 2,
+                    "deadlines": [
+                        {"date": "2025-01-01T00:00:00Z", "missed": False, "count": 3},
+                        {"date": "2025-01-01T00:00:00Z", "missed": True, "count": 1},
+                    ],
+                },
+            ),
+            (
+                {
+                    "deadline_time_gte": "2025-01-02T00:00:00Z",
+                    "deadline_time_lte": "2025-01-02T23:59:59Z",
+                },
+                {
+                    "total_entries": 1,
+                    "deadlines": [
+                        {"date": "2025-01-02T00:00:00Z", "missed": True, "count": 1},
+                    ],
+                },
+            ),
+            (
+                {"deadline_time_gte": "2025-06-01T00:00:00Z"},
+                {
+                    "total_entries": 0,
+                    "deadlines": [],
+                },
+            ),
+        ],
+    )
+    def test_daily_deadlines(self, test_client, query_params, expected):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}/deadlines", params=query_params)
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    @pytest.mark.parametrize(
+        ("query_params", "expected"),
+        [
+            (
+                {"granularity": "hourly"},
+                {
+                    "total_entries": 5,
+                    "deadlines": [
+                        {"date": "2025-01-01T06:00:00Z", "missed": False, "count": 1},
+                        {"date": "2025-01-01T12:00:00Z", "missed": False, "count": 1},
+                        {"date": "2025-01-01T18:00:00Z", "missed": False, "count": 1},
+                        {"date": "2025-01-01T20:00:00Z", "missed": True, "count": 1},
+                        {"date": "2025-01-02T08:00:00Z", "missed": True, "count": 1},
+                    ],
+                },
+            ),
+            (
+                {
+                    "granularity": "hourly",
+                    "deadline_time_gte": "2025-01-01T10:00:00Z",
+                    "deadline_time_lte": "2025-01-01T20:00:00Z",
+                },
+                {
+                    "total_entries": 3,
+                    "deadlines": [
+                        {"date": "2025-01-01T12:00:00Z", "missed": False, "count": 1},
+                        {"date": "2025-01-01T18:00:00Z", "missed": False, "count": 1},
+                        {"date": "2025-01-01T20:00:00Z", "missed": True, "count": 1},
+                    ],
+                },
+            ),
+        ],
+    )
+    def test_hourly_deadlines(self, test_client, query_params, expected):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}/deadlines", params=query_params)
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_unknown_dag_returns_empty(self, test_client):
+        response = test_client.get("/calendar/nonexistent_dag/deadlines")
+        assert response.status_code == 200
+        body = response.json()
+        assert body == {"total_entries": 0, "deadlines": []}

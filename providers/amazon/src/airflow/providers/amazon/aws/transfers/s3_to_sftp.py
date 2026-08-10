@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils import validate_destination_path
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -113,6 +114,7 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
     ) -> None:
+        validate_destination_path(sftp_path, self.sftp_path, base_name="sftp_path")
         if not s3_hook.check_for_key(s3_key, self.s3_bucket):
             if self.fail_on_file_not_exist:
                 raise FileNotFoundError(f"Key {s3_key!r} not found in S3 bucket {self.s3_bucket!r}")

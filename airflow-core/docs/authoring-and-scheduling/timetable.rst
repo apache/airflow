@@ -197,7 +197,7 @@ DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A timetable that schedules data intervals with a time delta. You can select it by providing a
-:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule`` parameter of a Dag.
+:class:`DeltaDataIntervalTimetable` to the ``schedule`` parameter of a Dag.
 
 This timetable focuses on the data interval value and does not necessarily align execution dates with
 arbitrary bounds, such as the start of day or of hour.
@@ -206,7 +206,12 @@ arbitrary bounds, such as the start of day or of hour.
 
 .. code-block:: python
 
-    @dag(schedule=datetime.timedelta(minutes=30))
+    from datetime import timedelta
+
+    from airflow.sdk import dag, DeltaDataIntervalTimetable
+
+
+    @dag(schedule=DeltaDataIntervalTimetable(timedelta(minutes=30)))
     def example_dag():
         pass
 
@@ -216,17 +221,18 @@ CronDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A timetable that accepts a cron expression, creates data intervals according to the interval between each cron
-trigger points, and triggers a Dag run at the end of each data interval.
+trigger points, and triggers a Dag run at the end of each data interval. You can select it by providing a
+:class:`CronDataIntervalTimetable` to the ``schedule`` parameter of a Dag.
 
 .. seealso:: `Differences between "trigger" and "data interval" timetables`_
 .. seealso:: `Differences between the cron and delta data interval timetables`_
 
-Select this timetable by providing a valid cron expression as a string to the ``schedule``
-parameter of a Dag, as described in the :doc:`../core-concepts/dags` documentation.
-
 .. code-block:: python
 
-    @dag(schedule="0 1 * * 3")  # At 01:00 on Wednesday.
+    from airflow.sdk import dag, CronDataIntervalTimetable
+
+
+    @dag(schedule=CronDataIntervalTimetable("0 1 * * 3"))  # At 01:00 on Wednesday.
     def example_dag():
         pass
 
@@ -264,8 +270,9 @@ first, event for the data interval. Otherwise, manual runs begin with a ``data_i
 
 .. _asset-timetable-section:
 
-Asset event based scheduling with time based scheduling
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssetOrTimeSchedule
+^^^^^^^^^^^^^^^^^^^
+
 Combining conditional asset expressions with time-based schedules enhances scheduling flexibility.
 
 The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of Dags based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
@@ -283,13 +290,11 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
     @dag(
         schedule=AssetOrTimeSchedule(
             timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_asset & dag2_asset)
-        )
-        # Additional arguments here, replace this comment with actual arguments
+        ),
+        ...,
     )
     def example_dag():
-        # Dag tasks go here
         pass
-
 
 
 Timetables comparisons

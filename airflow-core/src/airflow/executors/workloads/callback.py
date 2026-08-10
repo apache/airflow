@@ -103,17 +103,6 @@ class ExecuteCallback(BaseDagBundleWorkload):
     def running_state(self) -> CallbackState:
         return CallbackState.RUNNING
 
-    @property
-    def retry_state(self) -> CallbackState:
-        """
-        State to report on a transient (retryable) failure, e.g. a context-fetch blip.
-
-        PENDING is non-terminal, so the scheduler's PENDING-callbacks query re-picks the callback
-        on the next loop and retries it — instead of the terminal FAILED a real callback error
-        produces. Mirrors the triggerer path's re-evaluate-on-next-loop behavior.
-        """
-        return CallbackState.PENDING
-
     @classmethod
     def make(
         cls,
@@ -125,9 +114,13 @@ class ExecuteCallback(BaseDagBundleWorkload):
     ) -> ExecuteCallback:
         """Create an ExecuteCallback workload from a Callback ORM model."""
         if not bundle_info:
+            from airflow.models.dag_version import _resolve_version_data
+
+            version_data = _resolve_version_data(dag_run.created_dag_version, dag_run.bundle_version)
             bundle_info = BundleInfo(
                 name=dag_run.dag_model.bundle_name,
                 version=dag_run.bundle_version,
+                version_data=version_data,
             )
         fname = f"executor_callbacks/{dag_run.dag_id}/{dag_run.run_id}/{callback.id}"
 

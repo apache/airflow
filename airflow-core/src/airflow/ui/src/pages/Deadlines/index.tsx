@@ -31,7 +31,7 @@ import { FilterBar } from "src/components/FilterBar";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 type DeadlineRow = { row: { original: DeadlineResponse } };
 
@@ -100,6 +100,9 @@ const deadlinesFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 export const Deadlines = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
+
+  useDocumentTitle(translate("common:browse.deadlines"));
+
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams] = useSearchParams();
 

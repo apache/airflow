@@ -1,0 +1,1 @@
+The deprecated ``Dataset`` alias has been removed from the ``airflow`` module. Use ``Asset`` from ``airflow.sdk`` instead.

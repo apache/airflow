@@ -215,9 +215,7 @@ Example Dag Review Checklist
 ----------------------------
 
 To help maintain consistency and quality across example Dags,
-please refer to the example Dag review checklist:
-
-:doc:`28_example_dag_review_checklist`
+please refer to the `example Dag review checklist <28_example_dag_review_checklist.rst>`_.
 
 Next Steps
 ----------

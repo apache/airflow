@@ -31,13 +31,13 @@ export class HomePage extends BasePage {
   }
 
   public readonly activeDagsCard: Locator;
-  public readonly alertsAccordionTrigger: Locator;
   public readonly alertSeeLessButton: Locator;
   public readonly alertSeeMoreButton: Locator;
   public readonly dagImportErrorsCard: Locator;
   public readonly dagProcessorHealth: Locator;
   public readonly dagRunMetrics: Locator;
   public readonly failedDagsCard: Locator;
+  public readonly firstAlertContent: Locator;
 
   public readonly healthSection: Locator;
   public readonly historicalMetricsSection: Locator;
@@ -80,9 +80,9 @@ export class HomePage extends BasePage {
     this.dagRunMetrics = page.getByRole("heading", { name: /dag run/i }).first();
     this.taskInstanceMetrics = page.getByRole("heading", { name: /task instance/i }).first();
 
-    const alertsAccordion = page.getByTestId("dashboard-alerts");
+    const alertsContainer = page.getByTestId("dashboard-alerts");
 
-    this.alertsAccordionTrigger = alertsAccordion.locator('[data-part="item-trigger"]');
+    this.firstAlertContent = alertsContainer.getByTestId("dashboard-alert-content").first();
     this.alertSeeMoreButton = page.getByRole("button", { exact: true, name: "See more" });
     this.alertSeeLessButton = page.getByRole("button", { exact: true, name: "See less" });
   }
