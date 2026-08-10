@@ -58,7 +58,11 @@ class MessageQueueTrigger(BaseEventTrigger):
         :ref:`howto/trigger:MessageQueueTrigger`
     """
 
-    queue: str | None = None
+    # Deprecated broker queue identifier (URI format), e.g. "sqs://...". Stored under a name distinct
+    # from the inherited `queue` attribute, which `BaseEventTrigger` now uses for triggerer queue
+    # assignment (see #71346) — reusing `queue` here would silently leak this URI into that unrelated
+    # triggerer-routing field.
+    queue_uri: str | None = None
     scheme: str | None = None
 
     def __init__(self, *, queue: str | None = None, scheme: str | None = None, **kwargs: Any) -> None:
@@ -73,10 +77,10 @@ class MessageQueueTrigger(BaseEventTrigger):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.queue = queue
+            self.queue_uri = queue
             self.scheme = None
         else:
-            self.queue = None
+            self.queue_uri = None
             self.scheme = scheme
 
         self.kwargs = kwargs
@@ -91,12 +95,12 @@ class MessageQueueTrigger(BaseEventTrigger):
             raise ValueError("No message queue providers are available. ")
 
         # Find matching providers based on queue URI or scheme
-        if self.queue is not None:
+        if self.queue_uri is not None:
             # Use existing queue-based matching for backward compatibility
             providers = [
-                provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue)
+                provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue_uri)
             ]
-            identifier = self.queue
+            identifier = self.queue_uri
             match_by = "queue"
         elif self.scheme is not None:
             # Use new scheme-based matching
@@ -131,9 +135,9 @@ class MessageQueueTrigger(BaseEventTrigger):
 
         # Create trigger instance
         selected_provider = providers[0]
-        if self.queue is not None:
+        if self.queue_uri is not None:
             # Pass queue to trigger_kwargs for backward compatibility
-            trigger_kwargs = selected_provider.trigger_kwargs(self.queue, **self.kwargs)
+            trigger_kwargs = selected_provider.trigger_kwargs(self.queue_uri, **self.kwargs)
             return selected_provider.trigger_class()(**trigger_kwargs, **self.kwargs)
         # For scheme-based matching, we need to pass all current kwargs to the trigger
         return selected_provider.trigger_class()(**self.kwargs)

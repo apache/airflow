@@ -216,14 +216,27 @@ class TestMessageQueueTriggerScheme:
     def test_queue_takes_precedence_over_scheme(self):
         """Test that queue parameter takes precedence when both are provided."""
         trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
-        assert trigger.queue == PROVIDER_1_QUEUE
+        assert trigger.queue_uri == PROVIDER_1_QUEUE
         assert trigger.scheme is None
 
     def test_scheme_only_initialization(self):
         """Test initialization with scheme parameter only."""
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
-        assert trigger.queue is None
+        assert trigger.queue_uri is None
         assert trigger.scheme == PROVIDER_2_SCHEME
+
+    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
+    def test_deprecated_queue_param_does_not_set_triggerer_queue(self):
+        """Regression test: the deprecated `queue` (broker URI) must not leak into the unrelated
+        `BaseEventTrigger.queue` attribute used for triggerer queue assignment (see #71346), or the
+        resulting Trigger row would never be picked up by any triggerer."""
+        trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE)
+        assert trigger.queue_uri == PROVIDER_1_QUEUE
+        assert trigger.queue is None
+
+    def test_scheme_param_does_not_set_triggerer_queue(self):
+        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
+        assert trigger.queue is None
 
     def test_scheme_provider_matching(self):
         """Test that scheme matching works correctly."""
