@@ -32,7 +32,6 @@ Changelog
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 
 Doc-only
 ~~~~~~~~
@@ -43,6 +42,8 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare providers release 2026-07-22 (#70256)``
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 6.6.0
 .....
