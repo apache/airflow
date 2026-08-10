@@ -1970,7 +1970,16 @@ class TestGetDagRunAssetTriggerEvents:
         ["test_partition_key", None],
         ids=["partitioned", "non-partitioned"],
     )
-    def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("state", "start_date_is_none"),
+        [
+            pytest.param(DagRunState.RUNNING, False, id="running"),
+            pytest.param(DagRunState.QUEUED, True, id="queued-without-start-date"),
+        ],
+    )
+    def test_should_respond_200(
+        self, partition_key, state, start_date_is_none, test_client, dag_maker, session
+    ):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
         # Use PartitionedAtRuntime for partitioned cases so the partition_key gate does not reject the key.
@@ -2008,8 +2017,9 @@ class TestGetDagRunAssetTriggerEvents:
             # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
             create_dagrun_kwargs["logical_date"] = None
         dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
-        dr.start_date = None
-        dr.state = DagRunState.QUEUED
+        dr.state = state
+        if start_date_is_none:
+            dr.start_date = None
         dr.consumed_asset_events.append(event)
 
         session.commit()
@@ -2042,8 +2052,12 @@ class TestGetDagRunAssetTriggerEvents:
                             "data_interval_start": from_datetime_to_zulu_without_ms(dr.data_interval_start),
                             "end_date": None,
                             "logical_date": from_datetime_to_zulu_without_ms(dr.logical_date),
-                            "start_date": None,
-                            "state": "queued",
+                            "start_date": (
+                                None
+                                if start_date_is_none
+                                else from_datetime_to_zulu_without_ms(dr.start_date)
+                            ),
+                            "state": state.value,
                             "partition_key": partition_key,
                             "triggering": True,
                         }
