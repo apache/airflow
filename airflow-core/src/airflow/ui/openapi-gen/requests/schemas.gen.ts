@@ -3635,6 +3635,17 @@ export const $DAGDetailsResponse = {
                 }
             ]
         },
+        suggested_partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Suggested Partition Key'
+        },
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',

@@ -14892,6 +14892,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        suggested_partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Suggested Partition Key
         is_backfillable:
           type: boolean
           title: Is Backfillable

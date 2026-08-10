@@ -1004,6 +1004,7 @@ export type DAGDetailsResponse = {
     active_runs_count?: number;
     team_name?: string | null;
     latest_dag_version: DagVersionResponse | null;
+    suggested_partition_key?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */

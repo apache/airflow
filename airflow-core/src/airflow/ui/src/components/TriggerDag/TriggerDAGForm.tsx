@@ -65,6 +65,7 @@ type TriggerDAGFormProps = {
         runId: string;
       }
     | undefined;
+  readonly suggestedPartitionKey?: string | undefined;
 };
 
 const DAG_DATE_FORMAT = `${DATE_FORMAT} HH:mm z`;
@@ -81,6 +82,7 @@ const TriggerDAGForm = ({
   onSubmitTrigger,
   open,
   prefillConfig,
+  suggestedPartitionKey,
 }: TriggerDAGFormProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
@@ -93,7 +95,14 @@ const TriggerDAGForm = ({
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const {
+    control,
+    formState: { dirtyFields },
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+  } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -104,7 +113,7 @@ const TriggerDAGForm = ({
       // For partitioned Dags, logical date is not applicable.
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
-      partitionKey: undefined,
+      partitionKey: suggestedPartitionKey,
     },
   });
 
@@ -139,7 +148,8 @@ const TriggerDAGForm = ({
   // Pre-fill form when prefillConfig is provided. This runs on open, before any user input, so
   // the whole form is reset. Only 'conf' is copied from the prior run; its runId and logicalDate
   // are deliberately dropped, because POST /dagRuns rejects a run whose id or logical date
-  // already exists with 409 Conflict.
+  // already exists with 409 Conflict. The partition key is dropped for the same reason and
+  // seeded from the current suggestion instead.
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
@@ -152,7 +162,7 @@ const TriggerDAGForm = ({
         dataIntervalStart: "",
         logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
-        partitionKey: undefined,
+        partitionKey: suggestedPartitionKey,
       });
       if (confString) {
         syncConfToStore(confString);
@@ -161,7 +171,15 @@ const TriggerDAGForm = ({
     } else if (!open) {
       setHasAppliedPrefill(false);
     }
-  }, [prefillConfig, open, isPartitioned, reset, syncConfToStore]);
+  }, [prefillConfig, open, isPartitioned, reset, suggestedPartitionKey, syncConfToStore]);
+
+  // The suggestion is computed per request, so a response served from cache can seed the field with
+  // a partition that has already elapsed. Apply a newer suggestion unless the user edited the field.
+  useEffect(() => {
+    if (suggestedPartitionKey !== undefined && !Boolean(dirtyFields.partitionKey)) {
+      setValue("partitionKey", suggestedPartitionKey);
+    }
+  }, [dirtyFields.partitionKey, setValue, suggestedPartitionKey]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
