@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.3.1 (2026-08-10)
+Airflow 3.3.1 (2026-08-12)
 --------------------------
 
 Significant Changes
@@ -102,6 +102,9 @@ team scoped value is masked exactly as the base value already was.
 Bug Fixes
 ^^^^^^^^^
 
+- UI: Fix a 500 error when combining the last-run and any-run Dag state filters on the Dags list (#71371)
+- UI: Fix task log text selection being cleared while scrolling (#71200)
+- UI: Fix a translation key showing as raw text in the Clear Task dialog (#71240)
 - Fail deferred task instances whose saved state can't be resumed, instead of leaving them stuck (#71183)
 - Fix task callbacks being skipped when ``TriggerDagRunOperator`` gets a 404 (#71083)
 - Fix task state store rejecting keys that contain slashes (#70967)
