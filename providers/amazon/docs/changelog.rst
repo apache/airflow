@@ -25,7 +25,6 @@
 
 Changelog
 ---------
-* ``GlueJobOperator: replace deprecated ''resume_glue_job_on_retry'' with ''durable'', now on by default (was off) (#NNNNN)``
 
 9.34.0
 ......
