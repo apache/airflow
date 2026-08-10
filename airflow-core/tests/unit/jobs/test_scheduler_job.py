@@ -12958,19 +12958,18 @@ def test_partition_cap_reporting(
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
     dag_id = f"cap-consumer-{suffix}"
-    audit_rows = session.scalars(select(Log).where(Log.event == "partition dag run cap reached")).all()
+    audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     if expect_cap_hit:
         assert {
             "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
             "will be evaluated over subsequent scheduler ticks",
             "cap": cap,
             "backlog_total": 3,
-            "dag_ids": [dag_id],
+            "dag_ids": {dag_id},
         } in caplog
-        assert [row.event for row in audit_rows] == ["partition dag run cap reached"]
+        assert [row.event for row in audit_rows] == ["partition Dag run cap reached"]
         extra = audit_rows[0].extra
         assert extra is not None
-        # A single distinct dag_id never needs the "(and N more)" truncation note.
         assert f"Affected dag_ids: {dag_id}." in extra
     else:
         assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
@@ -13018,7 +13017,7 @@ def test_partition_cap_reporting_excludes_already_fired_decoy(dag_maker: DagMake
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
     assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
-    audit_rows = session.scalars(select(Log).where(Log.event == "partition dag run cap reached")).all()
+    audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
 
 
@@ -13074,18 +13073,18 @@ def test_partition_cap_reporting_excludes_stale_dag_decoy(dag_maker: DagMaker, s
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
     assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
-    audit_rows = session.scalars(select(Log).where(Log.event == "partition dag run cap reached")).all()
+    audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
 
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
-def test_partition_cap_reporting_truncates_dag_ids_over_five(dag_maker: DagMaker, session: Session, caplog):
+def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker, session: Session, caplog):
     """
-    The log/audit ``dag_ids`` list is capped at 5 distinct dag_ids, with a count of the rest.
+    The log/audit ``dag_ids`` list surfaces every distinct affected dag_id, without truncation.
 
     Seven consumer Dags each get one satisfied APDR; with the cap at 6, `pending_apdrs` spans six
-    distinct dag_ids — one more than the 5-item list the log/audit messages surface.
+    distinct dag_ids — all of which must appear in both the log event and the audit row.
 
     Built inline rather than via :func:`_make_n_satisfied_apdrs` because that helper's producer
     dag_id numbering restarts at 1 on every call, colliding across these seven consumer Dags.
@@ -13121,7 +13120,9 @@ def test_partition_cap_reporting_truncates_dag_ids_over_five(dag_maker: DagMaker
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    expected_dag_ids = [f"cap-consumer-many-{i}" for i in range(1, 6)]
+    # affected_dag_ids is a set, so its iteration order (and thus the exact rendering in the log
+    # event and audit row) is arbitrary — assert membership, not a specific order.
+    expected_dag_ids = {f"cap-consumer-many-{i}" for i in range(1, 7)}
     assert {
         "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
         "will be evaluated over subsequent scheduler ticks",
@@ -13130,10 +13131,13 @@ def test_partition_cap_reporting_truncates_dag_ids_over_five(dag_maker: DagMaker
         "dag_ids": expected_dag_ids,
     } in caplog
 
-    audit_row = session.scalar(select(Log).where(Log.event == "partition dag run cap reached"))
+    audit_row = session.scalar(select(Log).where(Log.event == "partition Dag run cap reached"))
     assert audit_row is not None
     assert audit_row.extra is not None
-    assert f"Affected dag_ids: {', '.join(expected_dag_ids)} (and 1 more)." in audit_row.extra
+    note_match = re.search(r"Affected dag_ids: (.+)\.$", audit_row.extra)
+    assert note_match is not None
+    assert set(note_match.group(1).split(", ")) == expected_dag_ids
+    assert "and 1 more" not in audit_row.extra
 
 
 @pytest.mark.need_serialized_dag
@@ -13165,7 +13169,7 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(dag_maker: Dag
     runner._max_partition_dag_runs_per_loop = 2
 
     def _count_audit_log() -> int:
-        return session.scalar(select(func.count()).where(Log.event == "partition dag run cap reached")) or 0
+        return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 5 pending, cap 2
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 3 pending, still over cap
@@ -13225,9 +13229,9 @@ def test_partition_cap_audit_row_survives_outer_rollback(dag_maker: DagMaker, se
 
     assert runner._partition_cap_backlog_reported is True
     audit_events = session.scalars(
-        select(Log.event).where(Log.event == "partition dag run cap reached")
+        select(Log.event).where(Log.event == "partition Dag run cap reached")
     ).all()
-    assert audit_events == ["partition dag run cap reached"]
+    assert audit_events == ["partition Dag run cap reached"]
 
 
 @pytest.mark.need_serialized_dag
@@ -13264,9 +13268,9 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker,
     with mock.patch("airflow.jobs.scheduler_job_runner.create_session", return_value=failing_session_cm):
         runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    assert "Failed to write the partition dag run cap audit Log row" in caplog
+    assert "Failed to write the partition Dag run cap audit Log row" in caplog
     assert runner._partition_cap_backlog_reported is False
-    audit_rows = session.scalars(select(Log).where(Log.event == "partition dag run cap reached")).all()
+    audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
 
 
