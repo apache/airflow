@@ -987,7 +987,13 @@ class PodManager(LoggingMixin):
             result = self.extract_xcom_json(pod)
             return result
         finally:
-            self.extract_xcom_kill(pod)
+            try:
+                self.extract_xcom_kill(pod)
+            except PodCommandException:
+                self.log.warning(
+                    "Failed to kill xcom sidecar container; XCom value was already successfully retrieved.",
+                    exc_info=True,
+                )
 
     @generic_api_retry
     def extract_xcom_json(self, pod: V1Pod) -> str:
