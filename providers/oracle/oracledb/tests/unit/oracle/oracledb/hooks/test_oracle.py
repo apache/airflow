@@ -22,9 +22,9 @@ from datetime import datetime
 from unittest import mock
 
 import numpy as np
+import oracledb
 import pytest
 
-import oracledb
 from airflow.models import Connection
 from airflow.providers.oracle.oracledb.hooks.oracle import OracleHook
 
