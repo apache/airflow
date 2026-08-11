@@ -69,10 +69,12 @@ class SnowparkContainerJobTrigger(BaseTrigger):
     :param poll_interval: seconds to sleep between ``DESCRIBE SERVICE`` polls.
     :param end_time: epoch deadline (``time.time()`` seconds) after which a ``timeout``
         event is emitted.
-    :param database: (Optional) name of database.
-    :param schema: (Optional) name of schema.
-    :param role: (Optional) name of role.
-    :param warehouse: (Optional) name of warehouse.
+    :param execution_deadline: (Optional) absolute timestamp (in seconds since the epoch) after
+        which the task is considered timed out. (default: None)
+    :param database: (Optional) name of database. (default: None)
+    :param schema: (Optional) name of schema. (default: None)
+    :param role: (Optional) name of role. (default: None)
+    :param warehouse: (Optional) name of warehouse. (default: None)
     """
 
     def __init__(
@@ -81,6 +83,7 @@ class SnowparkContainerJobTrigger(BaseTrigger):
         snowflake_conn_id: str,
         poll_interval: float,
         end_time: float,
+        execution_deadline: float | None = None,
         database: str | None = None,
         schema: str | None = None,
         role: str | None = None,
@@ -91,6 +94,7 @@ class SnowparkContainerJobTrigger(BaseTrigger):
         self.snowflake_conn_id = snowflake_conn_id
         self.poll_interval = poll_interval
         self.end_time = end_time
+        self.execution_deadline = execution_deadline
         self.database = database
         self.schema = schema
         self.role = role
@@ -105,6 +109,7 @@ class SnowparkContainerJobTrigger(BaseTrigger):
                 "snowflake_conn_id": self.snowflake_conn_id,
                 "poll_interval": self.poll_interval,
                 "end_time": self.end_time,
+                "execution_deadline": self.execution_deadline,
                 "database": self.database,
                 "schema": self.schema,
                 "role": self.role,
@@ -138,6 +143,27 @@ class SnowparkContainerJobTrigger(BaseTrigger):
         """Poll the job status and yield exactly one terminal event."""
         hook = self._get_hook()
         while True:
+            now = time.time()
+            if self.execution_deadline is not None and now >= self.execution_deadline:
+                yield TriggerEvent(
+                    {
+                        "status": "timeout",
+                        "job_name": self.job_name,
+                        "message": f"Job {self.job_name} reached the execution timeout.",
+                    }
+                )
+                return
+
+            if now >= self.end_time:
+                yield TriggerEvent(
+                    {
+                        "status": "timeout",
+                        "job_name": self.job_name,
+                        "message": f"Job {self.job_name} did not reach a terminal status before the timeout.",
+                    }
+                )
+                return
+
             try:
                 status = await self._describe_status(hook=hook)
             except Exception as e:
@@ -158,15 +184,6 @@ class SnowparkContainerJobTrigger(BaseTrigger):
                 )
                 return
 
-            if time.time() > self.end_time:
-                yield TriggerEvent(
-                    {
-                        "status": "timeout",
-                        "job_name": self.job_name,
-                        "message": f"Job {self.job_name} did not reach a terminal status before the timeout.",
-                    }
-                )
-                return
             await asyncio.sleep(self.poll_interval)
 
     async def on_kill(self) -> None:

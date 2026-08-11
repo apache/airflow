@@ -50,8 +50,14 @@ class TestSnowparkContainerJobTrigger:
 
     def test_serialization(self):
         end_time = time.time() + 3600
+        execution_deadline = time.time() + 1800
         class_path, kwargs = self._trigger(
-            end_time, database="db", schema="sc", role="r", warehouse="wh"
+            end_time,
+            execution_deadline=execution_deadline,
+            database="db",
+            schema="sc",
+            role="r",
+            warehouse="wh",
         ).serialize()
         assert class_path == CLASSPATH
         assert kwargs == {
@@ -59,6 +65,7 @@ class TestSnowparkContainerJobTrigger:
             "snowflake_conn_id": CONN_ID,
             "poll_interval": POLL_INTERVAL,
             "end_time": end_time,
+            "execution_deadline": execution_deadline,
             "database": "db",
             "schema": "sc",
             "role": "r",
@@ -106,6 +113,60 @@ class TestSnowparkContainerJobTrigger:
         event = await self._trigger(end_time=time.time() - 1).run().__anext__()
         assert event.payload["status"] == "timeout"
         assert event.payload["job_name"] == JOB_NAME
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK, autospec=True)
+    async def test_execution_deadline_yields_timeout(self, mock_hook_cls):
+        mock_hook_cls.return_value.run.return_value = self._describe("RUNNING")
+        trigger = self._trigger(end_time=time.time() + 3600, execution_deadline=time.time() - 1)
+        event = await trigger.run().__anext__()
+        assert event.payload["status"] == "timeout"
+        assert "execution timeout" in event.payload["message"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("end_time", "execution_deadline"),
+        (
+            (time.time() - 1, None),
+            (time.time() + 3600, time.time() - 1),
+        ),
+    )
+    @mock.patch(HOOK, autospec=True)
+    async def test_deadline_takes_precedence_over_terminal_status(
+        self, mock_hook_cls, end_time, execution_deadline
+    ):
+        mock_hook_cls.return_value.run.return_value = self._describe("DONE")
+        trigger = self._trigger(end_time=end_time, execution_deadline=execution_deadline)
+        event = await trigger.run().__anext__()
+        assert event.payload["status"] == "timeout"
+        mock_hook_cls.return_value.run.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("end_time", "execution_deadline"),
+        (
+            (1000.0, None),
+            (2000.0, 1000.0),
+        ),
+    )
+    @mock.patch(HOOK, autospec=True)
+    async def test_deadline_boundary_counts_as_expired(
+        self, mock_hook_cls, end_time, execution_deadline, time_machine
+    ):
+        time_machine.move_to(1000, tick=False)
+        mock_hook_cls.return_value.run.return_value = self._describe("RUNNING")
+        trigger = self._trigger(end_time=end_time, execution_deadline=execution_deadline)
+        event = await trigger.run().__anext__()
+        assert event.payload["status"] == "timeout"
+        mock_hook_cls.return_value.run.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK, autospec=True)
+    async def test_future_execution_deadline_does_not_short_circuit(self, mock_hook_cls):
+        mock_hook_cls.return_value.run.return_value = self._describe("DONE")
+        trigger = self._trigger(end_time=time.time() + 3600, execution_deadline=time.time() + 1800)
+        event = await trigger.run().__anext__()
+        assert event == TriggerEvent({"status": "DONE", "job_name": JOB_NAME})
 
     @pytest.mark.asyncio
     @mock.patch(HOOK, autospec=True)

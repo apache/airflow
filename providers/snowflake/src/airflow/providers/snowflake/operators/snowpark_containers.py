@@ -80,8 +80,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         (default value: False)
     :param timeout: Maximum seconds to wait for the job to reach a terminal
         state. When it elapses the job service is dropped and the task fails.
-        A shorter ``execution_timeout`` preempts this cleanup, so the service
-        may be left running. (default value: 86400)
+        (default value: 86400)
     :param database: name of database (will overwrite database defined
         in connection)
     :param schema: name of schema (will overwrite schema defined in
@@ -194,15 +193,15 @@ class SnowparkContainerJobOperator(BaseOperator):
         """Poll until the job reaches a terminal state."""
         end_time = time.time() + self.timeout
         while True:
+            if time.time() >= end_time:
+                self._drop_service()
+                raise TimeoutError(f"Job {self.job_name} did not reach a terminal status before the timeout.")
             response = self._run_one(f"DESCRIBE SERVICE {self.job_name}", return_dictionaries=True)
             status = response.get("status")
             if status in TERMINAL_STATUSES:
                 return status
             if status not in NON_TERMINAL_STATUSES:
                 raise RuntimeError(f"Job {self.job_name} returned unexpected status: {status}")
-            if time.time() > end_time:
-                self._drop_service()
-                raise TimeoutError(f"Job {self.job_name} did not reach a terminal status before the timeout.")
             time.sleep(self.poll_interval)
 
     def _log_container_output(self, status: str) -> None:
@@ -248,20 +247,29 @@ class SnowparkContainerJobOperator(BaseOperator):
         if not self.wait_for_completion:
             return self.job_name
         if self.deferrable:
+            now = time.time()
+            poll_buffer = timedelta(seconds=self.poll_interval + 60)
+            execution_deadline = None
+            defer_timeout = timedelta(seconds=self.timeout) + poll_buffer
+            if self.execution_timeout is not None:
+                # Hand the execution deadline to the trigger so it emits a timeout event that drops the
+                # service. The framework's defer timeout would otherwise kill the task with no cleanup.
+                execution_deadline = now + self.execution_timeout.total_seconds()
+                # Pad the backstop past that deadline so the trigger fires first.
+                defer_timeout = self.execution_timeout + poll_buffer
             self.defer(
                 trigger=SnowparkContainerJobTrigger(
                     job_name=self.job_name,
                     snowflake_conn_id=self.snowflake_conn_id,
                     poll_interval=self.poll_interval,
-                    end_time=time.time() + self.timeout,
+                    end_time=now + self.timeout,
+                    execution_deadline=execution_deadline,
                     database=self.database,
                     schema=self.schema,
                     role=self.role,
                     warehouse=self.warehouse,
                 ),
-                # Pad past the trigger's end_time so its timeout event, which drops the service,
-                # fires before this hard backstop. A user-set execution_timeout takes precedence.
-                timeout=self.execution_timeout or timedelta(seconds=self.timeout + self.poll_interval + 60),
+                timeout=defer_timeout,
                 method_name="execute_complete",
             )
         status = self._poll_for_status()
