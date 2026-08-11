@@ -114,13 +114,6 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "api_secret_key_secret" . }}
         key: api-secret-key
   {{- end }}
-  {{- if and .IncludeJwtSecret (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
-  - name: AIRFLOW__API_AUTH__JWT_SECRET
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "jwt_secret" . }}
-        key: jwt-secret
-  {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
     {{- if and .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND (or .Values.data.resultBackendSecretName .Values.data.resultBackendConnection) }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
@@ -168,6 +161,17 @@ If release name contains chart name it will be used as a full name.
     value: "http://{{ include "airflow.fullname" . }}-otel-collector:{{ .Values.ports.otelCollectorOtlpHttp }}/v1/metrics"
   - name: OTEL_METRIC_EXPORT_INTERVAL
     value: {{ .Values.otelCollector.metricExportIntervalMs | quote }}
+  {{- end }}
+{{- end }}
+
+{{/* JWT signing and validation secret, only needed by the API server and the scheduler */}}
+{{- define "jwt_secret_environment" }}
+  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
+  - name: AIRFLOW__API_AUTH__JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "jwt_secret" . }}
+        key: jwt-secret
   {{- end }}
 {{- end }}
 

@@ -448,8 +448,8 @@ class TestAirflowCommon:
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
-            "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW__API_AUTH__JWT_SECRET",
         ]
         expected_vars_no_jwt = [
             "AIRFLOW_HOME",
@@ -467,6 +467,65 @@ class TestAirflowCommon:
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
             )
+
+    def test_jwt_secret_injected_into_api_server_and_scheduler(self):
+        docs = render_chart(
+            show_only=[
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            component = doc["metadata"]["labels"]["component"]
+            env_names = jmespath.search(
+                f"spec.template.spec.containers[?name=='{component}'].env[].name", doc
+            )
+            assert env_names.count("AIRFLOW__API_AUTH__JWT_SECRET") == 1, (
+                f"JWT secret missing from {component}"
+            )
+
+            # it must not leak into the sidecars or init containers of those same pods
+            other_env_names = jmespath.search(
+                f"[spec.template.spec.containers[?name!='{component}'], "
+                "spec.template.spec.initContainers][][].env[].name",
+                doc,
+            )
+            assert "AIRFLOW__API_AUTH__JWT_SECRET" not in other_env_names, (
+                f"JWT secret leaked into a non-main container of {component}"
+            )
+
+    def test_jwt_secret_not_injected_into_other_components(self):
+        docs = render_chart(
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            component = doc["metadata"]["labels"]["component"]
+            env_names = jmespath.search(
+                "[spec.template.spec.containers, spec.template.spec.initContainers][][].env[].name", doc
+            )
+            assert "AIRFLOW__API_AUTH__JWT_SECRET" not in env_names, f"JWT secret leaked into {component}"
+
+    def test_jwt_secret_can_be_disabled(self):
+        docs = render_chart(
+            values={"enableBuiltInSecretEnvVars": {"AIRFLOW__API_AUTH__JWT_SECRET": False}},
+            show_only=[
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            component = doc["metadata"]["labels"]["component"]
+            env_names = jmespath.search(
+                f"spec.template.spec.containers[?name=='{component}'].env[].name", doc
+            )
+            assert "AIRFLOW__API_AUTH__JWT_SECRET" not in env_names, f"Wrong vars in {component}"
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
