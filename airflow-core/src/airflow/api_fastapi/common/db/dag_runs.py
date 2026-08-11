@@ -80,20 +80,16 @@ def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session)
     The result is attached to each DagRun as ``_prefetched_dag_version_ids``
     (a dict mapping version_id -> DagVersion), which the ``dag_versions``
     property reads as an optimized substitute for traversing attempt
-    relationships.  All business logic (bundle_version shortcut, sorting,
-    deduplication) remains solely in ``DagRun.dag_versions``.
+    relationships. Sorting and deduplication remain in ``DagRun.dag_versions``.
+
+    Bundle-versioned runs are included: after a ``run_on_latest_version``
+    clear they can keep older versions on uncleared TIs or archived attempts,
+    so they must not skip this prefetch.
     """
     if not dag_runs:
         return
 
-    # Only runs without a bundle_version need attempt traversal;
-    # runs with bundle_version use created_dag_version directly
-    # (handled by the dag_versions property).
-    runs_needing_versions = [dr for dr in dag_runs if not dr.bundle_version]
-    if not runs_needing_versions:
-        return
-
-    run_key_values = [(dr.dag_id, dr.run_id) for dr in runs_needing_versions]
+    run_key_values = [(dr.dag_id, dr.run_id) for dr in dag_runs]
 
     rows = session.execute(
         select(
@@ -106,6 +102,7 @@ def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session)
             tuple_(TaskInstance.dag_id, TaskInstance.run_id).in_(run_key_values),
         )
         .distinct()
+        .execution_options(include_all_attempts=True)
     ).all()
 
     all_version_ids = {r.dag_version_id for r in rows}
@@ -124,5 +121,5 @@ def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session)
         if dv:
             versions_per_run[(row.dag_id, row.run_id)][dv.id] = dv
 
-    for dr in runs_needing_versions:
+    for dr in dag_runs:
         dr._prefetched_dag_version_ids = versions_per_run.get((dr.dag_id, dr.run_id), {})
