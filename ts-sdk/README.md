@@ -245,8 +245,8 @@ Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
 or verify the package with its own managed node + pnpm toolchain:
 
 ```bash
-prek run compile-ts-sdk
-prek run --hook-stage manual verify-ts-sdk-package
+prek run compile-ts-sdk --all-files
+prek run --hook-stage manual verify-ts-sdk-package --all-files
 ```
 
 ## API reference
