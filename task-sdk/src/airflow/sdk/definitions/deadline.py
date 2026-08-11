@@ -360,7 +360,6 @@ def deadline_reference(deadline_reference_type=None):
         # Optionally, specify when it is calculated by providing a DeadlineReference.TYPES value.
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
         class MyQueuedRef(BaseDeadlineReference):
-            # Optionally, you can specify when you want it calculated by providing a DeadlineReference.TYPES
             def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
                 # Add your business logic here; dagrun.queued_at is available to use.
                 my_datetime = my_business_logic(dagrun.queued_at)

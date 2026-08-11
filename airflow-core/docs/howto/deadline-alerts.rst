@@ -526,4 +526,7 @@ followed by a more urgent escalation if the Dag is still running.
 * **Plugin Placement**: One convenient place for custom references is in the plugins directory.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
 * **Dag run context**: Add a ``dagrun`` parameter to ``_evaluate_with()`` to use the Dag run being evaluated.
+* **Required Parameters** *(deprecated)*: ``required_kwargs`` declares which parameters your reference
+  needs. It still works but is deprecated and will be removed in Airflow 4.0 — declare the keyword-only
+  parameters your ``_evaluate_with()`` needs instead.
 * **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.

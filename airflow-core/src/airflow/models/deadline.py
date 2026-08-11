@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from inspect import signature
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from uuid import UUID
 
 import uuid6
@@ -40,6 +40,7 @@ from airflow.models.callback import (
     ExecutorCallback,
     TriggererCallback,
 )
+from airflow.sdk.types import DagRunProtocol
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -51,13 +52,23 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement
 
     from airflow.models.callback import CallbackDefinitionProtocol
-    from airflow.models.dagrun import DagRun
     from airflow.models.deadline_alert import DeadlineAlert
 
 
 logger = logging.getLogger(__name__)
 
 CALLBACK_METRICS_PREFIX = "deadline_alerts"
+
+
+class DeadlineDagRunProtocol(DagRunProtocol, Protocol):
+    """
+    The Dag run a deadline reference is evaluated against.
+
+    Deadlines are only ever evaluated server-side against an ORM DagRun, so this exposes
+    ``queued_at`` on top of the fields a Dag run offers during task execution.
+    """
+
+    queued_at: datetime | None
 
 
 def _get_evaluation_kwargs(reference: Any, evaluator: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -358,7 +369,7 @@ class ReferenceModels:
             return base_time + interval if base_time is not None else None
 
         @abstractmethod
-        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -408,13 +419,13 @@ class ReferenceModels:
     class DagRunLogicalDateDeadline(BaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
-        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.logical_date
 
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
-        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.queued_at
 
     @dataclass
@@ -432,7 +443,7 @@ class ReferenceModels:
                 raise ValueError("min_runs must be at least 1")
 
         @provide_session
-        def _evaluate_with(self, *, session: Session, dagrun: DagRun) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             from airflow.models import DagRun
 
             dag_id = dagrun.dag_id

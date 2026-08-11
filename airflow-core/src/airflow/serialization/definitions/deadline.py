@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
 
+    from airflow.models.deadline import DeadlineDagRunProtocol
     from airflow.sdk.definitions.deadline import VariableInterval
 
 logger = logging.getLogger(__name__)
@@ -107,7 +108,7 @@ class SerializedReferenceModels:
             return base_time + interval if base_time is not None else None
 
         @abstractmethod
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -138,7 +139,7 @@ class SerializedReferenceModels:
 
         _datetime: datetime
 
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             return self._datetime
 
         def serialize_reference(self) -> dict:
@@ -154,13 +155,13 @@ class SerializedReferenceModels:
     class DagRunLogicalDateDeadline(SerializedBaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.logical_date
 
     class DagRunQueuedAtDeadline(SerializedBaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.queued_at
 
     @dataclass
@@ -178,7 +179,7 @@ class SerializedReferenceModels:
                 raise ValueError("min_runs must be at least 1")
 
         @provide_session
-        def _evaluate_with(self, *, session: Session, dagrun: Any) -> datetime | None:
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             from sqlalchemy import func, text
 
             from airflow.models import DagRun
