@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -69,7 +70,9 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
+    mock_result.usage = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0, cost=None
+    )
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -77,7 +80,7 @@ def _make_mock_run_result(output):
 
 class TestLLMOperator:
     def test_template_fields(self):
-        expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params"}
+        expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params", "max_cost"}
         assert set(LLMOperator.template_fields) == expected
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -114,6 +117,24 @@ class TestLLMOperator:
         op.execute(context=MagicMock())
 
         mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_max_cost_as_cost_limit(self, mock_hook_cls):
+        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            max_cost=0.5,
+        )
+        op.execute(context=MagicMock())
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
