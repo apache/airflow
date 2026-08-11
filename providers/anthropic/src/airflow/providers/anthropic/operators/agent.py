@@ -302,17 +302,20 @@ class AnthropicAgentSessionOperator(BaseOperator):
         except Exception:
             self.log.exception("Could not record usage for session %s", session_id)
 
-    def _archive_session(self, session_id: str | None) -> BetaManagedAgentsSession | None:
+    def _archive_session(
+        self, session_id: str | None, **archive_kwargs: Any
+    ) -> BetaManagedAgentsSession | None:
         """
         Best-effort teardown of the server-side session (frees its container).
 
         Returns the archived session, which carries its final usage, or ``None`` if the
-        archive call failed.
+        archive call failed. ``archive_kwargs`` tightens the hook's interrupt-and-retry
+        budget for callers that do not have its full ~25s.
         """
         if not session_id:
             return None
         try:
-            return self.hook.archive_session(session_id)
+            return self.hook.archive_session(session_id, **archive_kwargs)
         except Exception as e:
             self.log.warning("Failed to archive session %s: %s", session_id, e)
             return None
@@ -325,5 +328,11 @@ class AnthropicAgentSessionOperator(BaseOperator):
         (``deferrable=False``). On Airflow 3.3+ a killed deferred task is archived by the
         trigger's ``on_kill``. On older Airflow the session of a killed deferred task is not
         archived automatically; archive it manually via the hook.
+
+        The supervisor escalates to SIGKILL a few seconds after asking the task to stop, so
+        the hook's default retry budget would never finish here -- the process dies inside
+        the first sleep and the session is never released. This budget gives the interrupt a
+        beat to land (the status change is not instant) while still fitting inside that
+        window: two attempts, one second apart.
         """
-        self._archive_session(self.session_id)
+        self._archive_session(self.session_id, attempts=2, wait_seconds=1)
