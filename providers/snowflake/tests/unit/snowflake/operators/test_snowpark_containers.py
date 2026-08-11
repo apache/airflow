@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -321,6 +322,29 @@ class TestSnowparkContainerJobOperator:
         assert isinstance(exc.value.trigger, SnowparkContainerJobTrigger)
         assert exc.value.trigger.job_name == JOB_NAME
         assert exc.value.method_name == "execute_complete"
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    def test_execute_defer_without_execution_timeout(self, mock_submit):
+        op = _make_operator(deferrable=True, timeout=100, poll_interval=10)
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=None)
+        assert exc.value.trigger.execution_deadline is None
+        assert exc.value.timeout == timedelta(seconds=100 + 10 + 60)
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    def test_execute_defer_uses_execution_timeout_for_deadline_and_buffer(self, mock_submit, time_machine):
+        time_machine.move_to(1000, tick=False)
+        op = _make_operator(
+            deferrable=True,
+            timeout=3600,
+            poll_interval=10,
+            execution_timeout=timedelta(seconds=120),
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=None)
+        assert exc.value.trigger.end_time == 1000 + 3600
+        assert exc.value.trigger.execution_deadline == 1000 + 120
+        assert exc.value.timeout == timedelta(seconds=120 + 10 + 60)
 
     @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
