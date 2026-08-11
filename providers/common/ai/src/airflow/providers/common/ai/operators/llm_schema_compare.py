@@ -345,9 +345,7 @@ class LLMSchemaCompareOperator(LLMOperator):
 
         return output_result
 
-    def execute_complete(
-        self, context: Context, generated_output: str, event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
         output = super().execute_complete(context, generated_output, event)
         if not isinstance(output, dict):
             raise ValueError(
