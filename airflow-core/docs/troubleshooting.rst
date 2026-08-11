@@ -43,6 +43,7 @@ these components are involved. See :doc:`/core-concepts/overview` for the full c
 
 Make it fail
 ----------------
+
 Reproduce the failure outside of the full scheduling loop before you start changing things:
 
 - ``airflow tasks test <dag_id> <task_id> [logical_date_or_run_id]``` runs a single instance
