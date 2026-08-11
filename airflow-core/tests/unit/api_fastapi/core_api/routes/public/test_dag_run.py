@@ -1975,7 +1975,7 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
         assert event.timestamp
 
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             )
@@ -2005,6 +2005,7 @@ class TestGetDagRunAssetTriggerEvents:
                             "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
                             "state": "running",
                             "partition_key": partition_key,
+                            "triggering": True,
                         }
                     ],
                     "partition_key": partition_key,

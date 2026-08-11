@@ -4473,6 +4473,12 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Partition Key'
+        },
+        triggering: {
+            type: 'boolean',
+            title: 'Triggering',
+            description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.",
+            default: true
         }
     },
     additionalProperties: false,

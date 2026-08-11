@@ -37,6 +37,7 @@ from airflow.api_fastapi.common.cursors import (
     parse_cursor,
 )
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
+from airflow.api_fastapi.common.db.assets import resolve_triggering_event_ids
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
@@ -72,7 +73,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.base import OrmClause
-from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse, AssetEventResponse
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     BulkDAGRunBody,
@@ -280,7 +281,10 @@ def get_upstream_asset_events(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
-        .options(joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset))
+        .options(
+            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset),
+            joinedload(DagRun.consumed_asset_events).subqueryload(AssetEvent.created_dagruns),
+        )
     )
     if dag_run is None:
         raise HTTPException(
@@ -288,8 +292,17 @@ def get_upstream_asset_events(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
     events = dag_run.consumed_asset_events
+    # Flag, per consumed event, whether it actually triggered the run (its most recent consumed
+    # event) rather than merely being included, so the UI can label the two distinctly.
+    triggering_event_id_by_run = resolve_triggering_event_ids(events, session=session)
+    asset_events = []
+    for event in events:
+        event_response = AssetEventResponse.model_validate(event)
+        for reference, run in zip(event_response.created_dagruns, event.created_dagruns):
+            reference.triggering = triggering_event_id_by_run.get(run.id) == event.id
+        asset_events.append(event_response)
     return AssetEventCollectionResponse(
-        asset_events=events,
+        asset_events=asset_events,
         total_entries=len(events),
     )
 
