@@ -96,10 +96,10 @@ class _KubernetesSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     """Logic for tracking Spark driver pods in Kubernetes."""
 
     def submit_job(self, context: Context) -> str | None:
-        self.hook._conf[_K8S_WAIT_APP_COMPLETION_CONF] = "false"
+        self.hook.conf[_K8S_WAIT_APP_COMPLETION_CONF] = "false"
         self.hook.submit(self.operator.application)
-        pod_name = self.hook._kubernetes_driver_pod
-        namespace = self.hook._connection["namespace"]
+        pod_name = self.hook.kubernetes_driver_pod
+        namespace = self.hook.connection["namespace"]
         if not pod_name:
             raise RuntimeError("spark-submit did not capture a K8s driver pod name")
         external_id = f"{namespace}:{pod_name}"
@@ -133,8 +133,8 @@ class _KubernetesSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     def poll_until_complete(self, external_id: str, context: Context) -> None:
         if external_id is not None:
             _, pod_name = self.operator._parse_k8s_external_id(external_id)
-            self.hook._kubernetes_driver_pod = pod_name
-        terminal_phase = self.hook._poll_k8s_driver_via_api()
+            self.hook.kubernetes_driver_pod = pod_name
+        terminal_phase = self.hook.poll_k8s_driver_via_api()
         # Cache only when the pod actually reached Succeeded, the 404/vanished path
         # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
         # and must not be cached, otherwise a retry would see "Succeeded" and skip resubmission.
@@ -150,15 +150,15 @@ class _YarnSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     """Logic for tracking Spark applications in YARN cluster mode."""
 
     def submit_job(self, context: Context) -> str | None:
-        if self.hook._conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
+        if self.hook.conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
             raise ValueError(
                 "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts "
                 "with the need to exit spark-submit immediately to persist the application ID for tracking. "
                 "Either remove the explicit conf or set durable=False."
             )
-        self.hook._conf["spark.yarn.submit.waitAppCompletion"] = "false"
+        self.hook.conf["spark.yarn.submit.waitAppCompletion"] = "false"
         self.hook.submit(self.operator.application)
-        app_id = self.hook._yarn_application_id
+        app_id = self.hook.yarn_application_id
         if not app_id:
             raise RuntimeError("spark-submit did not produce a YARN application ID")
         self.operator.log.info("YARN application submitted: %s", app_id)
@@ -176,15 +176,15 @@ class _YarnSparkSubmitBackend(_SparkSubmitDeploymentBackend):
 
     def poll_until_complete(self, external_id: str, context: Context) -> None:
         try:
-            self.hook._start_yarn_application_status_tracking(external_id)
+            self.hook.start_yarn_application_status_tracking(external_id)
         finally:
-            self.hook._run_post_submit_commands()
+            self.hook.run_post_submit_commands()
 
     def on_kill(self) -> None:
-        if self.hook._yarn_application_id:
+        if self.hook.yarn_application_id:
             # spark-submit has already exited (waitAppCompletion=false), so the hook's
             # CLI-based kill has nothing to terminate. Kill the YARN app via REST API instead.
-            self.hook._kill_yarn_application(self.hook._yarn_application_id)
+            self.hook.kill_yarn_application(self.hook.yarn_application_id)
         else:
             self.hook.on_kill()
 
@@ -200,12 +200,12 @@ class _StandaloneSparkSubmitBackend(_SparkSubmitDeploymentBackend):
         return driver_id
 
     def get_job_status(self, external_id: str, context: Context) -> str:
-        scheme = self.hook._connection.get("rest_scheme", "http")
-        rest_port = self.hook._connection.get("rest_port", 6066)
+        scheme = self.hook.connection.get("rest_scheme", "http")
+        rest_port = self.hook.connection.get("rest_port", 6066)
         # HA master URLs can look like spark://m1:7077,m2:7077 — try each host in order.
         # The master URL port (e.g. 7077) is the RPC port — not the REST API port.
         # Use rest-port connection extra to override spark.master.rest.port (default 6066).
-        master_urls = self.hook._connection["master"].replace("spark://", "").split(",")
+        master_urls = self.hook.connection["master"].replace("spark://", "").split(",")
         last_exc: Exception = RuntimeError("No Spark masters to query")
         for m in master_urls:
             host = m.strip().split(":")[0]
@@ -230,14 +230,14 @@ class _StandaloneSparkSubmitBackend(_SparkSubmitDeploymentBackend):
 
     def poll_until_complete(self, external_id: str, context: Context) -> None:
         self.operator.log.info("Polling driver %s until completion", external_id)
-        self.hook._driver_id = external_id
+        self.hook.driver_id = external_id
         try:
-            self.hook._start_driver_status_tracking()
-            if self.hook._driver_status != "FINISHED":
-                raise RuntimeError(f"Driver {external_id} exited with status {self.hook._driver_status}")
+            self.hook.start_driver_status_tracking()
+            if self.hook.driver_status != "FINISHED":
+                raise RuntimeError(f"Driver {external_id} exited with status {self.hook.driver_status}")
         finally:
             # post-submit commands must fire whether the job succeeded or failed.
-            self.hook._run_post_submit_commands()
+            self.hook.run_post_submit_commands()
 
     def on_kill(self) -> None:
         self.hook.on_kill()
