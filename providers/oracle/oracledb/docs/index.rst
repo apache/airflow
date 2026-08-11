@@ -79,12 +79,13 @@ apache-airflow-providers-oracle-oracledb package
 This provider was extracted from ``apache-airflow-providers-oracle``, which is now
 deprecated. See the ``apache-airflow-providers-oracle`` changelog for migration notes.
 
+
 Release: 4.6.3
 
 Provider package
 ----------------
 
-This package is for the ``oracle`` provider.
+This package is for the ``oracle.oracledb`` provider.
 All classes for this package are included in the ``airflow.providers.oracle.oracledb`` python package.
 
 Installation

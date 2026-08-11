@@ -20,9 +20,9 @@ import random
 import re
 from unittest import mock
 
+import oracledb
 import pytest
 
-import oracledb
 from airflow.models import TaskInstance
 from airflow.providers.oracle.oracledb.hooks.oracle import OracleHook
 from airflow.providers.oracle.oracledb.operators.oracle import OracleStoredProcedureOperator
