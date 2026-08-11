@@ -1531,7 +1531,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/ReprocessBehavior'
           - type: 'null'
           title: Reprocess Behavior
       - name: order_by

@@ -3199,7 +3199,7 @@ export type ListBackfillsUiData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      */
     orderBy?: Array<(string)>;
-    reprocessBehavior?: string | null;
+    reprocessBehavior?: ReprocessBehavior | null;
     toDateGt?: string | null;
     toDateGte?: string | null;
     toDateLt?: string | null;

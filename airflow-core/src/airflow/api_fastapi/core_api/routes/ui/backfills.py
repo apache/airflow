@@ -40,7 +40,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
 from airflow.api_fastapi.core_api.security import ReadableBackfillsFilterDep, requires_access_backfill
-from airflow.models.backfill import Backfill
+from airflow.models.backfill import Backfill, ReprocessBehavior
 
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
@@ -62,7 +62,7 @@ def list_backfills_ui(
     completed_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("completed_at", Backfill))],
     max_active_runs: Annotated[RangeFilter, Depends(float_range_filter_factory("max_active_runs", Backfill))],
     reprocess_behavior: Annotated[
-        FilterParam, Depends(filter_param_factory(Backfill.reprocess_behavior, str | None))
+        FilterParam, Depends(filter_param_factory(Backfill.reprocess_behavior, ReprocessBehavior | None))
     ],
     order_by: Annotated[
         SortParam,
