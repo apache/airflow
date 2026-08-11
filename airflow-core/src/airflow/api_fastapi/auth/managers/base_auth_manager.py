@@ -23,10 +23,12 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
+from contextlib import suppress
 from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -52,6 +54,7 @@ from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.typing_compat import Unpack
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import settings
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -161,8 +164,20 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
-            raise InvalidTokenError("Token has been revoked")
+        if jti := payload.get("jti"):
+            try:
+                revoked = RevokedToken.is_revoked(jti)
+            except SQLAlchemyError:
+                log.warning(
+                    "Revoked-token check failed on a stale DB session; "
+                    "discarding the session and retrying once.",
+                    exc_info=True,
+                )
+                with suppress(Exception):
+                    settings.Session.remove()
+                revoked = RevokedToken.is_revoked(jti)
+            if revoked:
+                raise InvalidTokenError("Token has been revoked")
 
         try:
             return self.deserialize_user(payload)
