@@ -67,3 +67,11 @@ export const pruneLegacyDependencyKeys = (storage: Storage = globalThis.localSto
 
   staleKeys.forEach((key) => storage.removeItem(key));
 };
+
+// One-time cleanup of the per-browser tag-filter persistence (`tags` / `tags_match_mode`) that
+// predates preset filters (#63273). Tags are URL-driven now like every other filter, and preset
+// filters own cross-navigation persistence, so these keys are stale.
+export const pruneLegacyTagFilterKeys = (storage: Storage = globalThis.localStorage): void => {
+  storage.removeItem("tags");
+  storage.removeItem("tags_match_mode");
+};
