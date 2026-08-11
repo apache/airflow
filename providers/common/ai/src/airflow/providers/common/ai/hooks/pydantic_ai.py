@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-from pydantic_ai import Agent
+from pydantic_ai import Agent, Embedder
+from pydantic_ai.embeddings import infer_embedding_model
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
@@ -101,6 +103,7 @@ class PydanticAIHook(BaseHook):
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
         - **extra** JSON: ``{"model": "openai:gpt-5",
+          "embed_model": "openai:text-embedding-3-small",
           "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
@@ -127,6 +130,8 @@ class PydanticAIHook(BaseHook):
         ``[]``.  Each entry may point at any ``pydanticai*`` connection type, so
         the chain can span providers (for example OpenAI, then Bedrock).  See
         :meth:`get_conn` for the failover semantics and their cost.
+    :param embed_model_id: Embedding model identifier in ``provider:model`` format.
+        Overrides the embedding model stored in the connection's extra field.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -142,6 +147,8 @@ class PydanticAIHook(BaseHook):
         llm_conn_id: str | None = None,
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
+        *,
+        embed_model_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -151,10 +158,12 @@ class PydanticAIHook(BaseHook):
         # argument values at class-definition time.
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
+        self.embed_model_id = embed_model_id
         # ``None`` means "not configured here, read the connection's extra";
         # an empty list means "explicitly no fallbacks", overriding the extra.
         self.fallback_conn_ids = fallback_conn_ids
         self._model: Model | None = None
+        self._embedder: Embedder | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
 
@@ -166,7 +175,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5"}',
+                "extra": '{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}',
             },
         }
 
@@ -222,6 +231,20 @@ class PydanticAIHook(BaseHook):
         """
         self._conn = conn
         self._conn_extra_dejson = conn.extra_dejson
+
+    def _create_provider_factory(self, provider_kwargs: dict[str, Any]) -> Callable[[str], Any]:
+        def _provider_factory(provider_name: str) -> Any:
+            try:
+                return infer_provider_class(provider_name)(**provider_kwargs)
+            except TypeError:
+                self.log.warning(
+                    "Provider '%s' rejected kwargs %s; falling back to env-var auth",
+                    provider_name,
+                    list(provider_kwargs),
+                )
+                return infer_provider(provider_name)
+
+        return _provider_factory
 
     def get_conn(self) -> Model:
         """
@@ -386,25 +409,15 @@ class PydanticAIHook(BaseHook):
 
         provider_kwargs = self._get_provider_kwargs(api_key, base_url, extra)
         if provider_kwargs:
-            _kwargs = provider_kwargs  # capture for closure
             self.log.info(
                 "Using explicit credentials for provider with model '%s': %s",
                 model_name,
                 list(provider_kwargs),
             )
-
-            def _provider_factory(pname: str) -> Any:
-                try:
-                    return infer_provider_class(pname)(**_kwargs)
-                except TypeError:
-                    self.log.warning(
-                        "Provider '%s' rejected kwargs %s; falling back to env-var auth",
-                        pname,
-                        list(_kwargs),
-                    )
-                    return infer_provider(pname)
-
-            return infer_model(model_name, provider_factory=_provider_factory)
+            return infer_model(
+                model_name,
+                provider_factory=self._create_provider_factory(provider_kwargs),
+            )
 
         return infer_model(model_name)
 
@@ -504,6 +517,43 @@ class PydanticAIHook(BaseHook):
             )
 
         return models
+
+    def get_embedder(self) -> Embedder:
+        """Return a pydantic-ai ``Embedder`` using this connection's credentials."""
+        if self._embedder is not None:
+            return self._embedder
+
+        conn = self.get_connection(self.llm_conn_id) if self._conn is None else self._conn
+        extra: dict[str, Any] = (
+            conn.extra_dejson if self._conn_extra_dejson is None else self._conn_extra_dejson
+        )
+
+        embed_model_name: str = self.embed_model_id or extra.get("embed_model", "")
+        if not embed_model_name:
+            raise ValueError(
+                "No embedding model specified. Set embed_model_id on the hook or the embed_model field "
+                "on the connection."
+            )
+
+        api_key: str | None = conn.password or None
+        base_url: str | None = conn.host or None
+
+        provider_kwargs = self._get_provider_kwargs(api_key, base_url, extra)
+        if provider_kwargs:
+            self.log.info(
+                "Using explicit credentials for provider with embedding model '%s': %s",
+                embed_model_name,
+                list(provider_kwargs),
+            )
+            embedding_model = infer_embedding_model(
+                embed_model_name,
+                provider_factory=self._create_provider_factory(provider_kwargs),
+            )
+        else:
+            embedding_model = infer_embedding_model(embed_model_name)
+
+        self._embedder = Embedder(embedding_model)
+        return self._embedder
 
     def _get_conn_if_model_configured(self) -> Model | None:
         """Return the hook model only when the hook or connection explicitly configures one."""
