@@ -283,6 +283,65 @@ task's real outcome is preserved and a warning is logged.
     session records instead. This is the same scenario as the retry warning above, so
     ``retries=0`` keeps both problems away.
 
+Configuring the agent
+"""""""""""""""""""""
+
+Agent-level settings are not operator arguments: they belong to the agent, which is created
+once and referenced by ID on every run.
+:meth:`~airflow.providers.anthropic.hooks.anthropic.AnthropicHook.create_agent` forwards
+keyword arguments to the API unchanged, so these need no provider support.
+
+**Pinning the inference region.** Pass ``model`` as a config object instead of a bare id to
+confine inference to one region:
+
+.. code-block:: python
+
+    hook.create_agent(
+        name="us-only-analyst",
+        model={"id": "claude-opus-5", "inference_geo": "us"},
+    )
+
+An unsupported value is rejected with a 400 naming the accepted set; see `Data residency
+<https://platform.claude.com/docs/en/manage-claude/data-residency>`__ for the regions
+Anthropic currently serves and the workspace-level controls. When ``inference_geo`` is unset,
+requests fall through to the workspace's
+``default_inference_geo``. On an update, ``model`` is whole-object replacement, so omitting
+``inference_geo`` clears it rather than preserving it.
+
+The pin is re-checked against the workspace allowlist when the agent is saved, when a
+session is created, and on every turn a session serves -- so narrowing the allowlist stops
+running sessions, not just new ones.
+
+In a ``multiagent`` configuration the coordinator's pin and every roster member's must all
+be set to the same value, or all be unset -- a mismatch is rejected. Following both this and
+the roster example below on one agent is the easy way to trip that.
+
+**Adding an advisor.** A coordinator agent can consult a second model mid-turn by adding an
+``advisor`` entry to its ``multiagent`` roster:
+
+.. code-block:: python
+
+    hook.create_agent(
+        name="coordinator",
+        model="claude-opus-5",
+        multiagent={
+            "type": "coordinator",
+            "agents": [
+                worker_agent_id,
+                {"type": "advisor", "model": "claude-opus-5"},
+            ],
+        },
+    )
+
+``type: "coordinator"`` on the ``multiagent`` object is required and the request is rejected
+without it. The roster takes 1 to 20 entries, each an agent ID
+string, a versioned ``{"type": "agent", "id": ..., "version": ...}`` reference,
+``{"type": "self"}`` for recursive self-invocation, or an ``advisor``. Referenced agents
+must exist, must be distinct, must not be archived, and must not themselves set
+``multiagent`` (depth limit 1); at most one ``self`` and at most one ``advisor``. The
+advisor occupies the roster name ``anthropic.advisor``, and its model must be permitted as
+an advisor for the coordinator's own model.
+
 .. exampleinclude:: /../tests/system/anthropic/example_anthropic_agent.py
     :language: python
     :dedent: 4

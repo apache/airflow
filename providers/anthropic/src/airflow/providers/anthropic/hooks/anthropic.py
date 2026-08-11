@@ -57,6 +57,7 @@ if TYPE_CHECKING:
         BetaManagedAgentsAgent,
         BetaManagedAgentsBudgetLimitParam,
         BetaManagedAgentsSession,
+        agent_create_params,
         environment_create_params,
     )
     from anthropic.types.beta.sessions import BetaManagedAgentsEventParams
@@ -589,16 +590,21 @@ class AnthropicHook(BaseHook):
     # (these helpers, the ``ant`` CLI, or a setup script) and store the IDs. The
     # operator references those IDs; it never creates an agent per run.
 
-    def create_agent(self, name: str, model: str | None = None, **kwargs: Any) -> BetaManagedAgentsAgent:
+    def create_agent(
+        self, name: str, model: str | dict[str, Any] | None = None, **kwargs: Any
+    ) -> BetaManagedAgentsAgent:
         """
         Create a (reusable, versioned) Managed Agents agent. One-time setup.
 
         ``model`` defaults to :attr:`default_model` (the connection's ``extra['model']``
-        or :data:`DEFAULT_MODEL`).
+        or :data:`DEFAULT_MODEL`). Pass a mapping instead of a bare id to set the model
+        config, e.g. ``{"id": "claude-opus-5", "inference_geo": "us"}``.
         """
         self._require_first_party("Managed Agents")
         agent = self._first_party_conn.beta.agents.create(
-            name=name, model=model or self.default_model, **kwargs
+            name=name,
+            model=cast("agent_create_params.Model", model or self.default_model),
+            **kwargs,
         )
         self.log.debug("Created agent %s (name=%r, model=%s)", agent.id, name, model or self.default_model)
         return agent
