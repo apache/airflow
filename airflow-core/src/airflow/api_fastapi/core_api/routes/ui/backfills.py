@@ -42,7 +42,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
 from airflow.api_fastapi.core_api.security import ReadableBackfillsFilterDep, requires_access_backfill
 from airflow.models.backfill import Backfill, ReprocessBehavior
 
-
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 
