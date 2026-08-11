@@ -29,6 +29,11 @@ export const LOG_SHOW_SOURCE_KEY = "log_show_source";
 export const VERSION_INDICATOR_DISPLAY_MODE_KEY = "version_indicator_display_mode";
 export const COLLAPSED_UI_ALERTS_KEY = "collapsed_ui_alerts";
 export const SHOW_ALL_DEPENDENCIES_KEY = "show_all_dependencies";
+export const DEFAULT_GRAPH_DIRECTION_KEY = "default_graph_direction";
+export const CLEAR_RUN_DEFAULT_OPTIONS_KEY = "clear_run_default_options";
+export const CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "clear_task_instance_default_options";
+export const CLEAR_PREVENT_RUNNING_TASK_KEY = "clear_prevent_running_task";
+export const MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "mark_task_instance_default_options";
 
 // Dag-scoped keys
 export const dagRunsLimitKey = (dagId: string) => `dag_runs_limit-${dagId}`;
