@@ -16,11 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import pytest
 from pydantic import BaseModel
-from pydantic_ai import ToolOutput
+from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
 
 from airflow.providers.common.ai.utils.output_type import (
     dump_output_to_json,
@@ -47,6 +48,15 @@ class Widget:
 
     def __str__(self) -> str:
         return f"Widget({self.n})"
+
+
+CALLS: list[int] = []
+
+
+def make_widget(n: int) -> Widget:
+    """A pydantic-ai output function: called with validated *arguments*, not a schema for its return value."""
+    CALLS.append(n)
+    return Widget(n)
 
 
 class TestRehydratePydanticOutput:
@@ -84,20 +94,44 @@ class TestRehydratePydanticOutput:
         result = rehydrate_pydantic_output(A, '{"y": "no-x-field"}', serialize_output=False)
         assert result == '{"y": "no-x-field"}'
 
-    @pytest.mark.parametrize(
-        "output_type",
-        [UNION_OUTPUT_TYPE, ToolOutput(A)],
-        ids=["union-list", "tool-output-marker"],
-    )
-    def test_falls_back_to_json_when_output_type_has_no_schema(self, output_type):
-        # pydantic-ai accepts these shapes, but TypeAdapter cannot build a schema for
-        # them and the failure is not a ValidationError, so it must not escape.
-        result = rehydrate_pydantic_output(output_type, '{"x": 7}', serialize_output=False)
+    def test_falls_back_to_json_when_output_type_has_no_schema(self):
+        # pydantic-ai accepts a ``[A, B]`` union list, but TypeAdapter cannot build a
+        # schema for it and the failure is not a ValidationError, so it must not escape.
+        result = rehydrate_pydantic_output(UNION_OUTPUT_TYPE, '{"x": 7}', serialize_output=False)
         assert result == {"x": 7}
 
     def test_returns_raw_when_output_type_has_no_schema_and_raw_is_not_json(self):
         result = rehydrate_pydantic_output(UNION_OUTPUT_TYPE, "not-json", serialize_output=False)
         assert result == "not-json"
+
+    @pytest.mark.parametrize(
+        "marker",
+        [ToolOutput(A), NativeOutput(A), PromptedOutput(A)],
+        ids=["tool-output", "native-output", "prompted-output"],
+    )
+    def test_unwraps_output_marker_wrapping_a_single_type(self, marker):
+        # A marker wrapping one type unwraps to that type and validates normally --
+        # it must not fall back to json.loads and hand back a bare dict.
+        result = rehydrate_pydantic_output(marker, '{"x": 7}', serialize_output=False)
+        assert result == A(x=7)
+
+    @pytest.mark.parametrize(
+        "marker",
+        [NativeOutput([A, B]), PromptedOutput([A, B])],
+        ids=["native-output", "prompted-output"],
+    )
+    def test_falls_back_when_marker_wraps_a_sequence(self, marker):
+        result = rehydrate_pydantic_output(marker, '{"x": 7}', serialize_output=False)
+        assert result == {"x": 7}
+
+    def test_output_function_falls_back_without_invoking_it(self):
+        # TypeAdapter(make_widget) builds a schema for its *arguments*, not its return
+        # value, and does not raise -- validating against it would call make_widget a
+        # second time with reviewer-controlled input instead of falling back to JSON.
+        CALLS.clear()
+        result = rehydrate_pydantic_output(make_widget, '{"n": 3}', serialize_output=False)
+        assert result == {"n": 3}
+        assert CALLS == []
 
 
 class TestDumpOutputToJson:
@@ -119,3 +153,8 @@ class TestDumpOutputToJson:
         # Reachable via a pydantic-ai output function: a non-schema-able return type
         # only warns at agent-build time, so serialization must not raise here.
         assert dump_output_to_json(Widget(3)) == "Widget(3)"
+
+    def test_logs_warning_when_falling_back_to_str(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            dump_output_to_json(Widget(3))
+        assert any(r.levelno == logging.WARNING and "Widget" in r.message for r in caplog.records)

@@ -19,9 +19,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
+
+log = logging.getLogger(__name__)
+
+_OUTPUT_MARKERS = (ToolOutput, NativeOutput, PromptedOutput)
 
 
 def dump_output_to_json(output: Any) -> str:
@@ -38,6 +44,10 @@ def dump_output_to_json(output: Any) -> str:
     try:
         return TypeAdapter(type(output)).dump_json(output).decode()
     except Exception:
+        log.warning(
+            "Could not build a pydantic schema for %s; showing its repr to the reviewer instead.",
+            type(output),
+        )
         return str(output)
 
 
@@ -55,8 +65,13 @@ def rehydrate_pydantic_output(
     reviewer. ``str`` outputs pass through unchanged; any other ``output_type``
     (``BaseModel`` subclass, ``int``, ``list[str]``, ...) is validated with a
     pydantic ``TypeAdapter``. When validation fails (reviewer edited the string
-    into something the type rejects), returns ``raw`` unchanged. An
-    ``output_type`` pydantic cannot build a schema for falls back to plain JSON.
+    into something the type rejects), returns ``raw`` unchanged. A
+    ``ToolOutput``/``NativeOutput``/``PromptedOutput`` marker wrapping a single
+    type is unwrapped first. An ``output_type`` that is a ``[A, B]`` union list,
+    a marker wrapping one, or a pydantic-ai *output function* falls back to
+    plain JSON -- ``TypeAdapter`` builds an *arguments* schema for an output
+    function rather than raising, so validating against it would call the
+    function a second time with reviewer-controlled input.
 
     When ``serialize_output`` is ``True``, returns the model dumped to a
     ``dict`` -- matches the operator's ``serialize_output=True`` opt-in for
@@ -64,18 +79,22 @@ def rehydrate_pydantic_output(
     """
     if output_type is str:
         return raw
-    try:
-        adapter = TypeAdapter(output_type)
-    except Exception:
-        # No pydantic schema for this output_type: a ToolOutput/NativeOutput/
-        # PromptedOutput marker, an output function, or a ``[A, B]`` union list.
-        # These reach us because the operator passes output_type straight to
-        # Agent(...). Schema-build failures are not ValidationError subclasses,
-        # so raising here would lose an already-approved output.
+
+    unwrapped = output_type
+    if isinstance(output_type, _OUTPUT_MARKERS):
+        unwrapped = output_type.output if isinstance(output_type, ToolOutput) else output_type.outputs
+
+    if not isinstance(unwrapped, type):
+        # Not a plain class: an output function, a ``[A, B]`` union list, or a
+        # marker wrapping one. These reach us because the operator passes
+        # output_type straight to Agent(...). Fall back to plain JSON rather
+        # than risk building a schema that re-invokes an output function.
         try:
             return json.loads(raw)
         except (ValueError, TypeError):
             return raw
+
+    adapter: TypeAdapter[Any] = TypeAdapter(unwrapped)
     try:
         rehydrated = adapter.validate_json(raw)
     except (ValidationError, ValueError, TypeError):
