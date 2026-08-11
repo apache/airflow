@@ -48,7 +48,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
     :param fail_on_reject: If ``True``, a rejected review fails the task
-        instead of skipping every downstream task. Generally discouraged,
+        instead of skipping the downstream tasks. Generally discouraged,
         as for :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`.
         Default ``False``.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
@@ -59,7 +59,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     (``require_approval``, ``approval_timeout``, ``allow_modifications``).
     The task pauses after the LLM chooses the branch(es) and only skips the
     unselected downstream tasks once a reviewer approves. Rejecting the
-    review skips every downstream task, matching
+    review skips the direct downstream tasks except teardowns, matching
     :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`;
     set ``fail_on_reject=True`` to fail the task instead. The review form
     lists the valid downstream task IDs; with ``allow_modifications=True``
@@ -148,8 +148,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         except HITLRejectException:
             if self.fail_on_reject:
                 raise
-            self.log.info("Rejected. Skipping all downstream tasks...")
-            return self.do_branch(context, None)
+            self.log.info("Rejected by %s. Skipping downstream tasks...", event.get("responded_by_user"))
+            tasks = context["task"].get_direct_relatives(upstream=False)
+            self.skip(ti=context["ti"], tasks=(t for t in tasks if not t.is_teardown))
+            return None
         branches = self._parse_reviewed_branches(output)
         selected = {branches} if isinstance(branches, str) else set(branches)
         invalid = selected - self.downstream_task_ids

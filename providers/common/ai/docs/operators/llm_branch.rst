@@ -92,7 +92,8 @@ against the downstream task IDs before branching:
     :start-after: [START howto_operator_llm_branch_approval]
     :end-before: [END howto_operator_llm_branch_approval]
 
-Rejecting the review **skips every downstream task**, matching
+Rejecting the review **skips the direct downstream tasks except teardowns**,
+matching
 :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`. Set
 ``fail_on_reject=True`` to fail the task instead (generally discouraged).
 Letting ``approval_timeout`` expire fails the task (``HITLTimeoutError``).
@@ -135,7 +136,7 @@ Parameters
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
 - ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
-  skipping every downstream task.  Generally discouraged.  Default ``False``.
+  skipping the downstream tasks.  Generally discouraged.  Default ``False``.
 
 Logging
 -------
