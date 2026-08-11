@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
@@ -108,8 +110,6 @@ example_llm_schema_compare_decorator()
 # [START howto_operator_llm_schema_compare_approval]
 @dag(tags=["example"])
 def example_llm_schema_compare_approval():
-    from datetime import timedelta
-
     LLMSchemaCompareOperator(
         task_id="detect_schema_drift_with_approval",
         prompt="Identify schema mismatches that would break data loading between systems",

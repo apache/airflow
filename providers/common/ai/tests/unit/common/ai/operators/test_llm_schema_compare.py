@@ -656,7 +656,7 @@ class TestLLMSchemaCompareOperatorApproval:
             "params_input": {"output": modified},
         }
 
-        with pytest.raises(ValueError, match="not valid SchemaCompareResult JSON"):
+        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
             op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
     def test_execute_rejects_sequence_prompt_with_require_approval(self):
