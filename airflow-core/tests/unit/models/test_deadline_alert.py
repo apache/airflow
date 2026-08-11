@@ -131,16 +131,7 @@ class TestDeadlineAlert:
     def test_deadline_alert_repr_does_not_raise_on_json_dict_interval(
         self, deadline_alert_orm, interval, expected
     ):
-        """``DeadlineAlert.__repr__`` must never raise for the PRODUCTION (JSON-dict) ``interval`` shape.
-
-        Regression for a bug where ``__repr__`` did ``isinstance(self.interval, datetime.timedelta)``
-        while ``datetime`` is imported as the *class* (``from datetime import datetime``), so
-        ``datetime.timedelta`` raised ``AttributeError`` — and since ``interval`` is *always* a JSON
-        dict in production (post-migration-0117), every real ``repr()`` hit that branch and raised
-        (a ``__repr__`` that raises breaks logs/tracebacks/debuggers — the same class as the
-        ``Deadline.__repr__`` None-deref fix). The old ``test_deadline_alert_repr`` used a *bare int*
-        fixture (``DEADLINE_INTERVAL = 60``) which only exercised the int/float branch and masked it.
-        """
+        """``DeadlineAlert.__repr__`` must not raise for the production JSON-dict interval shape."""
         deadline_alert_orm.interval = interval
         repr_str = repr(deadline_alert_orm)  # must not raise
         assert "[DeadlineAlert]" in repr_str

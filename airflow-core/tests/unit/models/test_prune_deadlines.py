@@ -14,15 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Adversarial QA coverage for ``Deadline.prune_deadlines``.
-
-``prune_deadlines`` is the batch-delete path the scheduler invokes (via
-``DagRun.update_state`` -> ``dagrun.py:1237``) when a DagRun completes on time:
-deadlines that no longer need to fire are removed. These tests drill into the
-on-time/overdue/pending selection logic, the (lack of) batching, callback
-cascade behaviour, and concurrent-mutation edge cases against a real DB.
-"""
+"""Coverage for ``Deadline.prune_deadlines``: on-time/overdue/pending selection,
+callback cascade behaviour, and concurrent-mutation edge cases."""
 
 from __future__ import annotations
 
@@ -46,14 +39,14 @@ from unit.models import DEFAULT_DATE
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-DAG_ID = "qaw18_prune_dag"
+DAG_ID = "prune_deadlines_test_dag"
 
 
-async def _qaw18_callback():
+async def _prune_test_callback():
     pass
 
 
-CALLBACK_PATH = f"{__name__}.{_qaw18_callback.__name__}"
+CALLBACK_PATH = f"{__name__}.{_prune_test_callback.__name__}"
 
 
 def _clean_db():
