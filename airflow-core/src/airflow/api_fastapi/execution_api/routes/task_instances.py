@@ -291,6 +291,10 @@ def ti_run(
                 xcom_query = xcom_query.where(XComModel.map_index == map_index)
 
             xcom_keys = list(session.scalars(xcom_query))
+            # Preserve extra link XCom keys across retries. Extra links are backed
+            # by XCom rows with keys starting with "_link_", and clearing them on
+            # retry would lose the per-attempt links for earlier attempts.
+            xcom_keys = [k for k in xcom_keys if not k.startswith("_link_")]
         task_reschedule_count = (
             session.scalar(
                 select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
