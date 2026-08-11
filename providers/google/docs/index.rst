@@ -110,9 +110,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ====================================================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ====================================================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -178,9 +178,9 @@ PIP package                                 Version required
 ``httpx``                                   ``>=0.25.0``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
-``pandas``                                  ``>=2.1.2,<3; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3,<3; python_version >= "3.13" and python_version < "3.14"``
-``pandas``                                  ``>=2.3.3,<3; python_version >= "3.14"``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``proto-plus``                              ``>=1.26.0``
 ``pyarrow``                                 ``>=18.0.0; python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
@@ -191,7 +191,7 @@ PIP package                                 Version required
 ``tenacity``                                ``>=8.3.0``
 ``immutabledict``                           ``>=4.2.0``
 ``types-protobuf``                          ``>=5.27.0,!=5.29.1.20250402``
-==========================================  ====================================================================
+==========================================  ==================================================================
 
 Optional cross provider package dependencies
 --------------------------------------------
@@ -241,10 +241,10 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-google[evaluation]
 
 
-====================  ====================================================
+====================  ============================================================================================================================================================================================================
 Extra                 Dependencies
-====================  ====================================================
-``evaluation``        ``google-cloud-aiplatform[evaluation]>=1.155.0``
+====================  ============================================================================================================================================================================================================
+``evaluation``        ``tqdm>=4.23.0``, ``scikit-learn>=1.6.0``, ``jsonschema>=4.19.1``, ``ruamel.yaml>=0.19.0``, ``pyyaml>=6.0.3``, ``litellm<1.86.0,>=1.83.7;python_version<'3.14'``, ``litellm>=1.93.0;python_version>='3.14'``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
@@ -266,7 +266,7 @@ Extra                 Dependencies
 ``http``              ``apache-airflow-providers-http``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  ====================================================
+====================  ============================================================================================================================================================================================================
 
 Downloading official packages
 -----------------------------

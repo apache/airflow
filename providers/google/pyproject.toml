@@ -134,18 +134,9 @@ dependencies = [
     # See https://github.com/looker-open-source/sdk-codegen/issues/1518
     "looker-sdk>=22.4.0,!=24.18.0",
     "pandas-gbq>=0.7.0",
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.1.2,<3; python_version <"3.13"',
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"',
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    'pandas>=2.3.3,<3; python_version >="3.14"',
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
     "proto-plus>=1.26.0",
     # Used to write parquet files by BaseSqlToGCSOperator
     "pyarrow>=18.0.0; python_version < '3.14'",
@@ -166,7 +157,18 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "evaluation" = [
-    "google-cloud-aiplatform[evaluation]>=1.155.0",
+    # The "evaluation" extra of google-cloud-aiplatform limits litellm to range that has security
+    # vulnerabilities when we want to get 3.14 support. Until this is fixed we need to bump litellm to
+    # higher version and remove the "evaluation" extra from google-cloud-aiplatform.
+    # Tracked in: https://github.com/googleapis/python-aiplatform/issues/7057
+    "tqdm>=4.23.0",
+    "scikit-learn>=1.6.0",
+    "jsonschema>=4.19.1",
+    "ruamel.yaml>=0.19.0",
+    "pyyaml>=6.0.3",
+    "litellm<1.86.0,>=1.83.7;python_version<'3.14'",
+    "litellm>=1.93.0;python_version>='3.14'",
+    # End of evolution extra workaround
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",

@@ -32,7 +32,6 @@ Changelog
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Review and update constraint dependencies (#70652)``
 * ``Validate DatabricksSQLStatementsSensor statement fields after rendering (#70340)``
 * ``Validate DatabricksCopyIntoOperator template fields after rendering (#70339)``
@@ -47,6 +46,8 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Restore Dag-parse-time validation for Databricks Repos operator arguments (#70551)``
    * ``Validate Databricks Repos operators' template fields after rendering (#70341)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 7.18.0
 ......
@@ -705,7 +706,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 7.1.0
 .....
