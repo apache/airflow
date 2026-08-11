@@ -36,6 +36,17 @@ function validateKey(name: string, value: string): void {
   }
 }
 
+function validateEmptySpec(name: string, value: unknown): void {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    Reflect.ownKeys(value).length > 0
+  ) {
+    throw new Error(`${name} must be an empty object`);
+  }
+}
+
 /**
  * Dag-level options. **Reserved: no fields yet.**
  *
@@ -118,10 +129,6 @@ export interface TaskRecord {
 // to the #tasks private field without a public accessor on the Dag class.
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 
-// Every Dag ever constructed, so the bundle manifest can report the ones that
-// were never passed to registerDags(...) and airflow-ts-pack can warn about them.
-const declaredDagIds = new Set<string>();
-
 /**
  * A Dag declared in TypeScript.
  *
@@ -130,6 +137,9 @@ const declaredDagIds = new Set<string>();
  * instance retains its `spec` and every task's `(taskId, handler, spec)` so a
  * future `serialize()` can produce the serialized Dag JSON for native
  * TypeScript Dag declaration.
+ *
+ * Constructing a Dag has no effect beyond the instance itself. Collect the ones
+ * a bundle should serve in a `DagRegistry` and pass it to `serveDags(...)`.
  */
 export class Dag {
   /** Identifier of this Dag. Must match the Python Dag's `dag_id`. */
@@ -144,13 +154,13 @@ export class Dag {
 
   constructor(dagId: string, spec: DagSpec = {}) {
     validateKey("dagId", dagId);
+    validateEmptySpec(`spec for Dag "${dagId}"`, spec);
     this.dagId = dagId;
     // Copied and frozen, as task specs and inputs are: nothing reads a spec
     // until the bundle manifest is built, long after the user's module has run,
     // so a later mutation of their object would silently change what is packed.
     // Shallow — a nested value in a future generated spec stays mutable.
     this.spec = Object.freeze({ ...spec });
-    declaredDagIds.add(dagId);
   }
 
   /** Task IDs attached to this Dag, in attachment order. */
@@ -178,6 +188,7 @@ export class Dag {
     }
     this.#validateOptions(taskId, options);
     const { inputs = {}, spec = {} } = options;
+    validateEmptySpec(`spec for Dag "${this.dagId}" task "${taskId}"`, spec);
     this.#validateInputs(taskId, inputs);
     const task: TaskRef = Object.freeze({ dagId: this.dagId, taskId });
     this.#tasks.set(taskId, {
@@ -231,21 +242,11 @@ export class Dag {
 }
 
 /**
- * Internal: the task records of a Dag, for registry lookups and manifests.
+ * Internal: the task records of a Dag, for registry lookups.
  *
  * Not re-exported from the package root, and the package `"exports"` map
  * blocks deep imports, so this is unreachable from outside the SDK.
  */
 export function getDagTaskRecords(dag: Dag): ReadonlyMap<string, TaskRecord> {
   return taskRecordsOf(dag);
-}
-
-/**
- * Internal: IDs of every Dag constructed in this process, registered or not.
- *
- * The bundle manifest subtracts the registered ones so `airflow-ts-pack` can
- * warn about a Dag that was built but never passed to `registerDags(...)`.
- */
-export function getDeclaredDagIds(): string[] {
-  return [...declaredDagIds];
 }

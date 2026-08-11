@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { Dag, getDagTaskRecords, getDeclaredDagIds, type TaskRef } from "../../src/sdk/dag.js";
+import { Dag, getDagTaskRecords, type TaskRef } from "../../src/sdk/dag.js";
 import { DagRegistry } from "../../src/sdk/registry.js";
 
 describe("Dag", () => {
@@ -120,6 +120,30 @@ describe("Dag", () => {
     expect(Object.isFrozen(record!.spec)).toBe(true);
   });
 
+  it.each([
+    ["a populated object", { schedule: "@daily" }],
+    ["null", null],
+    ["an array", []],
+  ])("rejects a Dag spec that is not an empty object: %s", (_label, spec) => {
+    expect(() => new Dag("example_dag", spec as unknown as Record<string, never>)).toThrowError(
+      /spec for Dag "example_dag" must be an empty object/,
+    );
+  });
+
+  it.each([
+    ["a populated object", { retries: 2 }],
+    ["null", null],
+    ["an array", []],
+  ])("rejects a task spec that is not an empty object: %s", (_label, spec) => {
+    const dag = new Dag("example_dag");
+    expect(() =>
+      dag.task("transform", async () => undefined, {
+        spec: spec as unknown as Record<string, never>,
+      }),
+    ).toThrowError(/spec for Dag "example_dag" task "transform" must be an empty object/);
+    expect(dag.taskIds).toEqual([]);
+  });
+
   it("exposes its task IDs in attachment order", () => {
     const dag = new Dag("ordered_dag");
     expect(dag.taskIds).toEqual([]);
@@ -149,11 +173,6 @@ describe("Dag", () => {
     expect(() =>
       dag.task("transform", async () => undefined, options as unknown as Record<string, never>),
     ).toThrowError(/options for Dag "example_dag" task "transform" must be an object/);
-  });
-
-  it("reports every declared Dag id, registered or not", () => {
-    new Dag("declared_but_unregistered_dag");
-    expect(getDeclaredDagIds()).toContain("declared_but_unregistered_dag");
   });
 
   it("rejects duplicate taskIds within a Dag", () => {

@@ -17,6 +17,6 @@
  * under the License.
  */
 
-import { registerDags } from "../../../src/index.js";
+import { DagRegistry, serveDags } from "../../../src/index.js";
 
-await registerDags();
+await serveDags(new DagRegistry());

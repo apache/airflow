@@ -31,6 +31,30 @@ describe("DagRegistry", () => {
     expect(registry.getTaskHandler("example_dag", "my_task")).toBe(handler);
   });
 
+  it("registers the Dags passed to its constructor", () => {
+    const handler = async () => "hello";
+    const dagA = new Dag("dag_a");
+    dagA.task("a", handler);
+    const registry = new DagRegistry(dagA, new Dag("dag_b"));
+    expect(registry.getTaskHandler("dag_a", "a")).toBe(handler);
+    expect(registry.listDags()).toEqual([
+      { dagId: "dag_a", tasks: ["a"] },
+      { dagId: "dag_b", tasks: [] },
+    ]);
+  });
+
+  it("rejects duplicate dagIds passed to the constructor", () => {
+    expect(() => new DagRegistry(new Dag("example_dag"), new Dag("example_dag"))).toThrowError(
+      /already registered/,
+    );
+  });
+
+  it("rejects constructor values that are not Dag instances", () => {
+    expect(() => new DagRegistry({ dagId: "example_dag" } as unknown as Dag)).toThrowError(
+      /only Dag instances can be registered/,
+    );
+  });
+
   it("returns undefined for unknown taskIds and dagIds", () => {
     const registry = new DagRegistry();
     const dag = new Dag("example_dag");

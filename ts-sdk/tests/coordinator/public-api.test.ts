@@ -18,13 +18,13 @@
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { Dag } from "../../src/sdk/dag.js";
+import type { DagRegistry } from "../../src/sdk/registry.js";
 import * as coordinator from "../../src/coordinator/index.js";
-import { registerDags } from "../../src/coordinator/index.js";
+import { serveDags } from "../../src/coordinator/index.js";
 
 describe("coordinator public API", () => {
-  it("exposes registerDags, not the coordinator itself, from the coordinator subpath", () => {
-    expectTypeOf<typeof registerDags>().toEqualTypeOf<(...dags: Dag[]) => Promise<void>>();
+  it("exposes serveDags, not the coordinator itself, from the coordinator subpath", () => {
+    expectTypeOf<typeof serveDags>().toEqualTypeOf<(registry: DagRegistry) => Promise<void>>();
     expect("startCoordinator" in coordinator).toBe(false);
     expectTypeOf<typeof coordinator>().not.toHaveProperty("startCoordinator");
   });

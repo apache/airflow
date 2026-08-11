@@ -87,12 +87,13 @@ TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
-the ``dag_id`` it implements, attach each handler with ``dag.task``, then hand the Dags to Airflow with
-``registerDags``; that top-level ``await`` makes the module a runnable bundle entry point.
+the ``dag_id`` it implements, attach each handler with ``dag.task``, collect the Dags in a ``DagRegistry``,
+then serve them to Airflow with ``serveDags``; that top-level ``await`` makes the module a runnable bundle
+entry point.
 
 .. code-block:: typescript
 
-    import { Dag, registerDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -106,12 +107,16 @@ the ``dag_id`` it implements, attach each handler with ``dag.task``, then hand t
     const dag = new Dag("typescript_example");
     dag.task("build_message", buildMessage);
 
-    await registerDags(dag);
+    await serveDags(new DagRegistry(dag));
 
 The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. Every Dag goes in one
-``registerDags`` call; a second call is rejected. A Dag that is built but never registered is left out of
-the packed bundle, and ``airflow-ts-pack`` warns about it by name.
+passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. The registry passed to
+``serveDags`` is the bundle's complete set of Dags; a second ``serveDags`` call is rejected. A Dag left out
+of the registry is not part of the packed bundle, and its tasks are marked removed at runtime.
+
+``DagRegistry`` holds no sockets and starts nothing, so a unit test can build one and dispatch a handler
+through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
+its Dags across several modules can add them incrementally with ``registry.register(...)``.
 
 ``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
 These are reserved for future use; do not set them. Any other key is rejected.

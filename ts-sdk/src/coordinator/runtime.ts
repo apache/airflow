@@ -25,7 +25,8 @@
 //
 // where `my-bundle.mjs` is a user-bundled Node script that imports
 // the SDK, creates `Dag` objects, attaches a handler per task with
-// `dag.task(...)`, then awaits `registerDags(...)`.
+// `dag.task(...)`, collects them in a `DagRegistry`, then awaits
+// `serveDags(registry)`.
 //
 // Lifecycle:
 //   1. Parse --comm / --logs from argv
@@ -51,42 +52,44 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { defaultRegistry } from "../sdk/registry.js";
-import type { Dag } from "../sdk/dag.js";
+import { DagRegistry } from "../sdk/registry.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
 export const COORDINATOR_RESPONSE_TIMEOUT_MS = 30_000;
 
-let entrypointCalled = false;
+let served = false;
 
 /**
- * Register Dags and run them. The entry point of a TypeScript Dag bundle.
+ * Serve a bundle's Dags to Airflow. The entry point of a TypeScript Dag bundle.
  *
- * Build the Dags, attach a handler per task with `dag.task(...)`, then await
- * this at module top level:
+ * Build the Dags, attach a handler per task with `dag.task(...)`, collect them
+ * in a {@link DagRegistry}, then await this at module top level:
  *
  * ```ts
  * const dag = new Dag("my_dag");
  * dag.task("extract", extractFn);
- * await registerDags(dag);
+ * await serveDags(new DagRegistry(dag));
  * ```
  *
- * Every Dag goes in one call: this both registers and hands off to the runtime,
- * so a second call would start a second runtime and is rejected. Registering an
- * already-registered `dagId` throws too, and a call that throws registers none
- * of its Dags. Resolves when Airflow's supervisor has been sent the terminal
- * frame for the work this process was started for; the same call also answers
- * the build-time `--airflow-metadata` query `airflow-ts-pack` makes.
+ * The registry is the bundle's complete set of Dags: this process serves one
+ * supervisor request, so a second call — which would connect a second pair of
+ * sockets — is rejected. Resolves when Airflow's supervisor has been sent the
+ * terminal frame for the work this process was started for; the same call also
+ * answers the build-time `--airflow-metadata` query `airflow-ts-pack` makes.
  */
-export function registerDags(...dags: Dag[]): Promise<void> {
-  if (entrypointCalled) {
-    throw new Error("registerDags(...) was already called; pass every Dag to a single call");
+export function serveDags(registry: DagRegistry): Promise<void> {
+  // Checked here rather than at first use: a bad argument otherwise surfaces
+  // only after the sockets are up, as a missing method deep in the runtime.
+  if (!(registry instanceof DagRegistry)) {
+    throw new Error("serveDags(...) takes a DagRegistry; build one with new DagRegistry(...dags)");
   }
-  defaultRegistry.register(...dags);
-  entrypointCalled = true;
-  return startCoordinator();
+  if (served) {
+    throw new Error("serveDags(...) was already called; serve every Dag from a single registry");
+  }
+  served = true;
+  return startCoordinator(registry);
 }
 
 /** Options for `startCoordinator()`. */
@@ -139,16 +142,21 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return { commAddr, logsAddr };
 }
 
-/** Start the coordinator runtime. Resolves when the subprocess has
- *  delivered its terminal frame and closed both sockets.
+/** Start the coordinator runtime, dispatching to `registry`. Resolves when the
+ *  subprocess has delivered its terminal frame and closed both sockets.
  *
- *  Internal: `registerDags()` is the entry point Dag authors call, so this is
+ *  Internal: `serveDags()` is the entry point Dag authors call, so this is
  *  deliberately absent from the package `"exports"` map. Tests drive it
  *  directly to supply explicit socket addresses. */
-export async function startCoordinator(opts: StartCoordinatorOptions = {}): Promise<void> {
+export async function startCoordinator(
+  registry: DagRegistry,
+  opts: StartCoordinatorOptions = {},
+): Promise<void> {
   const argv = opts.argv ?? process.argv;
   if (argv.includes(AIRFLOW_METADATA_FLAG)) {
-    process.stdout.write(`${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest())}\n`);
+    process.stdout.write(
+      `${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest(registry))}\n`,
+    );
     return;
   }
   const parsed =
@@ -170,7 +178,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = defaultRegistry.listTasks();
+    const tasks = registry.listTasks();
     runtimeLogs.info("Coordinator runtime started", {
       registered_tasks: tasks,
       count: tasks.length,
@@ -192,7 +200,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         file: body.file,
         bundle_path: body.bundle_path,
       });
-      const response = handleParse(body, runtimeLogs);
+      const response = handleParse(body, registry, runtimeLogs);
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
     } else if (body.type === "StartupDetails") {
       runtimeLogs.info("Received task startup details", {
@@ -205,6 +213,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
       });
       const response = await handleTask(
         body,
+        registry,
         comm,
         runtimeLogs,
         logs.child("client"),
@@ -285,12 +294,13 @@ export function createRuntimeAbort(
 
 function handleParse(
   request: { file: string; bundle_path: string },
+  registry: DagRegistry,
   logs: LogChannel,
 ): RuntimeDagFileParsingResult {
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: defaultRegistry.listTasks(),
+    registered_tasks: registry.listTasks(),
   });
   const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
@@ -302,19 +312,20 @@ function handleParse(
 
 async function handleTask(
   details: StartupDetails,
+  registry: DagRegistry,
   comm: CommChannel,
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
 ): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   const ti = details.ti;
-  const handler = defaultRegistry.getTaskHandler(ti.dag_id, ti.task_id);
+  const handler = registry.getTaskHandler(ti.dag_id, ti.task_id);
 
   if (!handler) {
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: defaultRegistry.listTasks(),
+      available: registry.listTasks(),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.

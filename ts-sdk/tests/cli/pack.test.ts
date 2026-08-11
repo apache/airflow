@@ -183,10 +183,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, registerDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
         'const bigDag = new Dag("big_dag");',
         'for (let i = 0; i < 4000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
-        "await registerDags(bigDag);",
+        "await serveDags(new DagRegistry(bigDag));",
       ].join("\n"),
     );
 
@@ -197,10 +197,10 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("leaves no bundle behind when the entry registers no Dags", async () => {
+  it("leaves no bundle behind when the entry serves no Dags", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
 
-    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("registered no Dags");
+    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("served no Dags");
     expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
@@ -217,7 +217,6 @@ describe("runPack", () => {
       "malformed entry",
     ],
     ['{ supervisor_schema_version: "1", dags: [{ tasks: ["a"] }] }', "incomplete"],
-    ['{ supervisor_schema_version: "1", dags: {}, unregistered_dags: [7] }', "incomplete"],
   ])("rejects the metadata line %s", async (manifest, message) => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "malformed-entry.ts");
@@ -237,10 +236,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, registerDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
         'salesDag.task("extract", async () => undefined);',
-        'await registerDags(salesDag, new Dag("empty_dag"));',
+        'await serveDags(new DagRegistry(salesDag, new Dag("empty_dag")));',
       ].join("\n"),
     );
     const stderr = captureStderr();
@@ -253,27 +252,25 @@ describe("runPack", () => {
     );
   });
 
-  it("warns about a Dag that was built but never passed to registerDags", async () => {
+  it("packs only the Dags the served registry holds", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "forgotten-entry.ts");
     writeFileSync(
       entry,
       [
-        `import { Dag, registerDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
         'salesDag.task("extract", async () => undefined);',
         'const billingDag = new Dag("billing_dag");',
         'billingDag.task("charge", async () => undefined);',
-        "await registerDags(salesDag);",
+        "await serveDags(new DagRegistry(salesDag));",
       ].join("\n"),
     );
-    const stderr = captureStderr();
 
     await runPack([entry, "--outdir", outdir]);
 
-    expect(stderr()).toContain(
-      'warning: dag "billing_dag" was declared but never passed to registerDags(...)',
-    );
-    expect(readEmbeddedMetadata(path.join(outdir, "bundle.mjs"))).not.toContain("billing_dag");
+    const metadata = readEmbeddedMetadata(path.join(outdir, "bundle.mjs"));
+    expect(metadata).toContain('  "sales_dag":');
+    expect(metadata).not.toContain("billing_dag");
   });
 });

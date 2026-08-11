@@ -35,7 +35,8 @@ import * as sdk from "../src/index.js";
 import {
   ConnectionNotFoundError,
   Dag,
-  registerDags,
+  DagRegistry,
+  serveDags,
   SUPERVISOR_API_VERSION,
   VariableNotFoundError,
 } from "../src/index.js";
@@ -50,22 +51,63 @@ describe("public API", () => {
     expect(upstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_task" });
     expect(downstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_downstream" });
     expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
-    // registerDags registers and then hands off to the runtime, which needs the
-    // supervisor's socket addresses that Airflow puts on argv.
-    await expect(registerDags(dag)).rejects.toThrow("Missing --comm");
-    // A second call would start a second runtime, racing the first for the Dags
-    // registered so far, so it is rejected outright.
-    expect(() => registerDags(new Dag("second_call_dag"))).toThrowError(
-      /registerDags\(\.\.\.\) was already called/,
+    // serveDags hands the registry to the runtime, which needs the supervisor's
+    // socket addresses that Airflow puts on argv.
+    await expect(serveDags(new DagRegistry(dag))).rejects.toThrow("Missing --comm");
+    // A second call would connect a second pair of sockets, racing the first,
+    // so it is rejected outright.
+    expect(() => serveDags(new DagRegistry(new Dag("second_call_dag")))).toThrowError(
+      /serveDags\(\.\.\.\) was already called/,
     );
   });
 
+  // The instanceof guard runs before the already-served latch, so this holds
+  // regardless of whether another test in this file already served a registry.
+  it.each([
+    ["a bare Dag", new Dag("not_a_registry_dag")],
+    ["a plain object", { listTasks: () => [] }],
+    ["null", null],
+  ])("rejects a %s in place of a registry", (_label, value) => {
+    expect(() => serveDags(value as unknown as DagRegistry)).toThrowError(
+      /serveDags\(\.\.\.\) takes a DagRegistry/,
+    );
+  });
+
+  it("exports DagRegistry as the Dag collection a bundle serves", () => {
+    const dag = new Dag("registry_api_dag");
+    const handler = async () => "hello";
+    dag.task("extract", handler);
+    // Building a registry starts nothing, so a test can dispatch through it
+    // exactly as the runtime does, with no sockets in scope.
+    const registry = new DagRegistry(dag);
+    expect(registry.listDags()).toEqual([{ dagId: "registry_api_dag", tasks: ["extract"] }]);
+    expect(registry.getTaskHandler("registry_api_dag", "extract")).toBe(handler);
+    expect(registry.listTasks()).toEqual([{ dagId: "registry_api_dag", taskId: "extract" }]);
+
+    const late = new Dag("late_dag");
+    registry.register(late);
+    expect(registry.listDags().map((entry) => entry.dagId)).toEqual([
+      "registry_api_dag",
+      "late_dag",
+    ]);
+  });
+
   it("does not export the removed registerTask surface or the coordinator itself", () => {
-    for (const name of ["registerTask", "listRegisteredTasks", "startCoordinator"]) {
+    for (const name of [
+      "registerTask",
+      "listRegisteredTasks",
+      "registerDags",
+      "defaultRegistry",
+      "startCoordinator",
+    ]) {
       expect(name in sdk).toBe(false);
     }
     expectTypeOf<typeof sdk>().not.toHaveProperty("registerTask");
     expectTypeOf<typeof sdk>().not.toHaveProperty("listRegisteredTasks");
+    expectTypeOf<typeof sdk>().not.toHaveProperty("registerDags");
+    // The runtime reads the registry it is handed, so there is no process-wide
+    // registry for a Dag constructor to write into.
+    expectTypeOf<typeof sdk>().not.toHaveProperty("defaultRegistry");
     expectTypeOf<typeof sdk>().not.toHaveProperty("startCoordinator");
   });
 
@@ -81,8 +123,9 @@ describe("public API", () => {
     expect(connErr.connId).toBe("missing_conn");
   });
 
-  it("reaches the runtime only through registerDags", () => {
-    expectTypeOf<typeof registerDags>().toEqualTypeOf<(...dags: Dag[]) => Promise<void>>();
+  it("reaches the runtime only through serveDags, which takes a registry", () => {
+    expectTypeOf<typeof serveDags>().toEqualTypeOf<(registry: DagRegistry) => Promise<void>>();
+    expectTypeOf<ConstructorParameters<typeof DagRegistry>>().toEqualTypeOf<Dag[]>();
     expectTypeOf(SUPERVISOR_API_VERSION).toMatchTypeOf<string>();
   });
 
@@ -209,6 +252,10 @@ describe("public API", () => {
       dag.task("transform3", async () => undefined, { spec: { retries: 2 } });
       // @ts-expect-error the TaskRef handle is data, not callable.
       upstream();
+      // @ts-expect-error serveDags takes the registry, not a bare Dag.
+      serveDags(dag);
+      // @ts-expect-error a registry is built from Dags, not from task handles.
+      new DagRegistry(upstream);
     };
     void rejectsPositionalMisuse;
     // @ts-expect-error the TaskRef handle is opaque and does not expose the handler.

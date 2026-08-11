@@ -156,8 +156,7 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     typeof manifest.dags !== "object" ||
     manifest.dags === null ||
     // An array would pass the typeof check and yield Dags named "0", "1", ...
-    Array.isArray(manifest.dags) ||
-    !isDagIdList(manifest.unregistered_dags ?? [])
+    Array.isArray(manifest.dags)
   ) {
     throw new Error(`Bundle produced incomplete ${AIRFLOW_METADATA_FLAG} output`);
   }
@@ -215,7 +214,7 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     const manifest = readBundleManifest(stagingPath);
     const dagEntries = Object.entries(manifest.dags);
     if (dagEntries.length === 0) {
-      throw new Error(`${args.entry} registered no Dags; register them with registerDags(...)`);
+      throw new Error(`${args.entry} served no Dags; pass them to serveDags(new DagRegistry(...))`);
     }
     // Warn rather than fail, as airflow-go-pack does: the shared schema allows a
     // Dag with no tasks.
@@ -223,12 +222,6 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       if (dag.tasks.length === 0) {
         process.stderr.write(`warning: dag ${JSON.stringify(dagId)} has no tasks\n`);
       }
-    }
-    for (const dagId of manifest.unregistered_dags ?? []) {
-      process.stderr.write(
-        `warning: dag ${JSON.stringify(dagId)} was declared but never passed to registerDags(...); ` +
-          "its tasks will be marked removed at runtime\n",
-      );
     }
 
     const metadataYaml = renderMetadataYaml({

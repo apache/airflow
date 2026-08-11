@@ -36,13 +36,14 @@ import {
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
-import { defaultRegistry } from "../../src/sdk/registry.js";
+import { DagRegistry } from "../../src/sdk/registry.js";
 
 const testDag = new Dag("test_dag");
 const otherDag = new Dag("other_dag");
-// The registry the runtime reads, populated directly: registerDags() would also
-// start the coordinator, and these tests drive it themselves with mock sockets.
-defaultRegistry.register(testDag, otherDag);
+// The registry the runtime dispatches through. startCoordinator() is driven
+// directly rather than through serveDags(), so these tests can supply mock
+// socket addresses.
+const registry = new DagRegistry(testDag, otherDag);
 
 interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;
@@ -148,7 +149,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
   const commAccept = acceptOne(comm.server);
   const logsAccept = acceptOne(logs.server);
 
-  const runtimeDone = startCoordinator({
+  const runtimeDone = startCoordinator(registry, {
     commAddr: `127.0.0.1:${comm.port}`,
     logsAddr: `127.0.0.1:${logs.port}`,
     argv: [],
@@ -219,7 +220,7 @@ describe("coordinator runtime integration", () => {
 
     const logsSockPromise = acceptOne(logs.server);
     const commSockPromise = acceptOne(comm.server);
-    const runtimeDone = startCoordinator({
+    const runtimeDone = startCoordinator(registry, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
@@ -295,7 +296,7 @@ describe("coordinator runtime integration", () => {
     const logsAccept = acceptOne(logs.server);
 
     testDag.task("terminal_timeout", async () => undefined);
-    const runtimeDone = startCoordinator({
+    const runtimeDone = startCoordinator(registry, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
