@@ -200,9 +200,7 @@ class TestClient:
 
     @pytest.mark.skipif(sys.version_info < (3, 11), reason="Exception notes (PEP 678) require Python 3.11")
     def test_server_error_detail_added_as_note(self):
-        """The structured ``detail`` is attached as an exception note so it survives in tracebacks
-        that propagate uncaught to a generic logger (e.g. the executor), where only the generic
-        ``str(exc)`` message would otherwise be shown."""
+         """Notes survive uncaught propagation, handled sites still log detail directly."""
         responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
         client = make_client_w_responses(responses)
 
