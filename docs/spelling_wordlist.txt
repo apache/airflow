@@ -23,6 +23,7 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+Agans
 agentcore
 AgentDetails
 agentic
@@ -1913,6 +1914,7 @@ webserver
 webservers
 Werkzeug
 werkzeug
+Wheeler
 whitespace
 whl
 wildcarded
