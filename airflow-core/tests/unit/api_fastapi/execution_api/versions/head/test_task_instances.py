@@ -1032,6 +1032,65 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json()["dag_run"]["team_name"] == (team_name if expect_team else None)
 
+    def test_ti_run_team_name_is_not_served_from_a_stale_cache(
+        self, client, session, dag_maker, time_machine
+    ):
+        """
+        ``ti_run`` must eager load the team rather than fall back to the cached resolver.
+
+        The fallback caches per dag_id for ``team_name_cache_ttl`` seconds, so a Dag whose team
+        was looked up before it moved bundles would keep reporting the old team to the worker.
+        """
+        from airflow.models.dag import clear_team_name_cache
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=instant, state=DagRunState.RUNNING, start_date=instant
+        )
+        ti = dr.get_task_instance(task_id="task")
+        ti.set_state(State.QUEUED)
+
+        for suffix in ("old", "new"):
+            bundle = DagBundleModel(name=f"bundle-{suffix}-{dag_id}")
+            bundle.teams.append(Team(name=f"team-{suffix}-{dag_id[:8]}"))
+            session.add(bundle)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=f"bundle-old-{dag_id}")
+        )
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            clear_team_name_cache()
+            # Warm the cache with the old team, then move the Dag to the other bundle.
+            assert DagModel.get_team_name(dag_id, session=session) == f"team-old-{dag_id[:8]}"
+            session.execute(
+                update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=f"bundle-new-{dag_id}")
+            )
+            session.commit()
+
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+            clear_team_name_cache()
+
+        assert response.status_code == 200
+        assert response.json()["dag_run"]["team_name"] == f"team-new-{dag_id[:8]}"
+
     def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
         """Test that transitioning to RUNNING creates an audit log record."""
         instant_str = "2024-09-30T12:00:00Z"

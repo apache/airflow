@@ -46,6 +46,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -262,7 +263,7 @@ def ti_run(
             session.scalars(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events))
+                .options(joinedload(DR.consumed_asset_events), *eager_load_teams(DR.dag_model))
             )
             .unique()
             .one_or_none()
@@ -296,8 +297,6 @@ def ti_run(
             )
             or 0
         )
-
-        dr.team_name = get_team_name_for_ti(task_instance_id, session)
 
         context = TIRunContext(
             dag_run=dr,

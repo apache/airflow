@@ -390,6 +390,10 @@ class DagRun(StrictBaseModel):
             else:
                 values["note"] = None
 
+        # A property rather than a column, so the loop above never picks it up.
+        if not insp.detached:
+            values["team_name"] = data.team_name
+
         return values
 
 
