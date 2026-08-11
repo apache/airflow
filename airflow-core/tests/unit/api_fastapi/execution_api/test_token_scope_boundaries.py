@@ -46,6 +46,7 @@ from airflow.api_fastapi.execution_api.routes import execution_api_router
 NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     # The /run endpoint exchanges a workload token for a short-lived execution token.
     "PATCH /task-instances/{task_instance_id}/run": {"execution", "workload"},
+    "POST /callbacks/{callback_id}/run": {"execution", "workload"},
     # Connection test routes run from a queued worker context (workload-only).
     "PATCH /connection-tests/{connection_test_id}": {"workload"},
     "GET /connection-tests/{connection_test_id}/connection": {"workload"},
