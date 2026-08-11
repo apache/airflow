@@ -248,6 +248,41 @@ rather than treated as a fault.
     budgeted sessions: the operator archives a budget-stopped session, so there is no
     running session left to raise the ceiling on.
 
+Recording what a session actually spent
+"""""""""""""""""""""""""""""""""""""""
+
+Because the ceiling is not a cap, it does not tell you the spend. The operator pushes the
+session's usage to XCom under ``usage`` on **both** success and failure, so cost per Dag run
+can be queried and a budget-stopped run still records what it consumed:
+
+.. code-block:: python
+
+    {
+        "input_tokens": 827,
+        "output_tokens": 17065,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 0},
+        "server_tool_use": {"web_search_requests": 0, "web_fetch_requests": 0},
+        "active_seconds": 91.2,
+        "list_cost": {"amount": "44", "currency": "USD"},
+        "try_number": 1,
+    }
+
+``amount`` is the API's **minor-unit string** (``"44"`` is $0.44), kept as a string so no
+rounding is applied to a cost figure. ``list_cost`` is ``None`` when usage includes a model
+with no list price -- which is precisely when a caller has to price the run from the token
+counts, so every billable dimension is reported: cache *writes* are billed above base input,
+and server tool calls are billed per request. Reading usage is best effort: if it fails, the
+task's real outcome is preserved and a warning is logged.
+
+.. warning::
+
+    Airflow clears a task's XCom at the start of every attempt, so ``usage`` holds the
+    **final attempt only** and ``try_number`` records which one that was. With retries
+    enabled, total spend across attempts is not recoverable from this key; sum it from the
+    session records instead. This is the same scenario as the retry warning above, so
+    ``retries=0`` keeps both problems away.
+
 .. exampleinclude:: /../tests/system/anthropic/example_anthropic_agent.py
     :language: python
     :dedent: 4
