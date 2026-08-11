@@ -62,11 +62,13 @@
       const id = item.dataset.id || '';
       const categories = item.dataset.categories || '';
       const integrations = item.dataset.integrations || '';
+      const services = item.dataset.services || '';
 
       const matchesLifecycle = currentLifecycle === 'all' || lifecycle === currentLifecycle;
       const matchesSearch = normalize(name).includes(search) ||
         normalize(id).includes(search) ||
-        normalize(integrations).includes(search);
+        normalize(integrations).includes(search) ||
+        normalize(services).includes(search);
       const matchesCategory = currentCategory === 'all' ||
         categories.split(',').includes(currentCategory);
 

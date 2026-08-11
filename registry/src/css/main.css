@@ -4287,6 +4287,13 @@ main {
   border: 1px solid rgb(from var(--color-notifier) r g b / 0.3);
 }
 
+#search-results .badge.service {
+  background: rgb(from var(--color-cyan-500) r g b / 0.2);
+  color: var(--color-cyan-400);
+  border: 1px solid rgb(from var(--color-cyan-500) r g b / 0.3);
+  text-transform: none;
+}
+
 #search-results .provider > span:first-child {
   background: rgb(from var(--color-cyan-500) r g b / 0.2);
   color: var(--color-cyan-400);
