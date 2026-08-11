@@ -85,10 +85,6 @@ def _make_deadline(session: Session, *, dagrun_id: int, deadline_time, state=Non
 @pytest.mark.db_test
 class TestPruneDeadlines:
     @staticmethod
-    def setup_method():
-        _clean_db()
-
-    @staticmethod
     def teardown_method():
         _clean_db()
 
