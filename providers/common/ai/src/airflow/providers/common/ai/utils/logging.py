@@ -48,6 +48,8 @@ def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]
         usage.output_tokens,
         usage.total_tokens,
     )
+    if usage.cost is not None:
+        logger.info("LLM run cost: $%s (USD, best-effort)", usage.cost)
 
     tool_names = _extract_tool_sequence(result)
     if tool_names:

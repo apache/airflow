@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 from pydantic import BaseModel
@@ -34,8 +35,14 @@ from airflow.providers.common.ai.utils.logging import (
 )
 
 
-def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
-    """Build a mock AgentRunResult with usage, response, and messages."""
+def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None, cost=None):
+    """Build a mock AgentRunResult with usage, response, and messages.
+
+    ``cost`` defaults to ``None`` and must be set explicitly -- a MagicMock
+    attribute left unconfigured returns a new (truthy, ``is not None``)
+    MagicMock, which would silently push every caller through
+    ``log_run_summary``'s cost-logging branch.
+    """
     usage_kwargs = usage_kwargs or {
         "requests": 4,
         "tool_calls": 3,
@@ -44,7 +51,7 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
         "total_tokens": 3359,
     }
     result = MagicMock()
-    result.usage = MagicMock(**usage_kwargs)
+    result.usage = MagicMock(cost=cost, **usage_kwargs)
     result.response = MagicMock(model_name=model_name)
 
     messages: list = []
@@ -96,6 +103,27 @@ class TestLogRunSummary:
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert len(records) == 2  # summary line + endgroup (no tool sequence)
         assert records[-1].message == "::endgroup::"
+
+    def test_cost_none_does_not_log_cost_line(self, caplog):
+        """cost is None means "unpriceable", not "free" -- no fragment, not a $0 line."""
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=None)
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert not any("LLM run cost" in r.message for r in records)
+
+    def test_cost_set_logs_cost_line_with_value(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=Decimal("0.0123"))
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == "LLM run cost: $0.0123 (USD, best-effort)"
 
 
 class TestLogOutputDebug:

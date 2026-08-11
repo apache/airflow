@@ -35,6 +35,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.usage import resolve_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -144,7 +145,9 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        result = agent.run_sync(
+            self.prompt, usage_limits=resolve_usage_limits(self.usage_limits, self.max_cost)
+        )
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 

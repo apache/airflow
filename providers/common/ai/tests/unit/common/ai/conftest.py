@@ -31,15 +31,22 @@ def isolate_hook_lineage_collector(hook_lineage_collector):
     return None
 
 
-def make_mock_run_result(output):
+def make_mock_run_result(output, *, cost=None):
     """Create a mock AgentRunResult compatible with log_run_summary.
 
     Returns a MagicMock with .output, .usage, .response, and .all_messages()
     configured so that log_run_summary can read them without error.
+
+    ``cost`` defaults to ``None`` and must be set explicitly -- a MagicMock
+    attribute left unconfigured returns a new (truthy, ``is not None``)
+    MagicMock, which would silently push every caller through
+    ``log_run_summary``'s cost-logging branch.
     """
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
+    mock_result.usage = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0, cost=cost
+    )
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result

@@ -19,6 +19,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
 
@@ -47,7 +48,9 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
+    mock_result.usage = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0, cost=None
+    )
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -207,6 +210,7 @@ class TestLLMSQLQueryOperator:
             "model_id",
             "system_prompt",
             "agent_params",
+            "max_cost",
             "db_conn_id",
             "table_names",
             "schema_context",
@@ -229,6 +233,24 @@ class TestLLMSQLQueryOperator:
 
         assert result == "SELECT id, name FROM users WHERE active = true"
         mock_agent.run_sync.assert_called_once_with("Get active users", usage_limits=None)
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_max_cost_as_cost_limit(self, mock_hook_cls):
+        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+        mock_agent = _make_mock_agent("SELECT id, name FROM users WHERE active = true")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="Get active users",
+            llm_conn_id="my_llm",
+            schema_context="Table: users\nColumns: id INT, name TEXT, active BOOLEAN",
+            max_cost=0.5,
+        )
+        op.execute(context=MagicMock())
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_validation_blocks_unsafe_sql(self, mock_hook_cls):
