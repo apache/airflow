@@ -92,7 +92,7 @@ top-level ``await startCoordinator()`` make the module a runnable bundle entry p
 
 .. code-block:: typescript
 
-    // registerTask, startCoordinator, and TaskHandlerArgs are provided by the Airflow TypeScript SDK.
+    import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({

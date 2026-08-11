@@ -39,7 +39,8 @@ any non-`undefined` return value is pushed to XCom under the `"return_value"`
 key by the active runtime, matching Python `@task` behavior:
 
 ```ts
-// registerTask and TaskHandlerArgs are provided by the Airflow TypeScript SDK.
+import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
   return { message: `Hello from ${ctx.taskId}: ${greeting}` };
