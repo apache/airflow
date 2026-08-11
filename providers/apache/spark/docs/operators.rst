@@ -221,6 +221,10 @@ back and returns immediately without resubmitting. See
 :doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
 ``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
 
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the driver via ``on_kill`` before the next attempt gets a chance
+to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+
 Tracking driver status via Kubernetes API
 """"""""""""""""""""""""""""""""""""""""""
 

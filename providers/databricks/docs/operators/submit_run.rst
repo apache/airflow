@@ -196,6 +196,10 @@ and returns immediately without submitting a new run. See
 :doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
 ``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
 
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the run via ``on_kill`` before the next attempt gets a chance to
+reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+
 To opt out and always submit a fresh run on retry, set ``durable=False``:
 
 .. code-block:: python
