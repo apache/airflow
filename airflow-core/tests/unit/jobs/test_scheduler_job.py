@@ -40,6 +40,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -12954,7 +12955,6 @@ def test_partition_cap_reporting(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
     runner._max_partition_dag_runs_per_loop = cap
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
     dag_id = f"cap-consumer-{suffix}"
@@ -13013,7 +13013,6 @@ def test_partition_cap_reporting_excludes_already_fired_decoy(dag_maker: DagMake
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
     runner._max_partition_dag_runs_per_loop = cap
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
     assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
@@ -13069,7 +13068,6 @@ def test_partition_cap_reporting_excludes_stale_dag_decoy(dag_maker: DagMaker, s
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
     runner._max_partition_dag_runs_per_loop = cap
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
     assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
@@ -13081,10 +13079,13 @@ def test_partition_cap_reporting_excludes_stale_dag_decoy(dag_maker: DagMaker, s
 @pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
 def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker, session: Session, caplog):
     """
-    The log/audit ``dag_ids`` list surfaces every distinct affected dag_id, without truncation.
+    The log/audit ``dag_ids`` list surfaces every distinct dag_id in the backlog, not just this
+    tick's oldest-cap slice.
 
-    Seven consumer Dags each get one satisfied APDR; with the cap at 6, `pending_apdrs` spans six
-    distinct dag_ids — all of which must appear in both the log event and the audit row.
+    Seven consumer Dags each get one satisfied APDR; with the cap at 6, `pending_apdrs` (this
+    tick's oldest six) spans only six distinct dag_ids, but the seventh Dag's APDR is still part
+    of the backlog `count()` sees — its dag_id must appear in both the log event and the audit
+    row too, even though its Dag run won't be created until the next tick.
 
     Built inline rather than via :func:`_make_n_satisfied_apdrs` because that helper's producer
     dag_id numbering restarts at 1 on every call, colliding across these seven consumer Dags.
@@ -13117,12 +13118,12 @@ def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker,
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
     runner._max_partition_dag_runs_per_loop = 6
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    # affected_dag_ids is a set, so its iteration order (and thus the exact rendering in the log
-    # event and audit row) is arbitrary — assert membership, not a specific order.
-    expected_dag_ids = {f"cap-consumer-many-{i}" for i in range(1, 7)}
+    # backlog_dag_ids is a set, so its iteration order (and thus the exact rendering in the log
+    # event and audit row) is arbitrary — assert membership, not a specific order. All seven Dags
+    # are expected, including the seventh whose APDR is deferred past this tick's cap.
+    expected_dag_ids = {f"cap-consumer-many-{i}" for i in range(1, 8)}
     assert {
         "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
         "will be evaluated over subsequent scheduler ticks",
@@ -13221,7 +13222,6 @@ def test_partition_cap_audit_row_survives_outer_rollback(dag_maker: DagMaker, se
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
     runner._max_partition_dag_runs_per_loop = 2
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
     assert runner._partition_cap_backlog_reported is True
 
@@ -13244,8 +13244,6 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker,
     `OperationalError` — must be caught and logged, leaving `_partition_cap_backlog_reported`
     `False` so the next tick retries the write.
     """
-    from sqlalchemy.exc import IntegrityError
-
     _make_n_satisfied_apdrs(
         consumer_dag_id="cap-consumer-audit-failure",
         asset=Asset(name="asset-cap-audit-failure"),
