@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 [build-system]
-requires = ["flit_core >=3.12.0,<4"]
+requires = ["flit_core>=3.12.0,<5"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -52,7 +52,7 @@ dependencies = [
     # applies. Adopting the 4.x backend is tracked at
     # https://github.com/apache/airflow/issues/71121
     "flit>=3.12.0,<4",
-    "flit-core>=3.12.0,<4",
+    "flit-core>=3.12.0,<5",
     "google-api-python-client>=2.142.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
