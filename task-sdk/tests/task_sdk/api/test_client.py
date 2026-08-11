@@ -1187,7 +1187,16 @@ class TestConnectionOperations:
             requests_seen.append(request)
             return httpx.Response(
                 status_code=200,
-                json={"conn_id": "dev/my_conn", "conn_type": "http"},
+                json={
+                    "conn_id": "dev/my_conn",
+                    "conn_type": "http",
+                    "host": None,
+                    "schema": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "extra": None,
+                },
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
