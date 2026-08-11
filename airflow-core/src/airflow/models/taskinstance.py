@@ -492,7 +492,6 @@ def clear_task_instances(
                     # Change the dr.created_dag_version_id so the scheduler doesn't reject this
                     # version when it sets the dag_run.dag
                     dr.created_dag_version = dag_version
-                    dr.created_dag_version_id = dag_version.id
                     dr.dag = dr_dag
                     dr.verify_integrity(session=session, dag_version_id=dag_version.id)
                     # Only cleared TIs get latest dag_version_id above; do not rewrite others.
