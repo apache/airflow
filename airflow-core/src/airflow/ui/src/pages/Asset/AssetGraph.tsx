@@ -30,6 +30,7 @@ import { getGatePathEdgeIdsForSelection, type CustomNodeProps } from "src/compon
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
+import { useDefaultGraphDirection } from "src/hooks/useUserSettings";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { getReactFlowThemeStyle } from "src/theme";
 
@@ -48,7 +49,8 @@ export const AssetGraph = ({
     dependencyType,
   });
 
-  const [direction] = useLocalStorage<Direction>(directionKey(assetId ?? ""), "RIGHT");
+  const [defaultDirection] = useDefaultGraphDirection();
+  const [direction] = useLocalStorage<Direction>(directionKey(assetId ?? ""), defaultDirection);
 
   const { data: layoutData } = useGraphLayout({
     ...graphData,

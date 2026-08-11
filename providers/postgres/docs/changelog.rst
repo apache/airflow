@@ -33,7 +33,6 @@ Changelog
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Use built-in exceptions for Postgres hook input validation (#70537)``
 
 Doc-only
@@ -43,6 +42,8 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 7.0.0
 .....

@@ -174,7 +174,9 @@ The ``TaskClient`` surface
   with no default.
 * ``getConnection(connId)`` — returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
-  missing or ``null``), or ``null`` when the connection does not exist.
+  missing or ``null``), or ``null`` when the connection does not exist;
+  ``getConnectionOrThrow(connId)`` throws ``ConnectionNotFoundError`` instead, matching Python
+  ``BaseHook.get_connection``.
 * ``getXCom<T>({key, ...})`` — reads an XCom value, or ``null`` when it is missing. The locator fields
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.

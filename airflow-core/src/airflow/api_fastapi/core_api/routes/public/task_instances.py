@@ -41,7 +41,7 @@ from airflow.api_fastapi.common.dagbag import (
     resolve_run_on_latest_version,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
-from airflow.api_fastapi.common.db.dags import attach_team_names
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -144,6 +144,7 @@ def get_task_instance(
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_teams(TI.dag_run, DagRun.dag_model))
     )
     task_instance = session.scalar(query)
 
@@ -434,6 +435,7 @@ def get_mapped_task_instance(
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_teams(TI.dag_run, DagRun.dag_model))
     )
     task_instance = session.scalar(query)
 
@@ -640,8 +642,6 @@ def get_task_instances(
             has_prev = bool(cursor)
             has_next = has_more
 
-        attach_team_names(task_instances, session=session)
-
         return TaskInstanceCollectionResponse(
             task_instances=task_instances,
             next_cursor=(
@@ -663,7 +663,6 @@ def get_task_instances(
         session=session,
     )
     task_instances = list(session.scalars(task_instance_select))
-    attach_team_names(task_instances, session=session)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,

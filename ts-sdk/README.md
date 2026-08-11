@@ -177,11 +177,11 @@ Options:
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:
 
-| Method                                    | Description         |
-| ----------------------------------------- | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow` | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`         | XCom read/write     |
-| `getConnection(connId)`                   | Airflow Connections |
+| Method                                           | Description         |
+| ------------------------------------------------ | ------------------- |
+| `getVariable(key)` / `getVariableOrThrow`        | Airflow Variables   |
+| `getXCom(opts)` / `setXCom(opts)`                | XCom read/write     |
+| `getConnection(connId)` / `getConnectionOrThrow` | Airflow Connections |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
@@ -200,6 +200,12 @@ pnpm test
 pnpm run typecheck
 pnpm run build
 ```
+
+The committed lockfile and `pnpm-workspace.yaml` define the dependency security
+policy. Newly released dependency versions must age for 14 days before they
+can enter the lockfile, transitive dependencies cannot use Git or arbitrary
+tarball sources, and only explicitly approved dependencies can run lifecycle
+build scripts. Review changes to both files together when updating dependencies.
 
 Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
 with its own managed node + pnpm toolchain:
