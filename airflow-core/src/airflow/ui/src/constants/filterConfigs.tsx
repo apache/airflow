@@ -235,6 +235,13 @@ export const useFilterConfigs = () => {
       placeholder: translate("dags:filters.favoriteStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.FROM_RANGE]: {
+      endKey: SearchParamsKeys.FROM_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      startKey: SearchParamsKeys.FROM_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.GROUP_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiDatabase />,

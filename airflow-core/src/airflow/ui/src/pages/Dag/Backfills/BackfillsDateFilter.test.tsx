@@ -37,11 +37,11 @@ describe("Backfills start/end date filter", () => {
     expect(getFromDateCells()).toContain("2024-12-01T00:00:00Z");
   });
 
-  it("filters backfills by start_date_gte and end_date_lte URL params", async () => {
+  it("filters backfills by from_date_gte and to_date_lte URL params", async () => {
     render(
       <AppWrapper
         initialEntries={[
-          "/dags/tutorial_taskflow_api/backfills?start_date_gte=2025-01-01T00%3A00%3A00Z&end_date_lte=2025-01-31T23%3A59%3A59Z",
+          "/dags/tutorial_taskflow_api/backfills?from_date_gte=2025-01-01T00%3A00%3A00Z&to_date_lte=2025-01-31T23%3A59%3A59Z",
         ]}
       />,
     );

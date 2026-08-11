@@ -41,13 +41,13 @@ const {
   COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
   CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
   CREATED_AT_LTE: CREATED_AT_LTE_PARAM,
-  END_DATE_GTE: END_DATE_GTE_PARAM,
-  END_DATE_LTE: END_DATE_LTE_PARAM,
+  FROM_DATE_GTE: FROM_DATE_GTE_PARAM,
+  FROM_DATE_LTE: FROM_DATE_LTE_PARAM,
   MAX_ACTIVE_RUNS_GTE: MAX_ACTIVE_RUNS_GTE_PARAM,
   MAX_ACTIVE_RUNS_LTE: MAX_ACTIVE_RUNS_LTE_PARAM,
   REPROCESS_BEHAVIOR: REPROCESS_BEHAVIOR_PARAM,
-  START_DATE_GTE: START_DATE_GTE_PARAM,
-  START_DATE_LTE: START_DATE_LTE_PARAM,
+  TO_DATE_GTE: TO_DATE_GTE_PARAM,
+  TO_DATE_LTE: TO_DATE_LTE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const getColumns = (
@@ -147,10 +147,10 @@ export const Backfills = () => {
 
   const [searchParams] = useSearchParams();
 
-  const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
-  const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
-  const endDateGte = searchParams.get(END_DATE_GTE_PARAM);
-  const endDateLte = searchParams.get(END_DATE_LTE_PARAM);
+  const fromDateGte = searchParams.get(FROM_DATE_GTE_PARAM);
+  const fromDateLte = searchParams.get(FROM_DATE_LTE_PARAM);
+  const toDateGte = searchParams.get(TO_DATE_GTE_PARAM);
+  const toDateLte = searchParams.get(TO_DATE_LTE_PARAM);
   const createdAtGte = searchParams.get(CREATED_AT_GTE_PARAM);
   const createdAtLte = searchParams.get(CREATED_AT_LTE_PARAM);
   const completedAtGte = searchParams.get(COMPLETED_AT_GTE_PARAM);
@@ -180,8 +180,8 @@ export const Backfills = () => {
     createdAtGte: createdAtGte ?? undefined,
     createdAtLte: createdAtLte ?? undefined,
     dagId,
-    fromDateGte: startDateGte ?? undefined,
-    fromDateLte: startDateLte ?? undefined,
+    fromDateGte: fromDateGte ?? undefined,
+    fromDateLte: fromDateLte ?? undefined,
     limit: pagination.pageSize,
     maxActiveRunsGte:
       maxActiveRunsGte !== null && maxActiveRunsGte !== "" ? Number(maxActiveRunsGte) : undefined,
@@ -189,8 +189,8 @@ export const Backfills = () => {
       maxActiveRunsLte !== null && maxActiveRunsLte !== "" ? Number(maxActiveRunsLte) : undefined,
     offset: pagination.pageIndex * pagination.pageSize,
     reprocessBehavior: reprocessBehavior ?? undefined,
-    toDateGte: endDateGte ?? undefined,
-    toDateLte: endDateLte ?? undefined,
+    toDateGte: toDateGte ?? undefined,
+    toDateLte: toDateLte ?? undefined,
   });
 
   const onSelectBackfill = (id: number) => {

@@ -77,6 +77,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.EXECUTOR_CLASS
   | SearchParamsKeys.FAVORITE
+  | SearchParamsKeys.FROM_RANGE
   | SearchParamsKeys.GROUP_PATTERN
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
@@ -114,6 +115,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.TASK_STATE
   | SearchParamsKeys.TEAMS
   | SearchParamsKeys.TIMETABLE_TYPE
+  | SearchParamsKeys.TO_RANGE
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
