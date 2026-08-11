@@ -20,6 +20,8 @@
 import fs from 'fs';
 import * as pagefind from "pagefind";
 
+import { collectExternalServices } from '../src/_data/providerExternalServices.js';
+
 async function buildPagefindIndex() {
   console.log('Building PageFind index with custom records...');
 
@@ -44,20 +46,26 @@ async function buildPagefindIndex() {
       .map((category) => category.name)
       .filter(Boolean)
       .join(' ');
+    const externalServicesList = collectExternalServices(provider);
+    const externalServices = externalServicesList.join(' ');
 
     await index.addCustomRecord({
       url: `/providers/${provider.id}/${provider.version}/`,
       // The id is indexed on its own, not as part of the distribution name:
       // the `apache-airflow-providers-` prefix is shared by every provider and
       // would make 'apache' or 'airflow' match all of them.
-      content: `${provider.name} ${provider.id} ${provider.description} ${integrations}`,
+      content: `${provider.name} ${provider.id} ${provider.description} ${integrations} ${externalServices}`,
       language: 'en',
       meta: {
         type: 'provider',
         name: provider.name,
         description: provider.description,
         providerId: provider.id,
-        providerName: provider.name
+        providerName: provider.name,
+        // Comma-joined so search.js can tell a query apart from a plain
+        // description/category match and badge the specific service it hit
+        // (e.g. "anthropic" surfaces the provider *and* which service matched).
+        externalServices: externalServicesList.join(',')
       },
       filters: {
         type: ['provider']
