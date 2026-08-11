@@ -86,6 +86,7 @@ from airflow.sdk.execution_time.context import (
     AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
+    MacrosAccessor,
     OutletEventAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
@@ -234,6 +235,17 @@ class TestAirflowContextHelpers:
             with pytest.raises(TypeError) as error:
                 context_to_airflow_vars({})
             assert str(error.value) == "key <1> must be string"
+
+
+@pytest.mark.parametrize(
+    "accessor",
+    [ConnectionAccessor(), VariableAccessor(deserialize_json=False), MacrosAccessor()],
+    ids=["connection", "variable", "macros"],
+)
+def test_dynamic_accessors_are_explicitly_non_iterable(accessor):
+    assert hasattr(accessor, "__iter__")
+    with pytest.raises(TypeError, match=f"'{type(accessor).__name__}' object is not iterable"):
+        iter(accessor)
 
 
 class TestConnectionAccessor:

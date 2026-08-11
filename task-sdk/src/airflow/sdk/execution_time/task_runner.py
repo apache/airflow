@@ -227,6 +227,16 @@ class TaskRunnerMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
 
 
+class _DeferredDateTimeContextValue(lazy_object_proxy.Proxy):
+    """Lazy previous-run datetime that debugger inspection does not resolve."""
+
+    def __repr__(self) -> str:
+        return "<deferred datetime context value>"
+
+    def __iter__(self) -> Iterator[Any]:
+        raise TypeError(f"'{type(self).__name__}' object is not iterable")
+
+
 # TODO: Move this entire class into a separate file:
 #  `airflow/sdk/execution_time/task_instance.py`
 #   or `airflow/sdk/execution_time/runtime_ti.py`
@@ -364,10 +374,10 @@ class RuntimeTaskInstance(TaskInstance):
                 ),
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "task_reschedule_count": from_server.task_reschedule_count or 0,
-                "prev_start_date_success": lazy_object_proxy.Proxy(
+                "prev_start_date_success": _DeferredDateTimeContextValue(
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).start_date)
                 ),
-                "prev_end_date_success": lazy_object_proxy.Proxy(
+                "prev_end_date_success": _DeferredDateTimeContextValue(
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
@@ -395,10 +405,10 @@ class RuntimeTaskInstance(TaskInstance):
                         # keys that depend on data_interval
                         "data_interval_end": coerce_datetime(dag_run.data_interval_end),
                         "data_interval_start": coerce_datetime(dag_run.data_interval_start),
-                        "prev_data_interval_start_success": lazy_object_proxy.Proxy(
+                        "prev_data_interval_start_success": _DeferredDateTimeContextValue(
                             lambda: coerce_datetime(get_previous_dagrun_success(self.id).data_interval_start)
                         ),
-                        "prev_data_interval_end_success": lazy_object_proxy.Proxy(
+                        "prev_data_interval_end_success": _DeferredDateTimeContextValue(
                             lambda: coerce_datetime(get_previous_dagrun_success(self.id).data_interval_end)
                         ),
                     }
