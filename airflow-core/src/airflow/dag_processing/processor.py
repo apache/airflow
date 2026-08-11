@@ -377,8 +377,8 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
     }
     if ctx_from_server is not None and ctx_from_server.last_ti is not None:
         try:
-            _, task = _get_dag_with_task(dagbag, request.dag_id, ctx_from_server.last_ti.task_id)
-        except ValueError:
+            task = dag.get_task(ctx_from_server.last_ti.task_id)
+        except TaskNotFound:
             # The task only enriches the callback context; a task removed since the
             # run must not cost the user the callback itself (produce_dag_callback
             # makes the same call for an unrepresentable last_ti).
@@ -388,8 +388,6 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
                 task_id=ctx_from_server.last_ti.task_id,
             )
         else:
-            if TYPE_CHECKING:
-                assert task is not None
             runtime_ti = RuntimeTaskInstance.model_construct(
                 **ctx_from_server.last_ti.model_dump(exclude_unset=True),
                 task=task,

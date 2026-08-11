@@ -848,6 +848,7 @@ class TestExecuteCallbacks:
         assert called is True
         log.exception.assert_called_once()
         assert log.exception.call_args.kwargs["dag_id"] == "removed_dag"
+        assert "context_from_server" not in log.exception.call_args.kwargs["request"]
 
 
 class TestExecuteDagCallbacks:
