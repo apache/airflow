@@ -126,6 +126,16 @@ class TestDeadlineAlert:
             ),
             # A corrupted dict without ``__data__`` must still render (no raise) as dynamic.
             pytest.param({"unexpected": "shape"}, "interval=dynamic", id="corrupted_dict_dynamic"),
+            # A VariableInterval serializes with a dict ``__data__`` (its key), not a number,
+            # so it renders as dynamic rather than a fixed duration.
+            pytest.param(
+                {
+                    "__classname__": "airflow.sdk.definitions.deadline.VariableInterval",
+                    "__data__": {"key": "deadline_seconds"},
+                },
+                "interval=dynamic",
+                id="variable_interval_dynamic",
+            ),
         ],
     )
     def test_deadline_alert_repr_does_not_raise_on_json_dict_interval(
