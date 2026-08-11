@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
 
 from airflow.providers.apache.iceberg.triggers.iceberg import IcebergTableSnapshotTrigger
 
@@ -251,3 +252,24 @@ async def test_the_triggerer_dispatch_polls_the_table():
             async for event in events:
                 assert event.payload["snapshot_id"] == 111
                 break
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error", [NoSuchTableError, NoSuchNamespaceError])
+async def test_waits_for_a_table_that_does_not_exist_yet(error):
+    """Raising kills the trigger, and the triggerer then restarts it once per second."""
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+
+    with patch(LOAD_TABLE, side_effect=error("Table does not exist: db.tbl")):
+        assert await _collect(trigger, 1, timeout=0.15) == []
+
+
+@pytest.mark.asyncio
+async def test_fires_once_the_table_appears():
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    absent = NoSuchTableError("Table does not exist: db.tbl")
+
+    with patch(LOAD_TABLE, side_effect=[absent, absent, _table_at(111)]):
+        payloads = await _collect(trigger, 1)
+
+    assert [p["snapshot_id"] for p in payloads] == [111]

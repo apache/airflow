@@ -19,6 +19,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
+
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
 from airflow.providers.apache.iceberg.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -104,8 +106,14 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
         )
 
     def _head_snapshot_id(self) -> int | None:
-        """Return the snapshot the branch points at, or None if the branch does not exist."""
-        table = IcebergHook(self.iceberg_conn_id).load_table(self.table)
+        """Return the snapshot the branch points at, or None if there is nothing to watch yet."""
+        try:
+            table = IcebergHook(self.iceberg_conn_id).load_table(self.table)
+        except (NoSuchTableError, NoSuchNamespaceError):
+            # A watcher outlives the table it watches, and raising here would kill the trigger
+            # and have the triggerer restart it once per second until the table appears.
+            self.log.debug("%s does not exist yet; waiting", self.table)
+            return None
         if ref := table.metadata.refs.get(self.branch):
             return ref.snapshot_id
         return None
