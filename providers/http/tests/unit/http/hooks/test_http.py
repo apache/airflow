@@ -896,6 +896,51 @@ class TestHttpAsyncHook:
                 assert mocked_function.call_args.kwargs.get("trust_env") is False
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("location", "expected_forwarded_key"),
+        [
+            pytest.param("http://another.host/v1/redirected", None, id="cross-host"),
+            pytest.param("http://test:8080/v1/redirected", "secret-key", id="same-host"),
+        ],
+    )
+    async def test_async_connection_header_is_only_forwarded_on_a_same_host_redirect(
+        self, create_connection_without_db, location, expected_forwarded_key
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_conn_with_api_key",
+                conn_type="http",
+                host="test:8080/",
+                extra='{"X-API-Key": "secret-key"}',
+            )
+        )
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_conn_with_api_key")
+
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            mocked_get.side_effect = [
+                MockAiohttpClientResponse(
+                    status=302,
+                    method="GET",
+                    url="http://test:8080/v1/test",
+                    headers={"Location": location},
+                ),
+                MockAiohttpClientResponse(
+                    status=200,
+                    payload={"status": {"status": 200}},
+                    method="GET",
+                    url=location,
+                ),
+            ]
+            async with aiohttp.ClientSession() as session:
+                resp = await hook.run(session=session, endpoint="v1/test")
+                assert resp.status == 200
+
+        assert mocked_get.call_count == 2
+        assert mocked_get.call_args_list[0].kwargs.get("allow_redirects") is False
+        assert mocked_get.call_args_list[0].kwargs["headers"]["X-API-Key"] == "secret-key"
+        assert mocked_get.call_args_list[1].kwargs["headers"].get("X-API-Key") == expected_forwarded_key
+
+    @pytest.mark.asyncio
     async def test_build_request_url_from_connection(self):
         conn = get_airflow_connection()
         schema = conn.schema or "http"  # default to http

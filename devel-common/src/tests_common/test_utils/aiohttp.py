@@ -40,6 +40,7 @@ class MockAiohttpClientResponse:
         method: str = "GET",
         url: str = "http://example.com",
         reason: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.status = status
         self._payload = payload
@@ -47,6 +48,7 @@ class MockAiohttpClientResponse:
         self._method = method
         self._url = url
         self._reason = reason
+        self.headers = headers or {}
 
     @property
     def reason(self) -> str:
@@ -56,6 +58,9 @@ class MockAiohttpClientResponse:
             return HTTPStatus(self.status).phrase
         except ValueError:
             return ""
+
+    async def release(self) -> None:
+        return None
 
     def raise_for_status(self) -> None:
         if self.status >= HTTPStatus.BAD_REQUEST:

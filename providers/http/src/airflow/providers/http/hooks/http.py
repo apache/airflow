@@ -21,12 +21,12 @@ import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import aiohttp
 import tenacity
 from aiohttp import ClientResponseError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from requests import PreparedRequest, Request, Response, Session
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError
@@ -98,6 +98,33 @@ def _process_extra_options_from_connection(
     return conn_extra_options, passed_extra_options
 
 
+_REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
+_DEFAULT_PORT_BY_SCHEME = {"http": 80, "https": 443}
+_ASYNC_REDIRECT_LIMIT = 10
+
+
+def _redirect_strips_headers(old_url: str | None, new_url: str | None) -> bool:
+    """
+    Return whether a redirect from ``old_url`` to ``new_url`` leaves the original host.
+
+    Mirrors ``requests.Session.should_strip_auth`` so the sync and async hooks share one
+    rule for deciding when a Connection's headers must be dropped: any host change strips,
+    an ``http`` -> ``https`` upgrade on the default ports does not, and a change of scheme
+    or port otherwise strips.
+    """
+    old = urlparse(old_url or "")
+    new = urlparse(new_url or "")
+    if old.hostname != new.hostname:
+        return True
+    if old.scheme == "http" and old.port in (80, None) and new.scheme == "https" and new.port in (443, None):
+        return False
+    changed_scheme = old.scheme != new.scheme
+    default_ports = (_DEFAULT_PORT_BY_SCHEME.get(old.scheme), None)
+    if not changed_scheme and old.port in default_ports and new.port in default_ports:
+        return False
+    return changed_scheme or old.port != new.port
+
+
 def _retryable_error_async(exception: BaseException) -> bool:
     """
     Determine whether an exception may successful on a subsequent attempt.
@@ -134,7 +161,7 @@ class _ConnectionSession(Session):
 
     def rebuild_auth(self, prepared_request: PreparedRequest, response: Response) -> None:
         super().rebuild_auth(prepared_request, response)
-        if self.should_strip_auth(response.request.url, prepared_request.url):
+        if _redirect_strips_headers(response.request.url, prepared_request.url):
             for header in self.connection_headers:
                 prepared_request.headers.pop(header, None)
 
@@ -453,6 +480,7 @@ class SessionConfig(BaseModel):
     headers: dict[str, Any] | None = None
     auth: aiohttp.BasicAuth | None = None
     extra_options: dict[str, Any] | None = None
+    connection_headers: set[str] = Field(default_factory=set)
 
 
 class AsyncHttpSession(LoggingMixin):
@@ -511,6 +539,68 @@ class AsyncHttpSession(LoggingMixin):
     def auth(self) -> aiohttp.BasicAuth | None:
         return self.config.auth
 
+    @property
+    def connection_headers(self) -> set[str]:
+        return self.config.connection_headers
+
+    async def _dispatch(
+        self,
+        url: str,
+        data: dict[str, Any] | str | None,
+        json: dict[str, Any] | str | None,
+        headers: dict[str, Any],
+        extra_options: dict[str, Any],
+    ) -> ClientResponse:
+        return await self._request(
+            url,
+            params=data if self.method == "GET" else None,
+            data=data if self.method in {"POST", "PUT", "PATCH"} else None,
+            json=json,
+            headers=headers,
+            auth=self.auth,
+            **extra_options,
+        )
+
+    async def _send(
+        self,
+        url: str,
+        data: dict[str, Any] | str | None,
+        json: dict[str, Any] | str | None,
+        headers: dict[str, Any],
+        extra_options: dict[str, Any],
+    ) -> ClientResponse:
+        allow_redirects = extra_options.get("allow_redirects", True)
+        # aiohttp, like requests, only strips Authorization when a redirect leaves the host.
+        # When the Connection contributed its own header names we follow the redirects here so
+        # those can be dropped on a cross-host hop; otherwise aiohttp's native handling is kept.
+        if not (allow_redirects and self.connection_headers):
+            response = await self._dispatch(url, data, json, headers, extra_options)
+            response.raise_for_status()
+            return response
+
+        request_options = {**extra_options, "allow_redirects": False}
+        max_redirects = request_options.pop("max_redirects", _ASYNC_REDIRECT_LIMIT)
+        current_url = url
+        current_headers = dict(headers)
+        for _ in range(max_redirects + 1):
+            response = await self._dispatch(current_url, data, json, current_headers, request_options)
+            location = response.headers.get("Location") if response.status in _REDIRECT_STATUS_CODES else None
+            if location is None:
+                response.raise_for_status()
+                return response
+            next_url = urljoin(current_url, location)
+            if _redirect_strips_headers(current_url, next_url):
+                current_headers = {
+                    name: value
+                    for name, value in current_headers.items()
+                    if name not in self.connection_headers
+                }
+            current_url = next_url
+            release = getattr(response, "release", None)
+            if release is not None:
+                await release()
+        raise HttpErrorException(f"Exceeded {max_redirects} redirects.")
+
     async def run(
         self,
         endpoint: str | None = None,
@@ -537,17 +627,7 @@ class AsyncHttpSession(LoggingMixin):
         extra_options = {**(self.extra_options or {}), **(extra_options or {})}
 
         async def request_func() -> ClientResponse:
-            response = await self._request(
-                url,
-                params=data if self.method == "GET" else None,
-                data=data if self.method in {"POST", "PUT", "PATCH"} else None,
-                json=json,
-                headers=merged_headers,
-                auth=self.auth,
-                **extra_options,
-            )
-            response.raise_for_status()
-            return response
+            return await self._send(url, data, json, merged_headers, extra_options)
 
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self.retry_limit),
@@ -635,6 +715,7 @@ class HttpAsyncHook(BaseHook):
             auth: aiohttp.BasicAuth | None = None
             headers: dict[str, Any] = {}
             extra_options: dict[str, Any] = {}
+            connection_headers: set[str] = set()
 
             if self.http_conn_id:
                 conn = await get_async_connection(conn_id=self.http_conn_id, hook=self)
@@ -652,19 +733,18 @@ class HttpAsyncHook(BaseHook):
                     auth = self.auth_type(conn.login, conn.password)
 
                 if conn.extra:
-                    # Unlike HttpHook these headers survive a cross-host redirect, because aiohttp
-                    # has no per-redirect hook to drop them from;
-                    # tracked at https://github.com/apache/airflow/issues/70164
                     conn_extra_options, extra_options = _process_extra_options_from_connection(
                         conn=conn, extra_options={}
                     )
                     headers.update(conn_extra_options)
+                    connection_headers.update(conn_extra_options)
 
             self._config = SessionConfig(
                 base_url=base_url,
                 headers=headers,
                 auth=auth,
                 extra_options=extra_options,
+                connection_headers=connection_headers,
             )
         return self._config
 
