@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook, AgentEngineHook
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -183,7 +182,7 @@ class TestAgentEngineHookWithDefaultProjectId:
                 "name": mock_get_client.return_value.reasoning_engine_path.return_value,
                 "class_method": "query",
             },
-            retry=DEFAULT,
+            retry=None,
             timeout=None,
             metadata=(),
         )

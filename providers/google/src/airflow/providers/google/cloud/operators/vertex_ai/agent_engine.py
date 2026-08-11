@@ -23,7 +23,6 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
 
 from airflow.providers.common.compat.sdk import conf
@@ -183,7 +182,7 @@ class RunReasoningEngineQueryOperator(GoogleCloudBaseOperator):
         object format. Defaults to ``None``.
     :param class_method: Optional (templated). The Reasoning Engine class method to invoke. Defaults
         to ``query``.
-    :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
+    :param retry: Designation of what errors, if any, should be retried. Defaults to ``None``.
     :param timeout: The timeout for this request. Defaults to ``None``.
     :param metadata: Strings which should be sent along with the request as metadata. Defaults to
         an empty tuple.
@@ -211,7 +210,7 @@ class RunReasoningEngineQueryOperator(GoogleCloudBaseOperator):
         reasoning_engine_id: str,
         input_data: dict[str, Any] | None = None,
         class_method: str = "query",
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

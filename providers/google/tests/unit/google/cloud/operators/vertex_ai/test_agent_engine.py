@@ -187,6 +187,29 @@ class TestRunReasoningEngineQueryOperator:
         )
         assert result == {"output": query_output}
 
+    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
+    def test_execute_uses_no_retry_by_default(self, mock_hook, context):
+        mock_hook.return_value.query_reasoning_engine.return_value = QueryReasoningEngineResponse()
+        op = RunReasoningEngineQueryOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            reasoning_engine_id=AGENT_ENGINE_ID,
+        )
+
+        op.execute(context=context)
+
+        mock_hook.return_value.query_reasoning_engine.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            reasoning_engine_id=AGENT_ENGINE_ID,
+            input_data=None,
+            class_method="query",
+            retry=None,
+            timeout=None,
+            metadata=(),
+        )
+
 
 class TestRunQueryJobOperator:
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)

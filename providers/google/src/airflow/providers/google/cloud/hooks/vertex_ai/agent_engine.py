@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any
 
 import google.auth.transport.requests
 from asgiref.sync import sync_to_async
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import ReasoningEngineExecutionServiceClient
 from vertexai import Client
 
@@ -171,7 +170,7 @@ class AgentEngineHook(GoogleBaseHook):
         reasoning_engine_id: str,
         input_data: dict[str, Any] | None = None,
         class_method: str = "query",
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         project_id: str = PROVIDE_PROJECT_ID,
@@ -184,7 +183,7 @@ class AgentEngineHook(GoogleBaseHook):
         :param input_data: Optional. Input for the Reasoning Engine class method in JSON object format.
             Defaults to ``None``.
         :param class_method: Optional. The Reasoning Engine class method to invoke. Defaults to ``query``.
-        :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
+        :param retry: Designation of what errors, if any, should be retried. Defaults to ``None``.
         :param timeout: The timeout for this request. Defaults to ``None``.
         :param metadata: Strings which should be sent along with the request as metadata. Defaults
             to an empty tuple.
