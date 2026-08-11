@@ -127,14 +127,15 @@ class TestSnowparkContainerJobTrigger:
     @pytest.mark.parametrize(
         ("end_time", "execution_deadline"),
         (
-            (time.time() - 1, None),
-            (time.time() + 3600, time.time() - 1),
+            (500.0, None),
+            (2000.0, 500.0),
         ),
     )
     @mock.patch(HOOK, autospec=True)
     async def test_deadline_takes_precedence_over_terminal_status(
-        self, mock_hook_cls, end_time, execution_deadline
+        self, mock_hook_cls, end_time, execution_deadline, time_machine
     ):
+        time_machine.move_to(1000, tick=False)
         mock_hook_cls.return_value.run.return_value = self._describe("DONE")
         trigger = self._trigger(end_time=end_time, execution_deadline=execution_deadline)
         event = await trigger.run().__anext__()
