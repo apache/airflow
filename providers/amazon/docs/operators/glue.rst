@@ -158,16 +158,19 @@ On retry the operator checks the prior run's state:
 * if it is still starting, running, waiting for capacity, or being stopped, the operator
   reconnects and continues polling
 * if it already succeeded, the operator returns immediately without resubmitting
-* if it stopped, failed terminally, or its id has expired and is no longer found, the operator
-  submits the job fresh
+* if it failed terminally, or its id has expired and is no longer found, the operator submits the
+  job fresh
+* if it already stopped, the operator submits the job fresh
 
-A stopped run resubmits rather than being treated as a success. Glue's API has no way to tell a
-run that was cancelled manually (for example, in the AWS console) apart from one this operator's
-own :meth:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator.on_kill` stopped, which
-happens whenever ``stop_job_run_on_kill=True`` and the task is killed -- on SIGTERM, on
-``execution_timeout``, or when the task is cleared while running. Since the two cases can't be
-told apart, a stopped run always resubmits, so a self-inflicted stop never gets silently reported
-as a false success.
+A stopped run is treated as a failure, not a success. Glue's API has no way to tell a run
+cancelled manually (for example, in the AWS console) apart from one this operator's own
+:meth:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator.on_kill` stopped, which happens
+whenever ``stop_job_run_on_kill=True`` and the task is killed -- on SIGTERM, on
+``execution_timeout``, or when the task is cleared while running. If the stored state is already
+``STOPPED``, the operator submits fresh. If a reconnect finds the run still stopping and it
+settles into ``STOPPED`` while polling, the operator raises instead of returning a result -- the
+task fails and a normal retry resubmits. Either way, a self-inflicted stop never gets silently
+reported as a false success.
 
 This protection also applies when ``wait_for_completion=False`` -- even though that task attempt
 never polls at all, a retry after a successful submission still reconnects rather than
@@ -175,8 +178,8 @@ resubmitting, since the run id is persisted immediately after submission regardl
 task waits for it to finish.
 
 Durable execution requires Airflow 3.3 or newer for the task state store lookup above. On earlier
-Airflow versions, or if the task state store is unavailable at runtime, ``durable=True`` still
-recovers a prior run, just via an older mechanism: the operator checks XCom for a cached run id
+Airflow versions, or if a prior run was never recorded to the task state store, ``durable=True``
+still recovers a prior run via an older mechanism: the operator checks XCom for a cached run id
 first, then falls back to scanning the job's run history for a run tagged with this task
 instance's identity, and reconnects if it finds one that is still active.
 
@@ -204,9 +207,13 @@ To opt out and always start a fresh run on retry, set ``durable=False``:
       durable=False,
   )
 
-Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the Triggerer
-already tracks the run across the wait, so deferrable mode takes precedence and ``durable`` has no
-effect.
+The task state store lookup above is only used on the synchronous path -- when ``deferrable=True``
+is set, the Triggerer already tracks the run across the wait, so a run id is never persisted there.
+``durable`` still has an effect on retry, though: a retry of a deferrable task resubmits by
+default, and with ``concurrent_run_limit=1`` that fails with ``ConcurrentRunsExceededException``
+against the run it can't see. To avoid that, ``durable=True`` tags the job's arguments with this
+task instance's identity on every attempt and, on retry, scans the job's run history for that tag
+before submitting -- the same mechanism used as a fallback on the synchronous path.
 
 ``durable`` supersedes the deprecated ``resume_glue_job_on_retry`` parameter. Passing
 ``resume_glue_job_on_retry`` still works and maps its value onto ``durable``, but emits an

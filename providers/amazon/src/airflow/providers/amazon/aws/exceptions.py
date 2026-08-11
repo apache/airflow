@@ -78,3 +78,7 @@ class NeptuneImportTaskCancellationFailedError(AirflowException):
 
 class NeptuneImportTaskFailedError(AirflowException):
     """Raised when a Neptune Analytics import task fails to complete successfully."""
+
+
+class GlueJobRunStoppedError(AirflowException):
+    """Raised when a reconnected Glue job run finishes in a state that is not a real success."""

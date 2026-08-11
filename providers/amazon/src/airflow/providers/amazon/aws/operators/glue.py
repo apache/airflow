@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -44,9 +45,8 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
-# ResumableJobMixin ships in airflow.sdk, which only exists on Airflow 3, while this provider
-# still targets apache-airflow>=2.11. Guard the import and fall back to a stub on Airflow 2;
-# drop the fallback once the provider's minimum Airflow version is >=3.0.
+# ResumableJobMixin only exists on Airflow 3; this provider still targets >=2.11. Drop this
+# fallback once the provider's minimum Airflow version is >=3.0.
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
@@ -74,11 +74,9 @@ if TYPE_CHECKING:
 
 # Glue job run states, see
 # https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-jobs-runs.html#aws-glue-api-jobs-runs-JobRun
-# STOPPED is deliberately NOT a success state here, even though GlueJobHook.job_completion and
-# GlueJobCompleteTrigger both treat it as finished: Glue's API gives no way to tell a run stopped
-# by a console cancellation from one this operator's own on_kill stopped (on SIGTERM,
-# execution_timeout, or a task clear). Treating STOPPED as terminal-failure means a self-inflicted
-# stop resubmits instead of being silently reported as a false success.
+# STOPPED is deliberately NOT a success state here, unlike GlueJobHook.job_completion: Glue can't
+# tell a console cancellation apart from on_kill stopping its own run, so treating STOPPED as
+# failure avoids silently reporting a self-inflicted stop as success.
 JOB_RUN_SUCCESS_STATES = ("SUCCEEDED",)
 JOB_RUN_TERMINAL_STATES = (*JOB_RUN_SUCCESS_STATES, "STOPPED", "FAILED", "TIMEOUT", "ERROR", "EXPIRED")
 # Synthetic state for a run id Glue no longer knows about, so a retry submits fresh rather than failing.
@@ -330,8 +328,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         :return: the current Glue job ID.
         """
         if self.deferrable:
-            # Deferrable takes precedence over durable: the Triggerer already tracks the run across
-            # the wait, so the run id is not persisted to task state on this path.
+            # The Triggerer tracks the run, so no id is persisted to task_state_store here -- but
+            # durable still reattaches a retry via the task-UUID scan in submit_job.
             job_run_id = self.submit_job(context)
             self.defer(
                 trigger=GlueJobCompleteTrigger(
@@ -357,7 +355,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
 
     def on_kill(self):
         """Cancel the running AWS Glue Job."""
-        if self.stop_job_run_on_kill:
+        if self.stop_job_run_on_kill and self._job_run_id:
             self.log.info("Stopping AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
             response = self.hook.conn.batch_stop_job_run(
                 JobName=self.job_name,
@@ -367,13 +365,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 self.log.error("Failed to stop AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
 
     def _set_job_run_id(self, context: Context, job_run_id: str) -> None:
-        """
-        Record the run id and surface its console link.
-
-        Called from every path that learns a run id (fresh submit, bootstrap search, reconnect) so
-        ``on_kill`` can stop the run and the link is available before polling starts. Guarded on the
-        id changing, so a single attempt logs the link once.
-        """
+        """Record the run id and surface its console link; guarded so one attempt logs it once."""
         if self._job_run_id == job_run_id:
             return
         self._job_run_id = job_run_id
@@ -403,7 +395,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         if self.openlineage_inject_transport_info:
             self.log.info("Injecting OpenLineage transport information into Glue job arguments.")
             script_args = inject_transport_information_into_glue_arguments(script_args, context)
-        if self.durable and not self.deferrable:
+        if self.durable:
             script_args, _ = self._prepare_script_args_with_task_uuid(context, base_args=script_args)
         return script_args
 
@@ -411,9 +403,9 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         """
         Look for a Glue job run this task instance already started.
 
-        Checks XCom for a cached run id first; falls back to a task-UUID scan of the job's run
-        history when XCom has nothing (e.g. the cached id expired, or this is the first retry to
-        run under a provider version that persists it).
+        Checks XCom for a cached run id first, then falls back to a task-UUID scan. The XCom tier
+        only works on Airflow 2.11-3.2; Airflow 3.3+ clears task XComs before every non-deferral
+        attempt, so it always misses there and the scan runs every time.
         """
         ti = context["ti"]
         previous_job_run_id = ti.xcom_pull(key="glue_job_run_id", task_ids=ti.task_id)
@@ -443,15 +435,16 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
         return None
 
+    def _has_stored_external_id(self, context: Context) -> bool:
+        task_state_store = context.get("task_state_store")
+        return task_state_store is not None and task_state_store.get(self.external_id_key) is not None
+
     def submit_job(self, context: Context) -> str:
         """Start a Glue job run and return its run id, or reconnect to one this task already started."""
         script_args = self._build_script_args(context)
-        # The --airflow_task_uuid tag is still written on every nondeferred attempt,
-        # including the first: a later retry's scan can only find it if it was there from the
-        # start. The lookup itself is skipped on the first attempt, since nothing tagged with this
-        # task's UUID could possibly exist yet -- paying for a full run-history scan there would
-        # be pure waste.
-        if self.durable and not self.deferrable and context["ti"].try_number > 1:
+        # Scan only when there's nothing else to go on: first attempt, no store, or a store that
+        # never recorded this key. A stored id (even terminal) means the caller already decided.
+        if self.durable and context["ti"].try_number > 1 and not self._has_stored_external_id(context):
             existing_job_run_id = self._find_previous_job_run(context, script_args[self.TASK_UUID_ARG])
             if existing_job_run_id:
                 self._set_job_run_id(context, existing_job_run_id)
@@ -461,13 +454,13 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             self.job_name,
             self.wait_for_completion,
         )
+        # A prior get_job_status call may have set this to a stale, terminal run id while checking
+        # whether to reconnect. Clear it so on_kill has nothing to act on if initialize_job raises.
+        self._job_run_id = None
         glue_job_run = self.hook.initialize_job(script_args, self.run_job_kwargs)
-        # Set immediately (before any polling) so on_kill can stop the run even if the worker dies
-        # before poll_until_complete runs.
+        # Set before polling so on_kill can stop the run even if the worker dies immediately after.
         self._set_job_run_id(context, glue_job_run["JobRunId"])
-        # Pushed unconditionally, matching pre-durable-execution behavior: downstream tasks read
-        # this key directly, and it's also the only writer that makes _find_previous_job_run's
-        # XCom tier reachable on the next retry.
+        # Downstream tasks read this key directly; it's also what feeds the XCom tier above.
         context["ti"].xcom_push(key="glue_job_run_id", value=glue_job_run["JobRunId"])
         return glue_job_run["JobRunId"]
 
@@ -498,12 +491,14 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         glue_job_run = self.hook.job_completion(
             self.job_name, job_run_id, self.verbose, self.sleep_before_return
         )
-        self.log.info(
-            "AWS Glue Job: %s status: %s. Run Id: %s",
-            self.job_name,
-            glue_job_run["JobRunState"],
-            job_run_id,
-        )
+        state = glue_job_run["JobRunState"]
+        self.log.info("AWS Glue Job: %s status: %s. Run Id: %s", self.job_name, state, job_run_id)
+        if state not in JOB_RUN_SUCCESS_STATES:
+            # job_completion's own finished_states also accepts STOPPED; this is narrower on purpose.
+            raise GlueJobRunStoppedError(
+                f"Glue job run {job_run_id} for job {self.job_name} ended in state {state!r} "
+                "instead of succeeding."
+            )
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> str:
         job_run_id = cast("str", external_id)
