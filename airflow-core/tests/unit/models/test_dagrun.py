@@ -50,6 +50,7 @@ from airflow._shared.observability.traces import (
     OverrideableRandomIdGenerator,
 )
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
@@ -1437,6 +1438,13 @@ class TestDagRun:
 
         version_ids = {dv.id for dv in dag_run.dag_versions}
         assert version_ids == {old_dag_version.id, new_dag_version.id}
+
+        # Grid/UI path: attach must prefetch mixed versions even when bundle_version is set.
+        dag_run._prefetched_dag_version_ids = None
+        attach_dag_versions_to_runs([dag_run], session=session)
+        assert dag_run._prefetched_dag_version_ids is not None
+        assert set(dag_run._prefetched_dag_version_ids) == {old_dag_version.id, new_dag_version.id}
+        assert {dv.id for dv in dag_run.dag_versions} == {old_dag_version.id, new_dag_version.id}
 
     @pytest.mark.parametrize(
         "interval",
