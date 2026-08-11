@@ -173,6 +173,7 @@ from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _defer_task,
+    _DeferredDateTimeContextValue,
     _execute_task,
     _make_task_span,
     _push_xcom_if_needed,
@@ -207,6 +208,21 @@ def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     task.dag = dag
 
     return dag
+
+
+def test_deferred_datetime_context_value_debugger_inspection_does_not_resolve():
+    resolved = []
+    expected = datetime(2026, 1, 1, tzinfo=dt_timezone.utc)
+    value = _DeferredDateTimeContextValue(lambda: resolved.append(True) or expected)
+
+    assert repr(value) == "<deferred datetime context value>"
+    assert resolved == []
+    with pytest.raises(TypeError, match="'_DeferredDateTimeContextValue' object is not iterable"):
+        iter(value)
+    assert resolved == []
+
+    assert value == expected
+    assert resolved == [True]
 
 
 class CustomOperator(BaseOperator):
