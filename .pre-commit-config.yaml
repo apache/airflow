@@ -485,6 +485,7 @@ repos:
           ^.*package-lock\.json$|
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
+          ^java-sdk/gradle/verification-metadata\.xml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.agents/skills/airflow-translations/|
