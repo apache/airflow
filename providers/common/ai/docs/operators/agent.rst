@@ -487,7 +487,25 @@ Parameters
   agent run (initial run, durable replay, and HITL regeneration). Use it to
   cap requests, tokens, or tool calls per task -- agents are particularly
   prone to runaway tool loops, so ``tool_calls_limit`` is a useful guardrail.
-  See :ref:`howto/operator:llm` for an example. Default ``None``.
+  It also supports a per-run USD ``cost_limit``; see :ref:`howto/operator:llm`
+  for the caveats (not a hard guarantee, silently inert for unpriced models)
+  and an example. Default ``None``.
+
+  .. warning::
+     With ``durable=True``, a task retry replays cached model steps instead of
+     re-calling the model -- but pydantic-ai still adds each replayed step's
+     cost to the retry's own usage total, since it cannot distinguish a replay
+     from a live call. A ``cost_limit`` therefore counts already-paid-for
+     replayed cost against every retry's fresh budget, leaving less headroom
+     for the new calls the retry actually makes. And if the limit is lowered
+     between attempts -- easy to do by accident, since ``max_cost`` is
+     templated -- a retry can exceed it with zero new model calls. The
+     ``LLM run cost`` line in the task log reports the run's cumulative cost
+     for the same reason, not what this attempt actually spent.
+- ``max_cost``: Convenience per-run USD cost cap, as a templated alternative to
+  ``usage_limits.cost_limit`` (``usage_limits`` itself cannot be templated). Overrides
+  ``cost_limit`` on ``usage_limits`` if both are set; every other field on
+  ``usage_limits`` is preserved.  Default ``None`` (``usage_limits`` unchanged).
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results. On retry, cached steps are replayed instead of re-executing
   expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no

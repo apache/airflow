@@ -70,8 +70,9 @@ dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.15.0",
     "apache-airflow-providers-standard>=1.12.1",
-    # Requires the pydantic-ai 2.x agent/instrumentation API (see #69122).
-    "pydantic-ai-slim>=2.0.0",
+    # Requires the pydantic-ai cost API (RunUsage.cost, UsageLimits.cost_limit),
+    # landed in 2.23.0 via https://github.com/pydantic/pydantic-ai/pull/2684.
+    "pydantic-ai-slim>=2.23.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -138,7 +139,7 @@ dev = [
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
-    "pydantic-ai-slim[mcp]>=2.0.0",
+    "pydantic-ai-slim[mcp]>=2.23.0",
     "pydantic-ai-skills>=1.2.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
