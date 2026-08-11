@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
+import sys
 from datetime import datetime, timezone as dt_timezone
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -196,6 +197,24 @@ class TestClient:
         assert unpickled.detail == {"message": "Invalid input"}
         assert unpickled.response.status_code == 404
         assert unpickled.request.url == "http://error"
+
+    @pytest.mark.skipif(sys.version_info < (3, 11), reason="Exception notes (PEP 678) require Python 3.11")
+    def test_server_error_detail_added_as_note(self):
+        """The structured ``detail`` is attached as an exception note so it survives in tracebacks
+        that propagate uncaught to a generic logger (e.g. the executor), where only the generic
+        ``str(exc)`` message would otherwise be shown."""
+        responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.get("http://error")
+
+        err = exc_info.value
+        assert err.args == ("Server returned error",)
+        assert any(
+            note.startswith("Server error detail:") and "Invalid input" in note
+            for note in getattr(err, "__notes__", [])
+        ), err.__notes__
 
     def test_retry_handling_unrecoverable_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
