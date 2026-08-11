@@ -31,10 +31,12 @@ else:
     )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Hashable
+    from collections.abc import AsyncIterator
 
 DEFAULT_BRANCH = "main"
 WATERMARK_KEY = "snapshot_id"
+# Raised by AssetStateStoreAccessors when the trigger is watched by more than one asset.
+_MULTI_ASSET_ERROR = "concrete inlets and outlets"
 
 
 class IcebergTableSnapshotTrigger(BaseEventTrigger):
@@ -60,9 +62,6 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
 
         @dag(schedule=[orders])
         def downstream(): ...
-
-    Triggers sharing a catalog connection, branch and poll interval share one poll loop,
-    so watching many tables in a catalog does not open a connection per table.
 
     :param table: Fully-qualified table name, ``namespace.table``. Nested namespaces are
         written as ``a.b.table``.
@@ -104,10 +103,6 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
             },
         )
 
-    def shared_stream_key(self) -> Hashable | None:
-        """Group triggers that can be served by a single poll of the same catalog."""
-        return (self.iceberg_conn_id, self.branch, self.poll_interval)
-
     def _head_snapshot_id(self) -> int | None:
         """Return the snapshot the branch points at, or None if the branch does not exist."""
         table = IcebergHook(self.iceberg_conn_id).load_table(self.table)
@@ -124,8 +119,15 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
         if store is not None:
             try:
                 stored = await asyncio.to_thread(store.get, WATERMARK_KEY)
-            except ValueError:
-                # Several assets watch this trigger, so there is no single cursor to keep.
+            except ValueError as err:
+                # The accessor serves one asset at a time, so it refuses to guess when this
+                # trigger is watched by several. That happens because triggers are deduplicated
+                # by hash(classpath, kwargs) while asset_watcher is many-to-many, so two assets
+                # watching this table with the same arguments share one trigger. There is then
+                # no single cursor to keep. A state store backend can raise ValueError too, and
+                # swallowing that would disable the watermark without saying so.
+                if _MULTI_ASSET_ERROR not in str(err):
+                    raise
                 self.log.warning(
                     "%s is watched by more than one asset; not persisting a snapshot watermark, "
                     "so a triggerer restart may re-emit the current head.",

@@ -80,19 +80,32 @@ def test_rejects_table_without_namespace():
         IcebergTableSnapshotTrigger(table="orders")
 
 
+async def _never():
+    """An empty shared stream, as the triggerer would hand to filter_shared_stream."""
+    return
+    yield  # pragma: no cover
+
+
+def _shared_stream_key(trigger):
+    return getattr(trigger, "shared_stream_key", lambda: None)()
+
+
 @pytest.mark.parametrize(
-    ("other", "shared"),
+    "kwargs",
     [
-        pytest.param({"table": "db.other"}, True, id="different table shares one poll"),
-        pytest.param({"table": "db.tbl", "branch": "audit"}, False, id="different branch polls separately"),
-        pytest.param({"table": "db.tbl", "iceberg_conn_id": "other"}, False, id="different catalog"),
-        pytest.param({"table": "db.tbl", "poll_interval": 5}, False, id="different interval"),
+        pytest.param({"table": "db.tbl"}, id="defaults"),
+        pytest.param({"table": "db.tbl", "branch": "audit"}, id="branch"),
+        pytest.param({"table": "db.tbl", "poll_interval": 5}, id="interval"),
     ],
 )
-def test_shared_stream_key_groups_by_catalog(other, shared):
-    """Tables in one catalog share a poll; anything that changes the poll itself does not."""
-    base = IcebergTableSnapshotTrigger(table="db.tbl")
-    assert (base.shared_stream_key() == IcebergTableSnapshotTrigger(**other).shared_stream_key()) is shared
+def test_the_triggerer_reaches_run(kwargs):
+    """A non-None key sends the triggerer to filter_shared_stream instead of run().
+
+    Declaring one without also implementing open_shared_stream and filter_shared_stream
+    means the trigger raises NotImplementedError and never polls. getattr because
+    shared streams postdate the Airflow versions this provider supports.
+    """
+    assert _shared_stream_key(IcebergTableSnapshotTrigger(**kwargs)) is None
 
 
 @pytest.mark.asyncio
@@ -199,6 +212,20 @@ async def test_runs_without_a_watermark_when_several_assets_watch_it():
 
 
 @pytest.mark.asyncio
+async def test_a_state_store_failure_is_not_mistaken_for_several_assets():
+    """A pluggable backend can raise ValueError too, and hiding it would disable the watermark."""
+    store = MagicMock()
+    store.get.side_effect = ValueError("could not decode the stored reference")
+
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = store
+
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        with pytest.raises(ValueError, match="could not decode"):
+            await _collect(trigger, 1)
+
+
+@pytest.mark.asyncio
 async def test_runs_on_airflow_without_an_asset_state_store():
     """``asset_state_store`` postdates the oldest Airflow this provider supports."""
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
@@ -210,3 +237,17 @@ async def test_runs_on_airflow_without_an_asset_state_store():
         payloads = await _collect(trigger, 1)
 
     assert [p["snapshot_id"] for p in payloads] == [111]
+
+
+@pytest.mark.asyncio
+async def test_the_triggerer_dispatch_polls_the_table():
+    """Drive the branch triggerer_job_runner takes, rather than calling run() directly."""
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+
+    shared_key = _shared_stream_key(trigger)
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        stream = trigger.filter_shared_stream(_never()) if shared_key is not None else trigger.run()
+        async with aclosing(stream) as events:
+            async for event in events:
+                assert event.payload["snapshot_id"] == 111
+                break
