@@ -951,6 +951,79 @@ class TestClearTasks:
 
         assert count == 0
 
+    def test_clear_only_new_after_partial_run_on_latest_version(self, dag_maker, session):
+        """only_new must still find real new tasks after a prior run_on_latest_version clear.
+
+        Repro for apache/airflow#71455: clearing a subset with run_on_latest_version=True on a
+        running/queued DagRun bumps created_dag_version_id to latest without creating TIs for
+        tasks added in that version (verify_integrity is only called for finished DagRuns).
+        only_new must inspect actual TI rows, not trust created_dag_version_id.
+        """
+        with dag_maker(
+            "test_clear_only_new_after_partial_latest",
+            bundle_version="v1",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        for ti in (ti0, ti1):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+        # Leave the DagRun itself running/queued so clear() takes the non-finished path
+        # that mutates created_dag_version_id without verify_integrity.
+        dr.state = DagRunState.RUNNING
+        session.merge(dr)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_only_new_after_partial_latest",
+            bundle_version="v2",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+            EmptyOperator(task_id="2")
+
+        new_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances([ti0], session, run_on_latest_version=True)
+        session.commit()
+
+        dr_after = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id)
+        )
+        assert dr_after.created_dag_version_id == new_dag_version.id
+        assert {ti.task_id for ti in dr_after.task_instances} == {"0", "1"}
+
+        new_tis = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            dry_run=True,
+            session=session,
+        )
+        assert sorted(new_tis) == ["2"]
+
+        count = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            session=session,
+        )
+        assert count == 1
+
+        session.expire_all()
+        updated_dr = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id)
+        )
+        assert {ti.task_id for ti in updated_dr.task_instances} == {"0", "1", "2"}
+
+
     def test_clear_normal_task_includes_setup_and_teardown(self, dag_maker):
         with dag_maker("test_clear_normal_task_includes_setup_and_teardown") as dag:
             setup_t = EmptyOperator(task_id="setup_t").as_setup()
