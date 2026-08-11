@@ -38,11 +38,13 @@ def old_ver_client(client):
 def dag_runs(session, dag_maker):
     with dag_maker(dag_id="test_dag_run_fields", session=session, serialized=True):
         pass
-    dag_maker.create_dagrun(
+    run1 = dag_maker.create_dagrun(
         state=DagRunState.SUCCESS,
         logical_date=timezone.datetime(2025, 1, 1),
         run_id="run1",
     )
+    # A populated value proves the converters strip the field, not just drop a null key.
+    run1.partition_date = timezone.datetime(2025, 1, 1)
     dag_maker.create_dagrun(
         state=DagRunState.SUCCESS,
         logical_date=timezone.datetime(2025, 1, 10),
