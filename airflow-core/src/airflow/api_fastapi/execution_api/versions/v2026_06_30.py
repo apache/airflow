@@ -100,7 +100,7 @@ class AddTeamNameField(VersionChange):
             response.body["dag_run"].pop("team_name", None)
 
     @convert_response_to_previous_version_for(DagRun)  # type: ignore[arg-type]
-    def remove_team_name_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_team_name_from_dag_run_response(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Remove the ``team_name`` field from responses returning a DagRun directly."""
         if isinstance(response.body, dict):
             response.body.pop("team_name", None)
