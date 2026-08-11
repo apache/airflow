@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 import attrs
 
 from airflow.models.xcom import XComModel
+from airflow.sdk.bases.operatorlink import attempt_link_xcom_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
 
@@ -54,16 +55,20 @@ class XComOperatorLink(LoggingMixin):
         self.log.info(
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
+        keys = [attempt_link_xcom_key(self.xcom_key, ti_key.try_number), self.xcom_key]
         with create_session() as session:
-            result = session.execute(
-                XComModel.get_many(
-                    key=self.xcom_key,
-                    run_id=ti_key.run_id,
-                    dag_ids=ti_key.dag_id,
-                    task_ids=ti_key.task_id,
-                    map_indexes=ti_key.map_index,
-                ).with_only_columns(XComModel.value)
-            ).first()
+            for key in keys:
+                result = session.execute(
+                    XComModel.get_many(
+                        key=key,
+                        run_id=ti_key.run_id,
+                        dag_ids=ti_key.dag_id,
+                        task_ids=ti_key.task_id,
+                        map_indexes=ti_key.map_index,
+                    ).with_only_columns(XComModel.value)
+                ).first()
+                if result:
+                    break
         if not result:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",

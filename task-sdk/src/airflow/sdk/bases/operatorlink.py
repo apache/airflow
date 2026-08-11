@@ -27,6 +27,25 @@ if TYPE_CHECKING:
     from airflow.sdk.types import TaskInstanceKey
 
 
+ATTEMPT_LINK_XCOM_KEY_PREFIX = "_link_attempt_"
+"""Prefix marking the XCom rows that hold one attempt's rendered operator link.
+
+The prefix is owned by Airflow rather than derived from the link's own ``xcom_key``,
+because a link is free to override that with any name it likes.
+"""
+
+
+def attempt_link_xcom_key(xcom_key: str, try_number: int) -> str:
+    """
+    Return the XCom key holding ``xcom_key``'s link as rendered for ``try_number``.
+
+    Example::
+
+        attempt_link_xcom_key("_link_MyLink", 2) == "_link_attempt_2__link_MyLink"
+    """
+    return f"{ATTEMPT_LINK_XCOM_KEY_PREFIX}{try_number}_{xcom_key}"
+
+
 @attrs.define()
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""

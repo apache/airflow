@@ -53,8 +53,10 @@ from airflow.models.log import Log
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
+from airflow.sdk.bases.operatorlink import attempt_link_xcom_key
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -885,6 +887,50 @@ class TestTIRunState:
         session.expunge_all()
         ti = session.get(TaskInstance, ti.id)
         assert ti.start_date == expected_start_date
+
+    def test_ti_run_retains_per_attempt_operator_link_xcoms(
+        self,
+        client,
+        session,
+        create_task_instance,
+    ):
+        """A retry clears the task's XComs, but not each attempt's rendered links."""
+        ti = create_task_instance(
+            task_id="test_ti_run_retains_per_attempt_operator_link_xcoms",
+            state=State.QUEUED,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        retained = [
+            attempt_link_xcom_key("_link_MyLink", 1),
+            attempt_link_xcom_key("databricks_job_run_link", 1),
+        ]
+        # "_" is a LIKE single-character wildcard, so these are spared too if it is unescaped.
+        cleared = ["return_value", "_link_MyLink", "Xlink_attemptX1_y", "my_link_attempt_1_thing"]
+        for key in retained + cleared:
+            XComModel.set(
+                key=key,
+                value="https://example.com",
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                session=session,
+            )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": DEFAULT_START_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        assert sorted(response.json()["xcom_keys_to_clear"]) == sorted(cleared)
 
     def test_ti_run_resume_returns_original_start_date_in_context(
         self,

@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.operatorlink import attempt_link_xcom_key
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -2329,6 +2330,10 @@ def finalize(
             link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
             log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
             _xcom_push_to_db(ti, key=xcom_key, value=link)
+            # The bare key holds the latest attempt and is overwritten by the next one, so
+            # also keep this attempt's link under its own key. Without it a retry leaves the
+            # UI resolving every earlier attempt's link to the last attempt's URL.
+            _xcom_push_to_db(ti, key=attempt_link_xcom_key(xcom_key, ti.try_number), value=link)
         except Exception:
             log.exception(
                 "Failed to push an xcom for task operator extra link",

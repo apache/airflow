@@ -1,0 +1,1 @@
+Return each attempt's own URL from operator extra links, instead of the latest attempt's.
