@@ -177,11 +177,11 @@ Options:
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:
 
-| Method                                    | Description         |
-| ----------------------------------------- | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow` | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`         | XCom read/write     |
-| `getConnection(connId)`                   | Airflow Connections |
+| Method                                           | Description         |
+| ------------------------------------------------ | ------------------- |
+| `getVariable(key)` / `getVariableOrThrow`        | Airflow Variables   |
+| `getXCom(opts)` / `setXCom(opts)`                | XCom read/write     |
+| `getConnection(connId)` / `getConnectionOrThrow` | Airflow Connections |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
