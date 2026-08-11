@@ -301,6 +301,7 @@ def _attach_default_role_permissions(
             policy_name=_role_policy_name(role_name),
             scope_names=_get_extended_resource_methods() + ["LIST"],
             resource_names=[],
+            decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
 
@@ -792,6 +793,7 @@ def _attach_team_permissions(
         policy_name=_team_role_policy_name(team, "Viewer"),
         scope_names=["GET", "LIST"],
         resource_names=team_readable_resources,
+        decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
     for role_name in ("User", "Op", "Admin"):
@@ -802,6 +804,7 @@ def _attach_team_permissions(
             policy_name=_team_role_policy_name(team, role_name),
             scope_names=["GET", "LIST"],
             resource_names=team_readable_resources,
+            decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
     _attach_policy_to_scope_permission(
@@ -926,6 +929,7 @@ def _attach_superadmin_permissions(
         policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
         scope_names=_get_extended_resource_methods() + ["LIST"],
         resource_names=team_scoped_resources,
+        decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
     _attach_policy_to_scope_permission(

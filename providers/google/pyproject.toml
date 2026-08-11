@@ -84,7 +84,19 @@ dependencies = [
     # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    "google-cloud-aiplatform[evaluation]>=1.155.0",
+    "google-cloud-aiplatform>=1.155.0",
+    # The "evaluation" extra of google-cloud-aiplatform limits litellm to range that has security
+    # vulnerabilities when we want to get 3.14 support. Until this is fixed we need to bump litellm to
+    # higher version and remove the "evaluation" extra from google-cloud-aiplatform.
+    # Tracked in: https://github.com/googleapis/python-aiplatform/issues/7057
+    "tqdm>=4.23.0",
+    "scikit-learn>=1.6.0",
+    "jsonschema>=4.19.1",
+    "ruamel.yaml>=0.19.0",
+    "pyyaml>=6.0.3",
+    "litellm<1.86.0,>=1.83.7;python_version<'3.14'",
+    "litellm>=1.93.0;python_version>='3.14'",
+    # End of evolution extra workaround
     "ray[default]>=2.42.0;python_version<'3.13'",
     "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
     "ray[default]>=2.55.0;python_version>='3.14' and python_version <'3.15'",
