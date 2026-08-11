@@ -1862,6 +1862,14 @@ api:
       type: string
       example: "required"
       default: "none"
+    ssl_ciphers:
+      description: |
+        SSL cipher suite to use for the API server. Maps to Uvicorn's ``ssl_ciphers``
+        and Gunicorn's ``ciphers`` settings. If not set, the default system ciphers are used.
+      version_added: ~
+      type: string
+      example: "ECDHE+AESGCM:ECDHE+CHACHA20"
+      default: ~
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
