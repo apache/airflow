@@ -1193,6 +1193,7 @@ export type DagScheduleAssetReference = {
     dag_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**
@@ -1938,6 +1939,7 @@ export type TaskOutletAssetReference = {
     task_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**

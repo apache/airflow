@@ -40,8 +40,10 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.base import ID_LEN
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset
@@ -59,6 +61,7 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
+    clear_db_teams,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
@@ -292,6 +295,7 @@ class TestAssets:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
+        clear_db_teams()
         clear_db_dag_bundles()
         clear_db_logs()
 
@@ -527,6 +531,67 @@ class TestGetAssets(TestAssets):
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
+
+    def _create_assets_with_team_references(self, session, num: int = 2):
+        bundle = DagBundleModel(name="team-bundle-assets")
+        bundle.teams.append(Team(name="team-assets"))
+        session.add(bundle)
+        session.flush()
+        assets = [
+            AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(num)
+        ]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.flush()
+        for i, asset in enumerate(assets):
+            session.add_all(
+                [
+                    DagModel(dag_id=f"scheduled_dag{i}", bundle_name="team-bundle-assets"),
+                    DagModel(dag_id=f"producing_dag{i}", bundle_name="team-bundle-assets"),
+                    DagScheduleAssetReference(dag_id=f"scheduled_dag{i}", asset=asset),
+                    TaskOutletAssetReference(dag_id=f"producing_dag{i}", task_id="task1", asset=asset),
+                ]
+            )
+        session.commit()
+
+    def test_assets_references_team_name_none_without_multi_team(self, test_client, session):
+        """Without multi-team enabled, references keep ``team_name`` of ``None`` and no lookup happens."""
+        self._create_assets_with_team_references(session)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset0"]["scheduled_dags"][0]["team_name"] is None
+        assert assets["asset0"]["producing_tasks"][0]["team_name"] is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_assets_references_include_team_name(self, test_client, session):
+        """With multi-team enabled, the owning team is attached to scheduled Dags and producing tasks."""
+        self._create_assets_with_team_references(session)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset0"]["scheduled_dags"][0]["team_name"] == "team-assets"
+        assert assets["asset0"]["producing_tasks"][0]["team_name"] == "team-assets"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        self._create_assets_with_team_references(session, num=5)
+
+        with assert_queries_count(9):
+            response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset4"]["scheduled_dags"][0]["team_name"] == "team-assets"
+        assert assets["asset4"]["producing_tasks"][0]["team_name"] == "team-assets"
 
     @pytest.mark.parametrize(
         ("params", "expected_assets"),

@@ -606,6 +606,7 @@ class DagScheduleAssetReference(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class DagStatsStateResponse(BaseModel):
@@ -1100,6 +1101,7 @@ class TaskOutletAssetReference(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TaskStateStoreBody(BaseModel):
