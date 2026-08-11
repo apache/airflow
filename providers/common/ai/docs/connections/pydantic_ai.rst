@@ -21,9 +21,11 @@ Pydantic AI connection
 ======================
 
 The `Pydantic AI <https://ai.pydantic.dev/>`__ connection type configures access
-to LLM providers via the pydantic-ai framework. A single connection type works with
-any provider that pydantic-ai supports: OpenAI, Anthropic, Google, Bedrock, Groq,
-Mistral, Ollama, vLLM, and others.
+to LLM and embedding models via the pydantic-ai framework. A single connection
+type works with any provider that pydantic-ai supports. Supported LLM providers
+include OpenAI, Anthropic, Google, Bedrock, Groq, Mistral, Ollama, vLLM, and
+others. Embedding model availability depends on the providers supported by
+pydantic-ai's ``Embedder``.
 
 Default Connection IDs
 ----------------------
@@ -72,11 +74,14 @@ Host (optional)
 
 Extra (JSON, optional)
     A JSON object with additional configuration. Programmatic users can set the
-    model directly in extra:
+    LLM and embedding models directly in extra:
 
     .. code-block:: json
 
-        {"model": "openai:gpt-5"}
+        {
+            "model": "openai:gpt-5",
+            "embed_model": "openai:text-embedding-3-small"
+        }
 
     When using the UI, the "Model" field above writes to this same location
     automatically.
@@ -195,3 +200,8 @@ Whichever name is chosen, a name that already pins a recognized platform (its se
 before the first ``:`` is itself a pydantic-ai provider) is used verbatim; a bare name is
 qualified with this connection's platform, and this generic connection type has none,
 so a bare name reaching this step always raises.
+
+The embedding model is resolved separately:
+
+1. ``embed_model_id`` parameter on the hook
+2. ``embed_model`` in the connection's extra JSON
