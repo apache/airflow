@@ -372,7 +372,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
-        # Edge-triggers the "partition dag run cap reached" audit Log row: True once that row
+        # Edge-triggers the "partition Dag run cap reached" audit Log row: True once that row
         # has been committed for the current backlog episode, reset to False once the backlog
         # drains below the cap.
         self._partition_cap_backlog_reported = False
@@ -2319,12 +2319,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 or 0
             )
+            # Distinct dag_ids across the *whole* backlog, not just this tick's oldest-cap
+            # slice (`pending_apdrs`) — a Dag whose partitions haven't reached the front of
+            # the FIFO queue yet would otherwise be missing from the log/audit row until its
+            # turn comes up. Same WHERE clause as the count query above so the two never drift.
+            backlog_dag_ids = set(
+                session.scalars(
+                    select(AssetPartitionDagRun.target_dag_id)
+                    .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                    .where(
+                        AssetPartitionDagRun.created_dag_run_id.is_(None),
+                        DagModel.is_stale.is_(False),
+                    )
+                    .distinct()
+                )
+            )
         else:
             backlog_total = len(pending_apdrs)
             self._partition_cap_backlog_reported = False
 
         if backlog_total > self._max_partition_dag_runs_per_loop:
-            affected_dag_ids = {apdr.target_dag_id for apdr in pending_apdrs}
             self.log.warning(
                 (
                     "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
@@ -2332,7 +2346,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ),
                 cap=self._max_partition_dag_runs_per_loop,
                 backlog_total=backlog_total,
-                dag_ids=affected_dag_ids,
+                dag_ids=backlog_dag_ids,
             )
             # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
             # and writing a `Log` row that often would flood the audit table. Write it once per
@@ -2346,7 +2360,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Invariant: this must run before *session* makes any writes this tick, or the
                 # new connection's commit can lock-contend with it on SQLite.
                 try:
-                    dag_ids_note = f"Affected dag_ids: {', '.join(affected_dag_ids)}."
                     with create_session(scoped=False) as audit_session:
                         audit_session.add(
                             Log(
@@ -2357,7 +2370,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                     f"{self._max_partition_dag_runs_per_loop}. The remaining backlog will "
                                     f"be evaluated over subsequent ticks. A total of {backlog_total} "
                                     f"partitioned Dag runs are currently eligible and pending across "
-                                    f"ticks. {dag_ids_note}"
+                                    f"ticks. Affected dag_ids: {', '.join(backlog_dag_ids)}."
                                 ),
                             )
                         )
