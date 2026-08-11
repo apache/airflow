@@ -137,7 +137,7 @@ For an operator with durable execution, it means clearing a task whose external 
 succeeded reads that stored result back and returns immediately, without resubmitting the job. If
 you want clearing to always resubmit regardless of a prior success, set
 ``[state_store] clear_on_success = True``, which deletes a task's state store rows automatically
-when it moves to ``SUCCESS`` (see :doc:`administration-and-deployment/task-and-asset-state-store`).
+when it moves to ``SUCCESS`` (see :doc:`/administration-and-deployment/task-and-asset-state-store`).
 
 This does not guarantee the external job is still there to reconnect to, though. Clearing a task
 that is actively running (``deferrable=False``) stops the worker process, which runs the
