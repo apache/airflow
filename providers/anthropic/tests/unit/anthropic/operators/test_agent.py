@@ -24,6 +24,7 @@ from airflow.exceptions import TaskDeferred
 from airflow.providers.anthropic.exceptions import (
     AnthropicAgentSessionError,
     AnthropicAgentSessionTimeout,
+    AnthropicSessionBudgetExceeded,
     AnthropicTriggerEventError,
 )
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
@@ -213,6 +214,35 @@ class TestExecuteComplete:
         with pytest.raises(AnthropicAgentSessionError, match="boom"):
             op.execute_complete({}, {"status": "error", "session_id": "s", "message": "boom"})
         hook.archive_session.assert_called_once_with("s")
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_budget_stop_raises_budget_exception(self, mock_hook_prop):
+        # The deferrable path must raise the same class the synchronous path does; the
+        # trigger event's stop_reason is the only classification channel across the boundary.
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
+        op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env", message="hi")
+        with pytest.raises(AnthropicSessionBudgetExceeded, match="over budget"):
+            op.execute_complete(
+                {},
+                {
+                    "status": "error",
+                    "session_id": "s",
+                    "message": "over budget",
+                    "stop_reason": "budget_reached",
+                },
+            )
+        hook.archive_session.assert_called_once_with("s")
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_error_event_without_stop_reason_raises_generic(self, mock_hook_prop):
+        # Version skew: a trigger serialized before stop_reason existed omits the key.
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
+        op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env", message="hi")
+        with pytest.raises(AnthropicAgentSessionError) as exc:
+            op.execute_complete({}, {"status": "error", "session_id": "s", "message": "boom"})
+        assert not isinstance(exc.value, AnthropicSessionBudgetExceeded)
 
     @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
     def test_timeout_archives_and_raises(self, mock_hook_prop):
