@@ -56,7 +56,6 @@ from airflow.dag_processing.bundles.base import (
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-from airflow.exceptions import AirflowException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -853,7 +852,7 @@ class DagFileProcessorManager(LoggingMixin):
                 try:
                     bundle.initialize()
                     any_refreshed = True
-                except AirflowException as e:
+                except Exception as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
             try:
