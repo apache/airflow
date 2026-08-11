@@ -1164,6 +1164,7 @@ oauth
 objectORfile
 objectstorage
 observability
+oci
 od
 odbc
 odps

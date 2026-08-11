@@ -179,6 +179,7 @@ body:
         - mongo
         - mysql
         - neo4j
+        - oci
         - odbc
         - openai
         - openfaas
