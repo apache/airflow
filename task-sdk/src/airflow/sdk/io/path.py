@@ -349,9 +349,7 @@ class ObjectStoragePath(ProxyUPath):
         would write outside the destination directory.
         """
         dst_root = os.path.realpath(local_dir)
-        for src_key in self.fs.expand_path(self.path, recursive=True, **kwargs):
-            if self.fs.isdir(src_key):
-                continue
+        for src_key in self.fs.find(self.path, **kwargs):
             target = os.path.realpath(os.path.join(local_dir, os.path.relpath(src_key, self.path)))
             if target != dst_root and os.path.commonpath([dst_root, target]) != dst_root:
                 raise ValueError(
