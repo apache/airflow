@@ -20,6 +20,7 @@
 (function() {
   let pagefind = null;
   let currentFilter = 'all';
+  let currentQuery = '';
   let selectedIndex = 0;
   let currentResults = [];
   let searchId = 0;
@@ -110,6 +111,17 @@
       const icon = type === 'provider' ? 'P' : (moduleType ? (typeIcons[moduleType] || moduleType[0].toUpperCase()) : 'M');
       const resultType = type === 'provider' ? 'provider' : moduleType;
 
+      // A provider often matches because of an external service its connections
+      // reach (e.g. "anthropic" -> Common AI), not the provider's own name --
+      // badge the specific service so that's visible instead of just the
+      // provider it lives under.
+      let matchedService = '';
+      if (type === 'provider' && currentQuery) {
+        const services = (result.meta.externalServices || '').split(',').filter(Boolean);
+        const normalizedQuery = currentQuery.toLowerCase();
+        matchedService = services.find((service) => service.toLowerCase().includes(normalizedQuery)) || '';
+      }
+
       return `
         <a href="${escapeHtml(result.url)}" class="${escapeHtml(resultType)}${index === selectedIndex ? ' selected' : ''}" data-index="${index}">
           <span>${escapeHtml(icon)}</span>
@@ -117,6 +129,7 @@
             <div>
               ${escapeHtml(name)}
               ${moduleType ? `<span class="badge ${escapeHtml(moduleType)}">${escapeHtml(typeLabels[moduleType] || moduleType)}</span>` : ''}
+              ${matchedService ? `<span class="badge service">${escapeHtml(matchedService)}</span>` : ''}
             </div>
             <div>
               ${providerName ? `<span><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg> ${escapeHtml(providerName)}</span>` : ''}
@@ -168,6 +181,7 @@
 
   input.addEventListener('input', async (e) => {
     const query = e.target.value;
+    currentQuery = query.trim();
     const thisSearchId = ++searchId;
 
     if (!query.trim()) {
@@ -212,6 +226,7 @@
       currentFilter = tab.dataset.filter;
 
       const query = input.value;
+      currentQuery = query.trim();
       if (query.trim()) {
         const results = await performSearch(query);
         renderResults(results, true);
@@ -223,6 +238,7 @@
     modal.classList.add('active');
     input.value = '';
     input.focus();
+    currentQuery = '';
     currentResults = [];
     selectedIndex = 0;
     resultsContainer.innerHTML = `
@@ -240,6 +256,7 @@
   function closeModal() {
     modal.classList.remove('active');
     input.value = '';
+    currentQuery = '';
     currentResults = [];
     selectedIndex = 0;
   }
