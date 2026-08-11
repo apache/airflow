@@ -777,8 +777,30 @@ grep -oE 'https://pypi\.org/project/[^[:space:]]+' "${AIRFLOW_REPO_ROOT}/files/t
 
 Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
 
+> [!IMPORTANT]
+> `tag-providers` tags whatever `HEAD` currently points at — it does not derive the commit from
+> `--release-date`. **Always check out the wave tag `providers/${RELEASE_DATE}` first**, so the
+> per-provider tags land on the exact commit the artifacts were built from. Anything that moved
+> `HEAD` between the build and this step — a `git pull`, a branch switch, a rebase, or concurrent
+> work by another terminal or agent sharing the same checkout — is otherwise tagged silently and
+> without any error. This has gone wrong in a real wave: all 44 tags were pushed at an unrelated
+> commit and had to be force-recreated afterwards. For the same reason, prefer running release
+> steps from a dedicated worktree rather than a checkout you are also working in.
+
 ```shell script
+git checkout providers/${RELEASE_DATE}
+# Both SHAs printed here must be identical before you tag
+git rev-parse HEAD "providers/${RELEASE_DATE}^{commit}"
 breeze release-management tag-providers --release-date ${RELEASE_DATE}
+```
+
+You will see `You are in 'detached HEAD' state.` — that is expected, the wave tag is behind `main`.
+
+Verify the pushed tags point where you think they do. Plain `git ls-remote` prints the *tag object*
+SHA for annotated tags, which never matches the commit and looks alarming; dereference it with `^{}`:
+
+```shell script
+git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
 ## Prepare documentation in Staging
@@ -1700,8 +1722,21 @@ and lead to annoying errors. The default behavior would be to clean such local t
 
 If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
 
+As when [pushing the RC tags](#push-the-rc-tags), check out the wave tag first — `tag-providers`
+tags `HEAD`, so the final tags must be created from the wave commit and not from whatever the
+checkout happens to be on:
+
 ```shell script
+git checkout providers/${RELEASE_DATE}
+# Both SHAs printed here must be identical before you tag
+git rev-parse HEAD "providers/${RELEASE_DATE}^{commit}"
 breeze release-management tag-providers --release-date ${RELEASE_DATE}
+```
+
+Then confirm each pushed tag resolves to the wave commit (`^{}` dereferences the annotated tag):
+
+```shell script
+git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
 ## Publish documentation
