@@ -23,6 +23,7 @@ import pendulum
 import pytest
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.core_api.services.ui.calendar import CalendarService
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import CronPartitionTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -320,3 +321,41 @@ class TestPartitionedCalendar:
         assert response.status_code == 200
         body = response.json()
         assert body == result
+
+
+class TestCalendarPlannedRunsCap:
+    """A high-frequency cron must stop at MAX_PLANNED_RUNS instead of iterating to the year boundary."""
+
+    DAG_NAME = "test_minutely_dag"
+
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.DAG_NAME,
+            schedule="* * * * *",
+            start_date=datetime(2025, 6, 1),
+            catchup=False,
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="test_task1")
+        dag_maker.create_dagrun(
+            run_id="run_1",
+            state=DagRunState.SUCCESS,
+            logical_date=datetime(2025, 6, 1),
+        )
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_planned_runs_capped_for_high_frequency_cron(self, test_client):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}")
+        assert response.status_code == 200
+        planned = [r for r in response.json()["dag_runs"] if r["state"] == "planned"]
+        assert sum(r["count"] for r in planned) == CalendarService.MAX_PLANNED_RUNS
