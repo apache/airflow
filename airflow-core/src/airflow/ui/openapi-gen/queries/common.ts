@@ -2,7 +2,7 @@
 
 import { UseQueryResult } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagWarningType } from "../requests/types.gen";
+import { DagRunState, DagWarningType, ReprocessBehavior } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
@@ -160,7 +160,7 @@ export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, completedAtGt, 
   maxActiveRunsLte?: number;
   offset?: number;
   orderBy?: string[];
-  reprocessBehavior?: string;
+  reprocessBehavior?: ReprocessBehavior;
   toDateGt?: string;
   toDateGte?: string;
   toDateLt?: string;

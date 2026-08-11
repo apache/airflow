@@ -2,7 +2,7 @@
 
 import { type QueryClient } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagWarningType } from "../requests/types.gen";
+import { DagRunState, DagWarningType, ReprocessBehavior } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -306,7 +306,7 @@ export const ensureUseBackfillServiceListBackfillsUiData = (queryClient: QueryCl
   maxActiveRunsLte?: number;
   offset?: number;
   orderBy?: string[];
-  reprocessBehavior?: string;
+  reprocessBehavior?: ReprocessBehavior;
   toDateGt?: string;
   toDateGte?: string;
   toDateLt?: string;
