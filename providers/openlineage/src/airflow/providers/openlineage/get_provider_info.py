@@ -120,6 +120,13 @@ def get_provider_info():
                         "type": "integer",
                         "version_added": "1.9.0",
                     },
+                    "execute_in_thread": {
+                        "description": "If true, OpenLineage task-level event emission on the worker runs in a time-bounded\nbackground thread instead of a forked child process (the default).\n\nThe default fork model duplicates the task runner process - including its connection to\nthe Airflow supervisor - into a short-lived child. If the child's event emission blocks\n(for example on a slow or unreachable lineage backend), the inherited supervisor\nconnection can be left in a state that prevents the task from being marked complete,\nleaving it stuck in the ``running`` state. Running emission in a thread avoids forking\nentirely: no supervisor connection is duplicated, so emission cannot strand the task in\nthe ``running`` state. The task runner waits at most ``[openlineage] execution_timeout``\nfor emission and then proceeds, abandoning a thread that is still running.\n\nMetadata extraction still runs in-process with full access to the task runtime, so\nOperators whose extractors resolve Connections, Variables or XComs continue to work.\n",
+                        "default": "False",
+                        "example": None,
+                        "type": "boolean",
+                        "version_added": "2.19.0",
+                    },
                     "extractors": {
                         "description": "Register custom OpenLineage Extractors by passing a string of semicolon separated full import paths.\n",
                         "type": "string",

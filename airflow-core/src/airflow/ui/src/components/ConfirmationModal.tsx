@@ -33,7 +33,13 @@ export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, o
   const { t: translate } = useTranslation("common");
 
   return (
-    <Dialog.Root data-testid="confirmation-modal" onOpenChange={onOpenChange} open={open}>
+    <Dialog.Root
+      data-testid="confirmation-modal"
+      lazyMount
+      onOpenChange={onOpenChange}
+      open={open}
+      unmountOnExit
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading>{header}</Heading>

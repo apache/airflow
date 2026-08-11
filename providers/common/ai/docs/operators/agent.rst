@@ -359,6 +359,9 @@ pydantic-ai `capabilities <https://ai.pydantic.dev/capabilities/>`__ bundle
 tools, lifecycle hooks, instructions, and model settings into composable units.
 Common ones include ``Thinking`` (reasoning at a configurable effort level),
 ``WebSearch``, ``WebFetch``, ``ImageGeneration``, and ``MCP``.
+For the current capability catalog and package-specific installation notes, see
+the pydantic-ai documentation and the
+`pydantic-ai-harness capability matrix <https://github.com/pydantic/pydantic-ai-harness#capability-matrix>`__.
 
 ``AgentOperator`` does not yet expose a first-class ``capabilities=`` kwarg,
 but anything passed through ``agent_params`` is forwarded to the underlying
@@ -375,6 +378,15 @@ Capabilities compose with toolsets -- pydantic-ai merges tools from both.
     :language: python
     :start-after: [START howto_operator_agent_capabilities_composed]
     :end-before: [END howto_operator_agent_capabilities_composed]
+
+Guardrail capabilities use the same passthrough pattern. This example uses
+``InputGuard`` from ``pydantic-ai-shields`` to reject a prompt before the agent
+run starts.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
+    :language: python
+    :start-after: [START howto_operator_agent_capabilities_input_guard]
+    :end-before: [END howto_operator_agent_capabilities_input_guard]
 
 .. warning::
 

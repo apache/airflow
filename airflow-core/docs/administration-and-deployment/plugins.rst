@@ -237,10 +237,10 @@ definitions in Airflow.
         # Name of the external view, this will be displayed in the UI.
         "name": "Name of the External View",
         # Source URL of the external view. This URL can be templated using context variables, depending on the location where the external view is rendered
-        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX).
+        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX, ASSET_ID, ASSET_URI).
         "href": "https://example.com/{DAG_ID}/{RUN_ID}/{TASK_ID}/{MAP_INDEX}",
         # Destination of the external view. This is used to determine where the view will be loaded in the UI.
-        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "base"], default to "nav".
+        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"], default to "nav".
         "destination": "dag_run",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
@@ -265,10 +265,10 @@ definitions in Airflow.
         "name": "Name of the React App",
         # Bundle URL of the React app. This is the URL where the React app is served from. It can be a static file or a CDN.
         # This URL can be templated using context variables, depending on the location where the external view is rendered
-        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX).
+        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX, ASSET_ID, ASSET_URI).
         "bundle_url": "https://example.com/static/js/my_react_app.js",
         # Destination of the react app. This is used to determine where the app will be loaded in the UI.
-        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "base"], default to "nav".
+        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"], default to "nav".
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
@@ -300,6 +300,27 @@ definitions in Airflow.
         react_apps = [react_app_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
+
+React app context props
+-----------------------
+
+.. note::
+    The React app integration is experimental and these props may change in future versions.
+
+Unlike an external view, which only receives context through ``{DAG_ID}``-style tokens in its
+``bundle_url``, a React app is rendered as a component and receives context directly as props.
+The props available depend on where the app is mounted (its ``destination`` and route):
+
+- ``dagId``, ``runId``, ``taskId``, ``mapIndex``, ``assetId`` — the identifiers from the current
+  route (strings), when present.
+- ``assetUri`` — the URI of the current asset, when mounted on an asset route.
+- ``dag``, ``dagRun``, ``taskInstance``, ``asset`` — the full records for the current route,
+  matching the corresponding REST API response schemas
+  (``DAGDetailsResponse``, ``DAGRunResponse``, ``TaskInstanceResponse``, ``AssetResponse``).
+  Each object is only provided once the identifiers it depends on are present in the route, and
+  is served from the UI's query cache the details page has already populated (no extra request).
+  On routes or ``destination`` values without those identifiers (e.g. ``nav``, ``base``,
+  ``dashboard``), the corresponding objects are ``undefined``.
 
 Exclude views from CSRF protection
 ----------------------------------

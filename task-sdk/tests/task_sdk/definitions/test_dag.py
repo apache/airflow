@@ -246,9 +246,7 @@ class TestDag:
             if len(role_access_control_entry) > 0
             else role_access_control_entry
         )
-        with pytest.warns(
-            RemovedInAirflow4Warning, match=re.escape("The airflow.security.permissions module is deprecated")
-        ):
+        with pytest.warns(RemovedInAirflow4Warning, match=re.escape("DAG.access_control is deprecated")):
             _ = DAG("should-warn-dag", access_control=access_control, schedule=None, start_date=DEFAULT_DATE)
 
     def test_params_not_passed_is_empty_dict(self):

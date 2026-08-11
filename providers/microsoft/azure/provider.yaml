@@ -21,12 +21,14 @@ description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
 lifecycle: production
-source-date-epoch: 1783356304
+source-date-epoch: 1785633505
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 14.1.0
+  - 14.0.0
   - 13.5.1
   - 13.5.0
   - 13.4.0
@@ -384,7 +386,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/gcs_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.gcs_to_wasb
 
-
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
     hook-name: "Azure"
@@ -415,6 +416,10 @@ connection-types:
           type: ["string", "null"]
       workload_identity_tenant_id:
         label: Workload Identity Tenant ID
+        schema:
+          type: ["string", "null"]
+      cloud_environment:
+        label: Azure Cloud Environment
         schema:
           type: ["string", "null"]
   - hook-class-name: airflow.providers.microsoft.azure.hooks.ai_agents.AzureAIAgentsHook
@@ -983,6 +988,10 @@ secrets-backends:
 
 logging:
   - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler
+
+remote-logging:
+  - classpath: airflow.providers.microsoft.azure.log.wasb_task_handler.WasbRemoteLogIO
+    scheme: wasb
 
 extra-links:
   - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink

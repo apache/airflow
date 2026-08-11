@@ -38,6 +38,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryAssetAliasNamePrefixPatternSearch,
     QueryAssetDagIdPatternSearch,
     QueryAssetEventExtraFilter,
+    QueryAssetEventPartitionKeyFilter,
+    QueryAssetEventPartitionKeyRegex,
     QueryAssetNamePatternSearch,
     QueryAssetNamePrefixPatternSearch,
     QueryLimit,
@@ -84,6 +86,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
@@ -331,6 +334,8 @@ def get_asset_events(
     source_map_index: Annotated[
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
+    partition_key: QueryAssetEventPartitionKeyFilter,
+    partition_key_regexp_pattern: QueryAssetEventPartitionKeyRegex,
     name_pattern: QueryAssetNamePatternSearch,
     name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     extra_filter: QueryAssetEventExtraFilter,
@@ -338,6 +343,8 @@ def get_asset_events(
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
+    # The regexp partition-key filter bounds the query runtime automatically (its dependency applies
+    # ``apply_regex_query_timeout`` to this request's session), so no explicit wrapping is needed here.
     base_statement = select(AssetEvent)
     if name_pattern.value or name_prefix_pattern.value:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
@@ -350,6 +357,8 @@ def get_asset_events(
             source_task_id,
             source_run_id,
             source_map_index,
+            partition_key,
+            partition_key_regexp_pattern,
             name_pattern,
             name_prefix_pattern,
             extra_filter,
@@ -364,7 +373,9 @@ def get_asset_events(
     assets_event_select = assets_event_select.options(
         subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset)
     )
-    assets_events = session.scalars(assets_event_select)
+    # Materialize here (not lazily during response serialization) so the regexp query runs while the
+    # dependency-applied timeout is still active.
+    assets_events = session.scalars(assets_event_select).all()
 
     return AssetEventCollectionResponse(
         asset_events=assets_events,
@@ -449,7 +460,10 @@ def materialize_asset(
     if not get_auth_manager().is_authorized_dag(
         method="POST",
         access_entity=DagAccessEntity.RUN,
-        details=DagDetails(id=dag_id),
+        # The Dag is resolved from the asset here rather than named by the caller, so its team has
+        # to be looked up too. A team-aware auth manager distinguishes a team-scoped Dag from a
+        # global one by this field, so leaving it None asks the wrong question.
+        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
         user=user,
     ):
         raise HTTPException(
@@ -492,7 +506,7 @@ def materialize_asset(
             conf=params["conf"],
             run_type=DagRunType.ASSET_MATERIALIZATION,
             triggered_by=DagRunTriggeredByType.REST_API,
-            triggering_user_name=user.get_name(),
+            triggering_user_name=user.get_display_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             partition_date=params["partition_date"],

@@ -452,6 +452,7 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
 DeleteAgentResponse
 DeleteAgentVersionResponse
 delim
@@ -524,6 +525,7 @@ downstreams
 dp
 dq
 Drillbit
+driverless
 dropdown
 druidHook
 ds
@@ -598,7 +600,9 @@ EOL
 equest
 errno
 errored
+esbuild
 eslint
+ESM
 ETag
 etag
 etl
@@ -1175,6 +1179,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OPA
 OpenAI
 openai
 openapi
@@ -1226,6 +1231,7 @@ paramiko
 Params
 params
 parsers
+passthrough
 passwd
 pathlib
 pathType
@@ -1318,6 +1324,8 @@ proto
 Protobuf
 protobuf
 provisioner
+proxied
+proxies
 psql
 psrp
 psycopg
@@ -1420,7 +1428,10 @@ req
 reqs
 requeue
 requeued
+requeues
+requeuing
 reserialize
+Reserializing
 resetdb
 resizable
 ResourceRequirements
@@ -1608,6 +1619,7 @@ StatsD
 statsd
 stderr
 stdin
+stdlib
 stdout
 StorageClass
 storages
@@ -1615,6 +1627,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+StreamingLogResponse
 strftime
 Stringified
 stringified

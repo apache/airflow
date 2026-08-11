@@ -238,6 +238,29 @@ export type BackfillCollectionResponse = {
 };
 
 /**
+ * BackfillDagRun Collection serializer for responses.
+ */
+export type BackfillDagRunCollectionResponse = {
+    backfill_dag_runs: Array<BackfillDagRunResponse>;
+    total_entries: number;
+};
+
+/**
+ * Serializer for a single BackfillDagRun entry with joined DagRun state.
+ */
+export type BackfillDagRunResponse = {
+    id: number;
+    backfill_id: number;
+    dag_id: string;
+    dag_run_id?: string | null;
+    logical_date: string | null;
+    partition_key: string | null;
+    sort_ordinal: number;
+    exception_reason: string | null;
+    dag_run_state?: DagRunState | null;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -1027,6 +1050,7 @@ export type DAGRunResponse = {
     dag_display_name: string;
     partition_key: string | null;
     partition_date: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1257,6 +1281,7 @@ export type EventLogResponse = {
     event: string;
     logical_date: string | null;
     owner: string | null;
+    owner_display_name: string | null;
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;
@@ -1280,11 +1305,11 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     href: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
 };
 
-export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
+export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
 
 /**
  * Extra Links Response.
@@ -1534,6 +1559,7 @@ export type PluginImportErrorResponse = {
  */
 export type PluginResponse = {
     name: string;
+    team_name?: string | null;
     macros: Array<(string)>;
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
@@ -1655,11 +1681,11 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     bundle_url: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -1824,6 +1850,7 @@ export type TaskInstanceResponse = {
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
+    team_name?: string | null;
 };
 
 /**
@@ -2180,6 +2207,7 @@ export type BaseNodeResponse = {
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
+    asset_condition_type?: 'or-gate' | 'and-gate' | null;
 };
 
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
@@ -2354,6 +2382,7 @@ export type DAGWithLatestDagRunsResponse = {
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -2377,6 +2406,14 @@ export type DAGsRunStateCountsCollectionResponse = {
  */
 export type DagRunStatsResponse = {
     duration: DurationStats | null;
+};
+
+/**
+ * Timetable types used by Dags.
+ */
+export type DagTimetableTypeCollectionResponse = {
+    timetable_types: Array<(string)>;
+    total_entries: number;
 };
 
 /**
@@ -2405,9 +2442,9 @@ export type DeadlineAlertResponse = {
     name?: string | null;
     reference_type: string;
     /**
-     * Interval in seconds between deadline evaluations.
+     * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
      */
-    interval: number;
+    interval?: number | null;
     created_at: string;
 };
 
@@ -2453,7 +2490,6 @@ export type EdgeResponse = {
     target_id: string;
     is_setup_teardown?: boolean | null;
     label?: string | null;
-    is_source_asset?: boolean | null;
 };
 
 /**
@@ -2550,7 +2586,8 @@ export type GridTISummaries = {
 export type HistoricalMetricDataResponse = {
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
-    state_count_limit: number;
+    dag_run_counts_are_lower_bounds?: boolean;
+    task_instance_counts_are_lower_bounds?: boolean;
 };
 
 /**
@@ -2616,12 +2653,14 @@ export type NodeResponse = {
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
+    asset_condition_type?: 'or-gate' | 'and-gate' | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     tooltip?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
-    asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    ui_color?: string | null;
+    ui_fgcolor?: string | null;
 };
 
 export type OklchColor = string;
@@ -2796,13 +2835,11 @@ export type GetAssetsData = {
     dagIds?: Array<(string)>;
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     namePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     namePrefixPattern?: string | null;
     offset?: number;
@@ -2816,13 +2853,11 @@ export type GetAssetsData = {
      */
     uri?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``uri_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     uriPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     uriPrefixPattern?: string | null;
 };
@@ -2832,13 +2867,11 @@ export type GetAssetsResponse = AssetCollectionResponse;
 export type GetAssetAliasesData = {
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     namePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     namePrefixPattern?: string | null;
     offset?: number;
@@ -2864,13 +2897,11 @@ export type GetAssetEventsData = {
     extra?: Array<(string)>;
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     namePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     namePrefixPattern?: string | null;
     offset?: number;
@@ -2878,6 +2909,11 @@ export type GetAssetEventsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
      */
     orderBy?: Array<(string)>;
+    partitionKey?: string | null;
+    /**
+     * Filter results by matching this regular expression against the field value.
+     */
+    partitionKeyRegexpPattern?: string | null;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
@@ -2953,6 +2989,51 @@ export type DeleteDagAssetQueuedEventData = {
 
 export type DeleteDagAssetQueuedEventResponse = void;
 
+export type GetAssetsUiData = {
+    dagIds?: Array<(string)>;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    groupPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    groupPrefixPattern?: string | null;
+    lastAssetEventTimestampGt?: string | null;
+    lastAssetEventTimestampGte?: string | null;
+    lastAssetEventTimestampLt?: string | null;
+    lastAssetEventTimestampLte?: string | null;
+    limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    namePrefixPattern?: string | null;
+    offset?: number;
+    onlyActive?: boolean;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, group, created_at, updated_at, last_asset_event_timestamp`
+     */
+    orderBy?: Array<(string)>;
+    /**
+     * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
+     */
+    uri?: Array<(string)>;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    uriPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    uriPrefixPattern?: string | null;
+};
+
+export type GetAssetsUiResponse = AssetCollectionResponse;
+
 export type NextRunAssetsData = {
     dagId: string;
 };
@@ -2982,6 +3063,18 @@ export type GetBackfillData = {
 };
 
 export type GetBackfillResponse = BackfillResponse;
+
+export type ListBackfillDagRunsData = {
+    backfillId: number;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type ListBackfillDagRunsResponse = BackfillDagRunCollectionResponse;
 
 export type PauseBackfillData = {
     backfillId: number;
@@ -3054,13 +3147,11 @@ export type EnqueueConnectionTestResponse = ConnectionTestQueuedResponse;
 
 export type GetConnectionsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``connection_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `connection_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     connectionIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     connectionIdPrefixPattern?: string | null;
     limit?: number;
@@ -3129,7 +3220,7 @@ export type GetDagRunsData = {
     bundleVersion?: string | null;
     confContains?: string;
     /**
-     * Filter by consuming asset name or URI using pattern matching
+     * Case-insensitive substring match against the consuming asset name or URI. Unlike the wildcard `*_pattern` parameters, `%` and `_` are matched literally, `|` is not an OR separator, and `~` does not match everything.
      */
     consumingAssetPattern?: string | null;
     /**
@@ -3138,13 +3229,11 @@ export type GetDagRunsData = {
     cursor?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagVersion?: Array<(number)>;
@@ -3163,17 +3252,23 @@ export type GetDagRunsData = {
     logicalDateLte?: string | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). The pipe `|` is matched literally, not as an OR separator. Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``partition_key_prefix_pattern`` parameter when possible.
+     * Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. Runs from the start of this day onwards match.
+     */
+    partitionDateGte?: string | null;
+    /**
+     * Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. The whole day is included: runs up to the end of this day match.
+     */
+    partitionDateLte?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Here `|` is matched literally, not as OR. Slower than `partition_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     partitionKeyPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). The pipe `|` is part of the prefix, not an OR separator. Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. Here `|` is matched literally, not as OR. See "Filtering with pattern parameters".
      */
     partitionKeyPrefixPattern?: string | null;
     runAfterGt?: string | null;
@@ -3181,13 +3276,11 @@ export type GetDagRunsData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     runIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
@@ -3196,14 +3289,13 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    teams?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     triggeringUserNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     triggeringUserNamePrefixPattern?: string | null;
     updatedAtGt?: string | null;
@@ -3331,23 +3423,19 @@ export type GetDagsData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagRunEndDateGt?: string | null;
@@ -3387,13 +3475,11 @@ export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     excludeStale?: boolean;
@@ -3455,13 +3541,11 @@ export type GetDagTagsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``tag_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `tag_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     tagNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     tagNamePrefixPattern?: string | null;
 };
@@ -3476,29 +3560,25 @@ export type GetDagsUiData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     /**
-     * Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
+     * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
     excludeStale?: boolean;
@@ -3516,16 +3596,29 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    teams?: Array<(string)>;
+    timetableType?: Array<(string)>;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDagTimetableTypesUiData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    timetableTypePrefixPattern?: string | null;
+};
+
+export type GetDagTimetableTypesUiResponse = DagTimetableTypeCollectionResponse;
 
 export type GetLatestRunInfoData = {
     dagId: string;
@@ -3550,24 +3643,20 @@ export type GetEventLogsData = {
     before?: string | null;
     dagId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     event?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``event_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `event_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     eventPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     eventPrefixPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
@@ -3576,40 +3665,42 @@ export type GetEventLogsData = {
     mapIndex?: number | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
      */
     orderBy?: Array<(string)>;
     owner?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``owner_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePrefixPattern?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     ownerPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     ownerPrefixPattern?: string | null;
     runId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     runIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     taskId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `task_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     taskIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
     tryNumber?: number | null;
@@ -3676,13 +3767,11 @@ export type GetMappedTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `operator_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     operatorNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     operatorNamePrefixPattern?: string | null;
     /**
@@ -3691,34 +3780,28 @@ export type GetMappedTaskInstancesData = {
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `pool_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     poolNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     poolNamePrefixPattern?: string | null;
     queue?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `queue_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     queueNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     renderedMapIndexPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
@@ -3804,13 +3887,11 @@ export type GetTaskInstancesData = {
     cursor?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagRunId: string;
@@ -3832,13 +3913,11 @@ export type GetTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `operator_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     operatorNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     operatorNamePrefixPattern?: string | null;
     /**
@@ -3847,34 +3926,28 @@ export type GetTaskInstancesData = {
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `pool_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     poolNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     poolNamePrefixPattern?: string | null;
     queue?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `queue_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     queueNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     renderedMapIndexPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
@@ -3882,13 +3955,11 @@ export type GetTaskInstancesData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     runIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     startDateGt?: string | null;
@@ -3897,13 +3968,11 @@ export type GetTaskInstancesData = {
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_display_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `task_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     taskDisplayNamePattern?: string | null;
     /**
-     * Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to ``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the term are stripped before matching so the range scan stays index-compatible under locale-aware collations.
+     * Case-sensitive prefix match on task display name (`_task_display_property_value` else `task_id`). Index-friendly alternative to `task_display_name_pattern`; on large databases combine with `dag_id_prefix_pattern` (or a specific Dag in the path) so composite indexes apply. See "Filtering with pattern parameters".
      */
     taskDisplayNamePrefixPattern?: string | null;
     /**
@@ -3911,6 +3980,7 @@ export type GetTaskInstancesData = {
      */
     taskGroupId?: string | null;
     taskId?: string | null;
+    teams?: Array<(string)>;
     tryNumber?: Array<(number)>;
     updatedAtGt?: string | null;
     updatedAtGte?: string | null;
@@ -4059,9 +4129,7 @@ export type GetHitlDetailTryDetailResponse = HITLDetailHistory;
 
 export type GetHitlDetailsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``body_search`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `body_search` on large tables — see "Filtering with pattern parameters".
      */
     bodySearch?: string | null;
     createdAtGt?: string | null;
@@ -4070,13 +4138,11 @@ export type GetHitlDetailsData = {
     createdAtLte?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagRunId: string;
@@ -4092,20 +4158,16 @@ export type GetHitlDetailsData = {
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``subject_search`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `subject_search` on large tables — see "Filtering with pattern parameters".
      */
     subjectSearch?: string | null;
     taskId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `task_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     taskIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
 };
@@ -4128,13 +4190,11 @@ export type GetImportErrorsData = {
      */
     filename?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `filename_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     filenamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     filenamePrefixPattern?: string | null;
     limit?: number;
@@ -4148,6 +4208,7 @@ export type GetImportErrorsData = {
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetJobsData = {
+    dagId?: string | null;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
@@ -4208,13 +4269,11 @@ export type GetPoolsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `pool_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     poolNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     poolNamePrefixPattern?: string | null;
 };
@@ -4373,13 +4432,11 @@ export type DeleteXcomEntryResponse = void;
 
 export type GetXcomEntriesData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
@@ -4401,35 +4458,29 @@ export type GetXcomEntriesData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     runIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     taskId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `task_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     taskIdPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
     xcomKey?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``xcom_key_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     xcomKeyPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     xcomKeyPrefixPattern?: string | null;
 };
@@ -4487,13 +4538,11 @@ export type GetVariablesData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``variable_key_prefix_pattern`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `variable_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     variableKeyPattern?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     variableKeyPrefixPattern?: string | null;
 };
@@ -4621,9 +4670,10 @@ export type GetDagDeadlineAlertsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
+    versionNumber?: number | null;
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
@@ -4631,7 +4681,6 @@ export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
 export type StructureDataData = {
     dagId: string;
     depth?: number | null;
-    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string | null;
@@ -4656,16 +4705,22 @@ export type GetDagStructureData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    runIdPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user` on large tables — see "Filtering with pattern parameters".
      */
     triggeringUser?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     triggeringUserPrefix?: string | null;
 };
@@ -4684,16 +4739,22 @@ export type GetGridRunsData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    runIdPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     *
-     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user`` parameter when possible.
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user` on large tables — see "Filtering with pattern parameters".
      */
     triggeringUser?: string | null;
     /**
-     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     triggeringUserPrefix?: string | null;
 };
@@ -5103,6 +5164,21 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/assets': {
+        get: {
+            req: GetAssetsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/ui/next_run_assets/{dag_id}': {
         get: {
             req: NextRunAssetsData;
@@ -5186,6 +5262,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BackfillResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/backfills/{backfill_id}/dag_runs': {
+        get: {
+            req: ListBackfillDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BackfillDagRunCollectionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6390,6 +6493,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGWithLatestDagRunsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/timetable_types': {
+        get: {
+            req: GetDagTimetableTypesUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagTimetableTypeCollectionResponse;
                 /**
                  * Validation Error
                  */
@@ -7965,6 +8083,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8484,10 +8606,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: StructureDataResponse;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

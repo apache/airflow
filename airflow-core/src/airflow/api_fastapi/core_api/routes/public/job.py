@@ -86,6 +86,9 @@ def get_jobs(
     state: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(Job.state, str | None, filter_name="job_state"))
     ],
+    dag_id: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(Job.dag_id, str | None, filter_name="dag_id"))
+    ],
     job_type: Annotated[
         FilterParam[str | None],
         Depends(filter_param_factory(Job.job_type, str | None, filter_name="job_type")),
@@ -109,6 +112,7 @@ def get_jobs(
             start_date_range,
             end_date_range,
             state,
+            dag_id,
             job_type,
             hostname,
             executor_class,

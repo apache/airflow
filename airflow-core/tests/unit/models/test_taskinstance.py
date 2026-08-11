@@ -2431,7 +2431,7 @@ class TestTaskInstance:
         ti.task = None
         ti.state = State.QUEUED
         session.flush()
-        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": dr.run_type}
 
         assert ti.task is None, "Check critical pre-condition"
 
@@ -3875,6 +3875,40 @@ def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, se
     assert dr.partition_key is None
 
 
+@pytest.mark.backend("sqlite")
+def test_runtime_partition_key_backfill_does_not_deadlock_on_sqlite(dag_maker, session):
+    """Regression test for the SQLite ``database is locked`` deadlock.
+
+    This happens when a second connection is used to trigger while
+    ``register_asset_changes_in_db`` was writing.
+
+    The asset event is now created inline on the caller's session (see
+    ``AssetManager.register_asset_change``) instead of opening a side session, so
+    on file-based SQLite (the default ``-b sqlite`` test backend) there is no
+    longer a second connection competing for the same RESERVED lock.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_backfill_sqlite", schedule=PartitionedAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    # Must not raise "sqlite3.OperationalError: database is locked."
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "us"
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
 def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
     """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
     asset = Asset(name="hello")
@@ -4374,47 +4408,82 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
 
 class TestTaskInstanceStatsTagsTeamName:
     def test_stats_tags_without_team_name(self, dag_maker, session):
-        """stats_tags should not include team_name when _team_name is not set."""
+        """stats_tags should not include team_name when the dag run has no team_name."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("my_task", session=session)
         tags = ti.stats_tags
         assert "team_name" not in tags
-        assert tags == {"dag_id": "test_dag", "task_id": "my_task"}
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "run_type": dr.run_type}
 
     def test_stats_tags_with_team_name(self, dag_maker, session):
-        """stats_tags should include team_name when _team_name is set."""
+        """stats_tags takes team_name from the dag run's stats_tags."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
+        dr._team_name = "my_team"
         ti = dr.get_task_instance("my_task", session=session)
-        ti._team_name = "my_team"
         tags = ti.stats_tags
         assert tags["team_name"] == "my_team"
-        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team"}
+        assert tags == {
+            "dag_id": "test_dag",
+            "task_id": "my_task",
+            "team_name": "my_team",
+            "run_type": dr.run_type,
+        }
 
     def test_stats_tags_with_none_team_name(self, dag_maker, session):
-        """stats_tags should not include team_name when _team_name is None."""
+        """stats_tags should not include team_name when the dag run's team_name is None."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
+        dr._team_name = None
         ti = dr.get_task_instance("my_task", session=session)
-        ti._team_name = None
         tags = ti.stats_tags
         assert "team_name" not in tags
+
+    @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+    def test_stats_tags_match_worker_tag_set(self, dag_maker, session):
+        """ti_failures (and other ti.* metrics) are emitted from both the worker
+        (RuntimeTaskInstance.stats_tags) and the scheduler (TaskInstance.stats_tags); both must produce
+        the same tag set. The worker side is asserted in test_task_runner.py
+        (test_stats_tags_with_standalone_and_key_value_tags); this guards the scheduler side against drift:
+        dag tags + dag_id + task_id + run_type.
+        """
+        with dag_maker("parity_dag", tags=["env:prod", "production"], session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("t1", session=session)
+        tags = ti.stats_tags
+        assert tags == {
+            "dag_id": "parity_dag",
+            "task_id": "t1",
+            "run_type": "manual",
+            "env": "prod",
+            "production": "",
+        }
+        # run_type must be the bare value (not a DagRunType enum) so it serializes identically to
+        # the worker side, e.g. "manual" not "dagruntype.manual".
+        assert type(tags["run_type"]) is str
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags"),
         [
             pytest.param(
                 "my_team",
-                {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team", "queue": "default"},
+                {
+                    "dag_id": "test_dag",
+                    "task_id": "my_task",
+                    "team_name": "my_team",
+                    "queue": "default",
+                    "run_type": "manual",
+                },
                 id="with_team",
             ),
             pytest.param(
                 None,
-                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default"},
+                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default", "run_type": "manual"},
                 id="without_team",
             ),
         ],
@@ -4430,7 +4499,7 @@ class TestTaskInstanceStatsTagsTeamName:
         ti.state = TaskInstanceState.SCHEDULED
         ti.scheduled_dttm = timezone.utcnow()
         if team_name:
-            ti._team_name = team_name
+            dr._team_name = team_name
         session.merge(ti)
         session.flush()
 

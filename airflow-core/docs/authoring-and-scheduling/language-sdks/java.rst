@@ -426,6 +426,14 @@ represented as Java objects when read back via ``getXCom``.
      - object
      - ``Map<String, Object>``
 
+.. note::
+
+   An ``@Builder.XCom`` parameter that reads a value which was never pushed resolves to
+   ``null``.  A boxed parameter (``Integer``, ``Long``, ``Boolean``, …) receives ``null``
+   safely, but a primitive parameter (``int``, ``long``, ``boolean``, …) cannot represent
+   ``null`` and the task fails with ``MissingXComException``.  Declare the parameter with a
+   boxed type when the upstream XCom may be absent.
+
 .. _java-sdk/build:
 
 Building and packaging

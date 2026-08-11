@@ -37,13 +37,10 @@ from airflow_breeze.utils.path_utils import (
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
-# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
-RUNNERS_TYPE_CROSS_MAPPING = {
-    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
-    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
-    "windows-2022": '["windows-2022"]',
-    "windows-2025": '["windows-2025"]',
-}
+# Platform the tests of a CI run execute on.
+CI_AMD_PLATFORM = "linux/amd64"
+CI_ARM_PLATFORM = "linux/arm64"
+CI_PLATFORMS = [CI_AMD_PLATFORM, CI_ARM_PLATFORM]
 
 ANSWER = ""
 
@@ -301,7 +298,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.2"
-UV_VERSION = "0.11.26"
+UV_VERSION = "0.11.29"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -505,6 +502,7 @@ RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 RABBITMQ_HOST_PORT = "25672"
 SSH_PORT = "12322"
+SIMPLE_AUTH_MANAGER_VITE_DEV_PORT = "5174"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
 BREEZE_DEBUG_SCHEDULER_PORT = "50231"

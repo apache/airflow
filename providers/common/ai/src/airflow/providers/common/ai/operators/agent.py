@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -157,6 +158,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         On Airflow >= 3.3 the cache is kept in the AIP-103 task state store, so
         no extra configuration is needed. On older cores it is persisted to
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
+        Tools are durably cached when provided via ``toolsets=`` or via a
+        concrete pydantic-ai ``Toolset`` capability. Tools reaching the agent
+        through any *other* capability -- ``MCP``, ``PrefixTools``,
+        ``CombinedCapability``, a ``Toolset`` backed by a callable factory, or
+        capabilities loaded from a ``spec_file`` -- are not cached and re-run on
+        retry; put tools you need replayed in ``toolsets=``. Provider-native
+        capabilities such as ``WebSearch`` and ``Thinking`` execute inside the
+        model call and are covered by model-response caching.
     :param code_mode: When ``True``, wraps the agent's tools in a single
         ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
         ``CodeMode``). Instead of one model round-trip per tool call, the model
@@ -212,6 +221,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
 
+    # This operator supports durable execution directly, without ResumableJobMixin --
+    # it caches step results via task_state_store for replay on retry.
+    __supports_durable_execution: ClassVar[bool] = True
+
     template_fields: Sequence[str] = (
         "prompt",
         "llm_conn_id",
@@ -266,6 +279,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.durable = durable
         self.code_mode = code_mode
 
+        # Populated per run in ``execute`` when durable=True. Declared here so
+        # ``_build_agent`` -- also reached via ``regenerate_with_feedback``
+        # outside ``execute`` -- can read them unconditionally.
+        self._durable_storage: DurableStorageProtocol | None = None
+        self._durable_counter: DurableStepCounter | None = None
+
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
@@ -277,13 +296,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             # ordering can differ between the original run and a retry, breaking
             # replay. Reject the combination rather than silently mis-replaying.
             raise ValueError("durable=True and code_mode=True cannot be used together.")
-
-        if message_history is not None and enable_hitl_review:
-            # The post-review transcript is not recoverable today (run_hitl_review
-            # returns only the final string), so emitting the pre-review transcript
-            # would silently drop the human-approved turns. Block until HITL can
-            # surface the final message history.
-            raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
 
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
@@ -306,18 +318,24 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     def _build_agent(self) -> Agent[object, Any]:
         """Build and return a pydantic-ai Agent from the operator's config."""
         extra_kwargs = dict(self.agent_params)
+        storage = self._durable_storage
+        counter = self._durable_counter
         if self.toolsets:
             toolsets = self.toolsets
-            if self.durable and self._durable_storage is not None and self._durable_counter is not None:
-                toolsets = self._build_durable_toolsets(
-                    toolsets, self._durable_storage, self._durable_counter
-                )
+            if self.durable and storage is not None and counter is not None:
+                toolsets = self._build_durable_toolsets(toolsets, storage, counter)
             if self.enable_tool_logging:
                 toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
+        capabilities = list(extra_kwargs.get("capabilities") or [])
+        if self.durable and storage is not None and counter is not None:
+            # Tools supplied through a ``Toolset`` capability bypass the
+            # ``toolsets=`` wrapping above, so their results would re-execute on
+            # every retry instead of replaying; wrap their inner toolset too.
+            capabilities = self._build_durable_capabilities(capabilities, storage, counter)
         if self.code_mode:
-            capabilities = list(extra_kwargs.get("capabilities") or [])
             capabilities.append(_build_code_mode())
+        if capabilities:
             extra_kwargs["capabilities"] = capabilities
         return self.llm_hook.create_agent(
             output_type=self.output_type,
@@ -332,6 +350,49 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 
         return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
+
+    def _build_durable_capabilities(
+        self, capabilities: list[Any], storage: DurableStorageProtocol, counter: DurableStepCounter
+    ) -> list[Any]:
+        """
+        Wrap toolsets provided via a pydantic-ai ``Toolset`` capability for durable replay.
+
+        Tools reaching the agent through ``capabilities=[Toolset(ts)]`` bypass the
+        operator's ``toolsets=`` list, so the ``CachingToolset`` applied in
+        :meth:`_build_durable_toolsets` never sees them and their results
+        re-execute on every retry instead of replaying. Wrap each ``Toolset``
+        capability's inner toolset with the same ``CachingToolset``, preserving
+        the capability's other fields. Non-``Toolset`` capabilities pass through
+        unchanged, as does a ``Toolset`` holding a callable factory rather than a
+        concrete toolset (only a concrete toolset can be wrapped here).
+        """
+        # pydantic-ai (and the pydantic-ai-importing CachingToolset) are imported
+        # lazily to keep them out of DAG-parse-time imports, matching
+        # ``_build_durable_toolsets`` and the rest of this module.
+        from pydantic_ai.capabilities import Toolset
+        from pydantic_ai.toolsets.abstract import AbstractToolset
+
+        from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
+
+        rewrapped: list[Any] = []
+        for capability in capabilities:
+            # ``Toolset.toolset`` can be a concrete toolset or a callable factory
+            # resolved per run; only a concrete toolset can be wrapped here.
+            if isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset):
+                cached = CachingToolset(wrapped=capability.toolset, storage=storage, counter=counter)
+                rewrapped.append(replace(capability, toolset=cached))
+                continue
+            if isinstance(capability, Toolset):
+                # The toolset is a callable factory resolved per run, so there is
+                # no concrete toolset to wrap; its results won't be cached for
+                # replay. Warn so durable users aren't silently surprised on retry.
+                self.log.warning(
+                    "durable=True: tools from a Toolset capability backed by a callable "
+                    "factory are not cached for replay; pass the toolset via `toolsets=` "
+                    "for durability."
+                )
+            rewrapped.append(capability)
+        return rewrapped
 
     def _build_durable_storage(self, context: Context) -> DurableStorageProtocol:
         """
@@ -360,6 +421,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         )
 
     def execute(self, context: Context) -> Any:
+        # message_history is a template field; validate the combination after rendering.
+        if self.message_history is not None and self.enable_hitl_review:
+            # run_hitl_review returns only the final string, so the pre-review transcript would drop
+            # the human-approved turns. Block until HITL can surface the final message history.
+            raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
+
         if self.enable_hitl_review and not isinstance(self.prompt, str):
             raise TypeError(
                 f"{type(self).__name__}: enable_hitl_review=True is not supported "
@@ -418,9 +485,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                     c.cached_tool,
                 )
 
-        if self._durable_storage is not None:
-            self._durable_storage.cleanup()
-
         if self.message_history is not None:
             self._emit_message_history(context, result)
 
@@ -445,6 +509,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
+
+        # Clean up the durable cache only after the run and every post-run step
+        # that can still fail (the message-history XCom push above and output
+        # serialization) has succeeded. Cleaning up earlier and then raising
+        # would leave the Airflow retry with an empty cache, re-executing every
+        # already-completed model and tool step.
+        if self._durable_storage is not None:
+            self._durable_storage.cleanup()
         return output
 
     def _resolve_message_history(self) -> list[ModelMessage] | None:

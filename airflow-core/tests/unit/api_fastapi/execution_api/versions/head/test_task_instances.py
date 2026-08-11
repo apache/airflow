@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import UUID, uuid4
@@ -65,6 +66,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
+from unit.listeners import asset_listener
 
 if TYPE_CHECKING:
     from airflow.sdk.api.client import Client
@@ -1294,6 +1296,83 @@ class TestTIUpdateState:
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
 
+    def test_ti_update_state_to_success_runs_deferred_asset_listener_callbacks(
+        self, client, session, create_task_instance, listener_manager
+    ):
+        """The success endpoint runs the deferred asset listener callbacks after committing."""
+        asset_listener.clear()
+        listener_manager(asset_listener)
+
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_runs_deferred_asset_listener_callbacks",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == 204
+
+        # Notifications are deferred during registration and run by the endpoint after the
+        # TI state is committed (and the task_instance row lock released).
+        assert len(asset_listener.changed) == 1
+        assert asset_listener.changed[0].uri == "s3://bucket/my-task"
+        assert len(asset_listener.emitted) == 1
+
+    def test_ti_update_state_to_success_rolls_back_partial_asset_registration(
+        self, client, session, create_task_instance
+    ):
+        """A failure partway through asset registration rolls back the partial writes.
+
+        The endpoint's exception handler marks the TI failed and commits; the explicit rollback
+        ensures an asset event flushed before the failure is not committed alongside it.
+        """
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_rolls_back_partial_asset_registration",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        def _partial_then_fail(ti, task_outlets, outlet_events, *, session):
+            # Simulate a half-way registration: an asset event is flushed, then registration
+            # fails before the endpoint commits.
+            session.add(AssetEvent(asset_id=asset.id))
+            session.flush()
+            raise RuntimeError("boom partway through outlets")
+
+        with mock.patch.object(TaskInstance, "register_asset_changes_in_db", side_effect=_partial_then_fail):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204
+        session.expire_all()
+        # The partially-written asset event was rolled back, and the TI is marked failed.
+        assert session.scalars(select(AssetEvent)).all() == []
+        assert session.get(TaskInstance, ti.id).state == State.FAILED
+
     @pytest.mark.parametrize(
         ("outlet_events", "expected_extra"),
         [
@@ -1497,7 +1576,64 @@ class TestTIUpdateState:
             mock_register_asset_changes_in_db.return_value = None
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
-            assert response.json()["detail"] == "Database error occurred"
+            detail = response.json()["detail"]
+            assert isinstance(detail, dict)
+            assert detail.get("reason") == "Database error"
+
+    def test_ti_run_database_error(self, client, session, create_task_instance):
+        """
+        Test that a database error is handled correctly when starting the Task Instance.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_run_database_error",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        payload = {
+            "state": "running",
+            "hostname": "hostname",
+            "unixname": "unixname",
+            "pid": 123,
+            "start_date": "2024-10-31T12:00:00Z",
+        }
+
+        with mock.patch(
+            "airflow.api_fastapi.common.db.common.Session.execute",
+            side_effect=[
+                mock.Mock(
+                    one=mock.Mock(
+                        return_value=SimpleNamespace(
+                            state="queued",
+                            dag_id="dag",
+                            run_id="run",
+                            task_id="task",
+                            map_index=-1,
+                            try_number=1,
+                            max_tries=0,
+                            start_date=None,
+                            next_method=None,
+                            hostname=None,
+                            unixname=None,
+                            pid=None,
+                            next_kwargs=None,
+                            logical_date=timezone.utcnow(),
+                            owners="test_owner",
+                        )
+                    )
+                ),
+                SQLAlchemyError("Database error"),
+            ],
+        ):
+            response = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+
+        assert response.status_code == 500
+        detail = response.json()["detail"]
+        assert isinstance(detail, dict)
+        assert detail.get("reason") == "Database error"
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_ti_update_state_to_deferred(

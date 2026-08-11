@@ -416,7 +416,7 @@ configuration option:
 * ``error`` — Treats detected issues as Dag import errors, preventing the Dag from loading.
 
 Additionally, you can catch these issues earlier in your development workflow by using the
-`AIR302 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
+`AIR304 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
 dynamic values in Dag and Task constructors as part of static linting. See
 :ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
 

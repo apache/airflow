@@ -103,13 +103,13 @@ def get_provider_info():
         "queues": ["airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider"],
         "plugins": [
             {
-                "name": "kafka_listener",
-                "plugin-class": "airflow.providers.apache.kafka.plugins.listener.KafkaListenerPlugin",
+                "name": "kafka_event_producer",
+                "plugin-class": "airflow.providers.apache.kafka.plugins.event_producer.KafkaEventProducerPlugin",
             }
         ],
         "config": {
-            "kafka_listener": {
-                "description": "Settings for the Kafka listener that publishes Airflow DagRun and\nTaskInstance state-change events to a Kafka topic.\n",
+            "kafka_event_producer": {
+                "description": "Settings for the Kafka event producer plugin that publishes Airflow\nDagRun and TaskInstance state-change events to a Kafka topic.\n",
                 "options": {
                     "dag_run_events_enabled": {
                         "description": "Publish DagRun state-change events (``dag_run.running``,\n``dag_run.success``, ``dag_run.failed``). When False the\nDagRun listener is not registered.\n",
@@ -126,14 +126,14 @@ def get_provider_info():
                         "default": "False",
                     },
                     "kafka_config_id": {
-                        "description": "Airflow connection used to build the listener's Kafka producer.\nWhen unset, the producer hook falls back to its default\nconnection (``kafka_default``).\n",
+                        "description": "Airflow connection used to build the plugin's Kafka producer.\nWhen unset, the producer hook falls back to its default\nconnection (``kafka_default``).\n",
                         "version_added": "1.14.1",
                         "type": "string",
                         "example": "kafka_default",
                         "default": "",
                     },
                     "topic": {
-                        "description": "Topic the listener publishes events to. The topic must already\nexist on the broker; the listener will not auto-create it.\n",
+                        "description": "Topic the plugin publishes events to. The topic must already\nexist on the broker; the plugin will not auto-create it.\n",
                         "version_added": "1.14.1",
                         "type": "string",
                         "example": None,

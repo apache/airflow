@@ -111,10 +111,6 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 class DefaultHelpParser(argparse.ArgumentParser):
     """CustomParser to display help message."""
 
-    def _check_value(self, action, value):
-        """Override _check_value and check conditionally added command."""
-        super()._check_value(action, value)
-
     def error(self, message):
         """Override error and use print_help instead of print_usage."""
         self.print_help()
@@ -279,12 +275,75 @@ ARG_AUTH_PASSWORD = Arg(
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
-    help="The Dag ID of the Dag to pause or unpause",
+    help="The Dag ID",
 )
-ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
-    flags=("logical_date_or_run_id",),
+ARG_DAG_RUN_ID = Arg(
+    flags=("--run-id",),
     type=str,
-    help="The logical date with a timezone offset or run ID of the Dag run",
+    help="The Dag run ID to clear",
+)
+ARG_DAG_PARTITION_KEY = Arg(
+    flags=("--partition-key",),
+    type=str,
+    help="The Dag run partition key to clear",
+)
+ARG_DAG_PARTITION_DATE_START = Arg(
+    flags=("--partition-date-start",),
+    type=str,
+    help=(
+        "Inclusive lower bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_PARTITION_DATE_END = Arg(
+    flags=("--partition-date-end",),
+    type=str,
+    help=(
+        "Inclusive upper bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_CLEAR_ONLY_FAILED = Arg(
+    flags=("-f", "--only-failed"),
+    default=False,
+    action="store_true",
+    help="Only clear failed task instances",
+)
+ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
+    flags=("-r", "--only-running"),
+    default=False,
+    action="store_true",
+    help="Only clear running task instances",
+)
+ARG_DAG_CLEAR_YES = Arg(
+    flags=("-y", "--yes"),
+    default=False,
+    action="store_true",
+    help="Do not prompt to confirm clearing task instances",
+)
+
+# Task Commands Args
+ARG_TASK_ID = Arg(
+    flags=("task_id",),
+    type=str,
+    help="The task ID",
+)
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+)
+ARG_MAP_INDEX = Arg(
+    flags=("--map-index",),
+    type=int,
+    default=-1,
+    help="Mapped task index",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -293,6 +352,35 @@ ARG_ACTION_ON_EXISTING_KEY = Arg(
     default="overwrite",
     help="Action to take if the entity already exists.",
     choices=("overwrite", "fail", "skip"),
+)
+
+# Jobs command args
+ARG_JOB_TYPE_FILTER = Arg(
+    flags=("--job-type",),
+    choices=("SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    help="The type of job(s) that will be checked.",
+)
+ARG_JOB_HOSTNAME_FILTER = Arg(
+    flags=("--hostname",),
+    type=str,
+    default=None,
+    help="The hostname of job(s) that will be checked.",
+)
+ARG_JOB_LOCAL_FILTER = Arg(
+    flags=("--local",),
+    action="store_true",
+    help="If passed, this command will only show jobs from the local host.",
+)
+ARG_JOB_LIMIT = Arg(
+    flags=("--limit",),
+    type=positive_int(allow_zero=True),
+    default=1,
+    help="The number of recent jobs that will be checked. To disable limit, set 0.",
+)
+ARG_JOB_ALLOW_MULTIPLE = Arg(
+    flags=("--allow-multiple",),
+    action="store_true",
+    help="If passed, this command will be successful even if multiple matching alive jobs are found.",
 )
 
 # Config arguments
@@ -413,7 +501,21 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
+        # Datamodels whose generated bool flags follow the datamodel field defaults instead of
+        # defaulting to False, so the CLI keeps the API semantics (e.g. a bare ``tasks clear``
+        # must keep ``dry_run=True`` and preview instead of clearing).
+        self.field_bool_default_datamodels = ["ClearTaskInstancesBody"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -503,6 +605,7 @@ class CommandFactory:
             "dict",
             "tuple",
             "set",
+            "datetime.date",
             "datetime.datetime",
         }
         # Handle Optional types (e.g., "datetime.datetime | None", "str | None")
@@ -533,6 +636,7 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
+            "datetime.date": datetime.date,
             "datetime.datetime": datetime.datetime,
             "dict[str, typing.Any]": json_dict_type,
         }
@@ -580,6 +684,14 @@ class CommandFactory:
             help=arg_help,
         )
 
+    def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
+        """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
+        if parameter_type in self.field_bool_default_datamodels and (
+            field_default is None or isinstance(field_default, bool)
+        ):
+            return field_default
+        return False
+
     def _create_arg_for_non_primitive_type(
         self,
         parameter_type: str,
@@ -595,30 +707,24 @@ class CommandFactory:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
-                    )
-                )
+                annotation = field_type.annotation
             else:
                 try:
                     annotation = field_type.annotation.__args__[0]
                 except AttributeError:
                     annotation = field_type.annotation
 
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
-                    )
+            commands.append(
+                self._create_arg(
+                    arg_flags=(f"--{self._sanitize_arg_parameter_key(field)}",),
+                    arg_type=self._python_type_from_string(annotation),
+                    arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                    arg_help=f"{field} for {parameter_key} operation",
+                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
+                    if annotation is bool
+                    else None,
                 )
+            )
         return commands
 
     def _create_args_map_from_operation(self):
@@ -697,6 +803,20 @@ class CommandFactory:
             and params["logical_date"] is None
         ):
             params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+
+        # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
+        # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
+        if datamodel.__name__ == "ClearTaskInstancesBody" and isinstance(params.get("task_ids"), str):
+            raw_task_ids = params["task_ids"]
+            if raw_task_ids.lstrip().startswith("["):
+                try:
+                    params["task_ids"] = json.loads(raw_task_ids)
+                except json.JSONDecodeError as e:
+                    raise SystemExit(f"Invalid JSON list for --task-ids {raw_task_ids!r}: {e}")
+            else:
+                params["task_ids"] = [
+                    task_id.strip() for task_id in raw_task_ids.split(",") if task_id.strip()
+                ]
 
         return params
 
@@ -979,6 +1099,21 @@ CONNECTION_COMMANDS = (
 
 DAG_COMMANDS = (
     ActionCommand(
+        name="clear",
+        help="Clear task instances for Dag runs selected by run ID, partition key, or partition date",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_DAG_PARTITION_KEY,
+            ARG_DAG_PARTITION_DATE_START,
+            ARG_DAG_PARTITION_DATE_END,
+            ARG_DAG_CLEAR_ONLY_FAILED,
+            ARG_DAG_CLEAR_ONLY_RUNNING,
+            ARG_DAG_CLEAR_YES,
+        ),
+    ),
+    ActionCommand(
         name="next-execution",
         help="Show the next scheduled execution time for a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
@@ -1002,7 +1137,8 @@ DAG_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
         args=(
             ARG_DAG_ID,
-            ARG_LOGICAL_DATE_OR_RUN_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
         ),
     ),
     ActionCommand(
@@ -1034,12 +1170,62 @@ POOL_COMMANDS = (
     ),
 )
 
+TASK_COMMANDS = (
+    ActionCommand(
+        name="failed-deps",
+        help="Returns the unmet dependencies for a task instance",
+        description=(
+            "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
+            "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
+            "and then run by an executor."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.failed_deps"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_MAP_INDEX,
+        ),
+    ),
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get the status of all task instances in a Dag run",
+        description=(
+            "Get the status of all task instances in a Dag run. "
+            "Select the run with either run_id or --logical-date (pass exactly one)."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
         help="Import variables from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
         args=(ARG_FILE, ARG_ACTION_ON_EXISTING_KEY),
+    ),
+)
+
+JOB_COMMANDS = (
+    ActionCommand(
+        name="check",
+        help="Check if job(s) are still alive.",
+        func=lazy_load_command("airflowctl.ctl.commands.jobs_command.check"),
+        args=(
+            ARG_JOB_TYPE_FILTER,
+            ARG_JOB_HOSTNAME_FILTER,
+            ARG_JOB_LOCAL_FILTER,
+            ARG_JOB_LIMIT,
+            ARG_JOB_ALLOW_MULTIPLE,
+        ),
     ),
 )
 
@@ -1066,9 +1252,19 @@ core_commands: list[CLICommand] = [
         subcommands=DAG_COMMANDS,
     ),
     GroupCommand(
+        name="jobs",
+        help="Manage Airflow jobs",
+        subcommands=JOB_COMMANDS,
+    ),
+    GroupCommand(
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
     ActionCommand(
         name="version",

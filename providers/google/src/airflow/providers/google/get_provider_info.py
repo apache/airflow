@@ -722,6 +722,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.bigtable"],
             },
             {
+                "integration-name": "Google Cloud SQL",
+                "python-modules": ["airflow.providers.google.cloud.sensors.cloud_sql"],
+            },
+            {
                 "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
@@ -1434,6 +1438,7 @@ def get_provider_info():
                         "label": "Anonymous credentials (ignores all other settings)",
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
+                    "quota_project_id": {"label": "Quota Project ID", "schema": {"type": ["string", "null"]}},
                 },
             },
             {
@@ -1512,6 +1517,7 @@ def get_provider_info():
                         "label": "Anonymous credentials (ignores all other settings)",
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
+                    "quota_project_id": {"label": "Quota Project ID", "schema": {"type": ["string", "null"]}},
                     "use_legacy_sql": {"label": "Use Legacy SQL", "schema": {"type": ["boolean", "null"]}},
                     "location": {"label": "Location", "schema": {"type": ["string", "null"]}},
                     "priority": {
@@ -1702,6 +1708,16 @@ def get_provider_info():
         "logging": [
             "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
             "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+        ],
+        "remote-logging": [
+            {
+                "classpath": "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO",
+                "scheme": "gs",
+            },
+            {
+                "classpath": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
+                "scheme": "stackdriver",
+            },
         ],
         "queues": [
             "airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer"

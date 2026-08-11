@@ -29,6 +29,7 @@ from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import select
 from sqlalchemy.orm import exc
 
+from airflow._shared.secrets_masker import redact
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import (
     SENSITIVE_PLACEHOLDER,
@@ -365,22 +366,19 @@ def connections_add(args):
     with create_session() as session:
         if not session.scalar(select(Connection).where(Connection.conn_id == new_conn.conn_id).limit(1)):
             session.add(new_conn)
-            msg = "Successfully added `conn_id`={conn_id} : {uri}"
-            msg = msg.format(
-                conn_id=new_conn.conn_id,
-                uri=args.conn_uri
-                or urlunsplit(
-                    (
-                        new_conn.conn_type,
-                        f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
-                        f"@{new_conn.host or ''}:{new_conn.port or ''}",
-                        new_conn.schema or "",
-                        "",
-                        "",
-                    )
-                ),
+            print(f"Successfully added `conn_id`={new_conn.conn_id}")
+            AirflowConsole().print_as(
+                data=[new_conn],
+                output="table",
+                mapper=lambda conn: {
+                    "conn_id": conn.conn_id,
+                    "conn_type": conn.conn_type,
+                    "host": conn.host,
+                    "login": conn.login,
+                    "port": conn.port,
+                    "extra": redact(conn.extra_dejson),
+                },
             )
-            print(msg)
         else:
             msg = f"A connection with `conn_id`={new_conn.conn_id} already exists."
             raise SystemExit(msg)

@@ -24,14 +24,13 @@ import {
   Portal,
   Select,
   type SelectValueChangeDetails,
-  Text,
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
-import { LuChartGantt, LuKeyboard } from "react-icons/lu";
+import { LuChartGantt } from "react-icons/lu";
 import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
@@ -40,10 +39,10 @@ import { useLocalStorage } from "usehooks-ts";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
-import { IconButton, Tooltip } from "src/components/ui";
+import { IconButton, Switch } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
-import { dependenciesKey } from "src/constants/localStorage";
+import { SHOW_ALL_DEPENDENCIES_KEY } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
@@ -66,15 +65,6 @@ type Props = {
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
 };
 
-const getOptions = (translate: (key: string) => string) =>
-  createListCollection({
-    items: [
-      { label: translate("dag:panel.dependencies.options.onlyTasks"), value: "tasks" },
-      { label: translate("dag:panel.dependencies.options.externalConditions"), value: "immediate" },
-      { label: translate("dag:panel.dependencies.options.allDagDependencies"), value: "all" },
-    ],
-  });
-
 const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
   const breakpoints = enableResponsiveOptions
     ? [
@@ -95,10 +85,6 @@ const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) =>
   };
 };
 
-const deps = ["all", "immediate", "tasks"];
-
-type Dependency = (typeof deps)[number];
-
 export const PanelButtons = ({
   dagView,
   limit,
@@ -112,9 +98,9 @@ export const PanelButtons = ({
   const { dagId = "", runId } = useParams();
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
-  const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
-    dependenciesKey(dagId),
-    "tasks",
+  const [showAllDependencies, setShowAllDependencies] = useLocalStorage<boolean>(
+    SHOW_ALL_DEPENDENCIES_KEY,
+    false,
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
@@ -136,14 +122,6 @@ export const PanelButtons = ({
       setLimit(defaultLimit);
     }
   }, [defaultLimit, enableResponsiveOptions, limit, setLimit]);
-
-  const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
-    if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
-      removeDependencies();
-    } else {
-      setDependencies(event.value[0]);
-    }
-  };
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
@@ -232,35 +210,13 @@ export const PanelButtons = ({
                         <DagVersionSelect />
                         <DagRunSelect limit={limit} />
 
-                        <Select.Root
-                          // @ts-expect-error The expected option type is incorrect
-                          collection={getOptions(translate)}
-                          data-testid="dependencies"
-                          onValueChange={handleDepsChange}
-                          size="sm"
-                          value={[dependencies]}
+                        <Switch
+                          checked={showAllDependencies}
+                          data-testid="show-all-dependencies"
+                          onCheckedChange={(details) => setShowAllDependencies(details.checked)}
                         >
-                          <Select.Label fontSize="xs">
-                            {translate("dag:panel.dependencies.label")}
-                          </Select.Label>
-                          <Select.Control>
-                            <Select.Trigger>
-                              <Select.ValueText placeholder={translate("dag:panel.dependencies.label")} />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                              <Select.Indicator />
-                            </Select.IndicatorGroup>
-                          </Select.Control>
-                          <Select.Positioner>
-                            <Select.Content>
-                              {getOptions(translate).items.map((option) => (
-                                <Select.Item item={option} key={option.value}>
-                                  {option.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Positioner>
-                        </Select.Root>
+                          {translate("dag:panel.dependencies.allDagDependencies")}
+                        </Switch>
 
                         <DirectionDropdown graphId={dagId} />
                       </>
@@ -309,15 +265,7 @@ export const PanelButtons = ({
         </Flex>
       </Flex>
 
-      {dagView === "graph" ? (
-        <Flex justifyContent="flex-end" mt={1}>
-          <Flex color="fg.muted" gap={2}>
-            <Tooltip content={<Text>{translate("dag:navigation.openGraphFilters")}</Text>} portalled>
-              <LuKeyboard />
-            </Tooltip>
-          </Flex>
-        </Flex>
-      ) : (
+      {dagView !== "graph" && (
         <Flex justifyContent="space-between" mt={1}>
           <GridFilters />
           <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>

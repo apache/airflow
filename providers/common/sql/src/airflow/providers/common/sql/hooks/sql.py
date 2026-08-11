@@ -22,6 +22,7 @@ from collections.abc import Callable, Generator, Iterable, Mapping, MutableMappi
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
+from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
@@ -66,6 +67,16 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
+
+
+def _is_sqlalchemy_2() -> bool:
+    """Whether the installed SQLAlchemy has the native psycopg (v3) dialect (added in 2.0)."""
+    from packaging.version import Version
+    from sqlalchemy import __version__ as sqlalchemy_version
+
+    return Version(sqlalchemy_version) >= Version("2.0.0")
+
+
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
@@ -334,7 +345,31 @@ class DbApiHook(BaseHook):
 
         self.log.debug("url: %s", url)
         self.log.debug("engine_kwargs: %s", engine_kwargs)
-        return create_engine(url=url, **engine_kwargs)
+        try:
+            return create_engine(url=url, **engine_kwargs)
+        except (ImportError, ModuleNotFoundError):
+            # SQLAlchemy resolves a bare "postgresql" scheme to the psycopg2 DB-API by default.
+            # Retry with a driver this hook can actually resolve, since psycopg2 may not be
+            # installed now that it's an optional extra of apache-airflow-providers-postgres.
+            parsed_url = make_url(url) if make_url is not None else None
+            if parsed_url is None or parsed_url.drivername != "postgresql":
+                raise
+            # psycopg (v3) may be importable where SQLAlchemy is pinned below 2.0, which has no
+            # native "postgresql+psycopg" dialect and would raise NoSuchModuleError — so only
+            # prefer it on SQLAlchemy 2.0+; otherwise fall back to psycopg2.
+            if find_spec("psycopg") is not None and _is_sqlalchemy_2():
+                self.log.info(
+                    "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+                    "retrying with psycopg (v3) ('postgresql+psycopg')."
+                )
+                return create_engine(url=parsed_url.set(drivername="postgresql+psycopg"), **engine_kwargs)
+            if find_spec("psycopg2") is not None:
+                self.log.info(
+                    "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+                    "retrying with 'postgresql+psycopg2'."
+                )
+                return create_engine(url=parsed_url.set(drivername="postgresql+psycopg2"), **engine_kwargs)
+            raise
 
     @cached_property
     def inspector(self) -> Inspector:

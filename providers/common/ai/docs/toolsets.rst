@@ -128,7 +128,8 @@ Curated toolset wrapping
    * - ``get_schema``
      - Returns column names and types for a table
    * - ``query``
-     - Executes a SQL query and returns rows as JSON
+     - Executes a SQL query and returns bounded, columnar JSON (see
+       :ref:`bounded-query-results`)
    * - ``check_query``
      - Validates SQL syntax without executing it
 
@@ -192,12 +193,73 @@ Parameters
   ``check_query`` as well as discovery -- every table a query references must be
   on it. See :ref:`allowed-tables-enforcement` for what this does and does not
   guarantee.
+- ``allowed_functions``: Names of functions that sqlglot does not recognize as
+  builtins but are safe to run while ``allowed_tables`` is active (e.g.
+  ``["json_build_object"]`` or a project UDF). ``None`` (default) rejects every
+  unrecognized function. Matching is case-insensitive. Only consulted when
+  ``allowed_tables`` is set.
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
   Default ``False`` -- only SELECT-family and read-only metadata
   (``DESCRIBE``/``SHOW``) statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+  Rows beyond it are not read out of a DBAPI cursor; what the driver has already
+  transferred is its own call. See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
+  See :ref:`bounded-query-results`.
+
+.. _bounded-query-results:
+
+Bounded query results
+^^^^^^^^^^^^^^^^^^^^^
+
+A tool result stays in the model's message history for the rest of the run, so its
+cost is re-paid on every subsequent model request. The ``query`` tool of both
+``SQLToolset`` and ``DataFusionToolset`` bounds that in three ways.
+
+**The result is columnar.** Column names appear once, not once per row:
+
+.. code-block:: json
+
+    {"columns": ["id", "name"], "rows": [[1, "Alice"], [2, "Bob"]], "row_count": 2}
+
+On a table with thousands of columns the repeated names, not the values, are the bulk
+of a row-of-dicts payload. Positional rows also keep columns that share a name --
+``SELECT o.id, c.id`` -- which a dict per row silently collapsed to one.
+
+**Rows are fetched, not filtered.** ``max_rows`` bounds what leaves the cursor, so a
+query matching a whole table costs the worker roughly what one matching ``max_rows``
+costs. How much is saved depends on the driver: with a server-side cursor the
+remaining rows are never sent, while a client-buffering driver (psycopg2's default
+cursor, MySQLdb) has already received them and only the per-row conversion is skipped.
+Hooks whose cursor is not DBAPI 2.0 (``ExasolHook`` passes a pyexasol statement) fall
+back to a full fetch, and ``DataFusionToolset`` materializes the full result in the
+engine before the toolset sees it; in both the payload is bounded but the transfer is
+not.
+
+**A byte budget bounds the payload.** ``max_rows`` caps rows, which says nothing about
+size -- one row of a 3000-column table is larger than a thousand rows of a narrow one.
+``max_result_bytes`` is what actually bounds context. Rows are returned as a contiguous
+prefix: the result stops at the first row that does not fit the remaining budget rather
+than skipping it and packing later ones, so a single wide row early in the result ends
+it. The result says which limit it hit:
+
+.. code-block:: json
+
+    {"columns": ["..."], "rows": ["..."], "row_count": 3,
+     "truncated": true, "truncated_by": "max_result_bytes"}
+
+``truncated_by`` is ``max_rows`` or ``max_result_bytes``. When not even one row fits,
+or the column names alone exceed the budget, the result carries a ``hint`` telling the
+agent to narrow its projection -- the only move that helps. ``total_rows`` is present
+when the driver reports a row count for the query; several (SQLite, some warehouse
+drivers) do not, and it is then omitted rather than guessed.
+
+The default budget is deliberately generous: the columnar shape alone shrinks a wide
+result several-fold, so results that fit before still fit. Lower ``max_result_bytes``
+when an agent makes many queries in one run, since every result is re-paid on every
+later request.
 
 ``DataFusionToolset``
 ---------------------
@@ -218,7 +280,8 @@ querying files on object stores (S3, local filesystem, Iceberg) via Apache DataF
    * - ``get_schema``
      - Returns column names and types for a table (Arrow schema)
    * - ``query``
-     - Executes a SQL query and returns rows as JSON
+     - Executes a SQL query and returns bounded, columnar JSON (see
+       :ref:`bounded-query-results`)
 
 Each :class:`~airflow.providers.common.sql.config.DataSourceConfig` entry
 registers a table backed by Parquet, CSV, Avro, or Iceberg data. Multiple
@@ -262,6 +325,8 @@ Parameters
   permitted. DataFusion on object stores is mostly read-only, but it does
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
+  See :ref:`bounded-query-results`.
 
 ``LoggingToolset``
 ------------------
@@ -437,6 +502,16 @@ Parameters
   :class:`~airflow.providers.common.ai.skills.GitSkills`.
 - ``exclude_tools``: Optional set of skill tool names to hide from the agent
   (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+- ``exclude_resources``: Optional glob patterns to exclude from resource
+  discovery, added on top of the built-in defaults (``__pycache__``, ``*.pyc``,
+  ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every readable text file
+  it contains as a resource; these patterns keep matched files out of the
+  resource list and the ``read_skill_resource`` tool (e.g.
+  ``["*.env", "secrets/*"]``). Each pattern matches the full skill-relative path
+  or any single path component. This hides files from resource discovery only --
+  it does not stop a skill's ``run_skill_script`` from reading them off disk, so
+  pair it with ``exclude_tools={"run_skill_script"}`` when the files are
+  genuinely sensitive.
 
 Using Agent Skills with other frameworks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -596,14 +671,19 @@ No single layer is sufficient — they work together.
        ``get_schema``, ``query``, and ``check_query``. Queries are parsed and
        every referenced table (including via subqueries, CTEs, JOINs, and
        ``DESCRIBE``) is checked against the list before execution.
-     - Cannot police data reached through side-effecting scalar functions
-       (e.g. ``pg_read_file``), and is only as exact as the SQL parser. Pair it
-       with least-privilege database grants. See
+     - Rejects ``COPY`` and every function sqlglot cannot type (the channel for
+       ``pg_read_file`` / ``query_to_xml`` / ``dblink``) unless named in
+       ``allowed_functions``. Fail-closed, but only as exact as the SQL parser. Not a
+       security boundary -- always pair it with least-privilege database grants. See
        :ref:`allowed-tables-enforcement` below.
-   * - **SQLToolset: max_rows**
-     - Truncates query results to ``max_rows`` (default 50), preventing the
-       agent from pulling entire tables into context.
-     - Does not limit the number of queries the agent can make.
+   * - **SQLToolset: max_rows / max_result_bytes**
+     - Bounds a query result by rows (default 50) and by serialized size
+       (default 64 KiB), preventing the agent from pulling entire tables into
+       context.
+     - Does not limit the number of queries the agent can make, and each result
+       stays in message history for the rest of the run. Rows past ``max_rows``
+       are not read out of the cursor, but a client-buffering driver has already
+       transferred them -- this bounds context, not database or network load.
    * - **MCPToolset: external server**
      - Connects the agent to tools exposed by an MCP server, authenticated
        through an Airflow connection.
@@ -634,27 +714,48 @@ When ``allowed_tables`` is set it governs every tool, not just discovery:
   cross-database reference like ``otherdb.public.orders`` is refused.
 - Constructs the list cannot describe are rejected outright while it is active:
   table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
-  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), and **inline
-  comments** -- the last because parser-vs-engine differences hide in comments
-  (MySQL executes ``/*! ... */`` while sqlglot and other engines ignore it).
+  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), ``COPY``
+  (file/program I/O), and **inline comments** -- because parser-vs-engine differences
+  hide in comments (MySQL executes ``/*! ... */`` while sqlglot and other engines
+  ignore it).
+- **Any function sqlglot does not recognize is rejected (fail-closed).** A function
+  whose string argument reaches data outside the table graph --
+  ``pg_read_file('/etc/passwd')`` (a file), ``query_to_xml('SELECT * FROM other_table', ...)``
+  (SQL over another table), a scalar ``dblink`` (a remote database) -- carries no table
+  reference for the parser to catch. Rather than maintain a denylist of such functions
+  (unbounded, engine-specific, and it would fail *open* on anything missed), the toolset
+  rejects every function sqlglot cannot type. Ordinary builtins (``count``, ``lower``,
+  ``sum``) are recognized and pass. A legitimate function sqlglot does not type
+  (``json_build_object``, ``jsonb_agg``) or a project UDF is rejected until you list it
+  in ``allowed_functions``:
+
+  .. code-block:: python
+
+      SQLToolset(
+          db_conn_id="analytics_db",
+          allowed_tables=["orders"],
+          allowed_functions=["json_build_object"],  # opt in per function you trust
+      )
 
 So ``SELECT * FROM secrets`` with ``allowed_tables=["orders"]`` is refused, and
 the rejection is handed back to the agent so it can re-target an allowed table.
 
-This is a strong **application-level guardrail**, but it is not a substitute for
-database permissions. It cannot police data reached through a function whose
-argument is itself SQL or a path: ``pg_read_file('/etc/passwd')`` reads a file,
-and ``query_to_xml('SELECT * FROM other_table', ...)`` or a scalar ``dblink``
-reads a table through a string the parser cannot inspect. Any query the engine
-parses differently from sqlglot is also a residual gap. For a hard boundary, also
-run the connection as a least-privilege role:
+.. warning::
 
-.. code-block:: sql
+    This is a strong **application-level guardrail, not a security boundary.** The
+    fail-closed function check raises the bar, but any query the engine parses
+    differently from sqlglot is a residual gap, and ``allowed_functions`` is a trust
+    decision you own. **Always** point the connection at a least-privilege database
+    role -- that is the boundary that holds even when the parser cannot see through a
+    function, and it is what actually keeps an agent (which may be under prompt
+    injection) away from data and files you have not granted it:
 
-    -- Create a read-only role with access to specific tables only
-    CREATE ROLE airflow_agent_reader;
-    GRANT SELECT ON orders, customers TO airflow_agent_reader;
-    -- Use this role's credentials in the Airflow connection
+    .. code-block:: sql
+
+        -- Create a read-only role with access to specific tables only
+        CREATE ROLE airflow_agent_reader;
+        GRANT SELECT ON orders, customers TO airflow_agent_reader;
+        -- Use this role's credentials in the Airflow connection
 
 Defense in depth: the allow-list contains the agent's *intent* (and gives it a
 correctable error), while the database role is the boundary that holds even if
@@ -698,7 +799,8 @@ Recommended Configuration
         db_conn_id="analytics_readonly",  # Connection with SELECT-only grants
         allowed_tables=["orders", "customers"],  # Hide other tables from agent
         allow_writes=False,  # Default — validates SQL
-        max_rows=50,  # Default — truncate large results
+        max_rows=50,  # Default — cap rows
+        max_result_bytes=65536,  # Default — cap bytes; lower it for wide tables
     )
 
 **Agents that need to modify data** (use with caution):
@@ -726,8 +828,10 @@ Before deploying an agent task to production:
    agent can call any exposed tool with any arguments.
 4. **Read-only default**: Keep ``allow_writes=False`` unless the task
    specifically requires writes.
-5. **Row limits**: Set ``max_rows`` appropriate to the use case. Large
-   result sets consume LLM context and increase cost.
+5. **Result limits**: Set ``max_rows`` and ``max_result_bytes`` appropriate to
+   the use case. ``max_rows`` alone does not bound size -- on wide tables it is
+   ``max_result_bytes`` that keeps a result from dominating the context window for
+   the rest of the run.
 6. **Model budget**: Configure pydantic-ai's ``model_settings`` (e.g.
    ``max_tokens``) and ``retries`` to bound cost and prevent runaway loops.
 7. **System prompt**: Include safety instructions in ``system_prompt`` (e.g.

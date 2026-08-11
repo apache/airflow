@@ -176,6 +176,7 @@ export const Nav = () => {
           data-testid="nav-dags-link"
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
           icon={DagIcon}
+          matchPaths={["dag_runs", "task_instances"]}
           title={translate("nav.dags")}
           to="dags"
         />

@@ -19,10 +19,12 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any
 
+import tenacity
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.providers.amazon.aws.utils import build_resource_in_use_retry_args
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.common.compat.sdk import AirflowException
@@ -275,13 +277,15 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
             if self.force_delete_compute:
                 await self.delete_any_nodegroups(client=client)
                 await self.delete_any_fargate_profiles(client=client)
-            try:
-                await client.delete_cluster(name=self.cluster_name)
-            except ClientError as ex:
-                if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
-                    pass
-                else:
-                    raise
+            async for attempt in tenacity.AsyncRetrying(**build_resource_in_use_retry_args(self.log)):
+                with attempt:
+                    try:
+                        await client.delete_cluster(name=self.cluster_name)
+                    except ClientError as ex:
+                        # The cluster is already gone — nothing to wait on, so stop retrying.
+                        if ex.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+                            break
+                        raise
             await async_wait(
                 waiter=waiter,
                 waiter_delay=int(self.waiter_delay),
@@ -305,8 +309,11 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         if nodegroups.get("nodegroups", None):
             self.log.info("Deleting nodegroups")
             waiter = self.hook().get_waiter("all_nodegroups_deleted", deferrable=True, client=client)
+            retry_args = build_resource_in_use_retry_args(self.log)
             for group in nodegroups["nodegroups"]:
-                await client.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+                async for attempt in tenacity.AsyncRetrying(**retry_args):
+                    with attempt:
+                        await client.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             await async_wait(
                 waiter=waiter,
                 waiter_delay=int(self.waiter_delay),
@@ -330,8 +337,13 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         fargate_profiles = await client.list_fargate_profiles(clusterName=self.cluster_name)
         if fargate_profiles.get("fargateProfileNames"):
             self.log.info("Waiting for Fargate profiles to delete.  This will take some time.")
+            retry_args = build_resource_in_use_retry_args(self.log)
             for profile in fargate_profiles["fargateProfileNames"]:
-                await client.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
+                async for attempt in tenacity.AsyncRetrying(**retry_args):
+                    with attempt:
+                        await client.delete_fargate_profile(
+                            clusterName=self.cluster_name, fargateProfileName=profile
+                        )
                 await async_wait(
                     waiter=client.get_waiter("fargate_profile_deleted"),
                     waiter_delay=int(self.waiter_delay),
