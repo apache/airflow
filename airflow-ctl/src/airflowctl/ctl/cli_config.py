@@ -106,6 +106,15 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "If you need help, run the command with --help."
             )
         sys.exit(1)
+    except httpx.HTTPStatusError as e:
+        # Only a JSON error body becomes a ServerResponseError, so everything else lands here.
+        content_type = e.response.headers.get("content-type", "unset")
+        rich.print(f"[red]Unrecognised error response: {e}[/red]")
+        rich.print(
+            f"[red]No error message could be read from the response (content-type: {content_type}). "
+            "It may have been produced by a proxy or gateway in front of the API server.[/red]"
+        )
+        sys.exit(1)
 
 
 class DefaultHelpParser(argparse.ArgumentParser):

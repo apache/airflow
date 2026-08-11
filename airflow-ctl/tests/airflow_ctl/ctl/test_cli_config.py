@@ -514,6 +514,35 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
 
+    @pytest.mark.parametrize(
+        ("headers", "expected_content_type"),
+        [
+            pytest.param({"content-type": "text/html"}, "text/html", id="html-error-page"),
+            pytest.param({}, "unset", id="no-content-type"),
+        ],
+    )
+    def test_safe_call_command_exits_non_zero_for_non_json_error_response(
+        self, headers, expected_content_type, capsys
+    ):
+        request = httpx.Request("GET", "http://localhost:8080/api/v2/dags")
+        response = httpx.Response(
+            502,
+            request=request,
+            headers=headers,
+            content=b"<html><head><title>502 Bad Gateway</title></head></html>",
+        )
+
+        def raise_error(_args):
+            response.raise_for_status()
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        output = capsys.readouterr().out
+        assert "502" in output
+        assert expected_content_type in output
+
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
         parser = argparse.ArgumentParser()
