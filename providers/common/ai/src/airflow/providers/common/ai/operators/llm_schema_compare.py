@@ -326,6 +326,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         log_run_summary(self.log, result)
         output = result.output
 
+        output_result = output.model_dump()
+        self.log.info("Schema comparison result: \n %s", json.dumps(output_result, indent=2))
+
         if self.require_approval:
             severity_counts = Counter(mismatch.severity for mismatch in output.mismatches)
             summary = ", ".join(
@@ -340,7 +343,15 @@ class LLMSchemaCompareOperator(LLMOperator):
             )
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 
-        output_result = output.model_dump()
-        self.log.info("Schema comparison result: \n %s", json.dumps(output_result, indent=2))
-
         return output_result
+
+    def execute_complete(
+        self, context: Context, generated_output: str, event: dict[str, Any]
+    ) -> dict[str, Any]:
+        output = super().execute_complete(context, generated_output, event)
+        if not isinstance(output, dict):
+            raise ValueError(
+                f"Reviewed output {output!r} is not valid SchemaCompareResult JSON. "
+                "Edit it into a valid result, or reject the review instead."
+            )
+        return output

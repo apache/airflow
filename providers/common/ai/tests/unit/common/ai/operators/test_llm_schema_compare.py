@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -596,7 +597,7 @@ class TestLLMSchemaCompareOperatorApproval:
     @mock.patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @mock.patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     def test_execute_with_approval_pauses_with_summary_body(
-        self, mock_upsert, mock_trigger_cls, mock_build_system_prompt, mock_build_schema_context
+        self, mock_upsert, mock_trigger_cls, mock_build_system_prompt, mock_build_schema_context, caplog
     ):
         mock_build_schema_context.return_value = "schema_context"
         mock_build_system_prompt.return_value = "system_prompt"
@@ -630,6 +631,7 @@ class TestLLMSchemaCompareOperatorApproval:
         body = mock_upsert.call_args.kwargs["body"]
         assert body.startswith("Compatible: False (mismatches: 1 critical)")
         assert "Precision loss" in body
+        assert f"Schema comparison result: \n {json.dumps(result.model_dump(), indent=2)}" in caplog
 
     def test_execute_complete_approved_returns_dict(self):
         result = SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
@@ -639,6 +641,23 @@ class TestLLMSchemaCompareOperatorApproval:
         resumed = op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
         assert resumed == result.model_dump()
+
+    @pytest.mark.parametrize(
+        "modified",
+        ['{"compatible": true, "mismatches": []}', "looks fine to me"],
+        ids=["missing-summary", "not-json"],
+    )
+    def test_execute_complete_rejects_invalid_modified_output(self, modified):
+        result = SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS, allow_modifications=True)
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "admin",
+            "params_input": {"output": modified},
+        }
+
+        with pytest.raises(ValueError, match="not valid SchemaCompareResult JSON"):
+            op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
     def test_execute_rejects_sequence_prompt_with_require_approval(self):
         op = LLMSchemaCompareOperator(
