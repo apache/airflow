@@ -38,6 +38,19 @@ def _context():
     return {"ti": mock.MagicMock()}
 
 
+def _create_op(**kwargs) -> AnthropicAgentSessionOperator:
+    # deferrable=False explicitly: the default reads operators.default_deferrable, which
+    # would send these through defer() instead of the synchronous path.
+    return AnthropicAgentSessionOperator(
+        task_id="a",
+        agent_id="ag",
+        environment_id="env",
+        message="hi",
+        deferrable=False,
+        **kwargs,
+    )
+
+
 def test_requires_exactly_one_of_message_or_outcome():
     op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env")
     with pytest.raises(ValueError, match="exactly one"):
@@ -197,6 +210,54 @@ class TestExecute:
         assert exc.value.trigger.session_id == "sess_1"
         assert exc.value.method_name == "execute_complete"
         hook.wait_for_session.assert_not_called()
+
+
+class TestBudgetParam:
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_dollar_amount_is_converted_to_minor_units(self, mock_hook_prop):
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
+        _create_op(budget=25).execute(_context())
+        assert hook.create_session.call_args.kwargs["budget"] == {
+            "type": "limit",
+            "max_list_cost": {"amount": "2500", "currency": "USD"},
+        }
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_mapping_passes_through(self, mock_hook_prop):
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
+        raw = {"type": "limit", "max_list_cost": {"amount": "750", "currency": "USD"}}
+        _create_op(budget=raw).execute(_context())
+        assert hook.create_session.call_args.kwargs["budget"] == raw
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_no_budget_key_when_unset(self, mock_hook_prop):
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
+        _create_op().execute(_context())
+        assert "budget" not in hook.create_session.call_args.kwargs
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_conflicting_budget_sources_rejected(self, mock_hook_prop):
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
+        op = _create_op(budget=25, session_kwargs={"budget": {"type": "limit"}})
+        with pytest.raises(ValueError, match="not both"):
+            op.execute(_context())
+        hook.create_session.assert_not_called()
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_invalid_amount_fails_before_allocating_a_session(self, mock_hook_prop):
+        # A bad amount must not leave a server-side container running.
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
+        with pytest.raises(ValueError, match="positive"):
+            _create_op(budget=-1).execute(_context())
+        hook.create_session.assert_not_called()
+
+    def test_budget_is_templated(self):
+        assert "budget" in AnthropicAgentSessionOperator.template_fields
 
 
 class TestExecuteComplete:

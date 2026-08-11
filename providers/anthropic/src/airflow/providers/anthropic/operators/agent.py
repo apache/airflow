@@ -26,12 +26,14 @@ from airflow.providers.anthropic.exceptions import AnthropicAgentSessionTimeout
 from airflow.providers.anthropic.hooks.anthropic import (
     AnthropicHook,
     _create_session_error,
+    build_budget,
     validate_execute_complete_event,
 )
 from airflow.providers.anthropic.triggers.agent import AnthropicAgentSessionTrigger
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
 if TYPE_CHECKING:
+    from airflow.providers.anthropic.hooks.anthropic import BudgetSpec
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -85,17 +87,24 @@ class AnthropicAgentSessionOperator(BaseOperator):
     :param session_resources: Session resources (files, GitHub repos, memory stores). Named
         ``session_resources`` to avoid colliding with the reserved ``BaseOperator.resources``;
         forwarded to ``sessions.create`` as ``resources``.
-    :param session_kwargs: Extra keyword arguments forwarded to ``sessions.create``, such as
-        ``budget`` (a spend ceiling for the session). A session that stops against its
-        budget raises
+    :param budget: Spend ceiling for the session. A number or numeric string is read as
+        **US dollars** (``budget=25`` is $25.00); a mapping is passed through as the raw
+        API payload. On a ``message`` run, a session that stops against it raises
         :class:`~airflow.providers.anthropic.exceptions.AnthropicSessionBudgetExceeded`.
-        The ceiling is a stop trigger rather than a cap -- it is checked between model
-        requests, so an in-flight request can carry the session past it. Airflow
-        ``retries`` also each start a new session with a fresh budget, so prefer
-        ``retries=0`` when a budget is set.
+        On an ``outcome`` run completion is judged from ``outcome_evaluations`` before the
+        idle event is consulted, so a budget stop surfaces as the outcome verdict and the
+        generic ``AnthropicAgentSessionError`` instead.
+
+        .. warning::
+            The ceiling is a stop trigger, not a cap. It is checked between model requests,
+            so a request already in flight runs to completion and the session can finish
+            well above the limit. Airflow ``retries`` also each start a new session with a
+            fresh budget, so prefer ``retries=0`` when a budget is set.
+    :param session_kwargs: Extra keyword arguments forwarded to ``sessions.create``. Setting
+        ``budget`` here as well as via the ``budget`` argument is rejected.
     """
 
-    template_fields: Sequence[str] = ("agent_id", "environment_id", "message", "outcome")
+    template_fields: Sequence[str] = ("agent_id", "environment_id", "message", "outcome", "budget")
 
     def __init__(
         self,
@@ -108,6 +117,7 @@ class AnthropicAgentSessionOperator(BaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 30,
         timeout: float = 24 * 60 * 60,
+        budget: BudgetSpec | None = None,
         vault_ids: list[str] | None = None,
         session_resources: list[dict[str, Any]] | None = None,
         session_kwargs: dict[str, Any] | None = None,
@@ -122,6 +132,7 @@ class AnthropicAgentSessionOperator(BaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.timeout = timeout
+        self.budget = budget
         self.vault_ids = vault_ids
         self.session_resources = session_resources
         self.session_kwargs = session_kwargs or {}
@@ -138,6 +149,14 @@ class AnthropicAgentSessionOperator(BaseOperator):
         if self.outcome is not None and not {"description", "rubric"} <= self.outcome.keys():
             raise ValueError("'outcome' must include both 'description' and 'rubric'.")
         create_kwargs: dict[str, Any] = dict(self.session_kwargs)
+        if self.budget is not None:
+            if "budget" in create_kwargs:
+                raise ValueError(
+                    "Set the budget either via 'budget' or via session_kwargs['budget'], not both."
+                )
+            # Normalize eagerly so a malformed amount fails before a session (and its
+            # server-side container) is allocated.
+            create_kwargs["budget"] = build_budget(self.budget)
         if self.vault_ids:
             create_kwargs["vault_ids"] = self.vault_ids
         if self.session_resources:

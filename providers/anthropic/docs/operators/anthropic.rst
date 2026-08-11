@@ -147,9 +147,13 @@ Parameters
 * ``poll_interval`` — seconds between session status checks.
 * ``timeout`` — seconds to wait for a terminal status; defaults to 24 hours.
 * ``vault_ids`` — vault IDs providing MCP/credential access to the session.
+* ``budget`` -- spend ceiling for the session, in US dollars (``25.00``) or as the raw API
+  payload (a mapping). Templated, so it can come from a Variable, a params entry, or
+  an upstream XCom. See `Session budgets`_ below.
 * ``session_resources`` — files, GitHub repos, or memory stores to mount (forwarded to
   ``sessions.create`` as ``resources``; renamed to avoid the reserved ``BaseOperator.resources``).
-* ``session_kwargs`` — extra keyword arguments forwarded to ``sessions.create``.
+* ``session_kwargs`` — extra keyword arguments forwarded to ``sessions.create``. Setting
+  ``budget`` here as well as via the ``budget`` argument is rejected.
 
 .. note::
 
@@ -163,10 +167,9 @@ Parameters
 Session budgets
 """""""""""""""
 
-Pass a `session budget
-<https://platform.claude.com/docs/en/managed-agents/overview>`__ through
-``session_kwargs`` to cap what a single session may spend. The session stops issuing new
-model requests once its tracked list cost reaches the ceiling:
+``budget`` bounds what a single session may spend. The session stops issuing new model
+requests once its tracked list cost reaches the ceiling. A number or numeric string is read
+as **US dollars**:
 
 .. code-block:: python
 
@@ -175,14 +178,33 @@ model requests once its tracked list cost reaches the ceiling:
         agent_id="agt_...",
         environment_id="env_...",
         message="Summarise yesterday's incidents.",
-        session_kwargs={
-            "budget": {
-                "type": "limit",
-                # Minor units as an integer string: "2500" is $25.00.
-                "max_list_cost": {"amount": "2500", "currency": "USD"},
-            }
-        },
+        budget=25.00,  # 25.00 USD
+        retries=0,
     )
+
+The field is templated, so the ceiling can come from a Variable
+(``budget="{{ var.value.max_agent_spend }}"``) and be changed without editing the Dag.
+Amounts are converted through :class:`~decimal.Decimal`, never binary float, and anything
+finer than a cent is rejected rather than silently rounded.
+
+Pass a mapping instead to send the raw API payload, for a budget shape the provider has not
+caught up with. Today the API accepts only ``type: "limit"`` and ``currency: "USD"``, so the
+mapping form is an escape hatch for future additions rather than something needed now:
+
+.. code-block:: python
+
+    budget = {"type": "limit", "max_list_cost": {"amount": "2500", "currency": "USD"}}
+
+To raise or remove a ceiling on a session that is already running, use
+:meth:`~airflow.providers.anthropic.hooks.anthropic.AnthropicHook.update_session`. Only the
+keywords you pass are sent, because the API distinguishes *omitted* (preserve) from
+``None`` (clear):
+
+.. code-block:: python
+
+    hook = AnthropicHook()
+    hook.update_session(session_id, budget=50.00)  # raise the ceiling
+    hook.update_session(session_id, budget=None)  # remove it entirely
 
 On a ``message`` run, a session that stops this way raises
 :class:`~airflow.providers.anthropic.exceptions.AnthropicSessionBudgetExceeded`, a subclass
@@ -196,6 +218,13 @@ rather than treated as a fault.
     continues until ``timeout`` (24 hours by default), and the task then fails with
     ``AnthropicAgentSessionTimeout`` -- a misleading error for a session that stopped
     deliberately. Set a shorter ``timeout`` when combining ``outcome`` with a budget.
+
+.. note::
+
+    On an ``outcome`` run, completion is judged from the session's ``outcome_evaluations``
+    before the idle event is consulted, so a budget stop is reported as whatever verdict the
+    outcome recorded and raises the generic ``AnthropicAgentSessionError``. Catch
+    ``AnthropicSessionBudgetExceeded`` only on ``message`` runs.
 
 .. warning::
 
