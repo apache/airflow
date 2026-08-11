@@ -23,6 +23,8 @@ from unittest import mock
 import pytest
 from gunicorn.config import Config
 
+NOT_SET = object()
+
 
 class TestAirflowArbiter:
     """Tests for the AirflowArbiter class."""
@@ -441,8 +443,15 @@ class TestCreateGunicornApp:
             assert options["ca_certs"] == "/path/to/ca.crt"
             assert options["cert_reqs"] == 1
 
-    def test_create_app_with_proxy_headers(self):
-        """Test creating an app with proxy headers enabled."""
+    @pytest.mark.parametrize(
+        ("proxy_headers", "expected_trusted"),
+        [
+            pytest.param(True, NOT_SET, id="enabled defers to gunicorn's FORWARDED_ALLOW_IPS default"),
+            pytest.param(False, "", id="disabled trusts nobody"),
+        ],
+    )
+    def test_create_app_proxy_header_trust(self, proxy_headers, expected_trusted):
+        """The trusted-proxy list is left to gunicorn unless proxy headers are turned off."""
         from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
 
         with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
@@ -451,12 +460,12 @@ class TestCreateGunicornApp:
                 port=8080,
                 num_workers=4,
                 worker_timeout=120,
-                proxy_headers=True,
+                proxy_headers=proxy_headers,
             )
 
             options = mock_app_class.call_args[0][0]
 
-            assert options["forwarded_allow_ips"] == "*"
+            assert options.get("forwarded_allow_ips", NOT_SET) == expected_trusted
 
     def test_create_app_never_sets_accesslog(self):
         """accesslog is never set; HttpAccessLogMiddleware handles HTTP access logging."""

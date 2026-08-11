@@ -286,7 +286,9 @@ def create_gunicorn_app(
         if ssl_cert_reqs is not None:
             options["cert_reqs"] = ssl_cert_reqs
 
-    if proxy_headers:
-        options["forwarded_allow_ips"] = "*"
+    if not proxy_headers:
+        # ``UvicornWorker`` leaves uvicorn's ``proxy_headers`` at its default of True, so
+        # trusting nobody is the only way to keep the worker off X-Forwarded-*.
+        options["forwarded_allow_ips"] = ""
 
     return AirflowGunicornApp(options)

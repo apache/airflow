@@ -1,0 +1,12 @@
+The gunicorn API server no longer trusts proxy headers from every address
+
+``server_type = gunicorn`` used to trust ``X-Forwarded-*`` from any address whenever
+``--proxy-headers`` was passed, ignoring the ``FORWARDED_ALLOW_IPS`` environment variable that
+``server_type = uvicorn`` honours and that :doc:`/howto/run-behind-proxy` documents. Both server
+types now read ``FORWARDED_ALLOW_IPS``, which defaults to the local host.
+
+If you run the API server with gunicorn behind a proxy that is not on the same host, and have not
+set ``FORWARDED_ALLOW_IPS``, set it to your proxy's addresses (or ``*``) to keep proxy headers
+trusted. Leaving it unset means the request scheme is read as ``http`` behind a TLS-terminating
+proxy, and session cookies are then issued without the ``Secure`` attribute. The Helm chart ships
+this variable as a commented-out example under ``apiServer.env``.
