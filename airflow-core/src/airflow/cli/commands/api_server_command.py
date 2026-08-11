@@ -80,6 +80,7 @@ def _run_api_server_with_gunicorn(
         ssl_cert_reqs=_ssl_cert_reqs(args),
         log_level=log_level,
         proxy_headers=proxy_headers,
+        ssl_ciphers=args.ssl_ciphers,
     )
 
     # run() blocks until gunicorn exits
@@ -123,6 +124,7 @@ def _run_api_server_with_uvicorn(
         "ssl_certfile": ssl_cert,
         "ssl_ca_certs": ssl_ca_file,
         "ssl_cert_reqs": _ssl_cert_reqs(args),
+        "ssl_ciphers": args.ssl_ciphers,
         # HttpAccessLogMiddleware handles access logging; disable uvicorn's built-in access log.
         "access_log": False,
         "log_level": uvicorn_log_level,

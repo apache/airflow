@@ -1862,6 +1862,15 @@ api:
       type: string
       example: "required"
       default: "none"
+    ssl_ciphers:
+      description: |
+        Set the SSL ciphers for the API server. Passed as ``ssl_ciphers``
+        to Uvicorn or ``ciphers`` to Gunicorn.
+        See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.set_ciphers
+      version_added: ~
+      type: string
+      example: "ECDHE+AESGCM"
+      default: ~
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param

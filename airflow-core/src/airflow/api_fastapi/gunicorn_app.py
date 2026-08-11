@@ -249,6 +249,7 @@ def create_gunicorn_app(
     ssl_cert_reqs: VerifyMode | None = None,
     log_level: str = "info",
     proxy_headers: bool = False,
+    ssl_ciphers: str | None = None,
 ) -> AirflowGunicornApp:
     """
     Create a configured AirflowGunicornApp instance.
@@ -263,6 +264,7 @@ def create_gunicorn_app(
     :param ssl_cert_reqs: SSL client certificate requirements
     :param log_level: Log level (debug, info, warning, error, critical)
     :param proxy_headers: Whether to trust proxy headers
+    :param ssl_ciphers: SSL ciphers to use (passed as ``ciphers`` to Gunicorn)
     """
     options = {
         "bind": f"{host}:{port}",
@@ -285,6 +287,8 @@ def create_gunicorn_app(
             options["ca_certs"] = ssl_ca_file
         if ssl_cert_reqs is not None:
             options["cert_reqs"] = ssl_cert_reqs
+        if ssl_ciphers:
+            options["ciphers"] = ssl_ciphers
 
     if proxy_headers:
         options["forwarded_allow_ips"] = "*"

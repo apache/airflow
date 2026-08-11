@@ -796,6 +796,13 @@ ARG_SSL_CERT_REQS = Arg(
     help="(Optional) Set certificate verification options.",
     choices=("none", "optional", "required"),
 )
+ARG_SSL_CIPHERS = Arg(
+    ("--ssl-ciphers",),
+    default=conf.get("api", "ssl_ciphers", fallback=None),
+    help="(Optional) Set SSL ciphers for the API server. "
+    "Passed as ``ssl_ciphers`` to Uvicorn or ``ciphers`` to Gunicorn. "
+    "See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.set_ciphers.",
+)
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
@@ -2204,6 +2211,7 @@ core_commands: list[CLICommand] = [
             ARG_SSL_KEY,
             ARG_SSL_CA_FILE,
             ARG_SSL_CERT_REQS,
+            ARG_SSL_CIPHERS,
             ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),
