@@ -231,7 +231,7 @@ class PydanticAIHook(BaseHook):
         else:
             embedding_model = infer_embedding_model(embed_model_name)
 
-        self._embedder = Embedder(embedding_model)
+        self._embedder = Embedder(embedding_model, instrument=genai_instrumentation_settings())
         return self._embedder
 
     def _get_conn_if_model_configured(self) -> Model | None:
