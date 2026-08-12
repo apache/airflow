@@ -76,6 +76,11 @@ class TestResolveUsageLimitsWithMaxCost:
         assert result.cost_limit == Decimal("0.1")
         assert result.cost_limit != Decimal(0.1)
 
+    def test_max_cost_zero_is_accepted(self):
+        """0 is a valid (if unusual) cap and must not be rejected as falsy or negative."""
+        result = resolve_usage_limits(None, 0)
+        assert result.cost_limit == Decimal("0")
+
 
 class TestResolveUsageLimitsInvalidMaxCost:
     @pytest.mark.parametrize("max_cost", ["", "n/a", "$0.50"])
@@ -90,3 +95,14 @@ class TestResolveUsageLimitsInvalidMaxCost:
     def test_negative_max_cost_raises_value_error(self):
         with pytest.raises(ValueError, match="max_cost must not be negative"):
             resolve_usage_limits(None, -1)
+
+    @pytest.mark.parametrize(
+        "max_cost",
+        ["inf", "-inf", "nan", "Infinity", float("inf"), float("nan")],
+    )
+    def test_non_finite_max_cost_raises_value_error_naming_the_value(self, max_cost):
+        """A non-finite cost_limit would compare as never-exceeded, silently
+        disabling the cap the Dag author thinks they configured."""
+        with pytest.raises(ValueError, match="max_cost") as exc_info:
+            resolve_usage_limits(None, max_cost)
+        assert repr(max_cost) in str(exc_info.value)
