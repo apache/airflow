@@ -18,20 +18,14 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
-
-const columnVisibilityKey = "dataTable:common:asset:columnVisibility";
 
 // The assets mock handler (see src/mocks/handlers/assets.ts) returns a single asset
 // with one consuming task, one alias and one watcher.
 describe("AssetsList columns", () => {
-  afterEach(() => {
-    globalThis.localStorage.clear();
-  });
-
-  it("shows the consuming tasks of an asset by default", async () => {
+  it("shows the consuming tasks of an asset", async () => {
     render(<AppWrapper initialEntries={["/assets"]} />);
 
     await waitFor(() => expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument());
@@ -39,18 +33,7 @@ describe("AssetsList columns", () => {
     expect(screen.getByRole("button", { name: "1 task" })).toBeInTheDocument();
   });
 
-  it("hides the aliases and watchers columns by default", async () => {
-    render(<AppWrapper initialEntries={["/assets"]} />);
-
-    await waitFor(() => expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument());
-
-    expect(screen.queryByRole("button", { name: "1 alias" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "1 watcher" })).not.toBeInTheDocument();
-  });
-
-  it("lists aliases and watchers once their columns are made visible", async () => {
-    globalThis.localStorage.setItem(columnVisibilityKey, JSON.stringify({ aliases: true, watchers: true }));
-
+  it("lists the aliases and watchers of an asset", async () => {
     render(<AppWrapper initialEntries={["/assets"]} />);
 
     await waitFor(() => expect(screen.getByRole("button", { name: "1 alias" })).toBeInTheDocument());
