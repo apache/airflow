@@ -5406,17 +5406,16 @@ class TestSchedulerJob:
         # start_date should be preserved from the running attempt.
         assert history.start_date is not None
 
-    def test_adopt_or_reset_resettable_tasks_stores_null_hostname_when_never_reported(
+    def test_adopt_or_reset_resettable_tasks_keeps_default_hostname_when_never_reported(
         self, dag_maker, session
     ):
-        """Tasks killed before the task-sdk could report back store NULL hostname in history.
+        """Tasks killed before the task-sdk could report back keep the default hostname in history.
 
         When a Kubernetes pod is killed before the task-sdk calls the execution
         API, hostname stays as "" in the task_instance row (the Python-level
-        default).  TaskInstanceHistory should store NULL for those rows rather
-        than propagating the empty string, which would cause the served-log URL
-        builder to produce http://:8793/… and a "No host supplied" error in the
-        UI for earlier failed attempts.
+        default).  The history row should carry that value through unchanged,
+        confirming the orphan-reset path does not lose or mangle fields that
+        were never populated.
         """
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
@@ -5457,9 +5456,9 @@ class TestSchedulerJob:
             )
         )
         assert history is not None
-        # An empty-string hostname should become NULL in history, not "".
-        # Storing "" causes the log URL builder to produce http://:8793/…
-        assert history.hostname is None
+        # hostname was never reported, so the Python-level default "" is
+        # carried through to history unchanged.
+        assert history.hostname == ""
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
