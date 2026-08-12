@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import importlib
 import json
 import logging
 import os
@@ -681,6 +682,20 @@ class TestHttpHook:
         assert all(isinstance(value, str) for value in actual_conn_extra.values())
 
 
+@pytest.fixture
+def stable_dns_import():
+    """
+    Re-import the ``dns`` submodules so ``sys.modules`` and the package attributes agree.
+
+    In CI, Python 3.10's ``mock.patch`` resolves dotted targets attribute-first, so a stale attribute left
+    by another test's ``patch.dict(sys.modules, ...)`` gets patched while the hook re-imports a
+    fresh module — bypassing the mock and hitting real DNS.
+    """
+    importlib.import_module("dns.resolver")
+    importlib.import_module("dns.asyncresolver")
+
+
+@pytest.mark.usefixtures("stable_dns_import")
 class TestHttpHookSrvLookup:
     """Test DNS SRV record resolution support in HttpHook."""
 
@@ -1042,6 +1057,7 @@ class TestHttpAsyncHook:
                 assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"
 
 
+@pytest.mark.usefixtures("stable_dns_import")
 class TestHttpAsyncHookSrvLookup:
     """Test DNS SRV record resolution support in HttpAsyncHook."""
 
