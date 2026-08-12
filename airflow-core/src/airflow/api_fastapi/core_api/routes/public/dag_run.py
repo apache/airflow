@@ -37,7 +37,6 @@ from airflow.api_fastapi.common.cursors import (
     parse_cursor,
 )
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.assets import resolve_triggering_event_refs
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
@@ -73,7 +72,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.base import OrmClause
-from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse, AssetEventResponse
+from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     BulkDAGRunBody,
@@ -102,6 +101,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag_run_bulk,
     requires_access_dag_run_clear_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
@@ -292,14 +292,8 @@ def get_upstream_asset_events(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
     events = dag_run.consumed_asset_events
-    triggering_refs = resolve_triggering_event_refs(events, session=session)
-    asset_events = []
-    for event in events:
-        for run in event.created_dagruns:
-            run.triggering = (event.id, run.dag_id, run.run_id) in triggering_refs
-        asset_events.append(AssetEventResponse.model_validate(event))
     return AssetEventCollectionResponse(
-        asset_events=asset_events,
+        asset_events=serialize_asset_events(events, session=session),
         total_entries=len(events),
     )
 
