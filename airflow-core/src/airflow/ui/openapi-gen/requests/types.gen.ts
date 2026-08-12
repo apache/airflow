@@ -3458,6 +3458,10 @@ export type GetDagsData = {
      */
     hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
+    /**
+     * Filter Dags by whether they are scheduled. Dags using the null timetable (schedule=None) are considered unscheduled. This only works reliably for built-in timetables.
+     */
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
@@ -3593,6 +3597,10 @@ export type GetDagsUiData = {
     hasImportErrors?: boolean | null;
     hasPendingActions?: boolean | null;
     isFavorite?: boolean | null;
+    /**
+     * Filter Dags by whether they are scheduled. Dags using the null timetable (schedule=None) are considered unscheduled. This only works reliably for built-in timetables.
+     */
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;

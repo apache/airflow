@@ -1676,6 +1676,7 @@ export class DagService {
      * @param data.bundleVersion
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
+     * @param data.isScheduled Filter Dags by whether they are scheduled. Dags using the null timetable (schedule=None) are considered unscheduled. This only works reliably for built-in timetables.
      * @param data.dagRunStartDateGte
      * @param data.dagRunStartDateGt
      * @param data.dagRunStartDateLte
@@ -1713,6 +1714,7 @@ export class DagService {
                 bundle_version: data.bundleVersion,
                 has_asset_schedule: data.hasAssetSchedule,
                 asset_dependency: data.assetDependency,
+                is_scheduled: data.isScheduled,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
                 dag_run_start_date_gt: data.dagRunStartDateGt,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
@@ -1998,6 +2000,7 @@ export class DagService {
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
+     * @param data.isScheduled Filter Dags by whether they are scheduled. Dags using the null timetable (schedule=None) are considered unscheduled. This only works reliably for built-in timetables.
      * @param data.timetableType
      * @param data.hasPendingActions
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -2031,6 +2034,7 @@ export class DagService {
                 is_favorite: data.isFavorite,
                 has_asset_schedule: data.hasAssetSchedule,
                 asset_dependency: data.assetDependency,
+                is_scheduled: data.isScheduled,
                 timetable_type: data.timetableType,
                 has_pending_actions: data.hasPendingActions
             },
