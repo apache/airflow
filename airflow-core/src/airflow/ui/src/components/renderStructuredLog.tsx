@@ -44,7 +44,6 @@ type ErrorDetail = {
 };
 
 type RenderStructuredLogProps = {
-  formatTimestamp?: (timestamp: string) => string;
   index: number;
   logLevelFilters?: Array<string>;
   logLink: string;
@@ -174,7 +173,6 @@ export const extractTIContext = (
 };
 
 const renderStructuredLogImpl = ({
-  formatTimestamp,
   index,
   logLevelFilters,
   logLink,
@@ -218,9 +216,9 @@ const renderStructuredLogImpl = ({
     return "";
   }
 
-  if (timestamp !== undefined && Boolean(timestamp) && showTimestamp) {
+  if (Boolean(timestamp) && showTimestamp) {
     if (renderingMode === "text") {
-      elements.push(`[${formatTimestamp?.(timestamp) ?? timestamp}] `);
+      elements.push(`[${timestamp}] `);
     } else {
       elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
     }
