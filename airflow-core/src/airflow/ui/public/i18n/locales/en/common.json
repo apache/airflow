@@ -88,8 +88,6 @@
   "dagRunId": "Dag Run ID",
   "dagRunState": "Dag Run State",
   "dagWarnings": "Dag warnings/errors",
-  "defaultToGraphView": "Default to graph view",
-  "defaultToGridView": "Default to grid view",
   "delete": "Delete",
   "diff": "Diff",
   "diffCompareWith": "Compare with",
@@ -246,6 +244,39 @@
   },
   "selectLanguage": "Select Language",
   "selected": "Selected",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Skip tasks that are currently running when clearing task instances.",
+        "label": "Prevent clearing running tasks"
+      },
+      "runSelection": {
+        "helper": "Options selected by default when clearing a Dag run.",
+        "label": "Default run clear selection"
+      },
+      "taskSelection": {
+        "helper": "Options selected by default when clearing task instances.",
+        "label": "Default task clear selection"
+      },
+      "title": "Clearing"
+    },
+    "description": "These preferences are saved in this browser only and apply across the whole app.",
+    "graph": {
+      "defaultDirection": {
+        "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
+        "label": "Default graph direction"
+      },
+      "title": "Graph"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Options selected by default when marking a task instance's state.",
+        "label": "Default mark selection"
+      },
+      "title": "Marking"
+    },
+    "title": "Settings"
+  },
   "shortcuts": {
     "categories": {
       "code": "Code",
