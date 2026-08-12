@@ -20,6 +20,17 @@
 Changelog
 ---------
 
+0.2.1
+.....
+
+Misc
+~~~~
+
+* ``Move template-field validation out of AnthropicAgentSessionOperator __init__ (#70432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.2.0
 .....
 

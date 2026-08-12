@@ -901,6 +901,7 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -2586,7 +2587,8 @@ export type GridTISummaries = {
 export type HistoricalMetricDataResponse = {
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
-    state_count_limit: number;
+    dag_run_counts_are_lower_bounds?: boolean;
+    task_instance_counts_are_lower_bounds?: boolean;
 };
 
 /**
@@ -4672,6 +4674,7 @@ export type GetDagDeadlineAlertsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
+    versionNumber?: number | null;
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
@@ -7801,10 +7804,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8080,6 +8079,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
