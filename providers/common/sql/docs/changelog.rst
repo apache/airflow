@@ -25,6 +25,31 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SQLBulkLoadOperator to Common SQL Provider (#69362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLColumnCheckOperator crash on non-numeric column bounds (#70895)``
+* ``Fix SQL check tolerance for negative expected values (#69736)``
+* ``Fix SQL value checks for negative expected values (#69893)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
 2.0.3
 .....
 
@@ -553,7 +578,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 1.22.0
 ......

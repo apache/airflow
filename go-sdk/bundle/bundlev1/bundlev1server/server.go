@@ -22,7 +22,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/evanphx/go-hclog-slog/hclogslog"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	flag "github.com/spf13/pflag"
@@ -32,6 +31,7 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
 	"github.com/apache/airflow/go-sdk/pkg/config"
 	"github.com/apache/airflow/go-sdk/pkg/execution"
+	"github.com/apache/airflow/go-sdk/pkg/logging/hclogslog"
 )
 
 // ErrCoordinatorFlagsIncomplete is returned by [Serve] when exactly one of

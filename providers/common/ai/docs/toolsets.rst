@@ -24,20 +24,17 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Four toolsets are included:
+Three toolsets are included:
 
-- :class:`~airflow.providers.common.ai.toolsets.aws.AWSToolset` — configured
-  AWS services toolset for agent access to AWS APIs through Airflow-managed
-  AWS connections.
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
+- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
+  4-tool database toolset.
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
-- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
-  4-tool database toolset.
 
-All four implement pydantic-ai's
+All three implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -131,7 +128,8 @@ Curated toolset wrapping
    * - ``get_schema``
      - Returns column names and types for a table
    * - ``query``
-     - Executes a SQL query and returns rows as JSON
+     - Executes a SQL query and returns bounded, columnar JSON (see
+       :ref:`bounded-query-results`)
    * - ``check_query``
      - Validates SQL syntax without executing it
 
@@ -206,6 +204,62 @@ Parameters
   Default ``False`` -- only SELECT-family and read-only metadata
   (``DESCRIBE``/``SHOW``) statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+  Rows beyond it are not read out of a DBAPI cursor; what the driver has already
+  transferred is its own call. See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
+  See :ref:`bounded-query-results`.
+
+.. _bounded-query-results:
+
+Bounded query results
+^^^^^^^^^^^^^^^^^^^^^
+
+A tool result stays in the model's message history for the rest of the run, so its
+cost is re-paid on every subsequent model request. The ``query`` tool of both
+``SQLToolset`` and ``DataFusionToolset`` bounds that in three ways.
+
+**The result is columnar.** Column names appear once, not once per row:
+
+.. code-block:: json
+
+    {"columns": ["id", "name"], "rows": [[1, "Alice"], [2, "Bob"]], "row_count": 2}
+
+On a table with thousands of columns the repeated names, not the values, are the bulk
+of a row-of-dicts payload. Positional rows also keep columns that share a name --
+``SELECT o.id, c.id`` -- which a dict per row silently collapsed to one.
+
+**Rows are fetched, not filtered.** ``max_rows`` bounds what leaves the cursor, so a
+query matching a whole table costs the worker roughly what one matching ``max_rows``
+costs. How much is saved depends on the driver: with a server-side cursor the
+remaining rows are never sent, while a client-buffering driver (psycopg2's default
+cursor, MySQLdb) has already received them and only the per-row conversion is skipped.
+Hooks whose cursor is not DBAPI 2.0 (``ExasolHook`` passes a pyexasol statement) fall
+back to a full fetch, and ``DataFusionToolset`` materializes the full result in the
+engine before the toolset sees it; in both the payload is bounded but the transfer is
+not.
+
+**A byte budget bounds the payload.** ``max_rows`` caps rows, which says nothing about
+size -- one row of a 3000-column table is larger than a thousand rows of a narrow one.
+``max_result_bytes`` is what actually bounds context. Rows are returned as a contiguous
+prefix: the result stops at the first row that does not fit the remaining budget rather
+than skipping it and packing later ones, so a single wide row early in the result ends
+it. The result says which limit it hit:
+
+.. code-block:: json
+
+    {"columns": ["..."], "rows": ["..."], "row_count": 3,
+     "truncated": true, "truncated_by": "max_result_bytes"}
+
+``truncated_by`` is ``max_rows`` or ``max_result_bytes``. When not even one row fits,
+or the column names alone exceed the budget, the result carries a ``hint`` telling the
+agent to narrow its projection -- the only move that helps. ``total_rows`` is present
+when the driver reports a row count for the query; several (SQLite, some warehouse
+drivers) do not, and it is then omitted rather than guessed.
+
+The default budget is deliberately generous: the columnar shape alone shrinks a wide
+result several-fold, so results that fit before still fit. Lower ``max_result_bytes``
+when an agent makes many queries in one run, since every result is re-paid on every
+later request.
 
 ``DataFusionToolset``
 ---------------------
@@ -226,7 +280,8 @@ querying files on object stores (S3, local filesystem, Iceberg) via Apache DataF
    * - ``get_schema``
      - Returns column names and types for a table (Arrow schema)
    * - ``query``
-     - Executes a SQL query and returns rows as JSON
+     - Executes a SQL query and returns bounded, columnar JSON (see
+       :ref:`bounded-query-results`)
 
 Each :class:`~airflow.providers.common.sql.config.DataSourceConfig` entry
 registers a table backed by Parquet, CSV, Avro, or Iceberg data. Multiple
@@ -270,69 +325,8 @@ Parameters
   permitted. DataFusion on object stores is mostly read-only, but it does
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
-
-``AWSToolset``
---------------
-
-Curated toolset that gives an agent allow-listed access to AWS APIs with
-three tools:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 50
-
-   * - Tool
-     - Description
-   * - ``list_aws_operations``
-     - Lists the operations the toolset allows, grouped by service
-   * - ``describe_aws_operation``
-     - Returns an operation's parameter and response shapes (from the
-       botocore service model), so the agent can check what a call expects
-       before making it
-   * - ``call_aws``
-     - Executes an allowed operation and returns the response as JSON,
-       aggregating paginated results
-
-Credentials, region, and session configuration come from the Airflow
-connection (``aws_conn_id``) via the amazon provider — the model cannot
-override them through tool arguments. Requires the ``aws`` extra::
-
-    pip install "apache-airflow-providers-common-ai[aws]"
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_aws_toolset.py
-    :language: python
-    :start-after: [START howto_operator_agent_aws]
-    :end-before: [END howto_operator_agent_aws]
-
-Access is deny-by-default: ``allowed_actions`` is required and supports ``*``
-wildcards in the operation part only (``"athena:*"``, ``"s3:List*"``).
-Operations that return credentials or decrypted secrets — ``sts:AssumeRole``,
-``secretsmanager:GetSecretValue``, ``kms:Decrypt``, and similar — are never
-matched by a wildcard and must be listed verbatim to be callable.
-
-.. warning::
-    ``allowed_actions`` bounds what the agent can ask for, not what the
-    credentials can do. Point ``aws_conn_id`` at a least-privilege IAM role
-    scoped to the same operations.
-
-Parameters
-^^^^^^^^^^
-
-- ``aws_conn_id``: Airflow connection ID for AWS credentials. Default
-  ``aws_default``.
-- ``allowed_actions``: Operations the agent may call, in
-  ``"<service>:<Operation>"`` form using boto3 service names and API
-  operation names. Required — there is no auto-discovery. Matching is case-
-  and underscore-insensitive, so ``"s3:list_buckets"`` equals
-  ``"s3:ListBuckets"``. Validated against botocore's bundled service
-  definitions at instantiation time (local metadata only — no network, no
-  credentials).
-- ``region_name``: AWS region for API calls. Default ``None`` — use the
-  region configured on the connection.
-- ``max_items``: Upper bound on items aggregated from paginated operations.
-  Default ``1000``.
-- ``max_output_bytes``: Upper bound on the serialized response returned to
-  the agent; larger payloads are clipped and flagged. Default ``65536``.
+- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
+  See :ref:`bounded-query-results`.
 
 ``LoggingToolset``
 ------------------
@@ -682,10 +676,14 @@ No single layer is sufficient — they work together.
        ``allowed_functions``. Fail-closed, but only as exact as the SQL parser. Not a
        security boundary -- always pair it with least-privilege database grants. See
        :ref:`allowed-tables-enforcement` below.
-   * - **SQLToolset: max_rows**
-     - Truncates query results to ``max_rows`` (default 50), preventing the
-       agent from pulling entire tables into context.
-     - Does not limit the number of queries the agent can make.
+   * - **SQLToolset: max_rows / max_result_bytes**
+     - Bounds a query result by rows (default 50) and by serialized size
+       (default 64 KiB), preventing the agent from pulling entire tables into
+       context.
+     - Does not limit the number of queries the agent can make, and each result
+       stays in message history for the rest of the run. Rows past ``max_rows``
+       are not read out of the cursor, but a client-buffering driver has already
+       transferred them -- this bounds context, not database or network load.
    * - **MCPToolset: external server**
      - Connects the agent to tools exposed by an MCP server, authenticated
        through an Airflow connection.
@@ -801,7 +799,8 @@ Recommended Configuration
         db_conn_id="analytics_readonly",  # Connection with SELECT-only grants
         allowed_tables=["orders", "customers"],  # Hide other tables from agent
         allow_writes=False,  # Default — validates SQL
-        max_rows=50,  # Default — truncate large results
+        max_rows=50,  # Default — cap rows
+        max_result_bytes=65536,  # Default — cap bytes; lower it for wide tables
     )
 
 **Agents that need to modify data** (use with caution):
@@ -829,8 +828,10 @@ Before deploying an agent task to production:
    agent can call any exposed tool with any arguments.
 4. **Read-only default**: Keep ``allow_writes=False`` unless the task
    specifically requires writes.
-5. **Row limits**: Set ``max_rows`` appropriate to the use case. Large
-   result sets consume LLM context and increase cost.
+5. **Result limits**: Set ``max_rows`` and ``max_result_bytes`` appropriate to
+   the use case. ``max_rows`` alone does not bound size -- on wide tables it is
+   ``max_result_bytes`` that keeps a result from dominating the context window for
+   the rest of the run.
 6. **Model budget**: Configure pydantic-ai's ``model_settings`` (e.g.
    ``max_tokens``) and ``retries`` to bound cost and prevent runaway loops.
 7. **System prompt**: Include safety instructions in ``system_prompt`` (e.g.

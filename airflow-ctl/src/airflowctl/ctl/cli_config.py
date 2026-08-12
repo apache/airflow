@@ -111,10 +111,6 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 class DefaultHelpParser(argparse.ArgumentParser):
     """CustomParser to display help message."""
 
-    def _check_value(self, action, value):
-        """Override _check_value and check conditionally added command."""
-        super()._check_value(action, value)
-
     def error(self, message):
         """Override error and use print_help instead of print_usage."""
         self.print_help()
@@ -291,19 +287,57 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID",
 )
-ARG_RUN_ID = Arg(
-    flags=("run_id",),
+ARG_DAG_RUN_ID = Arg(
+    flags=("--run-id",),
     type=str,
-    nargs="?",
-    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+    help="The Dag run ID to clear",
 )
-ARG_LOGICAL_DATE = Arg(
-    flags=("--logical-date",),
+ARG_DAG_PARTITION_KEY = Arg(
+    flags=("--partition-key",),
     type=str,
-    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+    help="The Dag run partition key to clear",
+)
+ARG_DAG_PARTITION_DATE_START = Arg(
+    flags=("--partition-date-start",),
+    type=str,
+    help=(
+        "Inclusive lower bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_PARTITION_DATE_END = Arg(
+    flags=("--partition-date-end",),
+    type=str,
+    help=(
+        "Inclusive upper bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_CLEAR_ONLY_FAILED = Arg(
+    flags=("-f", "--only-failed"),
+    default=False,
+    action="store_true",
+    help="Only clear failed task instances",
+)
+ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
+    flags=("-r", "--only-running"),
+    default=False,
+    action="store_true",
+    help="Only clear running task instances",
+)
+ARG_DAG_CLEAR_YES = Arg(
+    flags=("-y", "--yes"),
+    default=False,
+    action="store_true",
+    help="Do not prompt to confirm clearing task instances",
 )
 
 # Task Commands Args
+ARG_TASK_ID = Arg(
+    flags=("task_id",),
+    type=str,
+    help="The task ID",
+)
 ARG_RUN_ID = Arg(
     flags=("run_id",),
     type=str,
@@ -314,6 +348,12 @@ ARG_LOGICAL_DATE = Arg(
     flags=("--logical-date",),
     type=str,
     help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+)
+ARG_MAP_INDEX = Arg(
+    flags=("--map-index",),
+    type=int,
+    default=-1,
+    help="Mapped task index",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -322,6 +362,35 @@ ARG_ACTION_ON_EXISTING_KEY = Arg(
     default="overwrite",
     help="Action to take if the entity already exists.",
     choices=("overwrite", "fail", "skip"),
+)
+
+# Jobs command args
+ARG_JOB_TYPE_FILTER = Arg(
+    flags=("--job-type",),
+    choices=("SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    help="The type of job(s) that will be checked.",
+)
+ARG_JOB_HOSTNAME_FILTER = Arg(
+    flags=("--hostname",),
+    type=str,
+    default=None,
+    help="The hostname of job(s) that will be checked.",
+)
+ARG_JOB_LOCAL_FILTER = Arg(
+    flags=("--local",),
+    action="store_true",
+    help="If passed, this command will only show jobs from the local host.",
+)
+ARG_JOB_LIMIT = Arg(
+    flags=("--limit",),
+    type=positive_int(allow_zero=True),
+    default=1,
+    help="The number of recent jobs that will be checked. To disable limit, set 0.",
+)
+ARG_JOB_ALLOW_MULTIPLE = Arg(
+    flags=("--allow-multiple",),
+    action="store_true",
+    help="If passed, this command will be successful even if multiple matching alive jobs are found.",
 )
 
 # Config arguments
@@ -546,6 +615,7 @@ class CommandFactory:
             "dict",
             "tuple",
             "set",
+            "datetime.date",
             "datetime.datetime",
         }
         # Handle Optional types (e.g., "datetime.datetime | None", "str | None")
@@ -576,6 +646,7 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
+            "datetime.date": datetime.date,
             "datetime.datetime": iso_datetime_type,
             "dict[str, typing.Any]": json_dict_type,
         }
@@ -1038,6 +1109,21 @@ CONNECTION_COMMANDS = (
 
 DAG_COMMANDS = (
     ActionCommand(
+        name="clear",
+        help="Clear task instances for Dag runs selected by run ID, partition key, or partition date",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_DAG_PARTITION_KEY,
+            ARG_DAG_PARTITION_DATE_START,
+            ARG_DAG_PARTITION_DATE_END,
+            ARG_DAG_CLEAR_ONLY_FAILED,
+            ARG_DAG_CLEAR_ONLY_RUNNING,
+            ARG_DAG_CLEAR_YES,
+        ),
+    ),
+    ActionCommand(
         name="next-execution",
         help="Show the next scheduled execution time for a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
@@ -1096,6 +1182,23 @@ POOL_COMMANDS = (
 
 TASK_COMMANDS = (
     ActionCommand(
+        name="failed-deps",
+        help="Returns the unmet dependencies for a task instance",
+        description=(
+            "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
+            "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
+            "and then run by an executor."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.failed_deps"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_MAP_INDEX,
+        ),
+    ),
+    ActionCommand(
         name="states-for-dag-run",
         help="Get the status of all task instances in a Dag run",
         description=(
@@ -1121,6 +1224,21 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+JOB_COMMANDS = (
+    ActionCommand(
+        name="check",
+        help="Check if job(s) are still alive.",
+        func=lazy_load_command("airflowctl.ctl.commands.jobs_command.check"),
+        args=(
+            ARG_JOB_TYPE_FILTER,
+            ARG_JOB_HOSTNAME_FILTER,
+            ARG_JOB_LOCAL_FILTER,
+            ARG_JOB_LIMIT,
+            ARG_JOB_ALLOW_MULTIPLE,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1142,6 +1260,11 @@ core_commands: list[CLICommand] = [
         name="dags",
         help="Manage Airflow Dags",
         subcommands=DAG_COMMANDS,
+    ),
+    GroupCommand(
+        name="jobs",
+        help="Manage Airflow jobs",
+        subcommands=JOB_COMMANDS,
     ),
     GroupCommand(
         name="pools",

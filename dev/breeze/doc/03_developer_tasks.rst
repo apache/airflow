@@ -685,10 +685,16 @@ Make sure to substitute the port numbers if you have customized them via the abo
 Stopping the environment
 ------------------------
 
-After starting up, the environment runs in the background and takes quite some memory which you might
-want to free for other things you are running on your host.
+After starting up, the environment takes quite some memory which you might want to free for other things
+you are running on your host.
 
-You can always stop it via:
+If you used ``breeze start-airflow``, first exit its terminal multiplexer so that the foreground
+container releases its forwarded ports:
+
+* With mprocs (the default), press ``q`` in the mprocs interface.
+* With tmux, run ``stop_airflow`` from its main shell pane.
+
+After returning to the host shell, stop the remaining Docker Compose services:
 
 .. code-block:: bash
 
@@ -699,8 +705,9 @@ about — ``breeze shell``, ``breeze testing``, ``breeze build-docs``, ``breeze 
 release-management, registry, ``breeze run``, and prek-hook compose projects — by
 reading the ``com.docker.compose.project`` label that compose sets on every container
 it creates. Each matching project is brought down with ``--remove-orphans`` and
-``--volumes`` (unless ``--preserve-volumes`` is passed). One ``breeze down`` is
-enough to leave the host clean.
+``--volumes`` (unless ``--preserve-volumes`` is passed). A running
+``breeze start-airflow`` container must exit first; otherwise it continues to use
+the project's forwarded ports, network, and volumes.
 
 If you have an unrelated docker compose project running on the host that does not
 match any breeze prefix, it is left alone by default. Pass ``--all-projects`` to
