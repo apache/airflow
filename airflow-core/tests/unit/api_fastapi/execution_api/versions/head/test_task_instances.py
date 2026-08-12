@@ -66,6 +66,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
+from unit.listeners import asset_listener
 
 if TYPE_CHECKING:
     from airflow.sdk.api.client import Client
@@ -1031,6 +1032,65 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json()["dag_run"]["team_name"] == (team_name if expect_team else None)
 
+    def test_ti_run_team_name_is_not_served_from_a_stale_cache(
+        self, client, session, dag_maker, time_machine
+    ):
+        """
+        ``ti_run`` must eager load the team rather than fall back to the cached resolver.
+
+        The fallback caches per dag_id for ``team_name_cache_ttl`` seconds, so a Dag whose team
+        was looked up before it moved bundles would keep reporting the old team to the worker.
+        """
+        from airflow.models.dag import clear_team_name_cache
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=instant, state=DagRunState.RUNNING, start_date=instant
+        )
+        ti = dr.get_task_instance(task_id="task")
+        ti.set_state(State.QUEUED)
+
+        for suffix in ("old", "new"):
+            bundle = DagBundleModel(name=f"bundle-{suffix}-{dag_id}")
+            bundle.teams.append(Team(name=f"team-{suffix}-{dag_id[:8]}"))
+            session.add(bundle)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=f"bundle-old-{dag_id}")
+        )
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            clear_team_name_cache()
+            # Warm the cache with the old team, then move the Dag to the other bundle.
+            assert DagModel.get_team_name(dag_id, session=session) == f"team-old-{dag_id[:8]}"
+            session.execute(
+                update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=f"bundle-new-{dag_id}")
+            )
+            session.commit()
+
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+            clear_team_name_cache()
+
+        assert response.status_code == 200
+        assert response.json()["dag_run"]["team_name"] == f"team-new-{dag_id[:8]}"
+
     def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
         """Test that transitioning to RUNNING creates an audit log record."""
         instant_str = "2024-09-30T12:00:00Z"
@@ -1294,6 +1354,83 @@ class TestTIUpdateState:
         assert len(event) == 1
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
+
+    def test_ti_update_state_to_success_runs_deferred_asset_listener_callbacks(
+        self, client, session, create_task_instance, listener_manager
+    ):
+        """The success endpoint runs the deferred asset listener callbacks after committing."""
+        asset_listener.clear()
+        listener_manager(asset_listener)
+
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_runs_deferred_asset_listener_callbacks",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == 204
+
+        # Notifications are deferred during registration and run by the endpoint after the
+        # TI state is committed (and the task_instance row lock released).
+        assert len(asset_listener.changed) == 1
+        assert asset_listener.changed[0].uri == "s3://bucket/my-task"
+        assert len(asset_listener.emitted) == 1
+
+    def test_ti_update_state_to_success_rolls_back_partial_asset_registration(
+        self, client, session, create_task_instance
+    ):
+        """A failure partway through asset registration rolls back the partial writes.
+
+        The endpoint's exception handler marks the TI failed and commits; the explicit rollback
+        ensures an asset event flushed before the failure is not committed alongside it.
+        """
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_rolls_back_partial_asset_registration",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        def _partial_then_fail(ti, task_outlets, outlet_events, *, session):
+            # Simulate a half-way registration: an asset event is flushed, then registration
+            # fails before the endpoint commits.
+            session.add(AssetEvent(asset_id=asset.id))
+            session.flush()
+            raise RuntimeError("boom partway through outlets")
+
+        with mock.patch.object(TaskInstance, "register_asset_changes_in_db", side_effect=_partial_then_fail):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204
+        session.expire_all()
+        # The partially-written asset event was rolled back, and the TI is marked failed.
+        assert session.scalars(select(AssetEvent)).all() == []
+        assert session.get(TaskInstance, ti.id).state == State.FAILED
 
     @pytest.mark.parametrize(
         ("outlet_events", "expected_extra"),

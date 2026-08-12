@@ -17,12 +17,14 @@
       "unfavorite": "未加為最愛"
     },
     "lastRunState": "最後執行狀態",
+    "noTimetableTypesFound": "找不到排程規則類型",
     "paused": {
       "active": "啟用中",
       "all": "全部",
       "paused": "暫停"
     },
-    "runIdPatternFilter": "搜尋 Dag 執行"
+    "runIdPatternFilter": "搜尋 Dag 執行",
+    "timetableType": "排程規則類型"
   },
   "ownerLink": "擁有者 {{owner}} 的連結",
   "runAndTaskActions": {

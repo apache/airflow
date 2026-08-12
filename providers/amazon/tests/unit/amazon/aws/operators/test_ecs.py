@@ -846,6 +846,26 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert isinstance(deferred.value.trigger, TaskDoneTrigger)
         assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
 
+    @mock.patch.object(EcsRunTaskOperator, "client")
+    def test_with_defer_passes_awslogs_region_to_trigger(self, client_mock):
+        self.set_up_operator(
+            awslogs_group="awslogs-group",
+            awslogs_region="logs-region",
+            awslogs_stream_prefix="prefix",
+            region_name="task-region",
+            deferrable=True,
+        )
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
+        with pytest.raises(TaskDeferred) as deferred:
+            self.ecs.execute(mock_context)
+
+        assert deferred.value.trigger.region_name == "task-region"
+        assert deferred.value.trigger.log_region_name == "logs-region"
+
     @mock.patch.object(EcsRunTaskOperator, "client", new_callable=PropertyMock)
     def test_execute_complete(self, client_mock):
         event = {"status": "success", "task_arn": "my_arn", "cluster": "test_cluster"}

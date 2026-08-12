@@ -237,6 +237,7 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
 checksums
 childs
 chmod
@@ -1619,6 +1620,7 @@ StatsD
 statsd
 stderr
 stdin
+stdlib
 stdout
 StorageClass
 storages
