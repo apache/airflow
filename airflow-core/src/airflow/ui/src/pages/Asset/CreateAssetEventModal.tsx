@@ -25,6 +25,7 @@ import { FiPlay } from "react-icons/fi";
 import {
   useAssetServiceCreateAssetEvent,
   UseAssetServiceGetAssetEventsKeyFn,
+  useAssetServiceGetAssetsUiKey,
   useAssetServiceMaterializeAsset,
   UseDagRunServiceGetDagRunsKeyFn,
   useDagServiceGetDagDetails,
@@ -72,32 +73,18 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   const [upstreamDag] = upstreamDags;
   const upstreamDagId = hasUpstreamDag ? upstreamDag?.source_id.replace("dag:", "") : undefined;
 
-  // TODO move validate + prettify into JsonEditor
-  const validateAndPrettifyJson = (newValue: string) => {
-    try {
-      const parsedJson = JSON.parse(newValue) as JSON;
-
-      setExtraError(undefined);
-
-      const formattedJson = JSON.stringify(parsedJson, undefined, 2);
-
-      if (formattedJson !== extra) {
-        setExtra(formattedJson); // Update only if the value is different
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : translate("common:error.unknown");
-
-      setExtraError(errorMessage);
-    }
-  };
-
   const onSuccess = async (response: AssetEventResponse | DAGRunResponse) => {
     setExtra("{}");
     setExtraError(undefined);
     setPartitionKey(undefined);
     onClose();
 
-    let queryKeys = [UseAssetServiceGetAssetEventsKeyFn({ assetId: asset.id }, [{ assetId: asset.id }])];
+    let queryKeys = [
+      UseAssetServiceGetAssetEventsKeyFn({ assetId: asset.id }, [{ assetId: asset.id }]),
+      // The Assets list defaults to sorting by last asset event, so a new event changes both the
+      // displayed timestamp and the row's position; refresh it for manual events and materializes.
+      [useAssetServiceGetAssetsUiKey],
+    ];
 
     if ("dag_run_id" in response) {
       const dagId = response.dag_id;
@@ -219,7 +206,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
           {eventType === "manual" ? (
             <Field.Root mt={6}>
               <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
-              <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
+              <JsonEditor onChange={setExtra} onError={setExtraError} prettify value={extra} />
               <Text color="fg.error">{extraError}</Text>
             </Field.Root>
           ) : undefined}

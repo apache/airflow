@@ -117,6 +117,7 @@ class FileGroupForCi(Enum):
     DOC_FILES = auto()
     TEXT_NON_DOC_FILES = auto()
     UI_FILES = auto()
+    UI_OPENAPI_FILES = auto()
     SYSTEM_TEST_FILES = auto()
     KUBERNETES_FILES = auto()
     TASK_SDK_FILES = auto()
@@ -124,6 +125,7 @@ class FileGroupForCi(Enum):
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -379,6 +381,17 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-core/src/airflow/ui/",
             r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/",
         ],
+        # The OpenAPI spec yamls that are inputs of the UI client codegen. Must cover the UNION of
+        # the openapi `files:` triggers of `ts-compile-lint-ui` and
+        # `ts-compile-lint-simple-auth-manager-ui` in `airflow-core/.pre-commit-config.yaml` —
+        # selective checks skip the two hooks as one unit, so this group is a strict superset of
+        # the first hook's triggers; do not "re-sync" it down to a single hook. A spec-only change
+        # (e.g. `_private_ui.yaml`) must not skip those hooks, otherwise a stale committed client
+        # masks type errors in CI (https://github.com/apache/airflow/pull/68919).
+        FileGroupForCi.UI_OPENAPI_FILES: [
+            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml",
+            r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/.*\.yaml",
+        ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes-tests",
@@ -472,9 +485,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.TS_SDK_DOCS_FILES: [
+            # TypeDoc renders the reference from the SDK sources, and the landing page is
+            # authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md` counts here. tsconfig.json
+            # and package.json are included too: docs/tsconfig.json `extends` the former, and
+            # the latter pins the `@msgpack/msgpack` version the checked program depends on.
+            r"^ts-sdk/docs/.*",
+            r"^ts-sdk/src/.*",
+            r"^ts-sdk/tsconfig\.json$",
+            r"^ts-sdk/package\.json$",
+        ],
         FileGroupForCi.TS_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the generated supervisor schema.
-            r"^ts-sdk/(?!.*\.md$).*",
+            # `ts-sdk/docs/package.json` and its lock file excluded too — they pin the docs
+            # toolchain's own dependencies and do not affect the SDK build.
+            r"^ts-sdk/(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1120,6 +1145,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
+    def run_ts_sdk_docs(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
+
+    @cached_property
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
 
@@ -1671,7 +1700,9 @@ class SelectiveChecks:
             return ",".join(sorted(prek_hooks_to_skip))
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
-            or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
+            # An API_CODEGEN_FILES disjunct would be unreachable here — matching that group
+            # forces full_tests_needed, and skip_prek_hooks returns early above in that case.
+            or self._matching_files(FileGroupForCi.UI_OPENAPI_FILES, CI_FILE_GROUP_MATCHES)
         ):
             prek_hooks_to_skip.add("ts-compile-lint-ui")
             prek_hooks_to_skip.add("ts-compile-lint-simple-auth-manager-ui")

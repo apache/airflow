@@ -607,11 +607,12 @@ class TestSageMakerProcessingOperatorOutputFiles:
         assert "File not found" in result["OutputFiles"]["EvaluationReport"]["_error"]
 
     def test_output_files_skipped_when_not_waiting(self):
-        """With wait_for_completion=False and output_files_to_xcom, init raises ValueError."""
+        """With wait_for_completion=False and output_files_to_xcom, execute raises ValueError."""
+        operator = SageMakerProcessingOperator(
+            task_id="test_task",
+            config=PROCESSING_CONFIG_WITH_OUTPUT_FILES,
+            output_files_to_xcom=OUTPUT_FILES_TO_XCOM_CONFIG,
+            wait_for_completion=False,
+        )
         with pytest.raises(ValueError, match="output_files_to_xcom requires wait_for_completion=True"):
-            SageMakerProcessingOperator(
-                task_id="test_task",
-                config=PROCESSING_CONFIG_WITH_OUTPUT_FILES,
-                output_files_to_xcom=OUTPUT_FILES_TO_XCOM_CONFIG,
-                wait_for_completion=False,
-            )
+            operator.execute(context=None)

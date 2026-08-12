@@ -104,6 +104,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     notify_on_unhealthy_backend_container,
     perform_environment_checks,
+    pull_images_with_retries,
     remove_docker_networks,
 )
 from airflow_breeze.utils.environment_check import is_ci_environment
@@ -275,6 +276,12 @@ def _run_test(
     run_cmd.extend(pytest_args)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
+        if shell_params.test_group in (GroupOfTests.INTEGRATION_CORE, GroupOfTests.INTEGRATION_PROVIDERS):
+            pull_images_with_retries(
+                compose_project_name=compose_project_name,
+                env=env,
+                skip_images={shell_params.airflow_image_name},
+            )
         result = run_command(
             run_cmd,
             output=output,

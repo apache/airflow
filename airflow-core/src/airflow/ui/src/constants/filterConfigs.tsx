@@ -61,7 +61,7 @@ export enum FilterTypes {
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "components", "admin", "hitl"]);
+  const { t: translate } = useTranslation(["assets", "browse", "common", "components", "admin", "hitl"]);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const { data: teamsData } = useTeamsServiceListTeams({ orderBy: ["name"] }, undefined, {
     enabled: multiTeamEnabled,
@@ -179,6 +179,14 @@ export const useFilterConfigs = () => {
       label: translate("admin:jobs.columns.executorClass"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.GROUP_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <FiDatabase />,
+      label: translate("assets:group"),
+      placeholder: translate("assets:filters.groupPlaceholder"),
+      supportsAdvancedSearch: true,
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.HOSTNAME]: {
       hotkeyDisabled: true,
       icon: <MdComputer />,
@@ -208,6 +216,13 @@ export const useFilterConfigs = () => {
       label: translate("admin:columns.key"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE]: {
+      endKey: SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_LTE,
+      icon: <MdDateRange />,
+      label: translate("assets:filters.lastEventDateRange"),
+      startKey: SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
       endKey: SearchParamsKeys.LOGICAL_DATE_LTE,

@@ -60,7 +60,14 @@ for this run.
 If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
 non-empty, ``params`` is forwarded as ``job_parameters`` as-is, so Airflow Dag params can
 be passed dynamically to a run without hardcoding them in ``json``. If ``json`` already
-contains ``job_parameters``, it is left untouched.
+contains ``job_parameters``, it is left untouched. You can set ``forward_dag_params=False`` to
+disable this parameter forwarding behavior.
+
+.. note::
+  The Databricks API does not permit ``job_parameters`` to be used in combination with
+  ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
+  ``python_named_params``, or ``dbt_commands``. Auto-forwarding is automatically skipped
+  when any of those parameter slots are used.
 
 .. code-block:: python
 
@@ -98,6 +105,22 @@ Durable execution requires Airflow 3.3 or newer, since it relies on the task sta
 Airflow versions the flag is a no-op and the operator always triggers a fresh run on retry,
 exactly as before. If the task state store is unavailable at runtime, the operator logs that crash
 recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
+run id won't be there for the next retry, and the operator will trigger a fresh run instead of
+reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
+
+Clearing a task is treated the same as a retry, which matters specifically for a task whose run
+already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
+and returns immediately without triggering a new run. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the run via ``on_kill`` before the next attempt gets a chance to
+reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
 
 To opt out and always trigger a fresh run on retry, set ``durable=False``:
 

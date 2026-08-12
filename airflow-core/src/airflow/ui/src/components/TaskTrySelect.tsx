@@ -60,6 +60,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) || isStatePending(state)
           ? refetchInterval
           : false,
+      staleTime: 0,
     },
   );
 
@@ -70,10 +71,16 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
   const logAttemptDropdownLimit = 10;
   const showDropdown = finalTryNumber > logAttemptDropdownLimit;
 
-  // For some reason tries aren't sorted by try_number
-  const sortedTries = [...(tiHistory?.task_instances ?? [])].sort(
-    (tryA, tryB) => tryA.try_number - tryB.try_number,
+  const triesByNumber = new Map(
+    (tiHistory?.task_instances ?? []).filter((ti) => ti.try_number > 0).map((ti) => [ti.try_number, ti]),
   );
+
+  if (finalTryNumber > 0 && state !== "up_for_retry" && state !== null) {
+    // The current task instance is authoritative when it is also present in history.
+    triesByNumber.set(finalTryNumber, taskInstance);
+  }
+
+  const sortedTries = [...triesByNumber.values()].sort((tryA, tryB) => tryA.try_number - tryB.try_number);
 
   const tryOptions = createListCollection({
     items: sortedTries.map((ti) => ({

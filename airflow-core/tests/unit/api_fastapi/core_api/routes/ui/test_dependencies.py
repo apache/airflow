@@ -23,6 +23,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models.asset import AssetModel
+from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -116,42 +117,49 @@ def expected_primary_component_response(asset1_id):
                 "label": "downstream",
                 "type": "dag",
                 "team": None,
-            },
-            {
-                "id": f"asset:{asset1_id}",
-                "label": "asset1",
-                "type": "asset",
-                "team": None,
+                "asset_condition_type": None,
             },
             {
                 "id": "sensor:other_dag:downstream:external_task_sensor",
                 "label": "external_task_sensor",
                 "type": "sensor",
                 "team": None,
+                "asset_condition_type": None,
             },
             {
                 "id": "dag:external_trigger_dag_id",
                 "label": "external_trigger_dag_id",
                 "type": "dag",
                 "team": None,
+                "asset_condition_type": None,
             },
             {
                 "id": "trigger:external_trigger_dag_id:downstream:trigger_dag_run_operator",
                 "label": "trigger_dag_run_operator",
                 "type": "trigger",
                 "team": None,
+                "asset_condition_type": None,
             },
             {
                 "id": "dag:upstream",
                 "label": "upstream",
                 "type": "dag",
                 "team": None,
+                "asset_condition_type": None,
+            },
+            {
+                "id": f"asset:{asset1_id}",
+                "label": "asset1",
+                "type": "asset",
+                "team": None,
+                "asset_condition_type": None,
             },
             {
                 "id": "dag:other_dag",
                 "label": "other_dag",
                 "type": "dag",
                 "team": None,
+                "asset_condition_type": None,
             },
         ],
     }
@@ -199,22 +207,25 @@ def expected_secondary_component_response(asset2_id):
         ],
         "nodes": [
             {
-                "id": "dag:downstream_secondary",
-                "label": "downstream_secondary",
+                "id": "dag:upstream_secondary",
+                "label": "upstream_secondary",
                 "type": "dag",
                 "team": None,
+                "asset_condition_type": None,
             },
             {
                 "id": f"asset:{asset2_id}",
                 "label": "asset2",
                 "type": "asset",
                 "team": None,
+                "asset_condition_type": None,
             },
             {
-                "id": "dag:upstream_secondary",
-                "label": "upstream_secondary",
+                "id": "dag:downstream_secondary",
+                "label": "downstream_secondary",
                 "type": "dag",
                 "team": None,
+                "asset_condition_type": None,
             },
         ],
     }
@@ -223,7 +234,7 @@ def expected_secondary_component_response(asset2_id):
 class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component")
     def test_should_response_200(self, test_client, expected_primary_component_response):
-        with assert_queries_count(7):
+        with assert_queries_count(8):
             response = test_client.get("/dependencies")
         assert response.status_code == 200
 
@@ -259,7 +270,7 @@ class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_with_node_id_filter(self, test_client, node_id, expected_response_fixture, request):
         expected_response = request.getfixturevalue(expected_response_fixture)
-        with assert_queries_count(7):
+        with assert_queries_count(8):
             response = test_client.get("/dependencies", params={"node_id": node_id})
         assert response.status_code == 200
 
@@ -277,7 +288,7 @@ class TestGetDependencies:
             (asset1_id, expected_primary_component_response),
             (asset2_id, expected_secondary_component_response),
         ):
-            with assert_queries_count(7):
+            with assert_queries_count(8):
                 response = test_client.get("/dependencies", params={"node_id": f"asset:{asset_id}"})
             assert response.status_code == 200
 
@@ -581,3 +592,330 @@ class TestGetDependencies:
         )
         actual_edges = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
         assert expected_edge in actual_edges
+
+    def test_scheduling_dependencies_expands_asset_and_gate(self, dag_maker, test_client, session):
+        """A Dag scheduled by multiple ANDed assets renders an and-gate node instead of flat asset edges."""
+        asset_a = Asset(uri="s3://gate-bucket/a", name="gate_asset_a")
+        asset_b = Asset(uri="s3://gate-bucket/b", name="gate_asset_b")
+
+        with dag_maker(dag_id="gate_upstream", serialized=True, session=session):
+            EmptyOperator(task_id="produce", outlets=[asset_a, asset_b])
+
+        with dag_maker(
+            dag_id="gate_downstream",
+            schedule=(asset_a & asset_b),
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_a"))
+        asset_b_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_b"))
+
+        response = test_client.get("/dependencies", params={"node_id": "dag:gate_downstream"})
+        assert response.status_code == 200
+
+        result = response.json()
+        gate_node = next(node for node in result["nodes"] if node["type"] == "asset-condition")
+        assert gate_node["asset_condition_type"] == "and-gate"
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        assert (gate_node["id"], "dag:gate_downstream") in edge_tuples
+        assert (f"asset:{asset_a_id}", gate_node["id"]) in edge_tuples
+        assert (f"asset:{asset_b_id}", gate_node["id"]) in edge_tuples
+
+        # The flat asset -> dag edge is replaced by the gate, not duplicated alongside it.
+        assert (f"asset:{asset_a_id}", "dag:gate_downstream") not in edge_tuples
+        assert (f"asset:{asset_b_id}", "dag:gate_downstream") not in edge_tuples
+
+        # The producer side (unrelated to the consumer's gate) is untouched.
+        assert ("dag:gate_upstream", f"asset:{asset_a_id}") in edge_tuples
+        assert ("dag:gate_upstream", f"asset:{asset_b_id}") in edge_tuples
+
+    def test_scheduling_dependencies_expands_nested_boolean_groups(self, dag_maker, test_client, session):
+        """`(a & b) | (c & d)` renders both and-gates under the or-gate -- no sibling branch dropped."""
+        asset_a = Asset(uri="s3://nested-bucket/a", name="nested_asset_a")
+        asset_b = Asset(uri="s3://nested-bucket/b", name="nested_asset_b")
+        asset_c = Asset(uri="s3://nested-bucket/c", name="nested_asset_c")
+        asset_d = Asset(uri="s3://nested-bucket/d", name="nested_asset_d")
+
+        with dag_maker(
+            dag_id="nested_downstream",
+            schedule=((asset_a & asset_b) | (asset_c & asset_d)),
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_ids = {
+            name: session.scalar(select(AssetModel.id).where(AssetModel.name == name))
+            for name in ("nested_asset_a", "nested_asset_b", "nested_asset_c", "nested_asset_d")
+        }
+
+        response = test_client.get("/dependencies", params={"node_id": "dag:nested_downstream"})
+        assert response.status_code == 200
+
+        result = response.json()
+        gates = [node for node in result["nodes"] if node["type"] == "asset-condition"]
+        or_gates = [g for g in gates if g["asset_condition_type"] == "or-gate"]
+        and_gates = [g for g in gates if g["asset_condition_type"] == "and-gate"]
+        # Both nested and-groups survive: one or-gate, two distinct and-gates.
+        assert len(or_gates) == 1
+        assert len(and_gates) == 2
+        assert and_gates[0]["id"] != and_gates[1]["id"]
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        or_gate_id = or_gates[0]["id"]
+        assert (or_gate_id, "dag:nested_downstream") in edge_tuples
+        # Each and-gate feeds the or-gate, and each is fed by exactly its two assets.
+        for and_gate in and_gates:
+            assert (and_gate["id"], or_gate_id) in edge_tuples
+            feeders = {src for src, tgt in edge_tuples if tgt == and_gate["id"]}
+            assert feeders in (
+                {f"asset:{asset_ids['nested_asset_a']}", f"asset:{asset_ids['nested_asset_b']}"},
+                {f"asset:{asset_ids['nested_asset_c']}", f"asset:{asset_ids['nested_asset_d']}"},
+            )
+        # All four assets are represented, none dropped.
+        all_feeders = {src for src, tgt in edge_tuples if tgt in {g["id"] for g in and_gates}}
+        assert all_feeders == {f"asset:{aid}" for aid in asset_ids.values()}
+
+    def test_scheduling_dependencies_expands_gate_with_unresolved_asset_ref(
+        self, dag_maker, test_client, session
+    ):
+        """An AND/OR condition mixing a resolved asset with an unresolved Asset.ref(...) must not 500.
+
+        Asset.ref(...) serializes its half of the expression as {"asset_ref": {"name": ...}},
+        distinct from the {"asset-name-ref": ...} shape the rest of get_upstream_assets expects.
+        """
+        asset_a = Asset(uri="s3://gate-bucket/ref-a", name="gate_asset_ref_a")
+
+        with dag_maker(
+            dag_id="gate_downstream_with_ref",
+            schedule=(asset_a & Asset.ref(name="not_yet_registered_asset")),
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_ref_a"))
+
+        response = test_client.get("/dependencies", params={"node_id": "dag:gate_downstream_with_ref"})
+        assert response.status_code == 200
+
+        result = response.json()
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        assert nodes_by_id["asset-name-ref:not_yet_registered_asset"]["type"] == "asset-name-ref"
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        gate_node_id = next(node["id"] for node in result["nodes"] if node["type"] == "asset-condition")
+        assert (f"asset:{asset_a_id}", gate_node_id) in edge_tuples
+        assert ("asset-name-ref:not_yet_registered_asset", gate_node_id) in edge_tuples
+
+    def test_scheduling_dependencies_survives_unrecognized_asset_expression(
+        self, dag_maker, test_client, session
+    ):
+        """A Dag whose asset_expression get_upstream_assets can't parse must not break the whole endpoint.
+
+        The gate expansion falls back to that one Dag's flat asset edge instead of 500ing for
+        every caller.
+        """
+        asset_a = Asset(uri="s3://gate-bucket/broken", name="gate_asset_broken")
+
+        with dag_maker(
+            dag_id="gate_downstream_broken",
+            schedule=[asset_a],
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+
+        dag_maker.sync_dagbag_to_db()
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "gate_downstream_broken"))
+        dag_model.asset_expression = {"any": [{"weird-op": {}}]}
+        session.commit()
+
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_broken"))
+
+        response = test_client.get("/dependencies", params={"node_id": "dag:gate_downstream_broken"})
+        assert response.status_code == 200
+
+        result = response.json()
+        assert not any(node["type"] == "asset-condition" for node in result["nodes"])
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        assert (f"asset:{asset_a_id}", "dag:gate_downstream_broken") in edge_tuples
+
+    def test_data_dependencies_routes_through_dag_level_schedule_without_task_inlet(
+        self, dag_maker, test_client, session
+    ):
+        """An asset that schedules a Dag via `schedule=`, with no task declaring it as an inlet,
+        must still connect to that Dag's entry task in the data-dependencies (Task Dependencies) graph.
+
+        Uses the list form (`schedule=[asset_a]`), since that's the common way a single-asset
+        schedule is written -- and, like the bare-asset form, it must not render a redundant
+        single-input AND/OR gate.
+        """
+        asset_a = Asset(uri="s3://data-dep-bucket/a", name="data_dep_asset_a")
+
+        with dag_maker(
+            dag_id="data_dep_downstream",
+            schedule=[asset_a],
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="entry_task")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "data_dep_asset_a"))
+
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+        entry_task_node_id = "task:data_dep_downstream__SEPARATOR__entry_task"
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        assert nodes_by_id[entry_task_node_id]["type"] == "task"
+        assert not any(node["type"] == "asset-condition" for node in result["nodes"])
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        assert (f"asset:{asset_a_id}", entry_task_node_id) in edge_tuples
+
+    def test_data_dependencies_routes_through_asset_condition_gate(self, dag_maker, test_client, session):
+        """When the scheduling Dag's condition combines multiple assets, the data-dependencies graph
+        must show the gate (not a misleading direct edge from just one of the assets).
+        """
+        asset_a = Asset(uri="s3://data-dep-bucket/gate-a", name="data_dep_gate_asset_a")
+        asset_b = Asset(uri="s3://data-dep-bucket/gate-b", name="data_dep_gate_asset_b")
+
+        with dag_maker(dag_id="data_dep_gate_upstream", serialized=True, session=session):
+            EmptyOperator(task_id="produce_b", outlets=[asset_b])
+
+        with dag_maker(
+            dag_id="data_dep_gate_downstream",
+            schedule=(asset_a & asset_b),
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="entry_task")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "data_dep_gate_asset_a"))
+        asset_b_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "data_dep_gate_asset_b"))
+
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+        entry_task_node_id = "task:data_dep_gate_downstream__SEPARATOR__entry_task"
+        gate_node = next(node for node in result["nodes"] if node["type"] == "asset-condition")
+        assert gate_node["asset_condition_type"] == "and-gate"
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        assert (gate_node["id"], entry_task_node_id) in edge_tuples
+        assert (f"asset:{asset_a_id}", gate_node["id"]) in edge_tuples
+        assert (f"asset:{asset_b_id}", gate_node["id"]) in edge_tuples
+        # No misleading direct edge bypassing the gate.
+        assert (f"asset:{asset_a_id}", entry_task_node_id) not in edge_tuples
+
+        # BFS continues through the sibling asset in the gate to find its producer.
+        producer_task_node_id = "task:data_dep_gate_upstream__SEPARATOR__produce_b"
+        assert (producer_task_node_id, f"asset:{asset_b_id}") in edge_tuples
+
+    def test_data_dependencies_batches_entry_point_resolution_across_scheduled_dags(
+        self, dag_maker, test_client, session
+    ):
+        """Resolving each scheduled Dag's entry task must not cost one query (and one full Dag
+        deserialization) per Dag: the query count must stay flat as the number of Dags an asset
+        schedules grows, not scale linearly with it.
+        """
+        asset_a = Asset(uri="s3://data-dep-bucket/batch-a", name="data_dep_batch_asset_a")
+        dag_ids = [f"data_dep_batch_downstream_{i}" for i in range(3)]
+
+        for dag_id in dag_ids:
+            with dag_maker(
+                dag_id=dag_id,
+                schedule=[asset_a],
+                serialized=True,
+                session=session,
+            ):
+                EmptyOperator(task_id="entry_task")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "data_dep_batch_asset_a"))
+
+        with assert_queries_count(12):
+            response = test_client.get(
+                "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
+            )
+        assert response.status_code == 200
+
+        result = response.json()
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        for dag_id in dag_ids:
+            entry_task_node_id = f"task:{dag_id}__SEPARATOR__entry_task"
+            assert nodes_by_id[entry_task_node_id]["type"] == "task"
+
+    def test_data_dependencies_attributes_alias_produced_asset_to_source_task(
+        self, dag_maker, test_client, session
+    ):
+        """An asset produced via an AssetAlias has no static outlet reference, so its producing
+        task must be recovered from AssetEvent -- otherwise the consumer sees the asset with no
+        producer. The asset is made visible through a consuming task (the realistic case; an asset
+        with no reference at all is hidden by the readable-dags gate)."""
+        from airflow.models.asset import AssetAliasModel, AssetEvent
+        from airflow.sdk.definitions.asset import AssetAlias
+
+        alias_asset = Asset(uri="s3://alias/resolved", name="alias_resolved_asset")
+
+        with dag_maker(dag_id="alias_producer", serialized=True, session=session):
+            EmptyOperator(task_id="produce_via_alias", outlets=[AssetAlias("resolving_alias")])
+        dr = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="alias_consumer", serialized=True, session=session):
+            EmptyOperator(task_id="consume", inlets=[alias_asset])
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "alias_resolved_asset"))
+        asset_alias = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == "resolving_alias"))
+        asset_alias.assets.append(session.get(AssetModel, asset_id))
+        asset_alias.asset_events.append(
+            AssetEvent(
+                timestamp=pendulum.datetime(2024, 1, 1, tz="UTC"),
+                asset_id=asset_id,
+                source_dag_id="alias_producer",
+                source_task_id="produce_via_alias",
+                source_run_id=dr.run_id,
+                source_map_index=-1,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset_id}", "dependency_type": "data"}
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+        producer_task_node_id = "task:alias_producer__SEPARATOR__produce_via_alias"
+        consumer_task_node_id = "task:alias_consumer__SEPARATOR__consume"
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        assert nodes_by_id[producer_task_node_id]["type"] == "task"
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        # Producer edge recovered from the alias event, plus the consumer edge that made it visible.
+        assert (producer_task_node_id, f"asset:{asset_id}") in edge_tuples
+        assert (f"asset:{asset_id}", consumer_task_node_id) in edge_tuples
