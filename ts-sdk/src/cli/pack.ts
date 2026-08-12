@@ -143,23 +143,18 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     throw new Error(`Bundle produced no ${AIRFLOW_METADATA_FLAG} output`);
   }
 
-  let manifest: BundleManifest;
+  let parsed: unknown;
   try {
-    manifest = JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length)) as BundleManifest;
+    parsed = JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length));
   } catch (error) {
     throw new Error(`Bundle produced invalid ${AIRFLOW_METADATA_FLAG} output: ${String(error)}`, {
       cause: error,
     });
   }
-  if (
-    !manifest.supervisor_schema_version ||
-    typeof manifest.dags !== "object" ||
-    manifest.dags === null ||
-    // An array would pass the typeof check and yield Dags named "0", "1", ...
-    Array.isArray(manifest.dags)
-  ) {
+  if (!isBundleManifest(parsed)) {
     throw new Error(`Bundle produced incomplete ${AIRFLOW_METADATA_FLAG} output`);
   }
+  const manifest = parsed;
   // The line is whatever the bundle printed and nothing downstream re-validates
   // it, so check each Dag entry down to the task-id element.
   for (const [dagId, dag] of Object.entries(manifest.dags)) {
@@ -170,6 +165,24 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     }
   }
   return manifest;
+}
+
+// JSON.parse also yields null, primitives and arrays, so the document is checked
+// before anything is read off it — `null.supervisor_schema_version` would
+// otherwise surface as a raw TypeError rather than a packing error.
+function isBundleManifest(value: unknown): value is BundleManifest {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const { supervisor_schema_version: version, dags } = value as Partial<BundleManifest>;
+  return (
+    // Goes into the manifest verbatim, where the schema requires a non-empty
+    // string; a truthy number or boolean would be rendered into the YAML as-is.
+    typeof version === "string" &&
+    version.length > 0 &&
+    typeof dags === "object" &&
+    dags !== null &&
+    // An array would pass the typeof check and yield Dags named "0", "1", ...
+    !Array.isArray(dags)
+  );
 }
 
 function isDagIdList(value: unknown): value is string[] {
