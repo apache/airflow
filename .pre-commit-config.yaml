@@ -1035,6 +1035,27 @@ repos:
         pass_filenames: false
         require_serial: true
         verbose: true
+      - id: run-skill-eval-codex
+        name: Run skill-eval against AGENTS.md and cases (Codex runtime)
+        # Kept separate from run-skill-eval so only contributors who actually run
+        # the Codex arm build an env carrying the Codex CLI binary. promptfoo
+        # bundles its own @openai/codex-sdk, but that build ships a binary whose
+        # Developer ID certificate Apple has revoked — macOS kills it on exec —
+        # so a notarized version has to be installed explicitly.
+        entry: env AGENT_RUNTIME=codex ./dev/skill-evals/eval.py
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies:
+          - 'promptfoo@0.121.17'
+          - '@openai/codex-sdk@0.144.6'
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+        verbose: true
       - id: view-skill-eval
         name: View skill-eval results in browser (manual)
         entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view

@@ -197,7 +197,7 @@ importers:
         version: 1.62.1
       '@rolldown/plugin-babel':
         specifier: ^0.2.3
-        version: 0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+        version: 0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
       '@stylistic/eslint-plugin':
         specifier: ^5.10.0
         version: 5.10.0(eslint@10.8.0(jiti@1.21.7))
@@ -239,10 +239,10 @@ importers:
         version: 8.65.0(eslint@10.8.0(jiti@1.21.7))(typescript@6.0.3)
       '@vitejs/plugin-react':
         specifier: ^6.0.5
-        version: 6.0.5(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+        version: 6.0.5(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
       '@vitejs/plugin-react-swc':
         specifier: ^4.3.3
-        version: 4.3.3(@swc/helpers@0.5.23)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+        version: 4.3.3(@swc/helpers@0.5.23)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
       '@vitest/coverage-v8':
         specifier: ^4.1.9
         version: 4.1.10(vitest@4.1.10)
@@ -289,8 +289,8 @@ importers:
         specifier: ^20.11.1
         version: 20.11.1
       jsonc-eslint-parser:
-        specifier: ^3.1.0
-        version: 3.1.0
+        specifier: ^3.2.0
+        version: 3.2.0
       msw:
         specifier: ^2.15.0
         version: 2.15.0(@types/node@26.1.2)(typescript@6.0.3)
@@ -310,14 +310,14 @@ importers:
         specifier: ^8.65.0
         version: 8.65.0(eslint@10.8.0(jiti@1.21.7))(typescript@6.0.3)
       vite:
-        specifier: ^8.2.0
-        version: 8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
+        specifier: ^8.2.1
+        version: 8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
       vite-plugin-css-injected-by-js:
         specifier: ^5.0.2
-        version: 5.0.2(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+        version: 5.0.2(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
       vitest:
         specifier: ^4.1.9
-        version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+        version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
       web-worker:
         specifier: ^1.5.0
         version: 1.5.0
@@ -1693,8 +1693,8 @@ packages:
     peerDependencies:
       acorn: ^6.0.0 || ^7.0.0 || ^8.0.0
 
-  acorn@8.17.0:
-    resolution: {integrity: sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==}
+  acorn@8.18.0:
+    resolution: {integrity: sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ==}
     engines: {node: '>=0.4.0'}
     hasBin: true
 
@@ -3085,8 +3085,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  jsonc-eslint-parser@3.1.0:
-    resolution: {integrity: sha512-75EA7EWZExL/j+MDKQrRbdzcRI2HOkRlmUw8fZJc1ioqFEOvBsq7Rt+A6yCxOt9w/TYNpkt52gC6nm/g5tFIng==}
+  jsonc-eslint-parser@3.2.0:
+    resolution: {integrity: sha512-fjACeZ2chy9tiBakt5nU5SZhzk385pkSSfmhVvS13o4gqGiHVCNJXTNve8kqMeKv7A0L50mdaNUb7T8s+Egrnw==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
   jsonpointer@5.0.1:
@@ -4325,6 +4325,10 @@ packages:
     resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
     hasBin: true
 
+  verkit@0.3.2:
+    resolution: {integrity: sha512-zj/ob3UsvJGN0whEAKFp53REA5X66hvffVqoCtVQAakJKnKlH+/PcOfMoFwIG/o4rElqLv/ycAFlx8ZlXUorCg==}
+    engines: {node: '>=18.12.0'}
+
   vfile-location@5.0.3:
     resolution: {integrity: sha512-5yXvWDEgqeiYiBe1lbxYF7UMAIm/IcopxMHrMQDq3nvKcjPKIhZklUKL+AE7J7uApI4kwe2snsK+eI6UTj9EHg==}
 
@@ -4339,8 +4343,8 @@ packages:
     peerDependencies:
       vite: '>8.0.0-0'
 
-  vite@8.2.0:
-    resolution: {integrity: sha512-pn+CFpM0lwDeKwmOq1ZaBK/9sjorZcgqxki6MbY/jPEVd9vichIlmlD4HmQ5wdP5EgqQCFRaACBxMC7uEGc6lQ==}
+  vite@8.2.1:
+    resolution: {integrity: sha512-EU/eS7BH3XROHh2YnBefjM6DBKA6ZeMZEYQbj7NLWg5wHYlhB8B/Mayd5XsgWq+NFYccDOTemRpdETWR6Ka/lw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -5170,14 +5174,14 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.2.3':
     optional: true
 
-  '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
+  '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.0
       picomatch: 4.0.4
       rolldown: 1.2.3
     optionalDependencies:
       '@babel/runtime': 7.29.7
-      vite: 8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
 
   '@rolldown/pluginutils@1.0.1': {}
 
@@ -5719,20 +5723,20 @@ snapshots:
       d3-time-format: 4.1.0
       internmap: 2.0.3
 
-  '@vitejs/plugin-react-swc@4.3.3(@swc/helpers@0.5.23)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
+  '@vitejs/plugin-react-swc@4.3.3(@swc/helpers@0.5.23)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       '@swc/core': 1.15.47(@swc/helpers@0.5.23)
-      vite: 8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  '@vitejs/plugin-react@6.0.5(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
+  '@vitejs/plugin-react@6.0.5(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
     optionalDependencies:
-      '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+      '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(rolldown@1.2.3)(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
       babel-plugin-react-compiler: 1.0.0
 
   '@vitest/coverage-v8@4.1.10(vitest@4.1.10)':
@@ -5747,7 +5751,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.0.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+      vitest: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
 
   '@vitest/expect@4.1.10':
     dependencies:
@@ -5758,14 +5762,14 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.10(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
+  '@vitest/mocker@4.1.10(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.10
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
       msw: 2.15.0(@types/node@26.1.2)(typescript@6.0.3)
-      vite: 8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
 
   '@vitest/pretty-format@4.1.10':
     dependencies:
@@ -6383,11 +6387,11 @@ snapshots:
 
   '@zag-js/utils@1.41.2': {}
 
-  acorn-jsx@5.3.2(acorn@8.17.0):
+  acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
-      acorn: 8.17.0
+      acorn: 8.18.0
 
-  acorn@8.17.0: {}
+  acorn@8.18.0: {}
 
   agent-base@6.0.2:
     dependencies:
@@ -7189,11 +7193,11 @@ snapshots:
     dependencies:
       eslint: 10.8.0(jiti@1.21.7)
 
-  eslint-json-compat-utils@0.2.3(eslint@10.8.0(jiti@1.21.7))(jsonc-eslint-parser@3.1.0):
+  eslint-json-compat-utils@0.2.3(eslint@10.8.0(jiti@1.21.7))(jsonc-eslint-parser@3.2.0):
     dependencies:
       eslint: 10.8.0(jiti@1.21.7)
       esquery: 1.7.0
-      jsonc-eslint-parser: 3.1.0
+      jsonc-eslint-parser: 3.2.0
 
   eslint-plugin-i18next@6.1.5:
     dependencies:
@@ -7207,8 +7211,8 @@ snapshots:
       '@ota-meshi/ast-token-store': 0.3.0
       diff-sequences: 29.6.3
       eslint: 10.8.0(jiti@1.21.7)
-      eslint-json-compat-utils: 0.2.3(eslint@10.8.0(jiti@1.21.7))(jsonc-eslint-parser@3.1.0)
-      jsonc-eslint-parser: 3.1.0
+      eslint-json-compat-utils: 0.2.3(eslint@10.8.0(jiti@1.21.7))(jsonc-eslint-parser@3.2.0)
+      jsonc-eslint-parser: 3.2.0
       natural-compare: 1.4.0
       synckit: 0.11.13
     transitivePeerDependencies:
@@ -7364,14 +7368,14 @@ snapshots:
 
   espree@10.4.0:
     dependencies:
-      acorn: 8.17.0
-      acorn-jsx: 5.3.2(acorn@8.17.0)
+      acorn: 8.18.0
+      acorn-jsx: 5.3.2(acorn@8.18.0)
       eslint-visitor-keys: 4.2.1
 
   espree@11.2.0:
     dependencies:
-      acorn: 8.17.0
-      acorn-jsx: 5.3.2(acorn@8.17.0)
+      acorn: 8.18.0
+      acorn-jsx: 5.3.2(acorn@8.18.0)
       eslint-visitor-keys: 5.0.1
 
   esprima@4.0.1: {}
@@ -7970,11 +7974,11 @@ snapshots:
 
   json5@2.2.3: {}
 
-  jsonc-eslint-parser@3.1.0:
+  jsonc-eslint-parser@3.2.0:
     dependencies:
-      acorn: 8.17.0
+      acorn: 8.18.0
       eslint-visitor-keys: 5.0.1
-      semver: 7.8.5
+      verkit: 0.3.2
 
   jsonpointer@5.0.1: {}
 
@@ -8557,7 +8561,7 @@ snapshots:
 
   mlly@1.8.0:
     dependencies:
-      acorn: 8.17.0
+      acorn: 8.18.0
       pathe: 2.0.3
       pkg-types: 1.3.1
       ufo: 1.6.1
@@ -9546,6 +9550,8 @@ snapshots:
 
   uuid@14.0.1: {}
 
+  verkit@0.3.2: {}
+
   vfile-location@5.0.3:
     dependencies:
       '@types/unist': 3.0.3
@@ -9561,11 +9567,11 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.2
 
-  vite-plugin-css-injected-by-js@5.0.2(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)):
+  vite-plugin-css-injected-by-js@5.0.2(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)):
     dependencies:
-      vite: 8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
 
-  vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0):
+  vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
@@ -9578,10 +9584,10 @@ snapshots:
       jiti: 1.21.7
       yaml: 2.9.0
 
-  vitest@4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)):
+  vitest@4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
+      '@vitest/mocker': 4.1.10(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -9598,7 +9604,7 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vite: 8.2.0(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@26.1.2)(jiti@1.21.7)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.1.2
