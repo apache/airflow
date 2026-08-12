@@ -526,6 +526,26 @@ class TestDiscoverClassesFromProvider:
         assert operators[0]["import_path"] == "airflow.providers.amazon.aws.operators.s3.FakeOperator"
         assert operators[0]["provider_id"] == "amazon"
 
+    def test_guide_section_becomes_a_guide_url(self, provider_yaml_path, base_classes):
+        """A class documented by a section of its own gets a link to that section;
+        one that is only in the API reference keeps just its ``docs_url``."""
+        docs_dir = provider_yaml_path.parent / "docs" / "operators"
+        docs_dir.mkdir(parents=True)
+        (docs_dir / "s3.rst").write_text("``FakeOperator``\n----------------\n\nProse.\n")
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["FakeOperator"]["guide_url"] == (
+            "https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable"
+            "/operators/s3.html#fakeoperator"
+        )
+        assert "guide_url" not in by_name["FakeSensor"]
+
     def test_discovers_sensor(self, provider_yaml_path, base_classes):
         with (
             patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
