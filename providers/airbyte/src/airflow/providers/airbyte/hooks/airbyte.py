@@ -114,11 +114,24 @@ class AirbyteHook(BaseHook):
                 self.airbyte_conn_id,
             )
 
-        client = None
+        timeout = self.timeout if self.timeout is not None else self.conn["timeout"]
+        error_message = (
+            f"Invalid Airbyte API request timeout {timeout!r}: expected a positive number of "
+            f"seconds, set via the AirbyteHook 'timeout' parameter or the 'timeout' extra of "
+            f"connection {self.airbyte_conn_id!r}"
+        )
+        if timeout is not None:
+            try:
+                timeout = float(timeout)
+            except (TypeError, ValueError) as e:
+                raise ValueError(error_message) from e
+            if timeout <= 0:
+                raise ValueError(error_message)
+
+        mounts: dict[str, httpx.HTTPTransport] = {}
         if self.conn["proxies"]:
             self.log.debug("Creating client proxy...")
             proxies = self.conn["proxies"]
-            mounts = {}
             if isinstance(proxies, dict):
                 for scheme, proxy_url in proxies.items():
                     # httpx mount keys require a "://" suffix
@@ -129,27 +142,23 @@ class AirbyteHook(BaseHook):
                     "http://": httpx.HTTPTransport(proxy=proxies),
                     "https://": httpx.HTTPTransport(proxy=proxies),
                 }
-            client = httpx.Client(mounts=mounts)
 
-        timeout = self.timeout if self.timeout is not None else self.conn["timeout"]
-        timeout_ms: int | None = None
-        if timeout is not None:
-            try:
-                timeout_ms = int(float(timeout) * 1000)
-            except (TypeError, ValueError):
-                timeout_ms = 0
-            if timeout_ms <= 0:
-                raise ValueError(
-                    f"Invalid Airbyte API request timeout {timeout!r}: expected a positive number of "
-                    f"seconds, set via the AirbyteHook 'timeout' parameter or the 'timeout' extra of "
-                    f"connection {self.airbyte_conn_id!r}"
-                )
+        client = None
+        if mounts or timeout is not None:
+            # The timeout must be set on the client rather than passed as the SDK's
+            # timeout_ms: the SDK's client-credentials hook sends the OAuth token
+            # request directly through the client, bypassing per-operation timeouts.
+            # follow_redirects matches the default client the SDK creates otherwise.
+            client = httpx.Client(
+                mounts=mounts,
+                timeout=timeout if timeout is not None else 5.0,
+                follow_redirects=True,
+            )
 
         return AirbyteAPI(
             server_url=self.conn["host"],
             security=security,
             client=client,
-            timeout_ms=timeout_ms,
         )
 
     @classmethod
