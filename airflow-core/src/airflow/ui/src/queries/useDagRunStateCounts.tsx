@@ -40,6 +40,7 @@ export const useDagRunStateCounts = ({
   return useDagServiceGetDagRunStateCountsUi({ dagIds: sortedDagIds }, undefined, {
     enabled: sortedDagIds.length > 0,
     placeholderData: (prev) => prev,
-    refetchInterval: refetchInterval === false ? false : hasPendingRun ? refetchInterval : refetchInterval * 10,
+    refetchInterval:
+      refetchInterval === false ? false : hasPendingRun ? refetchInterval : refetchInterval * 10,
   });
 };

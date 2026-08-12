@@ -85,8 +85,8 @@ export const useDags = ({
         refetchInterval === false
           ? false
           : query.state.data?.dags.some(
-              (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
-            )
+                (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
+              )
             ? refetchInterval
             : refetchInterval * 10,
     },

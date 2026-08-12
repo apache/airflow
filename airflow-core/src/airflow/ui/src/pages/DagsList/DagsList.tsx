@@ -327,6 +327,7 @@ export const DagsList = () => {
 
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
     dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
+    dags: data?.dags,
   });
   const runStateContext: RunStateCountsContext = {
     countsByDag: Object.fromEntries(
