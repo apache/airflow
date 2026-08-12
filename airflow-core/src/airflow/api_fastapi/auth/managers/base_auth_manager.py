@@ -22,13 +22,16 @@ import logging
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from contextlib import suppress
 from enum import Enum
 from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
+from airflow import settings
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     ConnectionDetails,
@@ -161,7 +164,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+        if (jti := payload.get("jti")) and self._is_token_revoked(jti):
             raise InvalidTokenError("Token has been revoked")
 
         try:
@@ -169,6 +172,35 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         except (ValueError, KeyError) as e:
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))
+
+    @staticmethod
+    def _is_token_revoked(jti: str) -> bool:
+        """
+        Return whether the token ``jti`` has been revoked, tolerating a stale DB connection.
+
+        This is the first database access in the auth path and runs on the shared scoped
+        session. A prior request (for example FAB's ``deserialize_user``) can leave that session
+        bound to a connection the database later drops on idle timeout (MySQL error 4031,
+        "disconnected ... because of inactivity"). The connection is never re-checked-out, so
+        ``pool_pre_ping`` / ``pool_recycle`` cannot detect it and the first request after an idle
+        period fails with a 500. On any ``SQLAlchemyError`` we discard the poisoned scoped session
+        and retry once on a fresh connection, mirroring the recovery
+        ``FabAuthManager.deserialize_user`` gained in #62919. See #71395.
+        """
+        try:
+            return RevokedToken.is_revoked(jti)
+        except SQLAlchemyError:
+            log.warning(
+                "Revoked-token check failed on a stale DB session; discarding the scoped "
+                "session and retrying once on a fresh connection.",
+                exc_info=True,
+            )
+            # settings.Session is Optional and only set once the DB is configured; guard so the
+            # discard is a no-op (rather than a crash) if it is missing.
+            if (session_registry := settings.Session) is not None:
+                with suppress(Exception):
+                    session_registry.remove()
+            return RevokedToken.is_revoked(jti)
 
     def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
         """
