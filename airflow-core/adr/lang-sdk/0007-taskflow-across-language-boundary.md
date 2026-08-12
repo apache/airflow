@@ -82,8 +82,10 @@ delivered to the runtime at task startup.
 
 ### A. Inbound: an ordered, materialized argument-binding spec
 
-The TaskFlow call is captured as an ordered list with one entry per declared parameter. Every
-entry carries the parameter's `name` and a `kind`-discriminated payload:
+A TaskFlow call that passes at least one argument is captured as an ordered list with one entry
+per declared parameter. (A call passing none captures no spec at all, which is what keeps
+pre-TaskFlow stub Dags serializing; see decision F.) Every entry carries the parameter's `name`
+and a `kind`-discriminated payload:
 
 - `XComArgBinding` (`kind: "xcom"`) — the value comes from an upstream task's `return_value`
   XCom, identified by `task_id`.
@@ -105,9 +107,14 @@ expected to resolve on its own.
 
 ### B. Materialization belongs in core Dag serialization, behind a generic `is_stub` flag
 
-The spec is built in Airflow core, from `OperatorSerialization._serialize_node`, for any
-non-mapped operator flagged `is_stub`. The `@task.stub` provider contributes exactly one line —
+The spec is built in Airflow core, from `OperatorSerialization._serialize_node`, for a non-mapped
+`DecoratedOperator` flagged `is_stub`. The `@task.stub` provider contributes exactly one line —
 `is_stub: bool = True` — and no knowledge of the binding format.
+
+The `DecoratedOperator` requirement is not incidental: the builder works from the operator's
+`python_callable` signature and its bound `op_args`/`op_kwargs`, which only a decorated operator
+has. A foreign-runtime operator that is not TaskFlow-shaped would carry the `is_stub` marker but
+no bindings, and giving it arguments would need a different capture path.
 
 An earlier revision built the spec inside the standard provider's stub decorator, and the
 Execution API recognized stub tasks by matching the operator's class name. Both were rejected in
@@ -121,7 +128,8 @@ review:
 3. **Gating on the operator's name does not generalize.** Every future foreign-runtime operator
    would have to duplicate a magic string to be recognized. A serialized boolean flag —
    mirroring how `EmptyOperator` is recognized by `is_empty` rather than by its class name — lets
-   any such operator opt in for free.
+   any such operator opt in by declaring one attribute, and TaskFlow-shaped ones get argument
+   binding along with it.
 
 The flag is propagated onto mapped operators as well, so "is this task stub-backed?" is
 answerable regardless of mapping, even though arg-binding materialization itself skips mapped
@@ -202,13 +210,19 @@ own tasks, edges, and call arguments. Those arguments are expected to be express
 binding spec rather than a second, native-only format.
 
 The consequence for runtimes is the point: one binding implementation serves both authoring
-modes. It is also why the spec is deliberately not `@task.stub`-shaped — nothing in
-`TaskArgBinding` refers to stubs, Python, or the decorator.
+modes. It is also why the spec is deliberately not `@task.stub`-shaped — no field in
+`TaskArgBinding` refers to stubs, Python, or the decorator, so the same wire form describes a
+natively authored call. (Its docstrings still say "stub", reflecting the only producer that
+exists today; that is wording to revisit, not a constraint in the format.)
 
 ### H. Scope: what does not cross the boundary
 
-The following are rejected when the Dag is serialized, with an error naming the working
-alternative, rather than being silently dropped or deferred to a runtime failure:
+The following raise when the Dag is serialized, rather than being silently dropped or deferred to
+a runtime failure. Most messages name the working alternative; the ones that have none say so.
+
+These checks run only once a TaskFlow call actually passes an argument, since that is when the
+binding contract engages. An argless stub whose *signature* would violate one of them (a
+`**kwargs` parameter, say) still serializes, exactly as it did before arg bindings existed.
 
 | Rejected | Why |
 | --- | --- |
@@ -260,8 +274,9 @@ tracked in [#70523](https://github.com/apache/airflow/issues/70523).
 - `value_schema` is advisory. Nothing enforces that an upstream's payload matches the downstream
   parameter's schema; the runtime is free to reject on decode. Enforcement at Dag-processing time
   becomes possible after AIP-85 but is not part of this decision.
-- Any operator that sets `is_stub` gets arg-binding materialization, so the mechanism is not
-  private to `@task.stub`.
+- The mechanism is not private to `@task.stub`: any TaskFlow-shaped operator that sets `is_stub`
+  gets arg-binding materialization. A stub-flagged operator that is not a `DecoratedOperator` is
+  recognized as stub-backed but receives no bindings (decision B).
 - Older clients are unaffected: the version migration strips `arg_bindings`, and the server skips
   deriving it for them entirely.
 
@@ -301,9 +316,11 @@ consequences of the decisions above, not decisions in their own right.
   failing Dag serialization.
 - **The builder is imported lazily**, so Python-only deployments never pay for pydantic's
   JSON-schema machinery just to serialize a Dag.
-- **`is_stub` and `_arg_bindings` decode fail-closed** and bypass the generic `{__type, __var}`
-  encoding: the spec is plain JSON, and anything that is not JSON `true` means "not a stub". A
-  non-Python producer's blob is never schema-validated on that path.
+- **`is_stub` and `_arg_bindings` both bypass the generic `{__type, __var}` encoding** on decode,
+  because the spec is plain JSON. `is_stub` additionally fails closed — anything that is not JSON
+  `true` means "not a stub" — since a non-Python producer's blob is never schema-validated on that
+  path. `_arg_bindings` is restored verbatim and validated later, at `ti_run`, where a malformed
+  spec becomes a 500 rather than a silently wrong binding.
 - **Version gating uses Cadwyn's `VersionChangeWithSideEffects.is_applied`**, not a date
   comparison, so the server skips the derivation entirely for older clients rather than computing
   a value the migration will strip.
