@@ -425,7 +425,7 @@ ARG_PROVIDER_NAME = Arg(
     help="The package name of the provider",
 )
 ARG_PROVIDER_FULL = Arg(
-    flags=("--full",),
+    flags=("-f", "--full"),
     help="Show the complete provider metadata",
     default=False,
     action="store_true",

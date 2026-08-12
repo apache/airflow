@@ -47,8 +47,9 @@ class TestProviderCommands:
         [
             ([], {"Provider": provider_name, "Version": "1.0.0"}),
             (["--full"], provider_info),
+            (["-f"], provider_info),
         ],
-        ids=["summary", "full"],
+        ids=["summary", "full", "full-short"],
     )
     def test_get_provider(self, api_client_maker, extra_args, expected):
         api_client = api_client_maker(
