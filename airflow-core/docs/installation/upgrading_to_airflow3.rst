@@ -384,6 +384,11 @@ These include:
   ``create_cron_data_intervals=True`` explicitly to keep ``CronDataIntervalTimetable``.
   If you don't, the new ``False`` default is fine.
 
+  Setting ``create_cron_data_intervals=True`` also anchors the scheduled ``run_id`` to
+  ``logical_date``, matching Airflow 2's ``run_id`` semantics. If your workflows parse
+  ``run_id`` and assume it reflects the logical date, set this flag rather than relying on
+  the ``run_after``-anchored default.
+
   Set this **before** the upgrade. If you instead change the flag after some
   Airflow 3 dagruns already exist (going
   ``CronTriggerTimetable`` -> ``CronDataIntervalTimetable``), one scheduled run
