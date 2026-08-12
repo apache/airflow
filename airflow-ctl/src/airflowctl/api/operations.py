@@ -220,7 +220,7 @@ class BaseOperations:
                 raw = fill_missing_fields(json.loads(content), data_model)
                 return data_model.model_validate(raw)  # type: ignore[union-attr]
 
-        self.response = self.client.get(path, params=shared_params)
+        self.response = self.client.get(path, params={**shared_params, "offset": offset})
         first_pass = safe_validate(self.response.content)
         total_entries = first_pass.total_entries  # type: ignore[attr-defined]
         if total_entries < limit:
@@ -264,9 +264,9 @@ class AssetsOperations(BaseOperations):
         self.response = self.client.get(f"assets/{asset_id}")
         return AssetResponse.model_validate_json(self.response.content)
 
-    def get_by_alias(self, alias: str) -> AssetAliasResponse | ServerResponseError:
-        """Get an asset by alias from the API server."""
-        self.response = self.client.get(f"assets/aliases/{alias}")
+    def get_alias(self, asset_alias_id: str) -> AssetAliasResponse | ServerResponseError:
+        """Get an asset alias by its ID from the API server."""
+        self.response = self.client.get(f"assets/aliases/{asset_alias_id}")
         return AssetAliasResponse.model_validate_json(self.response.content)
 
     def list(self) -> AssetCollectionResponse | ServerResponseError:

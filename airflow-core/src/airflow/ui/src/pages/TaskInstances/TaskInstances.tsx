@@ -38,6 +38,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { RouterLink } from "src/components/ui";
@@ -181,12 +182,7 @@ const taskInstanceColumns = ({
     ? [
         {
           accessorKey: "team_name",
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            original.team_name !== undefined && original.team_name !== null ? (
-              <RouterLink to={`/dags?teams=${encodeURIComponent(original.team_name)}`}>
-                {original.team_name}
-              </RouterLink>
-            ) : undefined,
+          cell: ({ row: { original } }: TaskInstanceRow) => <TeamName teamName={original.team_name} />,
           enableSorting: false,
           header: translate("dagDetails.team"),
         },

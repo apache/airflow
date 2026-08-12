@@ -46,6 +46,7 @@ Misc
 * ``Bump the edge-ui-package-updates group across 1 directory with 3 updates (#70848)``
 * ``Bump the edge-ui-package-updates group across 1 directory with 31 updates (#70616)``
 * ``Add team_name tagging to multi team dag metrics (#69943)``
+* ``Bump @types/node to 26.1.2 (#70870)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
