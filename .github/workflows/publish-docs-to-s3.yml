@@ -98,9 +98,18 @@ jobs:
       publish-supervisor-schema: ${{ steps.parameters.outputs.publish-supervisor-schema }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
-      # The docs build and the registry extraction share one CI image, so they share its
-      # Python too. 3.12 is what the registry has always extracted on.
-      default-python-version: "3.12"
+      # Docs and the registry each build the image they need rather than sharing one. Sharing
+      # meant sharing the Python too, which put the docs on 3.12 and broke publishing: Sphinx
+      # mocks third-party modules, and from 3.12 functools copies __type_params__, so a mocked
+      # decorator raises TypeError and providers fail to import. `breeze build-docs` pins itself
+      # to the default Python, so this follows the same constant rather than restating a version.
+      docs-python-version: ${{ steps.default_python.outputs.default-python-version }}
+      registry-python-version: "3.12"
+      # Discriminator for every stash this workflow writes. A bare ref would collide with any
+      # other workflow stashing an image for the same ref, and the images here are special: built
+      # from a release tag rather than a branch tip, and kept for days so the next publish of that
+      # tag reuses them. Naming them after this workflow keeps them recognisably ours.
+      image-stash-ref: "publish-docs-${{ inputs.ref }}"
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
     if: contains(fromJSON('[
@@ -165,6 +174,21 @@ jobs:
             exit 0
           fi
           python3 dev/registry/derive_wave_providers.py
+      - name: "Derive the default Python version"
+        id: default_python
+        shell: bash
+        # `breeze build-docs` always documents on breeze's default Python, so the image this
+        # workflow builds for it has to be that same one. Reading the constant keeps the two from
+        # drifting apart and silently making the docs job build an image nothing then uses.
+        run: |
+          DEFAULT_PYTHON=$(python3 -c "
+          import re, pathlib
+          text = pathlib.Path('dev/breeze/src/airflow_breeze/global_constants.py').read_text()
+          versions = re.search(r'^ALL_PYTHON_MAJOR_MINOR_VERSIONS\s*=\s*\[(.*?)\]', text, re.M | re.S)
+          print(re.findall(r'\"([0-9]+\.[0-9]+)\"', versions.group(1))[0])
+          ")
+          echo "Default Python version: '${DEFAULT_PYTHON}'"
+          echo "default-python-version=${DEFAULT_PYTHON}" >> "${GITHUB_OUTPUT}"
       - name: "Input parameters summary"
         shell: bash
         id: parameters
@@ -228,46 +252,8 @@ jobs:
           echo "publish-execution-api-schema=${PUBLISH_EXEC}" >> ${GITHUB_OUTPUT}
           echo "publish-supervisor-schema=${PUBLISH_SUP}" >> ${GITHUB_OUTPUT}
 
-  build-ci-image:
-    name: "Build CI image"
-    needs: [build-info]
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      packages: write
-    with:
-      runners: '["ubuntu-22.04"]'
-      platform: "linux/amd64"
-      # Built from the docs ref so the image matches the sources being documented, and
-      # cached against main's registry cache, which the regular Test workflow keeps warm.
-      checkout-ref: ${{ inputs.ref }}
-      push-image: "false"
-      upload-image-artifact: "true"
-      # Leaves the BuildKit mount cache behind for the next publish of this same ref;
-      # ci-image-build.yml always restores it, so consecutive publishes stop re-downloading
-      # the whole dependency set.
-      upload-mount-cache-artifact: "true"
-      # Docs are published from refs cut days or weeks before main, and main's registry cache
-      # stops matching at the first Dockerfile.ci change made since the cut - #70285 alone
-      # costs a from-scratch Python build. The image the previous publish stashed was built
-      # from these very sources, so it is the cache main's cannot be. Publishing the same ref
-      # twice - an RC and then the final docs - skips the build outright.
-      seed-cache-from-stashed-image: "true"
-      image-stash-ref: ${{ inputs.ref }}
-      python-versions: ${{ format('["{0}"]', needs.build-info.outputs.default-python-version) }}
-      branch: "main"
-      constraints-branch: "constraints-main"
-      use-uv: "true"
-      upgrade-to-newer-dependencies: "false"
-      docker-cache: "registry"
-      disable-airflow-repo-cache: "false"
-      # Building against main's cache can fail outright when the ref's pyproject.toml has
-      # diverged from main — the case the docs job's inline `breeze ci-image build || docker
-      # buildx build` fallback used to cover.
-      retry-without-cache: "true"
-
   build-docs:
-    needs: [build-info, build-ci-image]
+    needs: [build-info]
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ubuntu-latest
@@ -282,7 +268,7 @@ jobs:
       VERBOSE: "true"
       EXTRA_BUILD_OPTIONS: ${{ needs.build-info.outputs.extra-build-options }}
       APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
-      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.docs-python-version }}"
       DOCKER_CACHE: "registry"
     steps:
       - name: "Cleanup repo"
@@ -313,6 +299,16 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-tags: true
           fetch-depth: 0
+      # A local action is read from the workspace, not from the ref the workflow itself runs from,
+      # so an action added after this tag was cut is simply absent. Checking the workflow's own
+      # version out alongside supplies the definition; the image is still built from the sources
+      # above. It has to come after the checkout that populates the root, which cleans untracked
+      # siblings away.
+      - name: "Checkout the workflow version for its actions"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: workflow-version
       - name: "Apply patch commits if provided"
         run: |
           if [[ "${APPLY_COMMITS}" != "" ]]; then
@@ -332,28 +328,23 @@ jobs:
       - name: "Install Breeze from the ${{ inputs.ref }} reference"
         uses: ./.github/actions/breeze
         with:
-          python-version: "${{ needs.build-info.outputs.default-python-version }}"
-      # The image comes from the `build-ci-image` job, which builds it from this same ref and
-      # stashes it under the ref's own key - the shared per-branch stash holds main's image,
-      # not this ref's. The registry build restores the very same stash, so a run builds it
-      # once, and a run that had nothing to build restores what the previous publish left.
-      - name: >
-          Restore CI docker image built for ref ${{ inputs.ref }}
-          linux/amd64:${{ needs.build-info.outputs.default-python-version }}
-        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+          python-version: "${{ needs.build-info.outputs.docs-python-version }}"
+      # Built here rather than in a job of its own: a separate job could only hand the image over
+      # as a multi-gigabyte artifact, for a single consumer. The image, the commit it was built
+      # from and the mount cache are still stashed under this ref, so the next publish of the same
+      # ref seeds its build from them - or skips the build outright when the sources have not moved.
+      - name: "Build CI image linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
+        uses: ./workflow-version/.github/actions/build_ci_image_with_cache
         with:
-          key: "ci-image-save-v3-linux/amd64-\
-            ${{ needs.build-info.outputs.default-python-version }}-${{ inputs.ref }}"
-          path: "/mnt/"
-          only-current-branch: 'true'
-          fail-on-download: 'true'
-      - name: "Load CI image linux/amd64:${{ needs.build-info.outputs.default-python-version }}"
-        env:
-          PYTHON: ${{ needs.build-info.outputs.default-python-version }}
-        run: >
-          breeze ci-image load --platform "linux/amd64" --python "${PYTHON}" --image-file-dir "/mnt"
+          python: "${{ needs.build-info.outputs.docs-python-version }}"
+          platform: "linux/amd64"
+          image-stash-ref: "${{ needs.build-info.outputs.image-stash-ref }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          constraints-github-repository: >-
+            ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+            secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -383,7 +374,7 @@ jobs:
             breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
         if: >-
           steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
           steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'
@@ -499,7 +490,14 @@ jobs:
           overwrite: 'true'
 
   publish-docs-to-s3:
-    needs: [build-docs, build-java-sdk-docs, build-info]
+    needs: [build-docs, build-java-sdk-docs, build-info, update-registry]
+    # `update-registry` is skipped for non-provider distributions, and a job whose dependency was
+    # skipped is skipped in turn, so its result is checked rather than implied - which means the
+    # two that are not conditional have to be asserted here as well.
+    if: >
+      !cancelled() && needs.build-docs.result == 'success' &&
+      needs.build-java-sdk-docs.result == 'success' &&
+      needs.update-registry.result != 'failure'
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -511,7 +509,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.docs-python-version }}"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -553,7 +551,7 @@ jobs:
         env:
           AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+          PYTHON_VERSION: "${{ needs.build-info.outputs.docs-python-version }}"
           FORCE: "true"
         run: >
           breeze sbom update-sbom-information
@@ -643,8 +641,9 @@ jobs:
 
   update-registry:
     # Runs alongside the docs build rather than after it: the registry reads nothing the docs
-    # publish produces, so waiting only added its whole duration to the release manager's wait.
-    needs: [build-info, build-ci-image]
+    # build produces, so ordering the two only added its whole duration to the wait. The publish
+    # does wait for it, so a run reports success once both halves are actually out.
+    needs: [build-info]
     if: needs.build-info.outputs.registry-providers != '' || needs.build-info.outputs.registry-full-build == 'true'
     name: "Update Provider Registry"
     permissions:
@@ -654,10 +653,12 @@ jobs:
     with:
       destination: ${{ needs.build-info.outputs.destination }}
       provider: ${{ needs.build-info.outputs.registry-providers }}
-      python-version: ${{ needs.build-info.outputs.default-python-version }}
-      # `build-ci-image` already built and stashed the image this run - under the ref's key.
-      ci-image-already-built: true
-      image-stash-ref: ${{ inputs.ref }}
+      # The registry extracts on 3.12 and the docs build on the default Python, so each builds the
+      # image it needs in the job that uses it, keyed by this ref so consecutive publishes reuse it.
+      python-version: ${{ needs.build-info.outputs.registry-python-version }}
+      # Without this the registry would read main rather than the ref being published.
+      checkout-ref: ${{ inputs.ref }}
+      image-stash-ref: ${{ needs.build-info.outputs.image-stash-ref }}
     secrets:
       DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
