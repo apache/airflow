@@ -230,7 +230,7 @@ class TriggerDagRunOperator(BaseOperator):
                 "(it relies on the task-SDK DAG state endpoint added in 3.2.0)."
             )
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> Any:
         _validate_datetime_param("logical_date", self.logical_date)
         if self.logical_date is NOTSET:
             if self.run_after is not NOTSET:
@@ -301,7 +301,7 @@ class TriggerDagRunOperator(BaseOperator):
                 context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
             )
 
-    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date, parsed_run_after=None):
+    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date, parsed_run_after=None) -> None:
         from airflow.providers.common.compat.sdk import DagRunTriggerException
 
         kwargs_accepted = dict(
@@ -344,7 +344,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         raise DagRunTriggerException(**kwargs_accepted)
 
-    def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
+    def _trigger_dag_af_2(self, context, run_id, parsed_logical_date) -> None:
         try:
             unsupported_parameters = []
             for attr, default_value in self.attributes_not_supported_in_airflow_2.items():
@@ -423,7 +423,7 @@ class TriggerDagRunOperator(BaseOperator):
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
 
-    def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]):
+    def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]) -> Any:
         """
         Handle task completion after returning from a deferral.
 
