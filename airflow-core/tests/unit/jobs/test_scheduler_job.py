@@ -343,6 +343,14 @@ class TestSchedulerJob:
         self.null_exec = None
 
     @pytest.fixture
+    def team_bundle(self, testing_team, testing_dag_bundle, session):
+        team = session.merge(testing_team)
+        bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == "testing"))
+        bundle.teams.append(team)
+        session.flush()
+        return bundle
+
+    @pytest.fixture
     def mock_executors(self):
         mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
@@ -8213,6 +8221,58 @@ class TestSchedulerJob:
         assert ti.next_method == "execute_complete"
         assert ti.next_kwargs["event"]["error_type"] == "timeout"
 
+    def test_awaiting_input_timeout_sweep_survives_unusable_next_kwargs(self, dag_maker):
+        """The sweep finishes its batch even when one task's stored kwargs cannot be read."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_bad_kwargs",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr_bad = dag_maker.create_dagrun()
+        dr_good = dag_maker.create_dagrun(
+            run_id="good", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+        )
+        ti_bad = dr_bad.get_task_instance("dummy1", session=session)
+        ti_good = dr_good.get_task_instance("dummy1", session=session)
+        for ti in (ti_bad, ti_good):
+            ti.state = State.AWAITING_INPUT
+            ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+            ti.next_method = "execute_complete"
+            ti.next_kwargs = {}
+        # Stored kwargs that no longer decode into a dict (here: a class name that is not allowed
+        # for deserialization, which the legacy fallback cannot read either).
+        ti_bad.next_kwargs = {"__classname__": "not.allowed.Thing", "__version__": 1, "__data__": {}}
+        session.add(
+            HITLDetail(
+                ti_id=ti_good.id,
+                options=["Approve", "Reject"],
+                subject="approve?",
+                defaults=["Approve"],
+                multiple=False,
+                params={},
+            )
+        )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        mock_log = mock.MagicMock(spec=logging.Logger)
+        with mock.patch.object(SchedulerJobRunner, "log", mock_log):
+            self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.refresh(ti_bad)
+        session.refresh(ti_good)
+        assert ti_bad.state == State.SCHEDULED
+        assert ti_bad.next_method == "__fail__"
+        assert "error" in ti_bad.next_kwargs
+        assert ti_good.state == State.SCHEDULED
+        assert ti_good.next_method == "execute_complete"
+        assert ti_good.next_kwargs["event"]["chosen_options"] == ["Approve"]
+        # The one it could not resume is reported as such rather than counted as resolved.
+        assert mock_log.info.call_args.args[1:] == (1, 0, 1)
+
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
@@ -9732,6 +9792,147 @@ class TestSchedulerJob:
         call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
         assert call_args.kwargs["msg"] == "timed_out"
         assert call_args.kwargs["dag_run"] == dag_run
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_start_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_running receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_start_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(run_id="test_run", state=DagRunState.QUEUED)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._start_queued_dagruns(session)
+
+        mock_listener_manager.hook.on_dag_run_running.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_running.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_timeout_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_failed receives dag_run with _team_name set when a DAG times out."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(
+            dag_id="test_dag_timeout_team",
+            bundle_name="testing",
+            session=session,
+            dagrun_timeout=timedelta(seconds=60),
+        ):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        # We set it to double dagrun timeout so the timeout path is taken.
+        dag_run.start_date = DEFAULT_DATE - timedelta(seconds=120)
+        session.merge(dag_run)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._schedule_dag_run(dag_run, session)
+
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["msg"] == "timed_out"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_success_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_success receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_success_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        self.job_runner._do_scheduling(session)
+
+        mock_listener_manager.hook.on_dag_run_success.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_success.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_failure_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_failed receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_failure_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.FAILED, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        self.job_runner._do_scheduling(session)
+
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_paused_success_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_success receives dag_run with _team_name set for paused DAGs."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_paused_team", bundle_name="testing", session=session) as dag:
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        dag_run.last_scheduling_decision = DEFAULT_DATE - timedelta(minutes=1)
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.is_paused = True
+        session.flush()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
+
+        mock_listener_manager.hook.on_dag_run_success.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_success.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):

@@ -413,6 +413,25 @@ class TestGetDagRun:
         assert body["triggered_by"] == triggered_by.value
         assert body["note"] == dag_run_note
 
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_run_includes_team_name(self, test_client, session):
+        original_bundle_name = _attach_dag_to_team(
+            session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"
+        )
+        try:
+            response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-run"
+        finally:
+            _detach_dag_from_team(
+                session,
+                DAG1_ID,
+                bundle_name="team-bundle-run",
+                team_name="team-run",
+                original_bundle_name=original_bundle_name,
+            )
+
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 404
