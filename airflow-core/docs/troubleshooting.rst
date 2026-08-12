@@ -23,46 +23,43 @@ Troubleshooting
 How to debug your Airflow deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-How to debug your Airflow deployment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 The sections below walk through Airflow deployment issues using David A. Wheeler's writeup
-of Agans' nine rules of debugging [1]_, with an Airflow-specific action for each rule.
-They are written as a general starting point; for the specific known failure modes, already
-documented, see `Obscure task failures`_ below.
-
+of Agans' nine rules of debugging [1]_, with an Airflow-specific action for each rule. They are
+written as a general starting point; for the specific known failure modes already documented,
+see `Obscure task failures`_ below.
 
 Understand the system
 ----------------------
-A minimal Airflow deployment consists of a *scheduler*, a *Dag processor*, a *Dag bundle*,
-an *API server*, and a *Metadata database*; larger deployments add *workers* and a *triggerer*.
-Each of these components can fail independently, and Airflow 3 removed the standalone webserver
-process in favour of the API server, and moved Dag parsing out of scheduler and into its own
-*Dag processor* process. Before debugging a specific failure, it is important to know which of
-these components are involved. See :doc:`/core-concepts/overview` for the full component breakdown.
+
+A minimal Airflow deployment is made up of a *scheduler*, a *Dag processor*, a *Dag bundle*,
+an *API server*, and a *metadata database*; larger deployments add *workers* and a *triggerer*.
+Each component can fail independently, and Airflow 3 removed the standalone webserver process
+in favour of the API server, and moved Dag parsing out of the scheduler and into its own
+*Dag processor* process. Before debugging a specific failure, know which of these components
+is involved. See :doc:`/core-concepts/overview` for the full component breakdown.
 
 Make it fail
-----------------
+------------
 
 Reproduce the failure outside of the full scheduling loop before you start changing things:
 
-- ``airflow tasks test <dag_id> <task_id> [logical_date_or_run_id]``` runs a single instance
-without checking dependencies or updating the database.
-- ``airflow dags test <dag_id> [logical_date]``` runs one full DagRun locally without the
-scheduler.
+- ``airflow tasks test <dag_id> <task_id> [logical_date_or_run_id]`` runs a single task instance
+  without checking dependencies or recording state in the database.
+- ``airflow dags test <dag_id> [logical_date]`` runs one full DagRun locally, without the
+  scheduler.
 
 Both commands run in your current process, so you can also attach a debugger to them; see
-:doc:`core-concepts/debugging` for running a Dag under ``pdb`` or and IDE debugger.
+:doc:`/core-concepts/debug` for running a Dag under ``pdb`` or an IDE debugger.
 
 Quit thinking and look
-----------------------
+-----------------------
 
 Read the actual task log before guessing at a cause. By default, task logs are written under
-``$AIRFLOW_HOME/logs`` using the path
-``dag_id=<dag_id>/run_id=<run_id>/task_id=<task_id>/attempt=<attempt_number>.log``. (add a
+``$AIRFLOW_HOME/logs/`` using the path
+``dag_id=<dag_id>/run_id=<run_id>/task_id=<task_id>/attempt=<n>.log`` (add a
 ``map_index=<n>/`` segment for mapped tasks). This is controlled by the
 :ref:`logging.log_filename_template <config:logging__log_filename_template>` setting, so check
-that setting if logs are not where you expect them. ``airflow tasks state <dag_id> <task_id>
+that setting if logs aren't where you expect them. ``airflow tasks state <dag_id> <task_id>
 <logical_date_or_run_id>`` will confirm the recorded state of a task instance before you go
 looking at logs at all.
 
@@ -70,6 +67,7 @@ Divide and conquer
 -------------------
 
 Narrow the failure down to a single component before digging further:
+
 - ``airflow dags list-import-errors`` shows Dags the *Dag processor* failed to parse. A Dag
   that fails to parse is a Dag-processor problem, not a scheduler problem, in Airflow 3.
 - ``airflow db check`` confirms the metadata database is reachable.
