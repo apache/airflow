@@ -19,6 +19,7 @@
 
 // The Dag authoring surface: `new Dag(dagId)` plus `dag.task(taskId, handler)`.
 
+import { brand, hasBrand } from "./brand.js";
 import type { TaskHandler } from "./task.js";
 
 // Mirrors the Python task-SDK KEY_REGEX and validate_key in airflow.sdk.definitions._internal.node.
@@ -50,13 +51,11 @@ function validateEmptySpec(name: string, value: unknown): void {
 /**
  * Dag-level options.
  *
- * No fields yet, so only `{}` is accepted. That keeps a field which would be
- * silently dropped — `new Dag("d", { schedule: "@daily" })` — a compile error
- * rather than a Dag that packs and runs without its schedule.
+ * No fields yet, so only `{}` is accepted: a field that would be silently
+ * dropped — `new Dag("d", { schedule: "@daily" })` — is a compile error.
  *
- * Native TypeScript Dag declaration will add optional fields here (schedule,
- * tags, ...), generated from the serialized-Dag JSON schema the way
- * `src/generated/supervisor.ts` is, without changing the `Dag` constructor.
+ * Native Dag declaration will add optional fields here, generated from the
+ * serialized-Dag JSON schema as `src/generated/supervisor.ts` is.
  */
 export type DagSpec = Record<string, never>;
 
@@ -65,8 +64,7 @@ export type DagSpec = Record<string, never>;
  *
  * No fields yet, so only `{}` is accepted, as with {@link DagSpec}.
  *
- * Future task fields (retries, ...) will land here without changing the
- * `dag.task()` signature.
+ * Future task fields (retries, ...) will land here.
  */
 export type TaskSpec = Record<string, never>;
 
@@ -75,8 +73,8 @@ export type TaskSpec = Record<string, never>;
  *
  * Identity only: the handler is deliberately not exposed.
  *
- * References are what the `inputs` option accepts, and what native TypeScript
- * Dag declaration will use to wire dependencies.
+ * References are what `inputs` accepts, and what native Dag declaration will
+ * use to wire dependencies.
  */
 export interface TaskRef {
   /** Identifier of the Dag this task belongs to. */
@@ -88,12 +86,9 @@ export interface TaskRef {
 /**
  * Task references keyed by input name.
  *
- * References are stored and validated, but they do not create dependencies or
- * pass values to handlers yet — see {@link TaskOptions.inputs}. Each reference
- * must identify an earlier task in the same Dag. Literal values are not
- * supported.
- *
- * In the future these will declare dependencies in native TypeScript Dags.
+ * Stored and validated, but they do not create dependencies or pass values yet
+ * — see {@link TaskOptions.inputs}. Each must identify an earlier task in the
+ * same Dag. Literal values are not supported.
  */
 export type TaskInputs = Readonly<Record<string, TaskRef>>;
 
@@ -108,11 +103,10 @@ export interface TaskOptions {
   /**
    * References to the upstream tasks this task consumes.
    *
-   * Not used yet: a handler receives `{ctx, client}` only, and nothing here
-   * declares a dependency — in today's Python-stub mode the stub Dag defines
-   * task order. Read an upstream return value explicitly instead:
-   * `client.getXCom({ key: "return_value", taskId: "extract" })`. Omitting
-   * `taskId` there reads the *running* task's own XCom, not the upstream one.
+   * Not used yet: a handler receives `{ctx, client}` only, and the Python stub
+   * Dag defines task order. Read an upstream return value explicitly instead —
+   * `client.getXCom({ key: "return_value", taskId: "extract" })`, where
+   * omitting `taskId` reads the *running* task's own XCom, not the upstream.
    *
    * In the future these will declare dependencies in native TypeScript Dags.
    */
@@ -135,20 +129,9 @@ export interface TaskRecord {
 // to the #tasks private field without a public accessor on the Dag class.
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 
-// Branded through the cross-realm symbol registry rather than checked with
-// `instanceof`: a workspace that resolves two copies of this package gives each
-// its own class object, so `instanceof` would reject a genuine Dag built by the
-// other copy. Defined on the instance rather than declared as a field, so it
-// stays out of the public type.
-const DAG_BRAND = Symbol.for("airflow.ts-sdk.Dag");
-
-/** Internal: shared tail for "this came from a second copy of the package". */
-export const DUPLICATE_COPY_HINT =
-  "comes from a different copy of @apache-airflow/ts-sdk; deduplicate the dependency so one copy is resolved";
-
-/** Internal: whether `value` is a Dag, including one from another copy of this package. */
+/** Internal: whether `value` is a Dag built by any copy of this package. */
 export function isDag(value: unknown): value is Dag {
-  return typeof value === "object" && value !== null && DAG_BRAND in value;
+  return hasBrand(value, "Dag");
 }
 
 /**
@@ -177,7 +160,7 @@ export class Dag {
   constructor(dagId: string, spec: DagSpec = {}) {
     validateKey("dagId", dagId);
     validateEmptySpec(`spec for Dag "${dagId}"`, spec);
-    Object.defineProperty(this, DAG_BRAND, { value: true });
+    brand(this, "Dag");
     this.dagId = dagId;
     // Copied and frozen, as task specs and inputs are: nothing reads a spec
     // until the bundle manifest is built, long after the user's module has run,

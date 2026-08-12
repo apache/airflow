@@ -217,11 +217,10 @@ describe("runPack", () => {
       "malformed entry",
     ],
     ['{ supervisor_schema_version: "1", dags: [{ tasks: ["a"] }] }', "incomplete"],
-    // Read off before the document itself was checked, so this surfaced as a
-    // raw TypeError rather than a packing error.
+    // Was read off before the document itself was checked, so it surfaced as a
+    // raw TypeError.
     ["null", "incomplete"],
-    // Truthy but not the non-empty string the schema requires, and it would
-    // otherwise be rendered into the manifest YAML verbatim.
+    // Truthy, but not the non-empty string the schema requires.
     ['{ supervisor_schema_version: true, dags: { d: { tasks: ["a"] } } }', "incomplete"],
     ['{ supervisor_schema_version: 20260616, dags: { d: { tasks: ["a"] } } }', "incomplete"],
   ])("rejects the metadata line %s", async (manifest, message) => {

@@ -17,19 +17,16 @@
  * under the License.
  */
 
-import { Dag, DUPLICATE_COPY_HINT, getDagTaskRecords, isDag, type TaskRef } from "./dag.js";
+import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
+import { Dag, getDagTaskRecords, isDag, type TaskRef } from "./dag.js";
 import type { TaskHandler } from "./task.js";
 
-// Cross-copy brand, for the reason given on Dag's.
-const REGISTRY_BRAND = Symbol.for("airflow.ts-sdk.DagRegistry");
-
-// Assigned inside DagRegistry's static block: gives package-internal code read
-// access to the #dags private field without a public accessor on the class.
+// Assigned inside DagRegistry's static block, as Dag does for its tasks.
 let dagsOf: (registry: DagRegistry) => ReadonlyMap<string, Dag>;
 
 /** Internal: whether `value` is a DagRegistry built by any copy of this package. */
 export function isDagRegistry(value: unknown): value is DagRegistry {
-  return typeof value === "object" && value !== null && REGISTRY_BRAND in value;
+  return hasBrand(value, "DagRegistry");
 }
 
 /** Internal: a registered Dag with its task IDs, as {@link listRegistryDags} reports it.
@@ -68,7 +65,7 @@ export class DagRegistry {
 
   /** Registers `dags`, on the same terms as {@link register}. */
   constructor(...dags: Dag[]) {
-    Object.defineProperty(this, REGISTRY_BRAND, { value: true });
+    brand(this, "DagRegistry");
     this.register(...dags);
   }
 
@@ -80,13 +77,11 @@ export class DagRegistry {
   register(...dags: Dag[]): void {
     const incoming = new Set<string>();
     for (const dag of dags) {
-      // Typed as Dag, so narrowing it would collapse to never; the guards are
-      // for callers that reach this from plain JavaScript.
+      // Typed as Dag, so narrowing it would collapse to never; these guard
+      // callers reaching this from plain JavaScript.
       const candidate: unknown = dag;
-      // Another copy's Dag cannot be registered: lookups read the Dag's private
-      // task map, which is keyed to this copy's class object and would throw an
-      // opaque TypeError. Reject it here but name the cause, since "only Dag
-      // instances" is misleading for something that is plainly a Dag.
+      // Another copy's Dag cannot be registered — lookups read a private task
+      // map keyed to this copy's class — so it is rejected, but by its cause.
       if (!(candidate instanceof Dag)) {
         throw new Error(
           isDag(candidate)
@@ -112,12 +107,8 @@ export class DagRegistry {
   }
 }
 
-/**
- * Internal: the task handles across a registry's Dags.
- *
- * Not re-exported from the package root: a bundle author declares tasks and
- * serves them, and never has to enumerate what the runtime will dispatch.
- */
+/** Internal: the task handles across a registry's Dags. Not re-exported from the
+ *  package root — enumerating what the runtime dispatches is the runtime's job. */
 export function listRegistryTasks(registry: DagRegistry): TaskRef[] {
   return [...dagsOf(registry).values()].flatMap((dag) =>
     [...getDagTaskRecords(dag).values()].map((record) => record.task),

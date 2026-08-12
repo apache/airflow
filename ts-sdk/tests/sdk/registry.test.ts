@@ -119,8 +119,7 @@ describe("DagRegistry", () => {
   });
 
   it("names the duplicate-copy cause when a Dag carries the brand but not this class", () => {
-    // Stands in for a Dag built by a second resolved copy of the package: same
-    // global-registry brand, different class object.
+    // Stands in for a Dag from a second resolved copy: same brand, other class.
     const foreign = { dagId: "foreign_dag" };
     Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Dag"), { value: true });
     expect(() => new DagRegistry(foreign as unknown as Dag)).toThrowError(

@@ -53,7 +53,7 @@ import {
   type StartupDetails,
 } from "./protocol.js";
 import { DagRegistry, isDagRegistry, listRegistryTasks } from "../sdk/registry.js";
-import { DUPLICATE_COPY_HINT } from "../sdk/dag.js";
+import { DUPLICATE_COPY_HINT } from "../sdk/brand.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 

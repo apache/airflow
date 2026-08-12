@@ -167,15 +167,15 @@ function readBundleManifest(bundlePath: string): BundleManifest {
   return manifest;
 }
 
-// JSON.parse also yields null, primitives and arrays, so the document is checked
-// before anything is read off it — `null.supervisor_schema_version` would
-// otherwise surface as a raw TypeError rather than a packing error.
+// The document is checked before anything is read off it: JSON.parse also yields
+// null and primitives, and `null.supervisor_schema_version` would surface as a
+// raw TypeError rather than a report about the bundle.
 function isBundleManifest(value: unknown): value is BundleManifest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const { supervisor_schema_version: version, dags } = value as Partial<BundleManifest>;
   return (
-    // Goes into the manifest verbatim, where the schema requires a non-empty
-    // string; a truthy number or boolean would be rendered into the YAML as-is.
+    // Rendered into the manifest verbatim, where the schema requires a non-empty
+    // string, so a truthy number or boolean would travel to Airflow as-is.
     typeof version === "string" &&
     version.length > 0 &&
     typeof dags === "object" &&
