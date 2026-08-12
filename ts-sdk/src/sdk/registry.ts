@@ -17,8 +17,16 @@
  * under the License.
  */
 
-import { Dag, getDagTaskRecords, type TaskRef } from "./dag.js";
+import { Dag, DUPLICATE_COPY_HINT, getDagTaskRecords, isDag, type TaskRef } from "./dag.js";
 import type { TaskHandler } from "./task.js";
+
+// Cross-copy brand, for the reason given on Dag's.
+const REGISTRY_BRAND = Symbol.for("airflow.ts-sdk.DagRegistry");
+
+/** Internal: whether `value` is a DagRegistry, including one from another copy of this package. */
+export function isDagRegistry(value: unknown): value is DagRegistry {
+  return typeof value === "object" && value !== null && REGISTRY_BRAND in value;
+}
 
 /** A registered Dag with its task IDs, returned by {@link DagRegistry.listDags}.
  *  A task-less Dag is included, so the bundle manifest keeps it visible. */
@@ -52,6 +60,7 @@ export class DagRegistry {
 
   /** Registers `dags`, on the same terms as {@link register}. */
   constructor(...dags: Dag[]) {
+    Object.defineProperty(this, REGISTRY_BRAND, { value: true });
     this.register(...dags);
   }
 
@@ -63,8 +72,19 @@ export class DagRegistry {
   register(...dags: Dag[]): void {
     const incoming = new Set<string>();
     for (const dag of dags) {
-      if (!(dag instanceof Dag)) {
-        throw new Error("only Dag instances can be registered");
+      // Typed as Dag, so narrowing it would collapse to never; the guards are
+      // for callers that reach this from plain JavaScript.
+      const candidate: unknown = dag;
+      // Unlike serveDags, this cannot accept another copy's Dag: lookups read
+      // the Dag's private task map, which is keyed to this copy's class object
+      // and would throw an opaque TypeError instead. Reject it here but name the
+      // cause, since "only Dag instances" is misleading for a genuine Dag.
+      if (!(candidate instanceof Dag)) {
+        throw new Error(
+          isDag(candidate)
+            ? `Dag "${candidate.dagId}" ${DUPLICATE_COPY_HINT}`
+            : "only Dag instances can be registered",
+        );
       }
       if (this.#dags.has(dag.dagId) || incoming.has(dag.dagId)) {
         throw new Error(`Dag "${dag.dagId}" is already registered`);

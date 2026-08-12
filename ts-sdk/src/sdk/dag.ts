@@ -129,6 +129,22 @@ export interface TaskRecord {
 // to the #tasks private field without a public accessor on the Dag class.
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 
+// Branded through the cross-realm symbol registry rather than checked with
+// `instanceof`: a workspace that resolves two copies of this package gives each
+// its own class object, so `instanceof` would reject a genuine Dag built by the
+// other copy. Defined on the instance rather than declared as a field, so it
+// stays out of the public type.
+const DAG_BRAND = Symbol.for("airflow.ts-sdk.Dag");
+
+/** Internal: shared tail for "this came from a second copy of the package". */
+export const DUPLICATE_COPY_HINT =
+  "comes from a different copy of @apache-airflow/ts-sdk; deduplicate the dependency so one copy is resolved";
+
+/** Internal: whether `value` is a Dag, including one from another copy of this package. */
+export function isDag(value: unknown): value is Dag {
+  return typeof value === "object" && value !== null && DAG_BRAND in value;
+}
+
 /**
  * A Dag declared in TypeScript.
  *
@@ -155,6 +171,7 @@ export class Dag {
   constructor(dagId: string, spec: DagSpec = {}) {
     validateKey("dagId", dagId);
     validateEmptySpec(`spec for Dag "${dagId}"`, spec);
+    Object.defineProperty(this, DAG_BRAND, { value: true });
     this.dagId = dagId;
     // Copied and frozen, as task specs and inputs are: nothing reads a spec
     // until the bundle manifest is built, long after the user's module has run,

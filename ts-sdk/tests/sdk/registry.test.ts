@@ -118,6 +118,16 @@ describe("DagRegistry", () => {
     );
   });
 
+  it("names the duplicate-copy cause when a Dag carries the brand but not this class", () => {
+    // Stands in for a Dag built by a second resolved copy of the package: same
+    // global-registry brand, different class object.
+    const foreign = { dagId: "foreign_dag" };
+    Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Dag"), { value: true });
+    expect(() => new DagRegistry(foreign as unknown as Dag)).toThrowError(
+      /different copy of @apache-airflow\/ts-sdk/,
+    );
+  });
+
   it("lists every registered Dag with its tasks, empty Dags included", () => {
     const dagA = new Dag("dag_a");
     dagA.task("a1", async () => undefined);

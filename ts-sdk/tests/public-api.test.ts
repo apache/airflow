@@ -17,7 +17,8 @@
  * under the License.
  */
 
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { AIRFLOW_METADATA_FLAG } from "../src/coordinator/manifest.js";
 import type {
   ConnectionResult,
   DagSpec,
@@ -54,23 +55,64 @@ describe("public API", () => {
     // serveDags hands the registry to the runtime, which needs the supervisor's
     // socket addresses that Airflow puts on argv.
     await expect(serveDags(new DagRegistry(dag))).rejects.toThrow("Missing --comm");
-    // A second call would connect a second pair of sockets, racing the first,
-    // so it is rejected outright.
-    expect(() => serveDags(new DagRegistry(new Dag("second_call_dag")))).toThrowError(
-      /serveDags\(\.\.\.\) was already called/,
-    );
   });
 
-  // The instanceof guard runs before the already-served latch, so this holds
+  // The registry guard runs before the already-served latch, so this holds
   // regardless of whether another test in this file already served a registry.
   it.each([
     ["a bare Dag", new Dag("not_a_registry_dag")],
     ["a plain object", { listTasks: () => [] }],
     ["null", null],
-  ])("rejects a %s in place of a registry", (_label, value) => {
-    expect(() => serveDags(value as unknown as DagRegistry)).toThrowError(
+  ])("rejects a %s in place of a registry", async (_label, value) => {
+    await expect(serveDags(value as unknown as DagRegistry)).rejects.toThrow(
       /serveDags\(\.\.\.\) takes a DagRegistry/,
     );
+  });
+
+  it("names the duplicate-copy cause for a registry built by another copy", async () => {
+    // Stands in for a registry from a second resolved copy: same brand, other
+    // class. It still cannot be served, so the point is only that it says why.
+    const foreign = {};
+    Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.DagRegistry"), { value: true });
+    await expect(serveDags(foreign as unknown as DagRegistry)).rejects.toThrow(
+      /different copy of @apache-airflow\/ts-sdk/,
+    );
+  });
+
+  describe("the one-shot serve latch", () => {
+    // Keyed on the global symbol registry so duplicate copies of the package
+    // share it, which also means it outlives the test that trips it.
+    afterEach(() => {
+      delete (globalThis as unknown as Record<symbol, unknown>)[
+        Symbol.for("airflow.ts-sdk.served")
+      ];
+    });
+
+    it("rejects a second call once a serve has completed", async () => {
+      const argv = process.argv;
+      // --airflow-metadata is the one path that completes without sockets.
+      process.argv = [...argv, AIRFLOW_METADATA_FLAG];
+      vi.spyOn(process.stdout, "write").mockReturnValue(true);
+      try {
+        await serveDags(new DagRegistry(new Dag("served_dag")));
+        await expect(serveDags(new DagRegistry(new Dag("second_call_dag")))).rejects.toThrow(
+          /serveDags\(\.\.\.\) was already called/,
+        );
+      } finally {
+        process.argv = argv;
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("releases the latch when a serve fails, so the call can be retried", async () => {
+      await expect(serveDags(new DagRegistry(new Dag("first_try")))).rejects.toThrow(
+        "Missing --comm",
+      );
+      // The retry reports why it actually failed, not "already called".
+      await expect(serveDags(new DagRegistry(new Dag("second_try")))).rejects.toThrow(
+        "Missing --comm",
+      );
+    });
   });
 
   it("exports DagRegistry as the Dag collection a bundle serves", () => {

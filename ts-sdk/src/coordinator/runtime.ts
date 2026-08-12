@@ -52,14 +52,23 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { DagRegistry } from "../sdk/registry.js";
+import { DagRegistry, isDagRegistry } from "../sdk/registry.js";
+import { DUPLICATE_COPY_HINT } from "../sdk/dag.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
 export const COORDINATOR_RESPONSE_TIMEOUT_MS = 30_000;
 
-let served = false;
+// What must not happen twice is one process connecting two pairs of sockets, so
+// the latch is keyed on the cross-realm symbol registry rather than held in a
+// module variable: a workspace that resolves two copies of this package would
+// give each copy its own module state, and both would believe they were first.
+const SERVED = Symbol.for("airflow.ts-sdk.served");
+
+function serveLatch(): Record<symbol, boolean | undefined> {
+  return globalThis as unknown as Record<symbol, boolean | undefined>;
+}
 
 /**
  * Serve a bundle's Dags to Airflow. The entry point of a TypeScript Dag bundle.
@@ -75,21 +84,35 @@ let served = false;
  *
  * The registry is the bundle's complete set of Dags: this process serves one
  * supervisor request, so a second call — which would connect a second pair of
- * sockets — is rejected. Resolves when Airflow's supervisor has been sent the
+ * sockets — is rejected. A call that fails is not a serve, so it releases the
+ * latch and may be retried. Resolves when Airflow's supervisor has been sent the
  * terminal frame for the work this process was started for; the same call also
  * answers the build-time `--airflow-metadata` query `airflow-ts-pack` makes.
  */
-export function serveDags(registry: DagRegistry): Promise<void> {
+export async function serveDags(registry: DagRegistry): Promise<void> {
   // Checked here rather than at first use: a bad argument otherwise surfaces
   // only after the sockets are up, as a missing method deep in the runtime.
   if (!(registry instanceof DagRegistry)) {
-    throw new Error("serveDags(...) takes a DagRegistry; build one with new DagRegistry(...dags)");
+    throw new Error(
+      isDagRegistry(registry)
+        ? `The registry passed to serveDags(...) ${DUPLICATE_COPY_HINT}`
+        : "serveDags(...) takes a DagRegistry; build one with new DagRegistry(...dags)",
+    );
   }
-  if (served) {
+  const latch = serveLatch();
+  if (latch[SERVED]) {
     throw new Error("serveDags(...) was already called; serve every Dag from a single registry");
   }
-  served = true;
-  return startCoordinator(registry);
+  // Set before the first await, so two concurrent calls cannot both pass.
+  latch[SERVED] = true;
+  try {
+    await startCoordinator(registry);
+  } catch (err) {
+    // startCoordinator closes both sockets on its way out, so a failed serve
+    // holds nothing open and the caller is free to try again.
+    latch[SERVED] = undefined;
+    throw err;
+  }
 }
 
 /** Options for `startCoordinator()`. */
