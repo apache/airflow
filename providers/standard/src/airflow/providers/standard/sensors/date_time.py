@@ -116,16 +116,25 @@ class DateTimeSensorAsync(DateTimeSensor):
 
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
-            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
-            # assigning through it would overwrite the arguments of every other task built
-            # from this operator.
-            self.start_trigger_args = dataclasses.replace(
-                self.start_trigger_args,
-                trigger_kwargs=dict(
-                    moment=self._moment,
-                    end_from_trigger=self.end_from_trigger,
-                ),
-            )
+            try:
+                moment = self._moment
+            except (ValueError, TypeError):
+                # target_time is likely a templated string that cannot be parsed as a datetime
+                # during DAG parsing. Fall back to start_from_trigger=False.
+                self.start_from_trigger = False
+                moment = None
+
+            if self.start_from_trigger:
+                # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
+                # assigning through it would overwrite the arguments of every other task built
+                # from this operator.
+                self.start_trigger_args = dataclasses.replace(
+                    self.start_trigger_args,
+                    trigger_kwargs=dict(
+                        moment=moment,
+                        end_from_trigger=self.end_from_trigger,
+                    ),
+                )
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
