@@ -60,9 +60,6 @@ Schema (optional)
 Use DNS SRV Lookup (optional)
     Treat the Host field as a DNS SRV record name and resolve the target host/port at request time.
 
-SRV Cache TTL (seconds) (optional)
-    Specify the time to cache a resolved SRV target before re-resolving. (default 60 seconds)
-
 Extra (optional)
     Specify headers and default requests parameters in json format.
     Following default requests parameters are taken into account:
@@ -74,9 +71,9 @@ Extra (optional)
     * ``allow_redirects``
     * ``max_redirects``
 
-    "Use DNS SRV Lookup" and "SRV Cache TTL" above are stored as the ``srv_lookup`` and
-    ``srv_cache_ttl`` keys in this same Extra field, so they can also be set directly in json
-    here, e.g. when configuring the connection via an environment variable.
+    "Use DNS SRV Lookup" above is stored as the ``srv_lookup`` key in this same Extra field, so it
+    can also be set directly in json here, e.g. when configuring the connection via an environment
+    variable.
 
 
 When specifying the connection in environment variable you should specify

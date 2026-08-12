@@ -71,12 +71,7 @@ def get_provider_info():
                         "label": "Use DNS SRV Lookup",
                         "description": "Whether to treat the Host field as a DNS SRV record name and resolve the target host/port at request time.",
                         "schema": {"type": ["boolean", "null"], "default": False},
-                    },
-                    "srv_cache_ttl": {
-                        "label": "SRV Cache TTL (seconds)",
-                        "description": "Time to cache a resolved SRV target before re-resolving.",
-                        "schema": {"type": ["number", "null"], "minimum": 0, "default": 60},
-                    },
+                    }
                 },
             }
         ],
