@@ -311,8 +311,8 @@ apache-airflow = "airflow.__main__:main"
 "opsgenie" = [
     "apache-airflow-providers-opsgenie>=5.8.0"
 ]
-"oracle" = [
-    "apache-airflow-providers-oracle>=3.12.0"
+"oracle.oracledb" = [
+    "apache-airflow-providers-oracle-oracledb>=4.6.3"
 ]
 "pagerduty" = [
     "apache-airflow-providers-pagerduty>=3.8.1"
@@ -478,7 +478,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-openlineage>=2.3.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opensearch>=1.9.3", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opsgenie>=5.8.0",
-    "apache-airflow-providers-oracle>=3.12.0",
+    "apache-airflow-providers-oracle-oracledb>=4.6.3",
     "apache-airflow-providers-pagerduty>=3.8.1",
     "apache-airflow-providers-papermill>=3.8.2",
     "apache-airflow-providers-pgvector>=1.4.0",
@@ -1241,8 +1241,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/opensearch/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/opsgenie/src",
     "$MYPY_CONFIG_FILE_DIR/providers/opsgenie/tests",
-    "$MYPY_CONFIG_FILE_DIR/providers/oracle/src",
-    "$MYPY_CONFIG_FILE_DIR/providers/oracle/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/oracle/oracledb/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/oracle/oracledb/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/pagerduty/src",
     "$MYPY_CONFIG_FILE_DIR/providers/pagerduty/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/papermill/src",
@@ -1513,7 +1513,7 @@ apache-airflow-providers-openfaas = false
 apache-airflow-providers-openlineage = false
 apache-airflow-providers-opensearch = false
 apache-airflow-providers-opsgenie = false
-apache-airflow-providers-oracle = false
+apache-airflow-providers-oracle-oracledb = false
 apache-airflow-providers-pagerduty = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-pgvector = false
@@ -1665,7 +1665,7 @@ apache-airflow-providers-openfaas = false
 apache-airflow-providers-openlineage = false
 apache-airflow-providers-opensearch = false
 apache-airflow-providers-opsgenie = false
-apache-airflow-providers-oracle = false
+apache-airflow-providers-oracle-oracledb = false
 apache-airflow-providers-pagerduty = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-pgvector = false
@@ -1828,7 +1828,7 @@ apache-airflow-providers-openfaas = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-opensearch = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
-apache-airflow-providers-oracle = { workspace = true }
+apache-airflow-providers-oracle-oracledb = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-papermill = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
@@ -1969,7 +1969,7 @@ members = [
     "providers/openlineage",
     "providers/opensearch",
     "providers/opsgenie",
-    "providers/oracle",
+    "providers/oracle/oracledb",
     "providers/pagerduty",
     "providers/papermill",
     "providers/pgvector",
