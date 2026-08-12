@@ -1848,6 +1848,7 @@ class TestProvidersOperations:
         package_name="package_name",
         version="version",
         description="description",
+        documentation_url=None,
         provider_info={"package-name": "package_name", "name": "Provider"},
     )
 
