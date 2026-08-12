@@ -122,7 +122,8 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
         # serialize() is captured once when the trigger row is created, so a value mutated on
         # self is lost when the triggerer restarts and the current head would be re-emitted as
         # a new commit. The watermark survives that; the kwarg only seeds the first run.
-        # getattr because asset_state_store postdates the Airflow versions this provider supports.
+        # It postdates the Airflow versions this provider supports and is absent when several
+        # assets share the trigger, so polling carries on without it, losing only that cursor.
         store = getattr(self, "asset_state_store", None)
         if store is not None:
             try:
