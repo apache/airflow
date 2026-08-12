@@ -61,12 +61,15 @@ Embedding Models
 ----------------
 
 Set ``embed_model_id`` on the hook or ``embed_model`` in the connection's extra JSON,
-then call ``get_embedder()``. The resolved ``Embedder`` is cached on the hook instance.
+then call ``get_embedder()``. Use ``embed_conn_id`` when the embedding provider uses
+different credentials or an endpoint from the LLM provider; it defaults to
+``llm_conn_id``. The resolved ``Embedder`` is cached on the hook instance.
 
 .. code-block:: python
 
     hook = PydanticAIHook(
         llm_conn_id="my_llm",
+        embed_conn_id="my_embeddings",
         embed_model_id="openai:text-embedding-3-small",
     )
     embedder = hook.get_embedder()

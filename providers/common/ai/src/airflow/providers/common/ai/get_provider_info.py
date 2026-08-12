@@ -141,7 +141,12 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
                         "schema": {"type": ["string", "null"]},
-                    }
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Embedding model in provider:name format (e.g. openai:text-embedding-3-small)",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
             {
@@ -158,6 +163,11 @@ def get_provider_info():
                     "model": {
                         "label": "Model",
                         "description": "Azure model identifier (e.g. azure:gpt-4o)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Azure embedding model identifier (e.g. azure:text-embedding-3-small)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "api_version": {
@@ -181,6 +191,11 @@ def get_provider_info():
                     "model": {
                         "label": "Model",
                         "description": "Bedrock model identifier (e.g. bedrock:us.anthropic.claude-opus-4-5)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Bedrock embedding model identifier (e.g. bedrock:amazon.titan-embed-text-v2:0)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "region_name": {
@@ -244,6 +259,11 @@ def get_provider_info():
                     "model": {
                         "label": "Model",
                         "description": "Google model identifier (e.g. google-vertex:gemini-2.0-flash)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Google embedding model identifier (e.g. google-cloud:text-embedding-005)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "project": {
