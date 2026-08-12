@@ -60,7 +60,7 @@ class TestNeptuneStartClusterOperator:
     def test_start_cluster_wait_for_completion(self, mock_hook_get_waiter, mock_conn):
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=True,
             aws_conn_id="aws_default",
@@ -75,7 +75,7 @@ class TestNeptuneStartClusterOperator:
     def test_start_cluster_no_wait(self, mock_hook_get_waiter, mock_conn):
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -92,7 +92,7 @@ class TestNeptuneStartClusterOperator:
         mock_get_cluster_status.return_value = "available"
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=True,
             aws_conn_id="aws_default",
@@ -108,7 +108,7 @@ class TestNeptuneStartClusterOperator:
     def test_start_cluster_deferrable(self, mock_conn):
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -124,7 +124,7 @@ class TestNeptuneStartClusterOperator:
         mock_get_cluster_status.return_value = "migration-failed"
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=True,
             aws_conn_id="aws_default",
@@ -145,7 +145,7 @@ class TestNeptuneStartClusterOperator:
         mock_conn.start_db_cluster.side_effect = exception
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -171,7 +171,7 @@ class TestNeptuneStartClusterOperator:
 
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -192,7 +192,7 @@ class TestNeptuneStartClusterOperator:
         mock_conn.start_db_cluster.side_effect = exception
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -206,7 +206,7 @@ class TestNeptuneStartClusterOperator:
     def test_template_fields(self):
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -223,7 +223,7 @@ class TestNeptuneStopClusterOperator:
         mock_get_cluster_status.return_value = "available"
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=True,
             aws_conn_id="aws_default",
@@ -241,7 +241,7 @@ class TestNeptuneStopClusterOperator:
 
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -258,7 +258,7 @@ class TestNeptuneStopClusterOperator:
         mock_get_cluster_status.return_value = "stopped"
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=True,
             aws_conn_id="aws_default",
@@ -277,7 +277,7 @@ class TestNeptuneStopClusterOperator:
         mock_get_cluster_status.return_value = "migration-failed"
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=True,
             aws_conn_id="aws_default",
@@ -293,7 +293,7 @@ class TestNeptuneStopClusterOperator:
         mock_get_cluster_status.return_value = "backing-up"
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=True,
             aws_conn_id="aws_default",
@@ -313,7 +313,7 @@ class TestNeptuneStopClusterOperator:
         mock_conn.stop_db_cluster.side_effect = exception
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -335,7 +335,7 @@ class TestNeptuneStopClusterOperator:
 
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=False,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -356,7 +356,7 @@ class TestNeptuneStopClusterOperator:
         mock_conn.stop_db_cluster.side_effect = exception
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -372,7 +372,7 @@ class TestNeptuneStopClusterOperator:
     def test_stop_cluster_deferrable(self, mock_conn):
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",
@@ -384,7 +384,7 @@ class TestNeptuneStopClusterOperator:
     def test_template_fields(self):
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
-            db_cluster_id=CLUSTER_ID,
+            cluster_id=CLUSTER_ID,
             deferrable=True,
             wait_for_completion=False,
             aws_conn_id="aws_default",

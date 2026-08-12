@@ -26,6 +26,12 @@
 Changelog
 ---------
 
+.. note::
+    The ``db_cluster_id`` argument of ``NeptuneStartDbClusterOperator`` and
+    ``NeptuneStopDbClusterOperator`` is renamed to ``cluster_id`` so that it matches the
+    operators' templated ``cluster_id`` attribute. Update Dags that pass ``db_cluster_id=``
+    to use ``cluster_id=`` instead.
+
 9.34.0
 ......
 
