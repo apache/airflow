@@ -2081,11 +2081,12 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         body = response.json()
         assert body["next_cursor"] is not None
         assert body["previous_cursor"] is None
-        assert body["total_entries"] is None
+        assert body["total_entries"] == 5
+        assert body["total_entries_limit"] == 50_000
         assert len(body["task_instances"]) == 3
 
     def test_cursor_pagination_returns_cursor_response(self, test_client, session):
-        """When cursor param is provided, response has cursor fields and no total_entries."""
+        """When cursor param is provided, response has cursor fields and a bounded total_entries."""
         dag_id = "example_python_operator"
         self.create_task_instances(
             session,
@@ -2101,7 +2102,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response1.status_code == 200
         body1 = response1.json()
-        assert body1["total_entries"] is None
+        assert body1["total_entries"] == 5
+        assert body1["total_entries_limit"] == 50_000
         assert len(body1["task_instances"]) == 3
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
@@ -2115,7 +2117,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         body2 = response2.json()
         assert body2["next_cursor"] is None
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 5
+        assert body2["total_entries_limit"] == 50_000
 
     def test_cursor_pagination_forward_and_backward_consistency(self, test_client, session):
         """Walk all pages forward via next_cursor, then backward via previous_cursor, and compare."""
@@ -2142,7 +2145,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             )
             assert response.status_code == 200, response.json()
             body = response.json()
-            assert body["total_entries"] is None
+            assert body["total_entries"] == total_tis
+            assert body["total_entries_limit"] == 50_000
             forward_pages.append(body)
             forward_ids.extend(ti["id"] for ti in body["task_instances"])
 
@@ -4896,6 +4900,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5173,6 +5178,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -5312,6 +5318,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5376,6 +5383,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5472,6 +5480,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     }
                 ],
                 "total_entries": 1,
+                "total_entries_limit": None,
                 "next_cursor": None,
                 "previous_cursor": None,
             }
@@ -5752,6 +5761,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -6041,6 +6051,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -6124,6 +6135,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.json() == {
             "task_instances": [],
             "total_entries": 0,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
