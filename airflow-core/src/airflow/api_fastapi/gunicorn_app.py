@@ -30,9 +30,11 @@ The pattern follows gunicorn's recommended extension approach:
 
 from __future__ import annotations
 
+import os
 import signal
 import sys
 import time
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -42,6 +44,7 @@ from gunicorn.glogging import Logger as GunicornLogger
 from uvicorn.workers import UvicornWorker
 
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow4Warning
 
 if TYPE_CHECKING:
     from ssl import VerifyMode
@@ -290,5 +293,16 @@ def create_gunicorn_app(
         # ``UvicornWorker`` leaves uvicorn's ``proxy_headers`` at its default of True, so
         # trusting nobody is the only way to keep the worker off X-Forwarded-*.
         options["forwarded_allow_ips"] = ""
+    elif "FORWARDED_ALLOW_IPS" not in os.environ:
+        # Deployments that never set the variable are still relying on this server type
+        # trusting every client, so keep that until the next major version.
+        warnings.warn(
+            "Under gunicorn the API server trusts X-Forwarded-* from all clients by default. "
+            "Set FORWARDED_ALLOW_IPS to restrict trusted proxies; this default will become "
+            "restrictive in Airflow 4.",
+            category=RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        options["forwarded_allow_ips"] = "*"
 
     return AirflowGunicornApp(options)
