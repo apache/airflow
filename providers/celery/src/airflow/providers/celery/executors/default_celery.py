@@ -23,11 +23,15 @@ import json
 import logging
 import re
 import ssl
-from typing import Any
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, conf
+
+if TYPE_CHECKING:
+    from typing import Any
+    from airflow.sdk.configuration import AirflowSDKConfigParser
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +69,7 @@ def _broker_supports_visibility_timeout(url):
     return url.startswith(("redis://", "rediss://", "sqs://", "sentinel://"))
 
 
-def _broker_transport_options(broker_url: str, conf) -> dict[str, Any]:
+def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
     """
     Parse broker_transport_options including dict options.
 
@@ -91,7 +95,7 @@ def _broker_transport_options(broker_url: str, conf) -> dict[str, Any]:
             try:
                 option_value = json.loads(broker_transport_options[option])
                 if not isinstance(option_value, dict):
-                    raise ValueError
+                    raise ValueError(f"broker_transport_option {option} is invalid: {option_value}")
                 broker_transport_options[option] = option_value
             except Exception:
                 raise ValueError(
@@ -100,7 +104,7 @@ def _broker_transport_options(broker_url: str, conf) -> dict[str, Any]:
     return broker_transport_options
 
 
-def get_default_celery_config(team_conf) -> dict[str, Any]:
+def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
     """
     Build Celery configuration using team-aware config.
 
