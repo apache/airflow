@@ -17,12 +17,22 @@
  * under the License.
  */
 import { useDagServiceGetDagRunStateCountsUi } from "openapi/queries";
-import { useAutoRefresh } from "src/utils";
+import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const useDagRunStateCounts = ({ dagIds }: { readonly dagIds: ReadonlyArray<string> }) => {
-  // checkPendingRuns: true checks for pending runs across *all* dags and scales the interval back
-  // rather than disabling polling outright once the currently displayed page has nothing pending.
+export const useDagRunStateCounts = ({
+  dagIds,
+  dags,
+}: {
+  readonly dagIds: ReadonlyArray<string>;
+  // Refresh predicate is derived from useDags' data so the counts query doesn't
+  // need to be loaded before it knows whether to poll — avoids a chicken-and-egg.
+  readonly dags: ReadonlyArray<DAGWithLatestDagRunsResponse> | undefined;
+}) => {
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
+  const hasPendingRun =
+    dags?.some((dag) => !dag.is_paused && dag.latest_dag_runs.some((run) => isStatePending(run.state))) ??
+    false;
 
   // Stable key: sort the dag_ids so pagination/sort order changes don't churn the cache.
   const sortedDagIds = [...dagIds].sort();
@@ -30,6 +40,6 @@ export const useDagRunStateCounts = ({ dagIds }: { readonly dagIds: ReadonlyArra
   return useDagServiceGetDagRunStateCountsUi({ dagIds: sortedDagIds }, undefined, {
     enabled: sortedDagIds.length > 0,
     placeholderData: (prev) => prev,
-    refetchInterval,
+    refetchInterval: refetchInterval === false ? false : hasPendingRun ? refetchInterval : refetchInterval * 10,
   });
 };

@@ -18,7 +18,7 @@
  */
 import { useDagServiceGetDagsUi } from "openapi/queries";
 import type { DagRunState } from "openapi/requests/types.gen";
-import { useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useDags = ({
   advancedSearch = false,
@@ -80,7 +80,16 @@ export const useDags = ({
       teams,
     },
     undefined,
-    { refetchInterval },
+    {
+      refetchInterval: (query) =>
+        refetchInterval === false
+          ? false
+          : query.state.data?.dags.some(
+              (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
+            )
+            ? refetchInterval
+            : refetchInterval * 10,
+    },
   );
 
   return {
