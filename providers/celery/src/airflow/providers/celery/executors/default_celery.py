@@ -31,6 +31,7 @@ from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
     from typing import Any
+
     from airflow.sdk.configuration import AirflowSDKConfigParser
 
 log = logging.getLogger(__name__)
@@ -77,7 +78,7 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
     :param conf: ExecutorConf object
     :return: broker_transport_options dict
     """
-    broker_transport_options = conf.getsection("celery_broker_transport_options") or {}
+    broker_transport_options: dict[str, str | int | float | Any] = conf.getsection("celery_broker_transport_options") or {}
     if "visibility_timeout" not in broker_transport_options:
         if _broker_supports_visibility_timeout(broker_url):
             broker_transport_options["visibility_timeout"] = 86400
@@ -93,14 +94,17 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
     for option in _BROKER_TRANSPORT_DICT_OPTIONS:
         if option in broker_transport_options:
             try:
-                option_value = json.loads(broker_transport_options[option])
-                if not isinstance(option_value, dict):
+                option_value = broker_transport_options[option]
+                if not isinstance(option_value, str):
                     raise ValueError(f"broker_transport_option {option} is invalid: {option_value}")
-                broker_transport_options[option] = option_value
-            except Exception:
+                option_json = json.loads(option_value)
+                if not isinstance(option_json, dict):
+                    raise ValueError(f"broker_transport_option {option} is invalid: {option_json}")
+                broker_transport_options[option] = option_json
+            except Exception as exc:
                 raise ValueError(
                     f"Broker transport option {option} should be written in the correct dictionary format."
-                )
+                ) from exc
     return broker_transport_options
 
 

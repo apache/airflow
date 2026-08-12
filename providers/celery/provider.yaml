@@ -472,11 +472,7 @@ config:
           SQS fetch message attributes.
         version_added: "3.24.0"
         type: string
-        example: |
-          {
-            "MessageSystemAttributeNames": ["SenderId", "SentTimestamp"],
-            "MessageAttributeNames": ["S3MessageBodyKey"]
-          }
+        example: '{"MessageSystemAttributeNames": ["SenderId", "SentTimestamp"]}'
         default: ~
       kafka_admin_config:
         description: |
@@ -491,14 +487,7 @@ config:
           see https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/kafka.html.
         version_added: "3.24.0"
         type: string
-        example: |
-          {
-            "sasl.username": sasl_username,
-            "sasl.password": sasl_password,
-            "security.protocol": "SASL_SSL",
-            "sasl.mechanism": "SCRAM-SHA-512",
-            "bootstrap.servers": "broker:9094"
-          }
+        example: '{"sasl.username": sasl_username,"sasl.password": sasl_password,"security.protocol": "SASL_SSL","sasl.mechanism": "SCRAM-SHA-512","bootstrap.servers": "broker:9094"}'
         default: ~
       kafka_consumer_config:
         description: |
@@ -527,14 +516,14 @@ config:
           SQS Predefined SNS topics.
         version_added: "3.24.0"
         type: string
-        example: |
-          {
-            "exchange-1": {
-              "arn": "arn:aws:sns:us-east-1:xxx:exchange-1",
-              "access_key_id": "a",
-              "secret_access_key": "b"
-            }
-          }
+        example: '{"exchange-1": {"arn": "arn:aws:sns:us-east-1:xxx:exchange-1","access_key_id": "a","secret_access_key": "b"}}'
+        default: ~
+      predefined_queues:
+        description:
+          SQS Predefined Queues.
+        version_added: "3.24.0"
+        type: string
+        example: '{"queue-1": {"url": "https://sqs.us-east-1.amazonaws.com/xxx/aaa","access_key_id": "a","secret_access_key": "b","backoff_tasks": ["svc.tasks.tasks.task1"]},"queue-2.fifo": {"url": "https://sqs.us-east-1.amazonaws.com/xxx/bbb.fifo","access_key_id": "c","secret_access_key": "d"}}'
         default: ~
       queue_tags:
         description: |
