@@ -43,6 +43,9 @@ dependencies = [
 ]
 "all" = ["apache-airflow-shared-observability[otel,statsd,datadog]"]
 
+[project.entry-points."opentelemetry_id_generator"]
+airflow_overrideable = "airflow_shared.observability.traces:OverrideableRandomIdGenerator"
+
 [dependency-groups]
 dev = [
     "apache-airflow-devel-common",

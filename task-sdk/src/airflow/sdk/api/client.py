@@ -32,7 +32,7 @@ import httpx
 import msgspec
 import structlog
 from opentelemetry import trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.propagate import get_global_textmap
 from pydantic import BaseModel, JsonValue
 from tenacity import (
     before_log,
@@ -177,7 +177,7 @@ def getuser() -> str:
 
 log = structlog.get_logger(logger_name=__name__)
 
-_trace_propagator = TraceContextTextMapPropagator()
+_trace_propagator = get_global_textmap()
 _log_retry_warning = before_log(log, logging.WARNING)
 
 __all__ = [

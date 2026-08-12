@@ -108,9 +108,9 @@ except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
 
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.propagate import get_global_textmap
 
-_trace_propagator = TraceContextTextMapPropagator()
+_trace_propagator = get_global_textmap()
 
 
 if TYPE_CHECKING:

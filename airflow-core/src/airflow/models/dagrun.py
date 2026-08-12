@@ -28,10 +28,10 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.context import context
+from opentelemetry.propagate import get_global_textmap
 from opentelemetry.trace import StatusCode
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
     Enum,
@@ -228,7 +228,7 @@ def parent_trace_context(conf) -> context.Context | None:
         case _:
             return None
     try:
-        ctx = TraceContextTextMapPropagator().extract(carrier)
+        ctx = get_global_textmap().extract(carrier)
     except Exception:
         # Never let a malformed conf value fail run creation; fall back to a root trace.
         return None
@@ -1196,7 +1196,7 @@ class DagRun(Base, LoggingMixin):
         if not isinstance(self.context_carrier, dict):
             return
 
-        ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
+        ctx = get_global_textmap().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
 
