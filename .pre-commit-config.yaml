@@ -485,6 +485,7 @@ repos:
           ^.*package-lock\.json$|
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
+          ^java-sdk/gradle/verification-metadata\.xml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.agents/skills/airflow-translations/|
@@ -1080,6 +1081,13 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
+      - id: check-dependency-lower-bounds
+        name: Check that dependencies in pyproject.toml have lower bounds
+        language: python
+        entry: ./scripts/ci/prek/check_dependency_lower_bounds.py
+        files: (^|/)pyproject\.toml$
+        require_serial: true
+        additional_dependencies: ['packaging>=25', 'tomli>=2.0.1', 'rich>=13.6.0']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python

@@ -63,46 +63,16 @@ describe("useTagFilter — initial state", () => {
     expect(result.current.tagFilterMode).toBe("all");
   });
 
-  it("falls back to localStorage when URL has no tags", () => {
+  it("ignores legacy tag values left in localStorage (URL is the only source)", () => {
     localStorage.setItem("tags", JSON.stringify(["saved-tag-1", "saved-tag-2"]));
-
-    const { result } = renderHook(() => useTagFilter(), {
-      wrapper: createWrapper(),
-    });
-
-    expect(result.current.selectedTags).toEqual(["saved-tag-1", "saved-tag-2"]);
-  });
-
-  it("restores match mode from localStorage when using saved tags with 2+ tags", () => {
-    localStorage.setItem("tags", JSON.stringify(["tag-a", "tag-b"]));
     localStorage.setItem("tags_match_mode", JSON.stringify("all"));
 
     const { result } = renderHook(() => useTagFilter(), {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.tagFilterMode).toBe("all");
-  });
-
-  it("restores match mode from localStorage even with fewer than 2 tags", () => {
-    localStorage.setItem("tags", JSON.stringify(["only-one"]));
-    localStorage.setItem("tags_match_mode", JSON.stringify("all"));
-
-    const { result } = renderHook(() => useTagFilter(), {
-      wrapper: createWrapper(),
-    });
-
-    expect(result.current.tagFilterMode).toBe("all");
-  });
-
-  it("URL tags take precedence over localStorage", () => {
-    localStorage.setItem("tags", JSON.stringify(["saved-tag"]));
-
-    const { result } = renderHook(() => useTagFilter(), {
-      wrapper: createWrapper(["/?tags=url-tag"]),
-    });
-
-    expect(result.current.selectedTags).toEqual(["url-tag"]);
+    expect(result.current.selectedTags).toEqual([]);
+    expect(result.current.tagFilterMode).toBe("any");
   });
 });
 
@@ -119,16 +89,16 @@ describe("useTagFilter — setSelectedTags", () => {
     expect(result.current.selectedTags).toEqual(["new-tag-1", "new-tag-2"]);
   });
 
-  it("saves tags to localStorage", () => {
+  it("does not persist tags to localStorage", () => {
     const { result } = renderHook(() => useTagFilter(), {
       wrapper: createWrapper(),
     });
 
     act(() => {
-      result.current.setSelectedTags(["persisted-tag"]);
+      result.current.setSelectedTags(["some-tag"]);
     });
 
-    expect(JSON.parse(localStorage.getItem("tags") ?? "[]")).toEqual(["persisted-tag"]);
+    expect(localStorage.getItem("tags")).toBeNull();
   });
 
   it("clears tags when given empty array", () => {
@@ -211,7 +181,7 @@ describe("useTagFilter — setTagFilterMode", () => {
     expect(result.current.tagFilterMode).toBe("all");
   });
 
-  it("persists mode to localStorage", () => {
+  it("does not persist mode to localStorage", () => {
     const { result } = renderHook(() => useTagFilter(), {
       wrapper: createWrapper(["/?tags=a&tags=b"]),
     });
@@ -220,7 +190,7 @@ describe("useTagFilter — setTagFilterMode", () => {
       result.current.setTagFilterMode("all");
     });
 
-    expect(JSON.parse(localStorage.getItem("tags_match_mode") ?? '"any"')).toBe("all");
+    expect(localStorage.getItem("tags_match_mode")).toBeNull();
   });
 });
 
