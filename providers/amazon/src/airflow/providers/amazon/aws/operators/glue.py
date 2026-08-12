@@ -45,8 +45,8 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
-# ResumableJobMixin only exists on Airflow 3; this provider still targets >=2.11. Drop this
-# fallback once the provider's minimum Airflow version is >=3.0.
+# ResumableJobMixin only exists on Airflow 3.3+; this provider still targets >=2.11. Drop this
+# fallback once the provider's minimum Airflow version is >=3.3.
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
@@ -129,11 +129,11 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param resume_glue_job_on_retry: deprecated, use ``durable`` instead.
-    :param durable: When ``True`` (the default), the Glue job run id is persisted to task state
-        before polling begins. A worker crash on retry reconnects to the existing run instead of
-        starting a duplicate. Set to ``False`` to always start a fresh run on retry.
-        Requires Airflow 3.3+ for the persisted lookup; on earlier versions the run is recovered by
-        searching job runs for the task's ``--airflow_task_uuid`` argument.
+    :param durable: When ``True``, the Glue job run id is persisted to task state before polling
+        begins. A worker crash on retry reconnects to the existing run instead of starting a
+        duplicate. Defaults to ``True`` on Airflow 3.3+, which uses task state store for the
+        persisted lookup; on earlier versions it defaults to ``False`` and, if set explicitly,
+        recovers the run by searching job runs for the task's ``--airflow_task_uuid`` argument.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -195,6 +195,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 75,
         resume_glue_job_on_retry: bool | None = None,
+        durable: bool | None = None,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -205,14 +206,21 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     ):
         if resume_glue_job_on_retry is not None:
             # Kept as a real named parameter (not **kwargs) so `default_args` still applies correctly.
-            if AIRFLOW_V_3_3_PLUS:
-                warnings.warn(
-                    "`resume_glue_job_on_retry` is deprecated and will be removed in a future release. "
-                    "Use `durable` instead.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
+            warnings.warn(
+                "`resume_glue_job_on_retry` is deprecated and will be removed in a future release. "
+                "Use `durable` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
             kwargs.setdefault("durable", resume_glue_job_on_retry)
+        # durable is also named here (not left to **kwargs) so default_args={"durable": ...} reaches
+        # it on every supported Airflow version, not just where the mixin's own _apply_defaults runs.
+        if durable is not None:
+            kwargs["durable"] = durable
+        elif resume_glue_job_on_retry is None and not AIRFLOW_V_3_3_PLUS:
+            # No task_state_store below 3.3 -- durable's default of True would otherwise turn on
+            # the scan-based reattach for everyone who upgrades without touching their DAGs.
+            kwargs["durable"] = False
         super().__init__(**kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
@@ -304,6 +312,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         return script_args, task_uuid
 
     def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
+        # Unbounded walk with no page cap; a no-match run is the common retry shape and pays the
+        # full scan. Tracked at https://github.com/apache/airflow/issues/71489.
         next_token: str | None = None
         while True:
             request = {"JobName": self.job_name, "MaxResults": 50}
@@ -369,6 +379,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         if self._job_run_id == job_run_id:
             return
         self._job_run_id = job_run_id
+        context["ti"].xcom_push(key="glue_job_run_id", value=job_run_id)
         GlueJobRunDetailsLink.persist(
             context=context,
             operator=self,
@@ -395,7 +406,10 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         if self.openlineage_inject_transport_info:
             self.log.info("Injecting OpenLineage transport information into Glue job arguments.")
             script_args = inject_transport_information_into_glue_arguments(script_args, context)
-        if self.durable:
+        # Skipped for a synchronous run on 3.3+: task_state_store is the primary reconnect
+        # mechanism there, so tagging every script's args is not worth it just for the narrow
+        # crash-before-persist window this tag would otherwise cover.
+        if self.durable and (self.deferrable or not AIRFLOW_V_3_3_PLUS):
             script_args, _ = self._prepare_script_args_with_task_uuid(context, base_args=script_args)
         return script_args
 
@@ -404,8 +418,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         Look for a Glue job run this task instance already started.
 
         Checks XCom for a cached run id first, then falls back to a task-UUID scan. The XCom tier
-        only works on Airflow 2.11-3.2; Airflow 3.3+ clears task XComs before every non-deferral
-        attempt, so it always misses there and the scan runs every time.
+        only works on Airflow 2.x; every Airflow 3 release clears task XComs before each
+        non-deferral attempt, so it always misses there and the scan runs every time.
         """
         ti = context["ti"]
         previous_job_run_id = ti.xcom_pull(key="glue_job_run_id", task_ids=ti.task_id)
@@ -414,7 +428,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 job_run = self.hook.conn.get_job_run(JobName=self.job_name, RunId=previous_job_run_id)
                 state = job_run.get("JobRun", {}).get("JobRunState")
                 self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
-                if state in ("RUNNING", "STARTING"):
+                if self.is_job_active(state):
                     return previous_job_run_id
             except Exception:
                 self.log.warning("Failed to get previous Glue job run state", exc_info=True)
@@ -428,8 +442,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                         existing_job_run_id,
                         existing_job_run_state,
                     )
-                    if existing_job_run_state in ("RUNNING", "STARTING"):
-                        ti.xcom_push(key="glue_job_run_id", value=existing_job_run_id)
+                    if self.is_job_active(existing_job_run_state):
                         return existing_job_run_id
             except Exception:
                 self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
@@ -443,8 +456,17 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         """Start a Glue job run and return its run id, or reconnect to one this task already started."""
         script_args = self._build_script_args(context)
         # Scan only when there's nothing else to go on: first attempt, no store, or a store that
-        # never recorded this key. A stored id (even terminal) means the caller already decided.
-        if self.durable and context["ti"].try_number > 1 and not self._has_stored_external_id(context):
+        # never recorded this key. The store check itself is skipped on the deferrable path, where
+        # nothing is ever written to it -- a store error there would otherwise block the scan.
+        # Deferrable retries could reconnect via task_state_store too, avoiding this scan entirely,
+        # if ResumableJobMixin exposed its reconnect decision apart from its polling loop;
+        # tracked at https://github.com/apache/airflow/issues/71485.
+        if (
+            self.durable
+            and (self.deferrable or not AIRFLOW_V_3_3_PLUS)
+            and context["ti"].try_number > 1
+            and (self.deferrable or not self._has_stored_external_id(context))
+        ):
             existing_job_run_id = self._find_previous_job_run(context, script_args[self.TASK_UUID_ARG])
             if existing_job_run_id:
                 self._set_job_run_id(context, existing_job_run_id)
@@ -460,8 +482,6 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         glue_job_run = self.hook.initialize_job(script_args, self.run_job_kwargs)
         # Set before polling so on_kill can stop the run even if the worker dies immediately after.
         self._set_job_run_id(context, glue_job_run["JobRunId"])
-        # Downstream tasks read this key directly; it's also what feeds the XCom tier above.
-        context["ti"].xcom_push(key="glue_job_run_id", value=glue_job_run["JobRunId"])
         return glue_job_run["JobRunId"]
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:

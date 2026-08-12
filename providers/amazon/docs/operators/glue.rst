@@ -139,6 +139,15 @@ To submit a new AWS Glue job you can use :class:`~airflow.providers.amazon.aws.o
   The same AWS IAM role used for the crawler can be used here as well, but it will need
   policies to provide access to the output location for result data.
 
+A Glue job run that ends in ``STOPPED`` is treated as a failure, not a success -- on every
+attempt, first or retry, regardless of ``durable``. Glue's API has no way to tell a run cancelled
+manually (for example, in the AWS console) apart from one this operator's own
+:meth:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator.on_kill` stopped, which happens
+whenever ``stop_job_run_on_kill=True`` and the task is killed -- on SIGTERM, on
+``execution_timeout``, or when the task is cleared while running. The task fails and a normal
+retry resubmits, rather than a self-inflicted stop being silently reported as a false success.
+Setting ``durable=False`` does not change this.
+
 Durable execution
 ==================
 
@@ -162,15 +171,9 @@ On retry the operator checks the prior run's state:
   job fresh
 * if it already stopped, the operator submits the job fresh
 
-A stopped run is treated as a failure, not a success. Glue's API has no way to tell a run
-cancelled manually (for example, in the AWS console) apart from one this operator's own
-:meth:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator.on_kill` stopped, which happens
-whenever ``stop_job_run_on_kill=True`` and the task is killed -- on SIGTERM, on
-``execution_timeout``, or when the task is cleared while running. If the stored state is already
-``STOPPED``, the operator submits fresh. If a reconnect finds the run still stopping and it
-settles into ``STOPPED`` while polling, the operator raises instead of returning a result -- the
-task fails and a normal retry resubmits. Either way, a self-inflicted stop never gets silently
-reported as a false success.
+If the stored state is already ``STOPPED``, the operator submits fresh rather than reconnecting to
+it. If a reconnect finds the run still stopping and it settles into ``STOPPED`` while polling, the
+operator raises instead of returning a result -- see above, this applies regardless of ``durable``.
 
 This protection also applies when ``wait_for_completion=False`` -- even though that task attempt
 never polls at all, a retry after a successful submission still reconnects rather than
@@ -181,10 +184,19 @@ Durable execution requires Airflow 3.3 or newer for the task state store lookup 
 Airflow versions, or if a prior run was never recorded to the task state store, ``durable=True``
 still recovers a prior run via an older mechanism: the operator checks XCom for a cached run id
 first, then falls back to scanning the job's run history for a run tagged with this task
-instance's identity, and reconnects if it finds one that is still active.
+instance's identity, and reconnects if it finds one that is still active. The XCom check only
+ever succeeds on Airflow 2.x -- every Airflow 3 release clears task XComs before each
+non-deferral attempt, so on Airflow 3.0-3.2 every retry pays the full scan.
+
+That older mechanism only activates on Airflow below 3.3 when ``durable`` is set explicitly --
+either directly or via ``resume_glue_job_on_retry``. Upgrading the provider alone, with no DAG
+change, does not turn it on: ``durable`` still defaults to ``False`` in that case, matching the
+provider's behavior before this feature existed. On Airflow 3.3+, the default is ``True`` as
+described above, since the task state store makes it cheap.
 
 Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
-when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+when someone runs ``airflow state-store clean`` or ``airflow db clean`` (which also targets the
+``task_state_store`` table). If a task's ``retry_delay`` is longer than
 ``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the run
 id won't be there for the next retry, and the operator falls back to the XCom/scan mechanism
 above rather than reconnecting via task state store. Avoid running cleanup on a schedule shorter
@@ -209,15 +221,15 @@ To opt out and always start a fresh run on retry, set ``durable=False``:
 
 The task state store lookup above is only used on the synchronous path -- when ``deferrable=True``
 is set, the Triggerer already tracks the run across the wait, so a run id is never persisted there.
-``durable`` still has an effect on retry, though: a retry of a deferrable task resubmits by
-default, and with ``concurrent_run_limit=1`` that fails with ``ConcurrentRunsExceededException``
+``durable`` still has an effect on retry, though: a retry of a deferrable task would otherwise
+resubmit, and with ``concurrent_run_limit=1`` that fails with ``ConcurrentRunsExceededException``
 against the run it can't see. To avoid that, ``durable=True`` tags the job's arguments with this
 task instance's identity on every attempt and, on retry, scans the job's run history for that tag
 before submitting -- the same mechanism used as a fallback on the synchronous path.
 
 ``durable`` supersedes the deprecated ``resume_glue_job_on_retry`` parameter. Passing
 ``resume_glue_job_on_retry`` still works and maps its value onto ``durable``, but emits an
-``AirflowProviderDeprecationWarning`` on Airflow 3.3 and newer.
+``AirflowProviderDeprecationWarning``.
 
 .. _howto/operator:GlueDataQualityOperator:
 

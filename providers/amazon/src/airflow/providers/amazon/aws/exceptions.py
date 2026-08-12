@@ -81,4 +81,4 @@ class NeptuneImportTaskFailedError(AirflowException):
 
 
 class GlueJobRunStoppedError(AirflowException):
-    """Raised when a reconnected Glue job run finishes in a state that is not a real success."""
+    """Raised when a Glue job run finishes in a state that is not a real success."""
