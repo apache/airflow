@@ -1,5 +1,16 @@
 {
-  "//": "Docs-only tsconfig for the TypeDoc analysis pass. It inherits the SDK's compiler settings verbatim and roots the program at the public entry point only: TypeScript pulls in whatever that entry point transitively imports, but a glob like `../src/**/*.ts` would also root unreachable internal modules (e.g. the `cli/` bin, which needs the optional `esbuild` peer dependency) that the docs toolchain has no reason to install. `paths` below redirects `@msgpack/msgpack`, a real transitive dependency of the checked program (coordinator/frames.ts, reachable from the public startCoordinator export): Node module resolution walks up node_modules from the *importing file* (ts-sdk/src/coordinator/), never sideways into this package's own node_modules, so the bare specifier would otherwise never resolve here.",
+  "//": [
+    "Docs-only tsconfig for the TypeDoc analysis pass. It inherits the SDK's compiler",
+    "settings verbatim and roots the program at the public entry point only: TypeScript",
+    "pulls in whatever that entry point transitively imports, but a glob like",
+    "`../src/**/*.ts` would also root unreachable internal modules (e.g. the `cli/` bin,",
+    "which needs the optional `esbuild` peer dependency) that the docs toolchain has no",
+    "reason to install. `paths` below redirects `@msgpack/msgpack`, a real transitive",
+    "dependency of the checked program (coordinator/frames.ts, reachable from the public",
+    "startCoordinator export): Node module resolution walks up node_modules from the",
+    "*importing file* (ts-sdk/src/coordinator/), never sideways into this package's own",
+    "node_modules, so the bare specifier would otherwise never resolve here."
+  ],
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "paths": {

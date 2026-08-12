@@ -1510,6 +1510,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Build ts-sdk docs for a docs-only Markdown change that skips ts-sdk tests",
         ),
         pytest.param(
+            ("ts-sdk/tsconfig.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when tsconfig.json changes since docs/tsconfig.json extends it",
+        ),
+        pytest.param(
+            ("ts-sdk/package.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when package.json changes since it pins @msgpack/msgpack",
+        ),
+        pytest.param(
             ("ts-sdk/README.md",),
             {
                 "run-ts-sdk-docs": "false",
@@ -1848,6 +1862,16 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
             ("ts-sdk/example/README.md",),
             True,
             id="skipped when only nested ts-sdk docs change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package.json",),
+            True,
+            id="skipped when only the docs toolchain's package.json changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package-lock.json",),
+            True,
+            id="skipped when only the docs toolchain's lock file changes",
         ),
     ],
 )

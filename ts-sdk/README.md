@@ -189,8 +189,9 @@ current task context when omitted.
 ## Cancellation
 
 `ctx.signal` is an `AbortSignal` controlled by the active runtime. Pass it to
-`fetch()`, timers, database clients, child processes, or other abortable APIs
-so tasks can clean up cooperatively when Airflow terminates the task attempt.
+`fetch()`, timers, database clients, child processes, or any other API that
+accepts an abort signal so tasks can clean up cooperatively when Airflow
+terminates the task subprocess with SIGTERM or SIGINT.
 
 ## Development
 
