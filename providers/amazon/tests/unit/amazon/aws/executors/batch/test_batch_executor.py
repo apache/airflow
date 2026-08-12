@@ -729,6 +729,35 @@ class TestAwsBatchExecutor:
         assert mock_executor.active_workers.get_all_jobs() == []
         assert "001" not in mock_executor.active_workers.id_to_key
 
+    @mock.patch.object(BaseExecutor, "fail")
+    @mock.patch.object(BaseExecutor, "success")
+    def test_sync_eviction_fails_workload_already_removed_from_collection(
+        self, success_mock, fail_mock, mock_executor, mock_airflow_key
+    ):
+        """
+        When the error strikes after pop_by_id() already removed the job (here success()
+        itself raising), the collection can no longer resolve the workload key, so the
+        key snapshotted before handling must be used to fail the workload instead of
+        leaving it with no terminal state.
+        """
+        airflow_key = mock_airflow_key()
+        mock_executor.active_workers.add_job(
+            job_id="001",
+            airflow_workload_key=airflow_key,
+            airflow_cmd="airflow_cmd",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        mock_executor.batch.describe_jobs.return_value = self._describe_jobs_response(("001", "SUCCEEDED"))
+        success_mock.side_effect = RuntimeError("state change failed")
+
+        mock_executor.sync_running_jobs()
+
+        fail_mock.assert_called_once_with(airflow_key)
+        assert mock_executor.active_workers.get_all_jobs() == []
+        assert airflow_key not in mock_executor.active_workers.key_to_id
+
     @mock.patch.object(AwsBatchExecutor, "attempt_submit_jobs")
     @mock.patch.object(BaseExecutor, "fail")
     def test_sync_submits_pending_jobs_despite_poisoned_job(
