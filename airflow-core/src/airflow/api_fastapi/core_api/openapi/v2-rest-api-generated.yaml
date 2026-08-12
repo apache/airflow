@@ -3786,6 +3786,20 @@ paths:
           description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
         description: Filter Dags by asset dependency (name or URI)
+      - name: is_scheduled
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by whether they are scheduled. Dags using the null
+            timetable (schedule=None) are considered unscheduled. This only works
+            reliably for built-in timetables.
+          title: Is Scheduled
+        description: Filter Dags by whether they are scheduled. Dags using the null
+          timetable (schedule=None) are considered unscheduled. This only works reliably
+          for built-in timetables.
       - name: dag_run_start_date_gte
         in: query
         required: false
