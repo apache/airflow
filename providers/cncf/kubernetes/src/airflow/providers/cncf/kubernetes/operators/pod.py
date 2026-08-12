@@ -86,7 +86,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     detect_pod_terminate_early_issues,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
 
 if AIRFLOW_V_3_1_PLUS:
@@ -401,13 +401,12 @@ class KubernetesPodOperator(BaseOperator):
     ) -> None:
         if reattach_on_restart is not None:
             # Kept as a real named parameter (not **kwargs) so `default_args` still applies correctly.
-            if AIRFLOW_V_3_3_PLUS:
-                warnings.warn(
-                    "`reattach_on_restart` is deprecated and will be removed in a future release. "
-                    "Use `durable` instead.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
+            warnings.warn(
+                "`reattach_on_restart` is deprecated and will be removed in a future release. "
+                "Use `durable` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
             durable = reattach_on_restart
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
