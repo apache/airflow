@@ -193,6 +193,13 @@ connection-types:
             - 'null'
           items:
             type: string
+      embed_model:
+        label: Embedding Model
+        description: "Embedding model in provider:name format (e.g. openai:text-embedding-3-small)"
+        schema:
+          type:
+            - string
+            - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
     hook-name: "Pydantic AI (Azure OpenAI)"
     connection-type: pydanticai_azure
@@ -226,6 +233,13 @@ connection-types:
             - 'null'
           items:
             type: string
+      embed_model:
+        label: Embedding Model
+        description: "Azure embedding model identifier (e.g. azure:text-embedding-3-small)"
+        schema:
+          type:
+            - string
+            - 'null'
       api_version:
         label: API Version
         description: >-
@@ -268,6 +282,13 @@ connection-types:
             - 'null'
           items:
             type: string
+      embed_model:
+        label: Embedding Model
+        description: "Bedrock embedding model identifier (e.g. bedrock:amazon.titan-embed-text-v2:0)"
+        schema:
+          type:
+            - string
+            - 'null'
       region_name:
         label: AWS Region
         description: "AWS region (e.g. us-east-1). Falls back to AWS_DEFAULT_REGION env var."
@@ -365,6 +386,13 @@ connection-types:
             - 'null'
           items:
             type: string
+      embed_model:
+        label: Embedding Model
+        description: "Google embedding model identifier (e.g. google-cloud:text-embedding-005)"
+        schema:
+          type:
+            - string
+            - 'null'
       project:
         label: GCP Project
         description: "Google Cloud project ID. Falls back to GOOGLE_CLOUD_PROJECT env var."

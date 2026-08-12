@@ -161,6 +161,11 @@ def get_provider_info():
                         "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
                         "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Embedding model in provider:name format (e.g. openai:text-embedding-3-small)",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
             {
@@ -186,6 +191,11 @@ def get_provider_info():
                         "label": "Fallback Connections",
                         "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
                         "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Azure embedding model identifier (e.g. azure:text-embedding-3-small)",
+                        "schema": {"type": ["string", "null"]},
                     },
                     "api_version": {
                         "label": "API Version",
@@ -216,6 +226,11 @@ def get_provider_info():
                         "label": "Fallback Connections",
                         "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
                         "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Bedrock embedding model identifier (e.g. bedrock:amazon.titan-embed-text-v2:0)",
+                        "schema": {"type": ["string", "null"]},
                     },
                     "region_name": {
                         "label": "AWS Region",
@@ -286,6 +301,11 @@ def get_provider_info():
                         "label": "Fallback Connections",
                         "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
                         "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Google embedding model identifier (e.g. google-cloud:text-embedding-005)",
+                        "schema": {"type": ["string", "null"]},
                     },
                     "project": {
                         "label": "GCP Project",
