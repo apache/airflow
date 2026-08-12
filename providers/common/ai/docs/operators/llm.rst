@@ -150,7 +150,9 @@ Common knobs on ``UsageLimits``:
   is ``None`` and ``cost_limit`` silently has no effect (a ``CostNotFoundWarning`` is
   emitted instead of a failure). And like the other knobs above, setting ``cost_limit``
   alone still inherits the ``request_limit=50`` default — see the ``request_limit`` note
-  above.
+  above. Note that ``cost_limit`` (and ``max_cost``) only cap the operator's own LLM calls --
+  the meta-agent that ``LLMRetryPolicy`` runs to classify a failed task is a separate,
+  uncapped LLM call; see :doc:`../retry_policies`.
 
 When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
 propagates to Airflow as a task failure — Airflow's standard retry policy

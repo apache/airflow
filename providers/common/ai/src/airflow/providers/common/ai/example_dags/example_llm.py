@@ -130,7 +130,7 @@ example_llm_decorator_structured()
 def example_llm_operator_usage_limits():
     LLMOperator(
         task_id="capped_summary",
-        prompt="Summarize the trade-offs of a message queue vs. direct HTTP calls in three bullet points.",
+        prompt="Summarize the attached design doc in three bullet points.",
         llm_conn_id="pydanticai_default",
         system_prompt="You are a concise technical reviewer.",
         # Fail the task if the run exceeds 5 model requests, 4_000 input
