@@ -758,6 +758,34 @@ class TestAwsBatchExecutor:
         assert mock_executor.active_workers.get_all_jobs() == []
         assert airflow_key not in mock_executor.active_workers.key_to_id
 
+    @mock.patch.object(BaseExecutor, "fail")
+    @mock.patch.object(BaseExecutor, "success")
+    def test_sync_reraises_credential_errors_instead_of_evicting(
+        self, success_mock, fail_mock, mock_executor, mock_airflow_key
+    ):
+        """
+        Credential problems are executor-wide, not job-specific: they must propagate to
+        sync()'s connection handling rather than evict the job they happened to surface on.
+        """
+        airflow_key = mock_airflow_key()
+        mock_executor.active_workers.add_job(
+            job_id="001",
+            airflow_workload_key=airflow_key,
+            airflow_cmd="airflow_cmd",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        mock_executor.batch.describe_jobs.return_value = self._describe_jobs_response(("001", "SUCCEEDED"))
+        success_mock.side_effect = ClientError(
+            {"Error": {"Code": "ExpiredTokenException", "Message": "token expired"}}, "SomeBotoOperation"
+        )
+
+        with pytest.raises(ClientError):
+            mock_executor.sync_running_jobs()
+
+        fail_mock.assert_not_called()
+
     @mock.patch.object(AwsBatchExecutor, "attempt_submit_jobs")
     @mock.patch.object(BaseExecutor, "fail")
     def test_sync_submits_pending_jobs_despite_poisoned_job(

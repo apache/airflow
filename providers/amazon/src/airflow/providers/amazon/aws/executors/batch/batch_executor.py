@@ -277,12 +277,12 @@ class AwsBatchExecutor(BaseExecutor):
                     self._handle_failed_job(job)
                 elif job.get_job_state() == State.SUCCESS:
                     self.success(self.active_workers.pop_by_id(job.job_id))
+            except (ClientError, NoCredentialsError):
+                # credential problems are executor-wide, not job-specific: let sync() handle them
+                raise
             except Exception:
                 self.log.exception(
-                    "Evicting Batch job %s after an unexpected error while syncing it, "
-                    "so that one broken job cannot abort the sync cycle and stall task "
-                    "submission for the whole executor.",
-                    job.job_id,
+                    "Evicting Batch job %s after an unexpected error while syncing it.", job.job_id
                 )
                 self._evict_job(job.job_id, workload_key)
 
