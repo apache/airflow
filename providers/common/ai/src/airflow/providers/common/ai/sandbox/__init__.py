@@ -18,22 +18,22 @@
 
 from __future__ import annotations
 
-from airflow.providers.common.ai.sandbox.base import SandboxBackend, SandboxResult
-
-# SbxSandboxBackend only shells out to the `sbx` CLI (stdlib imports), so it is
-# always importable; IsloSandboxBackend needs the optional `islo` SDK.
+from airflow.providers.common.ai.sandbox.base import (
+    SandboxBackend,
+    SandboxError,
+    SandboxExecResult,
+    SandboxFileTooLargeError,
+    SandboxSpec,
+    SandboxTerminalError,
+)
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
-__all__ = ["IsloSandboxBackend", "SandboxBackend", "SandboxResult", "SbxSandboxBackend"]
-
-
-def __getattr__(name: str):
-    if name == "IsloSandboxBackend":
-        try:
-            from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(e)
-        return IsloSandboxBackend
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+__all__ = [
+    "SandboxBackend",
+    "SandboxError",
+    "SandboxExecResult",
+    "SandboxFileTooLargeError",
+    "SandboxSpec",
+    "SandboxTerminalError",
+    "SbxSandboxBackend",
+]

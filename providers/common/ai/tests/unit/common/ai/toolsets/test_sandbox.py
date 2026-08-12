@@ -17,371 +17,489 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import threading
 from unittest.mock import MagicMock
 
 import pytest
 from pydantic_ai._run_context import RunContext
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import ValidationError
 
-from airflow.providers.common.ai.sandbox.base import SandboxBackend, SandboxResult
+from airflow.providers.common.ai.sandbox.base import (
+    SandboxBackend,
+    SandboxError,
+    SandboxExecResult,
+    SandboxFileTooLargeError,
+    SandboxSpec,
+    SandboxTerminalError,
+)
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
-from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
+
+TOOL_NAMES = ["list_directory", "read_file", "run_command", "write_file"]
 
 
 class _RecordingBackend(SandboxBackend):
-    """In-test backend recording every lifecycle call; each create hands out a fresh handle."""
+    """Backend double that records calls and can be told to fail on demand."""
 
-    name = "fake"
+    name = "rec"
 
-    def __init__(
-        self,
-        result: SandboxResult | None = None,
-        run_error: Exception | None = None,
-        destroy_error: Exception | None = None,
-    ) -> None:
-        self.result = result or SandboxResult(exit_code=0, stdout="hello", stderr="")
-        self.run_error = run_error
-        self.destroy_error = destroy_error
-        self.created: list[str] = []
-        self.runs: list[tuple[str, list[str], float]] = []
+    def __init__(self, *, destroy_error: Exception | None = None, run_result=None, run_error=None):
+        self.created: list[SandboxSpec | None] = []
         self.destroyed: list[str] = []
+        self.commands: list[tuple[str, str, float, int]] = []
+        self.written: dict[str, bytes] = {}
+        self.entries: list[tuple[str, bool]] = []
+        self.destroy_error = destroy_error
+        self.run_result = run_result
+        self.run_error = run_error
+        self.read_payload = b""
+        self.read_error: Exception | None = None
 
-    def create(self) -> str:
-        handle = f"sbx-{len(self.created) + 1}"
-        self.created.append(handle)
-        return handle
+    def create(self, *, spec: SandboxSpec | None = None) -> str:
+        self.created.append(spec)
+        return f"box-{len(self.created)}"
 
-    def run(self, sandbox: str, command: list[str], *, timeout: float) -> SandboxResult:
+    def run_command(self, sandbox, command, *, timeout, max_output_bytes):
+        self.commands.append((sandbox, command, timeout, max_output_bytes))
         if self.run_error is not None:
             raise self.run_error
-        self.runs.append((sandbox, list(command), timeout))
-        return self.result
+        if self.run_result is not None:
+            return self.run_result
+        return SandboxExecResult(exit_code=0, stdout="out\n", stderr="")
 
-    def destroy(self, sandbox: str) -> None:
+    def read_file(self, sandbox, path, *, max_bytes):
+        if self.read_error is not None:
+            raise self.read_error
+        return self.read_payload
+
+    def write_file(self, sandbox, path, content):
+        self.written[path] = content
+
+    def list_directory(self, sandbox, path):
+        return list(self.entries)
+
+    def destroy(self, sandbox):
         self.destroyed.append(sandbox)
         if self.destroy_error is not None:
             raise self.destroy_error
 
 
-def _call_run_code(ts: SandboxToolset, code: str = "print('hi')"):
-    return asyncio.run(
-        ts.call_tool(
-            "run_python_in_sandbox",
-            {"code": code},
-            ctx=MagicMock(spec=RunContext),
-            tool=MagicMock(spec=ToolsetTool),
-        )
+def _ctx():
+    return MagicMock(spec=RunContext)
+
+
+def _tool():
+    return MagicMock(spec=ToolsetTool)
+
+
+async def _call(ts: SandboxToolset, name: str, args: dict):
+    return await ts.call_tool(name, args, ctx=_ctx(), tool=_tool())
+
+
+class TestInit:
+    @pytest.mark.parametrize("bad", [0, -1, float("inf"), float("nan")])
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "default_command_timeout",
+            "max_command_timeout",
+            "max_output_lines",
+            "max_output_bytes",
+            "max_read_bytes",
+        ],
     )
+    def test_rejects_non_positive_bounds(self, field, bad):
+        with pytest.raises(ValueError, match=field):
+            SandboxToolset(_RecordingBackend(), **{field: bad})
+
+    def test_rejects_default_timeout_above_the_ceiling(self):
+        with pytest.raises(ValueError, match="must not exceed"):
+            SandboxToolset(_RecordingBackend(), default_command_timeout=100, max_command_timeout=10)
+
+    @pytest.mark.parametrize("bad", ["not-an-identifier", "9lives", "has space", "a-b"])
+    def test_rejects_a_prefix_that_is_not_an_identifier(self, bad):
+        # The prefixed names are rendered as Python signatures under code mode.
+        with pytest.raises(ValueError, match="tool_prefix"):
+            SandboxToolset(_RecordingBackend(), tool_prefix=bad)
+
+    def test_id_includes_backend_name_and_prefix(self):
+        assert SandboxToolset(_RecordingBackend()).id == "sandbox-rec"
+        assert SandboxToolset(_RecordingBackend(), tool_prefix="local").id == "sandbox-rec-local"
 
 
-class TestSandboxToolsetInit:
-    def test_id_includes_backend_name(self):
-        ts = SandboxToolset(_RecordingBackend())
-        assert ts.id == "sandbox-fake"
+class TestGetTools:
+    @pytest.mark.asyncio
+    async def test_exposes_the_four_tools(self):
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
 
-    @pytest.mark.parametrize("timeout", [0, -1, float("nan")])
-    def test_rejects_invalid_timeout(self, timeout):
-        with pytest.raises(ValueError, match="timeout"):
-            SandboxToolset(_RecordingBackend(), timeout=timeout)
+        assert sorted(tools) == TOOL_NAMES
 
-    def test_rejects_empty_python_command(self):
-        with pytest.raises(ValueError, match="python_command"):
-            SandboxToolset(_RecordingBackend(), python_command="")
+    @pytest.mark.asyncio
+    async def test_tool_prefix_renames_every_tool(self):
+        tools = await SandboxToolset(_RecordingBackend(), tool_prefix="local").get_tools(_ctx())
 
+        assert sorted(tools) == [f"local_{n}" for n in TOOL_NAMES]
 
-class TestSandboxToolsetForRun:
-    def test_for_run_hands_each_run_a_fresh_instance(self):
-        backend = _RecordingBackend()
-        ts = SandboxToolset(backend, timeout=42.0, python_command="py")
+    @pytest.mark.asyncio
+    async def test_only_run_command_is_marked_as_a_code_surface(self):
+        # code_arg_name is what keeps a code-execution tool out of code mode's
+        # run_code. The file tools are more useful folded in, so they must not
+        # carry it.
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
 
-        a = asyncio.run(ts.for_run(MagicMock(spec=RunContext)))
-        b = asyncio.run(ts.for_run(MagicMock(spec=RunContext)))
+        assert tools["run_command"].tool_def.metadata == {
+            "code_arg_name": "command",
+            "code_arg_language": "shell",
+        }
+        for name in ("read_file", "write_file", "list_directory"):
+            assert not tools[name].tool_def.metadata
 
-        # Distinct instances so concurrent runs never share sandbox state...
-        assert a is not ts
-        assert a is not b
-        # ...but the same backend and configuration are carried over.
-        assert a._backend is backend
-        assert a._timeout == 42.0
-        assert a._python_command == "py"
-        assert a._sandbox is None
+    @pytest.mark.asyncio
+    async def test_all_tools_are_sequential(self):
+        # They share one sandbox and later calls depend on files earlier ones wrote.
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
 
+        assert all(t.tool_def.sequential for t in tools.values())
 
-class TestSandboxToolsetGetTools:
-    def test_returns_run_code_tool(self):
-        ts = SandboxToolset(_RecordingBackend())
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
-        assert set(tools.keys()) == {"run_python_in_sandbox"}
-
-    def test_tool_definition_shape(self):
-        ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
-        assert tool.tool_def.description
-        assert tool.tool_def.sequential is True
-        assert tool.tool_def.parameters_json_schema["required"] == ["code"]
-        assert tool.tool_def.parameters_json_schema["properties"]["code"]["type"] == "string"
-        assert tool.max_retries == 2
-
-    @pytest.mark.parametrize("bad_args", [{}, {"code": 42}, {"script": "print(1)"}])
-    def test_args_validator_rejects_malformed_args(self, bad_args):
-        """A malformed call must raise ValidationError so pydantic-ai retries instead of failing the task."""
-        ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("bad_args", [{}, {"command": 1}, {"command": None}])
+    async def test_run_command_validator_rejects_malformed_args(self, bad_args):
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
 
         with pytest.raises(ValidationError):
-            tool.args_validator.validate_python(bad_args)
-        with pytest.raises(ValidationError):
-            tool.args_validator.validate_json(json.dumps(bad_args))
+            tools["run_command"].args_validator.validate_python(bad_args)
 
-    def test_args_validator_accepts_valid_args_and_ignores_extras(self):
+
+class TestRunCommand:
+    @pytest.mark.asyncio
+    async def test_labels_streams_and_reports_a_nonzero_exit(self):
+        backend = _RecordingBackend(run_result=SandboxExecResult(exit_code=3, stdout="hi\n", stderr="bad\n"))
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
+
+        assert "[stdout]" in result
+        assert "hi" in result
+        assert "[stderr]" in result
+        assert "bad" in result
+        assert "[exit code: 3]" in result
+
+    @pytest.mark.asyncio
+    async def test_no_output_is_reported_explicitly(self):
+        backend = _RecordingBackend(run_result=SandboxExecResult(exit_code=0, stdout="", stderr=""))
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            assert await _call(ts, "run_command", {"command": "x"}) == "(no output)"
+
+    @pytest.mark.asyncio
+    async def test_uses_the_default_timeout_when_the_model_omits_one(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend, default_command_timeout=42, max_command_timeout=100)
+
+        async with ts:
+            await _call(ts, "run_command", {"command": "x"})
+
+        assert backend.commands[0][2] == 42
+
+    @pytest.mark.asyncio
+    async def test_clamps_a_model_supplied_timeout_to_the_ceiling(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend, default_command_timeout=10, max_command_timeout=30)
+
+        async with ts:
+            await _call(ts, "run_command", {"command": "x", "timeout_seconds": 9999})
+
+        assert backend.commands[0][2] == 30
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("bad", [0, -5, float("nan")])
+    async def test_rejects_a_nonsense_timeout_instead_of_silently_flooring_it(self, bad):
         ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
 
-        args = {"code": "print(1)", "unexpected": True}
-        assert tool.args_validator.validate_python(args) == {"code": "print(1)"}
-        assert tool.args_validator.validate_json(json.dumps(args)) == {"code": "print(1)"}
+        async with ts:
+            with pytest.raises(ModelRetry, match="timeout_seconds must be greater than 0"):
+                await _call(ts, "run_command", {"command": "x", "timeout_seconds": bad})
 
-    @pytest.mark.skipif(
-        not _SUPPORTS_RETURN_SCHEMA, reason="pydantic-ai too old for ToolDefinition.return_schema"
-    )
-    def test_tool_declares_string_return_schema(self):
-        # run_code returns a JSON-encoded string, so code mode should see `-> str`.
-        ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))["run_python_in_sandbox"]
-        assert tool.tool_def.return_schema == {"type": "string"}
-
-
-class TestSandboxToolsetCallTool:
-    def test_creates_sandbox_lazily_on_first_call(self):
-        backend = _RecordingBackend()
-        ts = SandboxToolset(backend)
-        assert backend.created == []
-
-        _call_run_code(ts)
-
-        assert backend.created == ["sbx-1"]
-
-    def test_reuses_one_sandbox_across_calls(self):
-        backend = _RecordingBackend()
-        ts = SandboxToolset(backend)
-
-        _call_run_code(ts, "a = 1")
-        _call_run_code(ts, "print(a)")
-
-        assert backend.created == ["sbx-1"]
-        assert [run[0] for run in backend.runs] == ["sbx-1", "sbx-1"]
-
-    def test_runs_code_with_python_command_and_timeout(self):
-        backend = _RecordingBackend()
-        ts = SandboxToolset(backend, timeout=10.0, python_command="python3.12")
-
-        _call_run_code(ts, "print('hi')")
-
-        assert backend.runs == [("sbx-1", ["python3.12", "-c", "print('hi')"], 10.0)]
-
-    def test_returns_json_payload(self):
-        backend = _RecordingBackend(result=SandboxResult(exit_code=0, stdout="hello", stderr=""))
-        ts = SandboxToolset(backend)
-
-        payload = json.loads(_call_run_code(ts))
-
-        assert payload == {"exit_code": 0, "stdout": "hello", "stderr": "", "timed_out": False}
-
-    def test_truncated_key_only_present_when_set(self):
-        backend = _RecordingBackend(result=SandboxResult(exit_code=0, stdout="x", stderr="", truncated=True))
-        ts = SandboxToolset(backend)
-
-        payload = json.loads(_call_run_code(ts))
-
-        assert payload["truncated"] is True
-
-    def test_nonzero_exit_is_returned_not_raised(self):
-        """A failed user-code run is valid tool output — the model reads stderr and fixes its code."""
+    @pytest.mark.asyncio
+    async def test_timeout_is_normal_output_not_an_exception(self):
         backend = _RecordingBackend(
-            result=SandboxResult(exit_code=1, stdout="", stderr="NameError: name 'x' is not defined")
+            run_result=SandboxExecResult(exit_code=-1, stdout="", stderr="", timed_out=True)
         )
-        ts = SandboxToolset(backend)
+        ts = SandboxToolset(backend, default_command_timeout=5, max_command_timeout=5)
 
-        payload = json.loads(_call_run_code(ts))
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
 
-        assert payload["exit_code"] == 1
-        assert "NameError" in payload["stderr"]
+        assert "[timed out after 5s]" in result
 
-    def test_timeout_is_returned_not_raised(self):
-        backend = _RecordingBackend(result=SandboxResult(exit_code=-1, stdout="", stderr="", timed_out=True))
-        ts = SandboxToolset(backend)
-
-        payload = json.loads(_call_run_code(ts))
-
-        assert payload["timed_out"] is True
-
-    def test_terminated_sandbox_is_reported_and_recreated(self):
+    @pytest.mark.asyncio
+    async def test_a_replaced_sandbox_is_announced_and_recreated(self):
         backend = _RecordingBackend(
-            result=SandboxResult(
-                exit_code=-1,
-                stdout="",
-                stderr="",
-                timed_out=True,
-                sandbox_terminated=True,
+            run_result=SandboxExecResult(
+                exit_code=-1, stdout="", stderr="", timed_out=True, sandbox_terminated=True
             )
         )
         ts = SandboxToolset(backend)
 
-        first_payload = json.loads(_call_run_code(ts))
-        _call_run_code(ts)
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
+            assert "sandbox was replaced" in result
+            backend.run_result = SandboxExecResult(exit_code=0, stdout="ok\n", stderr="")
+            await _call(ts, "run_command", {"command": "y"})
 
-        assert first_payload["sandbox_terminated"] is True
-        assert backend.created == ["sbx-1", "sbx-2"]
+        assert [c[0] for c in backend.commands] == ["box-1", "box-2"]
 
-    def test_backend_exception_propagates(self):
-        """Infrastructure failures are not tool output; they fail the task."""
-        backend = _RecordingBackend(run_error=RuntimeError("daemon unreachable"))
+    @pytest.mark.asyncio
+    async def test_backend_truncation_is_surfaced_to_the_model(self):
+        backend = _RecordingBackend(
+            run_result=SandboxExecResult(exit_code=0, stdout="tail", stderr="", stdout_truncated=True)
+        )
         ts = SandboxToolset(backend)
 
-        with pytest.raises(RuntimeError, match="daemon unreachable"):
-            _call_run_code(ts)
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
 
-    def test_unknown_tool_raises(self):
+        assert "truncated" in result
+
+
+class TestFileTools:
+    @pytest.mark.asyncio
+    async def test_write_then_read_round_trips(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            written = await _call(ts, "write_file", {"path": "/w/a.txt", "content": "hello"})
+            backend.read_payload = backend.written["/w/a.txt"]
+            read = await _call(ts, "read_file", {"path": "/w/a.txt"})
+
+        assert written == "Wrote 5 bytes to '/w/a.txt'."
+        assert read == "hello"
+
+    @pytest.mark.asyncio
+    async def test_oversized_file_becomes_a_retry_pointing_at_the_shell(self):
+        backend = _RecordingBackend()
+        backend.read_error = SandboxFileTooLargeError("/w/big", 6 * 1024 * 1024, 5 * 1024 * 1024)
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            with pytest.raises(ModelRetry, match="over the 5.0MB read limit"):
+                await _call(ts, "read_file", {"path": "/w/big"})
+
+    @pytest.mark.asyncio
+    async def test_listing_sorts_by_name_and_marks_directories(self):
+        backend = _RecordingBackend()
+        backend.entries = [("b.txt", False), ("sub", True), ("a.txt", False)]
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            result = await _call(ts, "list_directory", {})
+
+        assert result == "a.txt\nb.txt\nsub/"
+
+    @pytest.mark.asyncio
+    async def test_listing_is_bounded_like_every_other_tool_result(self):
+        # An unpacked dataset or a node_modules is tens of thousands of names;
+        # unbounded, one call overflows the model's context mid-run.
+        backend = _RecordingBackend()
+        backend.entries = [(f"file{i:05d}.txt", False) for i in range(5000)]
+        ts = SandboxToolset(backend, max_output_lines=20, max_output_bytes=4096)
+
+        async with ts:
+            result = await _call(ts, "list_directory", {})
+
+        assert len(result.splitlines()) <= 21  # 20 entries plus the truncation marker
+        assert "truncated" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_listing_is_reported_explicitly(self):
         ts = SandboxToolset(_RecordingBackend())
 
-        with pytest.raises(ValueError, match="Unknown tool"):
-            asyncio.run(
-                ts.call_tool(
-                    "other_tool",
-                    {},
-                    ctx=MagicMock(spec=RunContext),
-                    tool=MagicMock(spec=ToolsetTool),
-                )
-            )
+        async with ts:
+            assert await _call(ts, "list_directory", {"path": "/empty"}) == "(empty)"
 
 
-class TestSandboxToolsetLifecycle:
-    def test_destroys_sandbox_on_exit(self):
+class TestErrorMapping:
+    @pytest.mark.asyncio
+    async def test_recoverable_failure_becomes_a_retry(self):
+        ts = SandboxToolset(_RecordingBackend(run_error=SandboxError("no such image")))
+
+        async with ts:
+            with pytest.raises(ModelRetry, match="no such image"):
+                await _call(ts, "run_command", {"command": "x"})
+
+    @pytest.mark.asyncio
+    async def test_terminal_failure_propagates_so_airflow_retries_the_task(self):
+        ts = SandboxToolset(_RecordingBackend(run_error=SandboxTerminalError("creds rejected")))
+
+        async with ts:
+            with pytest.raises(SandboxTerminalError):
+                await _call(ts, "run_command", {"command": "x"})
+
+    @pytest.mark.asyncio
+    async def test_unknown_tool_raises(self):
+        ts = SandboxToolset(_RecordingBackend())
+
+        async with ts:
+            with pytest.raises(ValueError, match="Unknown tool"):
+                await _call(ts, "nope", {})
+
+    @pytest.mark.asyncio
+    async def test_unprefixed_name_is_unknown_when_a_prefix_is_set(self):
+        ts = SandboxToolset(_RecordingBackend(), tool_prefix="local")
+
+        async with ts:
+            with pytest.raises(ValueError, match="Unknown tool"):
+                await _call(ts, "run_command", {"command": "x"})
+
+
+class TestLifecycle:
+    @pytest.mark.asyncio
+    async def test_sandbox_is_created_lazily_and_reused(self):
         backend = _RecordingBackend()
         ts = SandboxToolset(backend)
 
-        async def scenario():
-            async with ts:
-                await ts.call_tool(
-                    "run_python_in_sandbox",
-                    {"code": "1"},
-                    ctx=MagicMock(spec=RunContext),
-                    tool=MagicMock(spec=ToolsetTool),
-                )
+        async with ts:
+            assert backend.created == []
+            await _call(ts, "run_command", {"command": "a"})
+            await _call(ts, "run_command", {"command": "b"})
 
-        asyncio.run(scenario())
+        assert len(backend.created) == 1
+        assert [c[0] for c in backend.commands] == ["box-1", "box-1"]
 
-        assert backend.destroyed == ["sbx-1"]
-
-    def test_exit_without_use_destroys_nothing(self):
+    @pytest.mark.asyncio
+    async def test_an_unused_run_provisions_nothing(self):
         backend = _RecordingBackend()
-        ts = SandboxToolset(backend)
 
-        async def scenario():
-            async with ts:
-                pass
-
-        asyncio.run(scenario())
+        async with SandboxToolset(backend):
+            pass
 
         assert backend.created == []
         assert backend.destroyed == []
 
-    def test_destroys_sandbox_even_when_run_raises(self):
+    @pytest.mark.asyncio
+    async def test_the_default_spec_is_enforceable_not_none(self):
+        # The docs promise "no environment, no egress" by default. Passing None
+        # through would skip the backend's contract check entirely and hand back
+        # an unrestricted sandbox, so the default must be a concrete spec.
         backend = _RecordingBackend()
         ts = SandboxToolset(backend)
 
-        async def scenario():
-            async with ts:
-                backend.run_error = RuntimeError("boom")
-                await ts.call_tool(
-                    "run_python_in_sandbox",
-                    {"code": "1"},
-                    ctx=MagicMock(spec=RunContext),
-                    tool=MagicMock(spec=ToolsetTool),
-                )
+        async with ts:
+            await _call(ts, "run_command", {"command": "x"})
 
-        with pytest.raises(RuntimeError, match="boom"):
-            asyncio.run(scenario())
+        assert backend.created == [SandboxSpec()]
+        assert backend.created[0].block_network is True
 
-        assert backend.destroyed == ["sbx-1"]
-
-    def test_reentry_creates_fresh_sandbox(self):
-        """HITL regenerate_with_feedback re-enters the same instance; it must not reuse a destroyed sandbox."""
+    @pytest.mark.asyncio
+    async def test_the_spec_reaches_the_backend(self):
         backend = _RecordingBackend()
+        spec = SandboxSpec(env={"A": "1"}, block_network=False)
+        ts = SandboxToolset(backend, spec=spec)
+
+        async with ts:
+            await _call(ts, "run_command", {"command": "x"})
+
+        assert backend.created == [spec]
+
+    @pytest.mark.asyncio
+    async def test_sandbox_is_destroyed_even_when_a_call_raises(self):
+        backend = _RecordingBackend(run_error=SandboxTerminalError("boom"))
         ts = SandboxToolset(backend)
 
-        async def one_run():
+        with pytest.raises(SandboxTerminalError):
             async with ts:
-                await ts.call_tool(
-                    "run_python_in_sandbox",
-                    {"code": "1"},
-                    ctx=MagicMock(spec=RunContext),
-                    tool=MagicMock(spec=ToolsetTool),
-                )
+                await _call(ts, "run_command", {"command": "x"})
 
-        asyncio.run(one_run())
-        asyncio.run(one_run())
+        assert backend.destroyed == ["box-1"]
 
-        assert backend.created == ["sbx-1", "sbx-2"]
-        assert backend.destroyed == ["sbx-1", "sbx-2"]
-
-    def test_reentry_creates_fresh_sandbox_after_destroy_error(self):
+    @pytest.mark.asyncio
+    async def test_a_teardown_failure_does_not_fail_a_finished_run(self, caplog):
+        # The model work is done and paid for by the time __aexit__ runs, so a
+        # delete blip must not turn success into a task failure.
         backend = _RecordingBackend(destroy_error=RuntimeError("delete failed"))
         ts = SandboxToolset(backend)
 
-        async def one_run():
-            async with ts:
-                await ts.call_tool(
-                    "run_python_in_sandbox",
-                    {"code": "1"},
-                    ctx=MagicMock(spec=RunContext),
-                    tool=MagicMock(spec=ToolsetTool),
-                )
+        async with ts:
+            await _call(ts, "run_command", {"command": "x"})
 
-        with pytest.raises(RuntimeError, match="delete failed"):
-            asyncio.run(one_run())
+        assert "may need manual cleanup" in caplog.text
 
-        backend.destroy_error = None
-        asyncio.run(one_run())
-
-        assert backend.created == ["sbx-1", "sbx-2"]
-        assert backend.destroyed == ["sbx-1", "sbx-2"]
-
-    def test_cancellation_during_create_still_destroys_sandbox(self):
-        create_started = threading.Event()
-        allow_create = threading.Event()
-
-        class BlockingCreateBackend(_RecordingBackend):
-            def create(self) -> str:
-                create_started.set()
-                if not allow_create.wait(timeout=5):
-                    raise RuntimeError("test timed out waiting to release create")
-                return super().create()
-
-        backend = BlockingCreateBackend()
+    @pytest.mark.asyncio
+    async def test_reentry_creates_a_fresh_sandbox(self):
+        backend = _RecordingBackend()
         ts = SandboxToolset(backend)
 
-        async def scenario():
+        for _ in range(2):
             async with ts:
-                call = asyncio.create_task(
-                    ts.call_tool(
-                        "run_python_in_sandbox",
-                        {"code": "1"},
-                        ctx=MagicMock(spec=RunContext),
-                        tool=MagicMock(spec=ToolsetTool),
-                    )
-                )
-                assert await asyncio.to_thread(create_started.wait, 1)
-                call.cancel()
-                allow_create.set()
-                with pytest.raises(asyncio.CancelledError):
-                    await call
+                await _call(ts, "run_command", {"command": "x"})
 
-        asyncio.run(scenario())
+        assert backend.created == [SandboxSpec(), SandboxSpec()]
+        assert backend.destroyed == ["box-1", "box-2"]
 
-        assert backend.created == ["sbx-1"]
-        assert backend.runs == []
-        assert backend.destroyed == ["sbx-1"]
+    @pytest.mark.asyncio
+    async def test_cancellation_during_create_still_destroys_the_sandbox(self):
+        started = asyncio.Event()
+
+        class SlowBackend(_RecordingBackend):
+            def create(self, *, spec=None):
+                started.set()
+                import time
+
+                time.sleep(0.2)
+                return super().create(spec=spec)
+
+        backend = SlowBackend()
+        ts = SandboxToolset(backend)
+
+        async def run():
+            async with ts:
+                await _call(ts, "run_command", {"command": "x"})
+
+        task = asyncio.create_task(run())
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert backend.destroyed == ["box-1"]
+
+
+class TestForRun:
+    @pytest.mark.asyncio
+    async def test_each_run_gets_its_own_instance_and_sandbox(self):
+        backend = _RecordingBackend()
+        base = SandboxToolset(backend)
+
+        first = await base.for_run(_ctx())
+        second = await base.for_run(_ctx())
+        assert first is not second
+        assert first is not base
+
+        async with first, second:
+            await first.call_tool("run_command", {"command": "a"}, ctx=_ctx(), tool=_tool())
+            await second.call_tool("run_command", {"command": "b"}, ctx=_ctx(), tool=_tool())
+
+        assert [c[0] for c in backend.commands] == ["box-1", "box-2"]
+
+    @pytest.mark.asyncio
+    async def test_configuration_is_carried_across(self):
+        base = SandboxToolset(
+            _RecordingBackend(), tool_prefix="local", default_command_timeout=7, max_command_timeout=9
+        )
+
+        forked = await base.for_run(_ctx())
+
+        assert sorted(await forked.get_tools(_ctx())) == [f"local_{n}" for n in TOOL_NAMES]
+        assert forked.id == base.id
+
+    @pytest.mark.asyncio
+    async def test_a_subclass_does_not_degrade_to_the_base_class(self):
+        class CustomToolset(SandboxToolset):
+            pass
+
+        forked = await CustomToolset(_RecordingBackend()).for_run(_ctx())
+
+        assert isinstance(forked, CustomToolset)

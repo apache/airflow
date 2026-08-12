@@ -33,8 +33,9 @@ Four toolsets are included:
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
-- :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` —
-  execute agent-written Python in an isolated sandbox, off the Airflow worker.
+- :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` — give
+  the agent a shell and a filesystem inside an isolated sandbox, off the
+  Airflow worker. See :ref:`which boundary that is <sandbox-boundaries>`.
 
 All four implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
@@ -544,60 +545,225 @@ and removes any cloned directories when the ``with`` block exits.
 ------------------
 
 :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` gives the
-agent one tool, ``run_python_in_sandbox``, that executes agent-written Python in a
-disposable sandbox provisioned by a
-:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` — off the Airflow
-worker process. Airflow does not inject its context, connections, credentials,
-or worker environment into the sandbox. Custom images can still contain
-credentials, and hosted backends can provide their own identity, so image and
-backend configuration remain the Deployment Manager's responsibility.
+agent a shell and a filesystem inside a disposable sandbox, provisioned by a
+:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` and running off the
+Airflow worker process. It exposes four tools:
 
-It is the counterpart to :ref:`code mode <code-mode>`. Code mode's ``run_code``
-executes in-process on the worker via the Monty interpreter: it is glue between
-tool calls, restricted to a subset of Python with no third-party imports.
-``SandboxToolset`` instead ships the code to a real Python interpreter in an
-isolated environment, so the agent can crunch data with the full language and
-whatever the sandbox image provides — at the cost of provisioning a microVM
-per run.
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
 
-The sandbox is created lazily on the first ``run_python_in_sandbox`` call, shared by every
-call within the agent run, and destroyed when the run ends. Each call runs a
-fresh interpreter (``python3 -c``), so files written by earlier calls persist
-in the sandbox while in-memory variables do not. A nonzero exit code or a
-timeout is normal tool output — the model reads ``stderr`` and fixes its own
-code. If a backend cannot confirm that timed-out code stopped, it destroys the
-sandbox and returns ``sandbox_terminated: true``; the next call receives a
-fresh sandbox and files from earlier calls are no longer available. Only
-infrastructure errors (the ``sbx`` CLI missing, the islo API unreachable) fail
-the task.
+   * - Tool
+     - What it does
+   * - ``run_command``
+     - Runs a shell command. Pipes, redirection, ``&&`` and globs work. A
+       non-zero exit is reported as output, not raised, so the model reads
+       ``stderr`` and corrects itself.
+   * - ``read_file``
+     - Reads a text file, head-first, and reports the next ``offset`` so the
+       model can page through a long file.
+   * - ``write_file``
+     - Writes text to a file, creating parent directories.
+   * - ``list_directory``
+     - Lists a directory. Directories are shown with a trailing ``/``.
 
-This chooses the **code-execution tool boundary**: only the generated Python
-and its command lifecycle move into the sandbox. It does not sandbox the
-``AgentOperator``, the Airflow task, or the worker process. Boundary size is
-not a security level by itself; the selected runtime's image, credentials,
-network policy, resource limits, and host integration determine the effective
-isolation. Choose the smallest boundary that fits the workload, then configure
-the runtime independently.
+These are the same four names and shapes that pydantic-ai's own sandbox
+capabilities use, so a model that has seen one already knows this one, and a
+vendor that has written an adapter for one is close to having written this one.
+
+.. _sandbox-boundaries:
+
+Which boundary this is
+^^^^^^^^^^^^^^^^^^^^^^
+
+"Sandboxed" means different things at different layers, and picking the wrong
+layer is the most common way to end up with less protection than you think.
+Four boundaries exist, from smallest to largest:
+
+.. list-table::
+   :widths: 22 33 45
+   :header-rows: 1
+
+   * - Boundary
+     - What moves inside it
+     - What that protects you from
+   * - **A tool call**
+     - What ``run_command`` and the file tools do. **This toolset.**
+     - Model-written code damaging the worker host, reading its files, or
+       reaching the network from it.
+   * - **The glue between tools**
+     - Generated orchestration code, via :ref:`code mode <code-mode>` and the
+       Monty interpreter.
+     - Generated code touching anything other than the tools you registered.
+       It still runs in the worker process.
+   * - **The agent process**
+     - The whole agent loop, its LLM credentials and its message history.
+     - The agent's own credentials leaking, and any *other* toolset on the same
+       agent. Not available today.
+   * - **The whole task**
+     - The complete Airflow task, supervisor included, as
+       ``KubernetesExecutor`` does.
+     - Everything, including Airflow's own worker context and connections.
+
+``SandboxToolset`` is the first row. Being precise about what that means:
+
+- Airflow does not put its context, connections, variables, or worker
+  environment into the sandbox. Only what you pass through
+  :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in.
+- **It does not contain the agent.** The agent loop, the model calls, and every
+  other toolset on the same agent still run in the worker process with the
+  worker's credentials. An agent that has ``SandboxToolset`` *and* a toolset
+  that can reach connections has a contained code tool sitting beside a
+  credential path that is not contained. The sandbox does not change what those other
+  tools can do.
+- Boundary size is not a security level on its own. The image, the credentials
+  you inject, the network policy, and the resource limits decide the actual
+  isolation. Choose the smallest boundary that fits, then configure the runtime.
+
+If you need the whole task isolated, that is
+``KubernetesPodOperator`` or ``KubernetesExecutor`` today, not this.
+
+When to reach for it
+^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :widths: 45 55
+   :header-rows: 1
+
+   * - You want
+     - Use
+   * - The agent to analyze data, install a package, run a script it wrote, or
+       produce a file, without any of that touching the worker
+     - ``SandboxToolset``
+   * - Fewer model round-trips when chaining tools you already trust
+     - :ref:`code mode <code-mode>`. It is not a sandbox for your data; it
+       restricts generated glue code to the tools you registered
+   * - The agent to query a database with guardrails
+     - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`, which
+       enforces table allowlists. A sandbox does not help here
+   * - A whole task's worth of untrusted work isolated, with no agent involved
+     - ``KubernetesPodOperator``
+   * - Airflow's own credentials kept away from the agent
+     - Not this. Scope the connections the task can see, and give the agent only
+       the toolsets it needs
+
+Both ``code_mode=True`` and ``SandboxToolset`` can be enabled together.
+``run_command`` deliberately stays a normal tool in that setup rather than being
+folded into ``run_code``, so the model writes Monty code that calls the sandbox,
+never a shell script quoted inside a Python string. The three file tools *are*
+folded in, where they are more useful as callables.
+
+Lifecycle
+^^^^^^^^^
+
+The sandbox is created lazily on the first tool call, shared by every call in
+that agent run, and destroyed when the run ends. A run that never calls a tool
+never provisions one, and concurrent runs never share a sandbox.
+
+Files written by one call are visible to later calls in the same run. Each
+``run_command`` is a fresh shell, so shell variables and background jobs do not
+survive between calls; write state to a file if you need it later.
+
+If a command outlives its budget and the backend cannot confirm it stopped, the
+backend destroys the sandbox and the tool result says so. The next call gets a
+fresh sandbox, and files from earlier calls are gone.
+
+A recoverable failure becomes a bounded retry the model can react to. Only a
+terminal failure -- credentials rejected, daemon unreachable, sandbox gone --
+fails the task, so Airflow's own retry handles it rather than the model burning
+its retry budget.
+
+Controlling what the sandbox gets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.SandboxSpec` says what a sandbox is
+provisioned with. The default denies outbound network access and injects no
+environment.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import SandboxSpec, SbxSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(
+        SbxSandboxBackend(host_network_policy="allow-all"),
+        spec=SandboxSpec(
+            env={"HF_TOKEN": "..."},  # only what the generated code legitimately needs
+            block_network=False,  # this sandbox may reach the internet
+        ),
+    )
+
+Anything in ``env`` is readable by model-generated code, so scope it to that one
+sandbox's job rather than passing the worker's environment through.
+
+A backend that cannot enforce a field it was given **raises instead of ignoring
+it**, so a spec never gives you a false sense of a restriction being in force.
+The ``sbx`` backend applies ``allow_egress_to`` as a per-sandbox policy rule,
+but only on top of a ``deny-all`` host policy, since a local rule can narrow
+egress and never widen it. Ask for an allowlist against an open host policy and
+it refuses rather than granting nothing quietly.
+
+Using more than one sandbox
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Tool names must be unique within an agent, so two ``SandboxToolset`` instances
+need ``tool_prefix``:
+
+.. code-block:: python
+
+    toolsets = [
+        SandboxToolset(
+            SbxSandboxBackend(image="python:3.12-slim", host_network_policy="deny-all"),
+            tool_prefix="py",
+        ),
+        SandboxToolset(
+            SbxSandboxBackend(image="node:22-slim", host_network_policy="deny-all"),
+            tool_prefix="node",
+        ),
+    ]
+
+That yields ``py_run_command``, ``node_run_command`` and so on. Without a
+prefix on at least one of them, the run fails at startup with a duplicate tool
+name. Give the model instructions on which one to use for what, or it will guess.
 
 sbx backend (Docker Sandboxes)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:class:`~airflow.providers.common.ai.sandbox.SbxSandboxBackend` runs each
-sandbox in a `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__
-microVM by driving the ``sbx`` CLI (``create`` / ``exec`` / ``rm``). Each
-sandbox is a genuine microVM with its own kernel, so agent code is isolated by
-a hardware boundary rather than a shared kernel. Command output is capped at
-the first 64 KiB of each stream, and the microVM is torn down when the run
-ends.
+:class:`~airflow.providers.common.ai.sandbox.SbxSandboxBackend` runs each sandbox
+in a `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ microVM by
+driving the ``sbx`` CLI. Each sandbox is a real microVM with its own kernel, so
+agent code is isolated by a hardware boundary rather than a shared kernel.
 
-It is a Deployment Manager prerequisite to install the ``sbx`` binary
-(``brew install docker/tap/sbx`` / ``winget install Docker.sbx``) and run
-``sbx policy init`` once on the worker host; the backend needs no Python
-dependency. Outbound network egress is governed by that host ``sbx policy``
-rather than by the backend — use ``sbx policy init deny-all`` for a no-egress
-default. The template image must provide the GNU ``timeout`` utility, which
-enforces the per-command timeout (any Debian/Ubuntu-based image, including
-``python:*-slim``, does).
+.. warning::
+
+   **Use this backend for local development, not production.** Docker Sandboxes
+   is built for running coding agents against a checkout on your own machine:
+   ``sbx create`` takes an agent name (``claude``, ``codex``, ``shell`` and so
+   on) and bind-mounts host paths into the sandbox, and its stock network
+   profile is described as "typical development traffic ... AI services and
+   package registries". Driving it from an Airflow worker is off-label use.
+
+   Concretely, a production worker would need all of: the ``sbx`` binary on the
+   host, an authenticated Docker account (``sbx login``), a one-time
+   ``sbx policy init``, and on Linux, KVM or nested virtualization. A worker in
+   an unprivileged container -- the normal Kubernetes deployment -- generally
+   cannot satisfy the last one at all.
+
+   Treat it as the backend you develop and test a sandboxed agent against, then
+   run something else in production. A hosted backend plugs in through
+   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, but none ships
+   with the provider yet.
+
+   **Orphans are not reclaimed automatically.** There is no server-side TTL. If
+   the worker is killed outright, the microVM and its workspace directory
+   survive. Sandboxes are named ``airflow-sandbox-*`` so an operator can find and
+   remove them; budget for that sweep.
+
+Installing the CLI is a Deployment Manager prerequisite
+(``brew install docker/tap/sbx`` or ``winget install Docker.sbx``); the backend
+needs no Python dependency. The template image must provide GNU coreutils
+``timeout``, ``base64``, ``stat`` and ``ls``, which any Debian or Ubuntu based
+image, including ``python:*-slim``, does.
 
 .. code-block:: python
 
@@ -609,102 +775,92 @@ enforces the per-command timeout (any Debian/Ubuntu-based image, including
         task_id="sandboxed_analyst",
         prompt="Estimate pi with a Monte Carlo simulation of one million points.",
         llm_conn_id="pydanticai_default",
-        toolsets=[SandboxToolset(SbxSandboxBackend())],
+        toolsets=[SandboxToolset(SbxSandboxBackend(host_network_policy="deny-all"))],
     )
 
 Constructor parameters:
 
-- ``image``: Container image for the sandbox (``sbx --template``).
-  Default ``"python:3.12-slim"``.
-- ``memory``: Memory limit in binary units (e.g. ``"2g"``). ``sbx`` enforces a
-  1 GiB minimum. Default ``"2g"``.
-- ``cpus``: Number of CPUs to allocate. ``None`` (default) uses the ``sbx``
-  default.
+- ``image``: Container image for the sandbox. Default ``"python:3.12-slim"``.
+- ``memory``: Memory limit in binary units. ``sbx`` enforces a 1 GiB minimum.
+  Default ``"2g"``.
+- ``cpus``: CPUs to allocate. ``None`` (default) uses the ``sbx`` default, which
+  is every host CPU.
 - ``sbx_path``: Path to the ``sbx`` binary. Default ``"sbx"``.
-- ``create_timeout``: Seconds allowed for provisioning (first-run microVM boot
-  plus image pull can be slow). Default ``600``.
-
-islo backend
-^^^^^^^^^^^^
-
-:class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend` runs each
-sandbox in an `islo.dev <https://islo.dev>`__ microVM — hardware-level
-isolation with no local Docker daemon required.
-
-Requires the ``sandbox-islo`` extra:
-``pip install "apache-airflow-providers-common-ai[sandbox-islo]"``
-
-.. code-block:: python
-
-    from airflow.providers.common.ai.sandbox import IsloSandboxBackend
-
-    SandboxToolset(IsloSandboxBackend(islo_conn_id="islo_default"))
-
-Credentials come from a generic Airflow connection (no custom connection type
-is needed):
-
-- ``password``: the islo API key. Required.
-- ``host``: the compute URL. Optional.
-- Extra: optional ``base_url`` and ``timeout`` (request timeout in seconds)
-  keys.
-
-Constructor parameters:
-
-- ``islo_conn_id``: Airflow connection ID for islo. Default ``"islo_default"``.
-  ``None`` lets the SDK resolve credentials from its environment variables
-  (``ISLO_API_KEY`` etc.).
-- ``image``, ``vcpus``, ``memory_mb``: sandbox image and sizing. ``None``
-  (default) uses the server default for each.
-- ``internet_enabled``: outbound internet access. Default ``False`` (no egress);
-  ``None`` defers to the server default.
-- ``delete_after``: Server-side TTL in seconds after which the sandbox is
-  deleted even if the worker never got to destroy it (killed mid-run).
-  Default ``3600``.
-
-The command timeout is enforced by the backend, not the islo API (the API's
-``timeout_secs`` is only a compatibility hint). If no terminal command state
-arrives within the timeout plus a short grace period, the backend deletes the
-microVM, marks the sandbox terminated, and returns a timeout.
-
-Parameters
-^^^^^^^^^^
-
-- ``backend``: The :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`
-  that provisions and runs the sandbox.
-- ``timeout``: Timeout in seconds for a single ``run_python_in_sandbox`` call.
-  Default ``300``.
-- ``python_command``: Python executable inside the sandbox.
-  Default ``"python3"``.
+- ``create_timeout``: Seconds allowed for provisioning; a first-run microVM boot
+  plus an image pull can be slow. Default ``600``.
+- ``host_network_policy``: What ``sbx policy`` is set to on this host.
+  ``"unknown"`` (default) makes ``create`` refuse any spec asking for a network
+  guarantee this backend cannot make. Set ``"deny-all"`` after running
+  ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open.
 
 Bringing your own backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Any vendor that can create a sandbox, run a command in it, and destroy it can
-plug in: subclass
-:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` in your own
-package and pass an instance to ``SandboxToolset``:
+Any vendor that can create a sandbox, run a command in it and destroy it can
+plug in. Subclass
+:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` in your own package
+and pass an instance to ``SandboxToolset``.
+
+**Three methods are required**: ``create``, ``run_command`` and ``destroy``. The
+three file operations ship as defaults implemented over ``run_command``, because
+reading, writing and listing a file are all expressible as shell commands.
+Override them only when the vendor has a native file API, which avoids base64
+expansion, the command-line length ceiling, and the guest needing coreutils:
 
 .. code-block:: python
 
-    from airflow.providers.common.ai.sandbox import SandboxBackend, SandboxResult
+    from airflow.providers.common.ai.sandbox import (
+        SandboxBackend,
+        SandboxExecResult,
+        SandboxSpec,
+    )
 
 
     class AcmeSandboxBackend(SandboxBackend):
         name = "acme"
 
-        def create(self) -> str:
+        def create(self, *, spec: SandboxSpec | None = None) -> str:
             return acme_sdk.create_sandbox().id
 
-        def run(self, sandbox: str, command: list[str], *, timeout: float) -> SandboxResult:
+        def run_command(self, sandbox, command, *, timeout, max_output_bytes):
             r = acme_sdk.exec(sandbox, command, timeout=timeout)
-            return SandboxResult(exit_code=r.exit_code, stdout=r.stdout, stderr=r.stderr)
+            return SandboxExecResult(exit_code=r.exit_code, stdout=r.stdout, stderr=r.stderr)
 
-        def destroy(self, sandbox: str) -> None:
+        def destroy(self, sandbox) -> None:
             acme_sdk.delete_sandbox(sandbox)
 
-Constructors run at Dag-parse time, so resolve credentials lazily, on first
-use, and make ``destroy`` idempotent (destroying an already-gone sandbox must
-not raise).
+        # Optional: inherited from SandboxBackend unless the vendor has
+        # something better than shelling out.
+        def read_file(self, sandbox, path, *, max_bytes) -> bytes:
+            return acme_sdk.download(sandbox, path, limit=max_bytes)
+
+Four rules for an implementation:
+
+- Constructors run at Dag-parse time, so resolve credentials lazily, on first use.
+- ``destroy`` must be idempotent; destroying an already-gone sandbox is not an error.
+- Raise ``SandboxTerminalError`` when retrying cannot help and ``SandboxError``
+  when it might. The first fails the task for Airflow to retry; the second
+  becomes a bounded prompt back to the model.
+- If you cannot enforce something the ``SandboxSpec`` asks for, **raise**. Never
+  provision a weaker sandbox than the DAG author asked for.
+
+Parameters
+^^^^^^^^^^
+
+- ``backend``: The backend that provisions and drives the sandbox.
+- ``spec``: What to provision it with. Defaults to no environment and no egress.
+- ``default_command_timeout``: Seconds for a ``run_command`` the model did not
+  put a timeout on. Default ``60``.
+- ``max_command_timeout``: Hard ceiling for any single command, including a
+  model-supplied ``timeout_seconds``. Default ``300``.
+- ``max_output_lines`` / ``max_output_bytes``: Caps per output stream and per
+  file read, whichever is hit first. Defaults ``2000`` and 50 KiB. Command
+  output keeps the **tail**, where errors and the exit status live; file reads
+  keep the head and report a continuation offset.
+- ``max_read_bytes``: Largest file ``read_file`` will transfer. Default 5 MiB;
+  larger files are refused with a hint to slice them in the shell.
+- ``tool_prefix``: Prefix for the four tool names. Needed when one agent has
+  more than one ``SandboxToolset``.
 
 
 Working with LangChain
@@ -742,7 +898,7 @@ curated, connection-managed tools:
 
 Each generated tool keeps the source tool's name, description, and argument
 schema, and routes calls back through the original toolset, so the toolset's own
-behaviour (connection resolution, ``SQLToolset``'s SQL validation, and
+behavior (connection resolution, ``SQLToolset``'s SQL validation, and
 ``allowed_tables`` filtering) still applies. ``get_tools`` runs eagerly at
 conversion time to enumerate the tools.
 
@@ -861,15 +1017,18 @@ No single layer is sufficient — they work together.
        shell, filesystem, or network access. Run only trusted servers and
        audit the tools they expose.
    * - **SandboxToolset: off-worker execution**
-     - Executes agent-written code in a disposable microVM, never in the
-       worker process. Airflow does not inject its context, connections,
-       credentials, or worker environment. The backends enforce command
-       timeouts, cap each output stream at 64 KiB, and tear down the sandbox
-       after the run; the islo backend also sets a server-side cleanup TTL.
-     - Does not sanitize what the code computes or returns. Custom images can
-       contain secrets, hosted backends can expose their own identity, and
-       Docker Sandboxes network access follows the host ``sbx policy``. Its
-       CPU allocation defaults to all host CPUs unless explicitly limited.
+     - Runs the agent's commands and file operations in a disposable microVM,
+       never in the worker process. Airflow injects nothing of its own; only
+       what ``SandboxSpec`` names goes in, and egress is denied by default. A
+       backend that cannot enforce a spec field raises rather than ignoring it.
+       Commands are bounded by a timeout ceiling and per-stream output caps.
+     - **Does not contain the agent.** The agent loop and every other toolset on
+       the same agent still run in the worker with its credentials, so this does
+       not stop an agent reaching connections through some other tool. It also
+       does not sanitize what the code computes or returns. Custom images can
+       carry secrets, a backend you add can expose its own identity, the ``sbx``
+       backend leaks orphaned microVMs
+       if the worker is killed, and its CPU allocation defaults to every host CPU.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.

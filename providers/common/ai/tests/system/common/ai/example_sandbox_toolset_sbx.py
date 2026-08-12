@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime, timezone
 
@@ -26,6 +25,9 @@ from airflow.providers.common.compat.sdk import dag as airflow_dag, task
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = f"common_ai_sandbox_toolset_sbx_{ENV_ID}" if ENV_ID else "common_ai_sandbox_toolset_sbx"
+
+MARKER = "boundary-ok"
+STATE_PATH = "/tmp/airflow_sandbox_e2e"
 
 
 @airflow_dag(
@@ -47,68 +49,89 @@ def example_sandbox_toolset_sbx():
         from airflow.providers.common.ai.toolsets import SandboxToolset
 
         def model_function(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
-            tool_returns = [
+            returns = [
                 part.content
                 for message in messages
                 for part in message.parts
                 if part.part_kind == "tool-return"
             ]
-            if not tool_returns:
+
+            # 1. Write a file through the file tool, not a shell heredoc.
+            if not returns:
                 return ModelResponse(
                     parts=[
                         ToolCallPart(
-                            tool_name="run_python_in_sandbox",
-                            args={
-                                "code": (
-                                    "from pathlib import Path; "
-                                    "Path('/tmp/airflow_sandbox_e2e').write_text('boundary-ok'); "
-                                    "print(6 * 7)"
-                                )
-                            },
-                            tool_call_id="write-state",
+                            tool_name="write_file",
+                            args={"path": STATE_PATH, "content": MARKER},
+                            tool_call_id="write",
                         )
                     ]
                 )
+            if "Wrote" not in str(returns[0]):
+                raise RuntimeError(f"Unexpected write_file result: {returns[0]!r}")
 
-            first_content = tool_returns[0]
-            if not isinstance(first_content, str):
-                raise RuntimeError(f"Unexpected first sandbox result type: {type(first_content).__name__}")
-            first_result = json.loads(first_content)
-            if first_result != {"exit_code": 0, "stdout": "42\n", "stderr": "", "timed_out": False}:
-                raise RuntimeError(f"Unexpected first sandbox result: {first_result!r}")
-            if len(tool_returns) == 1:
+            # 2. Prove the shell sees the same filesystem, and that a real
+            #    interpreter with the full language is available.
+            if len(returns) == 1:
                 return ModelResponse(
                     parts=[
                         ToolCallPart(
-                            tool_name="run_python_in_sandbox",
-                            args={
-                                "code": (
-                                    "from pathlib import Path; "
-                                    "print(Path('/tmp/airflow_sandbox_e2e').read_text())"
-                                )
-                            },
-                            tool_call_id="read-state",
+                            tool_name="run_command",
+                            args={"command": f"cat {STATE_PATH} && python3 -c 'print(6 * 7)'"},
+                            tool_call_id="shell",
                         )
                     ]
                 )
+            shell_out = str(returns[1])
+            if MARKER not in shell_out or "42" not in shell_out:
+                raise RuntimeError(f"Unexpected run_command result: {shell_out!r}")
 
-            second_content = tool_returns[1]
-            if not isinstance(second_content, str):
-                raise RuntimeError(f"Unexpected second sandbox result type: {type(second_content).__name__}")
-            second_result = json.loads(second_content)
-            if second_result != {
-                "exit_code": 0,
-                "stdout": "boundary-ok\n",
-                "stderr": "",
-                "timed_out": False,
-            }:
-                raise RuntimeError(f"Unexpected second sandbox result: {second_result!r}")
+            # 3. Read the file back through the file tool.
+            if len(returns) == 2:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart(tool_name="read_file", args={"path": STATE_PATH}, tool_call_id="read")
+                    ]
+                )
+            if MARKER not in str(returns[2]):
+                raise RuntimeError(f"Unexpected read_file result: {returns[2]!r}")
+
+            # 4. A non-zero exit is output the model can react to, not a failure.
+            if len(returns) == 3:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="run_command",
+                            args={"command": "echo to-stderr >&2; exit 3"},
+                            tool_call_id="fail",
+                        )
+                    ]
+                )
+            failed = str(returns[3])
+            if "[exit code: 3]" not in failed or "to-stderr" not in failed:
+                raise RuntimeError(f"Unexpected failure result: {failed!r}")
+
+            # 5. And the directory listing sees the file too.
+            if len(returns) == 4:
+                return ModelResponse(
+                    parts=[ToolCallPart(tool_name="list_directory", args={"path": "/tmp"}, tool_call_id="ls")]
+                )
+            if "airflow_sandbox_e2e" not in str(returns[4]):
+                raise RuntimeError(f"Unexpected listing: {returns[4]!r}")
+
             return ModelResponse(parts=[TextPart(content="sandbox boundary e2e passed")])
 
         agent = Agent(
             FunctionModel(model_function),
-            instructions="Use the sandbox tool as requested.",
-            toolsets=[SandboxToolset(SbxSandboxBackend(), timeout=30.0)],
+            instructions="Use the sandbox tools as requested.",
+            toolsets=[
+                SandboxToolset(
+                    # The default spec asks for no egress, which sbx can only honour
+                    # when the host policy says so -- see the toolsets docs.
+                    SbxSandboxBackend(host_network_policy="deny-all"),
+                    max_command_timeout=30.0,
+                )
+            ],
         )
         result = agent.run_sync("Run the sandbox boundary system test.")
         if result.output != "sandbox boundary e2e passed":

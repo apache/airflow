@@ -16,228 +16,316 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import subprocess
-import sys
 from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.common.ai.sandbox.base import _MAX_OUTPUT_CHARS
-from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-_MOD = "airflow.providers.common.ai.sandbox.sbx"
-
-
-def _completed(returncode: int, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess:
-    return subprocess.CompletedProcess(args=["sbx"], returncode=returncode, stdout=stdout, stderr=stderr)
+from airflow.providers.common.ai.sandbox.base import (
+    SandboxError,
+    SandboxSpec,
+    SandboxTerminalError,
+)
+from airflow.providers.common.ai.sandbox.sbx import _KILL_AFTER, SbxSandboxBackend
 
 
-class TestSbxSandboxBackendInit:
-    def test_init_makes_no_cli_calls(self):
-        with patch(f"{_MOD}.subprocess.run") as run, patch(f"{_MOD}.shutil.which") as which:
-            SbxSandboxBackend()
-        run.assert_not_called()
-        which.assert_not_called()
+def _completed(returncode=0, stdout=b"", stderr=b""):
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
+
+@pytest.fixture
+def backend():
+    return SbxSandboxBackend(host_network_policy="deny-all")
+
+
+class TestInit:
     @pytest.mark.parametrize(
         ("kwargs", "match"),
         [
             ({"image": ""}, "image"),
             ({"memory": ""}, "memory"),
-            ({"cpus": 0}, "cpus"),
             ({"sbx_path": ""}, "sbx_path"),
-            ({"create_timeout": float("nan")}, "create_timeout"),
+            ({"cpus": 0}, "cpus"),
+            ({"create_timeout": -1}, "create_timeout"),
+            ({"host_network_policy": "nope"}, "host_network_policy"),
         ],
     )
-    def test_init_rejects_invalid(self, kwargs, match):
+    def test_rejects_invalid_configuration(self, kwargs, match):
         with pytest.raises(ValueError, match=match):
             SbxSandboxBackend(**kwargs)
 
 
-class TestSbxSandboxBackendCreate:
-    @patch(f"{_MOD}.tempfile.mkdtemp", return_value="/tmp/ws")
-    @patch(f"{_MOD}.shutil.which", return_value="/usr/local/bin/sbx")
-    @patch(f"{_MOD}.subprocess.run", return_value=_completed(0))
-    def test_create_builds_command_and_returns_name(self, run, which, mkdtemp):
-        backend = SbxSandboxBackend()
+class TestSpecEnforcement:
+    """A backend must refuse a restriction it cannot actually apply."""
 
-        name = backend.create()
+    def test_an_allowlist_needs_a_deny_all_host_policy_to_mean_anything(self):
+        # A per-sandbox allow rule only narrows a deny-all global policy; against
+        # an open host policy it grants nothing and would imply a restriction
+        # that is not in force.
+        with pytest.raises(SandboxTerminalError, match=r"only\s+narrows a deny-all"):
+            SbxSandboxBackend().create(spec=SandboxSpec(allow_egress_to=["example.com"]))
+
+    def test_the_allowlist_is_applied_scoped_to_the_new_sandbox(self, backend):
+        calls = []
+
+        def fake_run_cli(args, *, timeout, stdin=None):
+            calls.append(args)
+            return _completed()
+
+        with (
+            patch("shutil.which", autospec=True, return_value="/usr/bin/sbx"),
+            patch.object(backend, "_run_cli", autospec=True, side_effect=fake_run_cli),
+        ):
+            name = backend.create(spec=SandboxSpec(allow_egress_to=["pypi.org", "files.pythonhosted.org"]))
+
+        policy = next(c for c in calls if c[:3] == ["policy", "allow", "network"])
+        assert policy[3:5] == ["--sandbox", name]
+        assert policy[5:] == ["pypi.org", "files.pythonhosted.org"]
+
+    def test_refuses_no_egress_when_the_host_policy_is_undeclared(self):
+        with pytest.raises(SandboxError, match="host policy has not been declared"):
+            SbxSandboxBackend().create(spec=SandboxSpec(block_network=True))
+
+    def test_refuses_no_egress_when_the_host_policy_allows_it(self):
+        with pytest.raises(SandboxError, match="host policy has not been declared"):
+            SbxSandboxBackend(host_network_policy="allow-all").create(spec=SandboxSpec())
+
+    def test_accepts_an_acknowledged_open_network(self):
+        undeclared = SbxSandboxBackend()
+        with (
+            patch("shutil.which", autospec=True, return_value="/usr/bin/sbx"),
+            patch.object(undeclared, "_run_cli", autospec=True, return_value=_completed()),
+        ):
+            name = undeclared.create(spec=SandboxSpec(block_network=False))
 
         assert name.startswith("airflow-sandbox-")
-        args = run.call_args.args[0]
-        assert args == [
-            "sbx", "create", "--name", name, "--memory", "2g",
-            "--template", "python:3.12-slim", "shell", "/tmp/ws",
-        ]  # fmt: skip
-        assert backend._workspaces[name] == "/tmp/ws"
 
-    @patch(f"{_MOD}.tempfile.mkdtemp", return_value="/tmp/ws")
-    @patch(f"{_MOD}.shutil.which", return_value="/usr/local/bin/sbx")
-    @patch(f"{_MOD}.subprocess.run", return_value=_completed(0))
-    def test_create_passes_cpus_image_and_memory(self, run, which, mkdtemp):
-        backend = SbxSandboxBackend(image="python:3.13-slim", memory="4g", cpus=2)
 
-        backend.create()
+class TestCreate:
+    def test_missing_binary_is_terminal_and_says_why(self):
+        with patch("shutil.which", autospec=True, return_value=None):
+            with pytest.raises(SandboxTerminalError, match="was not found on PATH"):
+                SbxSandboxBackend().create()
 
-        args = run.call_args.args[0]
-        assert args[:8] == [
-            "sbx", "create", "--name", args[3], "--memory", "4g", "--template", "python:3.13-slim",
-        ]  # fmt: skip
-        assert "--cpus" in args
-        assert args[args.index("--cpus") + 1] == "2"
+    def test_failed_create_cleans_up_the_partial_sandbox(self, backend):
+        calls = []
 
-    @patch(f"{_MOD}.shutil.which", return_value=None)
-    def test_create_raises_when_binary_missing(self, which):
-        with pytest.raises(AirflowOptionalProviderFeatureException, match="sbx"):
-            SbxSandboxBackend().create()
+        def fake_run_cli(args, *, timeout, stdin=None):
+            calls.append(args)
+            return _completed(returncode=1, stderr=b"nope")
 
-    @patch(f"{_MOD}.shutil.rmtree")
-    @patch(f"{_MOD}.tempfile.mkdtemp", return_value="/tmp/ws")
-    @patch(f"{_MOD}.shutil.which", return_value="/usr/local/bin/sbx")
-    @patch(f"{_MOD}.subprocess.run", return_value=_completed(1, stderr="boom"))
-    def test_create_cleans_up_on_nonzero_exit(self, run, which, mkdtemp, rmtree):
-        backend = SbxSandboxBackend()
+        with (
+            patch("shutil.which", autospec=True, return_value="/usr/bin/sbx"),
+            patch.object(backend, "_run_cli", autospec=True, side_effect=fake_run_cli),
+        ):
+            with pytest.raises(SandboxTerminalError, match="sbx create' failed"):
+                backend.create()
 
-        with pytest.raises(RuntimeError, match="sbx create.*boom"):
-            backend.create()
+        assert calls[0][0] == "create"
+        assert calls[1][:2] == ["rm", "-f"]
 
-        rmtree.assert_called_once_with("/tmp/ws", ignore_errors=True)
-        # A best-effort 'sbx rm' of the possibly-orphaned sandbox was attempted.
-        assert any(call.args[0][:2] == ["sbx", "rm"] for call in run.call_args_list)
+    def test_env_is_applied_through_the_login_profile(self, backend):
+        seen = []
+
+        with (
+            patch("shutil.which", autospec=True, return_value="/usr/bin/sbx"),
+            patch.object(backend, "_run_cli", autospec=True, return_value=_completed()),
+            patch.object(
+                backend,
+                "_exec_capped_bytes",
+                autospec=True,
+                side_effect=lambda args, **kw: (
+                    seen.append((args, kw.get("stdin"))) or (0, bytearray(), bytearray(), False, False)
+                ),
+            ),
+        ):
+            backend.create(spec=SandboxSpec(env={"TOKEN": "s3cret"}, block_network=True))
+
+        profile_call = next(c for c in seen if "/etc/profile" in " ".join(c[0]))
+        assert b"export TOKEN=s3cret" in profile_call[1]
+
+    def test_env_values_are_shell_quoted(self, backend):
+        seen = []
+
+        with (
+            patch("shutil.which", autospec=True, return_value="/usr/bin/sbx"),
+            patch.object(backend, "_run_cli", autospec=True, return_value=_completed()),
+            patch.object(
+                backend,
+                "_exec_capped_bytes",
+                autospec=True,
+                side_effect=lambda args, **kw: (
+                    seen.append((args, kw.get("stdin"))) or (0, bytearray(), bytearray(), False, False)
+                ),
+            ),
+        ):
+            backend.create(spec=SandboxSpec(env={"X": "a b; rm -rf /"}))
+
+        profile_call = next(c for c in seen if "/etc/profile" in " ".join(c[0]))
+        assert b"'a b; rm -rf /'" in profile_call[1]
+
+    def test_a_failed_env_application_does_not_orphan_the_microvm(self, backend):
+        # sbx has no server-side TTL, so anything left behind here survives until
+        # an operator notices it.
+        calls = []
+
+        def fake_run_cli(args, *, timeout, stdin=None):
+            calls.append(args)
+            return _completed()
+
+        with (
+            patch("shutil.which", autospec=True, return_value="/usr/bin/sbx"),
+            patch.object(backend, "_run_cli", autospec=True, side_effect=fake_run_cli),
+            patch.object(
+                backend, "_exec_capped_bytes", autospec=True, side_effect=subprocess.TimeoutExpired("sbx", 1)
+            ),
+        ):
+            with pytest.raises(subprocess.TimeoutExpired):
+                backend.create(spec=SandboxSpec(env={"A": "1"}, block_network=True))
+
+        assert calls[0][0] == "create"
+        assert ["rm", "-f"] in [c[:2] for c in calls]
         assert backend._workspaces == {}
 
-    @patch(f"{_MOD}.shutil.rmtree")
-    @patch(f"{_MOD}.tempfile.mkdtemp", return_value="/tmp/ws")
-    @patch(f"{_MOD}.shutil.which", return_value="/usr/local/bin/sbx")
-    @patch(f"{_MOD}.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="sbx", timeout=600))
-    def test_create_cleans_up_on_timeout(self, run, which, mkdtemp, rmtree):
-        backend = SbxSandboxBackend()
+    def test_a_non_string_env_value_does_not_orphan_the_microvm(self, backend):
+        # SandboxSpec.env is typed Mapping[str, str] but nothing validates it, and
+        # shlex.quote raises TypeError on an int.
+        calls = []
 
-        with pytest.raises(subprocess.TimeoutExpired):
-            backend.create()
+        def fake_run_cli(args, *, timeout, stdin=None):
+            calls.append(args)
+            return _completed()
 
-        rmtree.assert_called_once_with("/tmp/ws", ignore_errors=True)
+        with (
+            patch("shutil.which", autospec=True, return_value="/usr/bin/sbx"),
+            patch.object(backend, "_run_cli", autospec=True, side_effect=fake_run_cli),
+        ):
+            with pytest.raises(TypeError):
+                backend.create(spec=SandboxSpec(env={"PORT": 8080}, block_network=True))  # type: ignore[dict-item]
+
+        assert ["rm", "-f"] in [c[:2] for c in calls]
         assert backend._workspaces == {}
 
 
-class TestSbxSandboxBackendRun:
-    def test_run_wraps_in_timeout_and_maps_output(self):
-        backend = SbxSandboxBackend()
-        with patch.object(backend, "_exec_capped", return_value=(0, "42\n", "", False)) as ec:
-            result = backend.run("sbx-1", ["python3", "-c", "print(42)"], timeout=10.0)
-
-        args = ec.call_args.args[0]
-        assert args == [
-            "exec", "sbx-1", "timeout", "--kill-after=10", "10", "python3", "-c", "print(42)",
-        ]  # fmt: skip
-        assert ec.call_args.kwargs["timeout"] == pytest.approx(40.0)  # 10 + _EXEC_GRACE
-        assert result.exit_code == 0
-        assert result.stdout == "42\n"
-        assert result.timed_out is False
-        assert result.truncated is False
-
-    def test_run_exit_124_is_timeout(self):
-        # GNU timeout exits exactly 124 when the budget is hit.
-        backend = SbxSandboxBackend()
-        with patch.object(backend, "_exec_capped", return_value=(124, "", "", False)):
-            result = backend.run("sbx-1", ["sleep", "60"], timeout=10.0)
-        assert result.timed_out is True
-
-    @pytest.mark.parametrize("exit_code", [0, 1])
-    def test_run_normal_exit_is_not_timeout(self, exit_code):
-        backend = SbxSandboxBackend()
-        with patch.object(backend, "_exec_capped", return_value=(exit_code, "", "x", False)):
-            result = backend.run("sbx-1", ["python3", "-c", "..."], timeout=10.0)
-        assert result.timed_out is False
-        assert result.exit_code == exit_code
-
+class TestRunCommand:
     @pytest.mark.parametrize(
-        ("elapsed", "expected_timed_out"),
+        ("returncode", "elapsed", "expected"),
         [
-            # SIGKILL escalation after the budget elapsed (command ignored SIGTERM).
-            (15.0, True),
-            # Fast SIGKILL well before the budget — an OOM kill, not a timeout.
-            (2.0, False),
+            (124, 0.0, True),  # SIGTERM path: timeout's own exit code
+            (137, 100.0, True),  # SIGKILL escalation, after the kill-after point
+            (137, 1.0, False),  # fast 137 is an OOM kill, not a timeout
+            (0, 0.0, False),
+            (1, 0.0, False),
         ],
     )
-    def test_run_exit_137_is_timeout_only_after_budget(self, elapsed, expected_timed_out):
-        backend = SbxSandboxBackend()
+    def test_timeout_classification(self, backend, returncode, elapsed, expected):
+        times = iter([0.0, elapsed])
         with (
-            patch(f"{_MOD}.time.monotonic", side_effect=[100.0, 100.0 + elapsed]),
-            patch.object(backend, "_exec_capped", return_value=(137, "", "", False)),
+            patch.object(
+                backend, "_exec_capped", autospec=True, return_value=(returncode, "", "", False, False)
+            ),
+            patch("time.monotonic", autospec=True, side_effect=lambda: next(times)),
         ):
-            result = backend.run("sbx-1", ["python3", "-c", "..."], timeout=10.0)
-        assert result.timed_out is expected_timed_out
-        assert result.exit_code == 137
+            result = backend.run_command("box", "x", timeout=10, max_output_bytes=1024)
 
-    def test_run_propagates_truncation_flag(self):
-        backend = SbxSandboxBackend()
-        with patch.object(backend, "_exec_capped", return_value=(0, "x", "", True)):
-            result = backend.run("sbx-1", ["yes"], timeout=10.0)
-        assert result.truncated is True
+        assert result.timed_out is expected
 
-    def test_run_cli_hang_destroys_and_replaces(self):
-        backend = SbxSandboxBackend()
+    def test_137_between_the_budget_and_the_kill_point_is_not_a_timeout(self, backend):
+        # GNU timeout only escalates to SIGKILL at budget + --kill-after, so a
+        # 137 arriving before that cannot be escalation.
+        times = iter([0.0, 10 + _KILL_AFTER - 1])
         with (
-            patch.object(backend, "_exec_capped", side_effect=subprocess.TimeoutExpired("sbx", 40)),
-            patch(f"{_MOD}.subprocess.run", return_value=_completed(0)) as run,
+            patch.object(backend, "_exec_capped", autospec=True, return_value=(137, "", "", False, False)),
+            patch("time.monotonic", autospec=True, side_effect=lambda: next(times)),
         ):
-            result = backend.run("sbx-1", ["sleep", "999"], timeout=10.0)
+            result = backend.run_command("box", "x", timeout=10, max_output_bytes=1024)
 
-        assert result.timed_out is True
-        assert result.sandbox_terminated is True
-        assert any(call.args[0][:2] == ["sbx", "rm"] for call in run.call_args_list)
+        assert result.timed_out is False
 
-    @pytest.mark.parametrize("timeout", [0, -1, float("nan")])
-    def test_run_rejects_invalid_timeout(self, timeout):
-        with pytest.raises(ValueError, match="timeout"):
-            SbxSandboxBackend().run("sbx-1", ["true"], timeout=timeout)
+    def test_hung_cli_destroys_the_sandbox_and_asks_for_a_fresh_one(self, backend):
+        with (
+            patch.object(
+                backend, "_exec_capped", autospec=True, side_effect=subprocess.TimeoutExpired("sbx", 1)
+            ),
+            patch.object(backend, "destroy", autospec=True) as destroy,
+        ):
+            result = backend.run_command("box", "x", timeout=1, max_output_bytes=1024)
 
+        destroy.assert_called_once_with("box")
+        assert result.timed_out
+        assert result.sandbox_terminated
 
-class TestSbxSandboxBackendExecCapped:
-    """Exercises the real Popen + capped-drain path (no sbx needed: run Python directly)."""
+    def test_command_runs_through_a_login_shell_under_gnu_timeout(self, backend):
+        with patch.object(
+            SbxSandboxBackend, "_exec_capped", return_value=(0, "", "", False, False)
+        ) as exec_capped:
+            backend.run_command("box", "echo hi", timeout=5, max_output_bytes=1024)
 
-    def test_bounds_stdout_and_stderr_and_flags_truncation(self):
-        backend = SbxSandboxBackend(sbx_path=sys.executable)
-        code = "import sys; sys.stdout.write('x'*200000); sys.stderr.write('y'*200000)"
-        rc, out, err, truncated = backend._exec_capped(["-c", code], timeout=30.0)
+        args = exec_capped.call_args[0][0]
+        assert args[:3] == ["exec", "box", "timeout"]
+        assert args[-3:] == ["sh", "-lc", "echo hi"]
 
-        assert rc == 0
-        assert len(out) == _MAX_OUTPUT_CHARS
-        assert len(err) == _MAX_OUTPUT_CHARS
-        assert truncated is True
+    def test_per_stream_truncation_flags_are_carried_through(self, backend):
+        with patch.object(SbxSandboxBackend, "_exec_capped", return_value=(0, "a", "b", True, False)):
+            result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
 
-    def test_small_output_is_untruncated(self):
-        backend = SbxSandboxBackend(sbx_path=sys.executable)
-        rc, out, err, truncated = backend._exec_capped(["-c", "print('hi')"], timeout=30.0)
-        assert rc == 0
-        assert out.strip() == "hi"
-        assert truncated is False
-
-    def test_raises_on_timeout(self):
-        backend = SbxSandboxBackend(sbx_path=sys.executable)
-        with pytest.raises(subprocess.TimeoutExpired):
-            backend._exec_capped(["-c", "import time; time.sleep(30)"], timeout=1.0)
+        assert result.stdout_truncated
+        assert not result.stderr_truncated
 
 
-class TestSbxSandboxBackendDestroy:
-    @patch(f"{_MOD}.shutil.rmtree")
-    @patch(f"{_MOD}.subprocess.run", return_value=_completed(0))
-    def test_destroy_removes_sandbox_and_workspace(self, run, rmtree):
-        backend = SbxSandboxBackend()
-        backend._workspaces["sbx-1"] = "/tmp/ws"
+class TestWriteFileOverride:
+    """sbx overrides the inherited write_file because it can stream stdin."""
 
-        backend.destroy("sbx-1")
+    def test_payload_goes_on_stdin_not_in_the_command(self, backend):
+        # The inherited default embeds the content in the command, which the
+        # guest's command-line length caps. stdin has no such ceiling.
+        with patch.object(
+            backend,
+            "_exec_capped_bytes",
+            autospec=True,
+            return_value=(0, bytearray(), bytearray(), False, False),
+        ) as exec_capped:
+            backend.write_file("box", "/w/a", b"data")
 
-        assert run.call_args.args[0] == ["sbx", "rm", "-f", "sbx-1"]
-        rmtree.assert_called_once_with("/tmp/ws", ignore_errors=True)
-        assert backend._workspaces == {}
+        assert exec_capped.call_args.kwargs["stdin"] == base64.b64encode(b"data")
+        assert exec_capped.call_args[0][0][:3] == ["exec", "-i", "box"]
 
-    @patch(f"{_MOD}.subprocess.run", return_value=_completed(1, stderr="not found"))
-    def test_destroy_ignores_missing_sandbox(self, run):
-        SbxSandboxBackend().destroy("gone")  # Does not raise.
+    def test_paths_are_shell_quoted(self, backend):
+        with patch.object(
+            backend,
+            "_exec_capped_bytes",
+            autospec=True,
+            return_value=(0, bytearray(), bytearray(), False, False),
+        ) as exec_capped:
+            backend.write_file("box", "/w/a b; rm -rf /", b"x")
 
-    @patch(f"{_MOD}.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="sbx", timeout=120))
-    def test_destroy_swallows_cli_timeout(self, run):
-        SbxSandboxBackend().destroy("sbx-1")  # Does not raise.
+        assert "'/w/a b; rm -rf /'" in " ".join(exec_capped.call_args[0][0])
+
+    def test_a_failed_write_is_recoverable(self, backend):
+        with patch.object(
+            backend,
+            "_exec_capped_bytes",
+            autospec=True,
+            return_value=(1, bytearray(), bytearray(b"read-only fs"), False, False),
+        ):
+            with pytest.raises(SandboxError, match="read-only fs"):
+                backend.write_file("box", "/w/a", b"x")
+
+
+class TestDestroy:
+    def test_is_idempotent_when_the_sandbox_is_already_gone(self, backend):
+        with patch.object(backend, "_run_cli", autospec=True, return_value=_completed(returncode=1)):
+            backend.destroy("box")  # must not raise
+
+    def test_removes_the_workspace_even_if_the_cli_times_out(self, backend, tmp_path):
+        workspace = tmp_path / "ws"
+        workspace.mkdir()
+        backend._workspaces["box"] = str(workspace)
+
+        with patch.object(
+            backend, "_run_cli", autospec=True, side_effect=subprocess.TimeoutExpired("sbx", 1)
+        ):
+            backend.destroy("box")
+
+        assert not workspace.exists()

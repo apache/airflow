@@ -51,6 +51,7 @@ alibaba
 alibabacloud
 allAuthenticatedUsers
 allowlist
+allowlists
 allUsers
 alphanumerics
 amazonaws
@@ -883,7 +884,6 @@ irreproducible
 IRSA
 isfile
 ish
-islo
 isn
 isort
 istio
@@ -1071,10 +1071,12 @@ metastore
 metavar
 mget
 mgmt
+MiB
 microservice
 microservices
 microsoft
 microVM
+microVMs
 middleware
 middlewares
 midnights
@@ -1762,7 +1764,6 @@ tis
 TLS
 tls
 tmp
-tmpfs
 tnsnames
 todo
 tokenization
