@@ -34,7 +34,7 @@ Understand the system
 A minimal Airflow deployment is made up of a *scheduler*, a *Dag processor*, a *Dag bundle*,
 an *API server*, and a *metadata database*; larger deployments add *workers* and a *triggerer*.
 Each component can fail independently, and Airflow 3 removed the standalone webserver process
-in favour of the API server, and moved Dag parsing out of the scheduler and into its own
+in favor of the API server, and moved Dag parsing out of the scheduler and into its own
 *Dag processor* process. Before debugging a specific failure, know which of these components
 is involved. See :doc:`/core-concepts/overview` for the full component breakdown.
 
@@ -120,7 +120,7 @@ the original failure was intermittent, re-run it more than once before calling i
 
 .. [1] David A. Wheeler, `Debugging: nine indispensable rules for finding even the most
    elusive software and hardware problems <https://dwheeler.com/essays/debugging-agans.html>`__
-   (2004), summarising David J. Agans' nine rules of debugging.
+   (2004), summarizing David J. Agans' nine rules of debugging.
 
 Obscure task failures
 ^^^^^^^^^^^^^^^^^^^^^
