@@ -1154,7 +1154,7 @@ export type DagRunAssetReference = {
     /**
      * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
      */
-    triggering?: boolean;
+    triggering: boolean;
 };
 
 /**

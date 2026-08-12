@@ -29,7 +29,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.assets import resolve_triggering_event_ids
+from airflow.api_fastapi.common.db.assets import resolve_triggering_event_refs
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
@@ -378,16 +378,12 @@ def get_asset_events(
     # dependency-applied timeout is still active.
     assets_events = session.scalars(assets_event_select).all()
 
-    # An asset event is linked to every dag run that consumed it, so a run that consumed several
-    # events would otherwise appear as "triggered" on each one. Only a run's most recent consumed
-    # event actually triggers it; the rest were merely included.
-    triggering_event_id_by_run = resolve_triggering_event_ids(assets_events, session=session)
+    triggering_refs = resolve_triggering_event_refs(assets_events, session=session)
     asset_event_responses = []
     for event in assets_events:
-        event_response = AssetEventResponse.model_validate(event)
-        for reference, dag_run in zip(event_response.created_dagruns, event.created_dagruns):
-            reference.triggering = triggering_event_id_by_run.get(dag_run.id) == event.id
-        asset_event_responses.append(event_response)
+        for run in event.created_dagruns:
+            run.triggering = (event.id, run.dag_id, run.run_id) in triggering_refs
+        asset_event_responses.append(AssetEventResponse.model_validate(event))
 
     return AssetEventCollectionResponse(
         asset_events=asset_event_responses,

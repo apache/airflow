@@ -77,8 +77,8 @@ export const TriggeredRuns = ({ dagRuns }: Props) => {
 
   // An asset event is linked to every run that consumed it, but only a run's most recent consumed
   // event triggered it (backend flag). The rest were merely included, so label them accordingly.
-  const triggeredRuns = dagRuns.filter((dagRun) => dagRun.triggering !== false);
-  const includedRuns = dagRuns.filter((dagRun) => dagRun.triggering === false);
+  const triggeredRuns = dagRuns.filter((dagRun) => dagRun.triggering);
+  const includedRuns = dagRuns.filter((dagRun) => !dagRun.triggering);
 
   return (
     <Flex direction="column" gap={1}>
