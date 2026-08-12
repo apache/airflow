@@ -18,7 +18,7 @@
  */
 
 import { SUPERVISOR_API_VERSION } from "./protocol.js";
-import type { DagRegistry } from "../sdk/registry.js";
+import { listRegistryDags, type DagRegistry } from "../sdk/registry.js";
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
@@ -37,7 +37,7 @@ export interface BundleManifest {
 
 export function buildBundleManifest(registry: DagRegistry): BundleManifest {
   const dags: BundleManifest["dags"] = {};
-  for (const { dagId, tasks } of registry.listDags()) {
+  for (const { dagId, tasks } of listRegistryDags(registry)) {
     dags[dagId] = { tasks: [...tasks] };
   }
   return {

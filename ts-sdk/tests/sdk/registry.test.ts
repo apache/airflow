@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from "vitest";
 import { Dag } from "../../src/sdk/dag.js";
-import { DagRegistry } from "../../src/sdk/registry.js";
+import { DagRegistry, listRegistryDags, listRegistryTasks } from "../../src/sdk/registry.js";
 
 describe("DagRegistry", () => {
   it("registers a Dag and retrieves its handlers", () => {
@@ -37,7 +37,7 @@ describe("DagRegistry", () => {
     dagA.task("a", handler);
     const registry = new DagRegistry(dagA, new Dag("dag_b"));
     expect(registry.getTaskHandler("dag_a", "a")).toBe(handler);
-    expect(registry.listDags()).toEqual([
+    expect(listRegistryDags(registry)).toEqual([
       { dagId: "dag_a", tasks: ["a"] },
       { dagId: "dag_b", tasks: [] },
     ]);
@@ -66,7 +66,7 @@ describe("DagRegistry", () => {
 
   it("returns an empty list when no Dags are registered", () => {
     const registry = new DagRegistry();
-    expect(registry.listTasks()).toEqual([]);
+    expect(listRegistryTasks(registry)).toEqual([]);
   });
 
   it("lists tasks across registered Dags", () => {
@@ -76,7 +76,7 @@ describe("DagRegistry", () => {
     dagB.task("b", async () => undefined);
     const registry = new DagRegistry();
     registry.register(dagA, dagB);
-    const registered = registry.listTasks();
+    const registered = listRegistryTasks(registry);
     expect(registered).toHaveLength(2);
     expect(registered).toContainEqual({ dagId: "dag_a", taskId: "a" });
     expect(registered).toContainEqual({ dagId: "dag_b", taskId: "b" });
@@ -108,7 +108,7 @@ describe("DagRegistry", () => {
     dag.task("a", async () => undefined);
     expect(() => registry.register(dag, new Dag("dag_a"))).toThrowError(/already registered/);
     expect(registry.getTaskHandler("dag_a", "a")).toBeUndefined();
-    expect(registry.listTasks()).toEqual([]);
+    expect(listRegistryTasks(registry)).toEqual([]);
   });
 
   it("rejects values that are not Dag instances", () => {
@@ -134,7 +134,7 @@ describe("DagRegistry", () => {
     dagA.task("a2", async () => undefined);
     const registry = new DagRegistry();
     registry.register(dagA, new Dag("empty_dag"));
-    expect(registry.listDags()).toEqual([
+    expect(listRegistryDags(registry)).toEqual([
       { dagId: "dag_a", tasks: ["a1", "a2"] },
       { dagId: "empty_dag", tasks: [] },
     ]);
@@ -144,11 +144,14 @@ describe("DagRegistry", () => {
     const registry = new DagRegistry();
     const dag = new Dag("example_dag");
     registry.register(dag);
-    expect(registry.listTasks()).toEqual([]);
+    expect(listRegistryTasks(registry)).toEqual([]);
 
     const handler = async () => "late";
     dag.task("late_task", handler);
     expect(registry.getTaskHandler("example_dag", "late_task")).toBe(handler);
-    expect(registry.listTasks()).toContainEqual({ dagId: "example_dag", taskId: "late_task" });
+    expect(listRegistryTasks(registry)).toContainEqual({
+      dagId: "example_dag",
+      taskId: "late_task",
+    });
   });
 });

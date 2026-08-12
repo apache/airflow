@@ -22,7 +22,6 @@ export { DagRegistry } from "./sdk/registry.js";
 export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
 export { serveDags, SUPERVISOR_API_VERSION } from "./coordinator/index.js";
 export type { DagSpec, TaskInputs, TaskOptions, TaskRef, TaskSpec } from "./sdk/dag.js";
-export type { RegisteredDag } from "./sdk/registry.js";
 export type { TaskClient } from "./sdk/client.js";
 export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "./sdk/client-types.js";
 export type { TaskContext, TaskHandler, TaskHandlerArgs } from "./sdk/task.js";

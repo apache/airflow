@@ -61,7 +61,7 @@ describe("public API", () => {
   // regardless of whether another test in this file already served a registry.
   it.each([
     ["a bare Dag", new Dag("not_a_registry_dag")],
-    ["a plain object", { listTasks: () => [] }],
+    ["a plain object", { register: () => {} }],
     ["null", null],
   ])("rejects a %s in place of a registry", async (_label, value) => {
     await expect(serveDags(value as unknown as DagRegistry)).rejects.toThrow(
@@ -80,8 +80,7 @@ describe("public API", () => {
   });
 
   describe("the one-shot serve latch", () => {
-    // Keyed on the global symbol registry so duplicate copies of the package
-    // share it, which also means it outlives the test that trips it.
+    // Global by design, so it outlives the test that trips it.
     afterEach(() => {
       delete (globalThis as unknown as Record<symbol, unknown>)[
         Symbol.for("airflow.ts-sdk.served")
@@ -90,7 +89,7 @@ describe("public API", () => {
 
     it("rejects a second call once a serve has completed", async () => {
       const argv = process.argv;
-      // --airflow-metadata is the one path that completes without sockets.
+      // The one path that completes without sockets.
       process.argv = [...argv, AIRFLOW_METADATA_FLAG];
       vi.spyOn(process.stdout, "write").mockReturnValue(true);
       try {
@@ -122,16 +121,17 @@ describe("public API", () => {
     // Building a registry starts nothing, so a test can dispatch through it
     // exactly as the runtime does, with no sockets in scope.
     const registry = new DagRegistry(dag);
-    expect(registry.listDags()).toEqual([{ dagId: "registry_api_dag", tasks: ["extract"] }]);
     expect(registry.getTaskHandler("registry_api_dag", "extract")).toBe(handler);
-    expect(registry.listTasks()).toEqual([{ dagId: "registry_api_dag", taskId: "extract" }]);
+    registry.register(new Dag("late_dag"));
+    expect(registry.getTaskHandler("late_dag", "extract")).toBeUndefined();
+  });
 
-    const late = new Dag("late_dag");
-    registry.register(late);
-    expect(registry.listDags().map((entry) => entry.dagId)).toEqual([
-      "registry_api_dag",
-      "late_dag",
-    ]);
+  it("keeps registry enumeration out of the public surface", () => {
+    const registry = new DagRegistry();
+    for (const name of ["listTasks", "listDags"]) {
+      expect(name in registry).toBe(false);
+    }
+    expectTypeOf<keyof DagRegistry>().toEqualTypeOf<"register" | "getTaskHandler">();
   });
 
   it("does not export the removed registerTask surface or the coordinator itself", () => {

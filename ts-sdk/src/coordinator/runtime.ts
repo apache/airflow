@@ -52,7 +52,7 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { DagRegistry, isDagRegistry } from "../sdk/registry.js";
+import { DagRegistry, isDagRegistry, listRegistryTasks } from "../sdk/registry.js";
 import { DUPLICATE_COPY_HINT } from "../sdk/dag.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
@@ -61,9 +61,8 @@ export const ABORT_GRACE_PERIOD_MS = 30_000;
 export const COORDINATOR_RESPONSE_TIMEOUT_MS = 30_000;
 
 // What must not happen twice is one process connecting two pairs of sockets, so
-// the latch is keyed on the cross-realm symbol registry rather than held in a
-// module variable: a workspace that resolves two copies of this package would
-// give each copy its own module state, and both would believe they were first.
+// this is keyed globally rather than held in a module variable: two resolved
+// copies of the package would each get their own, and both would be first.
 const SERVED = Symbol.for("airflow.ts-sdk.served");
 
 function serveLatch(): Record<symbol, boolean | undefined> {
@@ -84,10 +83,10 @@ function serveLatch(): Record<symbol, boolean | undefined> {
  *
  * The registry is the bundle's complete set of Dags: this process serves one
  * supervisor request, so a second call — which would connect a second pair of
- * sockets — is rejected. A call that fails is not a serve, so it releases the
- * latch and may be retried. Resolves when Airflow's supervisor has been sent the
- * terminal frame for the work this process was started for; the same call also
- * answers the build-time `--airflow-metadata` query `airflow-ts-pack` makes.
+ * sockets — is rejected. A call that fails is not a serve, and may be retried.
+ * Resolves when Airflow's supervisor has been sent the terminal frame for the
+ * work this process was started for; the same call also answers the build-time
+ * `--airflow-metadata` query `airflow-ts-pack` makes.
  */
 export async function serveDags(registry: DagRegistry): Promise<void> {
   // Checked here rather than at first use: a bad argument otherwise surfaces
@@ -109,7 +108,7 @@ export async function serveDags(registry: DagRegistry): Promise<void> {
     await startCoordinator(registry);
   } catch (err) {
     // startCoordinator closes both sockets on its way out, so a failed serve
-    // holds nothing open and the caller is free to try again.
+    // holds nothing open and may be retried.
     latch[SERVED] = undefined;
     throw err;
   }
@@ -201,7 +200,7 @@ export async function startCoordinator(
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = registry.listTasks();
+    const tasks = listRegistryTasks(registry);
     runtimeLogs.info("Coordinator runtime started", {
       registered_tasks: tasks,
       count: tasks.length,
@@ -323,7 +322,7 @@ function handleParse(
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: registry.listTasks(),
+    registered_tasks: listRegistryTasks(registry),
   });
   const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
@@ -348,7 +347,7 @@ async function handleTask(
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: registry.listTasks(),
+      available: listRegistryTasks(registry),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.
