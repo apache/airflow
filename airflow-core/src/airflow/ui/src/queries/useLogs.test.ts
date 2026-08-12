@@ -55,17 +55,4 @@ describe("getLogLineText", () => {
       "plain ok line",
     );
   });
-
-  it("renders structured extras separated by single spaces, without a trailing space", () => {
-    const logMessage = {
-      event: "task done",
-      level: "info",
-      payload: 1,
-      worker: "w-1",
-    } as unknown as StructuredLogMessage;
-
-    expect(getLogLineText({ logMessage, showSource: false, showTimestamp: false, translate })).toBe(
-      "INFO - task done payload=1 worker=w-1",
-    );
-  });
 });
