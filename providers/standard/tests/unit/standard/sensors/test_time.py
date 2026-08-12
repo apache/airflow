@@ -146,6 +146,9 @@ class TestTimeSensor:
             with pytest.warns(AirflowProviderDeprecationWarning, match="start_from_trigger is deprecated"):
                 op = TimeSensor(task_id="test", target_time=time(10, 0), start_from_trigger=True)
         assert op.start_from_trigger is False
+        with pytest.warns(AirflowProviderDeprecationWarning, match="start_from_trigger is deprecated"):
+            op.start_from_trigger = True
+        assert op.start_from_trigger is False
 
     def test_target_datetime_recomputed_on_each_access(self):
         with DAG(

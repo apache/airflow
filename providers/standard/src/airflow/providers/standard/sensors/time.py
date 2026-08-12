@@ -50,7 +50,6 @@ class TimeSensor(BaseSensorOperator):
         next_kwargs=None,
         timeout=None,
     )
-    start_from_trigger = False
 
     def __init__(
         self,
@@ -62,7 +61,21 @@ class TimeSensor(BaseSensorOperator):
         trigger_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        if start_from_trigger:
+        super().__init__(**kwargs)
+
+        self.target_time = target_time
+        self.deferrable = deferrable
+        self.start_from_trigger = start_from_trigger
+        self.end_from_trigger = end_from_trigger
+
+    @property
+    def start_from_trigger(self) -> bool:
+        """Always False: TimeSensor cannot start from trigger. Kept for backward compatibility."""
+        return False
+
+    @start_from_trigger.setter
+    def start_from_trigger(self, value: bool) -> None:
+        if value:
             warnings.warn(
                 "start_from_trigger is deprecated for TimeSensor and is now ignored. The target "
                 "moment is computed fresh from the current wall-clock time on every Dag parse, so "
@@ -72,12 +85,6 @@ class TimeSensor(BaseSensorOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        super().__init__(**kwargs)
-
-        self.target_time = target_time
-        self.deferrable = deferrable
-        self.start_from_trigger = False
-        self.end_from_trigger = end_from_trigger
 
     @property
     def target_datetime(self) -> datetime.datetime:
