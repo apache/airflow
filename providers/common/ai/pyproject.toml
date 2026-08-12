@@ -78,11 +78,11 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.0.0"]
-"bedrock" = ["pydantic-ai-slim[bedrock]>=2.0.0"]
-"google" = ["pydantic-ai-slim[google]>=2.0.0"]
-"openai" = ["pydantic-ai-slim[openai]>=2.0.0"]
-"mcp" = ["pydantic-ai-slim[mcp]>=2.0.0"]
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.23.0"]
+"bedrock" = ["pydantic-ai-slim[bedrock]>=2.23.0"]
+"google" = ["pydantic-ai-slim[google]>=2.23.0"]
+"openai" = ["pydantic-ai-slim[openai]>=2.23.0"]
+"mcp" = ["pydantic-ai-slim[mcp]>=2.23.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
 # Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an

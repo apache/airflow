@@ -43,7 +43,8 @@ def resolve_usage_limits(
       noise for a value like ``0.1``. ``max_cost`` overrides any ``cost_limit`` already present
       on ``usage_limits``; every other field is preserved as-is.
 
-    :raises ValueError: if ``max_cost`` cannot be parsed as a number, or is negative.
+    :raises ValueError: if ``max_cost`` cannot be parsed as a number, is not finite
+        (``inf``, ``-inf``, or ``nan``), or is negative.
     """
     if max_cost is None:
         return usage_limits
@@ -55,6 +56,11 @@ def resolve_usage_limits(
             f"max_cost must be a number or a numeric string (got {max_cost!r}); "
             "if it is templated, check the rendered value."
         ) from None
+    if not cost_limit.is_finite():
+        raise ValueError(
+            f"max_cost must be a finite number (got {max_cost!r}); "
+            "a non-finite value would silently disable the cost cap."
+        )
     if cost_limit < 0:
         raise ValueError(f"max_cost must not be negative (got {max_cost!r})")
 
