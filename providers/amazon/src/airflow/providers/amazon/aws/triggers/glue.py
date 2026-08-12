@@ -144,7 +144,10 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                     )
                     return
 
-                if job_run_state in ("FAILED", "TIMEOUT"):
+                # STOPPED is treated as a failure, consistent with the "job_complete" waiter's
+                # acceptors and GlueJobHook._handle_state, both of which also classify STOPPED
+                # as failure rather than a successful completion.
+                if job_run_state in ("FAILED", "TIMEOUT", "STOPPED"):
                     yield TriggerEvent(
                         {
                             "status": "error",
@@ -154,7 +157,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                         }
                     )
                     return
-                if job_run_state in ("SUCCEEDED", "STOPPED"):
+                if job_run_state == "SUCCEEDED":
                     self.log.info(
                         "Exiting Job %s Run %s State: %s",
                         self.job_name,

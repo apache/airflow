@@ -504,13 +504,14 @@ class TestGlueJobHook:
         assert get_state_mock.call_count == 3
         get_state_mock.assert_called_with("job_name", "run_id")
 
+    @pytest.mark.parametrize("final_state", ["FAILED", "TIMEOUT", "STOPPED"])
     @mock.patch.object(GlueJobHook, "get_job_state")
-    def test_job_completion_failure(self, get_state_mock: MagicMock):
+    def test_job_completion_failure(self, get_state_mock: MagicMock, final_state: str):
         hook = GlueJobHook(job_poll_interval=0)
         get_state_mock.side_effect = [
             "RUNNING",
             "RUNNING",
-            "FAILED",
+            final_state,
         ]
 
         with pytest.raises(AirflowException):
@@ -534,13 +535,14 @@ class TestGlueJobHook:
         get_state_mock.assert_called_with("job_name", "run_id")
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("final_state", ["FAILED", "TIMEOUT", "STOPPED"])
     @mock.patch.object(GlueJobHook, "async_get_job_state")
-    async def test_async_job_completion_failure(self, get_state_mock: MagicMock):
+    async def test_async_job_completion_failure(self, get_state_mock: MagicMock, final_state: str):
         hook = GlueJobHook(job_poll_interval=0)
         get_state_mock.side_effect = [
             "RUNNING",
             "RUNNING",
-            "FAILED",
+            final_state,
         ]
 
         with pytest.raises(AirflowException):

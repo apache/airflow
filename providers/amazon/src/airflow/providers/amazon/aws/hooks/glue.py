@@ -433,8 +433,11 @@ class GlueJobHook(AwsBaseHook):
         next_log_tokens: GlueJobHook.LogContinuationTokens,
     ) -> dict | None:
         """Process Glue Job state while polling; used by both sync and async methods."""
-        failed_states = ["FAILED", "TIMEOUT"]
-        finished_states = ["SUCCEEDED", "STOPPED"]
+        # STOPPED is treated as a failure (not a successful completion) to stay consistent
+        # with the "job_complete" waiter's acceptors and GlueJobCompleteTrigger's verbose
+        # polling loop, both of which also classify STOPPED as failure.
+        failed_states = ["FAILED", "TIMEOUT", "STOPPED"]
+        finished_states = ["SUCCEEDED"]
 
         if verbose:
             self.print_job_logs(
