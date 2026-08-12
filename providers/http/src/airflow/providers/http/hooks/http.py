@@ -17,10 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import copy
 import random
-import time
 from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
@@ -44,6 +42,7 @@ from airflow.utils.strings import to_boolean
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+    from dns.rdtypes.IN.SRV import SRV
     from requests.adapters import HTTPAdapter
 
     from airflow.models import Connection
@@ -56,12 +55,12 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     return (base_url or "") + (endpoint or "")
 
 
-def _select_srv_target(answers: Iterable[Any]) -> tuple[str, int]:
+def _select_srv_target(answers: Iterable[SRV]) -> tuple[str, int]:
     """Select a target host and port from resolved DNS SRV records."""
-    candidates_by_priority: dict[int, list[Any]] = {}
+    candidates_by_priority: dict[int, list[SRV]] = {}
     for record in answers:
         candidates_by_priority.setdefault(record.priority, []).append(record)
-    # Failover mechanism: RFC 2782
+    # RFC 2782 priority failover; weight is not honored, ties broken uniformly at random.
     candidates = candidates_by_priority[min(candidates_by_priority)]
     chosen = random.choice(candidates)
 
@@ -94,7 +93,6 @@ def _process_extra_options_from_connection(
     check_response = conn_extra_options.pop("check_response", None)
 
     conn_extra_options.pop("srv_lookup", None)
-    conn_extra_options.pop("srv_cache_ttl", None)
 
     if stream is not None and "stream" not in passed_extra_options:
         passed_extra_options["stream"] = stream
@@ -159,7 +157,6 @@ class HttpHook(BaseHook):
     Extra also supports resolving ``host`` via a DNS SRV record:
 
     * ``srv_lookup`` (bool): treat ``host`` as an SRV record name, e.g. ``_http._tcp.example.com``.
-    * ``srv_cache_ttl`` (float): SRV cache TTL in seconds (default 60).
     """
 
     conn_name_attr = "http_conn_id"
@@ -190,9 +187,6 @@ class HttpHook(BaseHook):
         self._srv_lookup_enabled: bool = False
         self._srv_name: str | None = None
         self._srv_scheme: str = "http"
-        self._srv_cache: tuple[str, int] | None = None
-        self._srv_cache_time: float = 0.0
-        self._srv_cache_ttl: float = 60.0
 
         # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
         self.adapter = adapter
@@ -251,7 +245,6 @@ class HttpHook(BaseHook):
         schema = connection.schema or "http"
         extra = connection.extra_dejson
         self._srv_lookup_enabled = to_boolean(str(extra.get("srv_lookup", False)))
-        self._srv_cache_ttl = float(extra.get("srv_cache_ttl", self._srv_cache_ttl))
         # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
         if "://" in host:
             self.base_url = host
@@ -267,19 +260,13 @@ class HttpHook(BaseHook):
             # ``_http._tcp.example.com``), not a directly connectable hostname.
             self._srv_name = parsed.hostname
             self._srv_scheme = parsed.scheme
-            self._srv_cache = None
-            self._srv_cache_time = 0.0
         self._base_url_initialized = True
 
     def _get_dynamic_base_url(self) -> str:
         """Return the base URL for the current request, resolving SRV records when enabled."""
         if not self._srv_lookup_enabled:
             return self.base_url
-        now = time.monotonic()
-        if self._srv_cache is None or (now - self._srv_cache_time) >= self._srv_cache_ttl:
-            self._srv_cache = self._resolve_srv_record(cast("str", self._srv_name))
-            self._srv_cache_time = now
-        target_host, target_port = self._srv_cache
+        target_host, target_port = self._resolve_srv_record(cast("str", self._srv_name))
         return f"{self._srv_scheme}://{target_host}:{target_port}"
 
     def _resolve_srv_record(self, host: str) -> tuple[str, int]:
@@ -484,8 +471,8 @@ class HttpHook(BaseHook):
         """
         Combine base url with endpoint.
 
-        If SRV lookup is enabled on the connection, the base URL is re-resolved (subject to
-        caching) before combining it with the endpoint.
+        If SRV lookup is enabled on the connection, the base URL is re-resolved before combining
+        it with the endpoint.
         """
         # Ensure base_url is set by initializing it if it hasn't been initialized yet
         if not self._base_url_initialized and not self.base_url:
@@ -641,7 +628,6 @@ class HttpAsyncHook(BaseHook):
     Extra also supports resolving ``host`` via a DNS SRV record:
 
     * ``srv_lookup`` (bool): treat ``host`` as an SRV record name, e.g. ``_http._tcp.example.com``.
-    * ``srv_cache_ttl`` (float): SRV cache TTL in seconds (default 60).
     """
 
     conn_name_attr = "http_conn_id"
@@ -670,10 +656,6 @@ class HttpAsyncHook(BaseHook):
         self._srv_lookup_enabled: bool = False
         self._srv_name: str | None = None
         self._srv_scheme: str = "http"
-        self._srv_cache: tuple[str, int] | None = None
-        self._srv_cache_time: float = 0.0
-        self._srv_cache_ttl: float = 60.0
-        self._srv_lock = asyncio.Lock()
 
     def _get_request_func(
         self, session: aiohttp.ClientSession, method: str | None = None
@@ -727,7 +709,6 @@ class HttpAsyncHook(BaseHook):
 
                 extra = conn.extra_dejson
                 self._srv_lookup_enabled = to_boolean(str(extra.get("srv_lookup", False)))
-                self._srv_cache_ttl = float(extra.get("srv_cache_ttl", self._srv_cache_ttl))
                 if self._srv_lookup_enabled:
                     # When SRV lookup is enabled, ``host`` is the SRV record name (e.g.
                     # ``_http._tcp.example.com``), not a directly connectable hostname.
@@ -748,16 +729,7 @@ class HttpAsyncHook(BaseHook):
         config = await self.config()
         if not self._srv_lookup_enabled:
             return config.base_url
-        now = time.monotonic()
-        if self._srv_cache is None or (now - self._srv_cache_time) >= self._srv_cache_ttl:
-            async with self._srv_lock:
-                # Re-check after acquiring the lock: another concurrent request may have
-                # already refreshed the cache while this one was waiting.
-                now = time.monotonic()
-                if self._srv_cache is None or (now - self._srv_cache_time) >= self._srv_cache_ttl:
-                    self._srv_cache = await self._resolve_srv_record_async(cast("str", self._srv_name))
-                    self._srv_cache_time = now
-        target_host, target_port = self._srv_cache
+        target_host, target_port = await self._resolve_srv_record_async(cast("str", self._srv_name))
         return f"{self._srv_scheme}://{target_host}:{target_port}"
 
     async def _resolve_srv_record_async(self, host: str) -> tuple[str, int]:

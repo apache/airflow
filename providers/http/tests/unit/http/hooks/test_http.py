@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import functools
 import importlib
@@ -660,7 +659,6 @@ class TestHttpHook:
                 "max_redirects": 3,
                 "trust_env": False,
                 "srv_lookup": True,
-                "srv_cache_ttl": 30,
             }
         )()
 
@@ -715,7 +713,7 @@ class TestHttpHookSrvLookup:
             conn_type="http",
             host="_http._tcp.example.com",
             schema="https",
-            extra=json.dumps({"srv_lookup": True, "srv_cache_ttl": 30}),
+            extra=json.dumps({"srv_lookup": True}),
         )
         mock_get_connection.return_value = conn
         hook = HttpHook()
@@ -723,7 +721,6 @@ class TestHttpHookSrvLookup:
         assert hook._srv_lookup_enabled is True
         assert hook._srv_name == "_http._tcp.example.com"
         assert hook._srv_scheme == "https"
-        assert hook._srv_cache_ttl == 30
 
     def test_set_base_url_srv_lookup_disabled_by_default(self):
         conn = Connection(conn_id="http_default", conn_type="http", host="test.com")
@@ -733,14 +730,14 @@ class TestHttpHookSrvLookup:
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_get_conn_only_puts_string_values_in_headers(self, mock_get_connection):
-        # Any consumed (non-header) extra option that isn't a string, e.g. srv_lookup/srv_cache_ttl,
-        # must never reach session.headers: requests rejects non-str/bytes header values outright.
+        # Any consumed (non-header) extra option that isn't a string, e.g. srv_lookup, must never
+        # reach session.headers: requests rejects non-str/bytes header values outright.
         mock_get_connection.return_value = Connection(
             conn_id="http_default",
             conn_type="http",
             host="_http._tcp.example.com",
             schema="https",
-            extra=json.dumps({"srv_lookup": True, "srv_cache_ttl": 30}),
+            extra=json.dumps({"srv_lookup": True}),
         )
         hook = HttpHook()
 
@@ -809,26 +806,23 @@ class TestHttpHookSrvLookup:
         assert url == "https://svc-1.example.com:8443/v1/test"
         mock_resolve.assert_called_once_with("_http._tcp.example.com")
 
-    @mock.patch("airflow.providers.http.hooks.http.time.monotonic")
     @mock.patch("airflow.providers.http.hooks.http.HttpHook._resolve_srv_record")
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    def test_url_from_endpoint_caches_srv_resolution_within_ttl(
-        self, mock_get_connection, mock_resolve, mock_monotonic
-    ):
+    def test_url_from_endpoint_resolves_srv_record_on_every_call(self, mock_get_connection, mock_resolve):
         conn = Connection(
             conn_id="http_default",
             conn_type="http",
             host="_http._tcp.example.com",
-            extra=json.dumps({"srv_lookup": True, "srv_cache_ttl": 60}),
+            extra=json.dumps({"srv_lookup": True}),
         )
         mock_get_connection.return_value = conn
         mock_resolve.return_value = ("svc-1.example.com", 8080)
-        mock_monotonic.side_effect = [0.0, 10.0, 65.0]
 
         hook = HttpHook()
         hook.url_from_endpoint("a")
-        hook.url_from_endpoint("b")  # still within the 60s TTL: no re-resolution
-        hook.url_from_endpoint("c")  # past the TTL: re-resolves
+        hook.url_from_endpoint("b")
+
+        assert mock_resolve.call_count == 2
 
         assert mock_resolve.call_count == 2
 
@@ -1103,10 +1097,7 @@ class TestHttpAsyncHookSrvLookup:
 
     @pytest.mark.asyncio
     @mock.patch("dns.asyncresolver.resolve", new_callable=mock.AsyncMock)
-    async def test_run_caches_srv_resolution_within_ttl(self, mock_resolve):
-        # `time.monotonic` is also used by the asyncio event loop internals, so it can't be
-        # mocked wholesale here; instead, the cache timestamp is nudged directly to simulate
-        # TTL expiry.
+    async def test_run_resolves_srv_record_on_every_call(self, mock_resolve):
         mock_resolve.return_value = [self._make_srv_answer(10, 8080, "svc-1.example.com.")]
         hook = HttpAsyncHook(http_conn_id="http_async_srv_conn", method="GET")
 
@@ -1116,59 +1107,22 @@ class TestHttpAsyncHookSrvLookup:
             )
             async with aiohttp.ClientSession() as session:
                 await hook.run(session=session, endpoint="a")
-                await hook.run(session=session, endpoint="b")  # within TTL: no re-resolution
-
-        assert mock_resolve.call_count == 1
-
-        hook._srv_cache_time -= hook._srv_cache_ttl + 1  # simulate TTL expiry
-
-        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
-            mocked_get.return_value = MockAiohttpClientResponse(
-                status=200, payload={}, method="GET", url="https://svc-1.example.com:8080"
-            )
-            async with aiohttp.ClientSession() as session:
-                await hook.run(session=session, endpoint="c")  # past TTL: re-resolves
+                await hook.run(session=session, endpoint="b")
 
         assert mock_resolve.call_count == 2
-
-    @pytest.mark.asyncio
-    @mock.patch("dns.asyncresolver.resolve", new_callable=mock.AsyncMock)
-    async def test_concurrent_requests_resolve_srv_record_once(self, mock_resolve):
-        resolver_entered = asyncio.Event()
-        release_resolver = asyncio.Event()
-
-        async def blocking_resolve(*args, **kwargs):
-            resolver_entered.set()
-            await release_resolver.wait()
-            return [self._make_srv_answer(10, 8443, "svc-1.example.com.")]
-
-        mock_resolve.side_effect = blocking_resolve
-        hook = HttpAsyncHook(http_conn_id="http_async_srv_conn", method="GET")
-
-        callers = [asyncio.create_task(hook._get_dynamic_base_url_async()) for _ in range(5)]
-        # Hold the first caller inside the resolver so the rest pile up behind the SRV lock,
-        # then release it: the queued callers must reuse its result rather than re-resolving.
-        await resolver_entered.wait()
-        for _ in range(10):
-            await asyncio.sleep(0)
-        release_resolver.set()
-        base_urls = await asyncio.gather(*callers)
-
-        assert mock_resolve.call_count == 1
-        assert base_urls == ["https://svc-1.example.com:8443"] * 5
 
     @pytest.mark.asyncio
     async def test_config_only_puts_string_values_in_headers(self, create_connection_without_db):
         create_connection_without_db(
             Connection(
-                conn_id="http_async_srv_conn_with_ttl",
+                conn_id="http_async_srv_conn_extra",
                 conn_type="http",
                 host="_http._tcp.example.com",
                 schema="https",
-                extra=json.dumps({"srv_lookup": True, "srv_cache_ttl": 30}),
+                extra=json.dumps({"srv_lookup": True}),
             )
         )
-        hook = HttpAsyncHook(http_conn_id="http_async_srv_conn_with_ttl", method="GET")
+        hook = HttpAsyncHook(http_conn_id="http_async_srv_conn_extra", method="GET")
 
         config = await hook.config()
 

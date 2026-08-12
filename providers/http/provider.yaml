@@ -137,12 +137,3 @@ connection-types:
             - boolean
             - "null"
           default: false
-      srv_cache_ttl:
-        label: SRV Cache TTL (seconds)
-        description: Time to cache a resolved SRV target before re-resolving.
-        schema:
-          type:
-            - number
-            - "null"
-          minimum: 0
-          default: 60
