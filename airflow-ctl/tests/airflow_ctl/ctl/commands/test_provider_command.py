@@ -39,6 +39,7 @@ class TestProviderCommands:
         package_name=provider_name,
         version="1.0.0",
         description="Standard provider",
+        documentation_url=None,
         provider_info=provider_info,
     )
 
