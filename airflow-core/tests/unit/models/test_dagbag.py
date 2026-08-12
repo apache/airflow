@@ -35,6 +35,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.utils.session import create_session
 
 from tests_common.test_utils import db
+from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -241,6 +242,31 @@ class TestDBDagBag:
         db.clear_db_dags()
         db.clear_db_serialized_dags()
         db.clear_db_dag_bundles()
+
+    def test_iter_all_latest_version_dags_yields_each_dag_once(self, dag_maker, session):
+        """A Dag with several versions must be walked once, at its latest version."""
+        dag_id = "multi_version_dag"
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
+
+        with dag_maker(dag_id, schedule=None):
+            EmptyOperator(task_id="task1")
+        # A version with task instances is kept rather than updated in place, so the next sync
+        # adds a second row for the same dag_id.
+        dag_maker.create_dagrun()
+
+        with DAG(dag_id, schedule=None) as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag)
+
+        dags = list(DBDagBag().iter_all_latest_version_dags(session=session))
+
+        assert [walked.dag_id for walked in dags] == [dag_id]
+        assert set(dags[0].task_ids) == {"task1", "task2"}
+
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
 
 
 class TestDBDagBagCache:

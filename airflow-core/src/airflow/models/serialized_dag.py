@@ -817,7 +817,7 @@ class SerializedDagModel(Base):
         )
 
     @classmethod
-    def _latest_by_version_select(cls, dag_ids: list[str] | None = None) -> Select:
+    def latest_by_version_select(cls, dag_ids: list[str] | None = None) -> Select:
         """
         Select the serialized DAG with the highest ``version_number`` per dag_id.
 
@@ -856,7 +856,7 @@ class SerializedDagModel(Base):
         :param session: The database session.
         :return: The latest serialized dag of the DAGs.
         """
-        latest_serdags = session.scalars(cls._latest_by_version_select(dag_ids)).all()
+        latest_serdags = session.scalars(cls.latest_by_version_select(dag_ids)).all()
         return latest_serdags or []
 
     @classmethod
@@ -868,7 +868,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        serialized_dags = session.scalars(cls._latest_by_version_select())
+        serialized_dags = session.scalars(cls.latest_by_version_select())
 
         dags = {}
         for row in serialized_dags:
