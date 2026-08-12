@@ -31,6 +31,7 @@ else:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.common.utils.get_secret import get_secret
@@ -58,7 +59,6 @@ SPREADSHEET = {
 }
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 GDRIVE_SECRET_ID = "gdrive_shared_folder_id"
-GDRIVE_ID = "{{ task_instance.xcom_pull('get_shared_drive_id') }}"
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +68,6 @@ with DAG(
     schedule="@once",  # Override to match your needs
     catchup=False,
     tags=["example", "gcs"],
-    render_template_as_native_obj=True,
 ) as dag:
 
     @task
@@ -102,22 +101,26 @@ with DAG(
         task_id="create_spreadsheet",
         spreadsheet=SPREADSHEET,
         gcp_conn_id=CONNECTION_ID,
-        drive_id=GDRIVE_ID,
+        drive_id=get_shared_drive_id_task,
     )
 
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
         task_id="upload_sheet_to_gcs",
         destination_bucket=BUCKET_NAME,
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
+        spreadsheet_id=XComArg(create_spreadsheet, key="spreadsheet_id"),
         gcp_conn_id=CONNECTION_ID,
     )
+
+    @task
+    def get_first_item(items: list[Any]) -> Any:
+        return items[0]
 
     # [START upload_gcs_to_sheets]
     upload_gcs_to_sheet = GCSToGoogleSheetsOperator(
         task_id="upload_gcs_to_sheet",
         bucket_name=BUCKET_NAME,
-        object_name="{{ task_instance.xcom_pull('upload_sheet_to_gcs')[0] }}",
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
+        object_name=get_first_item(upload_sheet_to_gcs.output),
+        spreadsheet_id=XComArg(create_spreadsheet, key="spreadsheet_id"),
         gcp_conn_id=CONNECTION_ID,
     )
     # [END upload_gcs_to_sheets]

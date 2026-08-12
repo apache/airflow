@@ -41,6 +41,7 @@ else:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
@@ -155,7 +156,6 @@ SPREADSHEET = {
     "sheets": [{"properties": {"title": "Sheet1"}}],
 }
 GDRIVE_SECRET_ID = "gdrive_shared_folder_id"
-GDRIVE_ID = "{{ task_instance.xcom_pull('get_shared_drive_id') }}"
 
 log = logging.getLogger(__name__)
 
@@ -165,7 +165,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "postgres", "gcs"],
-    render_template_as_native_obj=True,
 ) as dag:
 
     @task
@@ -262,7 +261,7 @@ with DAG(
         task_id="create_spreadsheet",
         spreadsheet=SPREADSHEET,
         gcp_conn_id=SHEETS_CONNECTION_ID,
-        drive_id=GDRIVE_ID,
+        drive_id=get_shared_drive_id_task,
     )
 
     # [START upload_sql_to_sheets]
@@ -271,7 +270,7 @@ with DAG(
         sql=SQL_SELECT,
         sql_conn_id=CONNECTION_ID,
         database=DB_NAME,
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
+        spreadsheet_id=XComArg(create_spreadsheet, key="spreadsheet_id"),
         gcp_conn_id=SHEETS_CONNECTION_ID,
     )
     # [END upload_sql_to_sheets]
