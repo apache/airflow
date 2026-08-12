@@ -62,6 +62,8 @@ class PydanticAIHook(BaseHook):
         Overrides the model stored in the connection's extra field.
     :param embed_model_id: Embedding model identifier in ``provider:model`` format.
         Overrides the embedding model stored in the connection's extra field.
+    :param embed_conn_id: Optional separate Airflow connection ID for the embedding provider.
+        Falls back to ``llm_conn_id`` when not provided.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -73,6 +75,7 @@ class PydanticAIHook(BaseHook):
         self,
         llm_conn_id: str | None = None,
         model_id: str | None = None,
+        embed_conn_id: str | None = None,
         embed_model_id: str | None = None,
         **kwargs,
     ) -> None:
@@ -83,6 +86,7 @@ class PydanticAIHook(BaseHook):
         # argument values at class-definition time.
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
+        self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
         self.embed_model_id = embed_model_id
         self._model: Model | None = None
         self._embedder: Embedder | None = None
@@ -200,10 +204,8 @@ class PydanticAIHook(BaseHook):
         if self._embedder is not None:
             return self._embedder
 
-        conn = self.get_connection(self.llm_conn_id) if self._conn is None else self._conn
-        extra: dict[str, Any] = (
-            conn.extra_dejson if self._conn_extra_dejson is None else self._conn_extra_dejson
-        )
+        conn = self.get_connection(self.embed_conn_id)
+        extra: dict[str, Any] = conn.extra_dejson
 
         embed_model_name: str = self.embed_model_id or extra.get("embed_model", "")
         if not embed_model_name:
@@ -336,16 +338,18 @@ class PydanticAIHook(BaseHook):
 
     def test_connection(self) -> tuple[bool, str]:
         """
-        Test connection by resolving the model.
+        Test connection by resolving the configured model.
 
-        Validates that the model string is valid and the provider class can be
-        instantiated with the supplied credentials.  Does NOT make an LLM API
-        call — that would be expensive and fail for reasons unrelated to
+        Validates that the LLM or embedding model string is valid and the provider
+        class can be instantiated with the supplied credentials. Does NOT make an
+        API call — that would be expensive and fail for reasons unrelated to
         connectivity (quotas, billing, rate limits).
         """
         try:
-            self.get_conn()
-            return True, "Model resolved successfully."
+            if self._get_conn_if_model_configured() is not None:
+                return True, "Model resolved successfully."
+            self.get_embedder()
+            return True, "Embedding model resolved successfully."
         except Exception as e:
             return False, str(e)
 
