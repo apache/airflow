@@ -1512,7 +1512,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
     @classmethod
     def _deserialize_operator_extra_links(
-        cls, encoded_op_links: dict[str, str]
+        cls, encoded_op_links: dict[str, str | dict[str, Any]]
     ) -> dict[str, XComOperatorLink]:
         """
         Deserialize Operator Links if the Classes are registered in Airflow Plugins.
@@ -1540,7 +1540,14 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             #     'raise_error': 'key'
             # }
 
-            op_predefined_extra_link = XComOperatorLink(name=name, xcom_key=xcom_key)
+            # A link that keeps one row per attempt serializes as a mapping; everything
+            # else stays the bare key string it has always been.
+            if isinstance(xcom_key, dict):
+                op_predefined_extra_link = XComOperatorLink(
+                    name=name, xcom_key=xcom_key["key"], per_attempt=xcom_key.get("per_attempt", False)
+                )
+            else:
+                op_predefined_extra_link = XComOperatorLink(name=name, xcom_key=xcom_key)
             op_predefined_extra_links.update({op_predefined_extra_link.name: op_predefined_extra_link})
 
         return op_predefined_extra_links
@@ -1560,7 +1567,12 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         :param operator_extra_links: Operator Link
         :return: Serialized Operator Link
         """
-        return {link.name: link.xcom_key for link in operator_extra_links}
+        return {
+            link.name: {"key": link.xcom_key, "per_attempt": link.keeps_a_link_per_attempt}
+            if link.keeps_a_link_per_attempt
+            else link.xcom_key
+            for link in operator_extra_links
+        }
 
     @classmethod
     def serialize(cls, var: Any, *, strict: bool = False) -> Any:

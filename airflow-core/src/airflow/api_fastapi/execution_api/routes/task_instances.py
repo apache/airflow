@@ -94,6 +94,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
+from airflow.sdk.bases.operatorlink import ATTEMPT_LINK_XCOM_KEY_PREFIX
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
@@ -295,6 +296,13 @@ def ti_run(
             )
             if map_index is not None:
                 xcom_query = xcom_query.where(XComModel.map_index == map_index)
+
+            # A link that keeps one row per attempt describes an attempt that already ran,
+            # so those rows outlive the clear. The underscores are LIKE single-character
+            # wildcards and must be escaped, or unrelated keys are spared too.
+            xcom_query = xcom_query.where(
+                ~XComModel.key.like(ATTEMPT_LINK_XCOM_KEY_PREFIX.replace("_", r"\_") + "%", escape="\\")
+            )
 
             xcom_keys = list(session.scalars(xcom_query))
         task_reschedule_count = (

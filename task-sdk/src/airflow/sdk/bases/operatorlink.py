@@ -27,6 +27,15 @@ if TYPE_CHECKING:
     from airflow.sdk.types import TaskInstanceKey
 
 
+ATTEMPT_LINK_XCOM_KEY_PREFIX = "_link_attempt_"
+"""Prefix marking the XCom rows that hold one attempt's rendered operator link."""
+
+
+def attempt_link_xcom_key(xcom_key: str, try_number: int) -> str:
+    """Return the XCom key holding ``xcom_key``'s link as rendered for ``try_number``."""
+    return f"{ATTEMPT_LINK_XCOM_KEY_PREFIX}{try_number}_{xcom_key}"
+
+
 @attrs.define()
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
@@ -54,6 +63,21 @@ class BaseOperatorLink(metaclass=ABCMeta):
         Defaults to `_link_<class name>` if not provided.
         """
         return f"_link_{self.__class__.__name__}"
+
+    keeps_a_link_per_attempt: ClassVar[bool] = False
+    """
+    Keep one row per attempt rather than a single row holding whichever ran last.
+
+    Set on links whose URL cannot be recomputed, such as one carrying a job id the remote
+    service mints per submission. A task's XComs are cleared before each attempt; the rows
+    behind a link that sets this are kept.
+    """
+
+    def xcom_key_for_try(self, try_number: int) -> str:
+        """Return the XCom key holding this link as rendered for ``try_number``."""
+        if not self.keeps_a_link_per_attempt:
+            return self.xcom_key
+        return attempt_link_xcom_key(self.xcom_key, try_number)
 
     @abstractmethod
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:

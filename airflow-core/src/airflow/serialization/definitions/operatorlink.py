@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 import attrs
 
 from airflow.models.xcom import XComModel
+from airflow.sdk.bases.operatorlink import attempt_link_xcom_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
 
@@ -42,6 +43,12 @@ class XComOperatorLink(LoggingMixin):
 
     name: str
     xcom_key: str
+    per_attempt: bool = False
+
+    def xcom_key_for_try(self, try_number: int) -> str:
+        if not self.per_attempt:
+            return self.xcom_key
+        return attempt_link_xcom_key(self.xcom_key, try_number)
 
     def get_link(self, operator: Operator, *, ti_key: TaskInstanceKey) -> str:
         """
@@ -57,7 +64,7 @@ class XComOperatorLink(LoggingMixin):
         with create_session() as session:
             result = session.execute(
                 XComModel.get_many(
-                    key=self.xcom_key,
+                    key=self.xcom_key_for_try(ti_key.try_number),
                     run_id=ti_key.run_id,
                     dag_ids=ti_key.dag_id,
                     task_ids=ti_key.task_id,
