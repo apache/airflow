@@ -622,8 +622,9 @@ def _create_scope_based_permission(
     except KeycloakError as e:
         if e.response_body:
             error = json.loads(e.response_body.decode("utf-8"))
-            if error.get("error_description") == "Conflicting policy":
-                print(f"Policy creation skipped. {error.get('error')}")
+            if "Conflicting policy" in error.get("error_description", ""):
+                return
+        raise
 
 
 def _create_resource_based_permission(
