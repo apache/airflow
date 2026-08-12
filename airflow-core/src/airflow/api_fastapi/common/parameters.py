@@ -298,6 +298,11 @@ def _build_pipe_clause(pipe_as_or: bool) -> str:
 
 _LIKE_ESCAPE_CHAR = "\\"
 
+# Timetable type name of the built-in null timetable (``schedule=None``). Custom
+# timetables use their full import path as type name, so this bare name uniquely
+# identifies the built-in null timetable.
+_NULL_TIMETABLE_TYPE = "NullTimetable"
+
 
 def _escape_like_pattern(value: str) -> str:
     r"""
@@ -1387,6 +1392,40 @@ class _AssetDependencyFilter(BaseParam[str]):
 
 QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
 QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
+
+
+class _IsScheduledFilter(BaseParam[bool]):
+    """
+    Filter Dags by whether they are scheduled.
+
+    A Dag is considered unscheduled when it uses the null timetable (``schedule=None``),
+    and scheduled otherwise. This only works reliably for built-in timetables; a custom
+    timetable can be scheduled or unscheduled depending on its implementation.
+    """
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.value:
+            return select.where(DagModel.timetable_type != _NULL_TIMETABLE_TYPE)
+        return select.where(DagModel.timetable_type == _NULL_TIMETABLE_TYPE)
+
+    @classmethod
+    def depends(
+        cls,
+        is_scheduled: bool | None = Query(
+            None,
+            description=(
+                "Filter Dags by whether they are scheduled. Dags using the null timetable "
+                "(schedule=None) are considered unscheduled. This only works reliably for "
+                "built-in timetables."
+            ),
+        ),
+    ) -> _IsScheduledFilter:
+        return cls().set_value(is_scheduled)
+
+
+QueryIsScheduledFilter = Annotated[_IsScheduledFilter, Depends(_IsScheduledFilter.depends)]
 
 
 class _ConsumingAssetFilter(BaseParam[str | None]):

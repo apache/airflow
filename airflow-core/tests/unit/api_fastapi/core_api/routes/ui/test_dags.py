@@ -150,6 +150,22 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert [dag["dag_id"] for dag in response.json()["dags"]] == expected_ids
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("query_params", "expected_ids"),
+        [
+            ({"is_scheduled": False}, [DAG1_ID, DAG2_ID]),
+            ({"is_scheduled": True}, []),
+            ({"is_scheduled": False, "exclude_stale": False}, [DAG1_ID, DAG2_ID]),
+            ({"is_scheduled": True, "exclude_stale": False}, [DAG3_ID]),
+        ],
+    )
+    def test_is_scheduled_filter(self, test_client: TestClient, query_params, expected_ids):
+        response = test_client.get("/dags", params=query_params)
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == expected_ids
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize("state", ["queued", "running", "failed", "success"])
     def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session, state):
         # Give DAG1 an older run in the probed state while its latest run ends in a

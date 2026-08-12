@@ -432,6 +432,11 @@ class TestGetDags(TestDagEndpoint):
                 2,
                 [DAG1_ID, DAG2_ID],
             ),
+            # Schedule filter
+            ({"is_scheduled": False}, 2, [DAG1_ID, DAG2_ID]),
+            ({"is_scheduled": True}, 0, []),
+            ({"is_scheduled": False, "exclude_stale": False}, 2, [DAG1_ID, DAG2_ID]),
+            ({"is_scheduled": True, "exclude_stale": False}, 1, [DAG3_ID]),
             # Asset filters
             ({"has_asset_schedule": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
             ({"has_asset_schedule": False}, 2, [DAG1_ID, DAG2_ID]),
