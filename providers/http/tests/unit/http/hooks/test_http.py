@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import functools
 import importlib
@@ -1129,6 +1130,32 @@ class TestHttpAsyncHookSrvLookup:
                 await hook.run(session=session, endpoint="c")  # past TTL: re-resolves
 
         assert mock_resolve.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch("dns.asyncresolver.resolve", new_callable=mock.AsyncMock)
+    async def test_concurrent_requests_resolve_srv_record_once(self, mock_resolve):
+        resolver_entered = asyncio.Event()
+        release_resolver = asyncio.Event()
+
+        async def blocking_resolve(*args, **kwargs):
+            resolver_entered.set()
+            await release_resolver.wait()
+            return [self._make_srv_answer(10, 8443, "svc-1.example.com.")]
+
+        mock_resolve.side_effect = blocking_resolve
+        hook = HttpAsyncHook(http_conn_id="http_async_srv_conn", method="GET")
+
+        callers = [asyncio.create_task(hook._get_dynamic_base_url_async()) for _ in range(5)]
+        # Hold the first caller inside the resolver so the rest pile up behind the SRV lock,
+        # then release it: the queued callers must reuse its result rather than re-resolving.
+        await resolver_entered.wait()
+        for _ in range(10):
+            await asyncio.sleep(0)
+        release_resolver.set()
+        base_urls = await asyncio.gather(*callers)
+
+        assert mock_resolve.call_count == 1
+        assert base_urls == ["https://svc-1.example.com:8443"] * 5
 
     @pytest.mark.asyncio
     async def test_config_only_puts_string_values_in_headers(self, create_connection_without_db):
