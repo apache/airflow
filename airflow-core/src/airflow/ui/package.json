@@ -122,6 +122,7 @@
     "vitest": "^4.1.9",
     "web-worker": "^1.5.0"
   },
+  "packageManager": "pnpm@10.28.1",
   "pnpm": {
     "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [
