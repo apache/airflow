@@ -210,3 +210,57 @@ class TestExtractVersionDataConnectionTypes:
 
         assert result is not None
         assert result["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+
+class TestExtractModulesGuideUrls:
+    """A class the provider's guides document in a section of its own must get a
+    ``guide_url`` for every version, not just the latest. A superseded version's
+    page is rendered only from the per-version file this module writes, so a link
+    resolved on the latest path alone disappears the moment a new version lands.
+    """
+
+    PROVIDER_YAML = {
+        "toolsets": [
+            {
+                "integration-name": "Test",
+                "python-modules": ["airflow.providers.test.toolsets.hook"],
+            }
+        ]
+    }
+    SOURCE = 'class HookToolset:\n    """A toolset."""\n'
+    GUIDE = "``HookToolset``\n---------------\n\nProse.\n"
+
+    def _extract(self, layout="new", docs_paths=("providers/test/docs/toolsets.rst",)):
+        def fake_git_show(_tag, path):
+            if path.endswith("toolsets.rst"):
+                return self.GUIDE
+            return self.SOURCE if path.endswith(".py") else None
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=list(docs_paths)),
+            patch("extract_versions.git_show", autospec=True, side_effect=fake_git_show),
+        ):
+            return extract_modules_from_yaml(
+                self.PROVIDER_YAML, "providers-test/1.0.0", layout, "test", "test", "1.0.0"
+            )
+
+    def test_documented_class_gets_a_versioned_guide_url(self):
+        modules = self._extract()
+
+        assert [m["name"] for m in modules] == ["HookToolset"]
+        assert modules[0]["guide_url"] == (
+            "https://airflow.apache.org/docs/apache-airflow-providers-test/1.0.0/toolsets.html#hooktoolset"
+        )
+
+    def test_undocumented_class_gets_no_guide_url(self):
+        modules = self._extract(docs_paths=())
+
+        assert [m["name"] for m in modules] == ["HookToolset"]
+        assert "guide_url" not in modules[0]
+
+    def test_old_layout_gets_no_guide_url(self):
+        # Pre-per-provider tags kept docs in a top-level tree, so there is no
+        # provider-relative page path to build a link from.
+        modules = self._extract(layout="old")
+
+        assert "guide_url" not in modules[0]
