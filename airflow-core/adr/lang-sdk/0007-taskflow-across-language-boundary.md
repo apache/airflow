@@ -154,8 +154,10 @@ JSON Schema instead, and that is what was adopted:
   would have to be re-implemented and kept in sync in every SDK.
 - JSON Schema is open-vocabulary, so the fragment can be carried verbatim and extended later
   without a wire-format change. Runtimes ignore keywords they do not understand.
-- It composes. Nested objects, arrays, and formats fall out of the same mechanism rather than
-  needing enum members.
+- It composes. Nested objects, arrays, formats, and unions all fall out of the same mechanism
+  rather than needing enum members. Union annotations are the clearest case: a parameter typed
+  `dict | bool` schemas as an `anyOf` for free, where a closed enum would have needed a new
+  member (or a rejection) for every combination.
 
 An absent `value_schema` means "unconstrained" — the annotation was missing, was `Any`, or was
 something a schema could not be generated for — and the runtime falls back to a decode-only
@@ -259,9 +261,6 @@ tracked in [#70523](https://github.com/apache/airflow/issues/70523).
 
 ## Consequences
 
-- The TaskFlow call an author already knows how to write works on a stub task, and the dependency
-  edge comes with it — `transform("uk", extract())` implies `extract >> transform` — instead of
-  being declared twice in two languages.
 - Every Lang SDK binds against one contract, and gains the same behavior when native Lang-SDK
   Dag authoring arrives (decision G). The cost is that each new SDK owes a binding
   implementation; a runtime that ignores `arg_bindings` degrades to today's behavior rather than
@@ -330,4 +329,3 @@ consequences of the decisions above, not decisions in their own right.
   serialization version has been effectively unused since Airflow 2 and may be worth making
   meaningful; that policy question is tracked in
   [#71364](https://github.com/apache/airflow/issues/71364).
-- **Known gap:** union annotations (for example `dict | bool`) are not yet handled.
