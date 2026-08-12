@@ -65,6 +65,11 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
         @dag(schedule=[orders])
         def downstream(): ...
 
+    The event carries ``table``, ``branch``, ``snapshot_id`` and ``previous_snapshot_id``, so a
+    task can scan the delta rather than the whole table. ``previous_snapshot_id`` is ``None`` on
+    the first event, which is also what a restart looks like where no watermark is kept, so a
+    task that must not run twice for one snapshot keys on ``snapshot_id``.
+
     :param table: Fully-qualified table name, ``namespace.table``. Nested namespaces are
         written as ``a.b.table``.
     :param iceberg_conn_id: Connection holding the catalog URI and credentials.
