@@ -303,7 +303,7 @@ def get_provider_info():
                         "description": "SQS fetch message attributes.\n",
                         "version_added": "3.24.0",
                         "type": "string",
-                        "example": '{\n  "MessageSystemAttributeNames": ["SenderId", "SentTimestamp"],\n  "MessageAttributeNames": ["S3MessageBodyKey"]\n}\n',
+                        "example": '{"MessageSystemAttributeNames": ["SenderId", "SentTimestamp"]',
                         "default": None,
                     },
                     "kafka_admin_config": {

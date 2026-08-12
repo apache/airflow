@@ -94,7 +94,7 @@ def _broker_transport_options(broker_url: str, conf) -> dict[str, Any]:
                     raise ValueError
                 broker_transport_options[option] = option_value
             except Exception:
-                raise AirflowException(
+                raise ValueError(
                     f"Broker transport option {option} should be written in the correct dictionary format."
                 )
     return broker_transport_options
