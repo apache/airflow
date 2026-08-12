@@ -227,6 +227,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "dag.serialization_writes"
+    description: "Number of times a Dag was serialized and written to the metadata DB.
+    Metric with dag_id and bundle_name tagging."
+    type: "counter"
+    legacy_name: "dag.serialization_writes.{dag_id}.{bundle_name}"
+    name_variables: ["dag_id", "bundle_name"]
+
   - name: "celery.task_timeout_error"
     description: "Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker."
     type: "counter"
@@ -737,6 +744,19 @@ metrics:
   - name: "kubernetes_executor.pod_creation"
     description: "Milliseconds taken for a Kubernetes create_namespaced_pod call from the Kubernetes Executor"
     type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation_batch_duration"
+    description: "Milliseconds taken to create one batch of worker pods in a Kubernetes Executor scheduler
+    loop, covering both the sequential and the concurrent (``async_pod_creation``) creation paths."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation_batch_size"
+    description: "Number of worker pods created in one Kubernetes Executor scheduler loop."
+    type: "gauge"
     legacy_name: "-"
     name_variables: []
 

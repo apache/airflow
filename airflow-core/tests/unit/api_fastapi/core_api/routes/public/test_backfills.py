@@ -251,7 +251,8 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
         session.add_all([bdr1, bdr2])
         session.commit()
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs")
+        with assert_queries_count(5):
+            response = test_client.get(f"/backfills/{b.id}/dag_runs")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 2
@@ -321,13 +322,13 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
             )
         session.commit()
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs?limit=2&offset=0")
+        response = test_client.get(f"/backfills/{b.id}/dag_runs", params={"limit": 2, "offset": 0})
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 3
         assert len(data["backfill_dag_runs"]) == 2
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs?limit=2&offset=2")
+        response = test_client.get(f"/backfills/{b.id}/dag_runs", params={"limit": 2, "offset": 2})
         assert response.status_code == 200
         data = response.json()
         assert len(data["backfill_dag_runs"]) == 1
@@ -376,7 +377,7 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
             )
         session.commit()
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs?order_by={order_by}")
+        response = test_client.get(f"/backfills/{b.id}/dag_runs", params={"order_by": order_by})
         assert response.status_code == 200
         data = response.json()
         assert data["backfill_dag_runs"][0]["sort_ordinal"] == expected_first_ordinal
@@ -432,6 +433,29 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_create_backfill_records_triggering_user_display_name(
+        self, mock_display_name, session, dag_maker, test_client
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_DISPLAY_NAME", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-02-01")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+        }
+        response = test_client.post(url="/backfills", json=data)
+        assert response.status_code == 200
+        backfill = session.scalars(select(Backfill).where(Backfill.dag_id == dag.dag_id)).one()
+        assert backfill.triggering_user_name == "Jane Doe"
 
     def test_dag_not_exist(self, session, test_client):
         session.scalars(select(DagModel)).all()

@@ -127,6 +127,7 @@ jobs:
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
       run-java-sdk-tests: ${{ steps.selective-checks.outputs.run-java-sdk-tests }}
+      run-ts-sdk-docs: ${{ steps.selective-checks.outputs.run-ts-sdk-docs }}
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-mypy-providers: ${{ steps.selective-checks.outputs.run-mypy-providers }}
@@ -167,11 +168,11 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -286,19 +287,12 @@ jobs:
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   generate-constraints:
     name: "Generate constraints"
@@ -367,7 +361,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
@@ -409,7 +403,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
@@ -986,12 +980,12 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: 1.25
           cache-dependency-path: go-sdk/go.sum
@@ -1006,6 +1000,15 @@ jobs:
       - name: Run Go tests
         working-directory: ./go-sdk
         run: gotestsum --format github-actions ./...
+      # Go modules have no central registry that pre-scans releases, so we scan our own
+      # dependency graph against the Go vulnerability database. govulncheck is reachability
+      # based, so it only fails on advisories that actually affect code we call. The version
+      # tag is immutable (Go modules are content-addressed via the checksum database).
+      - name: Scan Go dependencies for known vulnerabilities
+        working-directory: ./go-sdk
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+          govulncheck ./...
 
   tests-java-sdk:
     name: "Java SDK tests"
@@ -1023,11 +1026,11 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: Setup Java
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1053,7 +1056,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -1065,6 +1068,38 @@ jobs:
         with:
           name: java-sdk-docs
           path: generated/_build/docs/java-sdk/
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: 'true'
+
+  build-ts-sdk-docs:
+    name: "TypeScript SDK docs"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    if: needs.build-info.outputs.run-ts-sdk-docs == 'true'
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Build TypeScript SDK API reference"
+        run: breeze build-docs --sdk-docs-only --sdk=typescript
+      - name: "Upload TypeScript SDK docs artifact"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ts-sdk-docs
+          path: generated/_build/docs/ts-sdk/
           retention-days: 7
           if-no-files-found: error
           overwrite: 'true'
@@ -1124,6 +1159,7 @@ jobs:
       - tests-go-sdk
       - tests-java-sdk
       - build-java-sdk-docs
+      - build-ts-sdk-docs
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
@@ -1156,7 +1192,7 @@ jobs:
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Get failing jobs"
@@ -1197,7 +1233,7 @@ jobs:
           overwrite: true
       - name: "Notify Slack (new/changed failures)"
         if: steps.notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1213,7 +1249,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1229,7 +1265,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (all tests passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1269,7 +1305,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Free up disk space"
@@ -1281,7 +1317,7 @@ jobs:
           path: ./artifacts
           pattern: test-warnings-*
       - name: "Setup python"
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "${{ inputs.default-python-version }}"
       - name: "Summarize all warnings"

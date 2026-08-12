@@ -21,8 +21,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from airflow_breeze import global_constants
 from airflow_breeze.commands import release_management_commands
 from airflow_breeze.commands.release_management_commands import (
+    ISSUE_MATCH_IN_BODY,
     _ensure_default_python_for_reproducible_client,
     _is_initial_provider_release,
     _should_include_provider_in_issue,
@@ -292,3 +294,42 @@ def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
         stable_txt.parent.mkdir(parents=True)
         stable_txt.write_text(stable_txt_content)
     assert get_package_version_possibly_from_stable_txt("java-sdk") == expected_version
+
+
+@pytest.mark.parametrize(
+    ("stable_txt_content", "expected_version"),
+    [
+        # No stable.txt staged (docs not built for this ref) -> version read from ts-sdk/package.json
+        (None, "0.2.0-alpha.1"),
+        ("0.1.0\n", "0.1.0"),
+    ],
+)
+def test_get_package_version_possibly_from_stable_txt_for_ts_sdk(
+    tmp_path: Path, monkeypatch, stable_txt_content: str | None, expected_version: str
+):
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_ROOT_PATH", tmp_path)
+    monkeypatch.setattr(global_constants, "AIRFLOW_ROOT_PATH", tmp_path)
+    package_json = tmp_path / "ts-sdk" / "package.json"
+    package_json.parent.mkdir(parents=True)
+    package_json.write_text('{"name": "@apache-airflow/ts-sdk", "version": "0.2.0-alpha.1"}\n')
+    if stable_txt_content is not None:
+        stable_txt = tmp_path / "generated" / "_build" / "docs" / "ts-sdk" / "stable.txt"
+        stable_txt.parent.mkdir(parents=True)
+        stable_txt.write_text(stable_txt_content)
+    assert get_package_version_possibly_from_stable_txt("ts-sdk") == expected_version
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("Some description closes: #12345 and more text", [12345]),
+        # reference at the very end of the body (e.g. "Fixes #53843" as the last line)
+        ("Generated-by: some agent Fixes #53843", [53843]),
+        ("related: #111, also see #222", [111, 222]),
+        ("adjacent references see #111 #222", [111, 222]),
+        ("no references here", []),
+        ("PR#123 without space is not a reference", []),
+    ],
+)
+def test_issue_match_in_body(body: str, expected: list[int]):
+    assert [int(m.group(1)) for m in ISSUE_MATCH_IN_BODY.finditer(body)] == expected

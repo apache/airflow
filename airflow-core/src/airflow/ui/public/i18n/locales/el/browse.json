@@ -11,12 +11,54 @@
     },
     "title": "Καταγραφή Ελέγχου"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Όνομα Ειδοποίησης",
+      "deadlineTime": "Χρόνος Προθεσμίας",
+      "status": "Κατάσταση"
+    },
+    "deadline_one": "Προθεσμία",
+    "deadline_other": "Προθεσμίες",
+    "filters": {
+      "status": "Κατάσταση",
+      "statusOptions": {
+        "all": "Όλες",
+        "missed": "Χαμένες",
+        "pending": "Σε Εκκρεμότητα"
+      }
+    },
+    "title": "Προθεσμίες"
+  },
   "xcom": {
+    "add": {
+      "error": "Αποτυχία προσθήκης XCom",
+      "errorTitle": "Σφάλμα",
+      "success": "Επιτυχία προσθήκης XCom",
+      "successTitle": "Το XCom Προστέθηκε",
+      "title": "Προσθήκη XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Κλειδί",
       "value": "Τιμή"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Αποτυχία διαγραφής XCom",
+      "errorTitle": "Σφάλμα",
+      "success": "Επιτυχία διαγραφής XCom",
+      "successTitle": "Το XCom Διαγράφηκε",
+      "title": "Διαγραφή XCom",
+      "warning": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το XCom; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί."
+    },
+    "edit": {
+      "error": "Αποτυχία ενημέρωσης XCom",
+      "errorTitle": "Σφάλμα",
+      "success": "Επιτυχία ενημέρωσης XCom",
+      "successTitle": "Το XCom Ενημερώθηκε",
+      "title": "Επεξεργασία XCom"
+    },
+    "key": "Κλειδί",
+    "title": "XCom",
+    "value": "Τιμή"
   }
 }

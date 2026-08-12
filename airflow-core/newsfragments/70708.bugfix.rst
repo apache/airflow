@@ -1,0 +1,1 @@
+The ``@deadline_reference`` decorator can now be used without parentheses. Previously, using it that way silently skipped registration and rebound the decorated class to the decorator's inner function, which surfaced later as an unrelated ``TypeError``.

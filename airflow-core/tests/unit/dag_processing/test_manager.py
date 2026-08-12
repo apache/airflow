@@ -28,7 +28,7 @@ import signal
 import textwrap
 import time
 import zipfile
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
@@ -576,7 +576,6 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == expected
 
         # Verify running it again produces same order
-        manager._files = []
         manager.prepare_file_queue(known_files=known_files)
         assert manager._file_queue == expected
 
@@ -1016,7 +1015,6 @@ class TestDagFileProcessorManager:
             run_count=1,
             last_num_of_db_queries=1,
         )
-        manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
         active_dag_count = session.scalar(
@@ -1035,6 +1033,73 @@ class TestDagFileProcessorManager:
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
+            )
+        )
+        assert active_dag_count == 0
+
+        serialized_dag_count = session.scalar(
+            select(func.count(SerializedDagModel.dag_id)).where(SerializedDagModel.dag_id == dag.dag_id)
+        )
+        # Deactivating the DagModel should not delete the SerializedDagModel
+        # SerializedDagModel gives history about Dags
+        assert serialized_dag_count == 1
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_scan_stale_dags_deactivates_zip_packaged_dags(self, session, test_zip_path):
+        """
+        Ensure that zip-packaged DAGs are marked inactive when the file is parsed but the
+        DagModel.last_parsed_time is not updated, testing fallback to the parent path when
+        comparing DAG.relative_fileloc to last_parsed entries.
+        """
+        manager = DagFileProcessorManager(
+            max_runs=1,
+            processor_timeout=10 * 60,
+        )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
+
+        test_dag_path = DagFileInfo(
+            rel_path=Path("test_zip.zip"),
+            bundle_path=Path(test_zip_path).parent,
+            bundle_name="testing",
+        )
+        dagbag = DagBag(
+            test_dag_path.absolute_path,
+            bundle_path=test_dag_path.bundle_path,
+        )
+
+        # Add stale DAG to the DB
+        dag = dagbag.get_dag("test_zip_dag")
+        sync_dag_to_db(dag, session=session)
+
+        # Add DAG to the file_parsing_stats
+        stat = DagFileStat(
+            num_dags=1,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            last_duration=1,
+            run_count=1,
+            last_num_of_db_queries=1,
+        )
+        manager._file_stats[test_dag_path] = stat
+
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
+                DagModel.dag_id == "test_zip_dag",
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path / "test_zip.py"),
+            )
+        )
+        assert active_dag_count == 1
+
+        manager._scan_stale_dags()
+
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
+                DagModel.dag_id == "test_zip_dag",
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path / "test_zip.py"),
             )
         )
         assert active_dag_count == 0
@@ -1085,6 +1150,108 @@ class TestDagFileProcessorManager:
             ).all()
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
+        """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
+
+        Their files were removed during the upgrade, so nothing will ever parse them and fill the
+        column in, and the time-based check cannot reach them either (see #60763).
+
+        Migration ``0082_3_1_0_make_bundle_name_not_nullable`` backfills the column and makes it NOT
+        NULL, so the row can no longer be stored as NULL; the scan is fed the row the way a database
+        upgraded from 2.x to 3.0.x still holds it.
+        """
+        session.add(
+            DagModel(
+                dag_id="legacy_dag",
+                bundle_name="testing",
+                relative_fileloc="legacy_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        LegacyRow = namedtuple("LegacyRow", "dag_id bundle_name fileloc last_parsed_time relative_fileloc")
+        original_execute = session.execute
+
+        def execute_with_null_bundle_name(statement, *args, **kwargs):
+            result = original_execute(statement, *args, **kwargs)
+            if getattr(statement, "is_select", False) and "relative_fileloc" in str(statement):
+                return [
+                    LegacyRow(r.dag_id, None, r.fileloc, r.last_parsed_time, r.relative_fileloc)
+                    for r in result
+                ]
+            return result
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
+            manager.deactivate_stale_dags(last_parsed={}, session=session)
+
+        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_tolerates_null_relative_fileloc(self, session):
+        """An active Dag with ``relative_fileloc=None`` must not crash the stale scan.
+
+        Upgrade leftover: the 0082 migration writes ``bundle_name`` without
+        ``relative_fileloc``, and the startup repair leaves a row untouched when its
+        ``fileloc`` is not under any configured bundle's path. The scanner must skip the
+        file-based check for such rows rather than calling ``Path(None)``.
+        """
+        session.add(
+            DagModel(
+                dag_id="dag_null_relfileloc",
+                bundle_name="testing",
+                fileloc="/not/under/any/bundle.py",
+                relative_fileloc=None,
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        manager.deactivate_stale_dags(last_parsed={})
+
+        is_stale = session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "dag_null_relfileloc"))
+        assert is_stale is False
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_logs_stuck_legacy_row_count(self, session):
+        """Skipped NULL-``relative_fileloc`` rows are counted and surfaced via a single INFO log.
+
+        Operators need visibility into how many legacy migration rows the
+        startup repair could not route, because every such row keeps raising
+        ``Requested bundle is not configured.`` at trigger time until the
+        operator restores a matching bundle. The log line is the only
+        operator-facing signal, so this test asserts it is emitted with the
+        expected count. (Allowed exception to the "don't assert on log
+        output" convention: the log line *is* the behaviour under test.)
+        """
+        for dag_id in ("legacy_a", "legacy_b", "legacy_c"):
+            session.add(
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name="testing",
+                    fileloc=f"/not/under/any/{dag_id}.py",
+                    relative_fileloc=None,
+                    last_parsed_time=timezone.utcnow(),
+                    is_stale=False,
+                )
+            )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        with mock.patch.object(manager.log, "info") as mock_info:
+            manager.deactivate_stale_dags(last_parsed={})
+
+        legacy_log_calls = [
+            call for call in mock_info.call_args_list if "legacy Dag" in (call.args[0] if call.args else "")
+        ]
+        assert len(legacy_log_calls) == 1
+        assert legacy_log_calls[0].args[1] == 3
 
     @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
     @pytest.mark.usefixtures("testing_dag_bundle")
@@ -1680,6 +1847,29 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag1").is_stale is expected_dag1_stale
         assert session.get(DagModel, "test_dag2").is_stale is expected_dag2_stale
 
+    def test_deactivate_deleted_dags_marks_null_relative_fileloc_stale(self, dag_maker, session):
+        """DAGs with NULL ``relative_fileloc`` are also stale-marked when not in the observed file set.
+
+        Legacy 2.x rows that the bundle backfill couldn't recover (``fileloc`` not under any active
+        bundle path) get treated as deleted on the first parse cycle. Alive rows self-heal when the
+        parser next succeeds and resets ``is_stale`` via ``update_dags``.
+        """
+        with dag_maker("parsed_dag") as dag1:
+            dag1.relative_fileloc = "parsed_dag.py"
+        with dag_maker("legacy_dag") as dag2:
+            dag2.relative_fileloc = None
+        dag_maker.sync_dagbag_to_db()
+
+        any_deactivated = DagModel.deactivate_deleted_dags(
+            bundle_name="dag_maker",
+            rel_filelocs=set(),
+            session=session,
+        )
+
+        assert any_deactivated is True
+        assert session.get(DagModel, "parsed_dag").is_stale is True
+        assert session.get(DagModel, "legacy_dag").is_stale is True
+
     @pytest.mark.parametrize(
         ("active_files", "should_call_cleanup"),
         [
@@ -2213,6 +2403,110 @@ class TestDagFileProcessorManager:
         with mock.patch.object(manager, "_fetch_callbacks_from_db", return_value=expected) as private:
             assert manager.fetch_callbacks() is expected
         private.assert_called_once_with()
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_reassign_called_once_at_startup_not_on_refresh(self, mock_bundle_manager):
+        """
+        reassign_dags_with_unconfigured_bundles is called exactly once by
+        sync_bundles, not by _refresh_dag_bundles.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = []
+
+        manager.sync_bundles()
+        mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.assert_called_once()
+
+        manager._refresh_dag_bundles(known_files={})
+        mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.assert_called_once()
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_reassign_failure_during_startup_is_logged_and_swallowed(self, mock_bundle_manager):
+        """A reassignment failure must not crash DFP startup; it is logged and execution continues."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = []
+        manager._log = mock.MagicMock()
+        mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.side_effect = RuntimeError(
+            "boom"
+        )
+
+        manager.sync_bundles()
+
+        manager._log.exception.assert_called_once_with(
+            "Failed to reassign Dags with unconfigured bundles during startup"
+        )
+
+    @pytest.mark.parametrize(
+        "apply_patch",
+        [False, True],
+        ids=["without_patch", "with_patch"],
+    )
+    def test_sync_bundles_repairs_legacy_bundle_before_parsing_loop(
+        self, apply_patch, session, tmp_path, configure_dag_bundles
+    ):
+        """DFP initial setup alone re-homes a 2.x->3.x legacy Dag to its configured bundle.
+
+        Window right after ``airflow db migrate`` but before the parsing loop: the ``0082``
+        migration left the row with ``bundle_name='dags-folder'`` and NULL ``relative_fileloc``,
+        and ``0047`` emptied ``serialized_dag``/``dag_version`` (so the Dag is unserialized and
+        ``get_bundle`` -- what the worker calls at run time -- is the probe, not the REST trigger).
+        ``sync_bundles()`` runs ``sync_bundles_to_db`` and, on the patched build,
+        ``reassign_dags_with_unconfigured_bundles``; without it (reassign mocked off) the row stays
+        on the unconfigured ``dags-folder`` and ``get_bundle`` raises. See
+        https://github.com/apache/airflow/issues/63323.
+        """
+        dags_folder = tmp_path / "dags"
+        dags_folder.mkdir()
+        legacy_file = dags_folder / "af2_upgrade_af3_dag.py"
+        legacy_file.write_text("# 2.x dag")
+
+        # State right after the 0082 migration: the ``dags-folder`` row exists in dag_bundle but the
+        # operator's bundle is not registered yet (sync_bundles_to_db does that below), and
+        # serialized_dag/dag_version are empty (0047 wiped them; setup_method clears them too).
+        legacy_default_bundle = DagBundleModel(name="dags-folder")
+        legacy_default_bundle.active = True
+        session.add(legacy_default_bundle)
+        session.flush()
+        legacy_dag = DagModel(
+            dag_id="legacy_dag",
+            bundle_name="dags-folder",
+            fileloc=str(legacy_file),
+        )
+        legacy_dag.relative_fileloc = None
+        session.add(legacy_dag)
+        session.commit()
+
+        bundle_name = "upgrade_test_dag_bundle"
+        with configure_dag_bundles({bundle_name: dags_folder}):
+            manager = DagFileProcessorManager(max_runs=1)
+            if apply_patch:
+                manager.sync_bundles()
+            else:
+                # Pre-patch sync_bundles ran sync_bundles_to_db only; mocking reassign to a no-op
+                # reproduces that build without forking the source under test.
+                with mock.patch.object(
+                    DagBundlesManager,
+                    "reassign_dags_with_unconfigured_bundles",
+                    return_value=0,
+                ):
+                    manager.sync_bundles()
+
+            session.expire_all()
+            refreshed = session.get(DagModel, "legacy_dag")
+
+            if apply_patch:
+                assert refreshed.bundle_name == bundle_name
+                assert refreshed.relative_fileloc == "af2_upgrade_af3_dag.py"
+                # The worker can now resolve the bundle: the symptom is gone.
+                assert DagBundlesManager().get_bundle(bundle_name).name == bundle_name
+            else:
+                assert refreshed.bundle_name == "dags-folder"
+                assert refreshed.relative_fileloc is None
+                # The worker would hit the original incident at run time.
+                with pytest.raises(
+                    ValueError,
+                    match=re.escape("Requested bundle 'dags-folder' is not configured."),
+                ):
+                    DagBundlesManager().get_bundle(refreshed.bundle_name)
 
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
@@ -2956,6 +3250,39 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
 
         bundle.refresh.assert_not_called()
+
+    def test_refresh_dag_bundles_initialize_non_airflow_exception_skips_bundle(self):
+        """
+        A bundle whose initialize() raises a non AirflowException must be skipped, not
+        left to propagate and abort refresh for every other bundle.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        failing_bundle = self._make_refresh_bundle()
+        failing_bundle.name = "failing_bundle"
+        failing_bundle.is_initialized = False
+        failing_bundle.initialize.side_effect = FileNotFoundError("Repository path not found")
+
+        healthy_bundle = self._make_refresh_bundle()
+        healthy_bundle.name = "healthy_bundle"
+
+        manager._dag_bundles = [failing_bundle, healthy_bundle]
+        manager._force_refresh_bundles = set()
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        healthy_bundle.refresh.assert_called_once()
 
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.

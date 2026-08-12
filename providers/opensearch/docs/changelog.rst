@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add OpensearchRemoteLogIO.from_config and register opensearch scheme (#70295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Do not show @timestamp in logs in UI (#70790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 1.11.1
 ......
 

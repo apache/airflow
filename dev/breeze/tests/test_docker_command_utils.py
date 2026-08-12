@@ -30,7 +30,9 @@ from airflow_breeze.utils.docker_command_utils import (
     check_docker_version,
     discover_running_compose_projects,
     enter_shell,
+    get_images_to_pull,
     is_known_breeze_compose_project,
+    pull_images_with_retries,
 )
 
 
@@ -471,3 +473,83 @@ def test_enter_shell_openlineage_rejects_non_postgres_backend(
         enter_shell(shell_params)
     assert exc_info.value.code == 1
     mock_run_command.assert_not_called()
+
+
+CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.10:latest"
+
+
+def _fake_docker_calls(present_images: set[str], failing_pulls: dict[str, int]):
+    """
+    Builds a run_command side effect emulating docker for the pull helpers.
+
+    :param present_images: images `docker image inspect` reports as already available
+    :param failing_pulls: how many times `docker pull` fails for a given image before succeeding
+    """
+    remaining_failures = dict(failing_pulls)
+
+    def _run_command(cmd, **kwargs):
+        result = mock.MagicMock()
+        result.returncode = 0
+        if cmd[:2] == ["docker", "compose"]:
+            result.stdout = f"{CI_IMAGE}\npostgres:17\notel/opentelemetry-collector-contrib:0.155.0\n"
+        elif cmd[:3] == ["docker", "image", "inspect"]:
+            result.returncode = 0 if cmd[3] in present_images else 1
+        elif cmd[:2] == ["docker", "pull"]:
+            if remaining_failures.get(cmd[2], 0) > 0:
+                remaining_failures[cmd[2]] -= 1
+                result.returncode = 1
+        return result
+
+    return _run_command
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_get_images_to_pull_skips_present_and_skipped_images(mock_run_command):
+    mock_run_command.side_effect = _fake_docker_calls(present_images={"postgres:17"}, failing_pulls={})
+
+    images = get_images_to_pull("breeze-test", env={}, skip_images={CI_IMAGE})
+
+    assert images == ["otel/opentelemetry-collector-contrib:0.155.0"]
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_get_images_to_pull_returns_nothing_when_compose_config_fails(mock_run_command):
+    mock_run_command.return_value = mock.MagicMock(returncode=1, stdout="")
+
+    assert get_images_to_pull("breeze-test", env={}, skip_images=set()) == []
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.time.sleep")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_pull_images_with_retries_recovers_from_transient_failures(mock_run_command, mock_sleep):
+    otel_image = "otel/opentelemetry-collector-contrib:0.155.0"
+    mock_run_command.side_effect = _fake_docker_calls(
+        present_images={"postgres:17"}, failing_pulls={otel_image: 2}
+    )
+
+    assert pull_images_with_retries("breeze-test", env={}, skip_images={CI_IMAGE}) is True
+    assert mock_sleep.call_args_list == [call(15), call(30)]
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.time.sleep")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_pull_images_with_retries_gives_up_after_all_attempts(mock_run_command, mock_sleep):
+    otel_image = "otel/opentelemetry-collector-contrib:0.155.0"
+    mock_run_command.side_effect = _fake_docker_calls(
+        present_images={"postgres:17"}, failing_pulls={otel_image: 99}
+    )
+
+    assert pull_images_with_retries("breeze-test", env={}, skip_images={CI_IMAGE}, attempts=3) is False
+    assert mock_sleep.call_args_list == [call(15), call(30)]
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.time.sleep")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_pull_images_with_retries_does_not_pull_when_all_images_are_present(mock_run_command, mock_sleep):
+    mock_run_command.side_effect = _fake_docker_calls(
+        present_images={"postgres:17", "otel/opentelemetry-collector-contrib:0.155.0"}, failing_pulls={}
+    )
+
+    assert pull_images_with_retries("breeze-test", env={}, skip_images={CI_IMAGE}) is True
+    assert not any(c.args[0][:2] == ["docker", "pull"] for c in mock_run_command.call_args_list)
+    mock_sleep.assert_not_called()

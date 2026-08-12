@@ -105,6 +105,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_airflowctl_version,
     get_task_sdk_version,
+    get_ts_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -256,7 +257,7 @@ MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
 PR_REFERENCE_PATTERN = re.compile(r"#([0-9]+)")
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)(?![0-9])")
 # Release-management commits (provider documentation / release preparation) are pure
 # release-process noise: they are not user-facing changes and existing providers already
 # exclude them (the release tooling parks them in the changelog's excluded section). Match
@@ -1548,6 +1549,7 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
+@option_allow_pre_releases
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1555,6 +1557,7 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1599,6 +1602,7 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
+                allow_pre_releases=allow_pre_releases,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1617,6 +1621,7 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
+            allow_pre_releases=allow_pre_releases,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
@@ -2032,6 +2037,9 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
 
     if package_name == "task-sdk":
         return get_task_sdk_version()
+
+    if package_name == "ts-sdk":
+        return get_ts_sdk_version()
 
     if package_name == "helm-chart":
         return chart_version()
