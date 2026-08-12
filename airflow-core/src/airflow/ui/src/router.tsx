@@ -197,7 +197,7 @@ export const routerConfig = [
           { element: <Events />, handle: { entity: "dag", tab: "events" }, path: "events" },
           { element: <Code />, handle: { entity: "dag", tab: "code" }, path: "code" },
           { element: <DagDetails />, handle: { entity: "dag", tab: "details" }, path: "details" },
-          { ...pluginRoute, handle: { entity: "dag", tab: "plugin/:page/*" } },
+          pluginRoute,
         ],
         element: <Dag />,
         handle: { entity: "dag" },

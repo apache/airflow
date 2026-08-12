@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { generatePath } from "react-router-dom";
-
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { taskInstanceRoutes } from "src/router";
 
@@ -96,18 +94,7 @@ export const getTabPath = (matches: Array<RouteMatch>, entities: Array<string> |
     return "";
   }
 
-  try {
-    const params = Object.fromEntries(
-      Object.entries(tabMatch.params).map(([key, value]) => [
-        key,
-        value === undefined ? null : key === "*" ? value.split("/").map(encodeURIComponent).join("/") : value,
-      ]),
-    );
-
-    return `/${generatePath(tabMatch.handle.tab, params)}`;
-  } catch {
-    return "";
-  }
+  return `/${tabMatch.handle.tab}`;
 };
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {

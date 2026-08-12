@@ -39,48 +39,6 @@ describe("getTabPath", () => {
     },
   );
 
-  it("generates a nested plugin route from handle metadata and params", () => {
-    expect(
-      getTabPath(
-        [
-          {
-            handle: { entity: "dag", tab: "plugin/:page/*" },
-            params: { "*": "nested/detail/42", dagId: "example", page: "test" },
-          },
-        ],
-        "dag",
-      ),
-    ).toBe("/plugin/test/nested/detail/42");
-  });
-
-  it("preserves encoded reserved characters in nested plugin path segments", () => {
-    expect(
-      getTabPath(
-        [
-          {
-            handle: { entity: "dag", tab: "plugin/:page/*" },
-            params: { "*": "nested?mode=1/section#details", dagId: "example", page: "test" },
-          },
-        ],
-        "dag",
-      ),
-    ).toBe("/plugin/test/nested%3Fmode%3D1/section%23details");
-  });
-
-  it("does not double-encode named plugin params", () => {
-    expect(
-      getTabPath(
-        [
-          {
-            handle: { entity: "dag", tab: "plugin/:page/*" },
-            params: { "*": "details", dagId: "example", page: "my plugin" },
-          },
-        ],
-        "dag",
-      ),
-    ).toBe("/plugin/my%20plugin/details");
-  });
-
   it("supports more than one compatible entity", () => {
     expect(
       getTabPath(
@@ -109,13 +67,6 @@ describe("getTabPath", () => {
     },
   ])("does not preserve unmatched or non-Dag routes", (matches) => {
     expect(getTabPath(matches.matches, "dag")).toBe("");
-  });
-
-  it.each([
-    { handle: { entity: "dag", tab: "plugin/:page/*" }, params: { dagId: "example" } },
-    { handle: { entity: "dag", tab: "plugin/:page/*" }, params: { "*": "details", dagId: "example" } },
-  ])("does not preserve a parameterized tab with missing params", (match) => {
-    expect(getTabPath([match], "dag")).toBe("");
   });
 });
 

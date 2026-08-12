@@ -43,20 +43,8 @@ describe("Dag route handles", () => {
     },
   );
 
-  it("preserves the complete matched plugin route", () => {
-    expect(getAdditionalPath("/dags/example/plugin/test/nested/detail/42")).toBe(
-      "/plugin/test/nested/detail/42",
-    );
-  });
-
-  it("preserves encoded reserved characters in a nested plugin route", () => {
-    expect(getAdditionalPath("/dags/example/plugin/test/nested%3Fmode%3D1/section%23details")).toBe(
-      "/plugin/test/nested%3Fmode%3D1/section%23details",
-    );
-  });
-
-  it("does not double-encode named plugin params", () => {
-    expect(getAdditionalPath("/dags/example/plugin/my%20plugin/details")).toBe("/plugin/my%20plugin/details");
+  it("does not preserve a plugin route when destination compatibility is unknown", () => {
+    expect(getAdditionalPath("/dags/example/plugin/test/nested/detail/42")).toBe("");
   });
 
   it.each([
