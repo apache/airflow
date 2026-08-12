@@ -143,7 +143,7 @@ nothing, so a unit test can build one and dispatch through
 `registry.getTaskHandler(dagId, taskId)` without any runtime involved.
 
 `new Dag` and `dag.task` take a trailing options object — `spec` on both, plus
-`inputs` on a task. These are reserved for future use; do not set them.
+`inputs` on a task. These are not used yet; do not set them.
 
 For larger projects, declare each Dag in its own module and keep one Airflow
 entrypoint that serves them all:

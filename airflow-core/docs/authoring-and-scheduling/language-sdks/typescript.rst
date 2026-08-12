@@ -119,7 +119,7 @@ through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime
 its Dags across several modules can add them incrementally with ``registry.register(...)``.
 
 ``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
-These are reserved for future use; do not set them. Any other key is rejected.
+These are not used yet; do not set them. Any other key is rejected.
 
 .. note::
 

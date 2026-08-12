@@ -48,32 +48,35 @@ function validateEmptySpec(name: string, value: unknown): void {
 }
 
 /**
- * Dag-level options. **Reserved: no fields yet.**
+ * Dag-level options.
  *
- * Native TypeScript Dag declaration (schedule, tags, ...) will add optional
- * fields here without changing the `Dag` constructor, generated from the
- * serialized-Dag JSON schema the way `src/generated/supervisor.ts` is. Until
- * then only `{}` is accepted, so a field that would be silently dropped —
- * `new Dag("d", { schedule: "@daily" })` — is a compile error rather than a
- * Dag that packs and runs without the schedule.
+ * No fields yet, so only `{}` is accepted. That keeps a field which would be
+ * silently dropped — `new Dag("d", { schedule: "@daily" })` — a compile error
+ * rather than a Dag that packs and runs without its schedule.
+ *
+ * Native TypeScript Dag declaration will add optional fields here (schedule,
+ * tags, ...), generated from the serialized-Dag JSON schema the way
+ * `src/generated/supervisor.ts` is, without changing the `Dag` constructor.
  */
 export type DagSpec = Record<string, never>;
 
 /**
- * Task-level options. **Reserved: no fields yet.**
+ * Task-level options.
+ *
+ * No fields yet, so only `{}` is accepted, as with {@link DagSpec}.
  *
  * Future task fields (retries, ...) will land here without changing the
- * `dag.task()` signature. As with {@link DagSpec}, only `{}` is accepted today.
+ * `dag.task()` signature.
  */
 export type TaskSpec = Record<string, never>;
 
 /**
- * Opaque handle to a task registered on a {@link Dag}, returned by
- * `dag.task(...)`.
+ * A reference to a task registered on a {@link Dag}, returned by `dag.task(...)`.
  *
- * Identity only — the handler is deliberately not exposed. Handles are what the
- * reserved `inputs` option accepts, and what native TypeScript Dag declaration
- * will use to wire dependencies.
+ * Identity only: the handler is deliberately not exposed.
+ *
+ * References are what the `inputs` option accepts, and what native TypeScript
+ * Dag declaration will use to wire dependencies.
  */
 export interface TaskRef {
   /** Identifier of the Dag this task belongs to. */
@@ -83,12 +86,14 @@ export interface TaskRef {
 }
 
 /**
- * Upstream task handles keyed by input name. **Reserved: validated and
- * retained, but inert today** — see {@link TaskOptions.inputs}.
+ * Task references keyed by input name.
  *
- * Values must be handles returned by `dag.task(...)`. Literal values are
- * deliberately out of scope for now; the future native-Dag work decides how
- * they are declared.
+ * References are stored and validated, but they do not create dependencies or
+ * pass values to handlers yet — see {@link TaskOptions.inputs}. Each reference
+ * must identify an earlier task in the same Dag. Literal values are not
+ * supported.
+ *
+ * In the future these will declare dependencies in native TypeScript Dags.
  */
 export type TaskInputs = Readonly<Record<string, TaskRef>>;
 
@@ -101,17 +106,18 @@ export type TaskInputs = Readonly<Record<string, TaskRef>>;
  */
 export interface TaskOptions {
   /**
-   * Upstream task handles this task consumes. **Reserved: validated and
-   * retained, but inert today.**
+   * References to the upstream tasks this task consumes.
    *
-   * Nothing reads it yet: a handler receives `{ctx, client}` only, and no
-   * dependency is declared from it — in today's Python-stub mode the stub Dag
-   * defines task order. To read an upstream task's return value, ask for it
-   * explicitly: `client.getXCom({ key: "return_value", taskId: "extract" })`.
-   * Omitting `taskId` there reads the *running* task's own XCom.
+   * Not used yet: a handler receives `{ctx, client}` only, and nothing here
+   * declares a dependency — in today's Python-stub mode the stub Dag defines
+   * task order. Read an upstream return value explicitly instead:
+   * `client.getXCom({ key: "return_value", taskId: "extract" })`. Omitting
+   * `taskId` there reads the *running* task's own XCom, not the upstream one.
+   *
+   * In the future these will declare dependencies in native TypeScript Dags.
    */
   readonly inputs?: TaskInputs;
-  /** Task-level options. **Reserved: retained, but inert today.** */
+  /** Task-level options. Stored, but not used yet — see {@link TaskSpec}. */
   readonly spec?: TaskSpec;
 }
 
