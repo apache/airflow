@@ -1,0 +1,1 @@
+The Airflow REST API now returns a clearer 422 error message when a required field is missing from a request, naming the specific field that needs to be provided.

@@ -368,6 +368,22 @@ class TestPostConnection(TestConnectionEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        ("body", "missing_field"),
+        [
+            ({"conn_type": TEST_CONN_TYPE}, "connection_id"),
+            ({"connection_id": TEST_CONN_ID}, "conn_type"),
+            ({}, "connection_id"),
+        ],
+    )
+    def test_post_should_respond_422_for_missing_required_field(self, test_client, body, missing_field):
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+        error = response.json()["detail"][0]
+        assert error["type"] == "missing"
+        assert error["loc"] == ["body", missing_field]
+        assert f"`{missing_field}` is a required field" in error["msg"]
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
         response = test_client.post(

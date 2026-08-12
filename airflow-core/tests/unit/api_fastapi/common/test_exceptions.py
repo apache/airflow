@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import re
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import FastAPI, HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 from sqlalchemy.exc import DataError, IntegrityError
@@ -31,6 +33,7 @@ from airflow.api_fastapi.common.exceptions import (
     ERROR_HANDLERS,
     DagErrorHandler,
     DataErrorHandler,
+    RequestValidationErrorHandler,
     _DatabaseDialect,
     _UniqueConstraintErrorHandler,
 )
@@ -632,3 +635,88 @@ class TestDagErrorHandler:
             match=re.escape(f"An error occurred while trying to deserialize Dag: {exc_info.value}"),
         ):
             DagErrorHandler().exception_handler(Mock(), exc_info.value)
+
+
+class TestRequestValidationErrorHandler:
+    """Test the handler for FastAPI's RequestValidationError (422)."""
+
+    handler = RequestValidationErrorHandler()
+
+    def _invoke(self, errors: list[dict]) -> tuple[int, dict]:
+        response = self.handler.exception_handler(Mock(), RequestValidationError(errors))
+        return response.status_code, json.loads(response.body)
+
+    def test_missing_body_field_surfaces_field_name(self) -> None:
+        status_code, body = self._invoke(
+            [
+                {
+                    "type": "missing",
+                    "loc": ["body", "conn_type"],
+                    "msg": "Field required",
+                    "input": {"connection_id": "my_conn"},
+                }
+            ]
+        )
+        assert status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        (error,) = body["detail"]
+        assert error["type"] == "missing"
+        assert error["loc"] == ["body", "conn_type"]
+        assert error["input"] == {"connection_id": "my_conn"}
+        assert "`conn_type` is a required field" in error["msg"]
+        assert "Please provide a value for it in the request" in error["msg"]
+
+    def test_missing_query_param_surfaces_field_name(self) -> None:
+        _, body = self._invoke(
+            [
+                {
+                    "type": "missing",
+                    "loc": ["query", "dag_id"],
+                    "msg": "Field required",
+                    "input": None,
+                }
+            ]
+        )
+        (error,) = body["detail"]
+        assert "`dag_id` is a required field" in error["msg"]
+
+    def test_non_missing_error_is_left_unchanged(self) -> None:
+        pattern = "^[\\w.-]+$"
+        status_code, body = self._invoke(
+            [
+                {
+                    "type": "string_pattern_mismatch",
+                    "loc": ["body", "connection_id"],
+                    "msg": "String should match pattern '^[\\w.-]+$'",
+                    "input": "****",
+                    "ctx": {"pattern": pattern},
+                }
+            ]
+        )
+        assert status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        (error,) = body["detail"]
+        assert error["type"] == "string_pattern_mismatch"
+        assert error["ctx"] == {"pattern": pattern}
+        assert error["msg"] == "String should match pattern '^[\\w.-]+$'"
+
+    def test_multiple_errors_handled_independently(self) -> None:
+        pattern = "^[\\w.-]+$"
+        _, body = self._invoke(
+            [
+                {
+                    "type": "missing",
+                    "loc": ["body", "conn_type"],
+                    "msg": "Field required",
+                    "input": {"connection_id": "my_conn"},
+                },
+                {
+                    "type": "string_pattern_mismatch",
+                    "loc": ["body", "connection_id"],
+                    "msg": "String should match pattern '^[\\w.-]+$'",
+                    "input": "****",
+                    "ctx": {"pattern": pattern},
+                },
+            ]
+        )
+        missing, mismatch = body["detail"]
+        assert "`conn_type` is a required field" in missing["msg"]
+        assert mismatch["msg"] == "String should match pattern '^[\\w.-]+$'"

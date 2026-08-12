@@ -24,6 +24,9 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
@@ -187,11 +190,47 @@ class SQLAlchemyErrorHandler(_DatabaseErrorHandler[SQLAlchemyError]):
         super().__init__(SQLAlchemyError)
 
 
+class RequestValidationErrorHandler(BaseErrorHandler[RequestValidationError]):
+    """
+    Turn FastAPI's default 422 response into an actionable one for missing fields.
+
+    Pydantic reports a missing required field with ``type == "missing"`` and a generic
+    "Field required" message. Surface the actual field name so API users can fix the
+    request without cross-referencing the OpenAPI schema. The response structure is
+    preserved exactly for all other validation errors.
+    """
+
+    def __init__(self):
+        super().__init__(RequestValidationError)
+
+    def exception_handler(self, request: Request, exc: RequestValidationError):
+        errors = []
+        for error in exc.errors():
+            if error["type"] == "missing":
+                field_name = error["loc"][-1] if error["loc"] else ""
+                errors.append(
+                    {
+                        **error,
+                        "msg": (
+                            f"Field required: `{field_name}` is a required field. "
+                            "Please provide a value for it in the request."
+                        ),
+                    }
+                )
+            else:
+                errors.append(error)
+        return JSONResponse(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            content={"detail": jsonable_encoder(errors)},
+        )
+
+
 ERROR_HANDLERS: list[BaseErrorHandler] = [
     _UniqueConstraintErrorHandler(),
     DataErrorHandler(),
     SQLAlchemyErrorHandler(),
     DagErrorHandler(),
+    RequestValidationErrorHandler(),
 ]
 
 
