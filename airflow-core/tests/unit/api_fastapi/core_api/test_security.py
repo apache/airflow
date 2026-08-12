@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from fastapi import HTTPException, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -42,9 +43,19 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    PermittedBackfillFilter,
+    PermittedDagFilter,
+    PermittedDagRunFilter,
+    PermittedDagVersionFilter,
+    PermittedDagWarningFilter,
+    PermittedEventLogFilter,
+    PermittedTagFilter,
+    PermittedTIFilter,
+    PermittedXComFilter,
     _build_dag_run_access_requests,
     get_user,
     is_safe_url,
+    permitted_dag_filter_factory,
     requires_access_backfill,
     requires_access_connection,
     requires_access_connection_bulk,
@@ -1505,3 +1516,42 @@ class TestAuthManagerDependency:
         assert auth_manager is not None
         assert hasattr(auth_manager, "get_url_login")
         assert hasattr(auth_manager, "get_url_logout")
+
+
+class TestPermittedDagFilter:
+    @pytest.mark.parametrize(("unrestricted", "expects_predicate"), [(False, True), (True, False)])
+    def test_to_orm_drops_the_predicate_when_unrestricted(self, unrestricted, expects_predicate):
+        statement = PermittedDagFilter({"dag1"}, unrestricted=unrestricted).to_orm(select(DagModel))
+        assert (statement.whereclause is not None) is expects_predicate
+
+    @pytest.mark.parametrize(
+        "filter_class",
+        [
+            PermittedDagRunFilter,
+            PermittedDagWarningFilter,
+            PermittedEventLogFilter,
+            PermittedTIFilter,
+            PermittedXComFilter,
+            PermittedTagFilter,
+            PermittedDagVersionFilter,
+            PermittedBackfillFilter,
+        ],
+    )
+    def test_subclasses_keep_their_predicate_when_unrestricted(self, filter_class):
+        statement = filter_class({"dag1"}, unrestricted=True).to_orm(select(DagModel))
+        assert statement.whereclause is not None
+
+    @pytest.mark.parametrize(("unrestricted", "expected"), [(False, {"dag1"}), (True, None)])
+    def test_dag_id_restriction(self, unrestricted, expected):
+        assert PermittedDagFilter({"dag1"}, unrestricted=unrestricted).dag_id_restriction == expected
+
+    @pytest.mark.parametrize("unrestricted", [False, True])
+    def test_factory_takes_unrestricted_from_the_auth_manager(self, unrestricted):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.get_authorized_dag_ids.return_value = {"dag1"}
+        auth_manager.is_authorized_all_dags.return_value = unrestricted
+
+        dag_filter = permitted_dag_filter_factory("GET")(Mock(), auth_manager)
+
+        assert dag_filter.value == {"dag1"}
+        assert dag_filter.unrestricted is unrestricted

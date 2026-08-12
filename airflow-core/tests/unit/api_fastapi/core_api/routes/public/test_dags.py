@@ -23,6 +23,7 @@ import pendulum
 import pytest
 from sqlalchemy import delete, insert, select, update
 
+from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
@@ -263,6 +264,16 @@ class TestDagEndpoint:
 
 class TestGetDags(TestDagEndpoint):
     """Unit tests for Get DAGs."""
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dags.generate_dag_with_latest_run_query",
+        wraps=generate_dag_with_latest_run_query,
+    )
+    def test_query_is_not_narrowed_for_a_user_authorized_on_every_dag(self, mock_generate_query, test_client):
+        response = test_client.get("/dags")
+
+        assert response.status_code == 200
+        assert mock_generate_query.call_args.kwargs["dag_ids"] is None
 
     @pytest.mark.parametrize(
         ("query_params", "expected_total_entries", "expected_ids"),
@@ -872,8 +883,14 @@ class TestPatchDags(TestDagEndpoint):
         ).all()
         assert set(paused_dags) == {DAG1_ID, DAG2_ID}
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_all_dags",
+        return_value=False,
+    )
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
-    def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
+    def test_patch_dags_should_call_authorized_dag_ids(
+        self, mock_get_authorized_dag_ids, mock_is_authorized_all_dags, test_client
+    ):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.patch(
             "/dags", json={"is_paused": False}, params={"exclude_stale": False, "dag_id_pattern": "~"}

@@ -575,6 +575,11 @@ class FabAuthManager(BaseAuthManager[User]):
         rows = session.execute(select(Connection.conn_id)).scalars().all()
         return set(rows)
 
+    def is_authorized_all_dags(self, *, user: User, method: ResourceMethod = "GET") -> bool:
+        # A permission on the ``DAGs`` resource itself covers every Dag, whatever its id. Teams
+        # need no consideration: FAB has no multi-team support.
+        return self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user)
+
     @provide_session
     def get_authorized_dag_ids(
         self,
@@ -583,7 +588,7 @@ class FabAuthManager(BaseAuthManager[User]):
         method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
-        if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
+        if self.is_authorized_all_dags(user=user, method=method):
             # If user is authorized to access all DAGs, return all DAGs
             return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
         if isinstance(user, AnonymousUser):

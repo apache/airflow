@@ -46,7 +46,8 @@ def generate_dag_with_latest_run_query(
     :param order_by: Sort parameter for ordering results
     :param dag_ids: Optional set of Dag IDs to limit the query to. When provided, both the main
         Dag query and the subquery for finding the latest runs will be filtered to
-        only these Dag IDs, improving performance when users have limited Dag access.
+        only these Dag IDs, improving performance when users have limited Dag access. ``None``
+        applies no restriction, for callers authorized on every Dag.
     :return: SQLAlchemy Select statement
     """
     query = select(DagModel).options(selectinload(DagModel.tags))

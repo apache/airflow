@@ -594,6 +594,10 @@ class TestBaseAuthManager:
         result = auth_manager.get_authorized_dag_ids(user=user, session=session)
         assert result == expected
 
+    @pytest.mark.parametrize("method", ["GET", "PUT"])
+    def test_is_authorized_all_dags_defaults_to_denied(self, auth_manager, method):
+        assert auth_manager.is_authorized_all_dags(user=Mock(), method=method) is False
+
     @pytest.mark.parametrize(
         ("access_per_connection", "access_per_team", "rows", "expected"),
         [

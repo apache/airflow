@@ -869,6 +869,23 @@ class TestFabAuthManager:
         assert result == {"conn1", "conn2"}
 
     @pytest.mark.parametrize(
+        ("method", "user_permissions", "expected_result"),
+        [
+            ("GET", [(ACTION_CAN_READ, RESOURCE_DAG)], True),
+            ("PUT", [(ACTION_CAN_EDIT, RESOURCE_DAG)], True),
+            # A permission on a single Dag does not cover the others
+            ("GET", [(ACTION_CAN_READ, "DAG:test_dag1")], False),
+            # Read on every Dag says nothing about editing them
+            ("PUT", [(ACTION_CAN_READ, RESOURCE_DAG)], False),
+            ("GET", [], False),
+        ],
+    )
+    def test_is_authorized_all_dags(self, auth_manager, method, user_permissions, expected_result):
+        user = Mock()
+        user.perms = user_permissions
+        assert auth_manager.is_authorized_all_dags(user=user, method=method) is expected_result
+
+    @pytest.mark.parametrize(
         ("method", "user_permissions", "expected_results"),
         [
             # Scenario 1

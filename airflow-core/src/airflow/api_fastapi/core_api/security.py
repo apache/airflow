@@ -246,7 +246,21 @@ def requires_access_dag_from_file_token(
 class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
+    def __init__(self, value: set[str] | None = None, *, unrestricted: bool = False):
+        super().__init__(value)
+        self.unrestricted = unrestricted
+
+    @property
+    def dag_id_restriction(self) -> set[str] | None:
+        """The Dag ids a query must be narrowed to, or ``None`` when it needs no narrowing."""
+        return None if self.unrestricted else self.value
+
     def to_orm(self, select: Select) -> Select:
+        # Deliberately only honoured here: the subclasses filter tables whose rows can outlive the
+        # Dag they name (``dag_run``, ``backfill``, ``dag_warning`` and ``log`` have no cascading
+        # foreign key to ``dag``), and their predicate is what keeps those leftovers hidden.
+        if self.unrestricted:
+            return select
         # self.value may be None (OrmClause holds Optional), ensure we pass an Iterable to in_
         return select.where(DagModel.dag_id.in_(self.value or set()))
 
@@ -268,8 +282,14 @@ class PermittedDagWarningFilter(PermittedDagFilter):
 class PermittedEventLogFilter(PermittedDagFilter):
     """A parameter that filters the permitted event logs for the user."""
 
-    def __init__(self, value: set[str] | None = None, *, include_non_dag_logs: bool = False):
-        super().__init__(value)
+    def __init__(
+        self,
+        value: set[str] | None = None,
+        *,
+        unrestricted: bool = False,
+        include_non_dag_logs: bool = False,
+    ):
+        super().__init__(value, unrestricted=unrestricted)
         self.include_non_dag_logs = include_non_dag_logs
 
     def to_orm(self, select: Select) -> Select:
@@ -334,7 +354,10 @@ def permitted_dag_filter_factory(
         auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
         authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
-        return filter_class(authorized_dags)
+        return filter_class(
+            authorized_dags,
+            unrestricted=auth_manager.is_authorized_all_dags(user=user, method=method),
+        )
 
     return depends_permitted_dags_filter
 

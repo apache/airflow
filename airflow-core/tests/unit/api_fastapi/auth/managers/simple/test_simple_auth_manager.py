@@ -320,6 +320,20 @@ class TestSimpleAuthManager:
         )
 
     @pytest.mark.parametrize(
+        ("role", "method", "result"),
+        [
+            ("ADMIN", "GET", True),
+            ("ADMIN", "DELETE", True),
+            ("OP", "GET", False),
+            ("USER", "GET", False),
+            ("VIEWER", "GET", False),
+        ],
+    )
+    def test_is_authorized_all_dags(self, auth_manager, role, method, result):
+        user = SimpleAuthManagerUser(username="test", role=role, teams=["test"])
+        assert auth_manager.is_authorized_all_dags(user=user, method=method) is result
+
+    @pytest.mark.parametrize(
         ("api", "kwargs"),
         [
             ("is_authorized_view", {"access_view": AccessView.CLUSTER_ACTIVITY}),

@@ -281,6 +281,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             team_name=details.team_name if details else None,
         )
 
+    def is_authorized_all_dags(self, *, user: SimpleAuthManagerUser, method: ResourceMethod = "GET") -> bool:
+        # Admins alone: every other role's Dag access still hinges on the Dag's team, which this
+        # method is not given.
+        return self._is_admin(user)
+
     def is_authorized_asset(
         self,
         *,

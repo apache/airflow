@@ -625,6 +625,22 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         return {conn_id for conn_id in conn_ids if _is_authorized_connection(conn_id)}
 
+    def is_authorized_all_dags(self, *, user: T, method: ResourceMethod = "GET") -> bool:
+        """
+        Return whether the user is authorized to perform a given action on every Dag.
+
+        Defaults to ``False``, meaning the decision has to be made one Dag at a time. An auth
+        manager whose Dag decisions do not depend on the Dag id should override this, so callers
+        can stop narrowing their queries to the Dags the user has access to.
+
+        Returning ``True`` must hold for every Dag in the deployment, including the Dags of teams
+        the user is not a member of.
+
+        :param user: the user
+        :param method: the method to perform
+        """
+        return False
+
     @provide_session
     def get_authorized_dag_ids(
         self,

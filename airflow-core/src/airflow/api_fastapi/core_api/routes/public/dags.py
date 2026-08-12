@@ -146,7 +146,7 @@ def get_dags(
             last_dag_run_state,
         ],
         order_by=order_by,
-        dag_ids=readable_dags_filter.value,
+        dag_ids=readable_dags_filter.dag_id_restriction,
     )
 
     dags_select, total_entries = paginated_select(

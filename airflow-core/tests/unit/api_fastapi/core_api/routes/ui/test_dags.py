@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.models.dag import DagModel, DagTag
@@ -134,6 +135,16 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 if previous_run_after:
                     assert previous_run_after > dag_run["run_after"]
                 previous_run_after = dag_run["run_after"]
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.ui.dags.generate_dag_with_latest_run_query",
+        wraps=generate_dag_with_latest_run_query,
+    )
+    def test_query_is_not_narrowed_for_a_user_authorized_on_every_dag(self, mock_generate_query, test_client):
+        response = test_client.get("/dags")
+
+        assert response.status_code == 200
+        assert mock_generate_query.call_args.kwargs["dag_ids"] is None
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize(
@@ -565,10 +576,15 @@ class TestGetDagTimetableTypes(TestPublicDagEndpoint):
             "total_entries": expected_total_entries,
         }
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_all_dags",
+        return_value=False,
+    )
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_only_returns_types_from_readable_dags(
         self,
         mock_get_authorized_dag_ids,
+        mock_is_authorized_all_dags,
         test_client,
     ):
         mock_get_authorized_dag_ids.return_value = {DAG2_ID}
