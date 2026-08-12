@@ -8681,6 +8681,21 @@ export const $AuthenticatedMeResponse = {
         username: {
             type: 'string',
             title: 'Username'
+        },
+        teams: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Teams',
+            description: 'Teams the user has access to. Null when the environment does not run in multi-team mode.'
         }
     },
     type: 'object',

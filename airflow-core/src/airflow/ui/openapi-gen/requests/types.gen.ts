@@ -2182,6 +2182,10 @@ export type XComUpdateBody = {
 export type AuthenticatedMeResponse = {
     id: string;
     username: string;
+    /**
+     * Teams the user has access to. Null when the environment does not run in multi-team mode.
+     */
+    teams?: Array<(string)> | null;
 };
 
 /**
