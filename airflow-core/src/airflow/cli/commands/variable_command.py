@@ -186,15 +186,13 @@ def variables_export(args):
 
         data = json.JSONDecoder()
         for var in qry:
-            # Emit a form variables_import turns back into var.val: it stores strings verbatim,
-            # JSON-encodes everything else, and unwraps any dict carrying a "value" key.
+            # Mirror variables_import's reconstruction so export/import round-trips.
             try:
                 val = data.decode(var.val)
             except Exception:
                 val = var.val
-            else:
-                if isinstance(val, str):
-                    val = var.val
+            if isinstance(val, str):
+                val = var.val
             if var.description or (isinstance(val, dict) and "value" in val):
                 var_dict[var.key] = {
                     "value": val,
