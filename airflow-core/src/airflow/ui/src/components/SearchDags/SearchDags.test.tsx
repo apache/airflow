@@ -275,7 +275,7 @@ describe("SearchDags", () => {
       },
       {
         data: undefined,
-        handle: { entity: "dag", tab: "plugin" },
+        handle: { entity: "dag", tab: "plugin/:page/*" },
         id: "dag-plugin",
         loaderData: undefined,
         params: { "*": "nested/detail/42", dagId: "old_dag", page: "test" },
@@ -287,6 +287,48 @@ describe("SearchDags", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag/plugin/test/nested/detail/42");
+  });
+
+  it("preserves encoded reserved characters in nested plugin routes", () => {
+    vi.mocked(useMatches).mockReturnValue([
+      {
+        data: undefined,
+        handle: { entity: "dag", tab: "plugin/:page/*" },
+        id: "dag-plugin",
+        loaderData: undefined,
+        params: {
+          "*": "nested?mode=1/section#details",
+          dagId: "old_dag",
+          page: "test",
+        },
+        pathname: "/dags/old_dag/plugin/test/nested%3Fmode%3D1/section%23details",
+      },
+    ]);
+    renderSearch({ initialEntry: "/dags/old_dag/plugin/test/nested%3Fmode%3D1/section%23details" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+
+    expect(screen.getByTestId("location").textContent).toBe(
+      "/dags/new_dag/plugin/test/nested%3Fmode%3D1/section%23details",
+    );
+  });
+
+  it("does not double-encode named plugin params", () => {
+    vi.mocked(useMatches).mockReturnValue([
+      {
+        data: undefined,
+        handle: { entity: "dag", tab: "plugin/:page/*" },
+        id: "dag-plugin",
+        loaderData: undefined,
+        params: { "*": "details", dagId: "old_dag", page: "my plugin" },
+        pathname: "/dags/old_dag/plugin/my%20plugin/details",
+      },
+    ]);
+    renderSearch({ initialEntry: "/dags/old_dag/plugin/my%20plugin/details" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+
+    expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag/plugin/my%20plugin/details");
   });
 
   it("keeps browser back and forward history after switching Dags", () => {

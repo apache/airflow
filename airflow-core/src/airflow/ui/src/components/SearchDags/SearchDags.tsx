@@ -32,7 +32,7 @@ import type {
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { getDagAdditionalPath } from "src/utils/links";
+import { getTabPath } from "src/utils/links";
 import type { DagSearchOption } from "src/utils/option";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
@@ -57,7 +57,7 @@ export const SearchDags = ({
 
   const onSelect = (selected: SingleValue<DagSearchOption>) => {
     if (selected) {
-      const additionalPath = getDagAdditionalPath(matches);
+      const additionalPath = getTabPath(matches, "dag");
       const targetPath = additionalPath === "/backfills" && !selected.isBackfillable ? "" : additionalPath;
 
       setIsOpen(false);

@@ -22,69 +22,100 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import {
   buildTaskInstanceUrl,
-  getDagAdditionalPath,
   getNextHref,
   getSafeExternalUrl,
+  getTabPath,
   getTaskInstanceAdditionalPath,
   getTaskInstanceLink,
 } from "./links";
 
-const getDagMatches = (tab: string) => [
-  { handle: { entity: "dag" }, pathname: "/dags/example" },
-  { handle: { entity: "dag", tab }, pathname: `/dags/example${tab === "" ? "" : `/${tab}`}` },
-];
+const getDagMatches = (tab: string) => [{ handle: { entity: "dag", tab }, params: { dagId: "example" } }];
 
-describe("getDagAdditionalPath", () => {
+describe("getTabPath", () => {
   it.each(["", "runs", "tasks", "calendar", "backfills", "events", "code", "details"])(
     "preserves the %s Dag tab",
     (tab) => {
-      expect(getDagAdditionalPath(getDagMatches(tab))).toBe(tab === "" ? "" : `/${tab}`);
+      expect(getTabPath(getDagMatches(tab), "dag")).toBe(tab === "" ? "" : `/${tab}`);
     },
   );
 
-  it("preserves a nested plugin route from its matched pathname", () => {
+  it("generates a nested plugin route from handle metadata and params", () => {
     expect(
-      getDagAdditionalPath([
-        { handle: { entity: "dag" }, pathname: "/dags/example" },
-        {
-          handle: { entity: "dag", tab: "plugin" },
-          pathname: "/dags/example/plugin/test/nested/detail/42",
-        },
-      ]),
+      getTabPath(
+        [
+          {
+            handle: { entity: "dag", tab: "plugin/:page/*" },
+            params: { "*": "nested/detail/42", dagId: "example", page: "test" },
+          },
+        ],
+        "dag",
+      ),
     ).toBe("/plugin/test/nested/detail/42");
+  });
+
+  it("preserves encoded reserved characters in nested plugin path segments", () => {
+    expect(
+      getTabPath(
+        [
+          {
+            handle: { entity: "dag", tab: "plugin/:page/*" },
+            params: { "*": "nested?mode=1/section#details", dagId: "example", page: "test" },
+          },
+        ],
+        "dag",
+      ),
+    ).toBe("/plugin/test/nested%3Fmode%3D1/section%23details");
+  });
+
+  it("does not double-encode named plugin params", () => {
+    expect(
+      getTabPath(
+        [
+          {
+            handle: { entity: "dag", tab: "plugin/:page/*" },
+            params: { "*": "details", dagId: "example", page: "my plugin" },
+          },
+        ],
+        "dag",
+      ),
+    ).toBe("/plugin/my%20plugin/details");
+  });
+
+  it("supports more than one compatible entity", () => {
+    expect(
+      getTabPath(
+        [{ handle: { entity: "task", tab: "events" }, params: { taskId: "task_1" } }],
+        ["task", "task-instance"],
+      ),
+    ).toBe("/events");
   });
 
   it.each([
     { matches: [] },
-    { matches: [{ handle: { entity: "asset" }, pathname: "/assets/1" }] },
-    { matches: [{ handle: { entity: "task" }, pathname: "/dags/example/tasks/task_1" }] },
-    { matches: [{ handle: { entity: "dag" }, pathname: "/dags/example" }] },
+    { matches: [{ handle: { entity: "asset", tab: "events" }, params: { assetId: "1" } }] },
+    { matches: [{ handle: { entity: "task", tab: "details" }, params: { taskId: "task_1" } }] },
+    { matches: [{ handle: { entity: "dag" }, params: { dagId: "example" } }] },
     {
-      matches: [
-        { handle: { entity: "dag" }, pathname: "/dags/example" },
-        { handle: { entity: "dag", tab: 42 }, pathname: "/dags/example/details" },
-      ],
+      matches: [{ handle: { entity: "dag", tab: 42 }, params: { dagId: "example" } }],
     },
     {
-      matches: [
-        { handle: { entity: "dag" }, pathname: "/dags/example" },
-        { handle: undefined, pathname: "/dags/example/unknown" },
-      ],
+      matches: [{ handle: undefined, params: { dagId: "example" } }],
     },
     {
-      matches: [
-        { handle: { entity: "dag" }, pathname: "/dags/example" },
-        { handle: { entity: "dag", tab: "details" }, pathname: "/dags/another/details" },
-      ],
+      matches: [{ handle: { entity: 42, tab: "details" }, params: { dagId: "example" } }],
     },
     {
-      matches: [
-        { handle: { entity: "dag" }, pathname: "/dags/example" },
-        { handle: { entity: "dag", tab: "details" }, pathname: "/dags/example-other/details" },
-      ],
+      matches: [{ handle: null, params: { dagId: "example" } }],
     },
   ])("does not preserve unmatched or non-Dag routes", (matches) => {
-    expect(getDagAdditionalPath(matches.matches)).toBe("");
+    expect(getTabPath(matches.matches, "dag")).toBe("");
+  });
+
+  it.each([
+    { handle: { entity: "dag", tab: "plugin/:page/*" }, params: { dagId: "example" } },
+    { handle: { entity: "dag", tab: "plugin/:page/*" }, params: { "*": "details", dagId: "example" } },
+  ])("does not preserve a parameterized tab with missing params", (match) => {
+    expect(getTabPath([match], "dag")).toBe("");
   });
 });
 

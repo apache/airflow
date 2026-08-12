@@ -19,18 +19,19 @@
 import { matchRoutes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { getDagAdditionalPath } from "src/utils/links";
+import { getTabPath } from "src/utils/links";
 
 import { routerConfig } from "./router";
 
 const getAdditionalPath = (pathname: string) => {
   const matches = matchRoutes(routerConfig, pathname) ?? [];
 
-  return getDagAdditionalPath(
+  return getTabPath(
     matches.map((match) => ({
       handle: "handle" in match.route ? match.route.handle : undefined,
-      pathname: match.pathname,
+      params: match.params,
     })),
+    "dag",
   );
 };
 
@@ -46,6 +47,16 @@ describe("Dag route handles", () => {
     expect(getAdditionalPath("/dags/example/plugin/test/nested/detail/42")).toBe(
       "/plugin/test/nested/detail/42",
     );
+  });
+
+  it("preserves encoded reserved characters in a nested plugin route", () => {
+    expect(getAdditionalPath("/dags/example/plugin/test/nested%3Fmode%3D1/section%23details")).toBe(
+      "/plugin/test/nested%3Fmode%3D1/section%23details",
+    );
+  });
+
+  it("does not double-encode named plugin params", () => {
+    expect(getAdditionalPath("/dags/example/plugin/my%20plugin/details")).toBe("/plugin/my%20plugin/details");
   });
 
   it.each([

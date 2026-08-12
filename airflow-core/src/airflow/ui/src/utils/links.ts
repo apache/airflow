@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { generatePath } from "react-router-dom";
+
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { taskInstanceRoutes } from "src/router";
 
@@ -56,35 +58,56 @@ export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "sear
 
 type RouteMatch = {
   readonly handle: unknown;
-  readonly pathname: string;
+  readonly params: Record<string, string | undefined>;
 };
 
-type DagRouteHandle = {
-  readonly entity: "dag";
+type TabRouteHandle = {
+  readonly entity: string;
   readonly tab?: string;
 };
 
-const isDagRouteHandle = (handle: unknown): handle is DagRouteHandle =>
+const isTabRouteHandle = (handle: unknown): handle is TabRouteHandle =>
   typeof handle === "object" &&
   handle !== null &&
   "entity" in handle &&
-  handle.entity === "dag" &&
+  typeof handle.entity === "string" &&
   (!("tab" in handle) || typeof handle.tab === "string");
 
-export const getDagAdditionalPath = (matches: Array<RouteMatch>): string => {
-  const dagMatch = matches.find((match) => isDagRouteHandle(match.handle) && match.handle.tab === undefined);
+export const getTabPath = (matches: Array<RouteMatch>, entities: Array<string> | string): string => {
+  const targetEntities = new Set(Array.isArray(entities) ? entities : [entities]);
   const tabMatch = [...matches]
     .reverse()
-    .find((match) => isDagRouteHandle(match.handle) && match.handle.tab !== undefined);
+    .find(
+      (match) =>
+        isTabRouteHandle(match.handle) &&
+        targetEntities.has(match.handle.entity) &&
+        match.handle.tab !== undefined,
+    );
 
   if (
-    dagMatch === undefined ||
-    (tabMatch?.pathname !== dagMatch.pathname && !tabMatch?.pathname.startsWith(`${dagMatch.pathname}/`))
+    tabMatch?.handle === undefined ||
+    !isTabRouteHandle(tabMatch.handle) ||
+    tabMatch.handle.tab === undefined
   ) {
     return "";
   }
 
-  return tabMatch.pathname.slice(dagMatch.pathname.length);
+  if (tabMatch.handle.tab === "") {
+    return "";
+  }
+
+  try {
+    const params = Object.fromEntries(
+      Object.entries(tabMatch.params).map(([key, value]) => [
+        key,
+        value === undefined ? null : key === "*" ? value.split("/").map(encodeURIComponent).join("/") : value,
+      ]),
+    );
+
+    return `/${generatePath(tabMatch.handle.tab, params)}`;
+  } catch {
+    return "";
+  }
 };
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
