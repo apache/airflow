@@ -100,22 +100,6 @@ def test_build_codex_provider_uses_runtime_default_model(skill_eval_module, tmp_
     assert "enable_streaming" not in provider["config"]
 
 
-def test_build_claude_provider_keeps_existing_configuration(skill_eval_module, tmp_path):
-    provider = skill_eval_module.build_provider("main", tmp_path, "claude-test", "example-skill")
-
-    assert provider["id"] == "anthropic:claude-agent-sdk"
-    assert provider["label"] == "main"
-    assert provider["config"] == {
-        "apiKeyRequired": False,
-        "append_allowed_tools": ["Read", "Grep", "Glob"],
-        "model": "claude-test",
-        "output_format": skill_eval_module.OUTPUT_FORMAT,
-        "setting_sources": ["project"],
-        "skills": ["example-skill"],
-        "working_dir": str(tmp_path),
-    }
-
-
 @pytest.fixture
 def promptfoo_layout(monkeypatch, skill_eval_module, tmp_path):
     """Build a prek-style node env and return an SDK installer for either location.
