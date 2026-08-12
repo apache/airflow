@@ -36,9 +36,9 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
+    from airflow.sdk.exceptions import TaskAwaitingInput
 else:
-    ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
+    TaskAwaitingInput = TaskDeferred  # type: ignore[assignment, misc]
 
 
 def _make_context():
@@ -624,7 +624,7 @@ class TestLLMSchemaCompareOperatorApproval:
         mock_agent.run_sync.return_value = _make_mock_run_result(result)
         op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
 
-        with pytest.raises(ApprovalPauseSignal) as exc_info:
+        with pytest.raises(TaskAwaitingInput) as exc_info:
             op.execute(context=_make_context())
 
         assert exc_info.value.kwargs["generated_output"] == result.model_dump_json()
