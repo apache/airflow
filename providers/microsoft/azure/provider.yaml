@@ -386,6 +386,9 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/gcs_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.gcs_to_wasb
 
+notifications:
+  - airflow.providers.microsoft.azure.notifications.msgraph.MSGraphNotifier
+
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
     hook-name: "Azure"

@@ -378,6 +378,7 @@ def get_provider_info():
                 "python-module": "airflow.providers.microsoft.azure.transfers.gcs_to_wasb",
             },
         ],
+        "notifications": ["airflow.providers.microsoft.azure.notifications.msgraph.MSGraphNotifier"],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook",

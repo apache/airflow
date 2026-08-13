@@ -36,6 +36,7 @@
 
     Connection types <connections/index>
     Message queues <message-queues/index>
+    Notifications <notifications/index>
     Operators <operators/index>
     Transfers <transfer/index>
     Filesystems <filesystems/index>
