@@ -46,7 +46,9 @@ class BaseDeadlineReference(ABC):
     The actual evaluation logic (``_evaluate_with``) is in Core's ``SerializedReferenceModels``.
 
     For custom deadline references, users should inherit from this class and implement
-    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).
+    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).  A custom
+    reference must be decorated with ``@deadline_reference`` and listed in the ``deadline_references``
+    attribute of an ``AirflowPlugin``; see :external:doc:`howto/deadline-alerts`.
     """
 
     @property
@@ -272,7 +274,19 @@ class DeadlineReference:
         deadline_reference_type: DeadlineReferenceTypes | None = None,
     ) -> type[BaseDeadlineReference]:
         """
-        Register a custom deadline reference class.
+        Register a custom deadline reference class for use in Dag files.
+
+        This makes the reference available to Dag authors as ``DeadlineReference.<ClassName>`` and
+        records when it should be evaluated.
+
+        .. warning::
+
+            Registering the reference is **not** the same as registering the plugin, despite the
+            name of this method.  This only affects the process that runs the Dag file; it does not
+            make the class resolvable when the scheduler deserializes the Dag.  The class must
+            *also* be listed in the ``deadline_references`` attribute of an ``AirflowPlugin``, or
+            deserialization raises ``DeadlineReferenceNotRegistered``.  See
+            :external:doc:`howto/deadline-alerts`.
 
         :param reference_class: The custom reference class inheriting from BaseDeadlineReference
         :param deadline_reference_type: A DeadlineReference.TYPES for when the deadline should be evaluated ("DAGRUN_CREATED",
@@ -336,6 +350,11 @@ def deadline_reference(deadline_reference_type=None):
 
     May be used with or without parentheses. Without parentheses the reference is evaluated when a
     new dagrun is created; pass a ``DeadlineReference.TYPES`` value to choose a different time.
+
+    The decorated class must also be registered in the ``deadline_references`` list of an
+    ``AirflowPlugin`` so that it can be resolved when the Dag is deserialized.  An unregistered
+    reference raises ``DeadlineReferenceNotRegistered``.  See also
+    :external:doc:`howto/deadline-alerts`.
 
     .. code-block:: python
 

@@ -22,12 +22,11 @@ import { useGridServiceGetDagStructure } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { useAutoRefresh } from "src/utils";
 
+// Topology only (no per-run state), so it refreshes via `gridQueryKeys` invalidation, not polling.
 export const useGridStructure = ({
   dagRunState,
   depth,
-  hasActiveRun,
   includeDownstream,
   includeUpstream,
   limit,
@@ -38,7 +37,6 @@ export const useGridStructure = ({
 }: {
   dagRunState?: DagRunState | undefined;
   depth?: number | undefined;
-  hasActiveRun?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   limit?: number;
@@ -48,7 +46,6 @@ export const useGridStructure = ({
   triggeringUser?: string | undefined;
 }) => {
   const { dagId = "" } = useParams();
-  const refetchInterval = useAutoRefresh({ dagId });
 
   // Advanced-search toggle picks between the substring ``runIdPattern`` and the
   // index-friendly ``runIdPrefixPattern`` variants of the Run ID filter.
@@ -68,26 +65,19 @@ export const useGridStructure = ({
     value: triggeringUser,
   });
 
-  // This is necessary for keepPreviousData
-  const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
-    {
-      dagId,
-      depth,
-      includeDownstream,
-      includeUpstream,
-      limit,
-      orderBy: ["-run_after"],
-      root,
-      ...runIdPatternArg,
-      runType: runType ? [runType] : undefined,
-      state: dagRunState ? [dagRunState] : undefined,
-      ...triggeringUserArg,
-    },
-    undefined,
-    {
-      refetchInterval: hasActiveRun ? refetchInterval : false,
-    },
-  );
+  const { data: dagStructure, ...rest } = useGridServiceGetDagStructure({
+    dagId,
+    depth,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    orderBy: ["-run_after"],
+    root,
+    ...runIdPatternArg,
+    runType: runType ? [runType] : undefined,
+    state: dagRunState ? [dagRunState] : undefined,
+    ...triggeringUserArg,
+  });
 
   return { data: dagStructure, ...rest };
 };
