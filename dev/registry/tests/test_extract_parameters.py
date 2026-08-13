@@ -272,28 +272,87 @@ class TestIsDurableCapable:
 # supports_deferrable
 # ---------------------------------------------------------------------------
 class DeferrableOperator:
+    """Mirrors HttpOperator: reads self.deferrable directly in its own execute()."""
+
     def __init__(self, *, deferrable: bool = False):
         self.deferrable = deferrable
+
+    def execute(self, context):
+        if self.deferrable:
+            return self.execute_async(context)
+        return self.execute_sync(context)
+
+    def execute_async(self, context):
+        return None
+
+    def execute_sync(self, context):
+        return None
 
 
 class NonDeferrableOperator:
     def __init__(self, *, some_other_param: str = ""):
         self.some_other_param = some_other_param
 
+    def execute(self, context):
+        return None
 
-class DeferrableViaParentOperator(DeferrableOperator):
-    """Doesn't override __init__ -- still has a working `deferrable` param."""
+
+class OverridesExecuteWithoutDeferring(DeferrableOperator):
+    """Mirrors DiscordWebhookOperator: inherits the deferrable param but overrides
+    execute() with synchronous code that never reads it -- an inherited, dead knob."""
+
+    def execute(self, context):
+        return self.hook_call(context)
+
+    def hook_call(self, context):
+        return None
+
+
+class InheritsDeferringExecute(DeferrableOperator):
+    """Mirrors TimeDeltaSensorAsync: doesn't override execute() at all -- still
+    defers because the inherited method is what actually runs."""
+
+
+class AlwaysDeferringOperator:
+    """Mirrors DateTimeSensorAsync: defers unconditionally, no toggle to find."""
+
+    def execute(self, context):
+        self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
 
 
 class TestSupportsDeferrable:
-    def test_class_with_deferrable_param_qualifies(self):
+    def test_reads_deferrable_directly_qualifies(self):
         assert supports_deferrable(DeferrableOperator) is True
 
-    def test_class_without_deferrable_param_disqualifies(self):
+    def test_no_deferral_reference_disqualifies(self):
         assert supports_deferrable(NonDeferrableOperator) is False
 
-    def test_inherited_deferrable_param_qualifies(self):
-        assert supports_deferrable(DeferrableViaParentOperator) is True
+    def test_inherited_param_but_overridden_execute_disqualifies(self):
+        """The Discord regression case: an inherited deferrable knob that the
+        subclass's own execute() never reads must not count as deferrable."""
+        assert supports_deferrable(OverridesExecuteWithoutDeferring) is False
+
+    def test_inherited_unmodified_execute_qualifies(self):
+        assert supports_deferrable(InheritsDeferringExecute) is True
+
+    def test_unconditional_defer_with_no_param_qualifies(self):
+        assert supports_deferrable(AlwaysDeferringOperator) is True
+
+    def test_exception_list_entry_qualifies_despite_no_source_match(self):
+        class FakeTriggerDagRunOperator:
+            def execute(self, context):
+                return self._trigger_dag_af_2(context)
+
+            def _trigger_dag_af_2(self, context):
+                return None
+
+        FakeTriggerDagRunOperator.__module__ = "airflow.providers.standard.operators.trigger_dagrun"
+        FakeTriggerDagRunOperator.__qualname__ = "TriggerDagRunOperator"
+
+        assert supports_deferrable(FakeTriggerDagRunOperator) is True
 
 
 # ---------------------------------------------------------------------------
