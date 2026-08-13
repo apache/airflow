@@ -3494,14 +3494,14 @@ main {
 
 .provider-detail-page .modules .module .content h3 .durable-badge {
   background: color-mix(in srgb, var(--color-teal-500) 15%, transparent);
-  color: var(--color-teal-600);
-  color: light-dark(var(--color-teal-600), var(--color-teal-400));
+  color: var(--color-teal-700);
+  color: light-dark(var(--color-teal-700), var(--color-teal-400));
 }
 
 .provider-detail-page .modules .module .content h3 .deferrable-badge {
   background: color-mix(in srgb, var(--color-blue-500) 15%, transparent);
-  color: var(--color-blue-600);
-  color: light-dark(var(--color-blue-600), var(--color-blue-400));
+  color: var(--color-blue-700);
+  color: light-dark(var(--color-blue-700), var(--color-blue-400));
 }
 
 .provider-detail-page .modules .module .content p {

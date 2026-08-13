@@ -27,7 +27,6 @@
   var moduleSearch = document.getElementById('module-search');
   var durableOnlyFilter = document.getElementById('durable-only-filter');
   var deferrableOnlyFilter = document.getElementById('deferrable-only-filter');
-  var moduleTabs = document.querySelectorAll('.module-tab');
   // [data-type] excludes the "More" toggle button, which is a .module-tab
   // for styling purposes only and has no data-type of its own.
   var moduleTabs = document.querySelectorAll('.module-tab[data-type]');
