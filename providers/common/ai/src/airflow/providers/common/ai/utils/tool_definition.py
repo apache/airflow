@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 from typing import Any, Literal
 
 from pydantic_ai.tools import ToolDefinition
@@ -43,6 +44,22 @@ def return_schema_kwargs(schema: dict[str, Any]) -> dict[str, Any]:
     if _SUPPORTS_RETURN_SCHEMA:
         return {"return_schema": schema}
     return {}
+
+
+def serialize_for_llm(value: Any) -> str:
+    """
+    Convert a Python return value to a string suitable for an LLM.
+
+    :param value: The tool's return value.
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, default=str)
+    except (TypeError, ValueError):
+        return str(value)
 
 
 def _fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.CoreSchema:

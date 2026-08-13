@@ -34,7 +34,13 @@ Three toolsets are included:
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
 
-All three implement pydantic-ai's
+A fourth,
+:class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`,
+is a base class rather than a usable toolset: provider packages subclass it to
+expose a **vendor-managed agent** as a tool. See
+:ref:`managed-agent-toolsets` below.
+
+All of them implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -839,3 +845,81 @@ Before deploying an agent task to production:
 8. **Prompt injection**: Be cautious when the prompt includes untrusted data
    (user input, external API responses, upstream XCom). Consider sanitizing
    inputs before passing them to the agent.
+
+.. _managed-agent-toolsets:
+
+Managed Agent Toolsets
+----------------------
+
+Cloud vendors now run agents on your behalf — Snowflake Cortex Agents, Amazon
+Bedrock AgentCore runtimes, Azure AI Foundry hosted agents, Vertex AI Agent
+Engine. Their reasoning loops execute on the vendor's infrastructure, so they
+are not something ``AgentOperator`` runs; they are something an Airflow task
+*consults*.
+
+:class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
+is the contract for exposing one of those as a tool. Each provider package
+ships its own subclass, so credentials keep flowing through that provider's
+existing hook and no new connection types are needed.
+
+A subclass implements two members:
+
+``agent_ref``
+    Normalised identity of the remote agent — ``platform`` and ``name`` — logged
+    on every call so a run can be audited for which agents it consulted.
+
+``invoke(prompt)``
+    Send the prompt, return the agent's answer. Return the *answer*, not the
+    transport envelope.
+
+Tool naming, argument validation, result serialisation, and logging are handled
+by the base class, so every provider's implementation presents the same surface
+to the calling model.
+
+.. note::
+
+    ``description`` is a required constructor argument. A remote agent's
+    competence cannot be introspected the way ``HookToolset`` reads a hook's
+    docstrings, and the description is the only basis the calling model has for
+    choosing between specialists.
+
+Error handling
+""""""""""""""
+
+Failures sort into three buckets, and conflating them is the most common way an
+implementation goes wrong:
+
+.. list-table::
+    :header-rows: 1
+    :widths: 22 30 48
+
+    * - Raise
+      - When
+      - Who recovers
+    * - ``ModelRetry``
+      - The agent rejected the request in a way rephrasing could fix.
+      - The calling model, bounded by its ``usage_limits``.
+    * - ``ManagedAgentInvocationError``
+      - Terminal: bad credentials, missing agent, revoked quota.
+      - Nobody — the task fails fast instead of burning retries.
+    * - *let it propagate*
+      - Transient: 429, 5xx, connection reset, read timeout.
+      - Airflow's task-level retry. A rephrase does nothing for a 503.
+
+Durable execution
+"""""""""""""""""
+
+``replayable`` is ``False`` by default. A managed agent may act on systems
+Airflow cannot observe, so replaying a cached answer on retry could skip a side
+effect. Implementations whose agent is read-only should set it to ``True`` to
+avoid paying for the same invocation twice.
+
+Deferral
+""""""""
+
+A toolset call runs in the worker and cannot defer to the triggerer. Managed
+agents with no request/response mode — an async job that writes output to
+object storage, or a stateful session — are reachable through a toolset only by
+blocking for the duration. That is acceptable for a tool call inside an agent's
+reasoning, but it is not a substitute for that provider's own deferrable
+operator when the Dag simply needs to submit work and wait.
