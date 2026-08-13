@@ -1534,6 +1534,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # from the worker exit after defer() has not been processed yet - should not fail it.
             # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 5) the trigger fired fast enough that the resumed TI is already running again (next_method
+            # set) when the executor success from the defer exit arrives - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1548,9 +1550,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
-                    # before we saw the executor success from the defer exit for the same try_number.
-                    ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
+                    # Resume-after-defer: trigger moved TI to scheduled, queued or already running
+                    # (next_method set) before we saw the executor success from the defer exit for
+                    # the same try_number.
+                    ti.state
+                    in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED, TaskInstanceState.RUNNING)
                     and state == TaskInstanceState.SUCCESS
                     and ti.next_method is not None
                 )

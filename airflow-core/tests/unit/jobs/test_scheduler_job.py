@@ -891,19 +891,24 @@ class TestSchedulerJob:
         # no killed_externally mismatch metric should appear.
         assert all(c.args[0] == "scheduler.executor_events.processed" for c in mock_stats.incr.call_args_list)
 
+    @pytest.mark.parametrize("resumed_state", [State.SCHEDULED, State.QUEUED, State.RUNNING])
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
-    def test_process_executor_events_stale_success_when_scheduled_after_defer(
-        self, mock_get_backend, mock_task_callback, dag_maker
+    def test_process_executor_events_stale_success_when_resumed_after_defer(
+        self, mock_get_backend, mock_task_callback, dag_maker, resumed_state
     ):
         """
-        Trigger moved TI to scheduled (resume after defer) before executor success from defer exit arrived.
+        Trigger resumed the TI (next_method set) before executor success from defer exit arrived.
 
-        Regression for https://github.com/apache/airflow/issues/66374 — must not treat as state mismatch.
+        Regression for https://github.com/apache/airflow/issues/66374 (scheduled, fixed by #66431),
+        https://github.com/apache/airflow/issues/67287 (queued, fixed by #68741), and
+        https://github.com/apache/airflow/issues/71580 (running, fixed by #71579) — must not treat as
+        state mismatch. A trigger that fires immediately after deferral can beat executor event
+        processing all the way to running.
         """
         mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
-        dag_id = "test_process_executor_events_stale_success_scheduled_after_defer"
+        dag_id = "test_process_executor_events_stale_success_resumed_after_defer"
         task_id_1 = "dummy_task"
 
         session = settings.Session()
@@ -919,7 +924,7 @@ class TestSchedulerJob:
         session.flush()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
-        ti1.state = State.SCHEDULED
+        ti1.state = resumed_state
         ti1.next_method = "execute_callback"
         ti1.queued_by_job_id = scheduler_job.id
         ti1.try_number = 1
@@ -932,75 +937,13 @@ class TestSchedulerJob:
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
-        assert ti1.state == State.SCHEDULED
+        assert ti1.state == resumed_state
         self.job_runner.executor.callback_sink.send.assert_not_called()
         # Stale success from defer exit must not trigger a mismatch metric —
         # only the standard processed-events counter should fire.
         mock_stats.incr.assert_called_once_with("scheduler.executor_events.processed", count=1)
 
-        # Without next_method, scheduled + stale success is still a mismatch (e.g. external kill).
-        ti1.next_method = None
-        session.merge(ti1)
-        session.commit()
-
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
-        mock_stats.incr.reset_mock()
-
-        self.job_runner._process_executor_events(executor=executor, session=session)
-        mock_stats.incr.assert_any_call(
-            "scheduler.tasks.killed_externally",
-            tags={"dag_id": dag_id, "task_id": ti1.task_id},
-        )
-
-    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
-    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
-    def test_process_executor_events_stale_success_when_queued_after_defer(
-        self, mock_get_backend, mock_task_callback, dag_maker
-    ):
-        """
-        Trigger moved TI to queued (resume after defer) before executor success from defer exit arrived.
-
-        Regression for https://github.com/apache/airflow/issues/67287 — must not treat as state mismatch.
-        The fix for #66374 (#66431) covered the scheduled-state variant; this covers the queued-state variant.
-        """
-        mock_stats = mock.MagicMock(spec=StatsLogger)
-        mock_get_backend.return_value = mock_stats
-        dag_id = "test_process_executor_events_stale_success_queued_after_defer"
-        task_id_1 = "dummy_task"
-
-        session = settings.Session()
-        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
-            task1 = EmptyOperator(task_id=task_id_1)
-        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
-
-        executor = MockExecutor(do_update=False)
-        task_callback = mock.MagicMock()
-        mock_task_callback.return_value = task_callback
-        scheduler_job = Job()
-        session.add(scheduler_job)
-        session.flush()
-        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
-
-        ti1.state = State.QUEUED
-        ti1.next_method = "execute_callback"
-        ti1.queued_by_job_id = scheduler_job.id
-        ti1.try_number = 1
-        session.merge(ti1)
-        session.commit()
-
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
-        executor.has_task = mock.MagicMock(return_value=False)
-        mock_stats.incr.reset_mock()
-
-        self.job_runner._process_executor_events(executor=executor, session=session)
-        ti1.refresh_from_db(session=session)
-        assert ti1.state == State.QUEUED
-        self.job_runner.executor.callback_sink.send.assert_not_called()
-        # Stale success from defer exit must not trigger a mismatch metric —
-        # only the standard processed-events counter should fire.
-        mock_stats.incr.assert_called_once_with("scheduler.executor_events.processed", count=1)
-
-        # Without next_method, queued + stale success is still a mismatch (e.g. external kill).
+        # Without next_method, a stale success is still a mismatch (e.g. external kill).
         ti1.next_method = None
         session.merge(ti1)
         session.commit()
