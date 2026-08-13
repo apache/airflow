@@ -76,7 +76,9 @@ class TestFileTaskLogHandler:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_streaming_task_log"
     )
-    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]
+    )
     @pytest.mark.usefixtures("clean_executor_loader")
     def test__read_for_k8s_executor(self, mock_k8s_get_streaming_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_streaming_task_log method."""
@@ -95,10 +97,11 @@ class TestFileTaskLogHandler:
             reload(executor_loader)
             fth = FileTaskHandler("")
             fth._read(ti=ti, try_number=2)
-        if state == TaskInstanceState.RUNNING:
-            mock_k8s_get_streaming_task_log.assert_called_once_with(ti, 2)
-        else:
+        if state == TaskInstanceState.SUCCESS:
             mock_k8s_get_streaming_task_log.assert_not_called()
+        else:
+            # A failed attempt with no worker log falls back to the pod log.
+            mock_k8s_get_streaming_task_log.assert_called_once_with(ti, 2)
 
     @pytest.mark.parametrize(
         ("pod_override", "namespace_to_call"),
