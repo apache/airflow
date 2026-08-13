@@ -61,7 +61,6 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 
 OBJECT = "abc123xyz"
-FOLDER_ID = ""
 FILE_NAME = "example_upload.txt"
 DRIVE_FILE_NAME = f"example_upload_{DAG_ID}_{ENV_ID}.txt"
 LOCAL_PATH = f"gcs/{FILE_NAME}"
@@ -123,7 +122,7 @@ with DAG(
     # [START detect_file]
     detect_file = GoogleDriveFileExistenceSensor(
         task_id="detect_file",
-        folder_id=FOLDER_ID,
+        folder_id=get_shared_drive_id_task,
         file_name=DRIVE_FILE_NAME,
         drive_id=get_shared_drive_id_task,
         gcp_conn_id=CONNECTION_ID,
@@ -134,7 +133,7 @@ with DAG(
     upload_gdrive_to_gcs = GoogleDriveToGCSOperator(
         task_id="upload_gdrive_object_to_gcs",
         gcp_conn_id=CONNECTION_ID,
-        folder_id=FOLDER_ID,
+        folder_id=get_shared_drive_id_task,
         drive_id=get_shared_drive_id_task,
         file_name=DRIVE_FILE_NAME,
         bucket_name=BUCKET_NAME,
@@ -159,8 +158,8 @@ with DAG(
         )
         if files := response["files"]:
             file = files[0]
-            log.info("Deleting file %s...", file["name"])
-            service.files().delete(fileId=file["id"], supportsAllDrives=True).execute()
+            log.info("Trashing file %s...", file["name"])
+            service.files().update(fileId=file["id"], body={"trashed": True}, supportsAllDrives=True).execute()
             log.info("Done.")
 
     remove_files_from_drive_task = remove_files_from_drive()
