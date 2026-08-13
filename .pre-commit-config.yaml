@@ -1035,6 +1035,27 @@ repos:
         pass_filenames: false
         require_serial: true
         verbose: true
+      - id: run-skill-eval-codex
+        name: Run skill-eval against AGENTS.md and cases (Codex runtime)
+        # Kept separate from run-skill-eval so only contributors who actually run
+        # the Codex arm build an env carrying the Codex CLI binary. promptfoo
+        # bundles its own @openai/codex-sdk, but that build ships a binary whose
+        # Developer ID certificate Apple has revoked — macOS kills it on exec —
+        # so a notarized version has to be installed explicitly.
+        entry: env AGENT_RUNTIME=codex ./dev/skill-evals/eval.py
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies:
+          - 'promptfoo@0.121.17'
+          - '@openai/codex-sdk@0.144.6'
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+        verbose: true
       - id: view-skill-eval
         name: View skill-eval results in browser (manual)
         entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view
@@ -1378,7 +1399,7 @@ repos:
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
-        entry: uv run -p 3.12 --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
+        entry: uv run -p 3.12 --no-progress --active --group codegen --package apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/.*\.py$
         require_serial: true
@@ -1387,8 +1408,8 @@ repos:
         language: python
         entry: >
           bash -c '
-          uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
-           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
+          uv run -p 3.12 --no-dev --no-progress --active --group codegen --package apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
+           uv run -p 3.12 --no-dev --no-progress --active --group codegen --package apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
         pass_filenames: false
         files:
           (?x)

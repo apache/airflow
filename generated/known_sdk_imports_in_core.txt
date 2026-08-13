@@ -29,7 +29,8 @@ airflow-core/src/airflow/serialization/definitions/dag.py::2
 airflow-core/src/airflow/serialization/definitions/deadline.py::1
 airflow-core/src/airflow/serialization/definitions/mappedoperator.py::5
 airflow-core/src/airflow/serialization/encoders.py::11
-airflow-core/src/airflow/serialization/serialized_objects.py::16
+airflow-core/src/airflow/serialization/serialized_objects.py::17
+airflow-core/src/airflow/serialization/stub_arg_bindings.py::5
 airflow-core/src/airflow/settings.py::1
 airflow-core/src/airflow/stats.py::1
 airflow-core/src/airflow/timetables/simple.py::1
