@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-12T08:41:57.294512
+# This constraints file was automatically generated on 2026-08-13T08:33:22.810192
 # via `uv pip install --resolution highest` for the "v3-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -79,7 +79,7 @@ aiosmtplib==5.1.2
 aiosqlite==0.22.1
 airbyte-api==1.0.1
 akeyless==5.0.28
-alembic==1.19.0
+alembic==1.19.1
 alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.1
 alibabacloud-credentials==1.0.11
@@ -250,7 +250,7 @@ bleach==6.4.0
 blinker==1.9.0
 boto3==1.43.56
 botocore==1.43.56
-cachelib==0.15.2
+cachelib==0.15.4
 cachetools==6.2.6
 cadwyn==7.0.0
 capi_param_builder_python==1.3.0
@@ -305,7 +305,7 @@ facebook_business==26.0.0
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.2.5
+fastcore==2.2.6
 fastjsonschema==2.22.1
 fastuuid==0.14.0
 filelock==3.32.2
@@ -463,7 +463,7 @@ lxml==6.1.1
 lz4==4.4.5
 markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
-marshmallow==4.3.0
+marshmallow==4.3.1
 matplotlib-inline==0.2.2
 mdit-py-plugins==0.6.1
 mdurl==0.1.2
@@ -659,7 +659,7 @@ sqlalchemy_drill==1.1.10
 sqlglot==30.15.0
 sqlparse==0.5.5
 stack-data==0.6.3
-starlette==1.5.0
+starlette==1.6.0
 statsd==4.0.1
 std-uritemplate==2.0.12
 strictyaml==1.7.3
@@ -703,7 +703,7 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.7.2
+virtualenv==21.7.3
 watchfiles==1.2.0
 watchtower==3.4.0
 wcwidth==0.8.2
