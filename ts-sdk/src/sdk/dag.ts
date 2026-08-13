@@ -22,13 +22,14 @@
 import { brand, hasBrand } from "./brand.js";
 import type { TaskHandler } from "./task.js";
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function validateEmptySpec(name: string, value: unknown): void {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    Reflect.ownKeys(value).length > 0
-  ) {
+  if (!isPlainRecord(value) || Reflect.ownKeys(value).length > 0) {
     throw new Error(`${name} must be an empty object`);
   }
 }
@@ -193,7 +194,7 @@ export class Dag {
   // cast — so an unknown key is rejected rather than silently ignored.
   #validateOptions(taskId: string, options: TaskOptions): void {
     const value: unknown = options;
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    if (!isPlainRecord(value)) {
       throw new Error(`options for Dag "${this.dagId}" task "${taskId}" must be an object`);
     }
     for (const key of Object.keys(value)) {
@@ -204,6 +205,9 @@ export class Dag {
   }
 
   #validateInputs(taskId: string, inputs: TaskInputs): void {
+    if (!isPlainRecord(inputs)) {
+      throw new Error(`inputs for Dag "${this.dagId}" task "${taskId}" must be an object`);
+    }
     for (const [name, upstream] of Object.entries(inputs)) {
       if (
         upstream == null ||

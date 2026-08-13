@@ -158,7 +158,7 @@ function readBundleManifest(bundlePath: string): BundleManifest {
   // The line is whatever the bundle printed and nothing downstream re-validates
   // it, so check each Dag entry down to the task-id element.
   for (const [dagId, dag] of Object.entries(manifest.dags)) {
-    if (dag == null || !isDagIdList(dag.tasks)) {
+    if (dag == null || !isTaskIdList(dag.tasks)) {
       throw new Error(
         `Bundle produced ${AIRFLOW_METADATA_FLAG} output with a malformed entry for Dag "${dagId}"`,
       );
@@ -185,7 +185,7 @@ function isBundleManifest(value: unknown): value is BundleManifest {
   );
 }
 
-function isDagIdList(value: unknown): value is string[] {
+function isTaskIdList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 }
 

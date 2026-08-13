@@ -124,6 +124,7 @@ describe("Dag", () => {
     ["a populated object", { schedule: "@daily" }],
     ["null", null],
     ["an array", []],
+    ["a non-plain object", new Date()],
   ])("rejects a Dag spec that is not an empty object: %s", (_label, spec) => {
     expect(() => new Dag("example_dag", spec as unknown as Record<string, never>)).toThrowError(
       /spec for Dag "example_dag" must be an empty object/,
@@ -134,6 +135,7 @@ describe("Dag", () => {
     ["a populated object", { retries: 2 }],
     ["null", null],
     ["an array", []],
+    ["a non-plain object", new Date()],
   ])("rejects a task spec that is not an empty object: %s", (_label, spec) => {
     const dag = new Dag("example_dag");
     expect(() =>
@@ -168,11 +170,22 @@ describe("Dag", () => {
     ["null", null],
     ["an array", []],
     ["a string", "inputs"],
+    ["a non-plain object", new Date()],
   ])("rejects task options that are not an options object: %s", (_label, options) => {
     const dag = new Dag("example_dag");
     expect(() =>
       dag.task("transform", async () => undefined, options as unknown as Record<string, never>),
     ).toThrowError(/options for Dag "example_dag" task "transform" must be an object/);
+  });
+
+  it("rejects task inputs that are not a plain object", () => {
+    const dag = new Dag("example_dag");
+    expect(() =>
+      dag.task("transform", async () => undefined, {
+        inputs: new Date() as unknown as Record<string, TaskRef>,
+      }),
+    ).toThrowError(/inputs for Dag "example_dag" task "transform" must be an object/);
+    expect(dag.taskIds).toEqual([]);
   });
 
   it("rejects duplicate taskIds within a Dag", () => {
