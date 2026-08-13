@@ -147,18 +147,106 @@ Parameters
 * ``poll_interval`` — seconds between session status checks.
 * ``timeout`` — seconds to wait for a terminal status; defaults to 24 hours.
 * ``vault_ids`` — vault IDs providing MCP/credential access to the session.
+* ``budget`` -- spend ceiling for the session, in US dollars (``25.00``) or as the raw API
+  payload (a mapping). Templated, so it can come from a Variable, a params entry, or
+  an upstream XCom. See `Session budgets`_ below.
 * ``session_resources`` — files, GitHub repos, or memory stores to mount (forwarded to
   ``sessions.create`` as ``resources``; renamed to avoid the reserved ``BaseOperator.resources``).
-* ``session_kwargs`` — extra keyword arguments forwarded to ``sessions.create``.
+* ``session_kwargs`` — extra keyword arguments forwarded to ``sessions.create``. Setting
+  ``budget`` here as well as via the ``budget`` argument is rejected.
 
 .. note::
 
     Completion is detected accurately for both modes. A ``message`` run inspects the
     terminal ``session.status_idle`` event's ``stop_reason`` (correlated against the
-    kickoff event): ``end_turn`` succeeds; ``requires_action`` and ``retries_exhausted``
-    raise an error. An ``outcome`` run is judged from the ``outcome_evaluations`` verdict.
-    The agent must still be configured for autonomous operation (no client-side custom
-    tools / ``always_ask``).
+    kickoff event): ``end_turn`` succeeds; ``requires_action``, ``retries_exhausted`` and
+    ``budget_reached`` raise an error. An ``outcome`` run is judged from the
+    ``outcome_evaluations`` verdict. The agent must still be configured for autonomous
+    operation (no client-side custom tools / ``always_ask``).
+
+Session budgets
+"""""""""""""""
+
+``budget`` bounds what a single session may spend. The session stops issuing new model
+requests once its tracked list cost reaches the ceiling. A number or numeric string is read
+as **US dollars**:
+
+.. code-block:: python
+
+    AnthropicAgentSessionOperator(
+        task_id="research",
+        agent_id="agt_...",
+        environment_id="env_...",
+        message="Summarise yesterday's incidents.",
+        budget=25.00,  # 25.00 USD
+        retries=0,
+    )
+
+The field is templated, so the ceiling can come from a Variable
+(``budget="{{ var.value.max_agent_spend }}"``) and be changed without editing the Dag.
+Amounts are converted through :class:`~decimal.Decimal`, never binary float, and anything
+finer than a cent is rejected rather than silently rounded.
+
+Pass a mapping instead to send the raw API payload, for a budget shape the provider has not
+caught up with. Today the API accepts only ``type: "limit"`` and ``currency: "USD"``, so the
+mapping form is an escape hatch for future additions rather than something needed now:
+
+.. code-block:: python
+
+    budget = {"type": "limit", "max_list_cost": {"amount": "2500", "currency": "USD"}}
+
+To raise or remove a ceiling on a session that is already running, use
+:meth:`~airflow.providers.anthropic.hooks.anthropic.AnthropicHook.update_session`. Only the
+keywords you pass are sent, because the API distinguishes *omitted* (preserve) from
+``None`` (clear):
+
+.. code-block:: python
+
+    hook = AnthropicHook()
+    hook.update_session(session_id, budget=50.00)  # raise the ceiling
+    hook.update_session(session_id, budget=None)  # remove it entirely
+
+On a ``message`` run, a session that stops this way raises
+:class:`~airflow.providers.anthropic.exceptions.AnthropicSessionBudgetExceeded`, a subclass
+of ``AnthropicAgentSessionError``, so it can be caught on its own and routed to review
+rather than treated as a fault.
+
+.. warning::
+
+    On an ``outcome`` run, completion is judged from ``outcome_evaluations`` before the idle
+    event is read, so a budget stop raises nothing. The session stays non-terminal, polling
+    continues until ``timeout`` (24 hours by default), and the task then fails with
+    ``AnthropicAgentSessionTimeout`` -- a misleading error for a session that stopped
+    deliberately. Set a shorter ``timeout`` when combining ``outcome`` with a budget.
+
+.. note::
+
+    On an ``outcome`` run, completion is judged from the session's ``outcome_evaluations``
+    before the idle event is consulted, so a budget stop is reported as whatever verdict the
+    outcome recorded and raises the generic ``AnthropicAgentSessionError``. Catch
+    ``AnthropicSessionBudgetExceeded`` only on ``message`` runs.
+
+.. warning::
+
+    **A budget is a stop trigger, not a spend cap.** The ceiling is checked *between*
+    model requests, so a request already in flight runs to completion and the session can
+    finish well above the limit -- in testing, by a large multiple of a very small
+    ceiling, because a single long generation overshoots before the next request can be
+    blocked. Size it as a circuit breaker rather than a guarantee, and read the session's
+    ``usage.list_cost`` for what was actually spent.
+
+.. warning::
+
+    A session also stops with ``budget_reached`` when its usage includes a model with **no
+    list price**, because a budget cannot measure that spend. Raising the ceiling does not
+    unblock that case; remove the budget instead.
+
+.. warning::
+
+    Airflow ``retries`` multiply spend. Each retry starts a **new** session with a **fresh**
+    budget, so ``retries=2`` with a $25 ceiling can spend $75. Prefer ``retries=0`` on
+    budgeted sessions: the operator archives a budget-stopped session, so there is no
+    running session left to raise the ceiling on.
 
 .. exampleinclude:: /../tests/system/anthropic/example_anthropic_agent.py
     :language: python

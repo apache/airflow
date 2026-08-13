@@ -301,6 +301,7 @@ def _attach_default_role_permissions(
             policy_name=_role_policy_name(role_name),
             scope_names=_get_extended_resource_methods() + ["LIST"],
             resource_names=[],
+            decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
 
@@ -621,8 +622,9 @@ def _create_scope_based_permission(
     except KeycloakError as e:
         if e.response_body:
             error = json.loads(e.response_body.decode("utf-8"))
-            if error.get("error_description") == "Conflicting policy":
-                print(f"Policy creation skipped. {error.get('error')}")
+            if "Conflicting policy" in error.get("error_description", ""):
+                return
+        raise
 
 
 def _create_resource_based_permission(
@@ -792,6 +794,7 @@ def _attach_team_permissions(
         policy_name=_team_role_policy_name(team, "Viewer"),
         scope_names=["GET", "LIST"],
         resource_names=team_readable_resources,
+        decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
     for role_name in ("User", "Op", "Admin"):
@@ -802,6 +805,7 @@ def _attach_team_permissions(
             policy_name=_team_role_policy_name(team, role_name),
             scope_names=["GET", "LIST"],
             resource_names=team_readable_resources,
+            decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
     _attach_policy_to_scope_permission(
@@ -926,6 +930,7 @@ def _attach_superadmin_permissions(
         policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
         scope_names=_get_extended_resource_methods() + ["LIST"],
         resource_names=team_scoped_resources,
+        decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
     _attach_policy_to_scope_permission(
