@@ -140,6 +140,7 @@
   "filter": "Filter",
   "filters": {
     "addFilter": "Add Filter",
+    "completedAt": "Completed At",
     "date": "Date",
     "durationFrom": "Duration From",
     "durationTo": "Duration To",

@@ -1,7 +1,6 @@
 {
   "filters": {
     "body": "Body",
-    "completedAt": "Completed At",
     "createdAt": "Created At",
     "response": {
       "all": "All",
