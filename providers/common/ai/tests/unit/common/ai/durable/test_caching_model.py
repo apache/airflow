@@ -159,6 +159,25 @@ class TestCachingModelReplayVerification:
         mock_model.request.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_unverifiable_current_request_treated_as_miss(
+        self, mock_model, mock_storage, counter, sample_response
+    ):
+        stale = ModelResponse(parts=[TextPart(content="stale")])
+        mock_storage.load_model_response.return_value = (stale, None)
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        result = await caching.request([], None, ModelRequestParameters())
+
+        assert result is sample_response
+        mock_model.request.assert_called_once()
+        assert counter.replayed_model == 0
+        mock_storage.save_model_response.assert_called_once_with(
+            f"{P}model_step_0", sample_response, fingerprint=None
+        )
+
+    @pytest.mark.asyncio
     async def test_fingerprint_uses_prepared_request_not_raw_arguments(
         self, mock_storage, counter, sample_response
     ):

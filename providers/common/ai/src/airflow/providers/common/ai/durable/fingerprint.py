@@ -34,9 +34,8 @@ longer match.
 Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
 are excluded from the fingerprint.  Requests that cannot be serialized to
-JSON fingerprint as ``None``, which degrades that step to unverified
-positional replay (the pre-fingerprint behavior) rather than disabling
-caching.
+JSON fingerprint as ``None`` and re-run live instead of replaying without
+verification.
 """
 
 from __future__ import annotations
@@ -119,9 +118,8 @@ def fingerprint_model_request(
     output mode and schema, native tools, ...) so any change to what is sent
     to the model invalidates the cached response.
 
-    Returns ``None`` when the request cannot be serialized; ``None`` compares
-    equal to ``None``, so requests that cannot be fingerprinted degrade to
-    unverified positional replay rather than disabling caching.
+    Returns ``None`` when the request cannot be serialized, which prevents a
+    cached response from being replayed for that step.
     """
     try:
         dumped = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
@@ -136,10 +134,7 @@ def fingerprint_model_request(
         )
     except (TypeError, ValueError):
         # TypeError from json.dumps, ValueError covers PydanticSerializationError
-        log.warning(
-            "Durable: could not fingerprint model request; cached responses for this "
-            "step replay without verification"
-        )
+        log.warning("Durable: could not fingerprint model request; this step will execute live on retry")
         return None
 
 
@@ -155,8 +150,7 @@ def fingerprint_tool_call(name: str, tool_args: dict[str, Any], tool_call_id: st
         return _digest({"name": name, "args": tool_args, "tool_call_id": tool_call_id})
     except (TypeError, ValueError):
         log.warning(
-            "Durable: could not fingerprint tool call; cached results for this "
-            "step replay without verification",
+            "Durable: could not fingerprint tool call; this step will execute live on retry",
             tool=name,
         )
         return None
