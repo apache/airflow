@@ -218,7 +218,8 @@ def iso_datetime_type(val: str | datetime.datetime) -> datetime.datetime:
 
 
 def iso_date_type(val: str | datetime.date) -> datetime.date:
-    """Parse an ISO-8601 date string into a datetime.date.
+    """
+    Parse an ISO-8601 date string into a datetime.date.
 
     Used as the argparse ``type=`` callable for datetime.date-typed CLI
     parameters, mirroring iso_datetime_type() above.
