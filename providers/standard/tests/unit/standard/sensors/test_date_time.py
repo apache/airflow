@@ -184,8 +184,21 @@ class TestDateTimeSensor:
         assert second.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse(
             "2040-06-06T00:00:00+00:00"
         )
-        # the class level template must survive untouched for the next task built from it
         assert DateTimeSensorAsync.start_trigger_args.trigger_kwargs == {
             "moment": "",
             "end_from_trigger": False,
         }
+
+    def test_start_from_trigger_with_templated_target_time(self):
+        """
+        Test that DateTimeSensorAsync correctly disables start_from_trigger when
+        target_time is a template string that cannot be parsed as a datetime.
+        """
+        op = DateTimeSensorAsync(
+            task_id="templated_async",
+            target_time="{{ data_interval_end }}",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_from_trigger is False
+        assert op.start_trigger_args == DateTimeSensorAsync.start_trigger_args
