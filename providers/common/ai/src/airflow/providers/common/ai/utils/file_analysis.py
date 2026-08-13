@@ -75,6 +75,8 @@ _COMPRESSION_SUFFIXES = {
     "xz": "xz",
     "zst": "zstd",
 }
+_CODEC_MODULES = {"bzip2": "bz2", "xz": "lzma"}
+_KNOWN_CODECS = frozenset({"gzip", *_CODEC_MODULES})
 _DECOMPRESSORS: dict[str, Callable[..., io.BufferedIOBase]] = {"gzip": gzip.open}
 if bz2 is not None:
     _DECOMPRESSORS["bzip2"] = bz2.open
@@ -386,7 +388,7 @@ def detect_file_format(path: ObjectStoragePath) -> tuple[str, str | None]:
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Unsupported file format {detected!r} for {path}. Supported formats: {', '.join(SUPPORTED_FILE_FORMATS)}."
         )
-    if compression and compression not in _DECOMPRESSORS:
+    if compression and compression not in _KNOWN_CODECS:
         log.info("Rejecting file %s because compression=%s is not supported.", path, compression)
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Compression {compression!r} is not supported for file analysis."
@@ -394,6 +396,11 @@ def detect_file_format(path: ObjectStoragePath) -> tuple[str, str | None]:
     if compression and detected not in _COMPRESSION_SUPPORTED_FORMATS:
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Compression {compression!r} is not supported for {detected!r} file analysis."
+        )
+    if compression and compression not in _DECOMPRESSORS:
+        raise AirflowOptionalProviderFeatureException(
+            f"Compression {compression!r} requires the {_CODEC_MODULES[compression]!r} module, "
+            "which is missing from this Python build."
         )
     return detected, compression
 
