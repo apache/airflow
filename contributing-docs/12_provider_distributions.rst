@@ -205,7 +205,11 @@ must succeed first. Use the per-provider pre-extras-install manifest:
      Each ``downloads`` entry may also include ``fallback_ips`` (optional list of IPv4 or
      IPv6 address strings). The interpreter tries the URL with normal DNS resolution first;
      only on connection or resolution failure does it retry the same URL with each listed
-     IP, in order, by temporarily overriding ``socket.getaddrinfo`` for the hostname. The
+     IP, in order, by temporarily overriding ``socket.getaddrinfo`` for the hostname. Every
+     attempt uses a short socket timeout, and the whole set of routes is retried in rounds
+     (see ``DOWNLOAD_TIMEOUT_SECONDS`` and ``DOWNLOAD_ROUNDS`` in the interpreter), so an
+     unreachable or stalled upstream costs seconds per attempt rather than the kernel's
+     multi-minute TCP connect timeout. A checksum mismatch is never retried. The
      TLS SNI and certificate verification stay bound to the URL hostname, and the
      ``sha256`` check still runs end-to-end on whichever attempt succeeds, so a fallback
      entry only changes *which IP is dialled*, not what is trusted. Use this when the
