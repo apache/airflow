@@ -300,6 +300,9 @@ cache:
    never replays responses that belong to a different conversation.
 4. After successful completion, the cached steps are deleted.
 
+If a model request or tool call cannot be fingerprinted, that step runs live on
+retry rather than replaying an unverified cache entry.
+
 Replay verification compares the **requests** sent to models and tools, not
 the code behind them. Editing a tool's implementation between attempts does
 not invalidate an already-cached result for an identical call, and pointing

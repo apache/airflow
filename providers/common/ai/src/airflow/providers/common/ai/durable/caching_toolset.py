@@ -72,7 +72,7 @@ class CachingToolset(WrapperToolset[Any]):
 
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)
         if found:
-            if cached_fingerprint == fingerprint:
+            if fingerprint is not None and cached_fingerprint == fingerprint:
                 self.counter.replayed_tool += 1
                 log.debug("Durable: replayed cached tool result", step=step, tool=name)
                 return cached
