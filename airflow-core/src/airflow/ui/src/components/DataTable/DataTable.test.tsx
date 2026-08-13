@@ -19,7 +19,7 @@
 import { Text } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
@@ -34,6 +34,18 @@ const columns: Array<ColumnDef<{ name: string }>> = [
     header: "Name",
   },
 ];
+
+// The columns menu is only shown by default once a table has many columns
+const wideColumns: Array<ColumnDef<{ name: string }>> = [
+  ...columns,
+  ...["Second", "Third", "Fourth", "Fifth", "Sixth"].map((header) => ({
+    cell: () => header,
+    header,
+    id: header,
+  })),
+];
+
+const columnsMenuLabel = "table.filterColumns";
 
 const data = [{ name: "John Doe" }, { name: "Jane Doe" }];
 
@@ -122,8 +134,26 @@ describe("DataTable", () => {
     expect(screen.queryByTestId("next")).toBeNull();
   });
 
+  it("renders no offset pagination when no total is provided", () => {
+    render(
+      <DataTable columns={columns} data={data} initialState={{ pagination, sorting: [] }} modelName="task" />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByTestId("prev")).toBeNull();
+    expect(screen.queryByTestId("next")).toBeNull();
+  });
+
   it("when isLoading renders skeleton columns", () => {
     render(<DataTable columns={columns} data={data} isLoading modelName="task" />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.getAllByTestId("skeleton")).toHaveLength(10);
+  });
+
+  it("renders table skeletons when card mode falls back to a table", () => {
+    render(<DataTable columns={columns} data={data} displayMode="card" isLoading modelName="task" />, {
       wrapper: ChakraWrapper,
     });
 
@@ -168,7 +198,7 @@ describe("DataTable", () => {
     expect(screen.getAllByTestId("skeleton")).toHaveLength(5);
   });
 
-  it("renders row count heading by default when total > 0", () => {
+  it("renders the row count heading by default", () => {
     render(
       <DataTable
         columns={columns}
@@ -201,6 +231,40 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("2 task");
   });
 
+  it("groups thousands in the row count heading", () => {
+    render(<DataTable columns={columns} data={data} modelName="task" total={1234} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.getByRole("heading")).toHaveTextContent("1,234 task");
+  });
+
+  it("renders a zero row count heading when there are no records", () => {
+    render(<DataTable columns={columns} data={[]} modelName="task" total={0} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.getByRole("heading")).toHaveTextContent("0 task");
+  });
+
+  // i18next is not initialised here, so keys come back raw. The `_other` suffix is the point: the
+  // count-free label must read that key directly rather than passing a stand-in count.
+  it("names the model without a count when no total is provided", () => {
+    render(<DataTable columns={columns} data={data} modelName="task" />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.getByRole("heading")).toHaveTextContent(/^task_other$/u);
+  });
+
+  it("keeps the row count heading while refetching", () => {
+    render(<DataTable columns={columns} data={data} isFetching modelName="task" total={2} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.getByRole("heading")).toHaveTextContent("2 task");
+  });
+
   it("renders a capped row count heading when total reaches totalEntriesLimit", () => {
     render(
       <DataTable
@@ -219,14 +283,22 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("50,000+ task");
   });
 
-  it("does not render row count heading when showRowCountHeading is false", () => {
+  it("does not render row count heading during the initial load", () => {
+    render(<DataTable columns={columns} data={[]} isLoading modelName="task" total={0} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.queryByRole("heading")).toBeNull();
+  });
+
+  it("does not render row count heading when hideRowCountHeading is set", () => {
     render(
       <DataTable
         columns={columns}
         data={data}
+        hideRowCountHeading
         initialState={{ pagination, sorting: [] }}
         modelName="task"
-        showRowCountHeading={false}
         total={2}
       />,
       { wrapper: ChakraWrapper },
@@ -248,6 +320,40 @@ describe("DataTable", () => {
     );
 
     expect(screen.getByText(/noitemsFound/iu)).toBeInTheDocument();
+  });
+
+  it("keeps column headers and spans all columns for the empty message in table display", () => {
+    render(
+      <DataTable columns={wideColumns} data={[]} modelName="task" noRowsMessage="nothing here" total={0} />,
+      { wrapper: ChakraWrapper },
+    );
+
+    const table = screen.getByTestId("table-list");
+
+    expect(within(table).getByText("Name")).toBeInTheDocument();
+    expect(within(table).getByText("Sixth")).toBeInTheDocument();
+
+    const cell = within(screen.getByTestId("table-no-rows")).getByText("nothing here");
+
+    expect(cell.closest("td")).toHaveAttribute("colspan", String(wideColumns.length));
+  });
+
+  it("renders the empty message in card display", () => {
+    render(
+      <DataTable
+        cardDef={cardDef}
+        columns={columns}
+        data={[]}
+        displayMode="card"
+        modelName="task"
+        noRowsMessage="nothing here"
+        total={0}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(within(screen.getByTestId("card-no-rows")).getByText("nothing here")).toBeInTheDocument();
+    expect(screen.queryByTestId("table-list")).toBeNull();
   });
 
   it("renders display toggle when showDisplayToggle and onDisplayToggleChange are provided", () => {
@@ -284,5 +390,133 @@ describe("DataTable", () => {
     );
 
     expect(screen.queryByLabelText(/toggleTableView/iu)).toBeNull();
+  });
+
+  it("renders columns menu in the header row rather than inside the table", () => {
+    render(<DataTable columns={wideColumns} data={data} modelName="task" total={2} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(
+      within(screen.getByTestId("data-table-header")).getByLabelText(columnsMenuLabel),
+    ).toBeInTheDocument();
+    expect(within(screen.getByTestId("table-list")).queryByLabelText(columnsMenuLabel)).toBeNull();
+  });
+
+  it("does not render columns menu in card display", () => {
+    render(
+      <DataTable
+        cardDef={cardDef}
+        columns={wideColumns}
+        data={data}
+        displayMode="card"
+        modelName="task"
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByLabelText(columnsMenuLabel)).toBeNull();
+  });
+
+  it("keeps columns menu available when there are no rows", () => {
+    render(<DataTable columns={wideColumns} data={[]} modelName="task" total={0} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.getByLabelText(columnsMenuLabel)).toBeInTheDocument();
+    expect(screen.getByText(/noitemsFound/iu)).toBeInTheDocument();
+  });
+
+  it("hides columns menu when showColumnsMenu is false", () => {
+    render(
+      <DataTable columns={wideColumns} data={data} modelName="task" showColumnsMenu={false} total={2} />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByLabelText(columnsMenuLabel)).toBeNull();
+  });
+
+  it("shows columns menu for few columns when showColumnsMenu is true", () => {
+    render(<DataTable columns={columns} data={data} modelName="task" showColumnsMenu total={2} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.getByLabelText(columnsMenuLabel)).toBeInTheDocument();
+  });
+
+  it("hides a column when unchecked in the columns menu", async () => {
+    render(<DataTable columns={wideColumns} data={data} modelName="task" total={2} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    const trigger = screen.getByLabelText(columnsMenuLabel);
+
+    fireEvent.pointerDown(trigger);
+    fireEvent.click(trigger);
+
+    const menuItem = await waitFor(() => screen.getByRole("menuitem", { name: "Second" }));
+
+    fireEvent.click(menuItem);
+
+    await waitFor(() => expect(within(screen.getByTestId("table-list")).queryByText("Second")).toBeNull());
+  });
+
+  it("renders actions independently of rows and heading", () => {
+    render(
+      <DataTable
+        actions={<button type="button">custom action</button>}
+        columns={columns}
+        data={[]}
+        hideRowCountHeading
+        modelName="task"
+        total={0}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByText("custom action")).toBeInTheDocument();
+  });
+
+  it("renders headingExtra next to the row count heading", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        headingExtra={<Text>heading extra</Text>}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByRole("heading")).toHaveTextContent("2 task");
+    expect(screen.getByText("heading extra")).toBeInTheDocument();
+  });
+
+  it("renders headingExtra when the row count heading is hidden", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={[]}
+        headingExtra={<Text>heading extra</Text>}
+        hideRowCountHeading
+        modelName="task"
+        total={0}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByText("heading extra")).toBeInTheDocument();
+  });
+
+  it("renders no header row when there is nothing to show", () => {
+    render(<DataTable columns={columns} data={data} hideRowCountHeading modelName="task" total={2} />, {
+      wrapper: ChakraWrapper,
+    });
+
+    expect(screen.queryByTestId("data-table-header")).toBeNull();
   });
 });

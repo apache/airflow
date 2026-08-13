@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Code, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { Code, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
@@ -245,38 +245,37 @@ export const Events = () => {
     undefined,
   );
 
+  const eventLogs = data?.event_logs ?? [];
   const columns = eventsColumn({ dagId, open, runId, taskId }, translate);
 
   return (
-    <VStack alignItems="stretch">
-      {dagId === undefined && runId === undefined && taskId === undefined ? (
-        <Heading size="md">{translate("auditLog.title")}</Heading>
-      ) : undefined}
-      <Flex alignItems="center" justifyContent="space-between">
-        <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
-        <ExpandCollapseButtons
-          collapseLabel={translate("common:collapseAllExtra")}
-          expandLabel={translate("common:expandAllExtra")}
-          isExpanded={open}
-          onCollapse={onClose}
-          onExpand={onOpen}
-        />
-      </Flex>
+    <>
+      <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
 
       <ErrorAlert error={error} />
       <DataTable
+        actions={
+          eventLogs.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:collapseAllExtra")}
+              expandLabel={translate("common:expandAllExtra")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
         columns={columns}
-        data={data?.event_logs ?? []}
+        data={eventLogs}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="browse:auditLog.columns.event"
+        modelName="common:event"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />
-    </VStack>
+    </>
   );
 };

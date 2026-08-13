@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, useDisclosure } from "@chakra-ui/react";
+import { Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -225,6 +225,7 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
+  const xcomEntries = data?.xcom_entries ?? [];
   const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
 
   const columns = getColumns({
@@ -234,46 +235,43 @@ export const XCom = () => {
   });
 
   return (
-    <Box>
-      {dagId === "~" && runId === "~" && taskId === "~" ? (
-        <Heading size="md">{translate("xcom.title")}</Heading>
-      ) : undefined}
-
+    <>
       <Flex alignItems="center" justifyContent="space-between">
         <XComFilters />
-        <Flex gap={2}>
-          {isTaskInstancePage ? (
-            <AddXComButton
-              dagId={dagId}
-              mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
-              runId={runId}
-              taskId={taskId}
-            />
-          ) : undefined}
-          <ExpandCollapseButtons
-            collapseLabel={translate("common:collapseAllExtra")}
-            expandLabel={translate("common:expandAllExtra")}
-            isExpanded={open}
-            onCollapse={onClose}
-            onExpand={onOpen}
+        {isTaskInstancePage ? (
+          <AddXComButton
+            dagId={dagId}
+            mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
+            runId={runId}
+            taskId={taskId}
           />
-        </Flex>
+        ) : undefined}
       </Flex>
 
       <ErrorAlert error={error} />
       <DataTable
+        actions={
+          xcomEntries.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:collapseAllExtra")}
+              expandLabel={translate("common:expandAllExtra")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
         columns={columns}
-        data={data ? data.xcom_entries : []}
+        data={xcomEntries}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="browse:xcom.title"
+        modelName="browse:xcom.entry"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         skeletonCount={undefined}
-        total={data ? data.total_entries : 0}
+        total={data?.total_entries ?? 0}
       />
-    </Box>
+    </>
   );
 };
