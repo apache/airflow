@@ -150,6 +150,7 @@
     "tooltip": "Press {{hotkey}} for fullscreen"
   },
   "generateToken": "Generate Token",
+  "includedIn": "Included in",
   "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
