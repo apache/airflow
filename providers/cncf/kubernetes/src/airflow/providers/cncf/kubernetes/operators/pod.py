@@ -86,7 +86,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     detect_pod_terminate_early_issues,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
 
 if AIRFLOW_V_3_1_PLUS:
@@ -176,16 +176,17 @@ class KubernetesPodOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
-    :param reattach_on_restart: deprecated for Airflow 3.3+, use ``durable`` instead. If the worker dies
-        while the pod is running, reattach and monitor during the next try. If False, always create a
-        new pod for each try.
+    :param reattach_on_restart: deprecated, use ``durable`` instead. If the worker dies while the pod
+        is running, reattach and monitor during the next try. If False, always create a new pod for
+        each try. Below Airflow 3.3, this remains the only way to control that behavior, since
+        ``durable`` has no effect there.
     :param durable: if the worker dies while the pod is running, reattach and monitor during the next
         try instead of creating a duplicate pod. If False, always create a new pod for each try.
-        Supersedes ``reattach_on_restart``; on Airflow 3.3+ the reconnection uses a persisted pod
-        identity in task state store instead of a label search, removing the ambiguity failure a label
-        search can hit when more than one matching pod exists. Defaults to ``True``. On Airflow
-        versions below 3.3, ``durable`` still works but falls back to the same label-search reattach
-        behavior as ``reattach_on_restart``, since task state store is unavailable.
+        Supersedes ``reattach_on_restart`` on Airflow 3.3+, where the reconnection uses a persisted
+        pod identity in task state store instead of a label search. Defaults to ``True`` on Airflow
+        3.3+. Below 3.3, ``durable`` has no effect -- setting it explicitly only emits a warning --
+        and ``reattach_on_restart`` (default ``True``) is the only lever, using the same
+        label-search reattach mechanism it always has.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod after pod was scheduled.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
@@ -340,7 +341,7 @@ class KubernetesPodOperator(BaseOperator):
         cluster_context: str | None = None,
         labels: dict | None = None,
         reattach_on_restart: bool | None = None,
-        durable: bool = True,
+        durable: bool | None = None,
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
         schedule_timeout_seconds: int | None = None,
@@ -402,12 +403,33 @@ class KubernetesPodOperator(BaseOperator):
         if reattach_on_restart is not None:
             # Kept as a real named parameter (not **kwargs) so `default_args` still applies correctly.
             warnings.warn(
-                "`reattach_on_restart` is deprecated and will be removed in a future release. "
-                "Use `durable` instead.",
+                "`reattach_on_restart` is deprecated and will be removed once this provider's "
+                "minimum supported Airflow version reaches 3.3. "
+                + (
+                    "Use `durable` instead."
+                    if AIRFLOW_V_3_3_PLUS
+                    else "On Airflow 3.3+, use `durable` instead."
+                ),
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            durable = reattach_on_restart
+        if AIRFLOW_V_3_3_PLUS:
+            if durable is None:
+                # durable takes precedence when set, even against a conflicting
+                # reattach_on_restart; reattach_on_restart only fills the gap when durable itself
+                # was never touched.
+                durable = True if reattach_on_restart is None else reattach_on_restart
+        else:
+            if durable is not None:
+                # durable itself has no effect below 3.3 -- there's no task state store to persist
+                # a pod identity to, so only reattach_on_restart's label-search fallback is real
+                # there.
+                warnings.warn(
+                    "`durable` has no effect on Airflow versions below 3.3.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            durable = True if reattach_on_restart is None else reattach_on_restart
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
