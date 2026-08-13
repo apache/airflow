@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from decimal import Decimal
 from unittest import mock
 
 import pytest
@@ -36,6 +37,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
     SessionPollResult,
     SessionStatus,
     _create_session_error,
+    build_budget,
     evaluate_session_state,
     validate_execute_complete_event,
 )
@@ -218,6 +220,105 @@ class TestPollSessionCompletion:
             assert named_cause in poll_result.error_message
         # The inverse matters just as much: the generic advice must not appear here.
         assert "autonomous agent" not in poll_result.error_message
+
+
+class TestBuildBudget:
+    @pytest.mark.parametrize(
+        ("amount", "expected_minor_units"),
+        [
+            pytest.param(25, "2500", id="int-dollars"),
+            pytest.param(25.0, "2500", id="float-dollars"),
+            pytest.param("25.00", "2500", id="str-dollars"),
+            pytest.param(Decimal("25.00"), "2500", id="decimal-dollars"),
+            pytest.param(0.07, "7", id="float-cents-no-binary-artifact"),
+            pytest.param("0.01", "1", id="one-cent"),
+            pytest.param(1234.56, "123456", id="mixed"),
+        ],
+    )
+    def test_scalar_is_usd_dollars(self, amount, expected_minor_units):
+        assert build_budget(amount) == {
+            "type": "limit",
+            "max_list_cost": {"amount": expected_minor_units, "currency": "USD"},
+        }
+
+    def test_mapping_passes_through_unchanged(self):
+        # The escape hatch for a payload shape the provider has not caught up with. Uses a
+        # currently-valid payload: the API accepts only type "limit" and currency "USD".
+        raw = {"type": "limit", "max_list_cost": {"amount": "500", "currency": "USD"}}
+        assert build_budget(raw) == raw
+
+    def test_mapping_is_deep_copied_not_aliased(self):
+        # A shallow copy would leave max_list_cost aliased to the caller's dict, so editing
+        # the returned payload would reach back into a templated operator field.
+        raw = {"type": "limit", "max_list_cost": {"amount": "500", "currency": "USD"}}
+        built = build_budget(raw)
+        built["type"] = "mutated"
+        built["max_list_cost"]["amount"] = "999999"
+        assert raw == {"type": "limit", "max_list_cost": {"amount": "500", "currency": "USD"}}
+
+    @pytest.mark.parametrize(
+        ("amount", "match"),
+        [
+            pytest.param(0, "positive", id="zero"),
+            pytest.param(-5, "positive", id="negative"),
+            pytest.param("abc", "not a decimal", id="not-a-number"),
+            pytest.param(True, "not a decimal", id="bool-is-not-an-amount"),
+            pytest.param("0.001", "finer than a cent", id="sub-cent"),
+            pytest.param(float("inf"), "positive", id="infinity"),
+        ],
+    )
+    def test_rejects_bad_amounts(self, amount, match):
+        with pytest.raises(ValueError, match=match):
+            build_budget(amount)
+
+
+class TestUpdateSession:
+    def test_only_passes_supplied_keys(self):
+        # The API distinguishes omitted (preserve) from None (clear), so an unmentioned
+        # field must not be sent at all.
+        hook, client = _make_hook()
+        hook.update_session("sess_1", title="renamed")
+        client.beta.sessions.update.assert_called_once_with("sess_1", title="renamed")
+
+    def test_explicit_none_budget_clears(self):
+        hook, client = _make_hook()
+        hook.update_session("sess_1", budget=None)
+        client.beta.sessions.update.assert_called_once_with("sess_1", budget=None)
+
+    def test_normalizes_a_dollar_amount(self):
+        hook, client = _make_hook()
+        hook.update_session("sess_1", budget=25)
+        client.beta.sessions.update.assert_called_once_with(
+            "sess_1", budget={"type": "limit", "max_list_cost": {"amount": "2500", "currency": "USD"}}
+        )
+
+    @pytest.mark.parametrize("platform", ["bedrock", "vertex", "foundry"])
+    def test_unavailable_on_non_first_party(self, platform):
+        hook, _ = _make_hook(extra={"platform": platform})
+        with pytest.raises(AnthropicError, match="Managed Agents is not available"):
+            hook.update_session("sess_1", title="x")
+
+
+class TestCreateSessionBudget:
+    def test_normalizes_a_dollar_amount(self):
+        hook, client = _make_hook()
+        hook.create_session(agent="ag", environment_id="env", budget="25.00")
+        assert client.beta.sessions.create.call_args.kwargs["budget"] == {
+            "type": "limit",
+            "max_list_cost": {"amount": "2500", "currency": "USD"},
+        }
+
+    def test_no_budget_key_when_not_requested(self):
+        hook, client = _make_hook()
+        hook.create_session(agent="ag", environment_id="env")
+        assert "budget" not in client.beta.sessions.create.call_args.kwargs
+
+    def test_drops_a_none_budget(self):
+        # SessionCreateParams.budget is not Optional, so "budget": null is rejected -- but
+        # budget=None is the idiom update_session teaches for clearing a ceiling.
+        hook, client = _make_hook()
+        hook.create_session(agent="ag", environment_id="env", budget=None)
+        assert "budget" not in client.beta.sessions.create.call_args.kwargs
 
 
 class TestCreateSessionError:

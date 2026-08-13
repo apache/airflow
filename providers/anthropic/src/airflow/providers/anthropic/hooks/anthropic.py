@@ -18,6 +18,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Mapping
+from copy import deepcopy
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
@@ -52,6 +55,7 @@ if TYPE_CHECKING:
     from anthropic.types.beta import (
         BetaEnvironment,
         BetaManagedAgentsAgent,
+        BetaManagedAgentsBudgetLimitParam,
         BetaManagedAgentsSession,
         environment_create_params,
     )
@@ -122,6 +126,49 @@ OUTCOME_FAILURE_RESULTS = frozenset({"failed", "max_iterations_reached", "interr
 
 # ``session.status_idle`` stop reason emitted when a session stops against its budget.
 BUDGET_REACHED = "budget_reached"
+
+# What a caller may pass as a session budget: an amount in USD, or the raw API payload.
+BudgetSpec = str | int | float | Decimal | Mapping[str, Any]
+
+
+def build_budget(budget: BudgetSpec) -> BetaManagedAgentsBudgetLimitParam:
+    """
+    Normalize a session budget into the API's ``max_list_cost`` payload.
+
+    A scalar is read as **US dollars** (``25``, ``25.0`` and ``"25.00"`` all mean $25.00).
+    The API wants minor units as an integer decimal string, so the conversion runs through
+    :class:`~decimal.Decimal` (never binary float) and rejects an amount finer than a cent
+    rather than silently rounding money. A mapping is deep-copied and otherwise returned
+    unchanged, so a raw payload the provider has not caught up with stays usable without a
+    provider release.
+
+    .. warning::
+        The ceiling is a stop trigger, not a cap: it is checked between model requests, so
+        a request already in flight can carry the session well past it.
+    """
+    if isinstance(budget, Mapping):
+        # Deep, not ``dict()``: a shallow copy leaves the nested ``max_list_cost`` aliased
+        # to the caller's object, so a later edit of the returned payload would reach back
+        # into a templated operator field.
+        # Cast, not validate: a raw payload is accepted precisely so a caller can reach a
+        # field this provider does not model yet, so its shape cannot be checked here.
+        return cast("BetaManagedAgentsBudgetLimitParam", deepcopy(dict(budget)))
+    try:
+        dollars = Decimal(str(budget))
+    except (InvalidOperation, ValueError) as e:
+        raise ValueError(f"Invalid budget {budget!r}: not a decimal amount in USD.") from e
+    if not dollars.is_finite() or dollars <= 0:
+        raise ValueError(f"Invalid budget {budget!r}: must be a positive USD amount.")
+    minor_units = dollars * 100
+    if minor_units != minor_units.to_integral_value():
+        raise ValueError(
+            f"Invalid budget {budget!r}: amounts finer than a cent are not representable. "
+            "Pass a mapping if you need the raw payload."
+        )
+    return {
+        "type": "limit",
+        "max_list_cost": {"amount": str(int(minor_units)), "currency": "USD"},
+    }
 
 
 def _create_session_error(message: str, stop_reason: str | None) -> AnthropicAgentSessionError:
@@ -570,11 +617,43 @@ class AnthropicHook(BaseHook):
         return environment
 
     def create_session(self, agent: str, environment_id: str, **kwargs: Any) -> BetaManagedAgentsSession:
-        """Start a session against a pre-created agent + environment."""
+        """
+        Start a session against a pre-created agent + environment.
+
+        A ``budget`` keyword accepts an amount in USD as well as the raw API payload; see
+        :func:`build_budget`.
+        """
         self._require_first_party("Managed Agents")
+        if "budget" in kwargs:
+            if kwargs["budget"] is None:
+                # ``SessionCreateParams.budget`` is not Optional -- unlike the update
+                # params, create has no "clear the ceiling" semantics, and sending
+                # ``"budget": null`` is rejected. Treat None as "no budget".
+                kwargs.pop("budget")
+            else:
+                kwargs["budget"] = build_budget(kwargs["budget"])
         return self._first_party_conn.beta.sessions.create(
             agent=agent, environment_id=environment_id, **kwargs
         )
+
+    def update_session(self, session_id: str, **kwargs: Any) -> BetaManagedAgentsSession:
+        """
+        Update a live session -- raise or clear its ``budget``, swap ``agent`` tools, retitle.
+
+        Only the keywords you pass are sent, which matters because the API distinguishes
+        *omitted* (preserve) from ``None`` (clear). So ``update_session(sid)`` changes
+        nothing, while ``update_session(sid, budget=None)`` removes the ceiling -- the
+        escape hatch for a session stopped by a model with no list price, which raising the
+        budget cannot unblock.
+
+        ``budget`` accepts an amount in USD or the raw payload (see :func:`build_budget`).
+        ``agent={"tools": [...]}`` is a **full replacement** of the tool list, not a merge,
+        and needs the ``mid-conversation-tool-changes-2026-07-01`` beta.
+        """
+        self._require_first_party("Managed Agents")
+        if kwargs.get("budget") is not None:
+            kwargs["budget"] = build_budget(kwargs["budget"])
+        return self._first_party_conn.beta.sessions.update(session_id, **kwargs)
 
     def get_session(self, session_id: str) -> BetaManagedAgentsSession:
         """Retrieve a session (carries its current ``status``)."""
