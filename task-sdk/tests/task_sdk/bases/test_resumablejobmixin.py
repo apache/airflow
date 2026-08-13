@@ -151,6 +151,16 @@ class TestRetryWithDifferentJobStatuses:
         assert op.submitted_ids == [], "should not resubmit when job is active"
         assert op.polled_ids == ["job-001"]
 
+    def test_reconnect_returns_the_job_result(self):
+        """A reconnect must return what a first-attempt success returns, not poll()'s None."""
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+
+        result = op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+
+        assert result == "result-of-job-001"
+        assert op.polled_ids == ["job-001"], "the reconnected job must still be polled"
+
     def test_pending_status_also_skips_submission(self):
         op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = "PENDING"

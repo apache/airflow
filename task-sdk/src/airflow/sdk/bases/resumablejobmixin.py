@@ -412,7 +412,8 @@ def resume_or_submit(
     )
 
     if decision.action is ResumeAction.RECONNECT:
-        return poll(decision.external_id)
+        poll(decision.external_id)
+        return get_result(decision.external_id)
     if decision.action is ResumeAction.ALREADY_SUCCEEDED:
         return get_result(decision.external_id)
 
