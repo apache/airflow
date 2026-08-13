@@ -253,6 +253,35 @@ class TestMSGraphFS:
         )
         assert result == mock_fs_instance
 
+    @patch("azure.identity.CertificateCredential", autospec=True)
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection", autospec=True)
+    @patch("msgraphfs.MSGDriveFS", autospec=True)
+    def test_get_fs_certificate_rewrites_comma_separated_scopes(
+        self, mock_msgdrivefs, mock_get_connection, mock_certificate_credential
+    ):
+        connection = Connection(
+            conn_id="msgraph_certificate",
+            conn_type="msgraph",
+            login="test_client_id",
+            password="certificate_password",
+            host="test_tenant_id",
+            extra={
+                "drive_id": "test_drive_id",
+                "certificate_path": "/tmp/cert.pem",
+                "scopes": "User.Read,Files.Read",
+            },
+        )
+        mock_get_connection.return_value = connection
+        mock_msgdrivefs.return_value = MagicMock()
+        mock_certificate_credential.return_value.get_token.return_value = MagicMock(
+            token="certificate-token", expires_on=1234567890
+        )
+
+        get_fs("msgraph_certificate")
+
+        mock_certificate_credential.return_value.get_token.assert_called_once_with("User.Read", "Files.Read")
+        assert mock_msgdrivefs.call_args[1]["oauth2_client_params"]["scope"] == "User.Read Files.Read"
+
     @pytest.mark.parametrize(
         ("extra", "expected_scope"),
         [
@@ -262,6 +291,11 @@ class TestMSGraphFS:
                 {"scopes": "User.Read,Files.Read"},
                 "User.Read Files.Read",
                 id="rewrites-comma-separated-scopes-to-space-delimited",
+            ),
+            pytest.param(
+                {"scopes": ["User.Read", "Files.Read"]},
+                "User.Read Files.Read",
+                id="joins-list-scopes-into-space-delimited",
             ),
             pytest.param({}, "https://graph.microsoft.com/.default", id="defaults-to-graph-scope"),
         ],
