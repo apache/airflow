@@ -227,10 +227,10 @@ config_list: list[_TableConfig] = [
         recency_column_name="created_date",
         extra_columns=["id"],
         dependent_tables=["task_instance"],
-        # The triggerer already drops every unreferenced trigger each loop, so an old row that
+        # The triggerer deletes every unreferenced trigger on each loop, so an old row that
         # survives is almost always still in use. task_instance.trigger_id and
-        # asset_watcher.trigger_id are ON DELETE CASCADE, so deleting one takes a deferred task
-        # instance or an event-driven watcher with it, neither of which is archived.
+        # asset_watcher.trigger_id are ON DELETE CASCADE, so deleting one also deletes a
+        # deferred task instance or a watcher, neither of which reaches an archive table.
         # callback.trigger_id has no delete rule, so the same delete fails the foreign key.
         skip_if_referenced=[
             ("task_instance", "trigger_id"),
