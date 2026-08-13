@@ -28,7 +28,6 @@ from airflow.triggers.base import BaseEventTrigger
 from tests_common.test_utils.common_msg_queue import (
     collect_queue_param_deprecation_warning,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
 
 USED_FIXTURES = [collect_queue_param_deprecation_warning]
 
@@ -240,10 +239,6 @@ class TestMessageQueueTriggerScheme:
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
         assert getattr(trigger, "queue", None) is None
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_4_PLUS,
-        reason="triggerer-queue routing (BaseEventTrigger.queue) was added in Airflow 3.4 (#71346)",
-    )
     @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
     def test_triggerer_queue_param_sets_triggerer_queue_alongside_deprecated_queue(self):
         """The deprecated `queue` (broker URI) parameter claims the `queue` keyword, so triggerer
@@ -252,10 +247,6 @@ class TestMessageQueueTriggerScheme:
         assert trigger.queue_uri == PROVIDER_1_QUEUE
         assert trigger.queue == "my-triggerer-queue"
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_4_PLUS,
-        reason="triggerer-queue routing (BaseEventTrigger.queue) was added in Airflow 3.4 (#71346)",
-    )
     def test_triggerer_queue_param_sets_triggerer_queue_alongside_scheme(self):
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, triggerer_queue="my-triggerer-queue")
         assert trigger.queue == "my-triggerer-queue"
