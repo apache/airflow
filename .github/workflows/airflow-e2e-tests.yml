@@ -135,7 +135,7 @@ jobs:
       # arch-specific auto-provisioned JDKs (the example pins a Java 11 toolchain).
       - name: "Setup Java for the Java SDK build"
         if: inputs.e2e_test_mode == 'java_sdk'
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: 'temurin'
           java-version: ${{ inputs.java-sdk-version }}
@@ -175,7 +175,7 @@ jobs:
             e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: "Setup pnpm for the TypeScript SDK build"
         if: inputs.e2e_test_mode == 'ts_sdk'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
         with:
           package_json_file: ts-sdk/package.json
           run_install: false

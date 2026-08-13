@@ -26,6 +26,42 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
 schemes = ["msgraph", "sharepoint", "onedrive", "msgd"]
+DEFAULT_SCOPE = "https://graph.microsoft.com/.default"
+
+
+def _get_token_endpoint(tenant_id: str) -> str:
+    return f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+
+
+def _get_scopes(options: dict[str, Any]) -> list[str]:
+    scopes = options.get("scope") or options.get("scopes") or DEFAULT_SCOPE
+    if isinstance(scopes, str):
+        return scopes.split()
+    return scopes
+
+
+def _get_certificate_token(options: dict[str, Any]) -> dict[str, Any]:
+    from azure.identity import CertificateCredential
+
+    credential = CertificateCredential(
+        tenant_id=options["tenant_id"],
+        client_id=options["client_id"],
+        password=options.get("password") or options.get("client_secret"),
+        certificate_path=options.get("certificate_path"),
+        certificate_data=options["certificate_data"].encode() if options.get("certificate_data") else None,
+        authority=options.get("authority"),
+        disable_instance_discovery=options.get("disable_instance_discovery", False),
+    )
+    try:
+        access_token = credential.get_token(*_get_scopes(options))
+    finally:
+        credential.close()
+
+    return {
+        "access_token": access_token.token,
+        "token_type": "Bearer",
+        "expires_at": access_token.expires_on,
+    }
 
 
 def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
@@ -62,6 +98,7 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
     fields = [
         "drive_id",
         "scope",
+        "scopes",
         "token_endpoint",
         "redirect_uri",
         "token_endpoint_auth_method",
@@ -69,6 +106,10 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         "update_token",
         "username",
         "password",
+        "certificate_path",
+        "certificate_data",
+        "authority",
+        "disable_instance_discovery",
     ]
     for field in fields:
         value = get_field(conn_id=conn_id, conn_type=conn_type, extras=extras, field_name=field)
@@ -83,7 +124,19 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
 
     # Create oauth2 client parameters if authentication is provided
     oauth2_client_params = {}
-    if options.get("client_id") and options.get("client_secret") and options.get("tenant_id"):
+    if (
+        options.get("client_id")
+        and options.get("tenant_id")
+        and (options.get("certificate_path") or options.get("certificate_data"))
+    ):
+        token_endpoint = options.get("token_endpoint") or _get_token_endpoint(options["tenant_id"])
+        oauth2_client_params = {
+            "client_id": options["client_id"],
+            "token": _get_certificate_token(options),
+            "token_endpoint": token_endpoint,
+            "scope": " ".join(_get_scopes(options)),
+        }
+    elif options.get("client_id") and options.get("client_secret") and options.get("tenant_id"):
         oauth2_client_params = {
             "client_id": options["client_id"],
             "client_secret": options["client_secret"],
@@ -105,11 +158,12 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
             if param in options:
                 oauth2_client_params[param] = options[param]
 
+        if "scopes" in options and "scope" not in oauth2_client_params:
+            oauth2_client_params["scope"] = " ".join(_get_scopes(options))
+
         # Construct default token_endpoint from tenant_id if not explicitly provided
-        if "token_endpoint" not in oauth2_client_params and tenant_id:
-            oauth2_client_params["token_endpoint"] = (
-                f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-            )
+        if "token_endpoint" not in oauth2_client_params:
+            oauth2_client_params["token_endpoint"] = _get_token_endpoint(options["tenant_id"])
 
     # Determine which filesystem to return based on drive_id
     drive_id = options.get("drive_id")

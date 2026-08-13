@@ -275,6 +275,7 @@ class MappedOperator(AbstractOperator):
     _is_empty: bool = attrs.field(alias="is_empty")
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
+    is_stub: bool = False
     _task_module: str
     task_type: str
     _operator_name: str
@@ -352,6 +353,7 @@ class MappedOperator(AbstractOperator):
             "partial_kwargs",
             "operator_extra_links",
             "returns_dag_result",
+            "is_stub",
         }
 
     @property

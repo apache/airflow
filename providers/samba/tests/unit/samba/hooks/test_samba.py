@@ -23,7 +23,10 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowNotFoundException
+from airflow.providers.common.compat.sdk import (
+    AirflowNotFoundException,
+    AirflowOptionalProviderFeatureException,
+)
 from airflow.providers.samba.hooks.samba import SambaHook
 
 try:
@@ -63,6 +66,7 @@ class TestSambaHook:
                 "password": CONNECTION.password,
                 "port": 445,
                 "connection_cache": {},
+                "auth_protocol": "negotiate",
             }
             cache = kwargs.get("connection_cache")
             mock_connection = mock.Mock()
@@ -117,6 +121,7 @@ class TestSambaHook:
             "username": CONNECTION.login,
             "password": CONNECTION.password,
             "port": 445,
+            "auth_protocol": "negotiate",
         }
         with mock.patch("smbclient." + name) as p:
             kwargs = {}
@@ -190,6 +195,116 @@ class TestSambaHook:
         get_conn_mock.return_value = CONNECTION
         hook = SambaHook("samba_default", share_type=path_type)
         assert hook._join_path(path) == full_path
+
+    @mock.patch.dict("sys.modules", {"krb5": mock.MagicMock()})
+    @mock.patch("smbclient.register_session")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_kerberos_auth_via_extra(self, get_conn_mock, register_session):
+        """Test that auth_protocol='kerberos' from extra is passed to smbclient."""
+        connection = Connection(
+            host="kerb-host.example.com",
+            schema="share",
+            extra='{"auth_protocol": "kerberos"}',
+        )
+        get_conn_mock.return_value = connection
+        register_session.return_value = None
+        with SambaHook("samba_default"):
+            _, kwargs = tuple(register_session.call_args_list[0])
+            assert kwargs["auth_protocol"] == "kerberos"
+            assert kwargs["username"] is None
+            assert kwargs["password"] is None
+
+    @mock.patch.dict("sys.modules", {"krb5": mock.MagicMock()})
+    @mock.patch("smbclient.register_session")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_kerberos_auth_via_legacy_auth_key(self, get_conn_mock, register_session):
+        """Test backward compat: extra {"auth": "kerberos"} is recognized."""
+        connection = Connection(
+            host="kerb-host.example.com",
+            schema="share",
+            extra='{"auth": "kerberos"}',
+        )
+        get_conn_mock.return_value = connection
+        register_session.return_value = None
+        with SambaHook("samba_default"):
+            _, kwargs = tuple(register_session.call_args_list[0])
+            assert kwargs["auth_protocol"] == "kerberos"
+
+    @mock.patch.dict("sys.modules", {"krb5": mock.MagicMock()})
+    @mock.patch("smbclient.register_session")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_kerberos_auth_via_constructor(self, get_conn_mock, register_session):
+        """Test that constructor auth_protocol overrides extra."""
+        connection = Connection(
+            host="kerb-host.example.com",
+            schema="share",
+            login="user",
+            password="pass",
+        )
+        get_conn_mock.return_value = connection
+        register_session.return_value = None
+        with SambaHook("samba_default", auth_protocol="kerberos"):
+            _, kwargs = tuple(register_session.call_args_list[0])
+            assert kwargs["auth_protocol"] == "kerberos"
+
+    @mock.patch("smbclient.register_session")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_legacy_auth_key_ignored_when_invalid(self, get_conn_mock, register_session):
+        """Test that extra {"auth": "basic"} is ignored and defaults to negotiate."""
+        connection = Connection(
+            host="host",
+            schema="share",
+            login="user",
+            password="pass",
+            extra='{"auth": "basic"}',
+        )
+        get_conn_mock.return_value = connection
+        register_session.return_value = None
+        with SambaHook("samba_default"):
+            _, kwargs = tuple(register_session.call_args_list[0])
+            assert kwargs["auth_protocol"] == "negotiate"
+
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_invalid_auth_protocol_raises(self, get_conn_mock):
+        """Test that an invalid auth_protocol raises ValueError."""
+        connection = Connection(
+            host="host",
+            schema="share",
+            extra='{"auth_protocol": "invalid"}',
+        )
+        get_conn_mock.return_value = connection
+        with pytest.raises(ValueError, match="Invalid auth_protocol 'invalid'"):
+            SambaHook("samba_default")
+
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_kerberos_without_dependency_raises(self, get_conn_mock):
+        """Test that kerberos auth without krb5 installed raises AirflowOptionalProviderFeatureException."""
+        connection = Connection(
+            host="kerb-host.example.com",
+            schema="share",
+            extra='{"auth_protocol": "kerberos"}',
+        )
+        get_conn_mock.return_value = connection
+        with mock.patch.dict("sys.modules", {"krb5": None}):
+            with pytest.raises(AirflowOptionalProviderFeatureException, match="krb5"):
+                SambaHook("samba_default")
+
+    @mock.patch("smbclient.register_session")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_ntlm_auth(self, get_conn_mock, register_session):
+        """Test that auth_protocol='ntlm' is passed correctly."""
+        connection = Connection(
+            host="host",
+            schema="share",
+            login="user",
+            password="pass",
+            extra='{"auth_protocol": "ntlm"}',
+        )
+        get_conn_mock.return_value = connection
+        register_session.return_value = None
+        with SambaHook("samba_default"):
+            _, kwargs = tuple(register_session.call_args_list[0])
+            assert kwargs["auth_protocol"] == "ntlm"
 
     @mock.patch("airflow.providers.samba.hooks.samba.smbclient.open_file", return_value=mock.Mock())
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")

@@ -31,7 +31,6 @@ import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
-import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -120,7 +119,6 @@ export const Grid = ({
   const { data: dagStructure } = useGridStructure({
     dagRunState,
     depth,
-    hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
     includeDownstream,
     includeUpstream,
     limit,

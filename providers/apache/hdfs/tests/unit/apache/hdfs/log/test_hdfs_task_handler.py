@@ -25,7 +25,7 @@ from unittest.mock import PropertyMock
 import pytest
 
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
-from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsTaskHandler
+from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO, HdfsTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -35,6 +35,86 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2020, 8, 10)
+
+
+class TestHdfsRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): "hdfs://namenode/remote/log/location",
+            ("logging", "delete_local_logs"): "True",
+        }
+    )
+    def test_from_config(self):
+        subject = HdfsRemoteLogIO.from_config()
+
+        assert subject.remote_base == "/remote/log/location"
+        assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): "hdfs://namenode/remote/log/location",
+            ("logging", "delete_local_logs"): "False",
+            ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true, "max_bytes": 1024}',
+        }
+    )
+    def test_from_config_applies_io_kwargs_and_filters_file_handler_kwargs(self):
+        subject = HdfsRemoteLogIO.from_config()
+
+        assert subject.delete_local_copy is True
+        assert not hasattr(subject, "max_bytes")
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            HdfsRemoteLogIO.from_config()
+
+    def test_provider_registers_hdfs_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("hdfs")
+
+        assert info is not None
+        assert info.classpath == "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO"
+
+    @pytest.mark.parametrize(
+        "manager_classpath",
+        [
+            pytest.param("airflow.providers_manager.ProvidersManager", id="core"),
+            pytest.param(
+                "airflow.sdk.providers_manager_runtime.ProvidersManagerTaskRuntime", id="task-runtime"
+            ),
+        ],
+    )
+    @conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "hdfs://namenode/remote/log/location",
+            ("logging", "remote_log_conn_id"): "webhdfs_default",
+        }
+    )
+    def test_resolve_remote_task_log_uses_provider_dispatch_not_local_settings(self, manager_classpath):
+        factory = pytest.importorskip("airflow._shared.logging.factory")
+        from airflow._shared.module_loading import import_string
+        from airflow.configuration import conf
+
+        with mock.patch.object(factory, "discover_remote_log_handler", autospec=True) as legacy_discover:
+            remote_task_log, conn_id = factory.resolve_remote_task_log(
+                conf=conf,
+                providers_manager=import_string(manager_classpath)(),
+                import_string=import_string,
+            )
+
+        assert isinstance(remote_task_log, HdfsRemoteLogIO)
+        assert remote_task_log.remote_base == "/remote/log/location"
+        assert conn_id == "webhdfs_default"
+        legacy_discover.assert_not_called()
 
 
 class TestHdfsTaskHandler:

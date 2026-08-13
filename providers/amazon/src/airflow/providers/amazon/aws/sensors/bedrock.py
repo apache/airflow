@@ -79,13 +79,26 @@ class BedrockBaseSensor(AwsBaseSensor[_GenericBedrockHook]):
     def poke(self, context: Context, **kwargs) -> bool:
         state = self.get_state()
         if state in self.FAILURE_STATES:
-            raise AirflowException(self.FAILURE_MESSAGE)
+            raise AirflowException(f"{self.FAILURE_MESSAGE}{self._failure_reason_suffix()}")
 
         return state not in self.INTERMEDIATE_STATES
+
+    def _failure_reason_suffix(self) -> str:
+        """Assemble failure reasons if any are provided."""
+        return f" Failure reasons: {reason}" if (reason := self.get_failure_reason()) else ""
 
     @abc.abstractmethod
     def get_state(self) -> str:
         """Implement in subclasses."""
+
+    def get_failure_reason(self) -> str:
+        """
+        Return the service-reported reason(s) for a failed state, or an empty string if none.
+
+        Override in subclasses whose describe API exposes failure detail. Return the reasons
+        only; phrasing and separators are handled by the caller.
+        """
+        return ""
 
 
 class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor[BedrockHook]):
@@ -348,12 +361,20 @@ class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
         self.data_source_id = data_source_id
         self.ingestion_job_id = ingestion_job_id
 
-    def get_state(self) -> str:
+    def _get_ingestion_job(self) -> dict[str, Any]:
         return self.hook.conn.get_ingestion_job(
             knowledgeBaseId=self.knowledge_base_id,
             ingestionJobId=self.ingestion_job_id,
             dataSourceId=self.data_source_id,
-        )["ingestionJob"]["status"]
+        )["ingestionJob"]
+
+    def get_state(self) -> str:
+        return self._get_ingestion_job()["status"]
+
+    def get_failure_reason(self) -> str:
+        if reasons := self._get_ingestion_job().get("failureReasons"):
+            return "; ".join(reasons)
+        return ""
 
     def execute(self, context: Context) -> Any:
         if self.deferrable:

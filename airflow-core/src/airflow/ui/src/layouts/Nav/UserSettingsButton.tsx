@@ -19,10 +19,10 @@
 import { Box, Icon, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import {
-  FiGrid,
   FiKey,
   FiLogOut,
   FiMoon,
+  FiSettings,
   FiSun,
   FiUser,
   FiGlobe,
@@ -31,12 +31,10 @@ import {
   FiChevronLeft,
   FiMonitor,
 } from "react-icons/fi";
-import { MdOutlineAccountTree } from "react-icons/md";
-import { useLocalStorage } from "usehooks-ts";
 
 import { useAuthLinksServiceGetCurrentUserInfo } from "openapi/queries";
 import { Menu } from "src/components/ui";
-import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
+import { RouterLink } from "src/components/ui/RouterLink";
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import type { NavItemResponse } from "src/utils/types";
 
@@ -79,8 +77,6 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
   const { onClose: onCloseToken, onOpen: onOpenToken, open: isOpenToken } = useDisclosure();
 
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
-
   const theme = selectedTheme ?? COLOR_MODES.SYSTEM;
 
   const isRTL = i18n.dir() === "rtl";
@@ -105,6 +101,12 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
               <Menu.Separator />
             </>
           ) : undefined}
+          <Menu.Item asChild value="settings">
+            <RouterLink color="inherit" to="/settings">
+              <Icon as={FiSettings} boxSize={4} />
+              <Box flex="1">{translate("settings.title")}</Box>
+            </RouterLink>
+          </Menu.Item>
           <Menu.Item onClick={onOpenLanguage} value="language">
             <Icon as={FiGlobe} boxSize={4} />
             <Box flex="1">{translate("selectLanguage")}</Box>
@@ -127,15 +129,6 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
               </Menu.RadioItemGroup>
             </Menu.Content>
           </Menu.Root>
-          <Menu.Item
-            onClick={() => (dagView === "grid" ? setDagView("graph") : setDagView("grid"))}
-            value={dagView}
-          >
-            <Icon as={dagView === "grid" ? MdOutlineAccountTree : FiGrid} boxSize={4} />
-            <Box flex="1">
-              {dagView === "grid" ? translate("defaultToGraphView") : translate("defaultToGridView")}
-            </Box>
-          </Menu.Item>
           <Menu.Item onClick={onOpenToken} value="generateToken">
             <Icon as={FiKey} boxSize={4} />
             <Box flex="1">{translate("generateToken")}</Box>

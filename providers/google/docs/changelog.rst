@@ -79,6 +79,7 @@ Misc
 * ``Update system test to the latest api version of google-ads (#69865)``
 * ``Use common.compat.sdk for timezone imports in providers (#70492)``
 * ``Drop redundant BigQueryInsertJobOperator job ID snapshot in __init__ (#70494)``
+* ``Install google-cloud-aiplatform without the 'evaluation' extra and require its dependencies directly, so the provider installs on Python 3.14 (#71273)``
 
 Doc-only
 ~~~~~~~~
@@ -96,6 +97,9 @@ Doc-only
    * ``Prepare providers release 2026-07-22 (#70256)``
    * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
    * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
+   * ``Update changelog with better wording (#71161)``
+   * ``Prepare providers release 2026-08-06 (#71219)``
 
 22.2.2
 ......

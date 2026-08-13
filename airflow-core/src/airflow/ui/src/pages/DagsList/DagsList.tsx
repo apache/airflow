@@ -32,6 +32,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
+import { TeamName } from "src/components/TeamName";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink } from "src/components/ui";
@@ -164,10 +165,9 @@ const createColumns = (
     ? [
         {
           accessorKey: "team_name",
-          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) =>
-            original.team_name !== undefined && original.team_name !== null ? (
-              <RouterLink to={`/dags?teams=${original.team_name}`}>{original.team_name}</RouterLink>
-            ) : undefined,
+          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) => (
+            <TeamName teamName={original.team_name} />
+          ),
           enableSorting: false,
           header: () => translate("dagDetails.team"),
         },

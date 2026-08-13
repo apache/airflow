@@ -274,6 +274,27 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "team_name": None,
         }
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session, "example_python_operator", bundle_name="team-bundle-ti", team_name="team-ti"
+        )
+        try:
+            response = test_client.get(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+            )
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-ti"
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-ti",
+                team_name="team-ti",
+                original_bundle_name=original_bundle_name,
+            )
+
     def test_should_respond_200_with_decorator(self, test_client, session):
         self.create_task_instances(session, "example_python_decorator")
         response = test_client.get(
@@ -700,6 +721,30 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Mapped Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context`, and map_index: `10` was not found"
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session,
+            "example_python_operator",
+            bundle_name="team-bundle-mapped-ti",
+            team_name="team-mapped-ti",
+        )
+        try:
+            response = test_client.get(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
+            )
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-mapped-ti"
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-mapped-ti",
+                team_name="team-mapped-ti",
+                original_bundle_name=original_bundle_name,
+            )
 
 
 class TestGetMappedTaskInstances:
@@ -2036,11 +2081,12 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         body = response.json()
         assert body["next_cursor"] is not None
         assert body["previous_cursor"] is None
-        assert body["total_entries"] is None
+        assert body["total_entries"] == 5
+        assert body["total_entries_limit"] == 50_000
         assert len(body["task_instances"]) == 3
 
     def test_cursor_pagination_returns_cursor_response(self, test_client, session):
-        """When cursor param is provided, response has cursor fields and no total_entries."""
+        """When cursor param is provided, response has cursor fields and a bounded total_entries."""
         dag_id = "example_python_operator"
         self.create_task_instances(
             session,
@@ -2056,7 +2102,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response1.status_code == 200
         body1 = response1.json()
-        assert body1["total_entries"] is None
+        assert body1["total_entries"] == 5
+        assert body1["total_entries_limit"] == 50_000
         assert len(body1["task_instances"]) == 3
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
@@ -2070,7 +2117,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         body2 = response2.json()
         assert body2["next_cursor"] is None
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 5
+        assert body2["total_entries_limit"] == 50_000
 
     def test_cursor_pagination_forward_and_backward_consistency(self, test_client, session):
         """Walk all pages forward via next_cursor, then backward via previous_cursor, and compare."""
@@ -2097,7 +2145,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             )
             assert response.status_code == 200, response.json()
             body = response.json()
-            assert body["total_entries"] is None
+            assert body["total_entries"] == total_tis
+            assert body["total_entries_limit"] == 50_000
             forward_pages.append(body)
             forward_ids.extend(ti["id"] for ti in body["task_instances"])
 
@@ -4851,6 +4900,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5128,6 +5178,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -5267,6 +5318,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5331,6 +5383,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5427,6 +5480,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     }
                 ],
                 "total_entries": 1,
+                "total_entries_limit": None,
                 "next_cursor": None,
                 "previous_cursor": None,
             }
@@ -5707,6 +5761,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }
@@ -5996,6 +6051,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "total_entries_limit": None,
                     "next_cursor": None,
                     "previous_cursor": None,
                 },
@@ -6079,6 +6135,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.json() == {
             "task_instances": [],
             "total_entries": 0,
+            "total_entries_limit": None,
             "next_cursor": None,
             "previous_cursor": None,
         }

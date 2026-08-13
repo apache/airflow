@@ -28,13 +28,16 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NotePreview from "src/components/NotePreview";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
+  const showTeam = useShowTeam(taskInstance.team_name);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -53,6 +56,14 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
             value: Boolean(taskInstance.duration)
               ? renderDuration(taskInstance.duration)
               : getDuration(taskInstance.start_date, taskInstance.end_date),
+          },
+        ]
+      : []),
+    ...(showTeam
+      ? [
+          {
+            label: translate("dagDetails.team"),
+            value: <TeamName teamName={taskInstance.team_name} />,
           },
         ]
       : []),

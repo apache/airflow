@@ -76,7 +76,7 @@ MIGRATED_CLI_COMMANDS = [
     (variable_command.variables_import, "airflowctl variables import"),
     (asset_command.asset_materialize, "airflowctl assets materialize"),
     (asset_command.asset_list, "airflowctl assets list / airflowctl assets list-aliases"),
-    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-by-alias"),
+    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-alias"),
     (provider_command.provider_get, "airflowctl providers get"),
     (provider_command.providers_list, "airflowctl providers list"),
     (config_command.get_value, "airflowctl config get"),

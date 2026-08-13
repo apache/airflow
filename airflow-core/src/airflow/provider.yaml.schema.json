@@ -565,12 +565,22 @@
             "type": "array",
             "description": "Decorators to use with the TaskFlow API. Can be accessed by users via '@task.<name>'",
             "items": {
-                "name": {
-                    "type": "string"
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "Name the decorator is exposed under, following '@task.'",
+                        "type": "string"
+                    },
+                    "class-name": {
+                        "description": "Class name that implements the decorator",
+                        "type": "string"
+                    }
                 },
-                "path": {
-                    "type": "string"
-                }
+                "additionalProperties": false,
+                "required": [
+                    "name",
+                    "class-name"
+                ]
             }
         },
         "secrets-backends": {
@@ -688,24 +698,29 @@
             "type": "array",
             "description": "Plugins exposed by the provider",
             "items": {
-                "name": {
-                    "type": "string"
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "Name of the plugin",
+                        "type": "string"
+                    },
+                    "plugin-class": {
+                        "description": "Class name that implements the plugin",
+                        "type": "string"
+                    }
                 },
-                "plugin-class": {
-                    "type": "string"
-                }
+                "additionalProperties": false,
+                "required": [
+                    "name",
+                    "plugin-class"
+                ]
             }
         },
         "queues": {
             "type": "array",
-            "description": "Message Queues exposed by the provider",
+            "description": "Message queue provider class names",
             "items": {
-                "name": {
-                    "type": "string"
-                },
-                "message-queue-class": {
-                    "type": "string"
-                }
+                "type": "string"
             }
         },
         "source-date-epoch": {

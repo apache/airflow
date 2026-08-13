@@ -39,43 +39,6 @@ export const AdvancedSearchToggle = ({
 }: AdvancedSearchToggleProps) => {
   const { t: translate } = useTranslation("common");
 
-  const button =
-    variant === "addon" ? (
-      <Box
-        alignItems="center"
-        alignSelf="stretch"
-        aria-label="Toggle match-anywhere search"
-        aria-pressed={enabled}
-        as="button"
-        bg={enabled ? "colorPalette.solid" : "gray.muted"}
-        borderRightRadius="full"
-        color={enabled ? "colorPalette.contrast" : "colorPalette.fg"}
-        colorPalette={enabled ? "brand" : "gray"}
-        cursor="pointer"
-        data-testid="advanced-search-toggle"
-        display="flex"
-        onClick={() => onToggle(!enabled)}
-        // Keep focus on the FilterPill input so toggling does not collapse the pill.
-        onMouseDown={(event) => event.preventDefault()}
-        px={3}
-      >
-        <LuRegex />
-      </Box>
-    ) : (
-      <IconButton
-        aria-label="Toggle match-anywhere search"
-        aria-pressed={enabled}
-        data-testid="advanced-search-toggle"
-        flexShrink={0}
-        onClick={() => onToggle(!enabled)}
-        onMouseDown={(event) => event.preventDefault()}
-        size={size}
-        variant={enabled ? "solid" : "outline"}
-      >
-        <LuRegex />
-      </IconButton>
-    );
-
   return (
     <Tooltip
       content={
@@ -88,7 +51,41 @@ export const AdvancedSearchToggle = ({
       portalled
       showArrow
     >
-      {button}
+      {variant === "addon" ? (
+        <Box
+          alignItems="center"
+          alignSelf="stretch"
+          aria-label="Toggle match-anywhere search"
+          aria-pressed={enabled}
+          as="button"
+          bg={enabled ? "colorPalette.solid" : "gray.muted"}
+          borderRightRadius="full"
+          color={enabled ? "colorPalette.contrast" : "colorPalette.fg"}
+          colorPalette={enabled ? "brand" : "gray"}
+          cursor="pointer"
+          data-testid="advanced-search-toggle"
+          display="flex"
+          onClick={() => onToggle(!enabled)}
+          // Keep focus on the FilterPill input so toggling does not collapse the pill.
+          onMouseDown={(event) => event.preventDefault()}
+          px={3}
+        >
+          <LuRegex />
+        </Box>
+      ) : (
+        <IconButton
+          aria-label="Toggle match-anywhere search"
+          aria-pressed={enabled}
+          data-testid="advanced-search-toggle"
+          flexShrink={0}
+          onClick={() => onToggle(!enabled)}
+          onMouseDown={(event) => event.preventDefault()}
+          size={size}
+          variant={enabled ? "solid" : "ghost"}
+        >
+          <LuRegex />
+        </IconButton>
+      )}
     </Tooltip>
   );
 };

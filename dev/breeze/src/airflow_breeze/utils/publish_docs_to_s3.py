@@ -38,6 +38,7 @@ NON_SHORT_NAME_PACKAGES = [
     "helm-chart",
     "java-sdk",
     "task-sdk",
+    "ts-sdk",
 ]
 
 

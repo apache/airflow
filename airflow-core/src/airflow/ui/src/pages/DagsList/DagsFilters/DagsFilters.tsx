@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { HStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
@@ -233,9 +234,8 @@ export const DagsFilters = () => {
       {multiTeamEnabled ? (
         <TeamFilter onChange={handleTeamsChange} selectedTeams={selectedTeams} />
       ) : undefined}
-      <Box marginInlineStart="auto">
-        <FavoriteFilter onChange={handleFavoriteChange} value={favoriteValue} />
-      </Box>
+      <FavoriteFilter onChange={handleFavoriteChange} value={favoriteValue} />
+      <PresetFiltersMenu />
     </HStack>
   );
 };

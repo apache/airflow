@@ -241,11 +241,11 @@ Install them when installing from PyPI. For example:
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]``
-``bedrock``     ``pydantic-ai-slim[bedrock]``
-``google``      ``pydantic-ai-slim[google]``
-``openai``      ``pydantic-ai-slim[openai]``
-``mcp``         ``pydantic-ai-slim[mcp]``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.0.0``
+``bedrock``     ``pydantic-ai-slim[bedrock]>=2.0.0``
+``google``      ``pydantic-ai-slim[google]>=2.0.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.0.0``
+``mcp``         ``pydantic-ai-slim[mcp]>=2.0.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``

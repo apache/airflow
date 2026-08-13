@@ -26,13 +26,18 @@ The TypeScript SDK lets you implement Airflow task logic in TypeScript (or plain
 Node.js. The Dag and its scheduling remain in Python; individual tasks delegate to a Node.js subprocess that
 is spawned by :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
-The SDK is the ``@apache-airflow/ts-sdk`` package (ESM-only). It is currently in **alpha** and its API may change.
+The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **alpha** and its API may change.
 
 .. warning::
 
   The SDK is not yet published to npm. To try it today, build it from source in the
   `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository and
   depend on it locally (see ``ts-sdk/example/`` for a working setup).
+
+.. seealso::
+
+  For the full TypeScript API reference (task handlers, ``TaskClient``, and the coordinator runtime),
+  see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
 .. contents:: Contents
    :local:
@@ -174,7 +179,9 @@ The ``TaskClient`` surface
   with no default.
 * ``getConnection(connId)`` — returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
-  missing or ``null``), or ``null`` when the connection does not exist.
+  missing or ``null``), or ``null`` when the connection does not exist;
+  ``getConnectionOrThrow(connId)`` throws ``ConnectionNotFoundError`` instead, matching Python
+  ``BaseHook.get_connection``.
 * ``getXCom<T>({key, ...})`` — reads an XCom value, or ``null`` when it is missing. The locator fields
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.

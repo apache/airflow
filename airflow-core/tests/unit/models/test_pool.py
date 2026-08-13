@@ -286,6 +286,9 @@ class TestPool:
         assert pools[0].pool == self.pools[0].pool
         assert pools[1].pool == self.pools[1].pool
 
+    def test_default_team_pool_name(self):
+        assert Pool.get_default_team_pool_name("team_a") == "default_pool_team_a"
+
     def test_create_pool(self, session):
         self.add_pools()
         pool = Pool.create_or_update_pool(name="foo", slots=5, description="", include_deferred=True)

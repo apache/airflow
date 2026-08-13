@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = ["pytest>=9.1.1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["registry_tools"]

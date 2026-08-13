@@ -117,11 +117,11 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-akeyless[cloud_id]
 
 
-============  =====================
+============  ============================
 Extra         Dependencies
-============  =====================
-``cloud_id``  ``akeyless_cloud_id``
-============  =====================
+============  ============================
+``cloud_id``  ``akeyless-cloud-id>=0.3.0``
+============  ============================
 
 Downloading official packages
 -----------------------------

@@ -78,8 +78,6 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
                 user = new_user or current_user
             except (
                 AuthManagerRefreshTokenExpiredException,
-                ExpiredSignatureError,
-                InvalidTokenError,
                 HTTPException,
             ):
                 new_token = ""
@@ -234,13 +232,17 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
         access_token = request.cookies.get(COOKIE_NAME_ACCESS_TOKEN)
         refresh_token = request.cookies.get(COOKIE_NAME_REFRESH_TOKEN)
         if not jwt_token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not logged into Airflow."
-            )
+            # User is not logged into Airflow
+            return None, None
         if not access_token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not logged into Keycloak."
             )
         auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-        user = await auth_manager.get_user_from_token(jwt_token, access_token, refresh_token)
+        try:
+            user = await auth_manager.get_user_from_token(jwt_token, access_token, refresh_token)
+        except ExpiredSignatureError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
+        except InvalidTokenError:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
         return get_auth_manager().refresh_user(user=user), user

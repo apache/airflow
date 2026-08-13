@@ -46,6 +46,14 @@ def _stage_java_sdk_docs(generated_path: Path, version: str | None) -> None:
         (build_dir / "stable.txt").write_text(version + "\n")
 
 
+def _stage_ts_sdk_docs(generated_path: Path, version: str | None) -> None:
+    build_dir = generated_path / "_build" / "docs" / "ts-sdk"
+    (build_dir / "stable").mkdir(parents=True)
+    (build_dir / "stable" / "index.html").write_text("docs")
+    if version:
+        (build_dir / "stable.txt").write_text(version + "\n")
+
+
 def test_publish_skips_package_without_staged_docs_before_resolving_version(
     generated_path, airflow_site_dir, monkeypatch
 ):
@@ -104,3 +112,16 @@ def test_publish_java_sdk_version_falls_back_to_gradle_properties(
     java_sdk_archive = Path(airflow_site_dir) / "docs-archive" / "java-sdk"
     assert (java_sdk_archive / "9.9.9" / "index.html").read_text() == "docs"
     assert (java_sdk_archive / "stable.txt").read_text() == "9.9.9\n"
+
+
+def test_publish_ts_sdk_version_falls_back_to_package_json(generated_path, airflow_site_dir, monkeypatch):
+    monkeypatch.setattr(docs_publisher, "get_ts_sdk_version", lambda: "0.1.0-alpha.0")
+    _stage_ts_sdk_docs(generated_path, version=None)
+    publisher = DocsPublisher(package_name="ts-sdk", output=None, verbose=False)
+
+    return_code, message = publisher.publish(override_versioned=False, airflow_site_dir=airflow_site_dir)
+
+    assert (return_code, message) == (0, "Docs published: ts-sdk")
+    ts_sdk_archive = Path(airflow_site_dir) / "docs-archive" / "ts-sdk"
+    assert (ts_sdk_archive / "0.1.0-alpha.0" / "index.html").read_text() == "docs"
+    assert (ts_sdk_archive / "stable.txt").read_text() == "0.1.0-alpha.0\n"

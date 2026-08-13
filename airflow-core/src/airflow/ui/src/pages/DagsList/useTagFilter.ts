@@ -17,7 +17,6 @@
  * under the License.
  */
 import { useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
@@ -27,20 +26,10 @@ type TagMatchMode = "all" | "any";
 
 export const useTagFilter = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [savedTags, setSavedTags] = useLocalStorage<Array<string>>(TAGS, []);
-  const [savedTagMatchMode, setSavedTagMatchMode] = useLocalStorage<TagMatchMode>(TAGS_MATCH_MODE, "any");
 
-  const urlTags = searchParams.getAll(TAGS);
+  const selectedTags = searchParams.getAll(TAGS);
   const urlMatchMode = searchParams.get(TAGS_MATCH_MODE);
-
-  // URL params take precedence; fall back to localStorage when URL has no tags.
-  const selectedTags = urlTags.length > 0 ? urlTags : savedTags;
-  const tagFilterMode: TagMatchMode =
-    urlMatchMode === null
-      ? urlTags.length === 0
-        ? savedTagMatchMode
-        : "any"
-      : (urlMatchMode as TagMatchMode);
+  const tagFilterMode: TagMatchMode = urlMatchMode === null ? "any" : (urlMatchMode as TagMatchMode);
 
   const setSelectedTags = (tags: Array<string>) => {
     searchParams.delete(TAGS);
@@ -49,14 +38,12 @@ export const useTagFilter = () => {
     });
     searchParams.delete(OFFSET);
     setSearchParams(searchParams);
-    setSavedTags(tags);
   };
 
   const setTagFilterMode = (mode: TagMatchMode) => {
     searchParams.set(TAGS_MATCH_MODE, mode);
     searchParams.delete(OFFSET);
     setSearchParams(searchParams);
-    setSavedTagMatchMode(mode);
   };
 
   return { selectedTags, setSelectedTags, setTagFilterMode, tagFilterMode };

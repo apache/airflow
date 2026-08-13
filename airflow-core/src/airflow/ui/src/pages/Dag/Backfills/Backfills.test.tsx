@@ -48,6 +48,7 @@ vi.mock("openapi/queries", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { id?: number }) =>
       key === "components:backfill.viewSlots"

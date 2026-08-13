@@ -107,6 +107,11 @@ def glue_data_quality_recommendation_workflow():
     await_evaluation_run_sensor = GlueDataQualityRuleSetEvaluationRunSensor(
         task_id="await_evaluation_run_sensor",
         evaluation_run_id=start_evaluation_run.output,
+        # The ruleset is generated dynamically by Glue's recommendation engine and is
+        # non-deterministic, so recommended rules may not always pass against the sample
+        # data. This system test only needs to exercise the operators/sensors end-to-end,
+        # not assert that every recommended rule passes, so do not fail on rule failures.
+        verify_result_status=False,
     )
 
     chain(

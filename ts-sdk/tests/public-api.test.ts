@@ -28,6 +28,7 @@ import type {
   TaskRegistration,
 } from "../src/index.js";
 import {
+  ConnectionNotFoundError,
   listRegisteredTasks,
   registerTask,
   startCoordinator,
@@ -47,6 +48,11 @@ describe("public API", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.name).toBe("VariableNotFoundError");
     expect(err.key).toBe("missing");
+
+    const connErr = new ConnectionNotFoundError("missing_conn");
+    expect(connErr).toBeInstanceOf(Error);
+    expect(connErr.name).toBe("ConnectionNotFoundError");
+    expect(connErr.connId).toBe("missing_conn");
   });
 
   it("exports the coordinator runtime entrypoint", () => {
@@ -102,6 +108,9 @@ describe("public API", () => {
     }>();
     expectTypeOf<TaskClient["getConnection"]>().toEqualTypeOf<
       (connId: string) => Promise<ConnectionResult | null>
+    >();
+    expectTypeOf<TaskClient["getConnectionOrThrow"]>().toEqualTypeOf<
+      (connId: string) => Promise<ConnectionResult>
     >();
     expectTypeOf<TaskClient["getXCom"]>().toEqualTypeOf<
       <T = unknown>(opts: GetXComOpts) => Promise<T | null>

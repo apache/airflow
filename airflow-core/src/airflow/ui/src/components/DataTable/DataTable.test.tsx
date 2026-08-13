@@ -183,6 +183,42 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("2 task");
   });
 
+  it("renders row count heading for cursor pagination when total is provided", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        nextCursor="next"
+        onStateChange={onStateChange}
+        total={2}
+        totalEntriesLimit={50_000}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByRole("heading")).toHaveTextContent("2 task");
+  });
+
+  it("renders a capped row count heading when total reaches totalEntriesLimit", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        nextCursor="next"
+        onStateChange={onStateChange}
+        total={50_000}
+        totalEntriesLimit={50_000}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByRole("heading")).toHaveTextContent("50,000+ task");
+  });
+
   it("does not render row count heading when showRowCountHeading is false", () => {
     render(
       <DataTable

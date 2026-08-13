@@ -64,6 +64,7 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix version_added for the concurrent pod creation options (#71157)``
 
 10.20.0
 .......

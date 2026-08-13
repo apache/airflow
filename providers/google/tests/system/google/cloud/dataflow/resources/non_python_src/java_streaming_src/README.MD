@@ -1,6 +1,6 @@
 # Dataflow Java Streaming
 
-This project is a streaming example running with latest Apache Beam Java SDK (v.2.63),
+This project is a streaming example running with latest Apache Beam Java SDK (v.2.75),
 as there is no "official" streaming example yet https://beam.apache.org/get-started/wordcount-example/.
 
 Sample logic to direct streaming data from input Pub/Sub source to the output PubSub topic to work
@@ -11,7 +11,7 @@ That used for Java dataflow streaming system tests.
 
 ## Requirements
 
-- **Java 17**: Ensure you have Java 17 installed and configured on your system.
+- **Java 11 or higher**: Ensure you have Java installed and configured on your system
 - **Maven**: Make sure Maven is installed and configured on your system.
 - Maven is used for dependency management and building the project.
 

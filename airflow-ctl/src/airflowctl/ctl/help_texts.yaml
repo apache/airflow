@@ -17,7 +17,7 @@
 ---
 assets:
   get: "Retrieve an asset by its ID"
-  get-by-alias: "Retrieve an asset by its alias"
+  get-alias: "Retrieve an asset alias by its ID"
   list: "List all assets"
   list-aliases: "List all asset aliases"
   create-event: "Create an event for a given asset"

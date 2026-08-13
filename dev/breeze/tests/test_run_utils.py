@@ -16,14 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import socket
 import stat
 from unittest import mock
 
+import pytest
+
+from airflow_breeze.global_constants import SIMPLE_AUTH_MANAGER_VITE_DEV_PORT, VITE_DEV_PORT
 from airflow_breeze.utils.run_utils import (
+    _find_occupied_local_ports,
     change_directory_permission,
     change_file_permission,
     check_if_buildx_plugin_installed,
     run_command,
+    run_compile_ui_assets,
 )
 
 
@@ -55,6 +61,68 @@ def test_run_command_dry_run_quiet_does_not_execute(mock_subprocess_run):
     assert result.returncode == 0
     assert result.stdout == ""
     assert result.stderr == ""
+
+
+def test_find_occupied_local_ports():
+    with socket.socket() as unused_socket:
+        unused_socket.bind(("127.0.0.1", 0))
+        unoccupied_port = str(unused_socket.getsockname()[1])
+
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        occupied_port = str(server.getsockname()[1])
+
+        assert _find_occupied_local_ports((unoccupied_port, occupied_port)) == [occupied_port]
+
+
+@mock.patch("airflow_breeze.utils.run_utils._run_compile_internally")
+@mock.patch("airflow_breeze.utils.run_utils._find_occupied_local_ports", return_value=[])
+def test_run_compile_ui_assets_checks_both_dev_ports(mock_find_occupied_ports, mock_run_compile):
+    result = run_compile_ui_assets(
+        dev=True, run_in_background=False, force_clean=False, additional_ui_hooks=[]
+    )
+
+    assert result == mock_run_compile.return_value
+    mock_find_occupied_ports.assert_called_once_with((VITE_DEV_PORT, SIMPLE_AUTH_MANAGER_VITE_DEV_PORT))
+
+
+@pytest.mark.parametrize(
+    "occupied_ports",
+    [
+        pytest.param([VITE_DEV_PORT], id="airflow-ui"),
+        pytest.param([SIMPLE_AUTH_MANAGER_VITE_DEV_PORT], id="simple-auth-manager-ui"),
+    ],
+)
+@mock.patch("airflow_breeze.utils.run_utils._clean_ui_assets")
+@mock.patch("airflow_breeze.utils.run_utils._find_occupied_local_ports")
+@mock.patch("airflow_breeze.utils.run_utils.console_print")
+def test_run_compile_ui_assets_exits_before_cleanup_when_dev_port_is_occupied(
+    mock_console_print, mock_find_occupied_ports, mock_clean_ui_assets, occupied_ports
+):
+    mock_find_occupied_ports.return_value = occupied_ports
+
+    with pytest.raises(SystemExit) as ctx:
+        run_compile_ui_assets(dev=True, run_in_background=False, force_clean=True, additional_ui_hooks=[])
+
+    assert ctx.value.code == 1
+    mock_console_print.assert_called_once_with(
+        "[error]Cannot start UI development servers because the following local port(s) "
+        f"are already in use: {', '.join(occupied_ports)}.[/]\n"
+        "[info]Stop the processes using these ports and try again.[/]"
+    )
+    mock_clean_ui_assets.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.run_utils._run_compile_internally")
+@mock.patch("airflow_breeze.utils.run_utils._find_occupied_local_ports")
+def test_run_compile_ui_assets_does_not_check_dev_ports_for_static_build(
+    mock_find_occupied_ports, mock_run_compile
+):
+    result = run_compile_ui_assets(
+        dev=False, run_in_background=False, force_clean=False, additional_ui_hooks=[]
+    )
+
+    assert result == mock_run_compile.return_value
+    mock_find_occupied_ports.assert_not_called()
 
 
 @mock.patch("airflow_breeze.utils.run_utils.run_command")

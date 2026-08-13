@@ -28,6 +28,13 @@ repositories {
     gradlePluginPortal()
 }
 
+configurations.configureEach {
+    resolutionStrategy {
+        failOnDynamicVersions()
+        failOnChangingVersions()
+    }
+}
+
 // Pin Java and Kotlin bytecode targets so they stay aligned to avoid warning on
 // misaligned Java and Kotlin target versions. (This is for the build logic and
 // unrelated to the Java 11 target set in the SDK modules.)

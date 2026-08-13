@@ -125,6 +125,7 @@ class FileGroupForCi(Enum):
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -484,9 +485,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.TS_SDK_DOCS_FILES: [
+            # TypeDoc renders the reference from the SDK sources, and the landing page is
+            # authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md` counts here. tsconfig.json
+            # and package.json are included too: docs/tsconfig.json `extends` the former, and
+            # the latter pins the `@msgpack/msgpack` version the checked program depends on.
+            r"^ts-sdk/docs/.*",
+            r"^ts-sdk/src/.*",
+            r"^ts-sdk/tsconfig\.json$",
+            r"^ts-sdk/package\.json$",
+        ],
         FileGroupForCi.TS_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the generated supervisor schema.
-            r"^ts-sdk/(?!.*\.md$).*",
+            # `ts-sdk/docs/package.json` and its lock file excluded too — they pin the docs
+            # toolchain's own dependencies and do not affect the SDK build.
+            r"^ts-sdk/(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1130,6 +1143,10 @@ class SelectiveChecks:
     @cached_property
     def run_java_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
+
+    @cached_property
+    def run_ts_sdk_docs(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
 
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:

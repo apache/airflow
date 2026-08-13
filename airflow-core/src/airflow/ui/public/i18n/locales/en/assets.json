@@ -1,5 +1,8 @@
 {
   "additional_data": "Additional Data",
+  "alias_one": "Alias",
+  "alias_other": "Aliases",
+  "aliases": "Aliases",
   "asset_many": "Assets",
   "asset_one": "Asset",
   "assetStateStore": {
@@ -53,5 +56,8 @@
   "scheduledDags": "Scheduled Dags",
   "scheduling": "Scheduling",
   "searchPlaceholder": "Search Assets",
-  "taskDependencies": "Task Dependencies"
+  "taskDependencies": "Task Dependencies",
+  "watcher_one": "Watcher",
+  "watcher_other": "Watchers",
+  "watchers": "Watchers"
 }

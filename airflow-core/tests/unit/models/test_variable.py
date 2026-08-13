@@ -127,6 +127,11 @@ class TestVariable:
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert Variable.get("tested_var_set_id") == "Monday morning breakfast"
 
+    def test_set_val_rejects_non_string_with_clear_error(self):
+        var = Variable(key="a_key")
+        with pytest.raises(TypeError, match="Variable value must be a string, got list"):
+            var.val = ["a", "b"]
+
     def test_variable_set_with_env_variable(self, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         Variable.set(key="key", value="db-value", session=session)

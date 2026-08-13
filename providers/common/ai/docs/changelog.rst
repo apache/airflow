@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+.. note::
+    The ``query`` tool of ``SQLToolset`` and ``DataFusionToolset`` returns a different
+    shape. Rows were a dict per row alongside a ``count`` of every matching row:
+    ``{"rows": [{"id": 1, "name": "a"}], "count": 900}``. They are now columnar, and
+    ``row_count`` counts the rows actually returned:
+    ``{"columns": ["id", "name"], "rows": [[1, "a"]], "row_count": 1}``. A truncated
+    result also carries ``truncated_by`` -- ``max_rows`` or the new ``max_result_bytes``
+    -- and ``total_rows`` appears only when the driver reports a trustworthy query
+    total. The tool's own description states the new shape, so agents adapt without
+    changes; update any system prompt that describes the old shape, and any code
+    calling ``toolset.call_tool("query", ...)`` directly.
+
 0.7.0
 .....
 

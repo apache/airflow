@@ -394,6 +394,14 @@ class DagRun(Base, LoggingMixin):
     backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
     max_active_runs = association_proxy("dag_model", "max_active_runs")
 
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this run's Dag, or ``None`` when it is not team-owned."""
+        # Gate before touching ``dag_model``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag_model.team_name if self.dag_model else None
+
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(

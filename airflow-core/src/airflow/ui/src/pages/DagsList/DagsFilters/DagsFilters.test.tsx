@@ -143,4 +143,10 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     expect(await screen.findByLabelText("dagDetails.team")).toBeInTheDocument();
   });
+
+  it("renders the preset filters menu", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    expect(await screen.findByTestId("preset-filters-button")).toBeInTheDocument();
+  });
 });

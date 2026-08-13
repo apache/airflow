@@ -26,6 +26,17 @@
 Changelog
 ---------
 
+.. warning::
+  On Airflow 3.3+, ``GlueJobOperator``'s ``durable`` parameter now defaults to ``True``: the Glue
+  job run id is persisted to task state store, and a worker crash on retry reconnects to the
+  existing run instead of starting a duplicate. Pass ``durable=False`` to restore the previous
+  behavior of always starting a fresh run on retry.
+
+  On Airflow versions below 3.3, ``durable`` still defaults to ``False`` -- upgrading the provider
+  alone does not change behavior there. Set ``durable=True`` explicitly (or the now-deprecated
+  ``resume_glue_job_on_retry=True``) to opt in to the same reconnect behavior via an older,
+  scan-based mechanism.
+
 9.34.0
 ......
 

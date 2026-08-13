@@ -239,6 +239,21 @@ rules to remember:
   stopped working (like in case of ``amazon``, ``fab``). You are free to modify those versions to higher
   versions if you need to, and ``prek`` will remove those comments automatically.
 
+* Every dependency we resolve from PyPI must have a lower bound. Without one the resolver is free to answer
+  with any version that has ever been published, so what our constraints pin - and what a user ends up
+  installing - depends on how the resolution went rather than on what the code needs. The
+  ``check-dependency-lower-bounds`` prek hook enforces this across ``project.dependencies``,
+  ``project.optional-dependencies``, ``dependency-groups`` and ``build-system.requires`` of every
+  ``pyproject.toml``. Use the oldest version you are willing to test against:
+
+  .. code-block:: python
+
+     "pyspark>=4.0.0",
+
+  Two kinds of requirement are exempt: distributions that are members of our ``uv`` workspace (they are
+  resolved from the checkout, so a version range would say nothing) and direct URL requirements (the URL
+  already names the exact artifact).
+
 Our CI system will do all the tests for you anyway - including running some lower-bind checks on dependencies.
 For example it will take each provider in a turn and will try to resolve lowest-possible dependencies defined
 for that provider and see if the tests are still passing, so we should be relatively protected against putting

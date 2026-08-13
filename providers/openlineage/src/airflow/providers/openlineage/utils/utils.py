@@ -1075,9 +1075,10 @@ class DagRunInfo(InfoJsonEncodable):
         # The Execution API delivers the team name on the DagRun payload it sends to the task
         # runner, so task events resolve it from there rather than through the bundle lookup below,
         # which needs a metadata DB session the task runner does not have.
-        # `hasattr` rather than a None check -- a team-less run legitimately carries None, while
-        # the scheduler's ORM DagRun has no such attribute at all.
-        if hasattr(dagrun, "team_name"):
+        # `hasattr` rather than a None check -- a team-less run legitimately carries None. The ORM
+        # DagRun exposes `team_name` too, but reading it lazy-loads the bundle, so scheduler-side
+        # runs stay on the guarded lookup below instead of risking a load on a detached instance.
+        if not isinstance(dagrun, DagRun) and hasattr(dagrun, "team_name"):
             return dagrun.team_name
 
         # Best-effort: the scheduler stamps `_team_name` on ORM DagRun objects before

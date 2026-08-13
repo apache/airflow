@@ -371,6 +371,24 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 7
+    directory: /ts-sdk
+    schedule:
+      interval: "weekly"
+    groups:
+      ts-sdk-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      ts-sdk-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
   - package-ecosystem: "uv"
     cooldown:
       default-days: 4

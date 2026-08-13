@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
+import { focusManager, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -149,7 +149,10 @@ export const useGridTiSummariesStream = ({
     // reopen it — a redundant connection plus an AbortError on every grid mount — so let the interval be
     // the only re-stream trigger.
     const timer = setInterval(() => {
-      setRefreshTick((tick) => tick + 1);
+      // Skip re-streams while the tab is hidden, matching React Query's refetchIntervalInBackground: false.
+      if (focusManager.isFocused()) {
+        setRefreshTick((tick) => tick + 1);
+      }
     }, baseRefetchInterval);
 
     return () => clearInterval(timer);

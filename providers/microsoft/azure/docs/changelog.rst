@@ -33,6 +33,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add certificate-based authentication support to Microsoft Graph filesystem (#69335)``
 * ``Add WasbRemoteLogIO.from_config and register wasb remote logging scheme (#70301)``
 
 Bug Fixes

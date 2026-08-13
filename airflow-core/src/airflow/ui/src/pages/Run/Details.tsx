@@ -25,8 +25,10 @@ import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { getDuration, isStatePending, renderDuration, useAutoRefresh } from "src/utils";
 
 export const Details = () => {
@@ -45,6 +47,8 @@ export const Details = () => {
   );
 
   const { data: dagRunStats } = useDagRunServiceGetDagRunStats({ dagId, dagRunId: runId });
+
+  const showTeam = useShowTeam(dagRun?.team_name);
 
   if (!dagRun) {
     return undefined;
@@ -82,6 +86,14 @@ export const Details = () => {
             </HStack>
           </Table.Cell>
         </Table.Row>
+        {showTeam ? (
+          <Table.Row>
+            <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+            <Table.Cell>
+              <TeamName teamName={dagRun.team_name} />
+            </Table.Cell>
+          </Table.Row>
+        ) : undefined}
         <Table.Row>
           <Table.Cell>{translate("duration")}</Table.Cell>
           <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>

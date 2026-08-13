@@ -84,14 +84,7 @@ grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
 
 def _get_latest_serdag(dag_id, session):
-    serdag = session.scalar(
-        select(SerializedDagModel)
-        .where(
-            SerializedDagModel.dag_id == dag_id,
-        )
-        .order_by(SerializedDagModel.id.desc())
-        .limit(1)
-    )
+    serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     if not serdag:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

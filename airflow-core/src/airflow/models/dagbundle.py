@@ -59,6 +59,12 @@ class DagBundleModel(Base, LoggingMixin):
     template_params: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
 
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this bundle, if any."""
+        # unique index on dag_bundle_team.dag_bundle_name -> at most one team
+        return self.teams[0].name if self.teams else None
+
     def __init__(self, *, name: str, version: str | None = None):
         super().__init__()
         self.name = name

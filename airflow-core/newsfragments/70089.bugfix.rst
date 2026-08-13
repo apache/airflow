@@ -1,0 +1,1 @@
+Fix cron timetables that could schedule a Dag run for a period that has not elapsed yet on a DST transition day.

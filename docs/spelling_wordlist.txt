@@ -237,6 +237,7 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
 checksums
 childs
 chmod

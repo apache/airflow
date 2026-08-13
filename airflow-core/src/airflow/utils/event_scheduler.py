@@ -32,12 +32,32 @@ class EventScheduler(scheduler, LoggingMixin):
         action: Callable,
         arguments=(),
         kwargs=None,
+        non_fatal: bool = False,
     ):
-        """Call a function at (roughly) a given interval."""
+        """
+        Call a function at (roughly) a given interval.
+
+        :param non_fatal: If True, an exception raised by ``action`` is logged and
+            swallowed instead of propagating, so a single bad cycle can't kill
+            whatever is driving this scheduler. The next cycle is still scheduled either
+            way. Defaults to False (propagate), preserving prior behavior for callers
+            that rely on the exception surfacing.
+        """
 
         def repeat(*args, **kwargs):
             self.log.debug("Calling %s", action)
-            action(*args, **kwargs)
+            if non_fatal:
+                try:
+                    action(*args, **kwargs)
+                except Exception as e:
+                    self.log.warning(
+                        "Failed to run periodic action %s due to %s; will retry on the next cycle",
+                        getattr(action, "__name__", action),
+                        e,
+                        exc_info=True,
+                    )
+            else:
+                action(*args, **kwargs)
             # This is not perfect. If we want a timer every 60s, but action
             # takes 10s to run, this will run it every 70s.
             # Good enough for now
