@@ -57,7 +57,7 @@ EXCLUDED_COMMANDS = {
     "assets get-dag-queued-event",
     "assets get-dag-queued-events",
     "assets get-queued-events",
-    "assets list-by-alias",
+    "assets list-aliases",
     "assets materialize",
     "backfill cancel",
     "backfill create",
