@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-13T12:38:16.566559
+# This constraints file was automatically generated on 2026-08-13T17:21:20.952937
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -492,7 +492,7 @@ nbformat==5.11.0
 neo4j==6.2.0
 nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
-numpy==2.5.1
+numpy==2.5.2
 oauthlib==3.3.1
 openai==2.53.0
 opencensus-context==0.1.3
