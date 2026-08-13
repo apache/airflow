@@ -213,9 +213,9 @@ class TestAzureBatchOperator:
 
 class TestAzureBatchOperatorDeferrable:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, mocked_batch_service_client, create_mock_connections):
+    def setup_test_cases(self, mocked_batch_client, create_mock_connections):
         self.batch_client = mock.MagicMock(name="FakeBatchClient")
-        mocked_batch_service_client.return_value = self.batch_client
+        mocked_batch_client.return_value = self.batch_client
 
         self.test_conn_id = "test_azure_batch"
         self.test_account_url = "http://test-endpoint:29000"
