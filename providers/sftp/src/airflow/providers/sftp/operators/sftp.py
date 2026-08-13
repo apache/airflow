@@ -153,6 +153,12 @@ class SFTPOperator(BaseOperator):
 
         if self.deferrable:
             ssh_conn_id = self._raise_if_deferrable_unsupported(local_filepath_array)
+            self.log.info("Deferring SFTP %s to the Triggerer", self.operation)
+            self.log.warning(
+                "Deferrable SFTP transfers read and write local paths on the Triggerer host. "
+                "That host must see the same local filesystem as the worker. "
+                "If the Triggerer restarts mid-transfer, the transfer may run again."
+            )
             self.defer(
                 trigger=SFTPTransferTrigger(
                     ssh_conn_id=ssh_conn_id,
@@ -281,12 +287,14 @@ class SFTPOperator(BaseOperator):
 
     def execute_complete(self, context: Any, event: dict[str, Any] | None = None) -> str | list[str] | None:
         """Resume after the transfer trigger fires; return immediately."""
-        if event is not None:
-            if event.get("status") == "error":
-                raise ValueError(event["message"])
-            if event.get("status") == "success":
-                return event.get("local_filepath", self.local_filepath)
-        raise ValueError("No event received in trigger callback")
+        if not event:
+            raise ValueError("No event received in trigger callback")
+        status = event.get("status")
+        if status == "error":
+            raise ValueError(event.get("message") or "SFTP transfer failed")
+        if status == "success":
+            return event.get("local_filepath", self.local_filepath)
+        raise ValueError(f"Unexpected event status {status!r}")
 
     def get_openlineage_facets_on_start(self):
         """

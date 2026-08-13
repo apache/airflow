@@ -312,3 +312,38 @@ class TestSFTPTransferTrigger:
         )
         event = await trigger.run().__anext__()
         assert event == TriggerEvent({"status": "error", "message": "sftp failed"})
+
+    @pytest.mark.asyncio
+    async def test_run_unsupported_operation(self):
+        trigger = SFTPTransferTrigger(
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation="delete",
+        )
+        event = await trigger.run().__anext__()
+        assert event.payload["status"] == "error"
+        assert "Unsupported operation" in event.payload["message"]
+
+    @pytest.mark.asyncio
+    async def test_run_missing_local_filepath(self):
+        trigger = SFTPTransferTrigger(
+            ssh_conn_id="sftp_default",
+            remote_filepath="/tmp/remote",
+            operation="get",
+        )
+        event = await trigger.run().__anext__()
+        assert event.payload["status"] == "error"
+        assert "local_filepath is required" in event.payload["message"]
+
+    @pytest.mark.asyncio
+    async def test_run_mismatched_path_counts(self):
+        trigger = SFTPTransferTrigger(
+            ssh_conn_id="sftp_default",
+            local_filepath=["/tmp/a"],
+            remote_filepath=["/remote/a", "/remote/b"],
+            operation="get",
+        )
+        event = await trigger.run().__anext__()
+        assert event.payload["status"] == "error"
+        assert "zip" in event.payload["message"].lower() or "argument" in event.payload["message"].lower()

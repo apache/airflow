@@ -712,6 +712,22 @@ class TestSFTPOperator:
         assert trigger.remote_host == "sftp.example.com"
         assert exc.value.method_name == "execute_complete"
 
+    def test_deferrable_get_multiple_files_defers(self):
+        local_filepath = ["/tmp/a", "/tmp/b"]
+        remote_filepath = ["/remote/a", "/remote/b"]
+        operator = SFTPOperator(
+            task_id="test_deferrable_get_multi",
+            ssh_conn_id="sftp_default",
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.GET,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+        assert exc.value.trigger.local_filepath == local_filepath
+        assert exc.value.trigger.remote_filepath == remote_filepath
+
     def test_deferrable_put_defers(self):
         operator = SFTPOperator(
             task_id="test_deferrable_put",
@@ -818,3 +834,26 @@ class TestSFTPOperator:
         )
         with pytest.raises(ValueError, match="No event received"):
             operator.execute_complete({}, None)
+
+    def test_execute_complete_unexpected_status_raises(self):
+        operator = SFTPOperator(
+            task_id="test_execute_complete_unexpected",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+        )
+        with pytest.raises(ValueError, match="Unexpected event status"):
+            operator.execute_complete({}, {"status": "running"})
+
+    def test_deferrable_logs_triggerer_warning(self, caplog):
+        operator = SFTPOperator(
+            task_id="test_deferrable_warning",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.GET,
+            deferrable=True,
+        )
+        with caplog.at_level(logging.WARNING), pytest.raises(TaskDeferred):
+            operator.execute(None)
+        assert "Triggerer host" in caplog.text

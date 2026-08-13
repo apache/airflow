@@ -150,6 +150,8 @@ class SFTPTransferTrigger(BaseTrigger):
     Used by :class:`~airflow.providers.sftp.operators.sftp.SFTPOperator` in deferrable
     mode so the worker slot is released while the transfer runs on the Triggerer.
     Directory transfers, delete, and concurrent directory copies are not supported.
+    ``confirm`` and ``prefetch`` are not applied because
+    :class:`~airflow.providers.sftp.hooks.sftp.SFTPHookAsync` does not accept them.
     """
 
     def __init__(
@@ -200,19 +202,21 @@ class SFTPTransferTrigger(BaseTrigger):
         try:
             hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id, host=self.remote_host)
             operation = self.operation.lower()
+            if operation not in ("get", "put"):
+                raise ValueError(f"Unsupported operation value {self.operation}")
             local_paths = self._local_paths()
             remote_paths = self._remote_paths()
-            for local_path, remote_path in zip(local_paths, remote_paths):
+            if not local_paths:
+                raise ValueError("local_filepath is required for get/put")
+            for local_path, remote_path in zip(local_paths, remote_paths, strict=True):
                 if operation == "get":
                     if self.create_intermediate_dirs:
                         parent_dir = os.path.dirname(local_path)
                         if parent_dir:
                             os.makedirs(parent_dir, exist_ok=True)
                     await hook.retrieve_file(remote_path, local_path)
-                elif operation == "put":
-                    await hook.store_file(remote_path, local_path)
                 else:
-                    raise ValueError(f"Unsupported operation value {self.operation}")
+                    await hook.store_file(remote_path, local_path)
             yield TriggerEvent({"status": "success", "local_filepath": self.local_filepath})
         except Exception as exc:
             yield TriggerEvent({"status": "error", "message": str(exc)})
