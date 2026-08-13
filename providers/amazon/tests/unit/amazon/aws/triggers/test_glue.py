@@ -174,7 +174,7 @@ class TestGlueJobTrigger:
     @pytest.mark.parametrize("job_run_state", ["FAILED", "TIMEOUT", "STOPPED"])
     @mock.patch.object(AwsLogsHook, "get_async_conn")
     @mock.patch.object(GlueJobHook, "get_async_conn")
-    async def test_verbose_run_job_failed(self, mock_glue_conn, mock_logs_conn, job_run_state):
+    async def test_verbose_run_failure_states(self, mock_glue_conn, mock_logs_conn, job_run_state):
         """When verbose=True and the run ends in a failure state, the trigger yields an error event."""
         glue_client = AsyncMock()
         glue_client.get_job_run = AsyncMock(
