@@ -7008,6 +7008,14 @@
                     "type": "boolean",
                     "default": true
                 },
+                "strategy": {
+                    "description": "Update strategy for the StatsD Deployment.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "cache": {
                     "description": "StatsD cache configuration.",
                     "type": "object",
