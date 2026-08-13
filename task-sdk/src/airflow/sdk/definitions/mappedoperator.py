@@ -340,6 +340,7 @@ class MappedOperator(AbstractOperator):
         return frozenset(attrs.fields_dict(MappedOperator)) - {
             "_is_empty",
             "_can_skip_downstream",
+            "_register_with_dag",
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.
