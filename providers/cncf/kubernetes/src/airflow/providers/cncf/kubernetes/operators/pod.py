@@ -272,6 +272,10 @@ class KubernetesPodOperator(BaseOperator):
     :param logging_interval: max time in seconds that task should be in deferred state before
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
+    :param on_deferrable_finish_log_tail_lines: only write the last N lines of the container log
+        to the task log in the single bulk log fetch after the pod finishes (deferrable mode).
+        Does not affect log streaming (non-deferrable mode) or the periodic log relay
+        (``logging_interval``). If ``None`` (default), the full container log is written.
     :param trigger_kwargs: additional keyword parameters passed to the trigger
     :param container_name_log_prefix_enabled: if True, will prefix container name to each log line.
         Default to True.
@@ -394,6 +398,7 @@ class KubernetesPodOperator(BaseOperator):
         ) = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
+        on_deferrable_finish_log_tail_lines: int | None = None,
         trigger_kwargs: dict | None = None,
         container_name_log_prefix_enabled: bool = True,
         log_formatter: Callable[[str, str], str] | None = None,
@@ -503,6 +508,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
         self.logging_interval = logging_interval
+        self.on_deferrable_finish_log_tail_lines = on_deferrable_finish_log_tail_lines
         self.trigger_kwargs = trigger_kwargs
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
@@ -1152,7 +1158,12 @@ class KubernetesPodOperator(BaseOperator):
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
                     try:
-                        self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+                        self._write_logs(
+                            self.pod,
+                            follow=follow,
+                            since_time=last_log_time,
+                            tail_lines=self.on_deferrable_finish_log_tail_lines,
+                        )
                     except (HTTPError, ApiException) as e:
                         self.log.warning(
                             "Reading of logs interrupted with error %r. "
@@ -1261,7 +1272,13 @@ class KubernetesPodOperator(BaseOperator):
         before_sleep=tenacity.before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
-    def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
+    def _write_logs(
+        self,
+        pod: k8s.V1Pod,
+        follow: bool = False,
+        since_time: DateTime | None = None,
+        tail_lines: int | None = None,
+    ) -> None:
         since_seconds = None
         if since_time:
             try:
@@ -1282,6 +1299,7 @@ class KubernetesPodOperator(BaseOperator):
             follow=follow,
             timestamps=False,
             since_seconds=since_seconds,
+            tail_lines=tail_lines,
             _preload_content=False,
         )
         for raw_line in logs:
