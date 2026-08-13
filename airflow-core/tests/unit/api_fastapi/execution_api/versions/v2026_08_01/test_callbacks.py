@@ -18,59 +18,26 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.callback import CallbackFetchMethod, CallbackState, ExecutorCallback
-from airflow.sdk.definitions.callback import SyncCallback
-
-from tests_common.test_utils.db import clear_db_callbacks
-
 pytestmark = pytest.mark.db_test
 
-
-def sync_callback():
-    """Empty (sync) callable used for the version-gating tests."""
-    pass
-
-
-def _make_queued_callback(session, dag_id="test_dag"):
-    callback = ExecutorCallback(
-        callback_def=SyncCallback(sync_callback, kwargs={}),
-        fetch_method=CallbackFetchMethod.IMPORT_PATH,
-    )
-    callback.data["dag_id"] = dag_id
-    callback.state = CallbackState.QUEUED
-    session.add(callback)
-    session.commit()
-    return callback
-
-
-@pytest.fixture
-def old_ver_client(client):
-    """Client configured to use the API version before the callback run endpoint was added."""
-    client.headers["Airflow-API-Version"] = "2026-06-30"
-    return client
+MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-000000000000/run"
 
 
 class TestRunCallbackEndpointVersioning:
     """The callbacks/{callback_id}/run endpoint didn't exist before the 2026-08-01 API version."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        clear_db_callbacks()
-        yield
-        clear_db_callbacks()
+    def test_old_version_returns_404(self, client):
+        """Before 2026-08-01 the route is absent, so routing itself 404s (no endpoint-shaped detail)."""
+        client.headers["Airflow-API-Version"] = "2026-06-30"
 
-    def test_old_version_returns_404(self, old_ver_client, session):
-        """PATCH /callbacks/{callback_id}/run should not exist in older API versions."""
-        callback = _make_queued_callback(session)
-
-        response = old_ver_client.patch(f"/execution/callbacks/{callback.id}/run")
+        response = client.patch(MISSING_CALLBACK_URL)
 
         assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
 
-    def test_head_version_works(self, client, session):
-        """PATCH /callbacks/{callback_id}/run should work in the current API version."""
-        callback = _make_queued_callback(session)
+    def test_head_version_routes_to_endpoint(self, client):
+        """At head the route exists: the same request reaches the endpoint's own 404 handling."""
+        response = client.patch(MISSING_CALLBACK_URL)
 
-        response = client.patch(f"/execution/callbacks/{callback.id}/run")
-
-        assert response.status_code == 204
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
