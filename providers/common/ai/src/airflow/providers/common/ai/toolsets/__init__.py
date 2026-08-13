@@ -19,8 +19,19 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
+from airflow.providers.common.ai.toolsets.managed_agent import (
+    BaseManagedAgentToolset,
+    FailoverManagedAgentToolset,
+)
 
-__all__ = ["HookToolset", "MCPToolset", "SQLToolset", "airflow_toolset_to_langchain_tools"]
+__all__ = [
+    "BaseManagedAgentToolset",
+    "FailoverManagedAgentToolset",
+    "HookToolset",
+    "MCPToolset",
+    "SQLToolset",
+    "airflow_toolset_to_langchain_tools",
+]
 
 
 def __getattr__(name: str):
