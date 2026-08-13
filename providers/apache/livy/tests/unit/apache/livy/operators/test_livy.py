@@ -719,7 +719,7 @@ class TestLivyOperatorResumable:
         assert operator.is_job_succeeded("success") is True
         assert operator.is_job_succeeded("dead") is False
 
-    def test_default_args_durable_reaches_operator():
+    def test_default_args_durable_reaches_operator(self):
         operator = LivyOperator(
             task_id="livy_default_args", file="sparkapp.jar", default_args={"durable": False}
         )
