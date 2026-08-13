@@ -667,6 +667,10 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         )
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
         rows: Sequence[Row[Unpack[tuple[str, str]]]] = session.execute(stmt).all()  # type: ignore[type-arg]
+        if self.is_authorized_all_dags(user=user, method=method):
+            # Filtering would keep every row, at the price of one authorization decision per Dag.
+            return {dag_id for dag_id, _ in rows}
+
         dags_by_team: dict[str, set[str]] = defaultdict(set)
         for dag_id, team_name in rows:
             dags_by_team[team_name].add(dag_id)

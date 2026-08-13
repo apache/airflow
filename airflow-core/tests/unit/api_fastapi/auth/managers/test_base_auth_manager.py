@@ -598,6 +598,19 @@ class TestBaseAuthManager:
     def test_is_authorized_all_dags_defaults_to_denied(self, auth_manager, method):
         assert auth_manager.is_authorized_all_dags(user=Mock(), method=method) is False
 
+    def test_get_authorized_dag_ids_skips_per_dag_authorization_when_authorized_on_all_dags(
+        self, auth_manager
+    ):
+        auth_manager.is_authorized_all_dags = MagicMock(return_value=True)
+        auth_manager.is_authorized_dag = MagicMock(return_value=False)
+        session = Mock()
+        session.execute.return_value.all.return_value = [("dag1", "team1"), ("dag2", None)]
+
+        result = auth_manager.get_authorized_dag_ids(user=Mock(), session=session)
+
+        assert result == {"dag1", "dag2"}
+        auth_manager.is_authorized_dag.assert_not_called()
+
     @pytest.mark.parametrize(
         ("access_per_connection", "access_per_team", "rows", "expected"),
         [
