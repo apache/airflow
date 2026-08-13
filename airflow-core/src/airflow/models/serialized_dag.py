@@ -764,7 +764,10 @@ class SerializedDagModel(Base):
             session.merge(dag_version)
             # Update the latest DagCode
             DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
-            stats.incr("dag.serialization_writes", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
+            stats.incr(
+                "dag.serialization.version_updated",
+                tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},
+            )
             return True
 
         dagv = DagVersion.write_dag(
@@ -787,7 +790,10 @@ class SerializedDagModel(Base):
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
-        stats.incr("dag.serialization_writes", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
+        stats.incr(
+            "dag.serialization.version_created",
+            tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},
+        )
         return True
 
     @classmethod
