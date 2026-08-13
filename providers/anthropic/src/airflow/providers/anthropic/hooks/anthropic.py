@@ -31,6 +31,7 @@ from anthropic import (
     AnthropicBedrock,
     AnthropicFoundry,
     AnthropicVertex,
+    BadRequestError,
     IdentityTokenFile,
     WorkloadIdentityCredentials,
 )
@@ -708,15 +709,58 @@ class AnthropicHook(BaseHook):
             session_id, events=cast("list[BetaManagedAgentsEventParams]", [event])
         )
 
-    def archive_session(self, session_id: str) -> BetaManagedAgentsSession:
+    def interrupt_session(self, session_id: str) -> Any:
+        """
+        Send ``user.interrupt`` to pause a running session.
+
+        The API refuses to archive or delete a session while it is ``running``, so this is
+        the only way to release one that is not going to stop on its own -- see
+        :meth:`archive_session`.
+        """
+        self._require_first_party("Managed Agents")
+        return self.send_event(session_id, {"type": "user.interrupt"})
+
+    def archive_session(
+        self, session_id: str, *, attempts: int = 6, wait_seconds: float = 5
+    ) -> BetaManagedAgentsSession:
         """
         Archive a session (frees the server-side container). Best-effort teardown.
 
         Returns the archived session, which carries its final ``usage`` -- so a caller
         tearing a session down does not need a separate retrieve to report what it spent.
+
+        A ``running`` session cannot be archived (nor deleted): the API rejects both with a
+        400. Only then does this interrupt the session and retry, because a session that
+        will not stop on its own otherwise accrues billable runtime with no way to release
+        it. Any other failure is re-raised untouched, so a transient 5xx does not send
+        ``user.interrupt`` to a session that was working fine.
+
+        Retrying costs up to ``attempts`` further calls with ``wait_seconds`` between them
+        (about 25s at the defaults), which is longer than some callers have: a killed task's
+        ``on_kill`` is SIGKILLed a few seconds in, so it passes a much tighter budget.
         """
         self._require_first_party("Managed Agents")
-        return self._first_party_conn.beta.sessions.archive(session_id)
+        try:
+            return self._first_party_conn.beta.sessions.archive(session_id)
+        except BadRequestError as e:
+            # Catching the SDK's published error type, not matching on message text: a 400
+            # here is the documented "cannot archive while running" rejection.
+            self.log.info("Archiving session %s failed (%s); interrupting and retrying.", session_id, e)
+            self.interrupt_session(session_id)
+            return self._wait_for_archive(session_id, attempts=attempts, wait_seconds=wait_seconds)
+
+    def _wait_for_archive(
+        self, session_id: str, attempts: int = 6, wait_seconds: float = 5
+    ) -> BetaManagedAgentsSession:
+        """Retry archiving while the interrupt takes effect; the status change is not instant."""
+        for attempt in range(attempts):
+            try:
+                return self._first_party_conn.beta.sessions.archive(session_id)
+            except Exception:
+                if attempt == attempts - 1:
+                    raise
+                time.sleep(wait_seconds)
+        raise AnthropicError(f"Could not archive session {session_id}.")  # pragma: no cover
 
     def _latest_idle_reason(self, session_id: str, kickoff_event_id: str | None) -> str | None:
         """

@@ -473,7 +473,7 @@ class TestOnKill:
         op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env", message="hi")
         op.session_id = "sess_1"
         op.on_kill()
-        hook.archive_session.assert_called_once_with("sess_1")
+        hook.archive_session.assert_called_once_with("sess_1", attempts=2, wait_seconds=1)
 
     @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
     def test_on_kill_noop_without_session(self, mock_hook_prop):

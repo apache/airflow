@@ -45,6 +45,8 @@ from airflow.providers.anthropic.hooks.anthropic import (
 
 pytest.importorskip("anthropic")
 
+import httpx
+from anthropic import BadRequestError
 from anthropic.types import BetaMonetaryAmount
 from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
 from anthropic.types.beta.beta_managed_agents_cache_creation_usage import (
@@ -277,6 +279,42 @@ class TestBuildBudget:
     def test_rejects_bad_amounts(self, amount, match):
         with pytest.raises(ValueError, match=match):
             build_budget(amount)
+
+
+def _make_bad_request(message="cannot be archived while its status is running") -> BadRequestError:
+    """A real SDK BadRequestError -- archive_session only interrupts on this, not on any error."""
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
+    return BadRequestError(message, response=httpx.Response(400, request=request), body=None)
+
+
+class TestArchiveSession:
+    def test_archives_directly_when_the_session_is_stoppable(self):
+        hook, client = _make_hook()
+        hook.archive_session("sess_1")
+        client.beta.sessions.archive.assert_called_once_with("sess_1")
+        client.beta.sessions.events.send.assert_not_called()
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    def test_interrupts_and_retries_when_the_session_is_running(self, mock_sleep):
+        # A running session is refused by both archive and delete, so without the interrupt
+        # it keeps accruing billable runtime with no way to release it.
+        hook, client = _make_hook()
+        archived = object()
+        client.beta.sessions.archive.side_effect = [_make_bad_request(), archived]
+        assert hook.archive_session("sess_1") is archived
+        client.beta.sessions.events.send.assert_called_once_with(
+            "sess_1", events=[{"type": "user.interrupt"}]
+        )
+        assert client.beta.sessions.archive.call_count == 2
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    def test_gives_up_after_the_retry_budget(self, mock_sleep):
+        hook, client = _make_hook()
+        client.beta.sessions.archive.side_effect = _make_bad_request()
+        with pytest.raises(BadRequestError):
+            hook.archive_session("sess_1")
+        # one initial attempt plus the bounded retry loop
+        assert client.beta.sessions.archive.call_count == 7
 
 
 class TestUpdateSession:
