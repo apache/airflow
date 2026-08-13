@@ -36,7 +36,7 @@ def _get_token_endpoint(tenant_id: str) -> str:
 def _get_scopes(options: dict[str, Any]) -> list[str]:
     scopes = options.get("scope") or options.get("scopes") or DEFAULT_SCOPE
     if isinstance(scopes, str):
-        return scopes.replace(",", " ").split()
+        return [scope.strip() for scope in scopes.replace(",", " ").split() if scope.strip()]
     return scopes
 
 
