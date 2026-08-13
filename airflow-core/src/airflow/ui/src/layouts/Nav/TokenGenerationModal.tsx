@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle } from "react-icons/fi";
 
@@ -46,7 +46,7 @@ const formatExpiration = (seconds: number): string => {
   return `${String(minutes)}m`;
 };
 
-const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onClose }) => {
+const TokenGenerationModal = ({ isOpen, onClose }: TokenGenerationModalProps) => {
   const { t: translate } = useTranslation();
   const [tokenType, setTokenType] = useState<TokenType>("api");
   const [generatedToken, setGeneratedToken] = useState<string>();
