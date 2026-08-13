@@ -51,6 +51,14 @@ describe("buildBundleManifest", () => {
     });
   });
 
+  it("keeps a Dag named __proto__ visible in serialized metadata", () => {
+    const manifest = buildBundleManifest(new DagRegistry(buildDag("__proto__", "task")));
+    const serializedDags = JSON.parse(JSON.stringify(manifest)).dags;
+
+    expect(Object.keys(serializedDags)).toEqual(["__proto__"]);
+    expect(serializedDags["__proto__"]).toEqual({ tasks: ["task"] });
+  });
+
   it("reports only the Dags the registry was given", () => {
     const registry = new DagRegistry(buildDag("dag_a", "t1"));
     buildDag("dag_b", "t2");

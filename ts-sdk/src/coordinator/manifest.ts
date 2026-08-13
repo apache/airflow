@@ -60,7 +60,12 @@ export function buildBundleManifest(registry: DagRegistry): BundleManifest {
     for (const taskId of tasks) {
       validateKey(`Task "${taskId}" of Dag "${dagId}"`, taskId);
     }
-    dags[dagId] = { tasks: [...tasks] };
+    Object.defineProperty(dags, dagId, {
+      configurable: true,
+      enumerable: true,
+      value: { tasks: [...tasks] },
+      writable: true,
+    });
   }
   return {
     supervisor_schema_version: SUPERVISOR_API_VERSION,
