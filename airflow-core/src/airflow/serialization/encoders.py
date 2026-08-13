@@ -277,9 +277,10 @@ def encode_deadline_reference(ref) -> dict[str, Any]:
 
     serialized = ref.serialize_reference()
 
-    # Custom types (not built-in) need __class_path so the decoder can import them.
+    # Custom types (not built-in) need __class_path so the decoder can look them up.
     # Unlike built-in types which are looked up in SerializedReferenceModels,
-    # custom types are discovered via import_string(__class_path) at deserialization time.
+    # custom types are resolved at deserialization time from the classes registered
+    # via the `deadline_references` attribute on an AirflowPlugin.
     module = type(ref).__module__
     if module not in _BUILTIN_DEADLINE_MODULES:
         serialized["__class_path"] = qualname(ref)

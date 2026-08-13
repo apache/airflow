@@ -166,14 +166,21 @@ class CronMixin:
         return convert_to_utc(current.in_timezone(self._timezone) + delta)
 
     def _get_prev(self, current: DateTime) -> DateTime:
-        """Get the first schedule before specified time, with DST fixed."""
+        """Get the first schedule strictly before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
         if TYPE_CHECKING:
             assert isinstance(scheduled, datetime.datetime)
         if not _covers_every_hour(cron):
-            return convert_to_utc(make_aware(scheduled, self._timezone))
+            prev = convert_to_utc(make_aware(scheduled, self._timezone))
+            # croniter steps back on naive wall clock, but make_aware can map a tick inside
+            # a DST transition forward onto current or later. Keep stepping until strictly
+            # earlier; get_prev is strictly decreasing, so this terminates.
+            while prev >= current:
+                scheduled = cron.get_prev(datetime.datetime)
+                prev = convert_to_utc(make_aware(scheduled, self._timezone))
+            return prev
         delta = naive - scheduled
         return convert_to_utc(current.in_timezone(self._timezone) - delta)
 
