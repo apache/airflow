@@ -72,6 +72,7 @@
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^4.1.10"
   },
+  "packageManager": "pnpm@10.28.1",
   "pnpm": {
     "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [
