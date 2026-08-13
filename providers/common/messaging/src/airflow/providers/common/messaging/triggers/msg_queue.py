@@ -52,6 +52,10 @@ class MessageQueueTrigger(BaseEventTrigger):
     :param scheme: The queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs'). Used for provider matching.
     :param queue: **Deprecated** The queue identifier (URI format). If provided, this takes precedence over scheme parameter.
         This parameter is deprecated and will be removed in future versions. Use the 'scheme' parameter instead.
+    :param triggerer_queue: Assign this trigger to a specific triggerer queue (see
+        :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
+        Named differently from the ``queue`` parameter above, which is the deprecated broker queue URI
+        and cannot be repurposed for triggerer routing without breaking existing callers.
 
     .. seealso::
         For more information on how to use this trigger, take a look at the guide:
@@ -61,11 +65,20 @@ class MessageQueueTrigger(BaseEventTrigger):
     # Deprecated broker queue identifier (URI format), e.g. "sqs://...". Stored under a name distinct
     # from the inherited `queue` attribute, which `BaseEventTrigger` now uses for triggerer queue
     # assignment (see #71346) — reusing `queue` here would silently leak this URI into that unrelated
-    # triggerer-routing field.
+    # triggerer-routing field. Use the `triggerer_queue` constructor parameter to set `queue` instead.
     queue_uri: str | None = None
     scheme: str | None = None
 
-    def __init__(self, *, queue: str | None = None, scheme: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        queue: str | None = None,
+        scheme: str | None = None,
+        triggerer_queue: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(queue=triggerer_queue)
+
         if queue is None and scheme is None:
             raise ValueError("Either `queue` or `scheme` parameter must be provided.")
 

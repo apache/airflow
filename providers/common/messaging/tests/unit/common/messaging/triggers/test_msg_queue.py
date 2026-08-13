@@ -239,6 +239,18 @@ class TestMessageQueueTriggerScheme:
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
         assert getattr(trigger, "queue", None) is None
 
+    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
+    def test_triggerer_queue_param_sets_triggerer_queue_alongside_deprecated_queue(self):
+        """The deprecated `queue` (broker URI) parameter claims the `queue` keyword, so triggerer
+        routing must go through the distinct `triggerer_queue` parameter instead."""
+        trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, triggerer_queue="my-triggerer-queue")
+        assert trigger.queue_uri == PROVIDER_1_QUEUE
+        assert trigger.queue == "my-triggerer-queue"
+
+    def test_triggerer_queue_param_sets_triggerer_queue_alongside_scheme(self):
+        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, triggerer_queue="my-triggerer-queue")
+        assert trigger.queue == "my-triggerer-queue"
+
     def test_scheme_provider_matching(self):
         """Test that scheme matching works correctly."""
         provider1 = MockProvider(PROVIDER_1_NAME, PROVIDER_1_PATTERN, scheme=PROVIDER_1_SCHEME)
