@@ -1332,11 +1332,17 @@ class KubernetesPodOperator(BaseOperator):
         xcom_result: dict | None = None,
         context: Context | None = None,
     ) -> None:
-        # Skip cleaning the pod in the following scenarios.
-        # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
-        # there. Cleaning it up again will raise an exception (which might cause retry).
-        # 2. remote pod is null (ex: pod creation failed)
-        if self._killed or not remote_pod:
+        # If on_kill already ran (SIGTERM / task abort), the child pod was deleted there.
+        # Do not try to delete it again: a 404 from a second delete can cause a spurious
+        # retry. Do not return as success either: the workload did not finish.
+        # See https://github.com/apache/airflow/issues/71202.
+        if self._killed:
+            raise AirflowException(
+                f"Pod {pod and pod.metadata.name} was interrupted before it completed."
+            )
+        # remote pod is null (ex: pod creation failed). The original exception from
+        # create/await still propagates from execute_sync's try block.
+        if not remote_pod:
             return
 
         istio_enabled = self.is_istio_enabled(remote_pod)
