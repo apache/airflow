@@ -424,6 +424,36 @@
     "lastHour": "Last Hour",
     "pastWeek": "Past Week"
   },
+  "timeSchedule": {
+    "allDagRuns": "All Dag runs",
+    "dagRuns": "{{count}} Dag runs",
+    "dagRunsRendered": "{{count}} Dag runs rendered",
+    "dagRunsToDisplay": "Dag runs to display",
+    "day": "Day",
+    "durationAggregation": "Duration aggregation",
+    "latestDagRuns": "Latest {{count}}",
+    "loading": "Loading...",
+    "max": "Max",
+    "mean": "Mean",
+    "min": "Min",
+    "minutes": "{{value}}m",
+    "nextRun": "Next run: {{time}}",
+    "scheduledDagsOnly": "Scheduled Dags only",
+    "title": "Time Schedule",
+    "viewMode": "View mode",
+    "week": "Week",
+    "weekday": {
+      "Fri": "Fri",
+      "Mon": "Mon",
+      "Sat": "Sat",
+      "Sun": "Sun",
+      "Thu": "Thu",
+      "Tue": "Tue",
+      "Wed": "Wed"
+    },
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
+  },
   "timestamp": {
     "hide": "Hide Timestamps",
     "hotkey": "t",

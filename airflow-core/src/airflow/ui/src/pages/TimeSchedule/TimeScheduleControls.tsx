@@ -1,0 +1,282 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { Box, Button, createListCollection, Flex, HStack, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+
+import { FilterBar } from "src/components/FilterBar";
+import { Checkbox } from "src/components/ui/Checkbox";
+import { Select } from "src/components/ui/Select";
+import { TagFilter } from "src/pages/DagsList/DagsFilters/TagFilter";
+import { TimetableTypeFilter } from "src/pages/DagsList/DagsFilters/TimetableTypeFilter";
+
+import type { AggregationMode, DagRunLimit, TimeScale, ViewMode } from "./types";
+
+const DAG_RUN_LIMIT_OPTIONS: ReadonlyArray<number> = [200, 600, 1000, 2000, 5000] satisfies ReadonlyArray<
+  Exclude<DagRunLimit, "all">
+>;
+
+const isDagRunLimit = (value: number): value is Exclude<DagRunLimit, "all"> =>
+  DAG_RUN_LIMIT_OPTIONS.includes(value);
+
+type TimeScheduleControlsProps = {
+  readonly filterConfigs: Parameters<typeof FilterBar>[0]["configs"];
+  readonly initialValues: Parameters<typeof FilterBar>[0]["initialValues"];
+  readonly onFiltersChange: Parameters<typeof FilterBar>[0]["onFiltersChange"];
+  readonly onSelectTagsChange: (tags: Array<string>) => void;
+  readonly onTagFilterModeChange: ({ checked }: { checked: boolean }) => void;
+  readonly onTagInputChange: (value: string) => void;
+  readonly onTagMenuScrollToBottom: () => void;
+  readonly onTimetableTypeChange: (timetableTypes: Array<string>) => void;
+  readonly onTimetableTypeInputChange: (value: string) => void;
+  readonly onTimetableTypeMenuScrollToBottom: () => void;
+  readonly selectedTags: Array<string>;
+  readonly selectedTimetableTypes: Array<string>;
+  readonly tagFilterMode: "all" | "any";
+  readonly tags: Array<string>;
+  readonly timetableTypes: Array<string>;
+};
+
+type TimeScheduleViewControlsProps = {
+  readonly aggregationMode: AggregationMode;
+  readonly dagRunLimit: DagRunLimit;
+  readonly onAggregationModeChange: (value: AggregationMode) => void;
+  readonly onDagRunLimitChange: (value: DagRunLimit) => void;
+  readonly onScheduledOnlyChange: (checked: boolean) => void;
+  readonly onViewModeChange: (value: ViewMode) => void;
+  readonly onZoomIn: () => void;
+  readonly onZoomOut: () => void;
+  readonly showScheduledOnly: boolean;
+  readonly timeScale: TimeScale;
+  readonly viewMode: ViewMode;
+  readonly zoomInDisabled: boolean;
+  readonly zoomOutDisabled: boolean;
+};
+
+export const TimeScheduleControls = ({
+  filterConfigs,
+  initialValues,
+  onFiltersChange,
+  onSelectTagsChange,
+  onTagFilterModeChange,
+  onTagInputChange,
+  onTagMenuScrollToBottom,
+  onTimetableTypeChange,
+  onTimetableTypeInputChange,
+  onTimetableTypeMenuScrollToBottom,
+  selectedTags,
+  selectedTimetableTypes,
+  tagFilterMode,
+  tags,
+  timetableTypes,
+}: TimeScheduleControlsProps) => (
+  <Flex align="flex-start" gap={4} justify="space-between" wrap="wrap">
+    <Box flex="0 1 auto" maxW="100%" width="fit-content">
+      <FilterBar
+        configs={filterConfigs}
+        initialValues={initialValues}
+        onFiltersChange={onFiltersChange}
+        showPresetFilters={false}
+      />
+    </Box>
+    <HStack
+      alignItems="flex-start"
+      flex="0 1 auto"
+      gap={2}
+      marginStart="auto"
+      maxW="100%"
+      position="relative"
+      wrap="wrap"
+      zIndex={10}
+    >
+      <TimetableTypeFilter
+        onChange={onTimetableTypeChange}
+        onInputChange={onTimetableTypeInputChange}
+        onMenuScrollToBottom={onTimetableTypeMenuScrollToBottom}
+        onMenuScrollToTop={() => undefined}
+        timetableTypes={timetableTypes}
+        values={selectedTimetableTypes}
+      />
+      <TagFilter
+        onMenuScrollToBottom={onTagMenuScrollToBottom}
+        onMenuScrollToTop={() => undefined}
+        onSelectTagsChange={onSelectTagsChange}
+        onTagModeChange={onTagFilterModeChange}
+        onUpdate={onTagInputChange}
+        selectedTags={selectedTags}
+        tagFilterMode={tagFilterMode}
+        tags={tags}
+      />
+    </HStack>
+  </Flex>
+);
+
+export const TimeScheduleViewControls = ({
+  aggregationMode,
+  dagRunLimit,
+  onAggregationModeChange,
+  onDagRunLimitChange,
+  onScheduledOnlyChange,
+  onViewModeChange,
+  onZoomIn,
+  onZoomOut,
+  showScheduledOnly,
+  timeScale,
+  viewMode,
+  zoomInDisabled,
+  zoomOutDisabled,
+}: TimeScheduleViewControlsProps) => {
+  const { t: translate } = useTranslation();
+  const dagRunLimitOptions = createListCollection({
+    items: [
+      ...DAG_RUN_LIMIT_OPTIONS.map((value) => ({
+        label: translate("timeSchedule.latestDagRuns", { count: value }),
+        value: String(value),
+      })),
+      { label: translate("timeSchedule.allDagRuns"), value: "all" },
+    ],
+  });
+  const viewModeOptions = createListCollection({
+    items: [
+      { label: translate("timeSchedule.day"), value: "day" },
+      { label: translate("timeSchedule.week"), value: "week" },
+    ],
+  });
+  const aggregationOptions = createListCollection({
+    items: [
+      { label: translate("timeSchedule.mean"), value: "mean" },
+      { label: translate("timeSchedule.max"), value: "max" },
+      { label: translate("timeSchedule.min"), value: "min" },
+    ],
+  });
+
+  return (
+    <Flex align="center" flexShrink={0} gap={6} wrap="nowrap">
+      <Flex align="center" gap={2}>
+        <Button
+          aria-label={translate("timeSchedule.zoomOut")}
+          disabled={zoomOutDisabled}
+          onClick={onZoomOut}
+          size="sm"
+          variant="outline"
+        >
+          −
+        </Button>
+        <Button
+          aria-label={translate("timeSchedule.zoomIn")}
+          disabled={zoomInDisabled}
+          onClick={onZoomIn}
+          size="sm"
+          variant="outline"
+        >
+          +
+        </Button>
+        <Text color="fg.muted" fontSize="sm" minWidth="3rem" textAlign="center">
+          {translate("timeSchedule.minutes", { value: timeScale })}
+        </Text>
+      </Flex>
+      <Select.Root
+        collection={dagRunLimitOptions}
+        data-testid="time-schedule-dag-run-limit"
+        onValueChange={({ value }) => {
+          const [selectedValue] = value;
+
+          if (selectedValue === "all") {
+            onDagRunLimitChange("all");
+          } else {
+            const parsedValue = Number(selectedValue);
+
+            if (isDagRunLimit(parsedValue)) {
+              onDagRunLimitChange(parsedValue);
+            }
+          }
+        }}
+        size="sm"
+        value={[String(dagRunLimit)]}
+        width="150px"
+      >
+        <Select.Trigger triggerProps={{ "aria-label": translate("timeSchedule.dagRunsToDisplay") }}>
+          <Select.ValueText />
+        </Select.Trigger>
+        <Select.Content>
+          {dagRunLimitOptions.items.map((option) => (
+            <Select.Item item={option} key={option.value}>
+              {option.label}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Root>
+      <Select.Root
+        collection={viewModeOptions}
+        data-testid="time-schedule-view-mode"
+        onValueChange={({ value }) => {
+          const [selectedValue] = value;
+
+          if (selectedValue === "day" || selectedValue === "week") {
+            onViewModeChange(selectedValue);
+          }
+        }}
+        size="sm"
+        value={[viewMode]}
+        width="100px"
+      >
+        <Select.Trigger triggerProps={{ "aria-label": translate("timeSchedule.viewMode") }}>
+          <Select.ValueText />
+        </Select.Trigger>
+        <Select.Content>
+          {viewModeOptions.items.map((option) => (
+            <Select.Item item={option} key={option.value}>
+              {option.label}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Root>
+      <Select.Root
+        collection={aggregationOptions}
+        data-testid="time-schedule-aggregation"
+        onValueChange={({ value }) => {
+          const [selectedValue] = value;
+
+          if (selectedValue === "mean" || selectedValue === "max" || selectedValue === "min") {
+            onAggregationModeChange(selectedValue);
+          }
+        }}
+        size="sm"
+        value={[aggregationMode]}
+        width="100px"
+      >
+        <Select.Trigger triggerProps={{ "aria-label": translate("timeSchedule.durationAggregation") }}>
+          <Select.ValueText />
+        </Select.Trigger>
+        <Select.Content>
+          {aggregationOptions.items.map((option) => (
+            <Select.Item item={option} key={option.value}>
+              {option.label}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Root>
+      <Checkbox
+        checked={showScheduledOnly}
+        inputProps={{ onChange: (event) => onScheduledOnlyChange(event.target.checked) }}
+      >
+        {translate("timeSchedule.scheduledDagsOnly")}
+      </Checkbox>
+    </Flex>
+  );
+};

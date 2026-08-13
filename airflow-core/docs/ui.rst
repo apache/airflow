@@ -461,6 +461,100 @@ Displays runtime metadata about the task instance, including:
 .. image:: img/ui-light/dag_task_instance_details.png
   :alt: Task Instance - Details tab (light mode)
 
+.. _ui-time-schedule:
+
+Time Schedule View
+------------------
+
+The Time Schedule view shows typical Dag start times and durations across an environment. Dag runs are grouped by time
+of day, making schedule patterns and congested periods easier to identify.
+
+Display Options
+'''''''''''''''
+
+- **Latest 200** loads the 200 most recent Dag runs by default.
+- **Latest 600**, **Latest 1000**, **Latest 2000**, and **Latest 5000** increase the number of runs loaded.
+- **All Dag runs** loads all matching runs.
+- The count above the timeline shows how many matching runs were rendered.
+- **Scheduled Dags only** is enabled by default and shows Dags with periodic timetables. Clear it to include other
+  Dags that have matching Dag runs.
+
+Timeline Bars
+'''''''''''''
+
+Each bar represents one or more Dag runs at a similar time. A bar can also represent the next expected run when a
+scheduled Dag has no matching run.
+
+Bar colors indicate state:
+
+- Successful runs are green.
+- Failed runs are red.
+- Running runs are orange.
+- Scheduled Dags without a matching Dag run are gray.
+
+Available interactions:
+
+- Hover over a bar to see its Dag ID, state, timing, and aggregated Dag run count. The tooltip separates the Dag ID
+  from the run details and remains readable in light and dark themes.
+- Select a Dag run bar to open that run.
+- Select an expected run to open the Dag's **Runs** tab.
+
+Aggregation
+'''''''''''
+
+Runs are grouped by Dag ID and time of day. The Week view also groups runs by weekday.
+
+The timeline marker interval sets the aggregation window. Zoom in to use a more precise window.
+
+- **Mean**: average start and end times (default)
+- **Max**: earliest start and latest end times
+- **Min**: start and end times of the shortest Dag run
+
+Day View
+''''''''
+
+The Day view places Dag IDs in rows and time of day on the horizontal axis. Overlapping bars use additional lanes.
+
+Use the **Dag ID** heading to sort by ascending ID, descending ID, or start time. Select a Dag ID to open the Dag.
+
+.. image:: img/ui-dark/time_schedule_day.png
+  :alt: Time Schedule Day view showing Dag runs by time of day (dark mode)
+
+|
+
+.. image:: img/ui-light/time_schedule_day.png
+  :alt: Time Schedule Day view showing Dag runs by time of day (light mode)
+
+Week View
+'''''''''
+
+The Week view places weekdays in columns and time of day on the vertical axis. It shows weekday patterns rather than a
+specific calendar week. Overlapping bars share the width of their weekday column.
+
+.. image:: img/ui-dark/time_schedule_week.png
+  :alt: Time Schedule Week view showing Dag runs by weekday and time of day (dark mode)
+
+|
+
+.. image:: img/ui-light/time_schedule_week.png
+  :alt: Time Schedule Week view showing Dag runs by weekday and time of day (light mode)
+
+Zoom and Navigation
+'''''''''''''''''''
+
+Use the **+** and **−** buttons to change the time scale. You can also use the mouse wheel or the Up and Down arrow
+keys while holding Ctrl on Windows and Linux, or Command on macOS.
+
+The Day view zooms the horizontal time axis. The Week view zooms the vertical time axis.
+
+The browser remembers the view, aggregation, Dag run limit, and **Scheduled Dags only** setting. It does not save the
+zoom level.
+
+Time Zone
+'''''''''
+
+Time labels, aggregation windows, and Day and Week placement use the time zone selected in the Airflow UI.
+
 .. _ui-asset-views:
 
 Asset Views
