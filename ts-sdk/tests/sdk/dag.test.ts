@@ -195,47 +195,6 @@ describe("Dag", () => {
     expect(registry.getTaskHandler("second_dag", "extract")).toBe(second);
   });
 
-  it("rejects an empty dagId", () => {
-    expect(() => new Dag("")).toThrowError(/dagId must be made of alphanumeric/);
-  });
-
-  it("rejects an empty taskId", () => {
-    const dag = new Dag("example_dag");
-    expect(() => dag.task("", async () => undefined)).toThrowError(
-      /taskId must be made of alphanumeric/,
-    );
-  });
-
-  it.each(["   ", "\t", "my dag", "a/b", "task@1"])(
-    "rejects a dagId with characters no Python dag_id allows: %j",
-    (dagId) => {
-      expect(() => new Dag(dagId)).toThrowError(/dagId must be made of alphanumeric/);
-    },
-  );
-
-  it.each(["   ", "\t", "my task", "a/b", "task@1"])(
-    "rejects a taskId with characters no Python task_id allows: %j",
-    (taskId) => {
-      const dag = new Dag("example_dag");
-      expect(() => dag.task(taskId, async () => undefined)).toThrowError(
-        /taskId must be made of alphanumeric/,
-      );
-    },
-  );
-
-  it("rejects a dagId longer than 250 characters", () => {
-    expect(() => new Dag("d".repeat(251))).toThrowError(
-      /dagId must be less than 250 characters, not 251/,
-    );
-  });
-
-  it("rejects a taskId longer than 250 characters", () => {
-    const dag = new Dag("example_dag");
-    expect(() => dag.task("t".repeat(251), async () => undefined)).toThrowError(
-      /taskId must be less than 250 characters, not 251/,
-    );
-  });
-
   it("accepts a Unicode dagId that Python's word-character rule allows", () => {
     const handler = async () => undefined;
     const dag = new Dag("café_dag");

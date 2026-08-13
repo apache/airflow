@@ -56,6 +56,50 @@ describe("buildBundleManifest", () => {
     buildDag("dag_b", "t2");
     expect(Object.keys(buildBundleManifest(registry).dags)).toEqual(["dag_a"]);
   });
+
+  it("rejects an empty dagId", () => {
+    const registry = new DagRegistry(buildDag(""));
+    expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
+  });
+
+  it("rejects an empty taskId", () => {
+    const registry = new DagRegistry(buildDag("example_dag", ""));
+    expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
+  });
+
+  it.each(["   ", "\t", "my dag", "a/b", "task@1"])(
+    "rejects a dagId with characters no Python dag_id allows: %j",
+    (dagId) => {
+      const registry = new DagRegistry(buildDag(dagId));
+      expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
+    },
+  );
+
+  it.each(["   ", "\t", "my task", "a/b", "task@1"])(
+    "rejects a taskId with characters no Python task_id allows: %j",
+    (taskId) => {
+      const registry = new DagRegistry(buildDag("example_dag", taskId));
+      expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
+    },
+  );
+
+  it("rejects a dagId longer than 250 characters", () => {
+    const registry = new DagRegistry(buildDag("d".repeat(251)));
+    expect(() => buildBundleManifest(registry)).toThrowError(
+      /must be less than 250 characters, not 251/,
+    );
+  });
+
+  it("rejects a taskId longer than 250 characters", () => {
+    const registry = new DagRegistry(buildDag("example_dag", "t".repeat(251)));
+    expect(() => buildBundleManifest(registry)).toThrowError(
+      /must be less than 250 characters, not 251/,
+    );
+  });
+
+  it("does not validate key format when Dags are only registered, not packed", () => {
+    expect(() => new DagRegistry(buildDag("bad dag id", "bad task id"))).not.toThrow();
+  });
 });
 
 describe("startCoordinator --airflow-metadata", () => {

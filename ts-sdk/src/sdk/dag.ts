@@ -22,21 +22,6 @@
 import { brand, hasBrand } from "./brand.js";
 import type { TaskHandler } from "./task.js";
 
-// Mirrors the Python task-SDK KEY_REGEX and validate_key in airflow.sdk.definitions._internal.node.
-const KEY_REGEX = /^[\p{L}\p{N}_.-]+$/u;
-const MAX_KEY_LENGTH = 250;
-
-function validateKey(name: string, value: string): void {
-  if (typeof value !== "string" || !KEY_REGEX.test(value)) {
-    throw new Error(
-      `${name} must be made of alphanumeric characters, dashes, dots, and underscores`,
-    );
-  }
-  if (value.length > MAX_KEY_LENGTH) {
-    throw new Error(`${name} must be less than ${MAX_KEY_LENGTH} characters, not ${value.length}`);
-  }
-}
-
 function validateEmptySpec(name: string, value: unknown): void {
   if (
     typeof value !== "object" ||
@@ -158,7 +143,6 @@ export class Dag {
   }
 
   constructor(dagId: string, spec: DagSpec = {}) {
-    validateKey("dagId", dagId);
     validateEmptySpec(`spec for Dag "${dagId}"`, spec);
     brand(this, "Dag");
     this.dagId = dagId;
@@ -185,7 +169,6 @@ export class Dag {
     handler: TaskHandler<TReturn>,
     options: TaskOptions = {},
   ): TaskRef {
-    validateKey("taskId", taskId);
     if (typeof handler !== "function") {
       throw new Error(`handler for Dag "${this.dagId}" task "${taskId}" must be a function`);
     }
