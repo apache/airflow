@@ -25,6 +25,8 @@ from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
     _lang_sdk_build_java_jar,
     _lang_sdk_fetch_upstream_sdk_sources,
+    _lang_sdk_resolve_sdk_sources,
+    _lang_sdk_target_branch,
     _lang_sdk_upload_artifacts,
 )
 from airflow_breeze.utils import shared_options
@@ -325,8 +327,8 @@ class TestSetupLangSdkTestNativeSelection:
             monkeypatch.setenv("LANG_SDK_NATIVE_TOOLCHAIN", env_value)
 
         captured: dict[str, bool] = {}
-        fake_go_sdk = tmp_path / "upstream_go_sdk"
-        fake_java_sdk = tmp_path / "upstream_java_sdk"
+        fake_go_sdk = tmp_path / "resolved_go_sdk"
+        fake_java_sdk = tmp_path / "resolved_java_sdk"
 
         def fake_parallel(steps, output):
             for _title, thunk in steps:
@@ -335,21 +337,21 @@ class TestSetupLangSdkTestNativeSelection:
         monkeypatch.setattr(kubernetes_commands, "_run_lang_sdk_parallel", fake_parallel)
         monkeypatch.setattr(
             kubernetes_commands,
-            "_lang_sdk_fetch_upstream_sdk_sources",
+            "_lang_sdk_resolve_sdk_sources",
             lambda staging, output: (fake_go_sdk, fake_java_sdk),
         )
         monkeypatch.setattr(
             kubernetes_commands,
             "_lang_sdk_build_go_bundle",
-            lambda staging, upstream_go_sdk, output, *, native: captured.update(
-                go=native, go_sdk=upstream_go_sdk
+            lambda staging, go_sdk_source, output, *, native: captured.update(
+                go=native, go_sdk=go_sdk_source
             ),
         )
         monkeypatch.setattr(
             kubernetes_commands,
             "_lang_sdk_build_java_jar",
-            lambda staging, upstream_java_sdk, output, *, native: captured.update(
-                java=native, java_sdk=upstream_java_sdk
+            lambda staging, java_sdk_source, output, *, native: captured.update(
+                java=native, java_sdk=java_sdk_source
             ),
         )
         for name in (
@@ -374,3 +376,56 @@ class TestSetupLangSdkTestNativeSelection:
             "go_sdk": fake_go_sdk,
             "java_sdk": fake_java_sdk,
         }
+
+
+class TestLangSdkTargetBranch:
+    @pytest.mark.parametrize(
+        ("env", "expected"),
+        [
+            pytest.param({"GITHUB_BASE_REF": "main"}, "main", id="pr-targeting-main"),
+            pytest.param({"GITHUB_BASE_REF": "v3-3-test"}, "v3-3-test", id="pr-targeting-release"),
+            pytest.param({"DEFAULT_BRANCH": "v3-3-test"}, "v3-3-test", id="ci-default-branch"),
+            pytest.param(
+                {"GITHUB_BASE_REF": "main", "DEFAULT_BRANCH": "v3-3-test"},
+                "main",
+                id="pr-target-wins-over-default-branch",
+            ),
+            pytest.param({}, "main", id="falls-back-to-this-checkouts-branch"),
+        ],
+    )
+    def test_resolves_target_branch(self, env, expected, monkeypatch):
+        monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
+        monkeypatch.delenv("DEFAULT_BRANCH", raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+
+        assert _lang_sdk_target_branch() == expected
+
+    def test_empty_env_var_does_not_mask_the_fallback(self, monkeypatch):
+        """GitHub sets GITHUB_BASE_REF to an empty string on non-PR events (push, schedule)."""
+        monkeypatch.setenv("GITHUB_BASE_REF", "")
+        monkeypatch.setenv("DEFAULT_BRANCH", "v3-3-test")
+
+        assert _lang_sdk_target_branch() == "v3-3-test"
+
+
+class TestLangSdkResolveSdkSources:
+    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
+    def test_targeting_main_uses_the_checked_out_branch(self, mock_fetch, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_BASE_REF", "main")
+
+        go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
+
+        assert go_sdk == kubernetes_commands.AIRFLOW_ROOT_PATH / "go-sdk"
+        assert java_sdk == kubernetes_commands.AIRFLOW_ROOT_PATH / "java-sdk"
+        mock_fetch.assert_not_called()
+
+    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
+    def test_targeting_another_branch_falls_back_to_upstream_main(self, mock_fetch, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_BASE_REF", "v3-3-test")
+        mock_fetch.return_value = (tmp_path / "go-sdk", tmp_path / "java-sdk")
+
+        go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
+
+        mock_fetch.assert_called_once_with(tmp_path, None)
+        assert (go_sdk, java_sdk) == (tmp_path / "go-sdk", tmp_path / "java-sdk")
