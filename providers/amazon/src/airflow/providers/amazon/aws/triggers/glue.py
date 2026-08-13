@@ -145,7 +145,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                     return
 
                 # STOPPED means the run was cancelled before it produced its output, not that it succeeded.
-                if job_run_state in ("FAILED", "TIMEOUT", "STOPPED"):
+                if job_run_state in ("FAILED", "TIMEOUT", "STOPPED", "ERROR"):
                     yield TriggerEvent(
                         {
                             "status": "error",
