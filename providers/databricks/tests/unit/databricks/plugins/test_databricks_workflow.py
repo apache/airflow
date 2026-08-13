@@ -428,19 +428,22 @@ class TestDatabricksWorkflowPluginAirflow3:
 
         m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
         dag = Mock()
-        task = Mock(task_id="grp.nb", databricks_task_key="k1")
+        task = Mock(task_id="grp.nb")
         dag.tasks = [task]
         dag.dag_id = "my_dag"
+        # The task uses an EXPLICIT databricks_task_key that does not survive serialization; the
+        # endpoint must recover it from the launch task's trusted task_key_map, not reconstruct md5.
+        metadata = Mock(conn_id="c", run_id=999, task_key_map={"grp.nb": "EXPLICIT_KEY"})
         try:
             with (
                 patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
                 patch("airflow.utils.session.create_session"),
-                patch.object(m, "_read_launch_metadata", return_value=Mock(conn_id="c", run_id=999)),
+                patch.object(m, "_read_launch_metadata", return_value=metadata),
                 patch.object(m, "DatabricksHook") as mock_hook,
                 patch.object(m, "_repair_task") as mock_repair,
                 patch.object(m, "_clear_repaired_and_downstream") as mock_clear,
             ):
-                mock_hook.return_value.get_run_failed_task_keys.return_value = ["k1"]
+                mock_hook.return_value.get_run_failed_task_keys.return_value = ["EXPLICIT_KEY"]
                 client = TestClient(m.repair_app)
                 resp = client.post(
                     "/my_dag/run1",
@@ -449,8 +452,10 @@ class TestDatabricksWorkflowPluginAirflow3:
                 )
             assert resp.status_code == 303
             assert resp.headers["location"] == "/dags/my_dag/runs/run1"
-            assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["k1"]
+            assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["EXPLICIT_KEY"]
             assert mock_repair.call_args.kwargs["databricks_run_id"] == 999
+            # The explicit key resolved back to the Airflow task_id for clearing.
+            assert mock_clear.call_args.args[2] == ["grp.nb"]
             mock_clear.assert_called_once()
         finally:
             m.repair_app.dependency_overrides.clear()
@@ -481,6 +486,68 @@ class TestDatabricksWorkflowPluginAirflow3:
             assert resp.status_code == 502
             assert "secret token abc" not in resp.text
             mock_clear.assert_not_called()
+        finally:
+            m.repair_app.dependency_overrides.clear()
+
+    def test_post_single_task_uses_explicit_key_from_map(self):
+        """Single-task repair resolves the task's real Databricks key from the launch task_key_map."""
+        from fastapi.testclient import TestClient
+
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+
+        m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
+        dag = Mock(dag_id="my_dag")
+        dag.has_task.return_value = True
+        metadata = Mock(conn_id="c", run_id=42, task_key_map={"grp.nb": "EXPLICIT_KEY"})
+        try:
+            with (
+                patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
+                patch("airflow.utils.session.create_session"),
+                patch.object(m, "_read_launch_metadata", return_value=metadata),
+                patch.object(m, "_repair_task") as mock_repair,
+                patch.object(m, "_clear_repaired_and_downstream"),
+            ):
+                client = TestClient(m.repair_app)
+                resp = client.post(
+                    "/my_dag/run1",
+                    params={"launch_task_id": "grp.launch", "task_id": "grp.nb"},
+                    follow_redirects=False,
+                )
+            assert resp.status_code == 303
+            # Repairs the explicit key from the map, not a reconstructed md5 hash.
+            assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["EXPLICIT_KEY"]
+        finally:
+            m.repair_app.dependency_overrides.clear()
+
+    def test_post_single_task_falls_back_to_md5_for_legacy_runs(self):
+        """A run launched before task_key_map existed (empty map) falls back to md5(dag_id__task_id)."""
+        import hashlib
+
+        from fastapi.testclient import TestClient
+
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+
+        m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
+        dag = Mock(dag_id="my_dag")
+        dag.has_task.return_value = True
+        metadata = Mock(conn_id="c", run_id=42, task_key_map={})
+        expected = hashlib.md5(b"my_dag__grp.nb").hexdigest()
+        try:
+            with (
+                patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
+                patch("airflow.utils.session.create_session"),
+                patch.object(m, "_read_launch_metadata", return_value=metadata),
+                patch.object(m, "_repair_task") as mock_repair,
+                patch.object(m, "_clear_repaired_and_downstream"),
+            ):
+                client = TestClient(m.repair_app)
+                resp = client.post(
+                    "/my_dag/run1",
+                    params={"launch_task_id": "grp.launch", "task_id": "grp.nb"},
+                    follow_redirects=False,
+                )
+            assert resp.status_code == 303
+            assert mock_repair.call_args.kwargs["tasks_to_repair"] == [expected]
         finally:
             m.repair_app.dependency_overrides.clear()
 
