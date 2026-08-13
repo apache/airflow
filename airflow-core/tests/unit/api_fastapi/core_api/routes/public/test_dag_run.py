@@ -678,7 +678,8 @@ class TestGetDagRuns:
         body = response.json()
         assert body["next_cursor"] is not None
         assert body["previous_cursor"] is None
-        assert body["total_entries"] is None
+        assert body["total_entries"] == 4
+        assert body["total_entries_limit"] == 50_000
         assert len(body["dag_runs"]) == 2
 
         response2 = test_client.get(
@@ -688,7 +689,8 @@ class TestGetDagRuns:
         assert response2.status_code == 200, response2.json()
         body2 = response2.json()
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 4
+        assert body2["total_entries_limit"] == 50_000
         assert len(body2["dag_runs"]) == 2
         first_page_ids = {(r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"]}
         second_page_ids = {(r["dag_id"], r["dag_run_id"]) for r in body2["dag_runs"]}
@@ -700,14 +702,15 @@ class TestGetDagRuns:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_cursor_pagination_returns_cursor_response(self, test_client, order_by):
-        """When cursor param is provided, response has cursor fields and no total_entries."""
+        """When cursor param is provided, response has cursor fields and a bounded total_entries."""
         response1 = test_client.get(
             "/dags/~/dagRuns",
             params={"limit": 2, "order_by": order_by, "cursor": ""},
         )
         assert response1.status_code == 200
         body1 = response1.json()
-        assert body1["total_entries"] is None
+        assert body1["total_entries"] == 4
+        assert body1["total_entries_limit"] == 50_000
         assert len(body1["dag_runs"]) == 2
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
@@ -721,7 +724,8 @@ class TestGetDagRuns:
         body2 = response2.json()
         assert body2["next_cursor"] is None
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 4
+        assert body2["total_entries_limit"] == 50_000
 
     @pytest.mark.parametrize(
         "order_by",
@@ -744,7 +748,8 @@ class TestGetDagRuns:
             )
             assert response.status_code == 200, response.json()
             body = response.json()
-            assert body["total_entries"] is None
+            assert body["total_entries"] == total_runs
+            assert body["total_entries_limit"] == 50_000
             forward_pages.append(body)
             forward_ids.extend((r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"])
 
@@ -778,6 +783,20 @@ class TestGetDagRuns:
 
         all_backward = backward_ids + [(r["dag_id"], r["dag_run_id"]) for r in forward_pages[-1]["dag_runs"]]
         assert all_backward == forward_ids
+
+    @mock.patch("airflow.api_fastapi.common.db.common.EXACT_COUNT_LIMIT", 2)
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_cursor_pagination_total_entries_capped(self, test_client):
+        """With more matching runs than the cap, total_entries is reported as the cap."""
+        response = test_client.get(
+            "/dags/~/dagRuns",
+            params={"limit": 1, "order_by": "id", "cursor": ""},
+        )
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        # 4 runs match but the count stops scanning at the cap.
+        assert body["total_entries"] == 2
+        assert body["total_entries_limit"] == 2
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_cursor_pagination_invalid_token(self, test_client):
