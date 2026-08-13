@@ -957,6 +957,12 @@ def get_provider_info():
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],
         "logging": ["airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler"],
+        "remote-logging": [
+            {
+                "classpath": "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbRemoteLogIO",
+                "scheme": "wasb",
+            }
+        ],
         "extra-links": [
             "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink",
             "airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink",

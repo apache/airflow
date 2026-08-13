@@ -22,7 +22,11 @@ from unittest import mock
 import pytest
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
+    DagAccessEntity,
+    DagDetails,
+)
 from airflow.models.log import Log
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -42,8 +46,6 @@ OWNER = "TEST_OWNER"
 OWNER_DISPLAY_NAME = "Test Owner"
 OWNER_AIRFLOW = "airflow"
 TASK_INSTANCE_EVENT = "TASK_INSTANCE_EVENT"
-TASK_INSTANCE_OWNER = "TASK_INSTANCE_OWNER"
-TASK_INSTANCE_OWNER_DISPLAY_NAME = "Task Instance Owner"
 
 
 EVENT_NORMAL = "NORMAL_EVENT"
@@ -128,6 +130,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                 {
                     "event": EVENT_WITH_OWNER,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                 },
             ),
             (
@@ -139,6 +142,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "event": TASK_INSTANCE_EVENT,
                     "map_index": -1,
                     "owner": OWNER_AIRFLOW,
+                    "owner_display_name": OWNER_AIRFLOW,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
                     "task_display_name": TASK_DISPLAY_NAME,
@@ -153,6 +157,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "event": EVENT_WITH_OWNER_AND_TASK_INSTANCE,
                     "map_index": -1,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
                     "task_display_name": TASK_DISPLAY_NAME,
@@ -185,6 +190,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
+            "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
         }
 
@@ -233,6 +239,49 @@ class TestGetEventLog(TestEventLogsEndpoint):
             details=DagDetails(id=DAG_ID, team_name=None),
             user=mock.ANY,
         )
+
+    @pytest.mark.parametrize(
+        ("can_view_all_audit_logs", "expected_status_code"),
+        [
+            pytest.param(True, 200, id="with-AUDIT_LOGS_ALL-sees-row"),
+            pytest.param(False, 403, id="without-AUDIT_LOGS_ALL-forbidden"),
+        ],
+    )
+    def test_non_dag_row_is_gated_on_audit_logs_all(
+        self, test_client, setup, can_view_all_audit_logs, expected_status_code
+    ):
+        """A row with a NULL dag_id records an operation that is not tied to a Dag -- a
+        Connection, Variable or Pool change -- so it has no per-Dag key to authorize on.
+        Visibility is gated on the dedicated ``AUDIT_LOGS_ALL`` view rather than riding on
+        Dag-level audit log access, which every viewer holds.
+        """
+        event_log_id = setup[EVENT_NORMAL].id
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_view",
+            return_value=can_view_all_audit_logs,
+        ) as mock_is_authorized_view:
+            response = test_client.get(f"/eventLogs/{event_log_id}")
+
+        assert response.status_code == expected_status_code
+        mock_is_authorized_view.assert_called_once_with(
+            access_view=AccessView.AUDIT_LOGS_ALL, user=mock.ANY, team_name=None
+        )
+
+    def test_unknown_id_stays_404_and_does_not_consult_audit_logs_all(self, test_client, setup):
+        """An id that matches no row must answer 404, not 403.
+
+        A missing row and a NULL dag_id both read back as ``None``, so the guard has to tell
+        them apart: turning an unknown id into a permission error would change the documented
+        contract of the endpoint for callers that are allowed to use it.
+        """
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_view",
+            return_value=False,
+        ) as mock_is_authorized_view:
+            response = test_client.get(f"/eventLogs/{EVENT_NON_EXISTED_ID}")
+
+        assert response.status_code == 404
+        mock_is_authorized_view.assert_not_called()
 
     @provide_session
     def test_should_return_404_for_log_without_dttm(self, test_client, *, session: Session = NEW_SESSION):  # noqa: PT028
@@ -385,6 +434,36 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert resp_json["total_entries"] == 4
         assert EVENT_WITHOUT_DTTM not in {event_log["event"] for event_log in resp_json["event_logs"]}
 
+    def test_get_event_logs_includes_owner_display_name(self, test_client):
+        response = test_client.get("/eventLogs", params={"event": EVENT_WITH_OWNER})
+        assert response.status_code == 200
+
+        event_log = response.json()["event_logs"][0]
+        assert event_log["owner"] == OWNER
+        assert event_log["owner_display_name"] == OWNER_DISPLAY_NAME
+
+    def test_get_event_logs_falls_back_to_owner_when_display_name_is_unavailable(self, test_client):
+        response = test_client.get("/eventLogs", params={"event": TASK_INSTANCE_EVENT})
+
+        assert response.status_code == 200
+        event_log = response.json()["event_logs"][0]
+        assert event_log["owner"] == OWNER_AIRFLOW
+        assert event_log["owner_display_name"] == OWNER_AIRFLOW
+
+    def test_get_event_logs_filters_by_owner_display_name_pattern(self, test_client):
+        response = test_client.get("/eventLogs", params={"owner_display_name_pattern": "est Own"})
+
+        assert response.status_code == 200
+        events = {event_log["event"] for event_log in response.json()["event_logs"]}
+        assert events == {EVENT_WITH_OWNER, EVENT_WITH_OWNER_AND_TASK_INSTANCE}
+
+    def test_get_event_logs_filters_by_owner_display_name_prefix_pattern(self, test_client):
+        response = test_client.get("/eventLogs", params={"owner_display_name_prefix_pattern": "Test"})
+
+        assert response.status_code == 200
+        events = {event_log["event"] for event_log in response.json()["event_logs"]}
+        assert events == {EVENT_WITH_OWNER, EVENT_WITH_OWNER_AND_TASK_INSTANCE}
+
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
@@ -431,3 +510,43 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_should_raises_403_forbidden(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/eventLogs")
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("can_view_all_audit_logs", "expected_events"),
+        [
+            pytest.param(
+                True,
+                [EVENT_NORMAL, EVENT_WITH_OWNER, TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+                id="with-AUDIT_LOGS_ALL-sees-non-dag-rows",
+            ),
+            pytest.param(
+                False,
+                [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+                id="without-AUDIT_LOGS_ALL-only-dag-rows",
+            ),
+        ],
+    )
+    def test_non_dag_rows_are_gated_on_audit_logs_all(
+        self, test_client, can_view_all_audit_logs, expected_events
+    ):
+        """Rows with a NULL dag_id are returned only to callers holding ``AUDIT_LOGS_ALL``.
+
+        Before this gate every caller that could read event logs at all received them, which
+        for the default auth manager is any viewer. ``EVENT_NORMAL`` and ``EVENT_WITH_OWNER``
+        carry no dag_id; the other two are bound to a Dag and stay visible either way.
+        """
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_view",
+            return_value=can_view_all_audit_logs,
+        ) as mock_is_authorized_view:
+            response = test_client.get("/eventLogs")
+
+        assert response.status_code == 200
+        resp_json = response.json()
+        # Filtered in the query, so the excluded rows are absent from the count and
+        # pagination too -- their existence does not leak through total_entries.
+        assert resp_json["total_entries"] == len(expected_events)
+        assert {event_log["event"] for event_log in resp_json["event_logs"]} == set(expected_events)
+        mock_is_authorized_view.assert_called_once_with(
+            access_view=AccessView.AUDIT_LOGS_ALL, user=mock.ANY, team_name=None
+        )

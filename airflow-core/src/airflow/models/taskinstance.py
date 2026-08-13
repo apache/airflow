@@ -24,7 +24,7 @@ import logging
 import math
 import warnings
 from collections import defaultdict
-from collections.abc import Collection, Iterable
+from collections.abc import Callable, Collection, Iterable, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import quote
@@ -695,6 +695,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
+    team_name = association_proxy("dag_run", "team_name")
     task_instance_note = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",
@@ -1546,14 +1547,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         outlet_events: list[dict[str, Any]],
         *,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> Sequence[Callable[[], None]]:
         # Fast path: a task with no outlets and no outlet events has nothing to
         # register. Returning early avoids the AssetModel lookup below (which
         # would run with empty IN () clauses) and all downstream work. This is
         # the common case -- most tasks declare no outlets -- and it sits on the
         # task-success path that gates scheduling the next task.
         if not task_outlets and not outlet_events:
-            return
+            return ()
 
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
@@ -1579,6 +1580,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         dag_run_partition_key = ti.dag_run.partition_key
         dag_run_partition_date = ti.dag_run.partition_date
 
+        callback_sink: list[Callable[[], None]] = []
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
             for o in task_outlets
@@ -1614,6 +1616,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     extra=None,
                     partition_key=dag_run_partition_key,
                     partition_date=dag_run_partition_date,
+                    callback_sink=callback_sink,
                     session=session,
                 )
                 return
@@ -1641,6 +1644,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     extra=payload.extra,
                     partition_key=effective_pk,
                     partition_date=payload_partition_date,
+                    callback_sink=callback_sink,
                     session=session,
                 )
 
@@ -1725,6 +1729,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     extra=asset_event_extra,
                     partition_key=dag_run_partition_key,
                     partition_date=dag_run_partition_date,
+                    callback_sink=callback_sink,
                     session=session,
                 )
                 if event is None:
@@ -1738,8 +1743,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         extra=asset_event_extra,
                         partition_key=dag_run_partition_key,
                         partition_date=dag_run_partition_date,
+                        callback_sink=callback_sink,
                         session=session,
                     )
+
+        return callback_sink
 
     @provide_session
     def update_rtif(self, rendered_fields, *, session: Session = NEW_SESSION):

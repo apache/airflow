@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { focusManager, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 
 import {
   useDagRunServiceGetDagRunsKey,
@@ -149,11 +149,25 @@ export const useGridTiSummariesStream = ({
     // reopen it — a redundant connection plus an AbortError on every grid mount — so let the interval be
     // the only re-stream trigger.
     const timer = setInterval(() => {
-      setRefreshTick((tick) => tick + 1);
+      // Skip re-streams while the tab is hidden, matching React Query's refetchIntervalInBackground: false.
+      if (focusManager.isFocused()) {
+        setRefreshTick((tick) => tick + 1);
+      }
     }, baseRefetchInterval);
 
     return () => clearInterval(timer);
   }, [hasActiveRuns, baseRefetchInterval]);
+
+  // The interval above is cleared the moment the last active run turns terminal, which can happen
+  // before its first tick for fast runs — re-stream once on that transition so final TI states land.
+  const wasActiveRef = useRef(false);
+
+  useEffect(() => {
+    if (wasActiveRef.current && !hasActiveRuns) {
+      setRefreshTick((tick) => tick + 1);
+    }
+    wasActiveRef.current = hasActiveRuns;
+  }, [hasActiveRuns]);
 
   // Re-stream whenever a mutation invalidates a grid-related query (TI states,
   // run states, or grid structure).  Invalidation events only fire from explicit

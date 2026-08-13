@@ -21,13 +21,13 @@
 
 ## Status
 
-Proposed
+Accepted
 
-> **Note:** This ADR describes coordinator packaging as a standalone distribution separate
-> from the Task SDK. The current plan is to ship coordinators as part of the Task SDK
-> (`apache-airflow-task-sdk`); a separate distribution may be introduced later once the
-> coordinator interface exits experimental status, but is not committed. This document is
-> retained for reference if that split is revisited. Tracked operationally in
+> **Note:** An earlier revision of this ADR proposed coordinator packaging as a standalone
+> distribution separate from the Task SDK. The accepted decision ships coordinators as part
+> of the Task SDK (`apache-airflow-task-sdk`); a separate distribution may be introduced
+> later once the coordinator interface exits experimental status, but is not committed.
+> Tracked operationally in
 > [apache/airflow#66451](https://github.com/apache/airflow/issues/66451).
 
 ## Context

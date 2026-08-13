@@ -25,7 +25,7 @@ from typing import Any
 
 import pytest
 
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS

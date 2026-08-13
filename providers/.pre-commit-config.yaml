@@ -52,8 +52,8 @@ repos:
         always_run: true
         pass_filenames: false
       - id: validate-operators-init
-        name: No templated field logic checks in operator __init__
-        description: Prevent templated field logic checks in operators' __init__
+        name: Validate templated fields in operator __init__
+        description: Require plain assignment of templated fields and forbid reading their un-rendered values
         language: python
         entry: ../scripts/ci/prek/validate_operators_init.py
         pass_filenames: true

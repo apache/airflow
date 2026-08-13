@@ -67,6 +67,13 @@ class KubeConfig:
         self.worker_pods_creation_batch_size = self._conf.getint(
             self.kubernetes_section, "worker_pods_creation_batch_size"
         )
+        self.async_pod_creation = self._conf.getboolean(
+            self.kubernetes_section, "async_pod_creation", fallback=False
+        )
+        # 0 means "fall back to worker_pods_creation_batch_size" (resolved in the scheduler).
+        self.pod_creation_max_concurrency = self._conf.getint(
+            self.kubernetes_section, "pod_creation_max_concurrency", fallback=0
+        )
         self.worker_container_repository = self._conf.get(
             self.kubernetes_section, "worker_container_repository"
         )
