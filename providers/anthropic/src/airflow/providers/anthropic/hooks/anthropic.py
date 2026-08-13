@@ -660,6 +660,40 @@ class AnthropicHook(BaseHook):
         self._require_first_party("Managed Agents")
         return self._first_party_conn.beta.sessions.retrieve(session_id)
 
+    def get_session_usage(self, session_id: str) -> dict[str, Any]:
+        """
+        Return a JSON-serializable token/cost summary for a session.
+
+        Plain scalars and a nested ``list_cost`` mapping rather than SDK models, so the
+        result survives XCom serialization and can be queried across runs. ``amount`` is
+        kept as the API's **minor-unit string** (``"44"`` is $0.44) rather than converted to
+        a float, so no rounding is applied to a cost figure.
+
+        Every field is optional server-side -- ``list_cost`` is absent when usage includes a
+        model with no list price -- so missing values come back as ``None``. That absence is
+        why every billable dimension is reported and not just the token totals: it is
+        exactly when a caller has to reconstruct cost from usage that the breakdown must be
+        complete. Cache *writes* (``cache_creation``) are billed above base input, and
+        server tool calls are billed per request.
+        """
+        return self.summarize_usage(self.get_session(session_id))
+
+    @staticmethod
+    def summarize_usage(session: BetaManagedAgentsSession) -> dict[str, Any]:
+        """
+        Flatten an already-retrieved session's usage; see :meth:`get_session_usage`.
+
+        Split out because ``sessions.archive`` also returns the session, so a caller that
+        is tearing a session down can report its usage without a second request.
+
+        Dumps the model rather than copying a fixed list of fields. The usage model sets
+        ``extra="allow"``, so a billable dimension added by the API is kept on the object --
+        an allowlist here would drop it silently, which is worst precisely when ``list_cost``
+        is ``None`` and a caller has to price the run from the breakdown. ``mode="json"``
+        keeps the result XCom-safe and leaves ``amount`` a minor-unit string.
+        """
+        return session.usage.model_dump(mode="json")
+
     def send_event(self, session_id: str, event: dict[str, Any]) -> Any:
         """Send a single event (e.g. a ``user.message`` or ``user.define_outcome``)."""
         self._require_first_party("Managed Agents")
@@ -668,8 +702,13 @@ class AnthropicHook(BaseHook):
             session_id, events=cast("list[BetaManagedAgentsEventParams]", [event])
         )
 
-    def archive_session(self, session_id: str) -> Any:
-        """Archive a session (frees the server-side container). Best-effort teardown."""
+    def archive_session(self, session_id: str) -> BetaManagedAgentsSession:
+        """
+        Archive a session (frees the server-side container). Best-effort teardown.
+
+        Returns the archived session, which carries its final ``usage`` -- so a caller
+        tearing a session down does not need a separate retrieve to report what it spent.
+        """
         self._require_first_party("Managed Agents")
         return self._first_party_conn.beta.sessions.archive(session_id)
 

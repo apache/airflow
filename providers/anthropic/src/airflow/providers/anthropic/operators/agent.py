@@ -33,6 +33,8 @@ from airflow.providers.anthropic.triggers.agent import AnthropicAgentSessionTrig
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
 if TYPE_CHECKING:
+    from anthropic.types.beta import BetaManagedAgentsSession
+
     from airflow.providers.anthropic.hooks.anthropic import BudgetSpec
     from airflow.providers.common.compat.sdk import Context
 
@@ -66,6 +68,11 @@ class AnthropicAgentSessionOperator(BaseOperator):
 
     Outputs the agent writes to ``/mnt/session/outputs/`` are retrieved afterwards via the
     Files API (``scope_id=<session_id>``); the operator returns the **session ID only**.
+
+    The session's token counts and list cost are pushed to XCom under ``usage`` on both
+    success and failure, so cost per Dag run can be queried. This matters because a budget is
+    a stop trigger rather than a cap: the ceiling is checked between model requests, so it
+    does not tell you what the session actually spent.
 
     .. seealso::
         For more information, take a look at the guide:
@@ -178,7 +185,10 @@ class AnthropicAgentSessionOperator(BaseOperator):
                 )
         except Exception:
             # send_event failed after create_session allocated the container; tear it down.
-            self._archive_session(session.id)
+            # The event may still have been accepted server-side, so the agent can already be
+            # spending -- record usage here too rather than leaving this the one failure path
+            # with no cost trail.
+            self._tear_down(context, session.id)
             raise
         # Correlate completion against the kickoff event so a message run is not fooled by a
         # just-created idle session (the start race).
@@ -216,8 +226,11 @@ class AnthropicAgentSessionOperator(BaseOperator):
         except Exception:
             # Any failure after the session starts (timeout, SDK 5xx, auth expiry) leaves
             # the server-side container running; archive it best-effort before failing.
-            self._archive_session(session.id)
+            # Teardown goes first: it is the time-critical call, and its response carries
+            # the usage, so reporting spend costs no extra request.
+            self._tear_down(context, session.id)
             raise
+        self._push_usage(context, session.id)
         return session.id
 
     def execute_complete(self, context: Context, event: Any = None) -> str:
@@ -226,24 +239,83 @@ class AnthropicAgentSessionOperator(BaseOperator):
         self.session_id = event["session_id"]
         status = event["status"]
         if status == "timeout":
-            self._archive_session(self.session_id)
+            self._tear_down(context, self.session_id)
             raise AnthropicAgentSessionTimeout(event["message"])
         if status == "error":
             # The trigger yields "error" when polling gives up while the session may still
             # be running; archive it best-effort so its container does not linger.
-            self._archive_session(self.session_id)
+            self._tear_down(context, self.session_id)
             raise _create_session_error(event["message"], event.get("stop_reason"))
         self.log.info("Session %s completed.", self.session_id)
+        self._push_usage(context, self.session_id)
         return self.session_id
 
-    def _archive_session(self, session_id: str | None) -> None:
-        """Best-effort teardown of the server-side session (frees its container)."""
+    def _tear_down(self, context: Context, session_id: str | None) -> None:
+        """
+        Archive the session and record what it spent, in that order.
+
+        Every failure path needs both. Teardown goes first because it is the
+        time-critical call, and ``sessions.archive`` returns the session carrying its final
+        usage, so recording spend costs no extra request.
+        """
+        archived = self._archive_session(session_id)
+        self._push_usage(context, session_id, session=archived)
+
+    def _push_usage(self, context: Context, session_id: str | None, session: Any = None) -> None:
+        """
+        Push the session's token/cost usage to XCom under ``usage``, best effort.
+
+        Runs on failure as well as success: a session that stopped against its budget is
+        exactly the one whose spend you want recorded. Never allowed to raise -- a usage
+        read that fails must not mask the task's real outcome.
+
+        On the failure paths the session has just been archived, and ``sessions.archive``
+        returns the session with its final usage; pass it as ``session`` so teardown is not
+        delayed by an extra retrieve against an API that may be why the task is failing.
+        """
         if not session_id:
             return
+        # The whole body is guarded, not just the API call: this runs on the failure path
+        # immediately before re-raising, so anything that throws here -- an unavailable
+        # session, a serialization error, a context without a task instance -- would
+        # replace the exception the task should actually fail with.
         try:
-            self.hook.archive_session(session_id)
+            # XCom is cleared at the start of every attempt, so this key only ever holds
+            # the last one. Stamping the attempt makes that visible rather than silently
+            # under-reporting total spend across retries. Built as a new dict rather than
+            # mutating what the hook returned.
+            summary = (
+                self.hook.summarize_usage(session)
+                if session is not None
+                else self.hook.get_session_usage(session_id)
+            )
+            usage = {**summary, "try_number": getattr(context["ti"], "try_number", None)}
+            context["ti"].xcom_push(key="usage", value=usage)
+            cost = usage.get("list_cost")
+            self.log.info(
+                "Session %s used %s input / %s output tokens; list cost %s",
+                session_id,
+                usage.get("input_tokens"),
+                usage.get("output_tokens"),
+                f"{cost['currency']} {cost['amount']} (minor units)" if cost else "unavailable",
+            )
+        except Exception:
+            self.log.exception("Could not record usage for session %s", session_id)
+
+    def _archive_session(self, session_id: str | None) -> BetaManagedAgentsSession | None:
+        """
+        Best-effort teardown of the server-side session (frees its container).
+
+        Returns the archived session, which carries its final usage, or ``None`` if the
+        archive call failed.
+        """
+        if not session_id:
+            return None
+        try:
+            return self.hook.archive_session(session_id)
         except Exception as e:
             self.log.warning("Failed to archive session %s: %s", session_id, e)
+            return None
 
     def on_kill(self) -> None:
         """
