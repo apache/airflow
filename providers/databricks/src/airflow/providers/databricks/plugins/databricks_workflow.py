@@ -639,19 +639,22 @@ if AIRFLOW_V_3_1_PLUS:
             raise HTTPException(status_code=403, detail="Not authorized to repair runs of this Dag.")
         return user
 
-    def _serialized_task_key(dag_id: str, task: Any) -> str:
+    def _task_id_to_key(dag_id: str, task_id: str, task_key_map: dict[str, str]) -> str:
         """
-        Reproduce an operator's ``databricks_task_key`` from a serialized task.
+        Resolve a task's Databricks ``task_key`` from the launch task's trusted key map.
 
-        Serialized tasks don't expose the operator property, so mirror its default: an explicit key
-        if one was set, else ``md5(dag_id__task_id)``.
+        An explicit ``databricks_task_key`` does not survive Dag serialization, so the serialized
+        task can't be trusted to reproduce it. The launch task captured the real keys from the live
+        operators into ``task_key_map``. Runs launched before that map existed fall back to the
+        operator's default derivation, ``md5(dag_id__task_id)`` — correct for any task that did not
+        set an explicit key (the common case).
         """
+        mapped = task_key_map.get(task_id)
+        if mapped:
+            return mapped
         import hashlib
 
-        return (
-            getattr(task, "databricks_task_key", None)
-            or hashlib.md5(f"{dag_id}__{task.task_id}".encode()).hexdigest()
-        )
+        return hashlib.md5(f"{dag_id}__{task_id}".encode()).hexdigest()
 
     def _read_launch_metadata(dag_id: str, run_id: str, launch_task_id: str, session) -> Any:
         """
@@ -772,10 +775,13 @@ if AIRFLOW_V_3_1_PLUS:
                 if repair_all:
                     hook = DatabricksHook(databricks_conn_id=metadata.conn_id)
                     task_keys = hook.get_run_failed_task_keys(metadata.run_id)
-                    key_to_task_id = {_serialized_task_key(dag_id, t): t.task_id for t in dag.tasks}
+                    key_to_task_id = {
+                        _task_id_to_key(dag_id, t.task_id, metadata.task_key_map): t.task_id
+                        for t in dag.tasks
+                    }
                     repaired_task_ids = [key_to_task_id[k] for k in task_keys if k in key_to_task_id]
                 else:
-                    task_keys = [_serialized_task_key(dag_id, dag.get_task(repaired_task_ids[0]))]
+                    task_keys = [_task_id_to_key(dag_id, repaired_task_ids[0], metadata.task_key_map)]
 
                 if not task_keys:
                     log.info("No failed Databricks tasks to repair for run %s", metadata.run_id)
