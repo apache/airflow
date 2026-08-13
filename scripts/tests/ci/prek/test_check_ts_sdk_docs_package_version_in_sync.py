@@ -69,7 +69,7 @@ def _setup_malformed_docs_json(root: Path) -> None:
             {"dependencies": {"@msgpack/msgpack": LONG_VERSION}},
             {"devDependencies": {"@msgpack/msgpack": "^3.1.3"}},
             1,
-            [f"{LONG_VERSION}  ^3.1.3"],
+            [LONG_VERSION, "^3.1.3"],
             [],
             id="drift-report-column-widens-for-long-version-strings",
         ),

@@ -32,6 +32,7 @@ import pathlib
 import sys
 
 from common_prek_utils import AIRFLOW_ROOT_PATH
+from tabulate import tabulate
 
 TS_SDK_PACKAGE_JSON = "ts-sdk/package.json"
 TS_SDK_DOCS_PACKAGE_JSON = "ts-sdk/docs/package.json"
@@ -97,16 +98,15 @@ def check_sync(repo_root: pathlib.Path) -> tuple[int, str]:
             f"{TS_SDK_PACKAGE_JSON} and {TS_SDK_DOCS_PACKAGE_JSON}.",
         )
 
-    name_col = max(len(name) for name in mismatched)
-    value_col = max(len(TS_SDK_PACKAGE_JSON), *(len(sdk_deps[name]) for name in mismatched))
+    table = tabulate(
+        [(name, sdk_deps[name], docs_deps[name]) for name in mismatched],
+        headers=["PACKAGE", TS_SDK_PACKAGE_JSON, TS_SDK_DOCS_PACKAGE_JSON],
+        tablefmt="github",
+    )
     lines = [
         f"ERROR: Dependency versions drifted between {TS_SDK_PACKAGE_JSON} and {TS_SDK_DOCS_PACKAGE_JSON}:",
         "",
-        f"  {'PACKAGE':<{name_col}}  {TS_SDK_PACKAGE_JSON:<{value_col}}  {TS_SDK_DOCS_PACKAGE_JSON}",
-    ]
-    for name in mismatched:
-        lines.append(f"  {name:<{name_col}}  {sdk_deps[name]:<{value_col}}  {docs_deps[name]}")
-    lines += [
+        table,
         "",
         "Update the drifting package(s) to pin the same version in both files.",
     ]
