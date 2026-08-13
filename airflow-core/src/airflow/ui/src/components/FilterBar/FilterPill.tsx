@@ -19,8 +19,10 @@
 import { Box, HStack } from "@chakra-ui/react";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MdClose } from "react-icons/md";
 
+import { IconButton } from "../ui";
 import { getDefaultFilterIcon } from "./defaultIcons";
 import type { FilterState } from "./types";
 import { isEmptyFilterValue } from "./utils";
@@ -41,6 +43,7 @@ type FilterPillProps = {
 };
 
 export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInput }: FilterPillProps) => {
+  const { t: translate } = useTranslation(["common"]);
   const isEmpty = isEmptyFilterValue(filter.value);
   const [isEditing, setIsEditing] = useState(isEmpty);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -115,36 +118,24 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
       onClick={handlePillClick}
       px={4}
     >
-      <HStack align="center" gap={1}>
+      <HStack align="center">
         {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
         <Box alignItems="center" display="flex" flex="1" gap={2} px={2}>
           {filter.config.label}: {displayValue}
         </Box>
-
-        <Box
-          _hover={{
-            bg: "gray.100",
-            color: "gray.600",
-          }}
-          alignItems="center"
+        <IconButton
           aria-label={`Remove ${filter.config.label} filter`}
-          bg="transparent"
           borderRadius="full"
-          color="gray.400"
-          cursor="pointer"
-          display="flex"
-          h={6}
-          justifyContent="center"
-          mr={1}
+          label={translate("common:filters.removeFilter")}
+          mr={-3}
           onClick={(event) => {
             event.stopPropagation();
             onRemove();
           }}
-          transition="all 0.2s"
-          w={6}
+          size="xs"
         >
           <MdClose size={16} />
-        </Box>
+        </IconButton>
       </HStack>
     </Box>
   );

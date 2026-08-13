@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, HStack } from "@chakra-ui/react";
+import { Button, HStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MdAdd, MdClear } from "react-icons/md";
+import { IoFilter } from "react-icons/io5";
+import { MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
 import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
@@ -185,43 +186,42 @@ export const FilterBar = ({
   };
 
   return (
-    <Flex align="flex-start" gap={2} justify="space-between" width="100%">
-      <HStack flex="1" gap={2} minW={0} wrap="wrap">
-        {filters.slice(0, maxVisibleFilters).map(renderFilter)}
-        {availableConfigs.length > 0 && (
-          <Menu.Root>
-            <Menu.Trigger asChild>
-              <Button
-                _hover={{ bg: "colorPalette.subtle" }}
-                bg="gray.muted"
-                borderRadius="full"
-                data-testid="add-filter-button"
-                variant="outline"
-              >
-                <MdAdd />
-                {translate("common:filter")}
-              </Button>
-            </Menu.Trigger>
-            <Menu.Content>
-              {availableConfigs.map((config) => (
-                <Menu.Item key={config.key} onClick={() => addFilter(config)} value={config.key}>
-                  <HStack gap={2}>
-                    {getFilterIcon(config)}
-                    {config.label}
-                  </HStack>
-                </Menu.Item>
-              ))}
-            </Menu.Content>
-          </Menu.Root>
-        )}
-        {filters.length > 0 && (
-          <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
-            <MdClear />
-            {translate("common:reset")}
-          </Button>
-        )}
-      </HStack>
+    <HStack flex="1" gap={2} minW={0} wrap="wrap">
+      {availableConfigs.length > 0 && (
+        <Menu.Root>
+          <Menu.Trigger asChild>
+            <Button
+              _hover={{ bg: "colorPalette.subtle" }}
+              bg="gray.muted"
+              borderRadius="full"
+              data-testid="add-filter-button"
+              variant="outline"
+            >
+              <IoFilter />
+              {translate("common:filters.addFilter")}
+            </Button>
+          </Menu.Trigger>
+          <Menu.Content>
+            {availableConfigs.map((config) => (
+              <Menu.Item key={config.key} onClick={() => addFilter(config)} value={config.key}>
+                <HStack gap={2}>
+                  {getFilterIcon(config)}
+                  {config.label}
+                </HStack>
+              </Menu.Item>
+            ))}
+          </Menu.Content>
+        </Menu.Root>
+      )}
+      {filters.slice(0, maxVisibleFilters).map(renderFilter)}
+
+      {filters.length > 0 && (
+        <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
+          <MdClear />
+          {translate("common:reset")}
+        </Button>
+      )}
       {showPresetFilters ? <PresetFiltersMenu /> : undefined}
-    </Flex>
+    </HStack>
   );
 };
