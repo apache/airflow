@@ -212,8 +212,12 @@ The reconnection polling calls the Spark standalone REST API
 See :doc:`connections/spark-submit` for how to configure these fields.
 
 .. note::
-    Crash recovery in cluster mode requires Airflow 3.3+ (``task_state_store`` support). On earlier
-    versions the operator falls back to the previous behavior of always submitting fresh.
+    Crash recovery in cluster mode requires Airflow 3.3+ (``task_state_store`` support). Below
+    3.3, ``durable`` has no effect: setting it explicitly only emits a warning, and the operator
+    always submits fresh, exactly as before this feature existed. The deprecated
+    ``reconnect_on_retry`` parameter (the original name for this same feature, superseded almost
+    immediately) still emits a deprecation warning on every Airflow version and maps onto
+    ``durable``.
 
 Clearing a task is treated the same as a retry, which matters specifically for a task whose driver
 already succeeded: clearing does not delete the stored driver ID, so the next attempt reads it
@@ -301,6 +305,13 @@ the application is submitted:
         deploy_mode="cluster",
         yarn_track_via_rm_api=True,
     )
+
+On Airflow 3.3+, YARN cluster mode with ``durable=True`` (the default) requires
+``yarn_track_via_rm_api=True`` -- the ResourceManager REST API is what makes checking application
+status on retry possible. Without it, the operator raises a ``ValueError`` at task start rather
+than silently falling back to a fire-and-forget submission. Below 3.3, ``durable`` has no effect
+at all, so this requirement doesn't apply there either: durable execution isn't active to have a
+prerequisite for.
 
 For Kerberized clusters, install ``requests-kerberos`` in the Airflow environment. When the
 Spark connection has both ``keytab`` and ``principal`` configured, Airflow automatically uses
