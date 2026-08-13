@@ -40,6 +40,13 @@ For Breeze (local development):
 
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
 * `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
+
+  .. warning::
+
+    Podman support in Breeze is **limited and not yet fully supported**.
+    You may encounter issues when using Podman as your container engine.
+    If you choose to try Podman, be aware that Breeze will warn you at startup.
+    Docker Desktop remains the recommended container engine for Breeze.
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
 * `uv <https://github.com/astral-sh/uv>`__, which is a fast, reliable package manager that you'll use to install other developer tools to make contributing to Airflow easier.
 
