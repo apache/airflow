@@ -120,7 +120,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.COMPLETED_AT_RANGE]: {
       endKey: SearchParamsKeys.COMPLETED_AT_LTE,
       icon: <MdDateRange />,
-      label: translate("hitl:filters.completedAt"),
+      label: translate("common:filters.completedAt"),
       startKey: SearchParamsKeys.COMPLETED_AT_GTE,
       type: FilterTypes.DATERANGE,
     },
