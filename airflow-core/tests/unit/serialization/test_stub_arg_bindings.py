@@ -19,12 +19,13 @@ from __future__ import annotations
 import contextlib
 import datetime
 import typing
+import uuid
 from typing import Any
 
 import pendulum
 import pytest
 
-from airflow.serialization.stub_arg_bindings import _infer_value_schema
+from airflow.serialization.stub_arg_bindings import _infer_value_schema, _to_json_value
 
 
 @pytest.mark.parametrize(
@@ -155,6 +156,83 @@ def test_infer_value_schema_cache_returns_isolated_copies():
 def test_infer_value_schema_unhashable_annotation_generates_uncached():
     annotation = typing.Annotated[int, {"unhashable": True}]
     assert _infer_value_schema(annotation) == {"type": "integer", "format": "int64"}
+
+
+@pytest.mark.parametrize(
+    ("annotation", "value", "expected"),
+    [
+        pytest.param(
+            datetime.datetime,
+            datetime.datetime(2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
+            "2024-01-02T03:04:05Z",
+            id="aware-datetime",
+        ),
+        pytest.param(datetime.date, datetime.date(2024, 1, 2), "2024-01-02", id="date"),
+        pytest.param(datetime.time, datetime.time(3, 4, 5), "03:04:05", id="time"),
+        pytest.param(datetime.timedelta, datetime.timedelta(minutes=5), "PT5M", id="timedelta"),
+        pytest.param(
+            datetime.timedelta,
+            datetime.timedelta(days=1, hours=2, minutes=3, seconds=4),
+            "P1DT2H3M4S",
+            id="timedelta-compound",
+        ),
+        pytest.param(
+            datetime.timedelta, datetime.timedelta(seconds=-90), "-PT1M30S", id="timedelta-negative"
+        ),
+        pytest.param(
+            datetime.timedelta,
+            datetime.timedelta(milliseconds=1500),
+            "PT1.5S",
+            id="timedelta-fractional",
+        ),
+        pytest.param(
+            uuid.UUID,
+            uuid.UUID("6BA7B810-9DAD-11D1-80B4-00C04FD430C8"),
+            "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+            id="uuid-normalized-to-lowercase",
+        ),
+        pytest.param(
+            pendulum.DateTime,
+            pendulum.datetime(2024, 1, 2, 3, 4, 5),
+            "2024-01-02T03:04:05Z",
+            id="pendulum-datetime-via-normalized-annotation",
+        ),
+        # Values that are already JSON pass through unchanged.
+        pytest.param(str, "plain", "plain", id="str-untouched"),
+        pytest.param(int, 3, 3, id="int-untouched"),
+        pytest.param(dict, {"k": "v"}, {"k": "v"}, id="dict-untouched"),
+        pytest.param(
+            list[datetime.datetime],
+            [datetime.datetime(2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc)],
+            ["2024-01-02T03:04:05Z"],
+            id="list-of-datetimes",
+        ),
+    ],
+)
+def test_to_json_value_renders_natives_in_their_wire_form(annotation, value, expected):
+    """A native literal reaches the lang SDK in the one spelling its value_schema advertises."""
+    assert _to_json_value(value, annotation) == expected
+
+
+def test_to_json_value_pins_an_offset_on_a_naive_datetime():
+    """An offset-less timestamp means different instants to Go, JavaScript and Java."""
+    rendered = _to_json_value(datetime.datetime(2024, 1, 2, 3, 4, 5), datetime.datetime)
+    assert rendered == "2024-01-02T03:04:05Z"
+
+
+@pytest.mark.parametrize(
+    "annotation",
+    [pytest.param(Any, id="any"), pytest.param(None, id="none")],
+)
+def test_to_json_value_leaves_unconstrained_arguments_alone(annotation):
+    """Without an annotation there is no value_schema, so no SDK could interpret a native."""
+    value = datetime.datetime(2024, 1, 2, 3, 4, 5)
+    assert _to_json_value(value, annotation) is value
+
+
+def test_to_json_value_passes_through_a_value_the_annotation_does_not_describe():
+    """A mismatched literal is the JSON-serializability check's business, not a serializer error."""
+    assert _to_json_value({"not": "an int"}, int) == {"not": "an int"}
 
 
 def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):

@@ -37,7 +37,33 @@ ArgValueSchema = TypeAliasType(
     "ArgValueSchema", Annotated[dict[str, JsonValue], Field(title="ArgValueSchema")]
 )
 """JSON-schema fragment constraining the value a stub-task argument binds to; generated
-by pydantic from the stub annotation, carried verbatim, unknown keywords ignored."""
+by pydantic from the stub annotation, carried verbatim, unknown keywords ignored.
+
+``format`` carries the part of the contract ``type`` alone cannot: which native type a
+lang SDK should decode the value into. Every SDK is expected to follow the same table,
+so a Dag author sees one behaviour regardless of the task's language:
+
+===================  ==========  ====================================  =========================
+Python annotation    ``type``    ``format`` / wire spelling            Native target
+===================  ==========  ====================================  =========================
+``datetime``         string      ``date-time`` ``2024-01-02T03:04:05Z``  timestamp
+``date``             string      ``date`` ``2024-01-02``                 date
+``time``             string      ``time`` ``03:04:05``                    time of day
+``timedelta``        string      ``duration`` ``P1DT2H3M4S`` ``-PT1M30S`` duration
+``UUID``             string      ``uuid`` ``6ba7b810-9dad-...-...``       UUID
+``bytes``            string      ``binary`` (raw text, **not** base64)   byte string
+``int``              integer     ``int64``                                64-bit integer
+``float``            number      ``double``                               64-bit float
+===================  ==========  ====================================  =========================
+
+Timestamps always carry an explicit offset -- a naive ``datetime`` is pinned to Airflow's
+default timezone at serialization time -- because an offset-less timestamp means different
+instants to different runtimes (UTC in Go, worker-local in JavaScript, unparsable in Java).
+
+A ``string`` target is always acceptable for any of the string formats: an SDK that does
+not model a format hands the raw text to the task and lets it parse. Unions serialize as
+``anyOf``, and a ``null`` branch means the argument may arrive absent, so the native
+parameter has to be nullable."""
 
 
 class _ArgBindingBase(BaseModel):

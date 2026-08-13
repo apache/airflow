@@ -33,11 +33,12 @@ import types
 import typing
 from functools import cache
 from inspect import Parameter, Signature, signature
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pydantic import PydanticUserError, TypeAdapter
 from pydantic.json_schema import GenerateJsonSchema
 
+from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.sdk import XComArg
 from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
@@ -108,36 +109,76 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
         # get_type_hints normalizes a bare ``None`` annotation to NoneType; a parameter
         # that can only ever be None constrains nothing worth shipping.
         return None
-    try:
-        schema = _generate_value_schema(annotation)
-    except TypeError:
-        # Unhashable annotations cannot key the cache; generate directly. Any pydantic
-        # failure inside the body degrades to None there, so this retry never re-raises.
-        schema = _generate_value_schema.__wrapped__(annotation)
+    wire_form = _get_wire_form(annotation)
     # Deep-copy so callers embedding the fragment never alias the cached dict.
-    return copy.deepcopy(schema) if schema else None
+    return copy.deepcopy(wire_form.schema) if wire_form else None
+
+
+class _ValueWireForm(NamedTuple):
+    """The schema describing an annotation's JSON form, and the adapter that renders values into it."""
+
+    adapter: TypeAdapter
+    schema: dict[str, Any]
+
+
+def _get_wire_form(annotation: Any) -> _ValueWireForm | None:
+    try:
+        return _build_wire_form(annotation)
+    except TypeError:
+        # Unhashable annotations cannot key the cache; build directly. Any pydantic
+        # failure inside the body degrades to None there, so this retry never re-raises.
+        return _build_wire_form.__wrapped__(annotation)
 
 
 @cache
-def _generate_value_schema(annotation: Any) -> dict[str, Any] | None:
+def _build_wire_form(annotation: Any) -> _ValueWireForm | None:
     """
-    Generate the schema for one annotation, cached for the process lifetime.
+    Build the adapter and schema for one annotation together, cached for the process lifetime.
 
     TypeAdapter construction is one of pydantic's most expensive operations and
     annotations are static, so re-serializations of the same Dag must not re-pay it.
+
+    Pairing them is what keeps a literal from being rendered in a spelling its own
+    ``value_schema`` does not describe: both come from the same adapter, including when
+    the temporal-normalization retry below settles on a different annotation.
     """
     # PydanticUserError/TypeError cover annotations pydantic can't schema; either way,
     # that degrades to no schema rather than failing Dag serialization.
-    try:
-        return TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
-    except (PydanticUserError, TypeError):
-        normalized = _normalize_temporal_annotation(annotation)
-        if normalized is annotation:
-            return None
+    for candidate in (annotation, _normalize_temporal_annotation(annotation)):
         try:
-            return TypeAdapter(normalized).json_schema(schema_generator=_ValueSchemaGenerator)
+            adapter = TypeAdapter(candidate)
+            return _ValueWireForm(adapter, adapter.json_schema(schema_generator=_ValueSchemaGenerator))
         except (PydanticUserError, TypeError):
-            return None
+            continue
+    return None
+
+
+def _to_json_value(value: Any, annotation: Any) -> Any:
+    """
+    Render a native value in the JSON form its ``value_schema`` advertises.
+
+    A ``datetime``/``timedelta``/``UUID`` is not JSON-serializable, so without this it
+    could not cross the language boundary at all. Dumping it through the same adapter
+    that produced the schema gives every lang SDK exactly one spelling per format --
+    RFC 3339 timestamps, ISO-8601 durations, canonical UUIDs -- instead of each Dag
+    author picking their own.
+
+    Values pydantic cannot render for this annotation pass through untouched, leaving
+    the JSON-serializability check to reject them.
+    """
+    if annotation is Parameter.empty or annotation is None or annotation is Any:
+        return value
+    if isinstance(value, datetime.datetime):
+        # A naive timestamp is ambiguous once it leaves Python: Go would read it as UTC,
+        # JavaScript as the worker's local time, and Java would refuse to parse it. Pin
+        # the offset here, using the same default timezone the rest of Airflow applies.
+        value = coerce_datetime(value)
+    wire_form = _get_wire_form(annotation)
+    if wire_form is None:
+        return value
+    # warnings=False: a value that does not match its annotation is the JSON-literal
+    # check's business, not a serializer warning's.
+    return wire_form.adapter.dump_python(value, mode="json", warnings=False)
 
 
 def _validate_stub_signature(sig: Signature, task_id: str) -> None:
@@ -174,20 +215,24 @@ def _resolve_param_annotations(python_callable: Any, sig: Signature) -> dict[str
     return {name: _resolve(name, param) for name, param in sig.parameters.items()}
 
 
-def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
+def _reject_nested_xcom(value: Any, task_id: str, name: str) -> None:
     if next(XComArg.iter_xcom_references(value), None) is not None:
         raise ValueError(
             f"@task.stub task {task_id!r} parameter {name!r} received a collection with an "
             "upstream task output nested inside it; only a direct XComArg argument can cross "
             "the language boundary -- pass the upstream output as its own argument"
         )
+
+
+def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
     try:
         json.dumps(value, allow_nan=False)
     except (TypeError, ValueError):
         raise ValueError(
             f"@task.stub task {task_id!r} parameter {name!r} received a literal of type "
             f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
-            "to the foreign runtime; pass it in its JSON form instead"
+            "to the foreign runtime; annotate the stub parameter with the value's type so it "
+            "can be serialized, or pass it in its JSON form instead"
         )
 
 
@@ -274,6 +319,8 @@ def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
                 xcom_entry["value_schema"] = value_schema
             spec.append(xcom_entry)
             continue
+        _reject_nested_xcom(value, task_id, name)
+        value = _to_json_value(value, annotations[name])
         _ensure_json_literal(value, task_id, name)
         entry: dict[str, Any] = {"name": name, "kind": "literal", "value": value}
         if value_schema is not None:
