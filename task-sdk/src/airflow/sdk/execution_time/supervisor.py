@@ -1071,11 +1071,13 @@ class WatchedSubprocess:
         """
         Attempt to terminate the subprocess with a given signal.
 
-        If the process does not exit within `escalation_delay` seconds, escalate to SIGTERM and eventually SIGKILL if necessary.
+        Only `signal_to_send` is sent unless `force` is set. With `force=True`, if the process does not exit
+        within `escalation_delay` seconds, escalate along SIGINT -> SIGTERM -> SIGKILL, starting from
+        `signal_to_send`.
 
         :param signal_to_send: The signal to send initially (default is SIGINT).
-        :param escalation_delay: Time in seconds to wait before escalating to a stronger signal.
-        :param force: If True, ensure escalation through all signals without skipping.
+        :param escalation_delay: Time in seconds to wait for the process to exit after each signal.
+        :param force: If True, escalate through the remaining signals instead of sending only `signal_to_send`.
         """
         if self._exit_code is not None:
             return
@@ -1514,9 +1516,9 @@ class ActivitySubprocess(WatchedSubprocess):
             self._replay_pending_terminal_state_msg()
             return
 
-        # If the process has finished a non-directly-patched state (e.g.
-        # FAILED, UP_FOR_RETRY without RetryTask), `finish()` is the
-        # dedicated endpoint for those transitions. For states already in
+        # If the process has finished in a non-directly-patched state (e.g.
+        # FAILED, or SKIPPED reported via a TaskState message), `finish()` is
+        # the dedicated endpoint for those transitions. For states already in
         # STATES_SENT_DIRECTLY whose direct API call succeeded, no further
         # action is needed.
         if self.final_state not in STATES_SENT_DIRECTLY:

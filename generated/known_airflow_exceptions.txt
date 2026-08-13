@@ -337,7 +337,6 @@ providers/http/src/airflow/providers/http/operators/http.py::2
 providers/http/src/airflow/providers/http/triggers/http.py::1
 providers/http/tests/unit/http/sensors/test_http.py::2
 providers/imap/src/airflow/providers/imap/hooks/imap.py::1
-providers/jdbc/src/airflow/providers/jdbc/hooks/jdbc.py::2
 providers/jenkins/src/airflow/providers/jenkins/operators/jenkins_job_trigger.py::4
 providers/jenkins/src/airflow/providers/jenkins/sensors/jenkins.py::1
 providers/keycloak/src/airflow/providers/keycloak/auth_manager/keycloak_auth_manager.py::4

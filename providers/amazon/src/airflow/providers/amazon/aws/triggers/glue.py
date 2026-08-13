@@ -144,7 +144,8 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                     )
                     return
 
-                if job_run_state in ("FAILED", "TIMEOUT"):
+                # STOPPED means the run was cancelled before it produced its output, not that it succeeded.
+                if job_run_state in ("FAILED", "TIMEOUT", "STOPPED"):
                     yield TriggerEvent(
                         {
                             "status": "error",
@@ -154,7 +155,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                         }
                     )
                     return
-                if job_run_state in ("SUCCEEDED", "STOPPED"):
+                if job_run_state == "SUCCEEDED":
                     self.log.info(
                         "Exiting Job %s Run %s State: %s",
                         self.job_name,

@@ -22,12 +22,13 @@ import datetime
 from argparse import BooleanOptionalAction
 from pathlib import Path
 from textwrap import dedent
+from unittest import mock
 
 import httpx
 import pytest
 
 from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
-from airflowctl.api.operations import ServerResponseError
+from airflowctl.api.operations import DagRunOperations, ServerResponseError
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
     ActionCommand,
@@ -916,3 +917,51 @@ class TestCliConfigMethods:
         start_date_arg = next(a for a in dagrun_list_args if a.flags == ("--start-date",))
 
         assert start_date_arg.kwargs["type"]("2026-07-01") == datetime.datetime(2026, 7, 1)
+
+    @staticmethod
+    def _call_generated_command(monkeypatch, operations_class, method_name: str, **parsed_args):
+        """Run the auto-generated command for ``operations_class.method_name`` and return its call kwargs."""
+        monkeypatch.setattr("airflowctl.ctl.cli_config.AirflowConsole.print_as", lambda *_, **__: None)
+
+        command_factory = CommandFactory()
+        command_factory._inspect_operations()
+        operation = next(
+            op
+            for op in command_factory.operations
+            if op["name"] == method_name and op["parent"].name == operations_class.__name__
+        )
+        command_factory.operations = [operation]
+        command_factory._create_func_map_from_operation()
+
+        namespace = argparse.Namespace(
+            output="json",
+            **{key: parsed_args.get(key) for parameter in operation["parameters"] for key in parameter},
+        )
+        with mock.patch.object(operations_class, method_name, autospec=True) as mocked_method:
+            command_factory.func_map[(method_name, operations_class.__name__)](
+                namespace, api_client=mock.MagicMock()
+            )
+        return mocked_method.call_args.kwargs
+
+    @pytest.mark.parametrize(
+        ("parsed_limit", "limit_is_forwarded"),
+        [
+            pytest.param(None, False, id="omitted-flag-keeps-signature-default"),
+            pytest.param(25, True, id="explicit-flag-overrides-signature-default"),
+        ],
+    )
+    def test_primitive_param_with_non_none_default_is_not_clobbered(
+        self, monkeypatch, parsed_limit, limit_is_forwarded
+    ):
+        """``DagRunOperations.list`` declares ``limit: int = 100``; argparse's None must not override it."""
+        call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list", limit=parsed_limit)
+
+        assert ("limit" in call_kwargs) is limit_is_forwarded
+        if limit_is_forwarded:
+            assert call_kwargs["limit"] == parsed_limit
+
+    def test_primitive_param_defaulting_to_none_is_still_forwarded(self, monkeypatch):
+        """Only a non-None signature default is worth protecting, so ``state: str | None = None`` still goes through."""
+        call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
+
+        assert call_kwargs["state"] is None
