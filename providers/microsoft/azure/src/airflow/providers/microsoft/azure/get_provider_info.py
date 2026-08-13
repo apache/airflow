@@ -991,7 +991,17 @@ def get_provider_info():
                     },
                     "placeholders": {"host": "eastus.asazure.windows.net"},
                 },
-                "conn-fields": {"tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}}},
+                "conn-fields": {
+                    "tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],

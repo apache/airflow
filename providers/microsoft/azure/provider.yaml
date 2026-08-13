@@ -1015,6 +1015,14 @@ connection-types:
         label: Tenant ID
         schema:
           type: ["string", "null"]
+      managed_identity_client_id:
+        label: Managed Identity Client ID
+        schema:
+          type: ["string", "null"]
+      workload_identity_tenant_id:
+        label: Workload Identity Tenant ID
+        schema:
+          type: ["string", "null"]
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
