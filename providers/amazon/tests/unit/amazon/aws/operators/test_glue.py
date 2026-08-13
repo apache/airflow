@@ -249,6 +249,113 @@ class TestGlueJobOperator:
 
         assert defer.value.trigger.run_id == JOB_RUN_ID
 
+    def test_task_uuid_scan_paginates_until_match(self):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        task_uuid = "test-task-uuid"
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = [
+            {"JobRuns": [], "NextToken": "next-page"},
+            {
+                "JobRuns": [
+                    {
+                        "Id": JOB_RUN_ID,
+                        "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                        "JobRunState": "RUNNING",
+                    }
+                ]
+            },
+        ]
+
+        assert glue._find_job_run_id_by_task_uuid(task_uuid) == (JOB_RUN_ID, "RUNNING")
+        assert glue.hook.conn.get_job_runs.call_args_list == [
+            mock.call(JobName=JOB_NAME, MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE),
+            mock.call(
+                JobName=JOB_NAME,
+                MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE,
+                NextToken="next-page",
+            ),
+        ]
+
+    def test_task_uuid_scan_stops_after_page_limit(self):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {"JobRuns": [], "NextToken": "next-page"}
+
+        with mock.patch.object(glue.log, "info") as mock_log_info:
+            assert glue._find_job_run_id_by_task_uuid("missing-task-uuid") is None
+
+        assert glue.hook.conn.get_job_runs.call_count == GlueJobOperator.TASK_UUID_SCAN_MAX_PAGES
+        mock_log_info.assert_called_once_with(
+            "Stopped scanning Glue job runs for task UUID after %s pages without a match",
+            GlueJobOperator.TASK_UUID_SCAN_MAX_PAGES,
+        )
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_submits_fresh_when_task_uuid_scan_client_error(
+        self, mock_get_conn, mock_initialize_job
+    ):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = None
+        mock_initialize_job.return_value = {"JobRunId": JOB_RUN_ID}
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "slow down"}}, "GetJobRuns"
+        )
+
+        with mock.patch.object(glue.log, "exception") as mock_log_exception:
+            with pytest.raises(TaskDeferred) as defer:
+                glue.execute({"ti": mock_ti})
+
+        assert defer.value.trigger.run_id == JOB_RUN_ID
+        mock_initialize_job.assert_called_once()
+        mock_log_exception.assert_called_once_with(
+            "Failed to find previous Glue job run by task UUID; submitting a fresh Glue job run"
+        )
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_does_not_swallow_task_uuid_scan_bug(self, mock_get_conn, mock_initialize_job):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = None
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = RuntimeError("scan bug")
+
+        with pytest.raises(RuntimeError, match="scan bug"):
+            glue.execute({"ti": mock_ti})
+
+        mock_initialize_job.assert_not_called()
+
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
         reason="task_state_store only exists as an execute() context key on Airflow 3.3+",
