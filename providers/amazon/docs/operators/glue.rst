@@ -180,19 +180,20 @@ never polls at all, a retry after a successful submission still reconnects rathe
 resubmitting, since the run id is persisted immediately after submission regardless of whether the
 task waits for it to finish.
 
-Durable execution requires Airflow 3.3 or newer for the task state store lookup above. On earlier
-Airflow versions, or if a prior run was never recorded to the task state store, ``durable=True``
-still recovers a prior run via an older mechanism: the operator checks XCom for a cached run id
-first, then falls back to scanning the job's run history for a run tagged with this task
-instance's identity, and reconnects if it finds one that is still active. The XCom check only
-ever succeeds on Airflow 2.x -- every Airflow 3 release clears task XComs before each
-non-deferral attempt, so on Airflow 3.0-3.2 every retry pays the full scan.
+Durable execution requires Airflow 3.3 or newer for the task state store lookup above. Below
+3.3, ``durable`` has no effect: setting it explicitly only emits a warning, and its value is
+ignored either way. The deprecated ``resume_glue_job_on_retry`` parameter is the only way to opt
+into crash recovery there, and it still works via an older mechanism: the operator checks XCom
+for a cached run id first, then falls back to scanning the job's run history for a run tagged
+with this task instance's identity, and reconnects if it finds one that is still active. The
+XCom check only ever succeeds on Airflow 2.x -- every Airflow 3 release clears task XComs before
+each non-deferral attempt, so on Airflow 3.0-3.2 every retry pays the full scan.
 
-That older mechanism only activates on Airflow below 3.3 when ``durable`` is set explicitly --
-either directly or via ``resume_glue_job_on_retry``. Upgrading the provider alone, with no DAG
-change, does not turn it on: ``durable`` still defaults to ``False`` in that case, matching the
-provider's behavior before this feature existed. On Airflow 3.3+, the default is ``True`` as
-described above, since the task state store makes it cheap.
+That older mechanism only activates below 3.3 when ``resume_glue_job_on_retry=True`` is set
+explicitly -- ``durable=True`` does not turn it on there. Upgrading the provider alone, with no
+DAG change, does not turn it on either: below 3.3, behavior is unchanged from before this feature
+existed unless ``resume_glue_job_on_retry`` is set. On Airflow 3.3+, ``durable`` defaults to
+``True`` as described above, since the task state store makes it cheap.
 
 Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
 when someone runs ``airflow state-store clean`` or ``airflow db clean`` (which also targets the
@@ -223,13 +224,16 @@ The task state store lookup above is only used on the synchronous path -- when `
 is set, the Triggerer already tracks the run across the wait, so a run id is never persisted there.
 ``durable`` still has an effect on retry, though: a retry of a deferrable task would otherwise
 resubmit, and with ``concurrent_run_limit=1`` that fails with ``ConcurrentRunsExceededException``
-against the run it can't see. To avoid that, ``durable=True`` tags the job's arguments with this
-task instance's identity on every attempt and, on retry, scans the job's run history for that tag
-before submitting -- the same mechanism used as a fallback on the synchronous path.
+against the run it can't see. To avoid that, ``durable=True`` (or, below Airflow 3.3,
+``resume_glue_job_on_retry=True``) tags the job's arguments with this task instance's identity on
+every attempt and, on retry, scans the job's run history for that tag before submitting -- the
+same mechanism used as a fallback on the synchronous path.
 
-``durable`` supersedes the deprecated ``resume_glue_job_on_retry`` parameter. Passing
-``resume_glue_job_on_retry`` still works and maps its value onto ``durable``, but emits an
-``AirflowProviderDeprecationWarning``.
+``durable`` supersedes the deprecated ``resume_glue_job_on_retry`` parameter on Airflow 3.3+,
+where passing ``resume_glue_job_on_retry`` still works and maps its value onto ``durable``. Below
+3.3, ``resume_glue_job_on_retry`` remains the only working option, since ``durable`` is a no-op
+there. Either way, passing it emits an ``AirflowProviderDeprecationWarning``, since the parameter
+will be removed once this provider's minimum supported Airflow version reaches 3.3.
 
 .. _howto/operator:GlueDataQualityOperator:
 

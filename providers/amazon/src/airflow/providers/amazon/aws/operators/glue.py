@@ -218,10 +218,14 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         **kwargs,
     ):
         if resume_glue_job_on_retry is not None:
-            # Kept as a real named parameter (not **kwargs) so `default_args` still applies correctly.
             warnings.warn(
-                "`resume_glue_job_on_retry` is deprecated and will be removed in a future release. "
-                "Use `durable` instead.",
+                "`resume_glue_job_on_retry` is deprecated and will be removed once this provider's "
+                "minimum supported Airflow version reaches 3.3. "
+                + (
+                    "Use `durable` instead."
+                    if AIRFLOW_V_3_3_PLUS
+                    else "On Airflow 3.3+, use `durable` instead."
+                ),
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

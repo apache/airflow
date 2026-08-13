@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import warnings
 from collections.abc import Generator
 from datetime import datetime
@@ -55,6 +56,13 @@ TASK_ID = "test_glue_operator"
 DAG_ID = "test_dag_id"
 JOB_NAME = "test_job_name/with_slash"
 JOB_RUN_ID = "11111"
+
+_DEPRECATION_MESSAGE_PREFIX = (
+    "`resume_glue_job_on_retry` is deprecated and will be removed once this provider's "
+    "minimum supported Airflow version reaches 3.3. "
+)
+DEPRECATION_MESSAGE_PRE_3_3 = _DEPRECATION_MESSAGE_PREFIX + "On Airflow 3.3+, use `durable` instead."
+DEPRECATION_MESSAGE_3_3_PLUS = _DEPRECATION_MESSAGE_PREFIX + "Use `durable` instead."
 
 
 class TestGlueJobOperator:
@@ -179,12 +187,16 @@ class TestGlueJobOperator:
     def test_deferrable_first_attempt_injects_task_uuid_but_skips_scan(
         self, mock_get_conn, mock_initialize_job, mock_conn
     ):
-        glue = GlueJobOperator(
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            deferrable=True,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
         mock_ti = mock.MagicMock()
         mock_ti.try_number = 1
@@ -199,12 +211,16 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_deferrable_retry_reattaches_via_task_uuid_scan(self, mock_get_conn, mock_initialize_job):
-        glue = GlueJobOperator(
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            deferrable=True,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
         mock_ti = mock.MagicMock()
         mock_ti.dag_id = "test_dag_id"
         mock_ti.task_id = TASK_ID
@@ -230,10 +246,17 @@ class TestGlueJobOperator:
 
         assert defer.value.trigger.run_id == JOB_RUN_ID
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="task_state_store only exists as an execute() context key on Airflow 3.3+",
+    )
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
-    def test_deferrable_retry_reattaches_even_if_store_read_errors(self, mock_get_conn, mock_initialize_job):
+    def test_deferrable_retry_reattaches_via_fallback_when_task_store_errors(
+        self, mock_get_conn, mock_initialize_job
+    ):
         glue = GlueJobOperator(
+            durable=True,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -881,19 +904,30 @@ class TestWarnAndDisableDurableAirflowPre3_3:
 
 class TestGlueJobOperatorDeprecation:
     @pytest.mark.parametrize("resume_value", [True, False])
-    def test_warns_and_maps_to_durable(self, resume_value):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="resume_glue_job_on_retry"):
+    def test_warns_and_maps_to_durable_old_flag(self, resume_value):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
             glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=resume_value)
         assert glue.durable is resume_value
 
     def test_warns_on_every_supported_airflow_version(self):
-        # Provider deprecations are scoped to the provider's own release, not the Airflow version.
         with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
-            with pytest.warns(AirflowProviderDeprecationWarning, match="resume_glue_job_on_retry"):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
                 GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=True)
 
+    def test_warning_message_recommends_durable_directly_on_3_3_plus(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
+            GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=True)
+
     def test_both_flags_passed_durable_takes_precedence(self):
-        with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
             glue = GlueJobOperator(
                 task_id=TASK_ID,
                 job_name=JOB_NAME,
@@ -914,7 +948,9 @@ class TestGlueJobOperatorDeprecation:
 
     def test_legacy_flag_wins_over_conflicting_durable_below_3_3(self):
         with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
-            with pytest.warns(AirflowProviderDeprecationWarning):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
                 glue = GlueJobOperator(
                     task_id=TASK_ID,
                     job_name=JOB_NAME,
@@ -1002,6 +1038,27 @@ class TestGlueJobOperatorDurableExecution:
         mock_initialize_job.assert_not_called()
         mock_job_completion.assert_called_once_with(JOB_NAME, "jr_old", False, 0)
         context["ti"].xcom_push.assert_any_call(key="glue_job_run_id", value="jr_old")
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_legacy_flag_still_warns_and_reconnects_like_durable(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion
+    ):
+        """resume_glue_job_on_retry warns on 3.3+, but durable execution behaves identically to durable=True."""
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
+            glue = self._build(resume_glue_job_on_retry=True)
+        mock_get_job_state.return_value = "RUNNING"
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_old"
+        mock_initialize_job.assert_not_called()
 
     @pytest.mark.parametrize("status", ["STARTING", "RUNNING", "WAITING", "STOPPING"])
     @mock.patch.object(GlueJobHook, "job_completion")
