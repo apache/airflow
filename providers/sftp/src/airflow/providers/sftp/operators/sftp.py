@@ -28,8 +28,9 @@ from typing import Any
 
 import paramiko
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+from airflow.providers.sftp.triggers.sftp import SFTPTransferTrigger
 
 
 class SFTPOperation:
@@ -77,6 +78,12 @@ class SFTPOperator(BaseOperator):
     :param concurrency: Number of threads when transferring directories. Each thread opens a new SFTP connection.
         This parameter is used only when transferring directories, not individual files. (Default is 1)
     :param prefetch: controls whether prefetch is performed (default: True)
+    :param deferrable: If True, defer file get/put transfers to the Triggerer instead of
+        blocking a worker slot. Directory transfers, delete, and concurrency > 1 are not
+        supported and raise ``ValueError``. Local file paths are read and written on the
+        Triggerer host, so that host must be able to see the same local filesystem as the
+        worker. Defaults to the ``[operators] default_deferrable`` configuration
+        (False if unset).
 
     """
 
@@ -95,6 +102,7 @@ class SFTPOperator(BaseOperator):
         create_intermediate_dirs: bool = False,
         concurrency: int = 1,
         prefetch: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,6 +116,7 @@ class SFTPOperator(BaseOperator):
         self.remote_filepath = remote_filepath
         self.concurrency = concurrency
         self.prefetch = prefetch
+        self.deferrable = deferrable
 
     def execute(self, context: Any) -> str | list[str] | None:
         if self.local_filepath is None:
@@ -141,6 +150,20 @@ class SFTPOperator(BaseOperator):
 
         if self.concurrency < 1:
             raise ValueError(f"concurrency should be greater than 0, got {self.concurrency}")
+
+        if self.deferrable:
+            ssh_conn_id = self._raise_if_deferrable_unsupported(local_filepath_array)
+            self.defer(
+                trigger=SFTPTransferTrigger(
+                    ssh_conn_id=ssh_conn_id,
+                    local_filepath=self.local_filepath,
+                    remote_filepath=self.remote_filepath,
+                    operation=self.operation,
+                    create_intermediate_dirs=self.create_intermediate_dirs,
+                    remote_host=self.remote_host,
+                ),
+                method_name=self.execute_complete.__name__,
+            )
 
         file_msg = None
         try:
@@ -236,6 +259,34 @@ class SFTPOperator(BaseOperator):
         if exc.args and isinstance(exc.args[0], int) and exc.args[0] == errno.ENOENT:
             return True
         return False
+
+    def _resolve_ssh_conn_id(self) -> str | None:
+        if self.sftp_hook is not None and getattr(self.sftp_hook, "ssh_conn_id", None):
+            return self.sftp_hook.ssh_conn_id
+        return self.ssh_conn_id
+
+    def _raise_if_deferrable_unsupported(self, local_filepath_array: list[str]) -> str:
+        if self.operation.lower() == SFTPOperation.DELETE:
+            raise ValueError("deferrable mode does not support the delete operation")
+        if self.concurrency > 1:
+            raise ValueError("deferrable mode does not support concurrency greater than 1")
+        ssh_conn_id = self._resolve_ssh_conn_id()
+        if not ssh_conn_id:
+            raise ValueError("deferrable mode requires ssh_conn_id (a hook object cannot be serialized)")
+        if self.operation.lower() == SFTPOperation.PUT:
+            for local_path in local_filepath_array:
+                if os.path.isdir(local_path):
+                    raise ValueError("deferrable mode does not support directory transfers")
+        return ssh_conn_id
+
+    def execute_complete(self, context: Any, event: dict[str, Any] | None = None) -> str | list[str] | None:
+        """Resume after the transfer trigger fires; return immediately."""
+        if event is not None:
+            if event.get("status") == "error":
+                raise ValueError(event["message"])
+            if event.get("status") == "success":
+                return event.get("local_filepath", self.local_filepath)
+        raise ValueError("No event received in trigger callback")
 
     def get_openlineage_facets_on_start(self):
         """
