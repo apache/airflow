@@ -266,7 +266,9 @@ class TestGetRunJobs:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
         with patch.object(subprocess, "run", return_value=completed):
             jobs = durations_module.get_run_jobs("apache/airflow", 2)
-        assert jobs == {"Tests": {"duration": 20 * 60, "prepare_breeze_duration": 5 * 60}}
+        assert jobs == {
+            "Tests": {"duration": 20 * 60, "prepare_breeze_duration": 5 * 60, "image_work_duration": 5 * 60}
+        }
 
     def test_omits_prepare_breeze_duration_when_step_missing(self, durations_module):
         payload = json.dumps(
@@ -285,7 +287,9 @@ class TestGetRunJobs:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
         with patch.object(subprocess, "run", return_value=completed):
             jobs = durations_module.get_run_jobs("apache/airflow", 2)
-        assert jobs == {"Tests": {"duration": 20 * 60, "prepare_breeze_duration": None}}
+        assert jobs == {
+            "Tests": {"duration": 20 * 60, "prepare_breeze_duration": None, "image_work_duration": None}
+        }
 
     def test_keeps_longest_duplicate_job_name(self, durations_module):
         payload = json.dumps(
@@ -317,7 +321,9 @@ class TestGetRunJobs:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
         with patch.object(subprocess, "run", return_value=completed):
             jobs = durations_module.get_run_jobs("apache/airflow", 2)
-        assert jobs == {"Tests": {"duration": 20 * 60, "prepare_breeze_duration": 5 * 60}}
+        assert jobs == {
+            "Tests": {"duration": 20 * 60, "prepare_breeze_duration": 5 * 60, "image_work_duration": 5 * 60}
+        }
 
     def test_empty_on_command_failure(self, durations_module):
         completed = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="boom")
@@ -325,22 +331,79 @@ class TestGetRunJobs:
             assert durations_module.get_run_jobs("apache/airflow", 2) == {}
 
 
+class TestGetImageWorkSeconds:
+    def _job(self, *steps):
+        return {"steps": [{"name": n, "startedAt": s, "completedAt": c} for n, s, c in steps]}
+
+    def test_sums_every_image_step_of_a_cache_push_job(self, durations_module):
+        # The real shape of "Push CI Regular AMD:3.12 image cache": the build+push step and
+        # the cache push step both belong to the image, and neither is a "Prepare breeze" step.
+        job = self._job(
+            ("Install Breeze", "2026-08-13T04:47:45Z", "2026-08-13T04:48:05Z"),
+            (
+                "Push CI latest images: 3.12 (linux/amd64 only)",
+                "2026-08-13T04:48:05Z",
+                "2026-08-13T05:17:43Z",
+            ),
+            ("Push CI Regular AMD cache:3.12:linux/amd64", "2026-08-13T05:17:43Z", "2026-08-13T05:17:56Z"),
+        )
+        assert durations_module.get_image_work_seconds(job) == 29 * 60 + 38 + 13
+
+    def test_covers_prod_prepare_and_push_steps(self, durations_module):
+        job = self._job(
+            ("Prepare breeze & PROD image: 3.10", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
+            (
+                "Push PROD latest image: 3.10 (linux/amd64 ONLY)",
+                "2026-08-13T04:05:00Z",
+                "2026-08-13T04:15:00Z",
+            ),
+        )
+        assert durations_module.get_image_work_seconds(job) == 15 * 60
+
+    def test_none_when_the_job_touches_no_image(self, durations_module):
+        job = self._job(("Run unit tests", "2026-08-13T04:00:00Z", "2026-08-13T04:30:00Z"))
+        assert durations_module.get_image_work_seconds(job) is None
+
+    def test_ignores_steps_with_unusable_timestamps(self, durations_module):
+        job = self._job(
+            ("Prepare breeze & CI image: 3.10", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
+            ("Push CI latest images: 3.10 (linux/amd64 only)", "", ""),
+        )
+        assert durations_module.get_image_work_seconds(job) == 5 * 60
+
+
 class TestWorkDuration:
-    def test_subtracts_image_build(self, durations_module):
+    def test_subtracts_image_work(self, durations_module):
         assert (
-            durations_module.calculate_work_duration({"duration": 1200, "prepare_breeze_duration": 300})
+            durations_module.calculate_work_duration(
+                {"duration": 1200, "prepare_breeze_duration": 300, "image_work_duration": 300}
+            )
             == 900
         )
 
-    def test_full_duration_when_no_image_build_step(self, durations_module):
+    def test_subtracts_image_work_beyond_the_prepare_step(self, durations_module):
+        # A cache-push job: nothing was "prepared", but 25 of its 26 minutes were image work.
         assert (
-            durations_module.calculate_work_duration({"duration": 1200, "prepare_breeze_duration": None})
+            durations_module.calculate_work_duration(
+                {"duration": 1560, "prepare_breeze_duration": None, "image_work_duration": 1500}
+            )
+            == 60
+        )
+
+    def test_full_duration_when_no_image_step(self, durations_module):
+        assert (
+            durations_module.calculate_work_duration(
+                {"duration": 1200, "prepare_breeze_duration": None, "image_work_duration": None}
+            )
             == 1200
         )
 
     def test_never_negative(self, durations_module):
         assert (
-            durations_module.calculate_work_duration({"duration": 100, "prepare_breeze_duration": 300}) == 0
+            durations_module.calculate_work_duration(
+                {"duration": 100, "prepare_breeze_duration": 300, "image_work_duration": 300}
+            )
+            == 0
         )
 
 
@@ -372,15 +435,15 @@ class TestAnalyzeJobs:
         # slow-job work time (image build excluded): latest 2400 vs baseline 1500 -> +60%.
         jobs_by_run_id = {
             100: {
-                "slow-job": {"duration": 2700, "prepare_breeze_duration": 300},
-                "stable-job": {"duration": 600, "prepare_breeze_duration": None},
-                "new-job": {"duration": 999, "prepare_breeze_duration": 300},
+                "slow-job": {"duration": 2700, "prepare_breeze_duration": 300, "image_work_duration": 300},
+                "stable-job": {"duration": 600, "prepare_breeze_duration": None, "image_work_duration": None},
+                "new-job": {"duration": 999, "prepare_breeze_duration": 300, "image_work_duration": 300},
             }
         }
         for i in range(5):
             jobs_by_run_id[i] = {
-                "slow-job": {"duration": 1800, "prepare_breeze_duration": 300},
-                "stable-job": {"duration": 590, "prepare_breeze_duration": None},
+                "slow-job": {"duration": 1800, "prepare_breeze_duration": 300, "image_work_duration": 300},
+                "stable-job": {"duration": 590, "prepare_breeze_duration": None, "image_work_duration": None},
             }
 
         regressions = durations_module.analyze_jobs(
@@ -402,9 +465,13 @@ class TestAnalyzeJobs:
         latest_runs = [{"id": 100}]
         baseline_runs = [{"id": i} for i in range(5)]
         # latest total 1500 = +150% vs baseline 600, but work time (300) is unchanged.
-        jobs_by_run_id = {100: {"job": {"duration": 1500, "prepare_breeze_duration": 1200}}}
+        jobs_by_run_id = {
+            100: {"job": {"duration": 1500, "prepare_breeze_duration": 1200, "image_work_duration": 1200}}
+        }
         for i in range(5):
-            jobs_by_run_id[i] = {"job": {"duration": 600, "prepare_breeze_duration": 300}}
+            jobs_by_run_id[i] = {
+                "job": {"duration": 600, "prepare_breeze_duration": 300, "image_work_duration": 300}
+            }
 
         regressions = durations_module.analyze_jobs(
             jobs_by_run_id,
@@ -413,6 +480,43 @@ class TestAnalyzeJobs:
             min_baseline_runs=5,
             rel_threshold=0.25,
             min_abs_increase_seconds=60,
+        )
+        assert regressions == []
+
+    def test_cache_push_job_is_not_flagged_when_only_the_image_rebuild_grew(self, durations_module):
+        """The image-cache push jobs have no prepare-breeze step - their build+push is the image.
+
+        Modelled on the 2026-08-13 canary: an apt package added to an early image layer
+        invalidated every layer after it, so the build+push step went 11m -> 30m while the
+        job did no more work than usual.
+        """
+        latest_runs = [{"id": 100}]
+        baseline_runs = [{"id": i} for i in range(5)]
+        jobs_by_run_id = {
+            100: {
+                "Push CI Regular AMD:3.12 image cache": {
+                    "duration": 1860,
+                    "prepare_breeze_duration": None,
+                    "image_work_duration": 1791,
+                }
+            }
+        }
+        for i in range(5):
+            jobs_by_run_id[i] = {
+                "Push CI Regular AMD:3.12 image cache": {
+                    "duration": 690,
+                    "prepare_breeze_duration": None,
+                    "image_work_duration": 621,
+                }
+            }
+
+        regressions = durations_module.analyze_jobs(
+            jobs_by_run_id,
+            latest_runs,
+            baseline_runs,
+            min_baseline_runs=5,
+            rel_threshold=0.25,
+            min_abs_increase_seconds=360,
         )
         assert regressions == []
 
@@ -426,7 +530,11 @@ class TestDetectImageBuildRegression:
         for run_id, created_at, image_seconds in specs:
             runs.append({"id": run_id, "created_at": created_at})
             jobs_by_run_id[run_id] = {
-                "job": {"duration": image_seconds, "prepare_breeze_duration": image_seconds}
+                "job": {
+                    "duration": image_seconds,
+                    "prepare_breeze_duration": image_seconds,
+                    "image_work_duration": image_seconds,
+                }
             }
         return runs, jobs_by_run_id
 
