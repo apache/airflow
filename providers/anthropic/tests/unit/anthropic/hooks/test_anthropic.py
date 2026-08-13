@@ -25,6 +25,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicAgentSessionTimeout,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicSessionBudgetExceeded,
     AnthropicTriggerEventError,
 )
 from airflow.providers.anthropic.hooks.anthropic import (
@@ -32,7 +33,9 @@ from airflow.providers.anthropic.hooks.anthropic import (
     MAX_CONSECUTIVE_POLL_FAILURES,
     AnthropicHook,
     BatchStatus,
+    SessionPollResult,
     SessionStatus,
+    _create_session_error,
     evaluate_session_state,
     validate_execute_complete_event,
 )
@@ -40,6 +43,9 @@ from airflow.providers.anthropic.hooks.anthropic import (
 pytest.importorskip("anthropic")
 
 HOOK_PATH = "airflow.providers.anthropic.hooks.anthropic"
+# One id for both the mocked session object and the id passed to the hook, so an assertion
+# on a message that interpolates the session id cannot pass against the wrong one.
+SESSION_ID = "sess_1"
 
 
 def _conn(password="sk-ant-test", host=None, extra=None):
@@ -108,7 +114,7 @@ class TestValidateTriggerEvent:
 def _session(status, outcome_results=None):
     s = mock.MagicMock()
     s.status = status
-    s.id = "sess_1"
+    s.id = SESSION_ID
     s.outcome_evaluations = [mock.MagicMock(result=r) for r in (outcome_results or [])]
     return s
 
@@ -156,38 +162,79 @@ class TestPollSessionCompletion:
     def test_terminated_is_error(self):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("terminated")
-        done, err = hook.poll_session_completion("s")
-        assert done is True
-        assert err is not None
+        poll_result = hook.poll_session_completion(SESSION_ID)
+        assert poll_result.done is True
+        assert poll_result.error_message is not None
+        assert poll_result.stop_reason is None
 
     def test_message_end_turn_success(self):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle")
         client.beta.sessions.events.list.return_value = [_idle_event("end_turn")]
-        assert hook.poll_session_completion("s", kickoff_event_id="evt_kick") == (True, None)
+        assert hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick") == SessionPollResult(
+            done=True, error_message=None, stop_reason="end_turn"
+        )
 
     @pytest.mark.parametrize("reason", ["requires_action", "retries_exhausted"])
     def test_message_blocked_is_error(self, reason):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle")
         client.beta.sessions.events.list.return_value = [_idle_event(reason)]
-        done, err = hook.poll_session_completion("s", kickoff_event_id="evt_kick")
-        assert done is True
-        assert err is not None
-        assert reason in err
+        poll_result = hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick")
+        assert poll_result == SessionPollResult(done=True, error_message=mock.ANY, stop_reason=reason)
+        assert reason in poll_result.error_message
 
     def test_message_no_response_yet_not_done(self):
         # newest event is our kickoff (agent hasn't responded) -> keep waiting (start race)
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle")
-        client.beta.sessions.events.list.return_value = [mock.MagicMock(type="user.message", id="evt_kick")]
-        assert hook.poll_session_completion("s", kickoff_event_id="evt_kick") == (False, None)
+        # Stub event: the SDK's event models are a discriminated union, so there is no single
+        # class to spec against -- only ``type`` and ``id`` are read by the code under test.
+        kickoff = mock.MagicMock(type="user.message", id="evt_kick")  # noqa: spec
+        client.beta.sessions.events.list.return_value = [kickoff]
+        assert hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick") == SessionPollResult(
+            done=False, error_message=None, stop_reason=None
+        )
 
     def test_outcome_satisfied_skips_event_check(self):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle", ["satisfied"])
-        assert hook.poll_session_completion("s", expect_outcome=True) == (True, None)
+        assert hook.poll_session_completion(SESSION_ID, expect_outcome=True) == SessionPollResult(
+            done=True, error_message=None, stop_reason=None
+        )
         client.beta.sessions.events.list.assert_not_called()
+
+    def test_budget_reached_names_both_causes(self):
+        # A budget stop must not be reported as "configure an autonomous agent": that advice
+        # is wrong, and the no-list-price cause is invisible without being named.
+        hook, client = _make_hook()
+        client.beta.sessions.retrieve.return_value = _session("idle")
+        client.beta.sessions.events.list.return_value = [_idle_event("budget_reached")]
+        poll_result = hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick")
+        assert poll_result == SessionPollResult(
+            done=True, error_message=mock.ANY, stop_reason="budget_reached"
+        )
+        for named_cause in ("budget", "no list price"):
+            assert named_cause in poll_result.error_message
+        # The inverse matters just as much: the generic advice must not appear here.
+        assert "autonomous agent" not in poll_result.error_message
+
+
+class TestCreateSessionError:
+    def test_budget_reached_maps_to_budget_exception(self):
+        err = _create_session_error("over budget", "budget_reached")
+        assert isinstance(err, AnthropicSessionBudgetExceeded)
+        assert str(err) == "over budget"
+
+    @pytest.mark.parametrize("stop_reason", [None, "requires_action", "retries_exhausted", "end_turn"])
+    def test_other_reasons_map_to_generic_session_error(self, stop_reason):
+        err = _create_session_error("boom", stop_reason)
+        assert isinstance(err, AnthropicAgentSessionError)
+        assert not isinstance(err, AnthropicSessionBudgetExceeded)
+
+    def test_budget_exception_is_catchable_as_session_error(self):
+        # Existing `except AnthropicAgentSessionError` handlers must keep catching it.
+        assert isinstance(_create_session_error("over budget", "budget_reached"), AnthropicAgentSessionError)
 
 
 class TestDefaultModel:
@@ -304,7 +351,10 @@ class TestWaitForSession:
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_returns_when_done(self, mock_get_connection, mock_poll, mock_sleep):
         mock_get_connection.return_value = _conn()
-        mock_poll.side_effect = [(False, None), (True, None)]
+        mock_poll.side_effect = [
+            SessionPollResult(done=False, error_message=None, stop_reason=None),
+            SessionPollResult(done=True, error_message=None, stop_reason="end_turn"),
+        ]
         AnthropicHook().wait_for_session("sess_1", poll_interval=0.01)
         assert mock_poll.call_count == 2
 
@@ -314,7 +364,7 @@ class TestWaitForSession:
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_raises_on_timeout(self, mock_get_connection, mock_poll, mock_sleep, mock_monotonic):
         mock_get_connection.return_value = _conn()
-        mock_poll.return_value = (False, None)
+        mock_poll.return_value = SessionPollResult(done=False, error_message=None, stop_reason=None)
         mock_monotonic.side_effect = [0, 100]
         with pytest.raises(AnthropicAgentSessionTimeout, match="did not reach a terminal status"):
             AnthropicHook().wait_for_session("sess_1", poll_interval=0.01, timeout=10)
@@ -324,9 +374,24 @@ class TestWaitForSession:
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_failure_raises(self, mock_get_connection, mock_poll, mock_sleep):
         mock_get_connection.return_value = _conn()
-        mock_poll.return_value = (True, "Outcome not satisfied for session sess_1: failed.")
+        mock_poll.return_value = SessionPollResult(
+            done=True, error_message="Outcome not satisfied for session sess_1: failed.", stop_reason=None
+        )
         with pytest.raises(AnthropicAgentSessionError, match="not satisfied"):
             AnthropicHook().wait_for_session("sess_1", expect_outcome=True, poll_interval=0.01)
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    @mock.patch.object(AnthropicHook, "poll_session_completion", autospec=True)
+    @mock.patch.object(AnthropicHook, "get_connection", autospec=True)
+    def test_budget_stop_raises_budget_exception(self, mock_get_connection, mock_poll, mock_sleep):
+        mock_get_connection.return_value = _conn()
+        mock_poll.return_value = SessionPollResult(
+            done=True,
+            error_message="Session sess_1 stopped against its budget.",
+            stop_reason="budget_reached",
+        )
+        with pytest.raises(AnthropicSessionBudgetExceeded, match="budget"):
+            AnthropicHook().wait_for_session("sess_1", poll_interval=0.01)
 
 
 class TestAnthropicHookGetConn:

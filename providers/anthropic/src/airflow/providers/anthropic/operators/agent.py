@@ -22,8 +22,12 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.anthropic.exceptions import AnthropicAgentSessionError, AnthropicAgentSessionTimeout
-from airflow.providers.anthropic.hooks.anthropic import AnthropicHook, validate_execute_complete_event
+from airflow.providers.anthropic.exceptions import AnthropicAgentSessionTimeout
+from airflow.providers.anthropic.hooks.anthropic import (
+    AnthropicHook,
+    _create_session_error,
+    validate_execute_complete_event,
+)
 from airflow.providers.anthropic.triggers.agent import AnthropicAgentSessionTrigger
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
@@ -49,9 +53,9 @@ class AnthropicAgentSessionOperator(BaseOperator):
         Completion is detected accurately for both modes. A ``message`` run reads the
         terminal ``session.status_idle`` event's ``stop_reason`` (correlated against the
         kickoff event to avoid a start-race false positive): ``end_turn`` succeeds, while
-        ``requires_action`` (the agent is blocked on input) and ``retries_exhausted``
-        raise an error rather than silently passing. An ``outcome`` run is judged from the
-        session's ``outcome_evaluations`` verdict (``satisfied`` vs.
+        ``requires_action`` (the agent is blocked on input), ``retries_exhausted`` and
+        ``budget_reached`` raise an error rather than silently passing. An ``outcome`` run
+        is judged from the session's ``outcome_evaluations`` verdict (``satisfied`` vs.
         ``failed``/``max_iterations_reached``/``interrupted``).
 
         Agents and environments are created once (see
@@ -81,7 +85,14 @@ class AnthropicAgentSessionOperator(BaseOperator):
     :param session_resources: Session resources (files, GitHub repos, memory stores). Named
         ``session_resources`` to avoid colliding with the reserved ``BaseOperator.resources``;
         forwarded to ``sessions.create`` as ``resources``.
-    :param session_kwargs: Extra keyword arguments forwarded to ``sessions.create``.
+    :param session_kwargs: Extra keyword arguments forwarded to ``sessions.create``, such as
+        ``budget`` (a spend ceiling for the session). A session that stops against its
+        budget raises
+        :class:`~airflow.providers.anthropic.exceptions.AnthropicSessionBudgetExceeded`.
+        The ceiling is a stop trigger rather than a cap -- it is checked between model
+        requests, so an in-flight request can carry the session past it. Airflow
+        ``retries`` also each start a new session with a fresh budget, so prefer
+        ``retries=0`` when a budget is set.
     """
 
     template_fields: Sequence[str] = ("agent_id", "environment_id", "message", "outcome")
@@ -202,7 +213,7 @@ class AnthropicAgentSessionOperator(BaseOperator):
             # The trigger yields "error" when polling gives up while the session may still
             # be running; archive it best-effort so its container does not linger.
             self._archive_session(self.session_id)
-            raise AnthropicAgentSessionError(event["message"])
+            raise _create_session_error(event["message"], event.get("stop_reason"))
         self.log.info("Session %s completed.", self.session_id)
         return self.session_id
 
