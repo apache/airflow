@@ -40,9 +40,7 @@ export const FieldPassword = ({ name, namespace = "default", onUpdate }: Flexibl
 
   return (
     <InputGroup
-      endElement={
-        <PasswordToggle isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />
-      }
+      endElement={<PasswordToggle isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
     >
       <Input
         autoComplete="new-password"
