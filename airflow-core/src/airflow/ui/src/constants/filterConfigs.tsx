@@ -27,10 +27,15 @@ import {
   MdHistory,
   MdHourglassEmpty,
   MdCode,
+  MdLabel,
+  MdPause,
+  MdPendingActions,
   MdPlayArrow,
   MdCheckCircle,
   MdBuild,
   MdComputer,
+  MdSchedule,
+  MdStar,
 } from "react-icons/md";
 import { PiQueue } from "react-icons/pi";
 
@@ -39,6 +44,8 @@ import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/request
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
+import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
+import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import {
@@ -53,19 +60,39 @@ import { useConfig } from "src/queries/useConfig";
 import { SearchParamsKeys } from "./searchParams";
 
 export enum FilterTypes {
+  BOOLEAN = "boolean",
   DATE = "date",
   DATERANGE = "daterange",
+  MULTISELECT = "multiselect",
   NUMBER = "number",
   SELECT = "select",
   TEXT = "text",
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["assets", "browse", "common", "components", "admin", "hitl"]);
+  const { t: translate } = useTranslation([
+    "assets",
+    "browse",
+    "common",
+    "components",
+    "admin",
+    "dags",
+    "hitl",
+  ]);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const { data: teamsData } = useTeamsServiceListTeams({ orderBy: ["name"] }, undefined, {
     enabled: multiTeamEnabled,
   });
+
+  const runStateOptions = dagRunStateOptions.items.map((option) => ({
+    label:
+      option.value === "all" ? (
+        translate(option.label)
+      ) : (
+        <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
+      ),
+    value: option.value === "all" ? "" : option.value,
+  }));
 
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
@@ -128,6 +155,12 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.DAG_RUN_STATE]: {
+      icon: <MdCheckCircle />,
+      label: translate("dags:filters.anyRunState"),
+      options: runStateOptions,
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.DAG_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdHistory />,
@@ -179,6 +212,15 @@ export const useFilterConfigs = () => {
       label: translate("admin:jobs.columns.executorClass"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.FAVORITE]: {
+      icon: <MdStar />,
+      label: translate("dags:filters.favoriteState"),
+      options: [
+        { label: translate("dags:filters.favorite.favorite"), value: "true" },
+        { label: translate("dags:filters.favorite.unfavorite"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.GROUP_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiDatabase />,
@@ -224,6 +266,12 @@ export const useFilterConfigs = () => {
       startKey: SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE,
       type: FilterTypes.DATERANGE,
     },
+    [SearchParamsKeys.LAST_DAG_RUN_STATE]: {
+      icon: <MdCheckCircle />,
+      label: translate("dags:filters.lastRunState"),
+      options: runStateOptions,
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
       endKey: SearchParamsKeys.LOGICAL_DATE_LTE,
       icon: <MdDateRange />,
@@ -254,6 +302,11 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.NEEDS_REVIEW]: {
+      icon: <MdPendingActions />,
+      label: translate("dags:filters.requiresHitlAction"),
+      type: FilterTypes.BOOLEAN,
+    },
     [SearchParamsKeys.OPERATOR_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <MdBuild />,
@@ -261,12 +314,32 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.OWNERS]: {
+      icon: <FiUser />,
+      isCreatable: true,
+      label: translate("common:dagDetails.owner"),
+      options: [],
+      placeholder: translate("common:table.ownerPlaceholder"),
+      type: FilterTypes.MULTISELECT,
+    },
     [SearchParamsKeys.PARTITION_KEY_PATTERN]: {
       hotkeyDisabled: true,
       icon: <MdSearch />,
       label: translate("common:dagRun.partitionKey"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.PAUSED]: {
+      icon: <MdPause />,
+      label: translate("dags:filters.pausedState"),
+      options: [
+        // Literal "all" rather than the usual "": an empty value is deleted from the URL,
+        // which would let the hide_paused_dags_by_default seeding immediately re-apply.
+        { label: translate("dags:filters.paused.all"), value: "all" },
+        { label: translate("dags:filters.paused.active"), value: "false" },
+        { label: translate("dags:filters.paused.paused"), value: "true" },
+      ],
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {
       hotkeyDisabled: true,
@@ -359,21 +432,21 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.STATE]: {
       icon: <MdCheckCircle />,
       label: translate("common:state"),
-      options: dagRunStateOptions.items.map((option) => ({
-        label:
-          option.value === "all" ? (
-            translate(option.label)
-          ) : (
-            <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
-          ),
-        value: option.value === "all" ? "" : option.value,
-      })),
+      options: runStateOptions,
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.SUBJECT_SEARCH]: {
       icon: <MdSearch />,
       label: translate("hitl:subject"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.TAGS]: {
+      EditorComponent: TagsFilter,
+      icon: <MdLabel />,
+      label: translate("common:dagDetails.tags"),
+      matchModeKey: SearchParamsKeys.TAGS_MATCH_MODE,
+      placeholder: translate("common:table.tagPlaceholder"),
+      type: FilterTypes.MULTISELECT,
     },
     [SearchParamsKeys.TASK_ID]: {
       hotkeyDisabled: true,
@@ -406,11 +479,14 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.TEAMS]: {
       icon: <FiUsers />,
       label: translate("common:dagDetails.team"),
-      options: [
-        { label: translate("common:allTeams"), value: "" },
-        ...(teamsData?.teams ?? []).map((team) => ({ label: team.name, value: team.name })),
-      ],
-      type: FilterTypes.SELECT,
+      options: (teamsData?.teams ?? []).map((team) => ({ label: team.name, value: team.name })),
+      type: FilterTypes.MULTISELECT,
+    },
+    [SearchParamsKeys.TIMETABLE_TYPE]: {
+      EditorComponent: TimetableTypeFilter,
+      icon: <MdSchedule />,
+      label: translate("dags:filters.timetableType"),
+      type: FilterTypes.MULTISELECT,
     },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,

@@ -94,12 +94,16 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             onValueChange={handleValueChange}
             value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
           >
-            <Select.Trigger dataTestId="select-filter-trigger" triggerProps={{ border: "none" }}>
+            <Select.Trigger dataTestId={`${filter.config.key}-filter`} triggerProps={{ border: "none" }}>
               <Select.ValueText placeholder={filter.config.placeholder} />
             </Select.Trigger>
             <Select.Content>
               {config.options.map((option) => (
-                <Select.Item item={option} key={option.value}>
+                <Select.Item
+                  data-testid={`${filter.config.key}-filter-${option.value === "" ? "all" : option.value}`}
+                  item={option}
+                  key={option.value}
+                >
                   {option.label}
                 </Select.Item>
               ))}

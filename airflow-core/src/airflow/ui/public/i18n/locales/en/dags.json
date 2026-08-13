@@ -16,6 +16,7 @@
       "favorite": "Favorite",
       "unfavorite": "Unfavorite"
     },
+    "favoriteState": "Favorite state",
     "lastRunState": "Last run",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
@@ -23,6 +24,8 @@
       "all": "All",
       "paused": "Paused"
     },
+    "pausedState": "Paused state",
+    "requiresHitlAction": "Requires HITL action",
     "runIdPatternFilter": "Search Dag Runs",
     "timetableType": "Timetable type"
   },

@@ -31,10 +31,12 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
+  public readonly addFilterButton: Locator;
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
   public readonly hitlReviewModal: HITLReviewModal;
   public readonly lastRunStateFilter: Locator;
+  public readonly lastRunStatePill: Locator;
   public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
@@ -62,11 +64,15 @@ export class DagsPage extends BasePage {
     this.retriesFilter = page.getByTestId("retries-filter");
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
-    this.lastRunStateFilter = page.getByTestId("dags-last-run-state-filter");
+    // Dags filters live in the shared FilterBar: a filter is added from the "Add Filter"
+    // menu, then edited in its pill. Test ids are derived from the search-param key.
+    this.addFilterButton = page.getByTestId("add-filter-button");
+    this.lastRunStateFilter = page.getByTestId("last_dag_run_state-filter");
+    this.lastRunStatePill = page.getByTestId("last_dag_run_state-pill");
     this.hitlReviewModal = new HITLReviewModal(page);
     this.needsReviewBadges = page.getByTestId("needs-review-badge");
-    // Uses testId because this button's text is driven by an i18n key.
-    this.needsReviewFilter = page.getByTestId("dags-needs-review-filter");
+    // Uses testId because this menu item's text is driven by an i18n key.
+    this.needsReviewFilter = page.getByTestId("add-filter-needs_review");
   }
 
   public static getDagDetailUrl(dagName: string): string {
@@ -125,11 +131,22 @@ export class DagsPage extends BasePage {
       });
 
     if (status === "needs_review") {
+      // A boolean filter is active the moment it is picked from the menu.
+      await this.openAddFilterMenu();
       await this.needsReviewFilter.click();
     } else {
-      // Run-state filters live in the "Last run" dropdown.
-      await this.lastRunStateFilter.getByRole("combobox").click();
-      await this.page.getByTestId(`dags-last-run-state-filter-${status}`).click();
+      // Re-opening an existing pill, versus adding the filter for the first time.
+      if (await this.lastRunStatePill.isVisible().catch(() => false)) {
+        await this.lastRunStatePill.click();
+      } else {
+        await this.openAddFilterMenu();
+        await this.page.getByTestId("add-filter-last_dag_run_state").click();
+      }
+      await this.lastRunStateFilter.click();
+      await this.page.getByTestId(`last_dag_run_state-filter-${status}`).click();
+      // Selecting blurs the pill, which collapses it ~150ms later. Wait for that so a
+      // follow-up call sees the pill rather than racing it and reopening the menu.
+      await expect(this.lastRunStatePill).toBeVisible({ timeout: 5000 });
     }
     await responsePromise;
   }
@@ -310,6 +327,14 @@ export class DagsPage extends BasePage {
         timeout: 30_000,
       });
     }).toPass({ intervals: [2000], timeout: 60_000 });
+  }
+
+  /**
+   * Open the Add Filter menu and wait for its items to render.
+   */
+  public async openAddFilterMenu(): Promise<void> {
+    await expect(this.addFilterButton).toBeVisible({ timeout: 30_000 });
+    await this.addFilterButton.click();
   }
 
   /**

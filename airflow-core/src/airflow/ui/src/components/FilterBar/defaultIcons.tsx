@@ -16,13 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown, MdDateRange } from "react-icons/md";
+import {
+  MdCalendarToday,
+  MdNumbers,
+  MdTextFields,
+  MdArrowDropDown,
+  MdChecklist,
+  MdDateRange,
+  MdToggleOn,
+} from "react-icons/md";
 
 import type { FilterConfig } from "./types";
 
 export const defaultFilterIcons: Record<FilterConfig["type"], React.ReactNode> = {
+  boolean: <MdToggleOn />,
   date: <MdCalendarToday />,
   daterange: <MdDateRange />,
+  multiselect: <MdChecklist />,
   number: <MdNumbers />,
   select: <MdArrowDropDown />,
   text: <MdTextFields />,

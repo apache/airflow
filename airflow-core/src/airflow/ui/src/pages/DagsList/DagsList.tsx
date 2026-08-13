@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
+import { Box, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -52,7 +52,6 @@ import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
-import { useTagFilter } from "./useTagFilter";
 
 type GetColumnsParams = {
   readonly multiTeam: boolean;
@@ -220,6 +219,8 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
+  TAGS,
+  TAGS_MATCH_MODE,
   TEAMS,
   TIMETABLE_TYPE,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -256,9 +257,10 @@ export const DagsList = () => {
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
-  const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
+  const selectedTags = searchParams.getAll(TAGS);
+  const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) === "all" ? "all" : "any";
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
-  const owners = searchParams.getAll(OWNERS);
+  const owners = searchParams.getAll(OWNERS).filter((value) => value !== "");
   const teams = searchParams.getAll(TEAMS);
   const timetableType = searchParams.getAll(TIMETABLE_TYPE).filter((value) => value !== "");
 

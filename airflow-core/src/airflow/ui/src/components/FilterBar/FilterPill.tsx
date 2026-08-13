@@ -38,18 +38,28 @@ type FilterPillProps = {
   readonly displayValue: React.ReactNode | string;
   readonly filter: FilterState;
   readonly hasValue: boolean;
+  // Replaces entering edit mode when the chip body is clicked, for pills that have
+  // nothing to edit (boolean).
+  readonly onClick?: () => void;
   readonly onRemove: () => void;
   readonly renderInput: (props: FilterPillInputProps) => React.ReactNode;
 };
 
-export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInput }: FilterPillProps) => {
+export const FilterPill = ({
+  displayValue,
+  filter,
+  hasValue,
+  onClick,
+  onRemove,
+  renderInput,
+}: FilterPillProps) => {
   const { t: translate } = useTranslation(["common"]);
   const isEmpty = isEmptyFilterValue(filter.value);
   const [isEditing, setIsEditing] = useState(isEmpty);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const handlePillClick = () => setIsEditing(true);
+  const handlePillClick = () => (onClick === undefined ? setIsEditing(true) : onClick());
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Enter" || event.key === "Escape") {
@@ -111,6 +121,7 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
       color="colorPalette.fg"
       colorPalette={hasValue ? "blue" : "gray"}
       cursor="pointer"
+      data-testid={`${filter.config.key}-pill`}
       display="flex"
       fontSize="sm"
       fontWeight="medium"
@@ -121,7 +132,8 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
       <HStack align="center">
         {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
         <Box alignItems="center" display="flex" flex="1" gap={2} px={2}>
-          {filter.config.label}: {displayValue}
+          {filter.config.label}
+          {displayValue === undefined || displayValue === "" ? undefined : <>: {displayValue}</>}
         </Box>
         <IconButton
           aria-label={`Remove ${filter.config.label} filter`}

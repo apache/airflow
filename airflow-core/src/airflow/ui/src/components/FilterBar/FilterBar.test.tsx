@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -25,6 +25,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { FilterBar } from "./FilterBar";
+import type { FilterConfig, FilterPluginProps } from "./types";
 
 const wrapper = ({ children }: PropsWithChildren) => (
   <BaseWrapper>
@@ -45,5 +46,107 @@ describe("FilterBar preset filters", () => {
     render(<FilterBar configs={[]} onFiltersChange={vi.fn()} showPresetFilters={false} />, { wrapper });
 
     expect(screen.queryByTestId("preset-filters-button")).not.toBeInTheDocument();
+  });
+});
+
+const booleanConfig: FilterConfig = { key: "needs_review", label: "Needs Review", type: "boolean" };
+const multiSelectConfig: FilterConfig = {
+  key: "tags",
+  label: "Tags",
+  options: [
+    { label: "alpha", value: "alpha" },
+    { label: "beta", value: "beta" },
+  ],
+  type: "multiselect",
+};
+
+describe("FilterBar boolean filters", () => {
+  it("activates in a single click from the add filter menu", async () => {
+    const onFiltersChange = vi.fn();
+
+    render(<FilterBar configs={[booleanConfig]} onFiltersChange={onFiltersChange} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-needs_review"));
+
+    expect(screen.getByTestId("needs_review-pill")).toBeInTheDocument();
+    await waitFor(() => expect(onFiltersChange).toHaveBeenCalledWith({ needs_review: "true" }));
+  });
+
+  it("renders label only, with no value suffix and no editor", () => {
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByTestId("needs_review-pill")).toHaveTextContent("Needs Review");
+    expect(screen.getByTestId("needs_review-pill")).not.toHaveTextContent(":");
+  });
+
+  it("clears the filter when the pill is clicked", async () => {
+    const onFiltersChange = vi.fn();
+
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={onFiltersChange}
+      />,
+      { wrapper },
+    );
+
+    fireEvent.click(screen.getByTestId("needs_review-pill"));
+
+    expect(screen.queryByTestId("needs_review-pill")).not.toBeInTheDocument();
+    await waitFor(() => expect(onFiltersChange).toHaveBeenCalledWith({}));
+  });
+});
+
+describe("FilterBar multiselect filters", () => {
+  it("renders a pill for each value from array initialValues", () => {
+    render(
+      <FilterBar
+        configs={[multiSelectConfig]}
+        initialValues={{ tags: ["alpha", "beta"] }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    const pill = screen.getByTestId("tags-pill");
+
+    expect(pill).toHaveTextContent("alpha");
+    expect(pill).toHaveTextContent("beta");
+  });
+
+  it("does not render a pill for an empty array", () => {
+    render(
+      <FilterBar configs={[multiSelectConfig]} initialValues={{ tags: [] }} onFiltersChange={vi.fn()} />,
+      { wrapper },
+    );
+
+    expect(screen.queryByTestId("tags-pill")).not.toBeInTheDocument();
+  });
+});
+
+const CustomEditor = ({ filter }: FilterPluginProps) => <div>custom:{filter.config.key}</div>;
+
+describe("FilterBar custom editors", () => {
+  it("renders EditorComponent instead of dispatching on type", () => {
+    render(
+      <FilterBar
+        configs={[{ ...multiSelectConfig, EditorComponent: CustomEditor }]}
+        initialValues={{ tags: ["alpha"] }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByText("custom:tags")).toBeInTheDocument();
+    expect(screen.queryByTestId("tags-pill")).not.toBeInTheDocument();
   });
 });

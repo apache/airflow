@@ -365,8 +365,10 @@
     "filterReset_other": "Reset filters",
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
+    "noResultsFound": "No results found",
     "noTagsFound": "No tags found",
     "noTeamsFound": "No teams found",
+    "ownerPlaceholder": "Filter by owner",
     "tagMode": {
       "all": "All",
       "any": "Any"

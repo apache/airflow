@@ -27,8 +27,10 @@ import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
 import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
+import { BooleanFilter } from "./filters/BooleanFilter";
 import { DateFilter } from "./filters/DateFilter";
 import { DateRangeFilter } from "./filters/DateRangeFilter";
+import { MultiSelectFilter } from "./filters/MultiSelectFilter";
 import { NumberFilter } from "./filters/NumberFilter";
 import { SelectFilter } from "./filters/SelectFilter";
 import { TextSearchFilter } from "./filters/TextSearchFilter";
@@ -162,18 +164,34 @@ export const FilterBar = ({
     (config) => !filters.some((filter) => filter.config.key === config.key),
   );
 
-  const renderFilter = (filter: FilterState) => {
+  const renderFilter = (filterState: FilterState) => {
+    // Pills snapshot their config when created, which for URL-seeded filters can happen
+    // before the i18n namespaces resolve — leaving raw keys as labels. Re-read the live
+    // config each render so labels and option lists stay current.
+    const liveConfig = configs.find((config) => config.key === filterState.config.key);
+    const filter = liveConfig === undefined ? filterState : { ...filterState, config: liveConfig };
+
     const props = {
       filter,
       onChange: (value: FilterValue) => updateFilter(filter.id, value),
       onRemove: () => removeFilter(filter.id),
     };
 
+    const { EditorComponent } = filter.config;
+
+    if (EditorComponent !== undefined) {
+      return <EditorComponent key={filter.id} {...props} />;
+    }
+
     switch (filter.config.type) {
+      case "boolean":
+        return <BooleanFilter key={filter.id} {...props} />;
       case "date":
         return <DateFilter key={filter.id} {...props} />;
       case "daterange":
         return <DateRangeFilter key={filter.id} {...props} />;
+      case "multiselect":
+        return <MultiSelectFilter key={filter.id} {...props} />;
       case "number":
         return <NumberFilter key={filter.id} {...props} />;
       case "select":
@@ -203,7 +221,12 @@ export const FilterBar = ({
           </Menu.Trigger>
           <Menu.Content>
             {availableConfigs.map((config) => (
-              <Menu.Item key={config.key} onClick={() => addFilter(config)} value={config.key}>
+              <Menu.Item
+                data-testid={`add-filter-${config.key}`}
+                key={config.key}
+                onClick={() => addFilter(config)}
+                value={config.key}
+              >
                 <HStack gap={2}>
                   {getFilterIcon(config)}
                   {config.label}

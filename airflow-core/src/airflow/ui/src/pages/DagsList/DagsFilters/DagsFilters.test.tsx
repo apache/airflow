@@ -38,6 +38,17 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
 }));
 
+const addFilter = async (key: string) => {
+  fireEvent.click(screen.getByTestId("add-filter-button"));
+  fireEvent.click(await screen.findByTestId(`add-filter-${key}`));
+};
+
+const selectPillOption = async (key: string, value: string) => {
+  fireEvent.click(screen.getByTestId(`${key}-pill`));
+  fireEvent.click(await screen.findByTestId(`${key}-filter`));
+  fireEvent.click(await screen.findByTestId(`${key}-filter-${value}`));
+};
+
 describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   afterEach(() => {
     mockConfig.multi_team = false;
@@ -56,8 +67,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
-    // PausedFilter is the only filter using the "All" (filters.paused.all) label.
-    screen.getByText("filters.paused.all").click();
+    await selectPillOption("paused", "all");
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
   });
@@ -67,7 +77,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    screen.getByText("filters.paused.paused").click();
+    await selectPillOption("paused", "true");
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
   });
@@ -77,6 +87,8 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+
+    await addFilter("timetable_type");
 
     const timetableTypeFilter = screen.getByLabelText("filters.timetableType");
 
@@ -141,7 +153,10 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    expect(await screen.findByLabelText("dagDetails.team")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+
+    expect(await screen.findByTestId("add-filter-teams")).toBeInTheDocument();
   });
 
   it("renders the preset filters menu", async () => {
