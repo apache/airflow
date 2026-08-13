@@ -63,6 +63,9 @@ _DEPRECATION_MESSAGE_PREFIX = (
 )
 DEPRECATION_MESSAGE_PRE_3_3 = _DEPRECATION_MESSAGE_PREFIX + "On Airflow 3.3+, use `durable` instead."
 DEPRECATION_MESSAGE_3_3_PLUS = _DEPRECATION_MESSAGE_PREFIX + "Use `durable` instead."
+EXPECTED_DEPRECATION_MESSAGE = (
+    DEPRECATION_MESSAGE_3_3_PLUS if AIRFLOW_V_3_3_PLUS else DEPRECATION_MESSAGE_PRE_3_3
+)
 
 
 class TestGlueJobOperator:
@@ -188,7 +191,7 @@ class TestGlueJobOperator:
         self, mock_get_conn, mock_initialize_job, mock_conn
     ):
         with pytest.warns(
-            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
         ):
             glue = GlueJobOperator(
                 task_id=TASK_ID,
@@ -212,7 +215,7 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_deferrable_retry_reattaches_via_task_uuid_scan(self, mock_get_conn, mock_initialize_job):
         with pytest.warns(
-            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
         ):
             glue = GlueJobOperator(
                 task_id=TASK_ID,
@@ -573,29 +576,32 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "initialize_job")
     @pytest.mark.parametrize("state", ["RUNNING", "STARTING", "WAITING", "STOPPING"])
     def test_find_previous_job_run_reuses_from_xcom(self, mock_initialize_job, mock_get_conn, state):
-        glue = GlueJobOperator(
-            durable=True,
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            aws_conn_id="aws_default",
-            region_name="us-west-2",
-            s3_bucket="some_bucket",
-            iam_role_name="my_test_role",
-            wait_for_completion=False,
-        )
-
-        mock_ti = mock.MagicMock()
-        mock_ti.try_number = 2  # the lookup only runs on a retry
-        previous_job_run_id = "previous_run_12345"
-        mock_ti.xcom_pull.return_value = previous_job_run_id
-        mock_context = {"ti": mock_ti}
-
-        mock_glue_client = mock.MagicMock()
-        glue.hook.conn = mock_glue_client
-        mock_glue_client.get_job_run.return_value = {"JobRun": {"JobRunState": state}}
-
         with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    script_location="s3://folder/file",
+                    aws_conn_id="aws_default",
+                    region_name="us-west-2",
+                    s3_bucket="some_bucket",
+                    iam_role_name="my_test_role",
+                    wait_for_completion=False,
+                    resume_glue_job_on_retry=True,
+                )
+
+            mock_ti = mock.MagicMock()
+            mock_ti.try_number = 2  # the lookup only runs on a retry
+            previous_job_run_id = "previous_run_12345"
+            mock_ti.xcom_pull.return_value = previous_job_run_id
+            mock_context = {"ti": mock_ti}
+
+            mock_glue_client = mock.MagicMock()
+            glue.hook.conn = mock_glue_client
+            mock_glue_client.get_job_run.return_value = {"JobRun": {"JobRunState": state}}
+
             job_run_id = glue.execute(mock_context)
 
         assert job_run_id == previous_job_run_id
@@ -644,42 +650,45 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "initialize_job")
     @pytest.mark.parametrize("state", ["RUNNING", "STARTING", "WAITING", "STOPPING"])
     def test_find_job_run_by_task_uuid_reconnects(self, mock_initialize_job, mock_get_conn, state):
-        glue = GlueJobOperator(
-            durable=True,
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            aws_conn_id="aws_default",
-            region_name="us-west-2",
-            s3_bucket="some_bucket",
-            iam_role_name="my_test_role",
-            wait_for_completion=False,
-        )
-
-        mock_ti = mock.MagicMock()
-        mock_ti.dag_id = "test_dag_id"
-        mock_ti.task_id = TASK_ID
-        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
-        mock_ti.map_index = -1
-        mock_ti.try_number = 2
-        mock_ti.xcom_pull.return_value = None
-        mock_context = {"ti": mock_ti}
-
-        task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
-
-        mock_glue_client = mock.MagicMock()
-        glue.hook.conn = mock_glue_client
-        mock_glue_client.get_job_runs.return_value = {
-            "JobRuns": [
-                {
-                    "Id": "existing_run_123",
-                    "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
-                    "JobRunState": state,
-                }
-            ]
-        }
-
         with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    script_location="s3://folder/file",
+                    aws_conn_id="aws_default",
+                    region_name="us-west-2",
+                    s3_bucket="some_bucket",
+                    iam_role_name="my_test_role",
+                    wait_for_completion=False,
+                    resume_glue_job_on_retry=True,
+                )
+
+            mock_ti = mock.MagicMock()
+            mock_ti.dag_id = "test_dag_id"
+            mock_ti.task_id = TASK_ID
+            mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+            mock_ti.map_index = -1
+            mock_ti.try_number = 2
+            mock_ti.xcom_pull.return_value = None
+            mock_context = {"ti": mock_ti}
+
+            task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
+
+            mock_glue_client = mock.MagicMock()
+            glue.hook.conn = mock_glue_client
+            mock_glue_client.get_job_runs.return_value = {
+                "JobRuns": [
+                    {
+                        "Id": "existing_run_123",
+                        "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                        "JobRunState": state,
+                    }
+                ]
+            }
+
             job_run_id = glue.execute(mock_context)
 
         assert job_run_id == "existing_run_123"
@@ -860,24 +869,27 @@ class TestGlueJobOperatorOpenLineageInjection:
         }
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
-        glue = GlueJobOperator(
-            durable=True,
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            iam_role_name="my_test_role",
-            wait_for_completion=False,
-            openlineage_inject_parent_job_info=True,
-        )
-
-        mock_ti = mock.MagicMock()
-        mock_ti.try_number = 2
-        mock_ti.xcom_pull.return_value = None
-        context = {"ti": mock_ti}
-        mock_glue_client = mock.MagicMock()
-        glue.hook.conn = mock_glue_client
-        mock_glue_client.get_job_runs.return_value = {"JobRuns": []}
         with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    script_location="s3://folder/file",
+                    iam_role_name="my_test_role",
+                    wait_for_completion=False,
+                    openlineage_inject_parent_job_info=True,
+                    resume_glue_job_on_retry=True,
+                )
+
+            mock_ti = mock.MagicMock()
+            mock_ti.try_number = 2
+            mock_ti.xcom_pull.return_value = None
+            context = {"ti": mock_ti}
+            mock_glue_client = mock.MagicMock()
+            glue.hook.conn = mock_glue_client
+            mock_glue_client.get_job_runs.return_value = {"JobRuns": []}
             glue.execute(context)
 
         mock_inject_parent.assert_called_once()
@@ -906,7 +918,7 @@ class TestGlueJobOperatorDeprecation:
     @pytest.mark.parametrize("resume_value", [True, False])
     def test_warns_and_maps_to_durable_old_flag(self, resume_value):
         with pytest.warns(
-            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
         ):
             glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=resume_value)
         assert glue.durable is resume_value
@@ -917,24 +929,6 @@ class TestGlueJobOperatorDeprecation:
                 AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
             ):
                 GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=True)
-
-    def test_warning_message_recommends_durable_directly_on_3_3_plus(self):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
-        ):
-            GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=True)
-
-    def test_both_flags_passed_durable_takes_precedence(self):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
-        ):
-            glue = GlueJobOperator(
-                task_id=TASK_ID,
-                job_name=JOB_NAME,
-                durable=True,
-                resume_glue_job_on_retry=False,
-            )
-        assert glue.durable is True
 
     def test_default_args_durable_reaches_operator(self):
         with DAG(
