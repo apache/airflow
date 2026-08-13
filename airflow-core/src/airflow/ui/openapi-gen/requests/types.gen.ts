@@ -1069,6 +1069,10 @@ export type DagRunAssetReference = {
     data_interval_start: string | null;
     data_interval_end: string | null;
     partition_key: string | null;
+    /**
+     * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
+     */
+    triggering: boolean;
 };
 
 /**
