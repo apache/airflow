@@ -332,6 +332,7 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
         """Non-existent backfill returns 404."""
         response = test_client.get("/backfills/999999/dag_runs")
         assert response.status_code == 404
+        assert response.json().get("detail") == "Backfill not found"
 
     def test_list_backfill_dag_runs_pagination(self, test_client, session):
         """Limit and offset work correctly."""
@@ -1536,6 +1537,11 @@ class TestCancelBackfill(TestBackfillEndpoint):
         states = [x.state for x in dag_runs]
         assert states == ["running", "failed", "failed", "failed", "failed"]
 
+    def test_cancel_backfill_not_found(self, test_client):
+        response = test_client.put("/backfills/999999/cancel")
+        assert response.status_code == 404
+        assert response.json().get("detail") == "Backfill not found"
+
     def test_invalid_id(self, test_client):
         response = test_client.put("/backfills/invalid_id/cancel")
         assert response.status_code == 422
@@ -1650,6 +1656,11 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id=None, event="unpause_backfill", logical_date=None)
+
+    def test_unpause_backfill_not_found(self, test_client):
+        response = test_client.put("/backfills/999999/unpause")
+        assert response.status_code == 404
+        assert response.json().get("detail") == "Backfill not found"
 
     def test_invalid_id(self, test_client):
         response = test_client.put("/backfills/invalid_id/unpause")

@@ -396,7 +396,9 @@ ReadableBackfillsFilterDep = Annotated[
 # does; see the comment there for why any divergence is a cross-Dag authorization bypass.
 _BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
 
-_BACKFILL_NOT_FOUND = "Backfill not found"
+# Shared with the backfill routes: for an id named in the path this dependency answers before
+# the handler does, so the two must not describe the same condition differently.
+BACKFILL_NOT_FOUND = "Backfill not found"
 
 
 def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user: BaseUser) -> None:
@@ -404,7 +406,7 @@ def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user
     # ``dag_id`` is None when the id matched no row. Answering 404 there while a backfill on a Dag
     # the caller may not read answers 403 would tell them which backfill ids exist across Dags.
     if dag_id is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, _BACKFILL_NOT_FOUND)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
 
     details = DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id))
     auth_manager = get_auth_manager()
@@ -418,7 +420,7 @@ def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user
         method="GET", access_entity=DagAccessEntity.RUN, details=details, user=user
     ):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
-    raise HTTPException(status.HTTP_404_NOT_FOUND, _BACKFILL_NOT_FOUND)
+    raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
 
 
 def requires_access_backfill(
