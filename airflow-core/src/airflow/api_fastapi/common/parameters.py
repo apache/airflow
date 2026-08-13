@@ -1268,6 +1268,28 @@ def float_range_filter_factory(
     return depends_float
 
 
+def int_range_filter_factory(
+    filter_name: str, model: Base
+) -> Callable[[int | None, int | None, int | None, int | None], RangeFilter]:
+    def depends_int(
+        lower_bound_gte: int | None = Query(alias=f"{filter_name}_gte", default=None),
+        lower_bound_gt: int | None = Query(alias=f"{filter_name}_gt", default=None),
+        upper_bound_lte: int | None = Query(alias=f"{filter_name}_lte", default=None),
+        upper_bound_lt: int | None = Query(alias=f"{filter_name}_lt", default=None),
+    ) -> RangeFilter:
+        return RangeFilter(
+            Range(
+                lower_bound_gte=lower_bound_gte,
+                lower_bound_gt=lower_bound_gt,
+                upper_bound_lte=upper_bound_lte,
+                upper_bound_lt=upper_bound_lt,
+            ),
+            getattr(model, filter_name),
+        )
+
+    return depends_int
+
+
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 OptionalDateTimeQuery = Annotated[str | None, AfterValidator(_safe_parse_datetime_optional)]

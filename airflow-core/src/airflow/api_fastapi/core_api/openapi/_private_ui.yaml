@@ -1491,7 +1491,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: number
+          - type: integer
           - type: 'null'
           title: Max Active Runs Gte
       - name: max_active_runs_gt
@@ -1499,7 +1499,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: number
+          - type: integer
           - type: 'null'
           title: Max Active Runs Gt
       - name: max_active_runs_lte
@@ -1507,7 +1507,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: number
+          - type: integer
           - type: 'null'
           title: Max Active Runs Lte
       - name: max_active_runs_lt
@@ -1515,7 +1515,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: number
+          - type: integer
           - type: 'null'
           title: Max Active Runs Lt
       - name: reprocess_behavior

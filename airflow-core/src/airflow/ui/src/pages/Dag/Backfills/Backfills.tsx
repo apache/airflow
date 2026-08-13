@@ -48,6 +48,15 @@ const {
   TO_DATE_LTE: TO_DATE_LTE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
+const REPROCESS_BEHAVIOR_VALUES = [
+  "failed",
+  "completed",
+  "none",
+] as const satisfies ReadonlyArray<ReprocessBehavior>;
+
+const isReprocessBehavior = (value: string | null): value is ReprocessBehavior =>
+  (REPROCESS_BEHAVIOR_VALUES as ReadonlyArray<string | null>).includes(value);
+
 const getColumns = (
   onSelectBackfill: (backfillId: number) => void,
   translate: TFunction,
@@ -155,7 +164,8 @@ export const Backfills = () => {
   const completedAtLte = searchParams.get(COMPLETED_AT_LTE_PARAM);
   const maxActiveRunsGte = searchParams.get(MAX_ACTIVE_RUNS_GTE_PARAM);
   const maxActiveRunsLte = searchParams.get(MAX_ACTIVE_RUNS_LTE_PARAM);
-  const reprocessBehavior = searchParams.get(REPROCESS_BEHAVIOR_PARAM) as ReprocessBehavior | undefined;
+  const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
+  const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     completedAtGte: completedAtGte ?? undefined,
@@ -171,7 +181,7 @@ export const Backfills = () => {
     maxActiveRunsLte:
       maxActiveRunsLte !== null && maxActiveRunsLte !== "" ? Number(maxActiveRunsLte) : undefined,
     offset: pagination.pageIndex * pagination.pageSize,
-    reprocessBehavior: reprocessBehavior ?? undefined,
+    reprocessBehavior,
     toDateGte: toDateGte ?? undefined,
     toDateLte: toDateLte ?? undefined,
   });
