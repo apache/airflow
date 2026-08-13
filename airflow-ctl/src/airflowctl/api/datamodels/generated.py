@@ -533,6 +533,13 @@ class DagRunAssetReference(BaseModel):
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")]
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")]
     partition_key: Annotated[str | None, Field(title="Partition Key")]
+    triggering: Annotated[
+        bool,
+        Field(
+            description="Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.",
+            title="Triggering",
+        ),
+    ]
 
 
 class DagRunMutableStates(str, Enum):
