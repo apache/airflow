@@ -901,6 +901,7 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -1001,9 +1002,13 @@ export type DAGRunClearBody = {
 export type DAGRunCollectionResponse = {
     dag_runs: Array<DAGRunResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -1757,9 +1762,13 @@ export type TaskInletAssetReference = {
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -7802,10 +7811,6 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

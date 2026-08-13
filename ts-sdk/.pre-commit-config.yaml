@@ -59,6 +59,7 @@ repos:
           ^src/.*\.ts$|
           ^package\.json$|
           ^pnpm-lock\.yaml$|
+          ^pnpm-workspace\.yaml$|
           ^tsconfig(\.build)?\.json$
         additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: false

@@ -63,5 +63,35 @@
     "id": "retry_policy",
     "label": "Retry Policies",
     "icon": "R"
+  },
+  {
+    "id": "extra_link",
+    "label": "Extra Links",
+    "icon": "I"
+  },
+  {
+    "id": "queue",
+    "label": "Message Queues",
+    "icon": "Q"
+  },
+  {
+    "id": "plugin",
+    "label": "Plugins",
+    "icon": "P"
+  },
+  {
+    "id": "auth_manager",
+    "label": "Auth Managers",
+    "icon": "A"
+  },
+  {
+    "id": "db_manager",
+    "label": "DB Managers",
+    "icon": "M"
+  },
+  {
+    "id": "dialect",
+    "label": "Dialects",
+    "icon": "D"
   }
 ]
