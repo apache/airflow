@@ -516,6 +516,41 @@ metrics:
     legacy_name: "pool.starving_tasks.{pool_name}"
     name_variables: ["pool_name"]
 
+  # Slot-count distributions, emitted alongside the gauges above so that multiple
+  # schedulers sampling the same pool accumulate instead of overwriting each other.
+  # These carry a unit-less slot count, not a duration, even though they use the
+  # timer primitive (StatsD renders them as `|ms`, OpenTelemetry as a Histogram).
+  # An unbounded pool (slots=-1) is omitted from pool.open_slots_histogram.
+  - name: "pool.open_slots_histogram"
+    description: "Distribution of open slots in the pool, sampled once per scheduler pool-metrics emission. Unit-less slot count, not a duration."
+    type: "timer"
+    legacy_name: "pool.open_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.queued_slots_histogram"
+    description: "Distribution of queued slots in the pool, sampled once per scheduler pool-metrics emission. Unit-less slot count, not a duration."
+    type: "timer"
+    legacy_name: "pool.queued_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.running_slots_histogram"
+    description: "Distribution of running slots in the pool, sampled once per scheduler pool-metrics emission. Unit-less slot count, not a duration."
+    type: "timer"
+    legacy_name: "pool.running_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.deferred_slots_histogram"
+    description: "Distribution of deferred slots in the pool, sampled once per scheduler pool-metrics emission. Unit-less slot count, not a duration."
+    type: "timer"
+    legacy_name: "pool.deferred_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.scheduled_slots_histogram"
+    description: "Distribution of scheduled slots in the pool, sampled once per scheduler pool-metrics emission. Unit-less slot count, not a duration."
+    type: "timer"
+    legacy_name: "pool.scheduled_slots_histogram.{pool_name}"
+    name_variables: ["pool_name"]
+
   - name: "triggers.running"
     description: "Number of triggers currently running for a triggerer (described by hostname)."
     type: "gauge"

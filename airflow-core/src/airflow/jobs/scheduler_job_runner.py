@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import math
 import multiprocessing
 import operator
 import os
@@ -3356,6 +3357,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             stats.gauge("pool.running_slots", slot_stats["running"], tags=metric_tags)
             stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags=metric_tags)
             stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags=metric_tags)
+
+            # An unbounded pool (slots=-1) reports open=inf, which would poison the
+            # histogram's sum and max for every other sample in the bucket.
+            if math.isfinite(slot_stats["open"]):
+                stats.timing("pool.open_slots_histogram", slot_stats["open"], tags=metric_tags)
+            stats.timing("pool.queued_slots_histogram", slot_stats["queued"], tags=metric_tags)
+            stats.timing("pool.running_slots_histogram", slot_stats["running"], tags=metric_tags)
+            stats.timing("pool.deferred_slots_histogram", slot_stats["deferred"], tags=metric_tags)
+            stats.timing("pool.scheduled_slots_histogram", slot_stats["scheduled"], tags=metric_tags)
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:

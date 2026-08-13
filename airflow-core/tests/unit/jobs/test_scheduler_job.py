@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import logging
+import math
 import os
 import re
 import time
@@ -3069,6 +3070,55 @@ class TestSchedulerJob:
         mock_stats.gauge.assert_any_call("pool.open_slots", mock.ANY, tags=expected_tags)
         mock_stats.gauge.assert_any_call("pool.queued_slots", mock.ANY, tags=expected_tags)
         mock_stats.gauge.assert_any_call("pool.running_slots", mock.ANY, tags=expected_tags)
+
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_emit_pool_metrics_emits_histogram_alongside_gauge(self, mock_get_backend, session):
+        """Every slot gauge gets a histogram reporting the same value and tags."""
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        session.add(Pool(pool="histogram_pool", slots=4, include_deferred=False))
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._emit_pool_metrics(session=session)
+
+        tags = {"pool_name": "histogram_pool"}
+        for state in ("open", "queued", "running", "deferred", "scheduled"):
+            gauge = next(
+                call
+                for call in mock_stats.gauge.call_args_list
+                if call.args[:1] == (f"pool.{state}_slots",) and call.kwargs.get("tags") == tags
+            )
+            histogram = next(
+                call
+                for call in mock_stats.timing.call_args_list
+                if call.args[:1] == (f"pool.{state}_slots_histogram",) and call.kwargs.get("tags") == tags
+            )
+            assert gauge.args[1] == histogram.args[1]
+
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_emit_pool_metrics_skips_open_slots_histogram_for_unbounded_pool(self, mock_get_backend, session):
+        """An unbounded pool reports open=inf, which must not reach the histogram."""
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        session.add(Pool(pool="unbounded_pool", slots=-1, include_deferred=False))
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._emit_pool_metrics(session=session)
+
+        tags = {"pool_name": "unbounded_pool"}
+        mock_stats.gauge.assert_any_call("pool.open_slots", math.inf, tags=tags)
+        assert not [
+            call
+            for call in mock_stats.timing.call_args_list
+            if call.args[:1] == ("pool.open_slots_histogram",) and call.kwargs.get("tags") == tags
+        ]
+        mock_stats.timing.assert_any_call("pool.queued_slots_histogram", 0, tags=tags)
 
     @pytest.mark.parametrize(
         ("multi_team", "expected_tags"),
