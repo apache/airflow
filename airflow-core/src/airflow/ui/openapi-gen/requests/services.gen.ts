@@ -1103,7 +1103,8 @@ export class DagRunService {
      * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
      *
      * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+     * `total_entries_limit` (a value equal to that limit means at least that many runs match).
      * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
      * on the first page.
      * @param data The data for the request.
@@ -2700,9 +2701,10 @@ export class TaskInstanceService {
      * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
      *
      * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
-     * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
-     * on the first page.
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+     * `total_entries_limit` (a value equal to that limit means at least that many task instances
+     * match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is
+     * ``null`` on the first page.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3892,7 +3894,6 @@ export class TaskStateStoreService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -3908,8 +3909,8 @@ export class TaskStateStoreService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.mapIndex
      * @param data.allMapIndices
+     * @param data.mapIndex
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -3923,8 +3924,8 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex,
-                all_map_indices: data.allMapIndices
+                all_map_indices: data.allMapIndices,
+                map_index: data.mapIndex
             },
             errors: {
                 401: 'Unauthorized',
@@ -3939,10 +3940,10 @@ export class TaskStateStoreService {
      * Get Task State Store
      * Get a single task state store entry.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.mapIndex
      * @returns TaskStateStoreResponse Successful Response
      * @throws ApiError
@@ -3952,10 +3953,10 @@ export class TaskStateStoreService {
             method: 'GET',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -3973,10 +3974,10 @@ export class TaskStateStoreService {
      * Set Task State Store
      * Set a task state store value. Creates or overwrites the key.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.requestBody
      * @param data.mapIndex
      * @returns void Successful Response
@@ -3987,10 +3988,10 @@ export class TaskStateStoreService {
             method: 'PUT',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -4010,10 +4011,10 @@ export class TaskStateStoreService {
      * Patch Task State Store
      * Update the value of an existing task state store key.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.requestBody
      * @param data.mapIndex
      * @returns unknown Successful Response
@@ -4024,10 +4025,10 @@ export class TaskStateStoreService {
             method: 'PATCH',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -4047,10 +4048,10 @@ export class TaskStateStoreService {
      * Delete Task State Store
      * Delete a single task state store key. No-op if the key does not exist.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.mapIndex
      * @returns void Successful Response
      * @throws ApiError
@@ -4060,10 +4061,10 @@ export class TaskStateStoreService {
             method: 'DELETE',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -4292,6 +4293,7 @@ export class XcomService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4916,6 +4918,7 @@ export class DeadlinesService {
      * Get all deadline alerts defined on a Dag.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.versionNumber
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
@@ -4930,6 +4933,7 @@ export class DeadlinesService {
                 dag_id: data.dagId
             },
             query: {
+                version_number: data.versionNumber,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy

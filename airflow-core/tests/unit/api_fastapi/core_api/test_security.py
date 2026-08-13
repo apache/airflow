@@ -20,12 +20,14 @@ from json import JSONDecodeError
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -55,6 +57,7 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
@@ -367,7 +370,7 @@ class TestFastApiSecurity:
     async def test_requires_access_backfill_authorized_from_body(
         self, mock_get_auth_manager, mock_get_team_name
     ):
-        """When backfill_id is missing or not int, dag_id can come from request body (POST backfill)."""
+        """With no backfill_id in the path, dag_id comes from the request body (POST backfill)."""
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -452,6 +455,48 @@ class TestFastApiSecurity:
             method="POST",
             access_entity=DagAccessEntity.RUN,
             details=DagDetails(id="fallback_dag_id", team_name="team1"),
+            user=user,
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("backfill_id", ["42", "42.0", "42.00"])
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_authorizes_the_backfill_the_handler_will_act_on(
+        self, mock_get_auth_manager, mock_get_team_name, backfill_id
+    ):
+        """The dependency must resolve the same backfill the handler does, for every spelling.
+
+        The endpoints declare ``backfill_id: NonNegativeInt``, and pydantic's lax mode coerces
+        ``"42.0"`` and ``"42.00"`` to ``42`` -- both are spellings the handler accepts and serves
+        against backfill 42. Parsing with ``int()`` here rejected them and left ``dag_id``
+        unresolved, so the two disagreed about which Dag the request concerned.
+        """
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1"
+
+        backfill = Mock(spec=Backfill)
+        backfill.dag_id = "backfill_dag"
+        session = Mock(spec=Session)
+        session.scalars.return_value.one_or_none.return_value = backfill
+
+        request = Mock(spec=Request)
+        request.path_params = {"backfill_id": backfill_id}
+        request.query_params = {"dag_id": "some_other_dag"}
+        request.json = AsyncMock(return_value={"dag_id": "some_other_dag"})
+
+        user = Mock(spec=BaseUser)
+
+        await requires_access_backfill("PUT")(request, user, session)
+
+        # the backfill's own Dag, not the one supplied on the request
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="PUT",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="backfill_dag", team_name="team1"),
             user=user,
         )
 

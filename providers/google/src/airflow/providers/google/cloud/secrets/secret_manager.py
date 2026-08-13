@@ -23,7 +23,7 @@ from collections.abc import Sequence
 
 from google.auth.exceptions import DefaultCredentialsError
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
@@ -248,7 +248,12 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         backend does, is wrong here: the inherited implementation prepends a separator to an
         empty prefix (``'' -> '-smtp_default'``) and normalizes nothing, so the guard would
         both mis-anchor and miss ids whose separator only appears after normalization.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no
+        team scoped secret can exist to collide with.
         """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
         return TEAM_SEP in secret_id
 
     def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:

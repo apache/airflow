@@ -25,6 +25,7 @@ import { FiPlay } from "react-icons/fi";
 import {
   useAssetServiceCreateAssetEvent,
   UseAssetServiceGetAssetEventsKeyFn,
+  useAssetServiceGetAssetsUiKey,
   useAssetServiceMaterializeAsset,
   UseDagRunServiceGetDagRunsKeyFn,
   useDagServiceGetDagDetails,
@@ -78,7 +79,12 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     setPartitionKey(undefined);
     onClose();
 
-    let queryKeys = [UseAssetServiceGetAssetEventsKeyFn({ assetId: asset.id }, [{ assetId: asset.id }])];
+    let queryKeys = [
+      UseAssetServiceGetAssetEventsKeyFn({ assetId: asset.id }, [{ assetId: asset.id }]),
+      // The Assets list defaults to sorting by last asset event, so a new event changes both the
+      // displayed timestamp and the row's position; refresh it for manual events and materializes.
+      [useAssetServiceGetAssetsUiKey],
+    ];
 
     if ("dag_run_id" in response) {
       const dagId = response.dag_id;

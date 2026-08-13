@@ -215,6 +215,16 @@ See :doc:`connections/spark-submit` for how to configure these fields.
     Crash recovery in cluster mode requires Airflow 3.3+ (``task_state_store`` support). On earlier
     versions the operator falls back to the previous behavior of always submitting fresh.
 
+Clearing a task is treated the same as a retry, which matters specifically for a task whose driver
+already succeeded: clearing does not delete the stored driver ID, so the next attempt reads it
+back and returns immediately without resubmitting. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the driver via ``on_kill`` before the next attempt gets a chance
+to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+
 Tracking driver status via Kubernetes API
 """"""""""""""""""""""""""""""""""""""""""
 

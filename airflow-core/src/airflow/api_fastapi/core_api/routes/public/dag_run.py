@@ -37,12 +37,17 @@ from airflow.api_fastapi.common.cursors import (
     parse_cursor,
 )
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
+from airflow.api_fastapi.common.db.common import (
+    SessionDep,
+    apply_filters_to_select,
+    bounded_total_entries,
+    paginated_select,
+)
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
 )
-from airflow.api_fastapi.common.db.dags import attach_team_names
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -134,7 +139,9 @@ dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
 )
 def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
     dag_run = session.scalar(
-        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+        select(DagRun)
+        .filter_by(dag_id=dag_id, run_id=dag_run_id)
+        .options(joinedload(DagRun.dag_model), *eager_load_teams(DagRun.dag_model))
     )
     if dag_run is None:
         raise HTTPException(
@@ -585,7 +592,8 @@ def get_dag_runs(
     **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 
     **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-    When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+    When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+    `total_entries_limit` (a value equal to that limit means at least that many runs match).
     ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
     on the first page.
     """
@@ -693,10 +701,14 @@ def get_dag_runs(
             has_next = has_more
 
         attach_dag_versions_to_runs(dag_runs, session=session)
-        attach_team_names(dag_runs, session=session)
 
+        total_entries, total_entries_limit = bounded_total_entries(
+            statement=query, filters=filters, session=session
+        )
         return DAGRunCollectionResponse(
             dag_runs=dag_runs,
+            total_entries=total_entries,
+            total_entries_limit=total_entries_limit,
             next_cursor=(encode_cursor(dag_runs[-1], order_by) if has_next and dag_runs else None),
             previous_cursor=(
                 make_backward_cursor(encode_cursor(dag_runs[0], order_by)) if has_prev and dag_runs else None
@@ -713,7 +725,6 @@ def get_dag_runs(
     )
     dag_runs = list(session.scalars(dag_run_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
-    attach_team_names(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
@@ -800,7 +811,7 @@ def trigger_dag_run(
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=triggered_by,
-            triggering_user_name=user.get_name(),
+            triggering_user_name=user.get_display_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             bundle_version=body.bundle_version,
@@ -869,7 +880,10 @@ def wait_dag_run_until_finished(
     if not get_auth_manager().is_authorized_dag(
         method="GET",
         access_entity=DagAccessEntity.XCOM,
-        details=DagDetails(id=dag_id),
+        # The route dependency above already authorizes RUN access with the Dag's team resolved;
+        # this second, XCom-specific check has to resolve it the same way, or the two checks ask
+        # a team-aware auth manager about differently-scoped resources.
+        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
         user=user,
     ):
         if result_task_ids:

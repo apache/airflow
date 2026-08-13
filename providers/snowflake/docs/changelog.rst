@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+6.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SnowflakeCortexAgentOperator to Snowflake Provider (#69939)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Log check_query_output response via format string in Snowflake SQL API hook (#67848)``
+* ``Fix snowflake provider installs picking an unimportable pyOpenSSL (#71145)``
+
+Misc
+~~~~
+
+* ``Use common.compat.sdk for timezone imports in providers (#70492)``
+* ``Move the SnowparkContainerJobOperator required-argument check to execute() (#70332, #70874)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
 6.15.0
 ......
 
