@@ -143,7 +143,7 @@ class TestModelRequestFingerprint:
         assert fp is None
 
     def test_unserializable_settings_returns_none(self):
-        """Non-JSON settings values degrade to unverified replay instead of hashing
+        """Non-JSON settings values force live execution instead of hashing
         process-local reprs that would never match on retry."""
         fp = fingerprint_model_request(
             "m", make_messages(), {"extra_body": object()}, ModelRequestParameters()
