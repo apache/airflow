@@ -1196,7 +1196,14 @@ class WatchedSubprocess:
             if raise_on_timeout:
                 raise
         else:
-            self._process_exit_monotonic = time.monotonic()
+            if self._exit_code is None:
+                self.process_log.warning(
+                    "Process has already exited but its exit status was consumed by an external process. "
+                    "Setting exit code to -1."
+                )
+                self._exit_code = -1
+                self._process_exit_monotonic = time.monotonic()
+                return self._exit_code
 
             if expect_signal is not None and self._exit_code == -expect_signal:
                 # Bypass logging, the caller expected us to exit with this

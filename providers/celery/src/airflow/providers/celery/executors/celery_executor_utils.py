@@ -239,6 +239,13 @@ def execute_workload(input: str) -> None:
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
+    # Reset SIGCHLD to default to prevent billiard's inherited handler from stealing
+    # the exit status of child processes spawned by the Task SDK supervisor.
+    import signal
+
+    if hasattr(signal, "SIGCHLD"):
+        signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+
     try:
         BaseExecutor.run_workload(workload)
     except Exception as e:
