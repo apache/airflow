@@ -21,6 +21,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from airflow_breeze import global_constants
 from airflow_breeze.commands import release_management_commands
 from airflow_breeze.commands.release_management_commands import (
     ISSUE_MATCH_IN_BODY,
@@ -293,6 +294,29 @@ def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
         stable_txt.parent.mkdir(parents=True)
         stable_txt.write_text(stable_txt_content)
     assert get_package_version_possibly_from_stable_txt("java-sdk") == expected_version
+
+
+@pytest.mark.parametrize(
+    ("stable_txt_content", "expected_version"),
+    [
+        # No stable.txt staged (docs not built for this ref) -> version read from ts-sdk/package.json
+        (None, "0.2.0-alpha.1"),
+        ("0.1.0\n", "0.1.0"),
+    ],
+)
+def test_get_package_version_possibly_from_stable_txt_for_ts_sdk(
+    tmp_path: Path, monkeypatch, stable_txt_content: str | None, expected_version: str
+):
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_ROOT_PATH", tmp_path)
+    monkeypatch.setattr(global_constants, "AIRFLOW_ROOT_PATH", tmp_path)
+    package_json = tmp_path / "ts-sdk" / "package.json"
+    package_json.parent.mkdir(parents=True)
+    package_json.write_text('{"name": "@apache-airflow/ts-sdk", "version": "0.2.0-alpha.1"}\n')
+    if stable_txt_content is not None:
+        stable_txt = tmp_path / "generated" / "_build" / "docs" / "ts-sdk" / "stable.txt"
+        stable_txt.parent.mkdir(parents=True)
+        stable_txt.write_text(stable_txt_content)
+    assert get_package_version_possibly_from_stable_txt("ts-sdk") == expected_version
 
 
 @pytest.mark.parametrize(

@@ -106,8 +106,14 @@ class TaskInstanceCollectionResponse(BaseModel):
     task_instances: Iterable[TaskInstanceResponse]
     total_entries: int | None = Field(
         default=None,
-        description="Total number of matching items. Populated for offset pagination, "
-        "``null`` when using cursor pagination.",
+        description="Number of matching items. For offset pagination this is the exact total. "
+        "For cursor pagination it is capped at ``total_entries_limit``; a value equal to that "
+        "limit means at least that many items match.",
+    )
+    total_entries_limit: int | None = Field(
+        default=None,
+        description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset "
+        "pagination, where ``total_entries`` is exact.",
     )
     next_cursor: str | None = Field(
         default=None,

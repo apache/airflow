@@ -39,12 +39,12 @@ Changelog
 .....
 
 .. note::
-    Keycloak's access and refresh tokens are now stored in dedicated ``_access_token`` and
-    ``_refresh_token`` cookies instead of being carried inside the Airflow JWT claims. Sessions
-    established before this release carry the tokens in the old form, so the first request after
-    the upgrade cannot be refreshed and the session is cleared -- **every logged-in user is signed
-    out once when you upgrade**. No action is required beyond logging back in; this is a one-time
-    effect of the move and does not recur.
+    For Airflow v3.3.0+ Keycloak's access and refresh tokens are now stored in dedicated
+    ``_access_token`` and ``_refresh_token`` cookies instead of being carried inside the
+    Airflow JWT claims. Sessions established before this release carry the tokens in the old form,
+    so the first request after the upgrade cannot be refreshed and the session is cleared --
+    **every logged-in user is signed out once when you upgrade**. No action is required
+    beyond logging back in; this is a one-time effect of the move and does not recur.
 
 Features
 ~~~~~~~~

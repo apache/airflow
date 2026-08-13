@@ -40,8 +40,13 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
     resolve_run_on_latest_version,
 )
-from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
-from airflow.api_fastapi.common.db.dags import attach_team_names
+from airflow.api_fastapi.common.db.common import (
+    SessionDep,
+    apply_filters_to_select,
+    bounded_total_entries,
+    paginated_select,
+)
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -144,6 +149,7 @@ def get_task_instance(
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_teams(TI.dag_run, DagRun.dag_model))
     )
     task_instance = session.scalar(query)
 
@@ -434,6 +440,7 @@ def get_mapped_task_instance(
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_teams(TI.dag_run, DagRun.dag_model))
     )
     task_instance = session.scalar(query)
 
@@ -545,9 +552,10 @@ def get_task_instances(
     **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 
     **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-    When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
-    ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
-    on the first page.
+    When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+    `total_entries_limit` (a value equal to that limit means at least that many task instances
+    match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is
+    ``null`` on the first page.
     """
     use_cursor = cursor is not None
     dag_run = None
@@ -640,10 +648,13 @@ def get_task_instances(
             has_prev = bool(cursor)
             has_next = has_more
 
-        attach_team_names(task_instances, session=session)
-
+        total_entries, total_entries_limit = bounded_total_entries(
+            statement=query, filters=filters, session=session
+        )
         return TaskInstanceCollectionResponse(
             task_instances=task_instances,
+            total_entries=total_entries,
+            total_entries_limit=total_entries_limit,
             next_cursor=(
                 encode_cursor(task_instances[-1], order_by) if has_next and task_instances else None
             ),
@@ -663,7 +674,6 @@ def get_task_instances(
         session=session,
     )
     task_instances = list(session.scalars(task_instance_select))
-    attach_team_names(task_instances, session=session)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
