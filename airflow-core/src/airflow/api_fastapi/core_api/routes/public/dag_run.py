@@ -98,6 +98,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag_run_bulk,
     requires_access_dag_run_clear_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
@@ -277,7 +278,10 @@ def get_upstream_asset_events(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
-        .options(joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset))
+        .options(
+            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset),
+            joinedload(DagRun.consumed_asset_events).subqueryload(AssetEvent.created_dagruns),
+        )
     )
     if dag_run is None:
         raise HTTPException(
@@ -286,7 +290,7 @@ def get_upstream_asset_events(
         )
     events = dag_run.consumed_asset_events
     return AssetEventCollectionResponse(
-        asset_events=events,
+        asset_events=serialize_asset_events(events, session=session),
         total_entries=len(events),
     )
 

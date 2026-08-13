@@ -1897,7 +1897,7 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
         assert event.timestamp
 
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             )
@@ -1927,6 +1927,7 @@ class TestGetDagRunAssetTriggerEvents:
                             "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
                             "state": "running",
                             "partition_key": partition_key,
+                            "triggering": True,
                         }
                     ],
                     "partition_key": partition_key,
@@ -1935,6 +1936,58 @@ class TestGetDagRunAssetTriggerEvents:
             "total_entries": 1,
         }
         assert response.json() == expected_response
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize("num_events", [1, 5])
+    def test_query_count_does_not_scale_with_consumed_events(
+        self, num_events, test_client, dag_maker, session
+    ):
+        """A run consuming N asset events must not issue a query per event (guard against N+1)."""
+        asset1 = Asset(name="ds1", uri="file:///da1")
+        with dag_maker(
+            dag_id="source_dag", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            EmptyOperator(task_id="task", outlets=[asset1])
+        source_run = dag_maker.create_dagrun()
+        ti = source_run.task_instances[0]
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+
+        events = [
+            AssetEvent(
+                asset_id=asset1_id,
+                source_task_id=ti.task_id,
+                source_dag_id=ti.dag_id,
+                source_run_id=ti.run_id,
+                source_map_index=ti.map_index,
+                timestamp=START_DATE1 + timedelta(minutes=index),
+            )
+            for index in range(num_events)
+        ]
+        session.add_all(events)
+
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        consuming_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        for event in events:
+            consuming_run.consumed_asset_events.append(event)
+        session.commit()
+
+        # Constant regardless of the number of consumed events (parametrized 1 vs 5).
+        with assert_queries_count(4):
+            response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total_entries"] == num_events
+        # Only the run's most recent consumed event triggered it; the rest were merely included.
+        triggering_by_event = {
+            event["id"]: event["created_dagruns"][0]["triggering"] for event in payload["asset_events"]
+        }
+        newest_event_id = max(event.id for event in events)
+        assert triggering_by_event[newest_event_id] is True
+        assert all(value is False for eid, value in triggering_by_event.items() if eid != newest_event_id)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
