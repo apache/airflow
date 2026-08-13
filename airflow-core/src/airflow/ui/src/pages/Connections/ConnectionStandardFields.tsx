@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field, Stack, Textarea, Input } from "@chakra-ui/react";
+import { Field, Stack, Textarea, Input, InputGroup } from "@chakra-ui/react";
 import { useState } from "react";
 import { type Control, Controller } from "react-hook-form";
 
@@ -56,7 +56,16 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
                   {key === "description" ? (
                     <Textarea {...field} placeholder={fields.placeholder ?? ""} />
                   ) : (
-                    <div style={{ position: "relative", width: "100%" }}>
+                    <InputGroup
+                      endElement={
+                        key === "password" ? (
+                          <PasswordToggle
+                            isVisible={showPassword}
+                            onToggle={() => setShowPassword(!showPassword)}
+                          />
+                        ) : undefined
+                      }
+                    >
                       <Input
                         {...field}
                         autoComplete={key === "password" ? "new-password" : undefined}
@@ -69,17 +78,7 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
                               : "text"
                         }
                       />
-                      {key === "password" && (
-                        <PasswordToggle
-                          isVisible={showPassword}
-                          onToggle={() => setShowPassword(!showPassword)}
-                          position="absolute"
-                          right={2}
-                          top="50%"
-                          transform="translateY(-50%)"
-                        />
-                      )}
-                    </div>
+                    </InputGroup>
                   )}
                 </Stack>
               </Field.Root>

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input } from "@chakra-ui/react";
+import { Input, InputGroup } from "@chakra-ui/react";
 import { useState } from "react";
 
 import { PasswordToggle } from "src/components/PasswordToggle";
@@ -39,7 +39,11 @@ export const FieldPassword = ({ name, namespace = "default", onUpdate }: Flexibl
   };
 
   return (
-    <div style={{ position: "relative", width: "100%" }}>
+    <InputGroup
+      endElement={
+        <PasswordToggle isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />
+      }
+    >
       <Input
         autoComplete="new-password"
         disabled={disabled}
@@ -54,14 +58,6 @@ export const FieldPassword = ({ name, namespace = "default", onUpdate }: Flexibl
         type={showPassword ? "text" : "password"}
         value={(param.value ?? "") as string}
       />
-      <PasswordToggle
-        isVisible={showPassword}
-        onToggle={() => setShowPassword(!showPassword)}
-        position="absolute"
-        right={2}
-        top="50%"
-        transform="translateY(-50%)"
-      />
-    </div>
+    </InputGroup>
   );
 };
