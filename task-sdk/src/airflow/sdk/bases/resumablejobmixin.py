@@ -79,7 +79,9 @@ class ResumableJobMixin(ABC):
     and it does not stream logs from the remote system (the operator controls that separately).
 
     Usage: call ``execute_resumable(context)`` from the operator's ``execute()`` when reconnection
-    is supported.
+    is supported. An operator that cannot poll inline — a deferrable one deciding before ``defer()``
+    — drives ``get_resume_decision(context)`` and ``persist_job_id(context, id)`` instead, which give
+    the same reconnect decision without blocking.
 
     Subclasses must implement all the methods specific to their external system. The mixin owns
     only ``execute_resumable()`` and the task_state_store read/write logic.
@@ -133,8 +135,9 @@ class ResumableJobMixin(ABC):
         Crash-safe submit-and-poll for synchronous operators. Call from ``execute()``.
 
         Binds the operator's ``submit_job`` / ``get_job_status`` / … methods to
-        :func:`resume_or_submit`, which owns the persist + three-state reconnect logic. See that
-        function for the behaviour and its known submit-vs-persist limitation.
+        :func:`resume_or_submit`. See that function for the behaviour and its known
+        submit-vs-persist limitation. An operator that cannot poll inline drives
+        :meth:`get_resume_decision` and :meth:`persist_job_id` instead.
         """
         return resume_or_submit(
             durable=self.durable,
