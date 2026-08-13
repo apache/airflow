@@ -152,7 +152,7 @@ class AsyncCallback(Callback):
 
     It will be called with Airflow context and specified kwargs when a deadline is missed.
 
-    Pass ``queue`` to assign the resulting trigger to a specific triggerer queue (see
+    Pass ``queue`` to assign the resulting trigger to a specific trigger queue (see
     :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
     """
 

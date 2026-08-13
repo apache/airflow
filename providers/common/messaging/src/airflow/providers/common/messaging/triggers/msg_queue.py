@@ -52,7 +52,7 @@ class MessageQueueTrigger(BaseEventTrigger):
     :param scheme: The queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs'). Used for provider matching.
     :param queue: **Deprecated** The queue identifier (URI format). If provided, this takes precedence over scheme parameter.
         This parameter is deprecated and will be removed in future versions. Use the 'scheme' parameter instead.
-    :param triggerer_queue: Assign this trigger to a specific triggerer queue (see
+    :param trigger_queue: Assign this trigger to a specific trigger queue (see
         :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
         Named differently from the ``queue`` parameter above, which is the deprecated broker queue URI
         and cannot be repurposed for triggerer routing without breaking existing callers.
@@ -62,10 +62,6 @@ class MessageQueueTrigger(BaseEventTrigger):
         :ref:`howto/trigger:MessageQueueTrigger`
     """
 
-    # Deprecated broker queue identifier (URI format), e.g. "sqs://...". Stored under a name distinct
-    # from the inherited `queue` attribute, which `BaseEventTrigger` now uses for triggerer queue
-    # assignment (see #71346) — reusing `queue` here would silently leak this URI into that unrelated
-    # triggerer-routing field. Use the `triggerer_queue` constructor parameter to set `queue` instead.
     queue_uri: str | None = None
     scheme: str | None = None
 
@@ -74,10 +70,12 @@ class MessageQueueTrigger(BaseEventTrigger):
         *,
         queue: str | None = None,
         scheme: str | None = None,
-        triggerer_queue: str | None = None,
+        trigger_queue: str | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(queue=triggerer_queue)
+        # Stored under our own name rather than through `BaseEventTrigger.__init__(queue=...)` so this
+        # works regardless of the installed airflow-core version, see `queue` property below.
+        self._trigger_queue = trigger_queue
 
         if queue is None and scheme is None:
             raise ValueError("Either `queue` or `scheme` parameter must be provided.")
@@ -97,6 +95,14 @@ class MessageQueueTrigger(BaseEventTrigger):
             self.scheme = scheme
 
         self.kwargs = kwargs
+
+    @property
+    def queue(self) -> str | None:
+        return self._trigger_queue
+
+    @queue.setter
+    def queue(self, value: str | None) -> None:
+        self._trigger_queue = value
 
     @cached_property
     def trigger(self) -> BaseEventTrigger:

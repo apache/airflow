@@ -303,9 +303,9 @@ class BaseEventTrigger(BaseTrigger):
     including snapshot-at-fan-out semantics, per-event timeout behavior, and
     triggerer-restart redeliver notes.
 
-    **Triggerer queue assignment**
+    **Trigger queue assignment**
 
-    Pass ``queue`` to assign this trigger to a specific triggerer queue (see
+    Pass ``queue`` to assign this trigger to a specific trigger queue (see
     :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of
     ``airflow triggerer``). When used with team-based triggerer node assignment,
     the team and queue function as a logical 'AND'.

@@ -226,30 +226,29 @@ class TestMessageQueueTriggerScheme:
         assert trigger.scheme == PROVIDER_2_SCHEME
 
     @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
-    def test_deprecated_queue_param_does_not_set_triggerer_queue(self):
+    def test_deprecated_queue_param_does_not_set_trigger_queue(self):
         """Regression test: the deprecated `queue` (broker URI) must not leak into the unrelated
-        `BaseEventTrigger.queue` attribute used for triggerer queue assignment (see #71346), or the
-        resulting Trigger row would never be picked up by any triggerer. `BaseEventTrigger.queue` is
-        only present on Airflow versions that ship #71346, hence the `getattr` default."""
+        `queue` property used for trigger queue assignment (see #71346), or the resulting Trigger
+        row would never be picked up by any triggerer."""
         trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE)
         assert trigger.queue_uri == PROVIDER_1_QUEUE
-        assert getattr(trigger, "queue", None) is None
+        assert trigger.queue is None
 
-    def test_scheme_param_does_not_set_triggerer_queue(self):
+    def test_scheme_param_does_not_set_trigger_queue(self):
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
-        assert getattr(trigger, "queue", None) is None
+        assert trigger.queue is None
 
     @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
-    def test_triggerer_queue_param_sets_triggerer_queue_alongside_deprecated_queue(self):
-        """The deprecated `queue` (broker URI) parameter claims the `queue` keyword, so triggerer
-        routing must go through the distinct `triggerer_queue` parameter instead."""
-        trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, triggerer_queue="my-triggerer-queue")
+    def test_trigger_queue_param_sets_trigger_queue_alongside_deprecated_queue(self):
+        """The deprecated `queue` (broker URI) parameter claims the `queue` keyword, so trigger
+        queue routing must go through the distinct `trigger_queue` parameter instead."""
+        trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, trigger_queue="my-trigger-queue")
         assert trigger.queue_uri == PROVIDER_1_QUEUE
-        assert trigger.queue == "my-triggerer-queue"
+        assert trigger.queue == "my-trigger-queue"
 
-    def test_triggerer_queue_param_sets_triggerer_queue_alongside_scheme(self):
-        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, triggerer_queue="my-triggerer-queue")
-        assert trigger.queue == "my-triggerer-queue"
+    def test_trigger_queue_param_sets_trigger_queue_alongside_scheme(self):
+        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, trigger_queue="my-trigger-queue")
+        assert trigger.queue == "my-trigger-queue"
 
     def test_scheme_provider_matching(self):
         """Test that scheme matching works correctly."""

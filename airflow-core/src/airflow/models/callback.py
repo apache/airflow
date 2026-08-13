@@ -104,7 +104,7 @@ class ImportPathExecutorCallbackDefProtocol(ImportPathCallbackDefProtocol, Proto
 
 @runtime_checkable
 class ImportPathAsyncCallbackDefProtocol(ImportPathCallbackDefProtocol, Protocol):
-    """Protocol for callbacks that use the import path fetch method and support triggerer queue assignment."""
+    """Protocol for callbacks that use the import path fetch method and support trigger queue assignment."""
 
     queue: str | None
 
