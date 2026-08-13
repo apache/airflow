@@ -98,6 +98,42 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
 
 
+Replicated components
+---------------------
+
+Every Airflow process reports the same ``service.name``, so a deployment running more than one
+replica of a component — schedulers in high availability, several triggerers or Dag processors —
+sends telemetry the backend cannot attribute to an individual process.
+
+Gauges are where this shows up in the data. Each scheduler samples the metadata database on its
+own loop and exports a value for the same series, so ``pool.open_slots`` and its siblings keep
+whichever export arrived last and appear to flap between replicas' samples.
+
+Give each replica a unique ``service.instance.id`` so its samples form their own series:
+
+.. code-block:: bash
+
+    # on each scheduler, triggerer or Dag processor
+    export OTEL_RESOURCE_ATTRIBUTES="service.instance.id=$(hostname)"
+
+Airflow merges ``OTEL_RESOURCE_ATTRIBUTES`` into the OpenTelemetry resource, so nothing else needs
+configuring. Replicas can then be aggregated at query time instead of overwriting one another —
+for example, the lowest number of open slots any scheduler observed:
+
+.. code-block:: text
+
+    min by (pool_name) (airflow_pool_open_slots)
+
+Backends implementing the OpenTelemetry `Prometheus compatibility
+<https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/>`_ spec expose
+``service.instance.id`` as the ``instance`` label.
+
+.. note::
+
+    This applies to OpenTelemetry only. The StatsD protocol has no resource concept, so metrics
+    from replicated components cannot be distinguished this way.
+
+
 Enable Https
 -----------------
 
