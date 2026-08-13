@@ -109,9 +109,9 @@ class TestEmptyLink:
 class TestNameIsAbstract:
     def test_cannot_instantiate_without_name(self):
         """BaseOperatorLink.name is abstract — subclasses must define it."""
+
+        class NoNameLink(BaseOperatorLink):
+            pass
+
         with pytest.raises(TypeError, match="name"):
-
-            class NoNameLink(BaseOperatorLink):
-                pass
-
             NoNameLink()
