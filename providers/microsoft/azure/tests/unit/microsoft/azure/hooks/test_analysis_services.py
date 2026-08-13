@@ -23,6 +23,7 @@ import requests
 
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.analysis_services import (
+    REQUEST_TIMEOUT,
     AzureAnalysisServicesHook,
     AzureAnalysisServicesRefreshException,
     AzureAnalysisServicesRefreshStatus,
@@ -136,6 +137,7 @@ class TestAzureAnalysisServicesHook:
             f"{BASE_URL}/servers/{SERVER_NAME}/models/{DATABASE}/refreshes",
             json={"type": "full"},
             headers={"Authorization": "Bearer token"},
+            timeout=REQUEST_TIMEOUT,
         )
 
     def test_trigger_refresh_custom_type(self, hook):
@@ -205,6 +207,7 @@ class TestAzureAnalysisServicesHook:
         mock_get.assert_called_once_with(
             f"{BASE_URL}/servers/{SERVER_NAME}/models/{DATABASE}/refreshes/{REFRESH_ID}",
             headers={"Authorization": "Bearer token"},
+            timeout=REQUEST_TIMEOUT,
         )
 
     def test_get_refresh_status_raises_on_http_error(self, hook):

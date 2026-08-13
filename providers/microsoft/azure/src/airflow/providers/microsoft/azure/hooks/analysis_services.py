@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, get_args
 
 import requests
 from azure.identity import ClientSecretCredential
@@ -32,11 +32,10 @@ if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
 
 TOKEN_SCOPE = "https://*.asazure.windows.net/.default"
+REQUEST_TIMEOUT = 30
 
 RefreshType = Literal["full", "clearValues", "calculate", "dataOnly", "automatic", "defragment"]
-VALID_REFRESH_TYPES: frozenset[str] = frozenset(
-    {"full", "clearValues", "calculate", "dataOnly", "automatic", "defragment"}
-)
+VALID_REFRESH_TYPES: frozenset[str] = frozenset(get_args(RefreshType))
 
 
 class AzureAnalysisServicesRefreshStatus:
@@ -170,7 +169,9 @@ class AzureAnalysisServicesHook(BaseHook):
             )
         url = f"{self._get_base_url()}/servers/{server_name}/models/{database}/refreshes"
         try:
-            response = requests.post(url, json={"type": refresh_type}, headers=self._get_headers())
+            response = requests.post(
+                url, json={"type": refresh_type}, headers=self._get_headers(), timeout=REQUEST_TIMEOUT
+            )
             response.raise_for_status()
         except requests.HTTPError as e:
             raise AzureAnalysisServicesRefreshException(f"Failed to trigger refresh: {e}") from e
@@ -194,7 +195,7 @@ class AzureAnalysisServicesHook(BaseHook):
         """
         url = f"{self._get_base_url()}/servers/{server_name}/models/{database}/refreshes/{refresh_id}"
         try:
-            response = requests.get(url, headers=self._get_headers())
+            response = requests.get(url, headers=self._get_headers(), timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
         except requests.HTTPError as e:
             raise AzureAnalysisServicesRefreshException(f"Failed to get refresh status: {e}") from e
