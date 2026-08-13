@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiBarChart, FiDatabase, FiTag, FiUser, FiUsers } from "react-icons/fi";
+import { FiActivity, FiBarChart, FiDatabase, FiTag, FiUser, FiUsers } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
   MdBuild,
@@ -306,13 +306,13 @@ export const useFilterConfigs = () => {
       type: FilterTypes.NUMBER,
     },
     [SearchParamsKeys.MAX_ACTIVE_RUNS_GTE]: {
-      icon: <MdHourglassEmpty />,
+      icon: <FiActivity />,
       label: translate("common:filters.maxActiveRunsFrom"),
       min: 1,
       type: FilterTypes.NUMBER,
     },
     [SearchParamsKeys.MAX_ACTIVE_RUNS_LTE]: {
-      icon: <MdHourglassEmpty />,
+      icon: <FiActivity />,
       label: translate("common:filters.maxActiveRunsTo"),
       min: 1,
       type: FilterTypes.NUMBER,
