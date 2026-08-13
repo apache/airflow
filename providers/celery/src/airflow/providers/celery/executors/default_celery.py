@@ -78,7 +78,9 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
     :param conf: ExecutorConf object
     :return: broker_transport_options dict
     """
-    broker_transport_options: dict[str, str | int | float | Any] = conf.getsection("celery_broker_transport_options") or {}
+    broker_transport_options: dict[str, str | int | float | Any] = (
+        conf.getsection("celery_broker_transport_options") or {}
+    )
     if "visibility_timeout" not in broker_transport_options:
         if _broker_supports_visibility_timeout(broker_url):
             broker_transport_options["visibility_timeout"] = 86400
@@ -218,15 +220,17 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
                     "Set SSL_MUTUAL_TLS=True if you intend to use mutual TLS."
                 )
 
+            broker_use_ssl: dict[str, str | int] = {}
+
             if broker_url and re.search(r"amqps?://", broker_url):
-                broker_use_ssl = {"cert_reqs": ssl.CERT_REQUIRED}
+                broker_use_ssl["cert_reqs"] = ssl.CERT_REQUIRED
                 if ssl_cacert:
                     broker_use_ssl["ca_certs"] = ssl_cacert
                 if ssl_mutual_tls:
                     broker_use_ssl["keyfile"] = ssl_key
                     broker_use_ssl["certfile"] = ssl_cert
             elif broker_url and re.search("rediss?://|sentinel://", broker_url):
-                broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+                broker_use_ssl["ssl_cert_reqs"] = ssl.CERT_REQUIRED
                 if ssl_cacert:
                     broker_use_ssl["ssl_ca_certs"] = ssl_cacert
                 if ssl_mutual_tls:

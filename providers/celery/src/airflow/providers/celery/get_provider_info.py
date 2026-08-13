@@ -317,7 +317,7 @@ def get_provider_info():
                         "description": "Kafka config common to producers and consumers,\nsee https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/kafka.html.\n",
                         "version_added": "3.24.0",
                         "type": "string",
-                        "example": '{"sasl.username": sasl_username,"sasl.password": sasl_password,"security.protocol": "SASL_SSL","sasl.mechanism": "SCRAM-SHA-512","bootstrap.servers": "broker:9094"}',
+                        "example": '{"bootstrap.servers": "broker:9094"}',
                         "default": None,
                     },
                     "kafka_consumer_config": {
@@ -345,14 +345,14 @@ def get_provider_info():
                         "description": "SQS Predefined SNS topics.\n",
                         "version_added": "3.24.0",
                         "type": "string",
-                        "example": '{"exchange-1": {"arn": "arn:aws:sns:us-east-1:xxx:exchange-1","access_key_id": "a","secret_access_key": "b"}}',
+                        "example": '{"exchange-1": {"arn": "arn:aws:sns:us-east-1:xxx:exchange-1"}}',
                         "default": None,
                     },
                     "predefined_queues": {
                         "description": "SQS Predefined Queues.",
                         "version_added": "3.24.0",
                         "type": "string",
-                        "example": '{"queue-1": {"url": "https://sqs.us-east-1.amazonaws.com/xxx/aaa","access_key_id": "a","secret_access_key": "b","backoff_tasks": ["svc.tasks.tasks.task1"]},"queue-2.fifo": {"url": "https://sqs.us-east-1.amazonaws.com/xxx/bbb.fifo","access_key_id": "c","secret_access_key": "d"}}',
+                        "example": '{"queue-1": {"url": "https://sqs.us-east-1.amazonaws.com/xxx/aaa"}}',
                         "default": None,
                     },
                     "queue_tags": {
