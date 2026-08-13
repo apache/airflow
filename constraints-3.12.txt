@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-13T08:33:53.095028
+# This constraints file was automatically generated on 2026-08-13T15:45:18.112662
 # via `uv pip install --resolution highest` for the "v3-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -397,12 +397,12 @@ hdfs==2.7.3
 hf-xet==1.6.0
 hmsclient==0.1.1
 hpack==4.2.0
-httpcore2==2.9.1
+httpcore2==2.10.0
 httpcore==1.0.9
 httplib2==0.32.0
 httpr==0.6.0
 httptools==0.8.0
-httpx2==2.9.1
+httpx2==2.10.0
 httpx==0.28.1
 huggingface_hub==1.27.0
 humanize==4.16.0
@@ -497,7 +497,7 @@ nbformat==5.11.0
 neo4j==6.2.0
 nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
-numpy==2.5.1
+numpy==2.5.2
 oauthlib==3.3.1
 openai==2.53.0
 opencensus-context==0.1.3
