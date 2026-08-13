@@ -16,30 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { FiAlignJustify, FiGrid } from "react-icons/fi";
 
-import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
-
-type Display = "card" | "table";
-
-type Props = {
-  readonly display: Display;
-  readonly setDisplay: (display: Display) => void;
-};
-
-export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
-  const { t: translate } = useTranslation("components");
-
-  return (
-    <ButtonGroupToggle
-      isIcon
-      onChange={setDisplay}
-      options={[
-        { label: <FiGrid />, title: translate("toggleCardView"), value: "card" },
-        { label: <FiAlignJustify />, title: translate("toggleTableView"), value: "table" },
-      ]}
-      value={display}
-    />
-  );
-};
+/**
+ * Data rows of a DataTable, excluding the "no items found" row.
+ *
+ * DataTable renders its empty state as a single `<tr>` with a cell spanning every column, so a
+ * plain `tbody tr` locator counts it as a data row. That turns "at least one row exists"
+ * assertions into false passes on an empty table. Always select data rows through this.
+ */
+export const DATA_ROWS = 'tbody tr:not([data-testid="table-no-rows"])';

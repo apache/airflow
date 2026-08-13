@@ -121,6 +121,8 @@
       "title": "Access Denied"
     }
   },
+  "event_one": "Event",
+  "event_other": "Events",
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
