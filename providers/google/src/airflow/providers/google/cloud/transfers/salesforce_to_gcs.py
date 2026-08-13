@@ -103,7 +103,7 @@ class SalesforceToGcsOperator(BaseOperator):
                 FutureWarning,
                 stacklevel=2,
             )
-            unwrap_single = True
+            self.unwrap_single = True
         else:
             self.unwrap_single = unwrap_single
 
