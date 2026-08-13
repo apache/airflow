@@ -45,6 +45,20 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
 # ResumableJobMixin only exists on Airflow 3.3+; this provider still targets >=2.11. Drop this
 # fallback once the provider's minimum Airflow version is >=3.3.
 try:
@@ -56,10 +70,9 @@ except ImportError:
 
         external_id_key: str = "glue_job_run_id"
 
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            # Swallow ``durable`` so it doesn't reach BaseOperator; crash recovery is a no-op here.
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             super().__init__(**kwargs)
-            self.durable = durable
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -212,16 +225,16 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            kwargs.setdefault("durable", resume_glue_job_on_retry)
-        # durable is also named here (not left to **kwargs) so default_args={"durable": ...} reaches
-        # it on every supported Airflow version, not just where the mixin's own _apply_defaults runs.
+            if AIRFLOW_V_3_3_PLUS:
+                kwargs.setdefault("durable", resume_glue_job_on_retry)
+        # durable is also named parameter here (not left to **kwargs) so default_args={"durable": ...} reaches
+        # it on every supported Airflow version.
         if durable is not None:
             kwargs["durable"] = durable
-        elif resume_glue_job_on_retry is None and not AIRFLOW_V_3_3_PLUS:
-            # No task_state_store below 3.3 -- durable's default of True would otherwise turn on
-            # the scan-based reattach for everyone who upgrades without touching their DAGs.
-            kwargs["durable"] = False
         super().__init__(**kwargs)
+        if not AIRFLOW_V_3_3_PLUS and resume_glue_job_on_retry is not None:
+            # durable itself has no effect below 3.3, so we take value of resume_glue_job_on_retry instead.
+            self.durable = resume_glue_job_on_retry
         self.job_name = job_name
         self.job_desc = job_desc
         self.script_location = script_location

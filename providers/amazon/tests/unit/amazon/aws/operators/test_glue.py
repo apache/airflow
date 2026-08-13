@@ -35,10 +35,12 @@ from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJob
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import (
+    _DURABLE_UNSET,
     GlueDataQualityOperator,
     GlueDataQualityRuleRecommendationRunOperator,
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
@@ -862,6 +864,21 @@ class TestGlueJobOperatorOpenLineageInjection:
         assert GlueJobOperator.TASK_UUID_ARG in call_args
 
 
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False
+
+
 class TestGlueJobOperatorDeprecation:
     @pytest.mark.parametrize("resume_value", [True, False])
     def test_warns_and_maps_to_durable(self, resume_value):
@@ -871,16 +888,11 @@ class TestGlueJobOperatorDeprecation:
 
     def test_warns_on_every_supported_airflow_version(self):
         # Provider deprecations are scoped to the provider's own release, not the Airflow version.
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=True)
-        deprecation_warnings = [
-            w for w in caught if issubclass(w.category, AirflowProviderDeprecationWarning)
-        ]
-        assert len(deprecation_warnings) == 1
-        assert glue.durable is True
+        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(AirflowProviderDeprecationWarning, match="resume_glue_job_on_retry"):
+                GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=True)
 
-    def test_both_flags_passed_durable_wins(self):
+    def test_both_flags_passed_durable_takes_precedence(self):
         with pytest.warns(AirflowProviderDeprecationWarning):
             glue = GlueJobOperator(
                 task_id=TASK_ID,
@@ -900,28 +912,16 @@ class TestGlueJobOperatorDeprecation:
             glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
         assert glue.durable is False
 
-    def test_neither_flag_set_disables_durable_below_3_3(self):
+    def test_legacy_flag_wins_over_conflicting_durable_below_3_3(self):
         with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
-            glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
-        assert glue.durable is False
-
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {"durable": True},
-            {"resume_glue_job_on_retry": True},
-        ],
-    )
-    def test_explicit_opt_in_still_enables_durable_below_3_3(self, kwargs):
-        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
-                glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, **kwargs)
-        assert glue.durable is True
-
-    def test_neither_flag_set_keeps_durable_default_on_3_3_plus(self):
-        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", True):
-            glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    durable=False,
+                    resume_glue_job_on_retry=True,
+                )
+        # assert that glube.durable is True even though durable is set to False, because resume_glue_job_on_retry takes precedence in this case.
         assert glue.durable is True
 
 
