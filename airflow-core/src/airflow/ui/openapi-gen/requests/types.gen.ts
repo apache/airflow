@@ -901,6 +901,7 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -1001,9 +1002,13 @@ export type DAGRunClearBody = {
 export type DAGRunCollectionResponse = {
     dag_runs: Array<DAGRunResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -1151,6 +1156,10 @@ export type DagRunAssetReference = {
     data_interval_start: string | null;
     data_interval_end: string | null;
     partition_key: string | null;
+    /**
+     * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
+     */
+    triggering: boolean;
 };
 
 /**
@@ -1757,9 +1766,13 @@ export type TaskInletAssetReference = {
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -2586,7 +2599,8 @@ export type GridTISummaries = {
 export type HistoricalMetricDataResponse = {
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
-    state_count_limit: number;
+    dag_run_counts_are_lower_bounds?: boolean;
+    task_instance_counts_are_lower_bounds?: boolean;
 };
 
 /**
@@ -4672,6 +4686,7 @@ export type GetDagDeadlineAlertsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
+    versionNumber?: number | null;
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
@@ -7801,10 +7816,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8080,6 +8091,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 CONF_SECTION_NAME = "keycloak_auth_manager"
+CONF_CACHE_TTL_SECONDS_KEY = "cache_ttl_seconds"
+CONF_CACHE_TIMEOUT_SECONDS_KEY = "cache_timeout_seconds"
 CONF_CLIENT_ID_KEY = "client_id"
 CONF_CLIENT_SECRET_KEY = "client_secret"
 CONF_REALM_KEY = "realm"
@@ -27,9 +29,7 @@ CONF_REQUESTS_POOL_SIZE_KEY = "requests_pool_size"
 CONF_REQUESTS_RETRIES_KEY = "requests_retries"
 
 # Extra Cookie names
-COOKIE_NAME_ACCESS_TOKEN = "access_token"
+COOKIE_NAME_ACCESS_TOKEN = "_access_token"
 COOKIE_NAME_ID_TOKEN = "_id_token"
-COOKIE_NAME_NAME = "name"
 COOKIE_NAME_OAUTH_STATE = "_oauth_state"
-COOKIE_NAME_REFRESH_TOKEN = "refresh_token"
-COOKIE_NAME_USER_ID = "user_id"
+COOKIE_NAME_REFRESH_TOKEN = "_refresh_token"

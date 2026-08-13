@@ -113,7 +113,7 @@ Wraps the official Anthropic Python SDK to run the Claude Message Batches API
 asynchronously from Airflow, plus direct message and token-counting helpers.
 
 
-Release: 0.2.0
+Release: 0.2.1
 
 Provider package
 ----------------
@@ -138,7 +138,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``anthropic``                               ``>=0.101.0``
+``anthropic``                               ``>=0.121.0``
 ==========================================  ==================
 
 Optional dependencies
@@ -155,9 +155,9 @@ Install them when installing from PyPI. For example:
 ===========  ===============================
 Extra        Dependencies
 ===========  ===============================
-``bedrock``  ``anthropic[bedrock]>=0.101.0``
-``vertex``   ``anthropic[vertex]>=0.101.0``
-``aws``      ``anthropic[aws]>=0.101.0``
+``bedrock``  ``anthropic[bedrock]>=0.121.0``
+``vertex``   ``anthropic[vertex]>=0.121.0``
+``aws``      ``anthropic[aws]>=0.121.0``
 ===========  ===============================
 
 Downloading official packages
@@ -166,5 +166,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-anthropic 0.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-anthropic 0.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-anthropic 0.2.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-anthropic 0.2.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_anthropic-0.2.1-py3-none-any.whl.sha512>`__)

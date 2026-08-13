@@ -3247,6 +3247,17 @@ export const $DAGDetailsResponse = {
             title: 'Active Runs Count',
             default: 0
         },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
@@ -3629,7 +3640,19 @@ export const $DAGRunCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
@@ -4473,11 +4496,16 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Partition Key'
+        },
+        triggering: {
+            type: 'boolean',
+            title: 'Triggering',
+            description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it."
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
+    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key', 'triggering'],
     title: 'DagRunAssetReference',
     description: 'DagRun serializer for asset responses.'
 } as const;
@@ -6576,7 +6604,19 @@ export const $TaskInstanceCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
@@ -10165,13 +10205,19 @@ export const $HistoricalMetricDataResponse = {
         task_instance_states: {
             '$ref': '#/components/schemas/TaskInstanceStateCount'
         },
-        state_count_limit: {
-            type: 'integer',
-            title: 'State Count Limit'
+        dag_run_counts_are_lower_bounds: {
+            type: 'boolean',
+            title: 'Dag Run Counts Are Lower Bounds',
+            default: false
+        },
+        task_instance_counts_are_lower_bounds: {
+            type: 'boolean',
+            title: 'Task Instance Counts Are Lower Bounds',
+            default: false
         }
     },
     type: 'object',
-    required: ['dag_run_states', 'task_instance_states', 'state_count_limit'],
+    required: ['dag_run_states', 'task_instance_states'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
 } as const;

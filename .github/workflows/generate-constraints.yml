@@ -44,6 +44,24 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to generate PyPI constraints (true/false)"
         required: true
         type: string
+      allow-pre-releases:
+        description: >
+          Whether the PyPI constraints may pin pre-release providers (true/false). Set when
+          constraints are cut for a release candidate, whose providers are on PyPI only as rc
+          versions. Scoped to apache-airflow-providers-* - no other package can resolve to a
+          pre-release.
+        required: false
+        default: "false"
+        type: string
+      pypi-providers-only:
+        description: >
+          Resolve against providers exactly as published on PyPI (true/false). Skips building the
+          provider distributions from sources and the source-providers constraints with them, so
+          nothing local can answer for a provider. Set when the constraints being produced are the
+          ones a release ships - see the comments on the steps this disables.
+        required: false
+        default: "false"
+        type: string
       debug-resources:
         description: "Whether to run in debug mode (true/false)"
         required: true
@@ -104,12 +122,15 @@ jobs:
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+      # Resolves the providers from the sources in this checkout. Skipped for a release, which
+      # ships only the PyPI constraints and must not have a source tree answer for a provider.
       - name: "Source constraints"
         shell: bash
         run: >
           breeze release-management generate-constraints
           --airflow-constraints-mode constraints-source-providers --answer yes
           --python "${PYTHON_VERSION}"
+        if: inputs.pypi-providers-only != 'true'
       - name: "No providers constraints"
         shell: bash
         timeout-minutes: 25
@@ -118,12 +139,16 @@ jobs:
           --airflow-constraints-mode constraints-no-providers --answer yes
           --python "${PYTHON_VERSION}"
         if: inputs.generate-no-providers-constraints == 'true'
+      # Builds the providers from sources into the dist directory the PyPI resolution reads through
+      # `--find-links`, so a locally built wheel can answer for a provider and is then excluded from
+      # the constraints. That is wanted while developing a provider that is not on PyPI yet; it is the
+      # opposite of what a release wants, which is every provider pinned at its published version.
       - name: "Prepare updated provider distributions"
         shell: bash
         run: >
           breeze release-management prepare-provider-distributions
           --include-not-ready-providers --distribution-format wheel
-        if: inputs.generate-pypi-constraints == 'true'
+        if: inputs.generate-pypi-constraints == 'true' && inputs.pypi-providers-only != 'true'
       - name: "Prepare airflow distributions"
         shell: bash
         run: >
@@ -137,9 +162,14 @@ jobs:
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
+        env:
+          # Deliberately not named ALLOW_PRE_RELEASES: that is the option's own envvar, and having
+          # both paths set it would make it unclear which one is in force. Empty on a normal run,
+          # so the unquoted expansion below contributes no argument at all.
+          PRE_RELEASE_FLAG: ${{ inputs.allow-pre-releases == 'true' && '--allow-pre-releases' || '' }}
         run: |
           breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}"
+            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Check for provider downgrade alert"
         id: downgrade-alert

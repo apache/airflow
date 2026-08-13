@@ -34,6 +34,8 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
+from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.models.trigger import handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -48,7 +50,7 @@ from airflow.triggers.base import (
     TriggerEvent,
 )
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -256,6 +258,72 @@ def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected
         Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
 
 
+@pytest.mark.parametrize(
+    "stored_next_kwargs",
+    [
+        # Decoding blows up: serde rejects the class name, and the BaseSerialization fallback then
+        # trips over the missing legacy keys.
+        pytest.param(
+            {"__classname__": "not.allowed.Thing", "__version__": 1, "__data__": {}},
+            id="undecodable",
+        ),
+        # Decodes cleanly, but not into a dict: legacy encoding of a bare datetime.
+        pytest.param({"__type": "datetime", "__var": 1735689600.0}, id="not-a-dict"),
+    ],
+)
+def test_handle_event_submit_fails_task_with_unusable_next_kwargs(
+    session, create_task_instance, stored_next_kwargs
+):
+    """
+    Tests that stored kwargs which cannot be turned into a dict fail the task instance instead of
+    raising out of ``handle_event_submit``. Its callers walk every waiting task instance in one
+    pass, so one unusable payload must not abort them.
+    """
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = stored_next_kwargs
+    session.flush()
+
+    handle_event_submit(TriggerEvent("payload"), task_instance=task_instance, session=session)
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "__fail__"
+    assert task_instance.trigger_id is None
+    assert "event" not in task_instance.next_kwargs
+    assert "stored next_kwargs could not be decoded" in task_instance.next_kwargs["error"]
+    # The traceback reaches the task log only through next_kwargs, and the runtime joins the list.
+    assert isinstance(task_instance.next_kwargs["traceback"], list)
+
+
+def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_serialized(
+    session, create_task_instance
+):
+    """A payload serde cannot encode is reported as such, not as unreadable stored kwargs.
+
+    Blaming the stored kwargs would point the Dag author at database state that was never the
+    problem.
+    """
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = {}
+    session.flush()
+
+    # serde refuses any dict carrying its reserved keys, at any depth.
+    handle_event_submit(
+        TriggerEvent({"__classname__": "anything"}), task_instance=task_instance, session=session
+    )
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "__fail__"
+    assert "event payload could not be serialized" in task_instance.next_kwargs["error"]
+
+
 def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
@@ -296,11 +364,15 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # Make a trigger
     trigger = Trigger(classpath="does.not.matter", kwargs={})
     session.add(trigger)
-    # Make a TaskInstance that's deferred and waiting on it
+    # Make a TaskInstance that's deferred and waiting on it. A deferred task has
+    # already started running, so it has a start_date; set one so duration can be
+    # computed. Unlike set_state, handle_failure (used by the FAILED path) does not
+    # synthesize a missing start_date, matching the scheduler executor-event path.
     task_instance = create_task_instance(
         session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
     )
     task_instance.trigger_id = trigger.id
+    task_instance.start_date = now.subtract(seconds=10)
     session.commit()
 
     def get_xcoms(ti):
@@ -360,6 +432,73 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     request = mock_send.call_args.kwargs["callback"]
     assert request.bundle_version == "some_hash"
     assert request.version_data == version_data
+
+
+@pytest.mark.parametrize(
+    ("retries", "expected_state", "expected_callback_type", "expect_history_row"),
+    [
+        (1, TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RETRY, True),
+        (0, TaskInstanceState.FAILED, TaskInstanceState.FAILED, False),
+    ],
+)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_failed_respects_retries(
+    mock_send,
+    session,
+    create_task_instance,
+    retries,
+    expected_state,
+    expected_callback_type,
+    expect_history_row,
+):
+    """A trigger-emitted TaskFailedEvent should respect retry-eligibility: a deferred task with
+    retries remaining goes UP_FOR_RETRY (on_retry_callback), not straight to FAILED.
+
+    On the retry path, the finished try must also be archived to task_instance_history so
+    prior-try log lookups keep working after the trigger ends the deferred try.
+    """
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        default_args={"retries": retries},
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.try_number = 1
+    task_instance.max_tries = retries
+    old_ti_id = task_instance.id
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
+    session.flush()
+
+    ti = session.scalar(select(TaskInstance))
+    assert ti.state == expected_state
+
+    mock_send.assert_called_once()
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.task_callback_type == expected_callback_type
+
+    assert ti.next_method is None
+    assert ti.next_kwargs is None
+    assert ti.end_date is not None
+
+    tih = session.scalars(
+        select(TaskInstanceHistory).where(
+            TaskInstanceHistory.dag_id == ti.dag_id,
+            TaskInstanceHistory.task_id == ti.task_id,
+            TaskInstanceHistory.run_id == ti.run_id,
+        )
+    ).all()
+    if expect_history_row:
+        assert len(tih) == 1
+        assert ti.id != old_ti_id
+        assert tih[0].task_instance_id == old_ti_id
+    else:
+        assert tih == []
+        assert ti.id == old_ti_id
 
 
 @pytest.fixture

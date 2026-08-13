@@ -18,7 +18,7 @@
 [build-system]
 requires = [
     "hatchling==1.31.0",
-    "packaging==26.2",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
@@ -191,9 +191,6 @@ apache-airflow = "airflow.__main__:main"
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
 ]
-"common.dataquality" = [
-    "apache-airflow-providers-common-dataquality>=0.1.0"
-]
 "common.io" = [
     "apache-airflow-providers-common-io>=1.4.2"
 ]
@@ -256,9 +253,6 @@ apache-airflow = "airflow.__main__:main"
 ]
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
-]
-"ibm.mq" = [
-    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
 ]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
@@ -444,7 +438,6 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-ai>=0.1.0",
     "apache-airflow-providers-common-compat>=1.2.1",
-    "apache-airflow-providers-common-dataquality>=0.1.0",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
@@ -466,7 +459,6 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
-    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
@@ -569,7 +561,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.29",
+    "uv>=0.12.3",
 ]
 
 [project.urls]
@@ -609,6 +601,10 @@ extend-exclude = [
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 external = ["MIG"]
+# Pin the base rule set instead of inheriting Ruff's default, which Ruff changes
+# between releases (0.16 widened it from ~250 to ~510 rules). Everything Airflow
+# actually opts into lives in extend-select below.
+select = ["E4", "E7", "E9", "F"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
@@ -716,6 +712,13 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
+    # New in Ruff 0.16, inside sections Airflow selects wholesale. Deferred so a tooling
+    # bump does not also carry semantic changes; both need per-site judgement.
+    "ISC004", # Implicit string concat in a collection literal; 109 sites, unsafe autofix
+    # LOG004 is not a mechanical replacement: switching to `.error()` where an exception is
+    # in flight silently drops the traceback, while leaving `.exception()` where none is
+    # only prints a bare `NoneType: None`. Review already caught one bad guess in 13.
+    "LOG004", # `.exception()` outside an exception handler; 13 sites
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
