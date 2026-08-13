@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -49,11 +49,15 @@ class WorkflowRunMetadata:
     :param run_id: The ID of the Databricks workflow run.
     :param job_id: The ID of the Databricks workflow job.
     :param conn_id: The connection ID used to connect to Databricks.
+    :param task_key_map: Airflow ``task_id`` → Databricks ``task_key`` for the workflow's tasks.
+        Optional and defaulted for backward compatibility with runs launched before it was added
+        (those XComs carry only conn_id/job_id/run_id).
     """
 
     conn_id: str
     job_id: int
     run_id: int
+    task_key_map: dict[str, str] = field(default_factory=dict)
 
 
 def _flatten_node(
@@ -273,6 +277,14 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
             "conn_id": self.databricks_conn_id,
             "job_id": job_id,
             "run_id": run_id,
+            # Map each workflow task's Airflow task_id to the task_key registered with Databricks,
+            # captured here from the live operators. The repair endpoint needs it because an
+            # explicit ``databricks_task_key`` does not survive Dag serialization, so the API server
+            # cannot otherwise recover the true key from the serialized Dag.
+            "task_key_map": {
+                task.task_id: task.databricks_task_key  # type: ignore[attr-defined]
+                for task in self.tasks_to_convert.values()
+            },
         }
 
     def on_kill(self) -> None:
