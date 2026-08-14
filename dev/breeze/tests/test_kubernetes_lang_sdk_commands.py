@@ -20,14 +20,12 @@ from unittest import mock
 
 import pytest
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands import kubernetes_commands
 from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
     _lang_sdk_build_java_jar,
     _lang_sdk_fetch_upstream_sdk_sources,
     _lang_sdk_resolve_sdk_sources,
-    _lang_sdk_target_branch,
     _lang_sdk_upload_artifacts,
 )
 from airflow_breeze.utils import shared_options
@@ -379,54 +377,58 @@ class TestSetupLangSdkTestNativeSelection:
         }
 
 
-class TestLangSdkTargetBranch:
+class TestLangSdkResolveSdkSources:
+    @pytest.fixture
+    def repo_root(self, tmp_path, monkeypatch):
+        """A checkout root whose go-sdk/java-sdk presence each test decides for itself."""
+        root = tmp_path / "repo"
+        root.mkdir()
+        monkeypatch.setattr(kubernetes_commands, "AIRFLOW_ROOT_PATH", root)
+        return root
+
     @pytest.mark.parametrize(
-        ("env", "expected"),
+        "env",
         [
-            pytest.param({"GITHUB_BASE_REF": "main"}, "main", id="pr-targeting-main"),
-            pytest.param({"GITHUB_BASE_REF": "v3-3-test"}, "v3-3-test", id="pr-targeting-release"),
-            pytest.param({"DEFAULT_BRANCH": "v3-3-test"}, "v3-3-test", id="ci-default-branch"),
+            pytest.param({}, id="no-ci-env"),
             pytest.param(
-                {"GITHUB_BASE_REF": "main", "DEFAULT_BRANCH": "v3-3-test"},
-                "main",
-                id="pr-target-wins-over-default-branch",
+                {"GITHUB_BASE_REF": "v3-3-test", "DEFAULT_BRANCH": "v3-3-test"},
+                id="run-targeting-a-release-branch",
             ),
-            pytest.param({}, AIRFLOW_BRANCH, id="falls-back-to-this-checkouts-branch"),
         ],
     )
-    def test_resolves_target_branch(self, env, expected, monkeypatch):
-        monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
-        monkeypatch.delenv("DEFAULT_BRANCH", raising=False)
+    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
+    def test_checkout_with_both_sdks_builds_its_own(self, mock_fetch, env, repo_root, tmp_path, monkeypatch):
+        """The branch a run targets does not divert it to upstream main's newer SDKs."""
+        (repo_root / "go-sdk").mkdir()
+        (repo_root / "java-sdk").mkdir()
         for key, value in env.items():
             monkeypatch.setenv(key, value)
 
-        assert _lang_sdk_target_branch() == expected
-
-    def test_empty_env_var_does_not_mask_the_fallback(self, monkeypatch):
-        """GitHub sets GITHUB_BASE_REF to an empty string on non-PR events (push, schedule)."""
-        monkeypatch.setenv("GITHUB_BASE_REF", "")
-        monkeypatch.setenv("DEFAULT_BRANCH", "v3-3-test")
-
-        assert _lang_sdk_target_branch() == "v3-3-test"
-
-
-class TestLangSdkResolveSdkSources:
-    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
-    def test_targeting_main_uses_the_checked_out_branch(self, mock_fetch, tmp_path, monkeypatch):
-        monkeypatch.setenv("GITHUB_BASE_REF", "main")
-
         go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
 
-        assert go_sdk == kubernetes_commands.AIRFLOW_ROOT_PATH / "go-sdk"
-        assert java_sdk == kubernetes_commands.AIRFLOW_ROOT_PATH / "java-sdk"
+        assert (go_sdk, java_sdk) == (repo_root / "go-sdk", repo_root / "java-sdk")
         mock_fetch.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("present", "expected_go_sdk", "expected_java_sdk"),
+        [
+            pytest.param([], "upstream-go-sdk", "upstream-java-sdk", id="neither-sdk"),
+            pytest.param(["go-sdk"], "go-sdk", "upstream-java-sdk", id="only-go-sdk"),
+            pytest.param(["java-sdk"], "upstream-go-sdk", "java-sdk", id="only-java-sdk"),
+        ],
+    )
     @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
-    def test_targeting_another_branch_falls_back_to_upstream_main(self, mock_fetch, tmp_path, monkeypatch):
-        monkeypatch.setenv("GITHUB_BASE_REF", "v3-3-test")
-        mock_fetch.return_value = (tmp_path / "go-sdk", tmp_path / "java-sdk")
+    def test_only_the_sdks_a_checkout_lacks_come_from_upstream_main(
+        self, mock_fetch, present, expected_go_sdk, expected_java_sdk, repo_root, tmp_path
+    ):
+        for name in present:
+            (repo_root / name).mkdir()
+        upstream = {name: tmp_path / f"upstream-{name}" for name in ("go-sdk", "java-sdk")}
+        mock_fetch.return_value = (upstream["go-sdk"], upstream["java-sdk"])
+        local = {name: repo_root / name for name in ("go-sdk", "java-sdk")}
+        resolved = {**local, **{f"upstream-{name}": path for name, path in upstream.items()}}
 
         go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
 
         mock_fetch.assert_called_once_with(tmp_path, None)
-        assert (go_sdk, java_sdk) == (tmp_path / "go-sdk", tmp_path / "java-sdk")
+        assert (go_sdk, java_sdk) == (resolved[expected_go_sdk], resolved[expected_java_sdk])

@@ -65,21 +65,25 @@ The Go binary, Java jar, and stub Dag share one object store (localstack) but li
 
 ## Which SDK sources get built
 
-`go-sdk/` and `java-sdk/` are only developed on `main`; a release/backport branch may lack them
-entirely or carry a stale, branch-cut-frozen copy. So `breeze k8s setup-lang-sdk-test` (and
-`run-complete-tests --lang-sdk-test`) picks the sources from the branch the run **targets**, resolved
-by `_lang_sdk_resolve_sdk_sources()` in `kubernetes_commands.py`:
+`breeze k8s setup-lang-sdk-test` (and `run-complete-tests --lang-sdk-test`) builds the SDKs the
+checkout carries, resolved by `_lang_sdk_resolve_sdk_sources()` in `kubernetes_commands.py`:
 
-| Target branch | Go/Java SDK sources |
+| Checkout | Go/Java SDK sources |
 | --- | --- |
-| `main` | the checked-out branch's own `go-sdk/` and `java-sdk/` |
-| anything else (`v3-*-test`, …) | upstream `main`, fetched fresh via `_lang_sdk_fetch_upstream_sdk_sources()` |
+| has `go-sdk/` and `java-sdk/` | its own copies |
+| missing one or both | the missing ones from upstream `main`, fetched fresh via `_lang_sdk_fetch_upstream_sdk_sources()` |
 
-The target is `GITHUB_BASE_REF` for a PR, then `DEFAULT_BRANCH` if set, falling back to this
-checkout's own `AIRFLOW_BRANCH`. Building a main-targeting PR's own SDK is what makes the k8s test
-exercise that PR: `go_example`/`java_example` are harness fixtures that track the checked-out branch,
-so compiling them against a *different* SDK means any SDK rename in the PR fails to build. A
-backport to a release-test branch still gets current SDK code, as before.
+The whole point of the test is the SDK/supervisor pair: a Go or Java worker announces the AIP-72
+supervisor schema version it was compiled against, and the Python supervisor rejects a bundle whose
+version it does not know. Only the SDKs sitting next to `task-sdk/` in the same checkout are a pair
+that ships together — substituting upstream `main`'s newer SDK on a release branch pairs it with
+that branch's older supervisor, a combination no release contains, and every worker task fails the
+moment `main` moves the schema forward. The same reasoning applies to `go_example`/`java_example`:
+they are harness fixtures that track the checked-out branch, so compiling them against a *different*
+SDK means any SDK rename breaks the build.
+
+The upstream fallback is for a checkout old enough to predate `go-sdk/`/`java-sdk/` — without it the
+test cannot run there at all.
 
 Everything else — `airflow-core/`, `task-sdk/`, the deployed Airflow image, and this directory's own
 `go_example`/`java_example` fixtures — always comes from the checked-out branch.
