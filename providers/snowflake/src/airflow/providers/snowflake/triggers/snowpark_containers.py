@@ -19,45 +19,15 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
-from enum import Enum
 from typing import Any
 
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.hooks.snowflake import (
+    CONTAINER_JOB_NON_TERMINAL_STATUSES,
+    CONTAINER_JOB_TERMINAL_STATUSES,
+    SnowflakeHook,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-
-class SnowparkContainerJobStatus(str, Enum):
-    """Statuses of a Snowpark Container Services job service."""
-
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    CANCELLING = "CANCELLING"
-    SUSPENDING = "SUSPENDING"
-    DELETING = "DELETING"
-    DONE = "DONE"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
-    INTERNAL_ERROR = "INTERNAL_ERROR"
-
-
-TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
-    {
-        SnowparkContainerJobStatus.DONE,
-        SnowparkContainerJobStatus.FAILED,
-        SnowparkContainerJobStatus.CANCELLED,
-        SnowparkContainerJobStatus.INTERNAL_ERROR,
-    }
-)
-NON_TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
-    {
-        SnowparkContainerJobStatus.PENDING,
-        SnowparkContainerJobStatus.RUNNING,
-        SnowparkContainerJobStatus.CANCELLING,
-        SnowparkContainerJobStatus.SUSPENDING,
-        SnowparkContainerJobStatus.DELETING,
-    }
-)
 
 
 class SnowparkContainerJobTrigger(BaseTrigger):
@@ -170,11 +140,11 @@ class SnowparkContainerJobTrigger(BaseTrigger):
                 yield TriggerEvent({"status": "error", "job_name": self.job_name, "message": str(e)})
                 return
 
-            if status in TERMINAL_STATUSES:
+            if status in CONTAINER_JOB_TERMINAL_STATUSES:
                 yield TriggerEvent({"status": status, "job_name": self.job_name})
                 return
 
-            if status not in NON_TERMINAL_STATUSES:
+            if status not in CONTAINER_JOB_NON_TERMINAL_STATUSES:
                 yield TriggerEvent(
                     {
                         "status": "error",

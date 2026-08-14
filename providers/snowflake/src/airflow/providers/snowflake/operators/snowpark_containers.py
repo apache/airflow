@@ -26,13 +26,13 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.standard.operators import BaseOperator
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.providers.snowflake.triggers.snowpark_containers import (
-    NON_TERMINAL_STATUSES,
-    TERMINAL_STATUSES,
+from airflow.providers.snowflake.hooks.snowflake import (
+    CONTAINER_JOB_NON_TERMINAL_STATUSES,
+    CONTAINER_JOB_TERMINAL_STATUSES,
+    SnowflakeHook,
     SnowparkContainerJobStatus,
-    SnowparkContainerJobTrigger,
 )
+from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -198,9 +198,9 @@ class SnowparkContainerJobOperator(BaseOperator):
                 raise TimeoutError(f"Job {self.job_name} did not reach a terminal status before the timeout.")
             response = self._run_one(f"DESCRIBE SERVICE {self.job_name}", return_dictionaries=True)
             status = response.get("status")
-            if status in TERMINAL_STATUSES:
+            if status in CONTAINER_JOB_TERMINAL_STATUSES:
                 return status
-            if status not in NON_TERMINAL_STATUSES:
+            if status not in CONTAINER_JOB_NON_TERMINAL_STATUSES:
                 raise RuntimeError(f"Job {self.job_name} returned unexpected status: {status}")
             time.sleep(self.poll_interval)
 
@@ -247,6 +247,9 @@ class SnowparkContainerJobOperator(BaseOperator):
         if not self.wait_for_completion:
             return self.job_name
         if self.deferrable:
+            # timeout and execution_timeout give the trigger two separate deadlines. timeout caps
+            # how long the job is polled, and execution_timeout, when set, enforces the task-level
+            # limit. The trigger times out on whichever is reached first.
             now = time.time()
             poll_buffer = timedelta(seconds=self.poll_interval + 60)
             execution_deadline = None
