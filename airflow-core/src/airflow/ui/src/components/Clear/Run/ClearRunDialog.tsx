@@ -24,9 +24,11 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -54,7 +56,8 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     setNote(dagRun.note);
     onClose();
   };
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+  const [clearRunDefaultOptions] = useClearRunDefaultOptions();
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearRunDefaultOptions);
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const onlyNew = selectedOptions.includes("newTasks");
 
@@ -91,14 +94,18 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccessConfirm: handleClose,
   });
 
-  // Check if DAG versions differ (works for both bundle-versioned and local bundles)
-  const latestDagVersionNumber = dagDetails?.latest_dag_version?.version_number;
-  const dagRunVersionNumber = dagRun.dag_versions.at(-1)?.version_number;
-  const versionsDiffer =
-    latestDagVersionNumber !== undefined &&
-    dagRunVersionNumber !== undefined &&
-    latestDagVersionNumber !== dagRunVersionNumber;
-  const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
+  // Non-versioned bundles (e.g. LocalDagBundle) always leave bundle_version null and
+  // resolve to the latest serialized Dag at run time, so "run on latest" is a no-op there.
+  // Offer it only when re-running on the latest would actually change the outcome:
+  // the run's Dag version differs from the latest while the bundle is versioned
+  // (latest bundle_version present), or the run's bundle version differs from the latest.
+  const { shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedBundleVersion: dagRun.bundle_version,
+    selectedDagVersionNumber: dagRun.dag_versions.at(-1)?.version_number,
+  });
+  const shouldShowBundleVersionOption = shouldShowRunOnLatestOption && !onlyNew;
 
   return (
     <Dialog.Root
@@ -127,7 +134,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
-              defaultValues={["existingTasks"]}
+              defaultValues={clearRunDefaultOptions}
               onChange={setSelectedOptions}
               options={[
                 {

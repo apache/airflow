@@ -41,5 +41,4 @@ func init() {
 	Root.PersistentFlags().
 		String("config", "", "config file (default is $HOME/airflow/go-sdk.yaml)")
 	Root.AddCommand(runCmd)
-	config.InitColor(Root)
 }

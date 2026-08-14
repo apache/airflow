@@ -30,7 +30,6 @@ from pydantic import (
     NonNegativeInt,
     StringConstraints,
     Tag,
-    ValidationError,
     field_validator,
     model_validator,
 )
@@ -89,6 +88,7 @@ class TaskInstanceResponse(BaseModel):
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
     dag_version: DagVersionResponse | None
+    team_name: str | None = None
 
 
 class TaskInstanceCollectionResponse(BaseModel):
@@ -106,8 +106,14 @@ class TaskInstanceCollectionResponse(BaseModel):
     task_instances: Iterable[TaskInstanceResponse]
     total_entries: int | None = Field(
         default=None,
-        description="Total number of matching items. Populated for offset pagination, "
-        "``null`` when using cursor pagination.",
+        description="Number of matching items. For offset pagination this is the exact total. "
+        "For cursor pagination it is capped at ``total_entries_limit``; a value equal to that "
+        "limit means at least that many items match.",
+    )
+    total_entries_limit: int | None = Field(
+        default=None,
+        description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset "
+        "pagination, where ``total_entries`` is exact.",
     )
     next_cursor: str | None = Field(
         default=None,
@@ -232,18 +238,18 @@ class ClearTaskInstancesBody(StrictBaseModel):
     def validate_model(cls, data: Any) -> Any:
         """Validate clear task instance form."""
         if data.get("only_failed") and data.get("only_running"):
-            raise ValidationError("only_failed and only_running both are set to True")
+            raise ValueError("only_failed and only_running both are set to True")
         if data.get("start_date") and data.get("end_date"):
             if data.get("start_date") > data.get("end_date"):
-                raise ValidationError("end_date is sooner than start_date")
+                raise ValueError("end_date is sooner than start_date")
         if data.get("start_date") and data.get("end_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
+            raise ValueError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
         if data.get("start_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or start_date must be provided")
+            raise ValueError("Exactly one of dag_run_id or start_date must be provided")
         if data.get("end_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or end_date must be provided")
+            raise ValueError("Exactly one of dag_run_id or end_date must be provided")
         if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
-            raise ValidationError("task_ids list should have at least 1 element.")
+            raise ValueError("task_ids list should have at least 1 element.")
         return data
 
 

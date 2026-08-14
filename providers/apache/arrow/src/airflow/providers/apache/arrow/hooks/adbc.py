@@ -188,7 +188,8 @@ class AdbcHook(DbApiHook):
         )
 
     def set_autocommit(self, conn: Connection, autocommit: bool) -> None:
-        """Set autocommit on the ADBC connection.
+        """
+        Set autocommit on the ADBC connection.
 
         The DBAPI attribute ``conn.autocommit`` has no effect on the underlying
         ADBC driver; the real lever is the ``adbc.connection.autocommit`` option.
@@ -239,7 +240,8 @@ class AdbcHook(DbApiHook):
 
     @classmethod
     def _execute_executemany(cls, cursor, statement: str, record_batch: RecordBatch) -> None:
-        """Execute a statement using cursor.executemany with a RecordBatch.
+        """
+        Execute a statement using cursor.executemany with a RecordBatch.
 
         ADBC's executemany() accepts Arrow data directly and routes it through
         bind_stream internally, making this the Arrow-native fast path.

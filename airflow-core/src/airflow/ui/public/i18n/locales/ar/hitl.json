@@ -32,6 +32,20 @@
     "success": "تمت الاستجابة بنجاح ل{{taskId}}",
     "title": "مثيل مهمة يدوي - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "اختر إجراءً مطلوباً لعرض التفاصيل"
+    },
+    "list": {
+      "completedRequiredActions": "الإجراءات المطلوبة المكتملة ({{count}})",
+      "loadError": "تعذّر تحميل الإجراءات المطلوبة",
+      "loadingActions": "جارٍ تحميل الإجراءات المطلوبة...",
+      "pendingRequiredActions": "الإجراءات المطلوبة قيد الانتظار ({{count}})"
+    },
+    "openReviewDrawer": "فتح لوحة المراجعة",
+    "pageLimitHint": "تُعرض هنا الإجراءات الأولى فقط. استخدم \"$t(review.viewAll)\" لعرضها جميعاً.",
+    "viewAll": "عرض جميع الإجراءات المطلوبة"
+  },
   "state": {
     "approvalReceived": "تم استلام الموافقة",
     "approvalRequired": "تتطلب موافقة",

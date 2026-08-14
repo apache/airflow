@@ -25,6 +25,7 @@ import {
   apiCancelBackfill,
   apiWaitForNoActiveBackfill,
 } from "tests/e2e/utils/api/backfills";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export const REPROCESS_API_TO_UI = {
   completed: "All Runs",
@@ -286,16 +287,19 @@ export class BackfillPage extends BasePage {
               return false;
             }
 
-            const rows = this.backfillsTable.locator("tbody tr");
+            const rows = this.backfillsTable.locator(DATA_ROWS);
             const rowCount = await rows.count();
 
             for (let i = 0; i < rowCount; i++) {
               const row = rows.nth(i);
               const cells = row.locator("td");
-              const fromCell = ((await cells.nth(fromIndex).textContent()) ?? "").slice(0, 10);
-              const toCell = ((await cells.nth(toIndex).textContent()) ?? "").slice(0, 10);
+              const fromCell = (await cells.nth(fromIndex).locator("time").getAttribute("datetime")) ?? "";
+              const toCell = (await cells.nth(toIndex).locator("time").getAttribute("datetime")) ?? "";
 
-              if (fromCell === expectedFrom.slice(0, 10) && toCell === expectedTo.slice(0, 10)) {
+              if (
+                fromCell.slice(0, 10) === expectedFrom.slice(0, 10) &&
+                toCell.slice(0, 10) === expectedTo.slice(0, 10)
+              ) {
                 foundRow = row;
                 foundColumnMap = columnMap;
 
@@ -336,8 +340,8 @@ export class BackfillPage extends BasePage {
     const completedAtIndex = getColumnIndex(columnMap, "Completed at");
 
     const [fromDate, toDate, reprocessBehavior, createdAt, completedAt] = await Promise.all([
-      cells.nth(fromIndex).textContent(),
-      cells.nth(toIndex).textContent(),
+      cells.nth(fromIndex).locator("time").getAttribute("datetime"),
+      cells.nth(toIndex).locator("time").getAttribute("datetime"),
       cells.nth(reprocessIndex).textContent(),
       cells.nth(createdAtIndex).textContent(),
       cells.nth(completedAtIndex).textContent(),

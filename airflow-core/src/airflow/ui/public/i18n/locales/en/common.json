@@ -8,6 +8,7 @@
     "Variables": "Variables"
   },
   "allOperators": "All Operators",
+  "allTeams": "All Teams",
   "appearance": {
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
@@ -16,8 +17,8 @@
   },
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "assetEvent_one": "$t(asset_one) Event",
-  "assetEvent_other": "$t(asset_one) Events",
+  "assetEvent_one": "$t(common:asset_one) Event",
+  "assetEvent_other": "$t(common:asset_one) Events",
   "assetInactive": {
     "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
   },
@@ -33,8 +34,8 @@
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "consumingAsset": "Consuming Asset",
-  "createdAssetEvent_one": "Created $t(assetEvent_one)",
-  "createdAssetEvent_other": "Created $t(assetEvent_other)",
+  "createdAssetEvent_one": "Created $t(common:assetEvent_one)",
+  "createdAssetEvent_other": "Created $t(common:assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -85,9 +86,8 @@
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
+  "dagRunState": "Dag Run State",
   "dagWarnings": "Dag warnings/errors",
-  "defaultToGraphView": "Default to graph view",
-  "defaultToGridView": "Default to grid view",
   "delete": "Delete",
   "diff": "Diff",
   "diffCompareWith": "Compare with",
@@ -121,6 +121,8 @@
       "title": "Access Denied"
     }
   },
+  "event_one": "Event",
+  "event_other": "Events",
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
@@ -151,6 +153,7 @@
     "tooltip": "Press {{hotkey}} for fullscreen"
   },
   "generateToken": "Generate Token",
+  "includedIn": "Included in",
   "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
@@ -244,6 +247,39 @@
   },
   "selectLanguage": "Select Language",
   "selected": "Selected",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Skip tasks that are currently running when clearing task instances.",
+        "label": "Prevent clearing running tasks"
+      },
+      "runSelection": {
+        "helper": "Options selected by default when clearing a Dag run.",
+        "label": "Default run clear selection"
+      },
+      "taskSelection": {
+        "helper": "Options selected by default when clearing task instances.",
+        "label": "Default task clear selection"
+      },
+      "title": "Clearing"
+    },
+    "description": "These preferences are saved in this browser only and apply across the whole app.",
+    "graph": {
+      "defaultDirection": {
+        "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
+        "label": "Default graph direction"
+      },
+      "title": "Graph"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Options selected by default when marking a task instance's state.",
+        "label": "Default mark selection"
+      },
+      "title": "Marking"
+    },
+    "title": "Settings"
+  },
   "shortcuts": {
     "categories": {
       "code": "Code",
@@ -287,13 +323,16 @@
   },
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
+  "slot": "Slot",
+  "slot_one": "Slot",
+  "slot_other": "Slots",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",
     "show": "Show Source"
   },
-  "sourceAssetEvent_one": "Source $t(assetEvent_one)",
-  "sourceAssetEvent_other": "Source $t(assetEvent_other)",
+  "sourceAssetEvent_one": "Source $t(common:assetEvent_one)",
+  "sourceAssetEvent_other": "Source $t(common:assetEvent_other)",
   "startDate": "Start Date",
   "state": "State",
   "states": {

@@ -20,12 +20,67 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Gate audit log rows not tied to a Dag on a dedicated AccessView (#70759)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+* ``Add 'get_display_name' to 'BaseUser' interface (#70583)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix asset state store writes forbidden under FAB auth manager (#70478)``
+* ``Stop dumping every Dag to stdout when syncing FAB permissions (#70939)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.8.0 (#70697)``
+* ``Bump prettier to 3.9.6, stylelint to 17.14.1, webpack to 5.109.0 (#70604)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.7.3
+.....
+
 .. note::
     The Azure AD OAuth provider in the FAB auth manager now verifies the ``id_token``
     signature by default: ``verify_signature`` now defaults to ``True`` (previously
     ``False``), consistent with the Authentik provider. Deployments that intentionally
     relied on skipping signature verification must set ``verify_signature: False``
     explicitly in the Azure provider ``client_kwargs`` to keep the previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AUTH_ROLE_PUBLIC returning 401 in FastAPI API server (#69773)``
+* ``Verify Azure AD OAuth id_token signatures by default in FAB auth manager (#69374)``
+
+Misc
+~~~~
+
+* ``Bump flask-appbuilder to 5.2.2 in FAB provider (#69730)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify FAB and Auth documentation regarding external_db_managers (#69929)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky static checks caused by migration-reference hook race (#70170)``
+   * ``[main] Upgrade important CI environment (#69694)``
+   * ``Bump eslint (#69932)``
+   * ``Bump prettier (#69835)``
+   * ``Add upgrade-fab-provider skill and FAB contributing doc (#69729)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69664)``
+   * ``Bump moment-timezone from 0.6.2 to 0.6.3 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#70308)``
+
 
 3.7.2
 .....

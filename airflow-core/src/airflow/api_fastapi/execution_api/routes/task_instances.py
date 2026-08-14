@@ -21,7 +21,7 @@ import contextlib
 import itertools
 import json
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn, cast
 from uuid import UUID
 
@@ -32,7 +32,7 @@ from fastapi import Body, HTTPException, Query, Response, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import JsonValue
+from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
@@ -46,9 +46,11 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -74,6 +76,10 @@ from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
     get_team_name_for_ti,
     require_auth,
+)
+from airflow.api_fastapi.execution_api.services.task_instances import (
+    client_supports_arg_bindings,
+    get_arg_bindings,
 )
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
@@ -163,6 +169,7 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.dag_version_id,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -262,7 +269,7 @@ def ti_run(
             session.scalars(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events))
+                .options(joinedload(DR.consumed_asset_events), *eager_load_teams(DR.dag_model))
             )
             .unique()
             .one_or_none()
@@ -297,8 +304,6 @@ def ti_run(
             or 0
         )
 
-        dr.team_name = get_team_name_for_ti(task_instance_id, session)
-
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
@@ -309,6 +314,28 @@ def ti_run(
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
+
+        # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
+        # spec; the route excludes unset fields, keeping regular responses lean.
+        if client_supports_arg_bindings() and (
+            arg_bindings := get_arg_bindings(dag_bag, ti, session=session)
+        ):
+            try:
+                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+            except ValidationError:
+                log.exception(
+                    "Serialized arg_bindings spec failed validation",
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    dag_version_id=ti.dag_version_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "reason": "invalid_arg_bindings",
+                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+                    },
+                )
 
         # Only set if they are non-null
         if ti.next_method:
@@ -450,8 +477,9 @@ def ti_update_state(
         data["_rendered_map_index"] = data.pop("rendered_map_index")
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
+    asset_callbacks: Sequence[Callable[[], None]] = ()
     try:
-        query, updated_state = _create_ti_state_update_query_and_update_state(
+        query, updated_state, asset_callbacks = _create_ti_state_update_query_and_update_state(
             ti_patch_payload=ti_patch_payload,
             task_instance_id=task_instance_id,
             session=session,
@@ -468,6 +496,7 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
+        session.rollback()
         ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
@@ -528,6 +557,12 @@ def ti_update_state(
                     run_id=run_id,
                     task_id=task_id,
                 )
+
+    # Release the task_instance row lock before running listener callbacks.
+    session.commit()
+
+    for callback in asset_callbacks:
+        callback()
 
 
 def _emit_task_span(ti, state):
@@ -626,7 +661,8 @@ def _create_ti_state_update_query_and_update_state(
     session: SessionDep,
     dag_bag: DagBagDep,
     dag_id: str,
-) -> tuple[Update, TaskInstanceState]:
+) -> tuple[Update, TaskInstanceState, Sequence[Callable[[], None]]]:
+    asset_callbacks: Sequence[Callable[[], None]] = ()
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
@@ -657,7 +693,7 @@ def _create_ti_state_update_query_and_update_state(
             query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
-                TI.register_asset_changes_in_db(
+                asset_callbacks = TI.register_asset_changes_in_db(
                     ti,
                     ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
@@ -768,7 +804,7 @@ def _create_ti_state_update_query_and_update_state(
                 ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
                 if ti is not None:
                     _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
-                return query, TaskInstanceState.FAILED
+                return query, TaskInstanceState.FAILED, ()
 
         actual_start_date = timezone.utcnow()
         session.add(
@@ -790,7 +826,7 @@ def _create_ti_state_update_query_and_update_state(
     else:
         raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")
 
-    return query, updated_state
+    return query, updated_state, asset_callbacks
 
 
 @ti_id_router.patch(

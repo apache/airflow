@@ -8,6 +8,7 @@
     "Variables": "متغيرات"
   },
   "allOperators": "جميع المُشغِّلات",
+  "allTeams": "جميع الفرق",
   "appearance": {
     "appearance": "المظهر",
     "darkMode": "الوضع الداكن",
@@ -77,7 +78,8 @@
     "owner": "المالك",
     "params": "معاملات",
     "schedule": "جدولة",
-    "tags": "وسوم"
+    "tags": "وسوم",
+    "team": "الفريق"
   },
   "dagId": "معرف Dag",
   "dagRun": {
@@ -92,6 +94,7 @@
     "expectedDuration": "المدة المتوقعة",
     "lastSchedulingDecision": "آخر قرار جدولة",
     "mappedPartitionKey": "مفتاح التقسيم المعيَّن",
+    "partitionDate": "تاريخ التقسيم",
     "partitionKey": "مفتاح التقسيم",
     "queuedAt": "في الطابور في",
     "runAfter": "تشغيل بعد",
@@ -169,6 +172,9 @@
     "selectDateRange": "اختر نطاق التاريخ",
     "startTime": "وقت البدء"
   },
+  "fullscreen": {
+    "tooltip": "اضغط {{hotkey}} لملء الشاشة"
+  },
   "generateToken": "توليد رمز",
   "key": "المفتاح",
   "logicalDate": "التاريخ المنطقي",
@@ -200,9 +206,12 @@
   "note": {
     "add": "إضافة",
     "dagRun": "تشغيل Dag",
+    "edit": "تعديل الملاحظة",
     "label": "وسم",
     "placeholder": "أضف ملاحظة...",
-    "taskInstance": "مثيل المهمة"
+    "preview": "معاينة",
+    "taskInstance": "مثيل المهمة",
+    "write": "كتابة"
   },
   "overallStatus": "الحالة العامة",
   "partitionedDagRun_few": "تشغيلات Dag مُجزأة",
@@ -220,6 +229,23 @@
   "pendingDagRun_other": "{{count}} تشغيل Dag مُعلّق",
   "pendingDagRun_two": "تشغيلا Dag مُعلّقان",
   "pendingDagRun_zero": "لا توجد تشغيلات Dag مُعلّقة",
+  "presetFilters": {
+    "deleteTitle": "حذف الفلتر المُعدّ مسبقاً",
+    "deleteWarning": "تُحفظ الفلاتر المُعدّة مسبقاً في هذا المتصفح فقط.",
+    "duplicate": "الفلتر المُعدّ مسبقاً \"{{name}}\" يحفظ هذا الإعداد نفسه بالفعل.",
+    "empty": "لا توجد فلاتر مُعدّة مسبقاً بعد",
+    "info": {
+      "default": "ثبّت فلتراً مُعدّاً مسبقاً كافتراضي ليُطبَّق تلقائياً عند فتح هذه الصفحة دون أي فلاتر.",
+      "save": "احفظ الفلاتر والترتيب الحالية كفلتر مُعدّ مسبقاً باسم، ثم عُد إليه في أي وقت.",
+      "storage": "تُحفظ الفلاتر المُعدّة مسبقاً في هذا المتصفح."
+    },
+    "namePlaceholder": "اسم الفلتر المُعدّ مسبقاً",
+    "nothingToSave": "لا يوجد ما يُحفظ. طبّق فلاتر أو ترتيباً لحفظ فلتر مُعدّ مسبقاً.",
+    "save": "حفظ",
+    "setDefault": "تعيين كافتراضي",
+    "title": "الفلاتر المُعدّة مسبقاً",
+    "unsetDefault": "إلغاء التعيين كافتراضي"
+  },
   "reset": "إعادة تعيين",
   "runId": "معرف التشغيل",
   "runTypes": {
@@ -251,6 +277,47 @@
   },
   "selectLanguage": "اختيار اللغة",
   "selected": "محدد",
+  "shortcuts": {
+    "categories": {
+      "code": "الكود",
+      "dagView": "عرض Dag",
+      "filters": "الفلاتر",
+      "global": "عام",
+      "logs": "السجلات",
+      "navigation": "التنقل",
+      "runActions": "إجراءات التشغيل والمهام",
+      "search": "البحث"
+    },
+    "descriptions": {
+      "clearRun": "مسح $t(dagRun_one)",
+      "clearTaskInstance": "مسح $t(taskInstance_one)",
+      "downloadLogs": "تنزيل السجلات",
+      "focusFilterSearch": "التركيز على بحث الفلاتر",
+      "focusLogSearch": "البحث في السجلات",
+      "focusSearch": "التركيز على البحث",
+      "markRunFailed": "تعليم $t(dagRun_one) كفاشل",
+      "markRunSuccess": "تعليم $t(dagRun_one) كناجح",
+      "markTaskFailed": "تعليم $t(task_one) كفاشلة",
+      "markTaskGroupFailed": "تعليم $t(taskGroup_one) كفاشلة",
+      "markTaskGroupSuccess": "تعليم $t(taskGroup_one) كناجحة",
+      "markTaskSuccess": "تعليم $t(task_one) كناجحة",
+      "navigateTasks": "التنقل بين $t(task_other)",
+      "openGraphFilters": "فتح فلاتر الرسم البياني",
+      "scrollBottom": "التمرير إلى الأسفل",
+      "scrollTop": "التمرير إلى الأعلى",
+      "searchDags": "البحث في $t(dag_other)",
+      "showHelp": "إظهار $t(shortcuts.title)",
+      "toggleExpand": "توسيع أو طي جميع المجموعات",
+      "toggleFullscreen": "تبديل ملء الشاشة",
+      "toggleGraphGrid": "التبديل بين عرض الرسم البياني والشبكة",
+      "toggleSource": "تبديل المصدر",
+      "toggleTaskGroup": "توسيع أو طي $t(taskGroup_one)",
+      "toggleTimestamp": "تبديل الأختام الزمنية",
+      "toggleWrap": "تبديل $t(wrap.wrap)"
+    },
+    "empty": "لا تتوفر اختصارات لوحة مفاتيح في هذه الصفحة.",
+    "title": "اختصارات لوحة المفاتيح"
+  },
   "showDetailsPanel": "إظهار لوحة التفاصيل",
   "signedInAs": "تم تسجيل الدخول باسم",
   "source": {
@@ -299,6 +366,7 @@
     "from": "من",
     "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
     "noTagsFound": "لم يتم العثور على وسوم",
+    "noTeamsFound": "لم يتم العثور على فرق",
     "tagMode": {
       "all": "الكل",
       "any": "اي شيء"
@@ -333,10 +401,12 @@
   "taskGroup_zero": "لا توجد مجموعات مهام",
   "taskId": "معرف المهمة",
   "taskInstance": {
+    "additionalAttributes": "سمات إضافية لمثيل المهمة",
     "dagVersion": "إصدار الDag",
     "executor": "منفذ",
     "executorConfig": "تكوين المنفذ",
     "hostname": "اسم المضيف",
+    "id": "المعرف",
     "maxTries": "الحد الأقصى للمحاولات",
     "pid": "معرف العملية",
     "pool": "مجموعة الموارد",
@@ -346,11 +416,13 @@
     "queuedWhen": "في الطابور في",
     "renderedMapIndex": "فهرس الخريطة المعروض",
     "scheduledWhen": "مجدول في",
+    "trigger": "المُحفِّز",
     "triggerer": {
       "assigned": "مُطلِق مُخصص",
       "class": "فئة المُطلِق",
       "createdAt": "تاريخ إنشاء المُطلِق",
       "id": "معرف المُطلِق",
+      "job": "وظيفة المُطلِق",
       "latestHeartbeat": "آخر نبضة للمُطلِق",
       "title": "معلومات المُطلِق"
     },

@@ -1,0 +1,1 @@
+The scheduler no longer issues the trigger-rule upstream task-instance count query once per downstream task. For tasks that share the same upstreams within a scheduling pass, the count is computed once and reused, cutting database round-trips for DAGs where a mapped upstream feeds many downstream tasks.

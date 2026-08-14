@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from decimal import Decimal
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -25,6 +27,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicAgentSessionTimeout,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicSessionBudgetExceeded,
     AnthropicTriggerEventError,
 )
 from airflow.providers.anthropic.hooks.anthropic import (
@@ -32,14 +35,28 @@ from airflow.providers.anthropic.hooks.anthropic import (
     MAX_CONSECUTIVE_POLL_FAILURES,
     AnthropicHook,
     BatchStatus,
+    SessionPollResult,
     SessionStatus,
+    _create_session_error,
+    build_budget,
     evaluate_session_state,
     validate_execute_complete_event,
 )
 
 pytest.importorskip("anthropic")
 
+import httpx
+from anthropic import BadRequestError
+from anthropic.types import BetaMonetaryAmount
+from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
+from anthropic.types.beta.beta_managed_agents_cache_creation_usage import (
+    BetaManagedAgentsCacheCreationUsage,
+)
+
 HOOK_PATH = "airflow.providers.anthropic.hooks.anthropic"
+# One id for both the mocked session object and the id passed to the hook, so an assertion
+# on a message that interpolates the session id cannot pass against the wrong one.
+SESSION_ID = "sess_1"
 
 
 def _conn(password="sk-ant-test", host=None, extra=None):
@@ -108,7 +125,7 @@ class TestValidateTriggerEvent:
 def _session(status, outcome_results=None):
     s = mock.MagicMock()
     s.status = status
-    s.id = "sess_1"
+    s.id = SESSION_ID
     s.outcome_evaluations = [mock.MagicMock(result=r) for r in (outcome_results or [])]
     return s
 
@@ -156,38 +173,307 @@ class TestPollSessionCompletion:
     def test_terminated_is_error(self):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("terminated")
-        done, err = hook.poll_session_completion("s")
-        assert done is True
-        assert err is not None
+        poll_result = hook.poll_session_completion(SESSION_ID)
+        assert poll_result.done is True
+        assert poll_result.error_message is not None
+        assert poll_result.stop_reason is None
 
     def test_message_end_turn_success(self):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle")
         client.beta.sessions.events.list.return_value = [_idle_event("end_turn")]
-        assert hook.poll_session_completion("s", kickoff_event_id="evt_kick") == (True, None)
+        assert hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick") == SessionPollResult(
+            done=True, error_message=None, stop_reason="end_turn"
+        )
 
     @pytest.mark.parametrize("reason", ["requires_action", "retries_exhausted"])
     def test_message_blocked_is_error(self, reason):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle")
         client.beta.sessions.events.list.return_value = [_idle_event(reason)]
-        done, err = hook.poll_session_completion("s", kickoff_event_id="evt_kick")
-        assert done is True
-        assert err is not None
-        assert reason in err
+        poll_result = hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick")
+        assert poll_result == SessionPollResult(done=True, error_message=mock.ANY, stop_reason=reason)
+        assert reason in poll_result.error_message
 
     def test_message_no_response_yet_not_done(self):
         # newest event is our kickoff (agent hasn't responded) -> keep waiting (start race)
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle")
-        client.beta.sessions.events.list.return_value = [mock.MagicMock(type="user.message", id="evt_kick")]
-        assert hook.poll_session_completion("s", kickoff_event_id="evt_kick") == (False, None)
+        # Stub event: the SDK's event models are a discriminated union, so there is no single
+        # class to spec against -- only ``type`` and ``id`` are read by the code under test.
+        kickoff = mock.MagicMock(type="user.message", id="evt_kick")  # noqa: spec
+        client.beta.sessions.events.list.return_value = [kickoff]
+        assert hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick") == SessionPollResult(
+            done=False, error_message=None, stop_reason=None
+        )
 
     def test_outcome_satisfied_skips_event_check(self):
         hook, client = _make_hook()
         client.beta.sessions.retrieve.return_value = _session("idle", ["satisfied"])
-        assert hook.poll_session_completion("s", expect_outcome=True) == (True, None)
+        assert hook.poll_session_completion(SESSION_ID, expect_outcome=True) == SessionPollResult(
+            done=True, error_message=None, stop_reason=None
+        )
         client.beta.sessions.events.list.assert_not_called()
+
+    def test_budget_reached_names_both_causes(self):
+        # A budget stop must not be reported as "configure an autonomous agent": that advice
+        # is wrong, and the no-list-price cause is invisible without being named.
+        hook, client = _make_hook()
+        client.beta.sessions.retrieve.return_value = _session("idle")
+        client.beta.sessions.events.list.return_value = [_idle_event("budget_reached")]
+        poll_result = hook.poll_session_completion(SESSION_ID, kickoff_event_id="evt_kick")
+        assert poll_result == SessionPollResult(
+            done=True, error_message=mock.ANY, stop_reason="budget_reached"
+        )
+        for named_cause in ("budget", "no list price"):
+            assert named_cause in poll_result.error_message
+        # The inverse matters just as much: the generic advice must not appear here.
+        assert "autonomous agent" not in poll_result.error_message
+
+
+class TestBuildBudget:
+    @pytest.mark.parametrize(
+        ("amount", "expected_minor_units"),
+        [
+            pytest.param(25, "2500", id="int-dollars"),
+            pytest.param(25.0, "2500", id="float-dollars"),
+            pytest.param("25.00", "2500", id="str-dollars"),
+            pytest.param(Decimal("25.00"), "2500", id="decimal-dollars"),
+            pytest.param(0.07, "7", id="float-cents-no-binary-artifact"),
+            pytest.param("0.01", "1", id="one-cent"),
+            pytest.param(1234.56, "123456", id="mixed"),
+        ],
+    )
+    def test_scalar_is_usd_dollars(self, amount, expected_minor_units):
+        assert build_budget(amount) == {
+            "type": "limit",
+            "max_list_cost": {"amount": expected_minor_units, "currency": "USD"},
+        }
+
+    def test_mapping_passes_through_unchanged(self):
+        # The escape hatch for a payload shape the provider has not caught up with. Uses a
+        # currently-valid payload: the API accepts only type "limit" and currency "USD".
+        raw = {"type": "limit", "max_list_cost": {"amount": "500", "currency": "USD"}}
+        assert build_budget(raw) == raw
+
+    def test_mapping_is_deep_copied_not_aliased(self):
+        # A shallow copy would leave max_list_cost aliased to the caller's dict, so editing
+        # the returned payload would reach back into a templated operator field.
+        raw = {"type": "limit", "max_list_cost": {"amount": "500", "currency": "USD"}}
+        built = build_budget(raw)
+        built["type"] = "mutated"
+        built["max_list_cost"]["amount"] = "999999"
+        assert raw == {"type": "limit", "max_list_cost": {"amount": "500", "currency": "USD"}}
+
+    @pytest.mark.parametrize(
+        ("amount", "match"),
+        [
+            pytest.param(0, "positive", id="zero"),
+            pytest.param(-5, "positive", id="negative"),
+            pytest.param("abc", "not a decimal", id="not-a-number"),
+            pytest.param(True, "not a decimal", id="bool-is-not-an-amount"),
+            pytest.param("0.001", "finer than a cent", id="sub-cent"),
+            pytest.param(float("inf"), "positive", id="infinity"),
+        ],
+    )
+    def test_rejects_bad_amounts(self, amount, match):
+        with pytest.raises(ValueError, match=match):
+            build_budget(amount)
+
+
+def _make_bad_request(message="cannot be archived while its status is running") -> BadRequestError:
+    """A real SDK BadRequestError -- archive_session only interrupts on this, not on any error."""
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
+    return BadRequestError(message, response=httpx.Response(400, request=request), body=None)
+
+
+class TestArchiveSession:
+    def test_archives_directly_when_the_session_is_stoppable(self):
+        hook, client = _make_hook()
+        hook.archive_session("sess_1")
+        client.beta.sessions.archive.assert_called_once_with("sess_1")
+        client.beta.sessions.events.send.assert_not_called()
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    def test_interrupts_and_retries_when_the_session_is_running(self, mock_sleep):
+        # A running session is refused by both archive and delete, so without the interrupt
+        # it keeps accruing billable runtime with no way to release it.
+        hook, client = _make_hook()
+        archived = object()
+        client.beta.sessions.archive.side_effect = [_make_bad_request(), archived]
+        assert hook.archive_session("sess_1") is archived
+        client.beta.sessions.events.send.assert_called_once_with(
+            "sess_1", events=[{"type": "user.interrupt"}]
+        )
+        assert client.beta.sessions.archive.call_count == 2
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    def test_gives_up_after_the_retry_budget(self, mock_sleep):
+        hook, client = _make_hook()
+        client.beta.sessions.archive.side_effect = _make_bad_request()
+        with pytest.raises(BadRequestError):
+            hook.archive_session("sess_1")
+        # one initial attempt plus the bounded retry loop
+        assert client.beta.sessions.archive.call_count == 7
+
+
+class TestUpdateSession:
+    def test_only_passes_supplied_keys(self):
+        # The API distinguishes omitted (preserve) from None (clear), so an unmentioned
+        # field must not be sent at all.
+        hook, client = _make_hook()
+        hook.update_session("sess_1", title="renamed")
+        client.beta.sessions.update.assert_called_once_with("sess_1", title="renamed")
+
+    def test_explicit_none_budget_clears(self):
+        hook, client = _make_hook()
+        hook.update_session("sess_1", budget=None)
+        client.beta.sessions.update.assert_called_once_with("sess_1", budget=None)
+
+    def test_normalizes_a_dollar_amount(self):
+        hook, client = _make_hook()
+        hook.update_session("sess_1", budget=25)
+        client.beta.sessions.update.assert_called_once_with(
+            "sess_1", budget={"type": "limit", "max_list_cost": {"amount": "2500", "currency": "USD"}}
+        )
+
+    @pytest.mark.parametrize("platform", ["bedrock", "vertex", "foundry"])
+    def test_unavailable_on_non_first_party(self, platform):
+        hook, _ = _make_hook(extra={"platform": platform})
+        with pytest.raises(AnthropicError, match="Managed Agents is not available"):
+            hook.update_session("sess_1", title="x")
+
+
+class TestCreateSessionBudget:
+    def test_normalizes_a_dollar_amount(self):
+        hook, client = _make_hook()
+        hook.create_session(agent="ag", environment_id="env", budget="25.00")
+        assert client.beta.sessions.create.call_args.kwargs["budget"] == {
+            "type": "limit",
+            "max_list_cost": {"amount": "2500", "currency": "USD"},
+        }
+
+    def test_no_budget_key_when_not_requested(self):
+        hook, client = _make_hook()
+        hook.create_session(agent="ag", environment_id="env")
+        assert "budget" not in client.beta.sessions.create.call_args.kwargs
+
+    def test_drops_a_none_budget(self):
+        # SessionCreateParams.budget is not Optional, so "budget": null is rejected -- but
+        # budget=None is the idiom update_session teaches for clearing a ceiling.
+        hook, client = _make_hook()
+        hook.create_session(agent="ag", environment_id="env", budget=None)
+        assert "budget" not in client.beta.sessions.create.call_args.kwargs
+
+
+class TestGetSessionUsage:
+    """
+    Built on the real SDK usage models rather than mocks.
+
+    Constructing the real model is not on its own a check on field names: it sets
+    ``extra="allow"``, so a misspelling is accepted as an extra field rather than rejected.
+    ``test_usage_fields_exist_on_the_sdk_model`` is what pins the names to the declared
+    schema. Only the session wrapper is a stand-in, since ``get_session_usage`` reads
+    nothing from it but ``.usage``.
+    """
+
+    def test_usage_fields_exist_on_the_sdk_model(self):
+        # The reported breakdown must be fields the SDK actually declares. active_seconds
+        # lived on session.stats rather than session.usage as recently as 0.117.0, and the
+        # floor is an open-ended >= on a beta API -- if a field moves again, summarize_usage
+        # would return it as None (or raise, swallowed into a warning) with no other signal.
+        assert set(BetaManagedAgentsSessionUsage.model_fields) >= {
+            "input_tokens",
+            "output_tokens",
+            "cache_read_input_tokens",
+            "cache_creation",
+            "server_tool_use",
+            "active_seconds",
+            "list_cost",
+        }
+
+    @staticmethod
+    def _create_session(list_cost, cache_creation=None, server_tool_use=None):
+        usage = BetaManagedAgentsSessionUsage(
+            input_tokens=827,
+            output_tokens=17065,
+            cache_read_input_tokens=0,
+            active_seconds=91.2,
+            list_cost=list_cost,
+            cache_creation=cache_creation,
+            server_tool_use=server_tool_use,
+        )
+        return SimpleNamespace(usage=usage)
+
+    def test_flattens_to_json_safe_scalars(self):
+        hook, client = _make_hook()
+        client.beta.sessions.retrieve.return_value = self._create_session(
+            BetaMonetaryAmount(amount="44", currency="USD")
+        )
+        assert hook.get_session_usage(SESSION_ID) == {
+            "input_tokens": 827,
+            "output_tokens": 17065,
+            "cache_read_input_tokens": 0,
+            "cache_creation": None,
+            "server_tool_use": None,
+            "active_seconds": 91.2,
+            "list_cost": {"amount": "44", "currency": "USD"},
+        }
+
+    def test_reports_every_billable_dimension(self):
+        # list_cost is None exactly when a caller must price the run from usage, so the
+        # expensive side (cache writes, server tool calls) cannot be missing.
+        hook, client = _make_hook()
+        client.beta.sessions.retrieve.return_value = self._create_session(
+            None,
+            cache_creation=BetaManagedAgentsCacheCreationUsage(
+                ephemeral_5m_input_tokens=120, ephemeral_1h_input_tokens=340
+            ),
+            server_tool_use=BetaManagedAgentsServerToolUsage(web_search_requests=3, web_fetch_requests=5),
+        )
+        assert hook.get_session_usage(SESSION_ID) == {
+            "input_tokens": 827,
+            "output_tokens": 17065,
+            "cache_read_input_tokens": 0,
+            "cache_creation": {
+                "ephemeral_5m_input_tokens": 120,
+                "ephemeral_1h_input_tokens": 340,
+            },
+            "server_tool_use": {"web_search_requests": 3, "web_fetch_requests": 5},
+            "active_seconds": 91.2,
+            "list_cost": None,
+        }
+
+    def test_amount_stays_a_minor_unit_string(self):
+        # Never floated: a cost figure must not pick up binary rounding.
+        hook, client = _make_hook()
+        client.beta.sessions.retrieve.return_value = self._create_session(
+            BetaMonetaryAmount(amount="44", currency="USD")
+        )
+        assert hook.get_session_usage(SESSION_ID)["list_cost"]["amount"] == "44"
+
+    def test_absent_list_cost_is_none(self):
+        # Happens when usage includes a model with no list price.
+        hook, client = _make_hook()
+        client.beta.sessions.retrieve.return_value = self._create_session(None)
+        assert hook.get_session_usage(SESSION_ID)["list_cost"] is None
+
+
+class TestCreateSessionError:
+    def test_budget_reached_maps_to_budget_exception(self):
+        err = _create_session_error("over budget", "budget_reached")
+        assert isinstance(err, AnthropicSessionBudgetExceeded)
+        assert str(err) == "over budget"
+
+    @pytest.mark.parametrize("stop_reason", [None, "requires_action", "retries_exhausted", "end_turn"])
+    def test_other_reasons_map_to_generic_session_error(self, stop_reason):
+        err = _create_session_error("boom", stop_reason)
+        assert isinstance(err, AnthropicAgentSessionError)
+        assert not isinstance(err, AnthropicSessionBudgetExceeded)
+
+    def test_budget_exception_is_catchable_as_session_error(self):
+        # Existing `except AnthropicAgentSessionError` handlers must keep catching it.
+        assert isinstance(_create_session_error("over budget", "budget_reached"), AnthropicAgentSessionError)
 
 
 class TestDefaultModel:
@@ -304,7 +590,10 @@ class TestWaitForSession:
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_returns_when_done(self, mock_get_connection, mock_poll, mock_sleep):
         mock_get_connection.return_value = _conn()
-        mock_poll.side_effect = [(False, None), (True, None)]
+        mock_poll.side_effect = [
+            SessionPollResult(done=False, error_message=None, stop_reason=None),
+            SessionPollResult(done=True, error_message=None, stop_reason="end_turn"),
+        ]
         AnthropicHook().wait_for_session("sess_1", poll_interval=0.01)
         assert mock_poll.call_count == 2
 
@@ -314,7 +603,7 @@ class TestWaitForSession:
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_raises_on_timeout(self, mock_get_connection, mock_poll, mock_sleep, mock_monotonic):
         mock_get_connection.return_value = _conn()
-        mock_poll.return_value = (False, None)
+        mock_poll.return_value = SessionPollResult(done=False, error_message=None, stop_reason=None)
         mock_monotonic.side_effect = [0, 100]
         with pytest.raises(AnthropicAgentSessionTimeout, match="did not reach a terminal status"):
             AnthropicHook().wait_for_session("sess_1", poll_interval=0.01, timeout=10)
@@ -324,9 +613,24 @@ class TestWaitForSession:
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_failure_raises(self, mock_get_connection, mock_poll, mock_sleep):
         mock_get_connection.return_value = _conn()
-        mock_poll.return_value = (True, "Outcome not satisfied for session sess_1: failed.")
+        mock_poll.return_value = SessionPollResult(
+            done=True, error_message="Outcome not satisfied for session sess_1: failed.", stop_reason=None
+        )
         with pytest.raises(AnthropicAgentSessionError, match="not satisfied"):
             AnthropicHook().wait_for_session("sess_1", expect_outcome=True, poll_interval=0.01)
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    @mock.patch.object(AnthropicHook, "poll_session_completion", autospec=True)
+    @mock.patch.object(AnthropicHook, "get_connection", autospec=True)
+    def test_budget_stop_raises_budget_exception(self, mock_get_connection, mock_poll, mock_sleep):
+        mock_get_connection.return_value = _conn()
+        mock_poll.return_value = SessionPollResult(
+            done=True,
+            error_message="Session sess_1 stopped against its budget.",
+            stop_reason="budget_reached",
+        )
+        with pytest.raises(AnthropicSessionBudgetExceeded, match="budget"):
+            AnthropicHook().wait_for_session("sess_1", poll_interval=0.01)
 
 
 class TestAnthropicHookGetConn:
