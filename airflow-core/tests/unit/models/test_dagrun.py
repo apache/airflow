@@ -40,7 +40,7 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -1684,9 +1684,9 @@ class TestDagRun:
     @mock.patch.object(
         Deadline,
         "handle_miss",
-        side_effect=DBAPIError("statement", {}, Exception("deadline db failure")),
+        side_effect=SQLAlchemyError("deadline database failure"),
     )
-    def test_dagrun_failure_reraises_missed_deadline_db_error(
+    def test_dagrun_failure_reraises_missed_deadline_sqlalchemy_error(
         self, mock_handle_miss, session, deadline_test_dag
     ):
         scheduler_dag = deadline_test_dag()
@@ -1712,7 +1712,7 @@ class TestDagRun:
         )
         session.flush()
 
-        with pytest.raises(DBAPIError):
+        with pytest.raises(SQLAlchemyError, match="deadline database failure"):
             dag_run.update_state(session=session)
 
         mock_handle_miss.assert_called_once()

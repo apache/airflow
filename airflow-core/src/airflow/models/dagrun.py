@@ -53,7 +53,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -1275,7 +1275,7 @@ class DagRun(Base, LoggingMixin):
             deadline_id = deadline.id
             try:
                 deadline.handle_miss(session)
-            except DBAPIError:
+            except SQLAlchemyError:
                 raise
             except Exception:
                 self.log.warning(
