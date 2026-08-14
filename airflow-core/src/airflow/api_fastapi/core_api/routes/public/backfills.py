@@ -307,6 +307,7 @@ def create_backfill(
     path="/dry_run",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
             status.HTTP_503_SERVICE_UNAVAILABLE,
