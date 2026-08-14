@@ -290,7 +290,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-task-sdk",
     # TODO(potiuk): eventually we do not want any providers nor apache-airflow extras to be needed for
-    # airflow-core tests
+    # airflow-core tests; tracked at https://github.com/apache/airflow/issues/71641
     "apache-airflow[pandas,polars]",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
