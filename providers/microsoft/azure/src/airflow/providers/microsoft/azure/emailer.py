@@ -44,7 +44,12 @@ def send_email(
     custom_headers: dict[str, Any] | None = None,
     **kwargs,
 ) -> None:
-    """Email backend for Microsoft Graph."""
+    """
+    Email backend for Microsoft Graph.
+
+    .. note::
+        For more information, see :ref:`email-configuration-msgraph`
+    """
     if not from_email:
         raise ValueError(
             "The `from_email` configuration has to be set for the Microsoft Graph emailer, as it "

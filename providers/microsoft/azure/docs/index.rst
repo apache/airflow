@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/index>
+    Email backend <email-backend>
     Message queues <message-queues/index>
     Notifications <notifications/index>
     Operators <operators/index>
