@@ -52,11 +52,18 @@ Request
 
 Response
 
+The successful response status code and response fields are defined by the
+configured auth manager. Auth managers return the JWT in the ``access_token``
+field. For example:
+
 .. code-block:: json
 
   {
     "access_token": "<JWT-TOKEN>"
   }
+
+For the status code and any additional response fields, see the documentation
+for the auth manager configured in your environment.
 
 Use the JWT token to call Airflow public API
 

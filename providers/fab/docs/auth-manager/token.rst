@@ -44,7 +44,17 @@ Use the following example to generate a token via username and password.
         "password": "<password>"
         }'
 
-If successful, this request returns a JWT token that you can use for subsequent Airflow public API calls.
+If successful, this request returns ``201 Created`` and a JSON response
+containing the JWT token:
+
+.. code-block:: json
+
+    {
+        "access_token": "<JWT-TOKEN>"
+    }
+
+Use the token in the ``Authorization`` header for subsequent Airflow public API
+calls.
 
 Only users authenticated via the database (``AUTH_TYPE = AUTH_DB``) or LDAP
 (``AUTH_TYPE = AUTH_LDAP``) can generate tokens using this method.
