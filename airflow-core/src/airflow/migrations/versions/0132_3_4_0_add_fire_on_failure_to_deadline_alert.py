@@ -29,6 +29,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import disable_sqlite_fkeys
+
 revision = "b4f8c2a1d9e0"
 down_revision = "c7f0a5d2e9b4"
 branch_labels = None
@@ -38,11 +40,15 @@ airflow_version = "3.4.0"
 
 def upgrade():
     """Add fire_on_failure column to deadline_alert."""
-    with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("fire_on_failure", sa.Boolean(), nullable=False, server_default="0"))
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+            batch_op.add_column(
+                sa.Column("fire_on_failure", sa.Boolean(), nullable=False, server_default="0")
+            )
 
 
 def downgrade():
     """Remove fire_on_failure column from deadline_alert."""
-    with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
-        batch_op.drop_column("fire_on_failure")
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+            batch_op.drop_column("fire_on_failure")

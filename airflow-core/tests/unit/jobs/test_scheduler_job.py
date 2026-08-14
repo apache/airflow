@@ -4263,6 +4263,7 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize("fire_on_failure", [True, False])
+    @time_machine.travel(DEFAULT_DATE, tick=False)
     def test_dagrun_timeout_handles_opted_in_deadline(self, fire_on_failure, dag_maker, session):
         with dag_maker(
             dag_id=f"test_dagrun_timeout_deadline_{fire_on_failure}",
@@ -4277,7 +4278,7 @@ class TestSchedulerJob:
         ):
             EmptyOperator(task_id="dummy")
 
-        dag_run = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+        dag_run = dag_maker.create_dagrun(start_date=DEFAULT_DATE - datetime.timedelta(days=1))
         serialized_dag = session.scalar(
             select(SerializedDagModel)
             .where(SerializedDagModel.dag_id == dag_run.dag_id)
