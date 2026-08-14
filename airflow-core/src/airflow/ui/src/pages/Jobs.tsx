@@ -148,7 +148,7 @@ export const Jobs = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="common:browse.jobs"
+        modelName="admin:jobs.job"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

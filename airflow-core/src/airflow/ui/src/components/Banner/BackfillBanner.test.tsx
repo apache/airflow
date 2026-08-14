@@ -43,6 +43,7 @@ vi.mock("openapi/queries", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string) => (key === "banner.backfillInProgress" ? "Backfill in progress" : key),
   }),

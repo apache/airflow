@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Tipus d'esdeveniment"
-    },
-    "title": "Registre d'auditoria"
+    }
   },
   "deadlines": {
     "columns": {

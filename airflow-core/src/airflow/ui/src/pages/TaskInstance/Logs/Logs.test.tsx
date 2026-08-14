@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -465,6 +465,16 @@ const findRow = (text: string) => {
   ) as HTMLElement;
 };
 
+const getRowCopyText = (row: HTMLElement) => {
+  const clone = row.cloneNode(true) as HTMLElement;
+
+  for (const element of clone.querySelectorAll("[data-copy-exclude]")) {
+    element.remove();
+  }
+
+  return clone.textContent;
+};
+
 const withFakeSelection = <T,>(selection: Selection, callback: () => T): T => {
   const getSelectionSpy = vi.spyOn(document, "getSelection").mockReturnValue(selection);
   const result = callback();
@@ -543,6 +553,72 @@ describe("Copy across virtualized rows", () => {
     expect(clipboardData.getData("text/plain").split("\n")).toContainEqual(
       expect.stringMatching(/^\[.+\] INFO - Task started$/u),
     );
+  });
+
+  it("rebuilds middle rows with the exact text mounted rows show on screen", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const firstRow = findRow("Log message source details");
+    const taskStartedRow = findRow("Task started");
+    const headerRow = findRow("Pre Execute");
+    const lastRow = findRow("Done. Returned value was: None");
+
+    const taskStartedScreenText = getRowCopyText(taskStartedRow);
+    const headerScreenText = getRowCopyText(headerRow);
+
+    expect(taskStartedScreenText).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] INFO - Task started$/u);
+    expect(headerScreenText).toBe("▶ Pre Execute");
+
+    taskStartedRow.remove();
+
+    const range = document.createRange();
+
+    range.setStart(firstRow, 0);
+    range.setEnd(lastRow, lastRow.childNodes.length);
+
+    const selection = { getRangeAt: () => range, isCollapsed: false, rangeCount: 1 } as unknown as Selection;
+    const clipboardData = makeClipboardData();
+
+    withFakeSelection(selection, () => dispatchCopy(clipboardData));
+
+    const lines = clipboardData.getData("text/plain").split("\n");
+
+    expect(lines[0]).toBe("▶ Log message source details");
+    expect(lines).toContain(taskStartedScreenText);
+    expect(lines).toContain(headerScreenText);
+  });
+
+  it("copies the expanded marker for expanded group headers", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    fireEvent.click(screen.getByTestId("summary-Pre Execute"));
+    await waitFor(() => expect(getRowCopyText(findRow("Pre Execute"))).toBe("▼ Pre Execute"));
+
+    const firstRow = findRow("Log message source details");
+    const headerRow = findRow("Pre Execute");
+    const taskStartedRow = findRow("Task started");
+    const lastRow = findRow("Done. Returned value was: None");
+
+    taskStartedRow.remove();
+    headerRow.remove();
+
+    const range = document.createRange();
+
+    range.setStart(firstRow, 0);
+    range.setEnd(lastRow, lastRow.childNodes.length);
+
+    const selection = { getRangeAt: () => range, isCollapsed: false, rangeCount: 1 } as unknown as Selection;
+    const clipboardData = makeClipboardData();
+
+    withFakeSelection(selection, () => dispatchCopy(clipboardData));
+
+    expect(clipboardData.getData("text/plain").split("\n")).toContain("▼ Pre Execute");
   });
 
   it("leaves single-row selections to native copy", async () => {
@@ -640,5 +716,112 @@ describe("Selection pinning across scrolling", () => {
     await waitFor(() => {
       expect(container.querySelector(`[data-index="${anchorIndex}"]`)).toBeNull();
     });
+  });
+});
+
+describe("Downward drag selection", () => {
+  it("coalesces events and extends the selection to the mounted bottom row", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const container = screen.getByTestId("virtual-scroll-container");
+    const rows = container.querySelectorAll<HTMLElement>("[data-index]");
+    const anchorRow = rows[0] as HTMLElement;
+    const lastRow = rows[rows.length - 1] as HTMLElement;
+    const extend = vi.fn();
+    const range = document.createRange();
+
+    range.selectNodeContents(anchorRow);
+
+    const selection = {
+      anchorNode: anchorRow,
+      extend,
+      focusNode: anchorRow,
+      focusOffset: 0,
+      getRangeAt: () => range,
+      rangeCount: 1,
+    } as unknown as Selection;
+    const animationFrames = new Array<FrameRequestCallback>();
+    const getSelectionSpy = vi.spyOn(document, "getSelection").mockReturnValue(selection);
+    const requestAnimationFrameSpy = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        animationFrames.push(callback);
+
+        return animationFrames.length;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(globalThis, "cancelAnimationFrame")
+      .mockImplementation(() => undefined);
+
+    container.getBoundingClientRect = () => ({ bottom: 500 }) as DOMRect;
+    lastRow.getBoundingClientRect = () => ({ bottom: 480 }) as DOMRect;
+
+    fireEvent.pointerDown(anchorRow, { button: 0, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 490, pointerType: "mouse" });
+    document.dispatchEvent(new Event("selectionchange"));
+    fireEvent.scroll(container);
+
+    expect(animationFrames).toHaveLength(1);
+    animationFrames.shift()?.(0);
+    expect(extend).toHaveBeenCalledWith(lastRow, lastRow.childNodes.length);
+
+    fireEvent.scroll(container);
+    expect(animationFrames).toHaveLength(1);
+    animationFrames.shift()?.(1);
+    expect(extend).toHaveBeenCalledTimes(2);
+
+    fireEvent.scroll(container);
+    const pendingAnimationFrame = animationFrames.shift();
+
+    fireEvent.pointerUp(document, { pointerType: "mouse" });
+    expect(cancelAnimationFrameSpy).toHaveBeenCalledWith(1);
+
+    pendingAnimationFrame?.(2);
+    expect(extend).toHaveBeenCalledTimes(2);
+
+    getSelectionSpy.mockRestore();
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
+  });
+
+  it("only activates for downward primary-mouse drags starting in a log row", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const container = screen.getByTestId("virtual-scroll-container");
+    const anchorRow = container.querySelector<HTMLElement>("[data-index]") as HTMLElement;
+    const rows = container.querySelectorAll<HTMLElement>("[data-index]");
+    const lastRow = rows[rows.length - 1] as HTMLElement;
+    const requestAnimationFrameSpy = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation(() => 1);
+
+    container.getBoundingClientRect = () => ({ bottom: 500 }) as DOMRect;
+    lastRow.getBoundingClientRect = () => ({ bottom: 700 }) as DOMRect;
+
+    fireEvent.pointerDown(container, { button: 0, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 600, pointerType: "mouse" });
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(anchorRow, { button: 2, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 600, pointerType: "mouse" });
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(anchorRow, { button: 0, clientY: 200, pointerType: "touch" });
+    fireEvent.pointerMove(document, { clientY: 600, pointerType: "touch" });
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(anchorRow, { button: 0, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerMove(document, { clientY: 50, pointerType: "mouse" });
+    fireEvent.scroll(container);
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(document, { pointerType: "mouse" });
+    requestAnimationFrameSpy.mockRestore();
   });
 });
