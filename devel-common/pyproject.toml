@@ -41,7 +41,9 @@ dependencies = [
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
     "python-on-whales>=0.70.0",
-    "apache-airflow-devel-common[basic]"
+    "apache-airflow-devel-common[basic]",
+    "apache-airflow-shared-module-loading",
+    "apache-airflow-shared-secrets-masker",
 ]
 
 [project.optional-dependencies]
@@ -175,6 +177,10 @@ mypy = [
 
 [project.scripts]
 build-docs = "docs.build_docs:build_docs"
+
+[tool.uv.sources]
+apache-airflow-shared-module-loading = { workspace = true }
+apache-airflow-shared-secrets-masker = { workspace = true }
 
 [tool.ruff]
 extend = "../pyproject.toml"
