@@ -15,6 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10,<3.11"
+# dependencies = [
+#   "tabulate>=0.9.0",
+# ]
+# ///
 """
 Fail if ts-sdk/package.json and ts-sdk/docs/package.json pin a shared dependency to
 different version strings (compared literally, not as resolved semver ranges — so
