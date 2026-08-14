@@ -454,6 +454,21 @@ class TestSerializedDagModel:
         assert len(latest) == 1
         assert latest[0].dag_version.version_number == 2
 
+    def test_sync_dag_to_db_refreshes_cached_serialized_dag(self, testing_dag_bundle, session):
+        dag = DAG("cached_serialized_dag", schedule=None)
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+
+        serialized_dag = SDM.get(dag.dag_id, session=session)
+        assert serialized_dag is not None
+        assert serialized_dag.data is not None
+
+        EmptyOperator(task_id="task2", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        assert set(scheduler_dag.task_ids) == {"task1", "task2"}
+        assert set(serialized_dag.dag.task_ids) == {"task1", "task2"}
+
     def test_get_returns_latest_version_when_created_at_ordering_disagrees(self, dag_maker, session):
         """SDM.get (latest_item_select_object) must pick the max version_number, not max created_at."""
         self._seed_two_versions(dag_maker, session, "tie_dag2")

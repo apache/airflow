@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 import warnings
 from collections.abc import Generator
@@ -51,6 +52,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -61,6 +63,8 @@ from airflow.partition_mappers.window import DayWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
@@ -80,6 +84,11 @@ from tests_common.test_utils.db import (
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
+
+
+async def _empty_deadline_callback():
+    """Callback body is irrelevant; the deadline just has to serialize."""
+
 
 mark_fab_auth_manager_test = pytest.mark.skipif(
     condition="FabAuthManager" not in conf.get("core", "auth_manager"),
@@ -1435,6 +1444,70 @@ class TestUpdateDagParsingResults:
             update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
             orm_dag = session.get(DagModel, "dag_max_failed_runs_default")
             assert orm_dag.max_consecutive_failed_dag_runs == 6
+
+
+@pytest.mark.db_test
+class TestDeadlineDagRetry:
+    """A Dag with a deadline must survive the database retry in update_dag_parsing_results_in_db."""
+
+    @pytest.fixture(autouse=True)
+    def clean_db(self):
+        yield
+        clear_db_serialized_dags()
+        clear_db_dags()
+        clear_db_import_errors()
+
+    @patch.object(ParseImportError, "full_file_path", autospec=True, return_value="deadline_retry.py")
+    def test_deadline_dag_is_written_after_a_retried_operational_error(
+        self, _mock_full_path, session, testing_dag_bundle, tmp_path
+    ):
+        # The retry path rolls the session back, which would otherwise discard the bundle row the
+        # fixture just inserted and fail the Dag insert on its foreign key.
+        session.commit()
+
+        dag_file = tmp_path / "deadline_retry.py"
+        dag_file.write_text("# deadline retry fixture\n")
+
+        dag = DAG(
+            dag_id="deadline_retry_dag",
+            schedule=None,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(_empty_deadline_callback),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        dag.fileloc = str(dag_file)
+        dag.relative_fileloc = dag_file.name
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+
+        # Fail once at the point where the old implementation had already rewritten dag.data's
+        # deadline entries, so the retry would re-enter write_dag with mutated input.
+        real_write_code = DagCode.write_code
+        attempts = itertools.count()
+
+        def flaky_write_code(*args, **kwargs):
+            if next(attempts) == 0:
+                raise OperationalError("simulated contention", None, Exception())
+            return real_write_code(*args, **kwargs)
+
+        import_errors: dict[tuple[str, str], str] = {}
+        with mock.patch.object(DagCode, "write_code", autospec=True, side_effect=flaky_write_code):
+            update_dag_parsing_results_in_db(
+                "testing",
+                None,
+                [lazy_dag],
+                import_errors,
+                None,
+                set(),
+                session,
+                files_parsed={("testing", dag_file.name)},
+            )
+
+        assert import_errors == {}, f"retry should not have produced an import error: {import_errors}"
+        serdag = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag.dag_id))
+        assert serdag is not None, "the Dag should have been written on the retry"
 
 
 @pytest.mark.db_test
