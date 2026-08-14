@@ -19,12 +19,9 @@ Python stub Dags mirroring the Go SDK example bundle (``go-sdk/example/bundle``)
 
 Three Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
 load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
-timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag``
-(stressing the TaskFlow argument-binding surface -- the flat, positional
-parameter list ``via_flat_args`` binds onto, plus three name-based
-(keyword-style) struct examples, ``via_struct_no_tags``/``via_struct_arg_tag``/
-``via_struct_unmatched_arg``, each isolating one field-binding mode; see its
-Dag function below).
+timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag`` (one
+task per shape of the TaskFlow argument-binding surface; see its Dag function
+below).
 
 ``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
 run exercises XCom across the language boundary, the same way
@@ -168,53 +165,33 @@ def via_flat_map(config: dict): ...
 def via_struct_map(payload: dict): ...
 
 
+@task.stub(queue="golang")
+def via_plain_map(labels: dict): ...
+
+
 @dag(dag_id="taskflow_binding_dag")
 def taskflow_binding_dag():
     """
-    Stress the TaskFlow argument-binding surface beyond ``simple_dag``'s transform.
+    Exercise the Go SDK's TaskFlow argument-binding surface, one shape per task.
 
-    Conceptually, the flat parameter list is *positional-argument* binding: order
-    matters, and every parameter must be filled or the task fails before it runs.
-    A task whose sole data parameter is a struct is closer to *keyword-argument*
-    binding: fields match by name, and (see ``via_struct_unmatched_arg`` below) a
-    field whose name has no corresponding TaskFlow call argument simply stays at
-    its zero value instead of failing the task -- the same way an unpassed keyword
-    argument falls back to a default in kwargs-style calls.
+    A Go task declares either flat data parameters, which bind *positionally*
+    (order matters, every one must be filled), or a single struct, whose fields
+    bind by *name* like keyword arguments -- an unmatched field stays at its Go
+    zero value instead of failing the task.
 
-    ``via_flat_args``'s one mixed positional/keyword call carries literals of every
-    scalar type plus an array literal, and fans in XComs from *two* upstream Go
-    tasks: ``make_config`` returns an object that binds onto a strictly-decoded Go
-    struct, ``make_numbers`` an array that binds onto ``[]int``. ``note`` is not
-    passed, so its ``None`` default is captured and arrives in Go as a nil
-    ``*string``. The Go ``via_flat_args`` (``go-sdk/example/bundle/taskflowbinding``)
-    verifies every bound value and fails the task on any mismatch.
+    * ``via_flat_args``: every scalar literal, an array literal, keyword args,
+      an unpassed ``None`` default, and XComs fanned in from two upstream tasks.
+    * ``via_struct_no_tags``: fields bind their verbatim Go names, hence this
+      stub's capitalized parameters.
+    * ``via_struct_arg_tag``: fields bind via explicit ``arg:`` tags.
+    * ``via_struct_unmatched_arg``: a Go field no argument names, and a stub
+      default no Go field claims.
+    * ``via_flat_map`` / ``via_struct_map`` / ``via_plain_map``: one dict bound
+      whole into a struct, onto a struct's map field, and into a plain Go map.
 
-    Three further tasks demonstrate the Go SDK's name-based struct binding, used
-    when a struct is the task's sole data parameter. Each call mixes a literal
-    (``threshold``) with an XCom reference: the
-    ``region_code`` argument is ``make_region``'s output, so every struct example
-    also proves an XCom-sourced value binds onto a struct field. One field-binding
-    mode at a time:
-
-    * ``via_struct_no_tags``: no ``arg:`` tags at all -- each struct field binds
-      the argument spelled exactly like its Go field name, hence this stub's
-      capitalized ``RegionCode``/``Threshold`` parameters.
-    * ``via_struct_arg_tag``: every field names its argument via an explicit
-      ``arg:`` tag -- ``Region`` is genuinely renamed to ``region_code``, and
-      ``Threshold`` is tagged ``threshold`` to pull the snake_case argument its
-      verbatim field name would miss.
-    * ``via_struct_unmatched_arg``: the mismatch tolerance in both directions.
-      The Go struct declares a field with no corresponding argument in this
-      TaskFlow call at all -- it stays at its Go zero value rather than failing
-      the task. And the stub's defaulted ``sample_rate`` is never passed, so its
-      captured-from-default entry needs no matching struct field (an explicitly
-      passed argument no field claims would fail the task instead).
-
-    ``via_flat_map`` and ``via_struct_map`` each pass a single dict literal to
-    show the two ways one map binds on the Go side: ``via_flat_map``'s ``config``
-    argument matches no struct field, so the whole dict is decoded into a Go
-    struct (flat), while ``via_struct_map``'s ``payload`` argument binds by name
-    onto a Go struct's ``map`` field (struct-based).
+    Each ``via_struct_*`` call mixes a ``threshold`` literal with ``make_region``'s
+    XCom, so struct fields are proven against both argument sources. The Go
+    tasks verify every bound value and fail on any mismatch.
     """
     via_flat_args(
         "summary",
@@ -231,6 +208,7 @@ def taskflow_binding_dag():
     via_struct_unmatched_arg(region_code=region)
     via_flat_map(config={"region": "eu-west-1", "count": 3})
     via_struct_map(payload={"region": "eu-west-1", "count": 3})
+    via_plain_map(labels={"team": "data", "tier": "gold"})
 
 
 taskflow_binding_dag()

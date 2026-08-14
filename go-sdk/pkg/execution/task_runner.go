@@ -169,7 +169,10 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		if !ok || name == "" {
 			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
 		}
-		valueSchema := argValueSchema(m["value_schema"])
+		valueSchema, err := argValueSchema(m["value_schema"])
+		if err != nil {
+			return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
+		}
 		switch kind, _ := m["kind"].(string); kind {
 		case "xcom":
 			taskID, ok := m["task_id"].(string)
@@ -187,7 +190,10 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 				ValueSchema: valueSchema,
 			}
 		case "literal":
-			fromDefault, _ := m["from_default"].(bool)
+			fromDefault, err := optionalBool(m["from_default"])
+			if err != nil {
+				return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
+			}
 			args[i] = binding.LiteralArg{
 				Kind:        kind,
 				Name:        name,
@@ -203,18 +209,41 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 }
 
 // argValueSchema unpacks the optional value_schema fragment msgpack delivers as
-// a plain map into the generated ArgValueSchema type. A missing or empty
-// fragment yields nil, which the binding type check treats as unconstrained.
-func argValueSchema(raw any) *genmodels.ArgValueSchema {
+// a plain map into the generated ArgValueSchema type. An absent or empty
+// fragment yields nil, which the binding type check treats as unconstrained; a
+// fragment that is present but not a map is a wire error rather than a licence
+// to skip the type check.
+func argValueSchema(raw any) (*genmodels.ArgValueSchema, error) {
+	if raw == nil {
+		return nil, nil
+	}
 	m, ok := raw.(map[string]any)
-	if !ok || len(m) == 0 {
-		return nil
+	if !ok {
+		return nil, fmt.Errorf("value_schema has unexpected wire shape %T", raw)
+	}
+	if len(m) == 0 {
+		return nil, nil
 	}
 	schema := make(genmodels.ArgValueSchema, len(m))
 	for k, v := range m {
 		schema[k] = v
 	}
-	return &schema
+	return &schema, nil
+}
+
+// optionalBool reads a wire flag that defaults to false when absent. A present
+// but non-boolean value is a wire error: silently reading it as false would
+// turn a captured stub default into an explicitly passed argument and fail the
+// task for an argument the Dag author never wrote.
+func optionalBool(raw any) (bool, error) {
+	if raw == nil {
+		return false, nil
+	}
+	b, ok := raw.(bool)
+	if !ok {
+		return false, fmt.Errorf("from_default has unexpected wire shape %T", raw)
+	}
+	return b, nil
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form

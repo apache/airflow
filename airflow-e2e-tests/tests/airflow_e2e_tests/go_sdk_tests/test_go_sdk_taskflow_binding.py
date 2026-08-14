@@ -82,6 +82,7 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
         "via_struct_unmatched_arg",
         "via_flat_map",
         "via_struct_map",
+        "via_plain_map",
     ):
         assert completed_run.ti_states.get(task_id) == "success", completed_run.ti_states
 
@@ -160,3 +161,9 @@ def test_via_struct_map_binds_single_dict_onto_map_field(completed_run: _Complet
     assert completed_run.xcom("via_struct_map") == {
         "payload": {"region": "eu-west-1", "count": 3},
     }
+
+
+def test_via_plain_map_decodes_dict_into_a_typed_map(completed_run: _CompletedRun):
+    """``via_plain_map`` passes one dict literal onto a Go ``map[string]string``
+    parameter, so it decodes with no struct involved at all."""
+    assert completed_run.xcom("via_plain_map") == {"team": "data", "tier": "gold"}

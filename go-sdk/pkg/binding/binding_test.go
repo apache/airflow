@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
@@ -139,6 +140,28 @@ func (s *BindingSuite) TestAnalyzeRejections() {
 			func(ch chan int) error { return nil },
 			"cannot receive a task argument",
 		},
+		"pointer-to-func-param": {
+			func(cb *func()) error { return nil },
+			"cannot receive a task argument",
+		},
+		"slice-of-func-param": {
+			func(cbs []func()) error { return nil },
+			"cannot receive a task argument",
+		},
+		"map-with-chan-value-param": {
+			func(m map[string]chan int) error { return nil },
+			"cannot receive a task argument",
+		},
+		"struct-with-func-field-param": {
+			func(x struct {
+				Name string
+				Cb   func()
+			},
+			) error {
+				return nil
+			},
+			"cannot receive a task argument",
+		},
 		"non-client-interface": {
 			func(x interface{ NotAClientMethod() }) error { return nil },
 			"sdk.Client has no method NotAClientMethod",
@@ -160,6 +183,37 @@ func (s *BindingSuite) TestAnalyzeRejections() {
 			if s.Assert().Error(err) {
 				s.Assert().Contains(err.Error(), tt.errContains)
 			}
+		})
+	}
+}
+
+// selfDecodingNode has a field json could never decode on its own, plus a
+// self-reference: the walk must defer to UnmarshalJSON and must not recurse
+// forever.
+type selfDecodingNode struct {
+	Cb   func()
+	Next *selfDecodingNode
+}
+
+func (n *selfDecodingNode) UnmarshalJSON([]byte) error { return nil }
+
+type recursiveNode struct {
+	Name string
+	Next *recursiveNode
+}
+
+func (s *BindingSuite) TestAnalyzeAcceptsSelfDecodingAndRecursiveTypes() {
+	for name, fn := range map[string]any{
+		"time.Time":     func(when time.Time) error { return nil },
+		"slice-of-time": func(when []time.Time) error { return nil },
+		// Not a sole parameter: a lone struct binds field-by-field, where an
+		// undecodable field is rejected regardless of UnmarshalJSON.
+		"self-decoding":    func(name string, n selfDecodingNode) error { return nil },
+		"recursive-struct": func(n recursiveNode) error { return nil },
+	} {
+		s.Run(name, func() {
+			_, err := Analyze(reflect.TypeOf(fn), "testFn")
+			s.Assert().NoError(err)
 		})
 	}
 }
@@ -217,6 +271,45 @@ func (s *BindingSuite) TestResolveLiterals() {
 	s.Equal(map[string]any{"k": "v"}, got[5].Interface())
 }
 
+// TestResolveSelfDecodingLiterals: a Python datetime/UUID reaches Go as a
+// formatted string, so the parameter types that naturally receive them must
+// bind end to end and not just survive the schema check.
+func (s *BindingSuite) TestResolveSelfDecodingLiterals() {
+	fn := func(when time.Time, id uuid.UUID, ratio float64) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Value:       "2024-01-02T03:04:05Z",
+			ValueSchema: &genmodels.ArgValueSchema{"type": "string", "format": "date-time"},
+		},
+		LiteralArg{
+			Value:       "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+			ValueSchema: &genmodels.ArgValueSchema{"type": "string", "format": "uuid"},
+		},
+		// An int-annotated stub parameter bound onto a Go float.
+		LiteralArg{Value: 3, ValueSchema: argSchema("integer")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC), got[0].Interface())
+	s.Equal(uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8"), got[1].Interface())
+	s.Equal(3.0, got[2].Interface())
+}
+
+// TestResolveTypedMapParam: a dict argument binds onto a typed map parameter
+// directly. The map is not a struct, so it stays a flat positional parameter
+// rather than taking the sole-struct name-binding path.
+func (s *BindingSuite) TestResolveTypedMapParam() {
+	fn := func(labels map[string]string) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "labels",
+			Value:       map[string]any{"team": "data", "tier": "gold"},
+			ValueSchema: argSchema("object"),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(map[string]string{"team": "data", "tier": "gold"}, got[0].Interface())
+}
+
 func (s *BindingSuite) TestResolveInterleavedInjectables() {
 	fn := func(log *slog.Logger, country string, ctx context.Context, meta map[string]any) error {
 		return nil
@@ -244,7 +337,7 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 		"string-vs-int":     {argSchema("string"), reflect.TypeFor[int](), "cannot bind"},
 		"integer-ok":        {argSchema("integer"), reflect.TypeFor[int64](), ""},
 		"integer-uint-ok":   {argSchema("integer"), reflect.TypeFor[uint32](), ""},
-		"integer-vs-float":  {argSchema("integer"), reflect.TypeFor[float64](), "cannot bind"},
+		"integer-float-ok":  {argSchema("integer"), reflect.TypeFor[float64](), ""},
 		"number-ok":         {argSchema("number"), reflect.TypeFor[float32](), ""},
 		"number-vs-int":     {argSchema("number"), reflect.TypeFor[int](), "cannot bind"},
 		"boolean-ok":        {argSchema("boolean"), reflect.TypeFor[bool](), ""},
@@ -263,6 +356,27 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 		"union-type-skips":   {unionType, reflect.TypeFor[int](), ""},
 		"unknown-type-skips": {argSchema("uuid"), reflect.TypeFor[string](), ""},
 		"any-target-skips":   {argSchema("string"), reflect.TypeFor[any](), ""},
+		// pydantic ships a Python datetime/UUID as a formatted "string"; the Go
+		// types that receive them are a struct and an array, so they are judged
+		// by their own UnmarshalJSON/UnmarshalText rather than by kind.
+		"datetime-to-time": {
+			&genmodels.ArgValueSchema{"type": "string", "format": "date-time"},
+			reflect.TypeFor[time.Time](), "",
+		},
+		"datetime-to-time-ptr": {
+			&genmodels.ArgValueSchema{"type": "string", "format": "date-time"},
+			reflect.TypeFor[*time.Time](), "",
+		},
+		"uuid-to-uuid": {
+			&genmodels.ArgValueSchema{"type": "string", "format": "uuid"},
+			reflect.TypeFor[uuid.UUID](), "",
+		},
+		// time.Duration decodes itself no better than any other int64, so a
+		// Python timedelta's "PT5M" string is still rejected up front.
+		"duration-vs-int64": {
+			&genmodels.ArgValueSchema{"type": "string", "format": "duration"},
+			reflect.TypeFor[time.Duration](), "cannot bind",
+		},
 	}
 	for name, tt := range cases {
 		s.Run(name, func() {
@@ -395,6 +509,46 @@ func (s *BindingSuite) TestResolveXComPullFailure() {
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), `pulling xcom from task "extract"`)
 	}
+}
+
+// TestResolveMultipleXComPullFailures: pulls run concurrently, so several can
+// fail at once and every task id must survive into the joined error rather than
+// the report stopping at the first.
+func (s *BindingSuite) TestResolveMultipleXComPullFailures() {
+	client := &fakeXComClient{err: sdk.XComNotFound}
+	fn := func(a map[string]any, b map[string]any, c map[string]any) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		XComArg{TaskID: "extract_a"},
+		XComArg{TaskID: "extract_b"},
+		XComArg{TaskID: "extract_c"},
+	}, client)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), `pulling xcom from task "extract_a"`)
+		s.Contains(err.Error(), `pulling xcom from task "extract_b"`)
+		s.Contains(err.Error(), `pulling xcom from task "extract_c"`)
+	}
+}
+
+// TestResolveWholeStructFromXCom: the package doc promises a sole struct can
+// receive an upstream object as one argument, which is the XCom case rather
+// than the literal one covered above.
+func (s *BindingSuite) TestResolveWholeStructFromXCom() {
+	client := &fakeXComClient{values: map[string]any{
+		"make_config/return_value": map[string]any{
+			"environment": "production",
+			"region":      "eu-west-1",
+		},
+	}}
+	fn := func(cfg wholeConfig) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		XComArg{Name: "cfg", TaskID: "make_config", ValueSchema: argSchema("object")},
+	}, client)
+	s.Require().NoError(err)
+	s.Equal(
+		wholeConfig{Environment: "production", Region: "eu-west-1"},
+		got[0].Interface(),
+		"an XCom argument no field claims decodes whole into the struct",
+	)
 }
 
 func (s *BindingSuite) TestResolveXComWithoutWorkload() {
@@ -612,6 +766,22 @@ func (s *BindingSuite) TestResolveLoneStructBothModes() {
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal(want, whole[0].Interface(), "a single unclaimed argument decodes whole into the struct")
+}
+
+// taggedRegionInput opts into name binding, so a single argument its tag fails
+// to match must be reported rather than decoded whole.
+type taggedRegionInput struct {
+	Region string `arg:"regon_code"` // deliberate typo
+}
+
+func (s *BindingSuite) TestResolveTaggedStructNeverFallsBackToWholeValue() {
+	fn := func(input taggedRegionInput) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "region_code", Value: "eu-west-1", ValueSchema: argSchema("string")},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), `not claimed by any struct field: "region_code"`)
+	}
 }
 
 func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {

@@ -66,6 +66,7 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	bindingDag.AddTaskWithName("via_struct_unmatched_arg", taskflowbinding.ViaStructUnmatchedArg)
 	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
 	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
+	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
 
 	return nil
 }

@@ -164,3 +164,22 @@ func TestViaStructMapRejectsWrongBinding(t *testing.T) {
 	})
 	assert.ErrorContains(t, err, "map field bound incorrectly")
 }
+
+func TestViaPlainMap(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	got, err := ViaPlainMap(ctx, slog.Default(), map[string]string{
+		"team": "data", "tier": "gold",
+	})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaPlainMap should return a map summary, got %T", got)
+	assert.Equal(t, "data", summary["team"])
+	assert.Equal(t, "gold", summary["tier"])
+}
+
+func TestViaPlainMapRejectsWrongBinding(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	_, err := ViaPlainMap(ctx, slog.Default(), map[string]string{"team": "wrong"})
+	assert.ErrorContains(t, err, "plain map bound incorrectly")
+}

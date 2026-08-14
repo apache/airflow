@@ -15,65 +15,39 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package binding turns a task function's parameter list into the concrete
-// argument values it is called with at execution time.
+// Package binding turns a task function's parameter list into the argument
+// values it is called with at execution time.
 //
-// Parameters fall into two groups:
+// Parameters are either injectable runtime values -- context.Context,
+// sdk.TIRunContext, *slog.Logger, any subset of sdk.Client -- filled by type in
+// any position, or data parameters filled from the argument spec the Python
+// stub Dag captured from the TaskFlow call. Literals decode directly; XCom
+// arguments are pulled from their upstream task first, concurrently.
 //
-//   - Injectable runtime values: context.Context, sdk.TIRunContext,
-//     *slog.Logger, and any interface whose method set is a subset of
-//     sdk.Client. These are filled by type, in any position.
-//   - Data parameters: everything else, in declaration order. They receive the
-//     positional arguments the Python stub Dag captured at parse time from the
-//     TaskFlow call (“transform("uk", extract())“) and delivered in
-//     StartupDetails. A literal argument decodes directly; an XCom argument is
-//     pulled from the named upstream task in the current Dag run first
-//     (independent pulls run concurrently). A struct data parameter is decoded
-//     whole from its one positional argument.
+// Data parameters bind positionally, so order matters and every one must be
+// filled. The exception is a sole (pointer-to-)struct data parameter, which
+// binds by field name instead: each exported field claims the argument named by
+// its `arg:"<name>"` tag, or its verbatim Go field name when untagged. That is
+// kwarg-shaped, so an unmatched field stays at its zero value while an
+// explicitly passed argument no field claims fails the task -- except that an
+// untagged struct receiving a single unclaimed argument decodes whole from it,
+// which is how a struct receives an upstream object.
 //
-// Data parameters are positional-argument binding: order matters, every
-// parameter must be filled, and Resolve fails the task before its body runs on
-// an arity or type mismatch. A declared type of "any" (or a Go parameter typed
-// any) opts that argument out of the type check; the decode step still fails
-// loudly on unusable values.
+// Analyze builds a Plan per function once at registration, rejecting signatures
+// that cannot work -- notably an `arg:`-tagged struct alongside other data
+// parameters, whose tags would silently do nothing. Resolve binds each
+// execution's spec onto that Plan and fails the task before its body runs.
+// Because the flat-vs-name-bound choice is made per execution, one function can
+// bind either way in different Dags.
 //
-// One shape is treated specially: a function whose sole data parameter is a
-// (pointer-to-)struct binds by field name (kwarg-style) instead, using the
-// per-execution argument spec. Each exported field claims the argument named by
-// its `arg:"<name>"` tag, or its verbatim Go field name when untagged -- so an
-// untagged Name binds the argument "Name", and a snake_case argument like
-// "count" needs an explicit tag. A field whose name has no corresponding
-// argument is left at its Go zero value rather than failing the task, the same
-// way an unpassed keyword argument falls back to its default; conversely every
-// explicitly passed argument must be claimed by some field (catching typo'd
-// field names), while entries the Python side captured from the stub
-// signature's defaults (from_default on the wire) may go unclaimed. When the
-// sole struct instead receives exactly one explicitly passed argument that no
-// field claims, it falls back to a whole-value decode of that argument -- so a
-// struct can still receive an upstream object as one argument. A bindable-field
-// struct fails loudly when no argument spec arrives at all (e.g. the Edge
-// Worker path, where nothing could ever fill it), matching the flat-parameter
-// arity check.
-//
-// Because `arg:` tags only take effect in that sole-struct name-binding path, a
-// struct data parameter that carries an `arg:` tag must be the only data
-// parameter; Analyze rejects a signature that pairs a tagged struct with other
-// data parameters rather than silently ignoring the tags.
-//
-// Analyze inspects a function once at registration and returns a Plan; Resolve
-// builds the call arguments for each execution from that Plan and the
-// per-execution argument spec. The flat-vs-name-bound choice for a sole struct
-// parameter is made per execution, so the same function can bind either way in
-// different Dags.
-//
-// Mapped (.expand()) stubs are out of scope: their specs carry no bindings on
-// this wire version, so an XCom pull always targets the unmapped upstream
-// instance. Per-map-index delivery arrives with the mapped follow-up.
+// Mapped (.expand()) stubs are out of scope on this wire version: their specs
+// carry no bindings, so an XCom pull always targets the unmapped upstream.
 package binding
 
 import (
 	"bytes"
 	"context"
+	"encoding"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -88,23 +62,17 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// Arg is one positional argument for a task function's data parameters, in
-// declaration order: an XComArg or a LiteralArg. A sealed sum type over the
-// wire model's XComArgBinding/LiteralArgBinding split; each variant is
-// defined in terms of its generated schema struct so the fields cannot drift
-// from the coordinator protocol.
+// Arg is one positional argument, in declaration order: an XComArg or a
+// LiteralArg. Sealed, and each variant is defined in terms of its generated
+// schema struct, so the runtime types cannot drift from the wire model.
 type Arg interface {
-	// ArgName is the stub function's parameter name this binding fills; used
-	// to match a struct field's `arg:` tag (or its verbatim field-name
-	// fallback) in name-based binding.
+	// ArgName is the stub parameter name this binding fills, matched against a
+	// struct field's `arg:` tag in name-based binding.
 	ArgName() string
-	// Schema is the JSON-schema fragment the Dag declared for the argument
-	// (generated by pydantic from the stub annotation), or nil when the
-	// argument is unconstrained; the type check reads its "type" keyword and
-	// falls back to a decode-only check when nil or absent.
+	// Schema is the pydantic-generated fragment for the argument, or nil when
+	// it is unconstrained.
 	Schema() *genmodels.ArgValueSchema
-	// sealedArg restricts implementations to this package, keeping
-	// resolveOne's type switch the single exhaustive consumer.
+	// sealedArg keeps resolveOne's type switch the single exhaustive consumer.
 	sealedArg()
 }
 
@@ -136,48 +104,42 @@ const (
 	paramLogger
 	paramClient
 	paramData
-	// paramLoneStruct is the function's sole data parameter and is a
-	// (pointer-to-)struct. Resolve decides per execution whether to bind its
-	// fields by name (kwarg-style) or decode one argument whole into it.
+	// paramLoneStruct binds by field name, or decodes one argument whole; the
+	// choice is made per execution.
 	paramLoneStruct
 )
 
 // structField describes how Resolve fills one exported field of a name-bound
 // struct parameter. Precomputed once by Analyze.
 type structField struct {
-	// structIndex is the field's index within the struct, for
-	// reflect.Value.Field.
 	structIndex int
 	// goName is the Go field name, for error messages.
 	goName    string
 	fieldType reflect.Type
-	// argName is the name to claim from the argument spec: the field's `arg:`
-	// tag, or its Go field name verbatim when the tag is omitted.
+	// argName is the field's `arg:` tag, or its Go field name verbatim.
 	argName string
 }
 
 // paramPlan describes how Resolve fills a single task-function parameter.
 type paramPlan struct {
 	kind paramKind
-	// typ is the declared Go type of a data parameter (kind == paramData) or
-	// the struct type (kind == paramLoneStruct).
-	typ reflect.Type
-	// index is the parameter's position in the function signature, for error
-	// messages.
-	index int
-	// fields describes each exported field's binding. Set only for
+	// typ is the data parameter's declared type, or the struct type when
 	// kind == paramLoneStruct.
+	typ reflect.Type
+	// index is the position in the signature, for error messages.
+	index int
+	// fields and tagged are set only for kind == paramLoneStruct; tagged opts
+	// the struct out of the whole-value fallback.
 	fields []structField
+	tagged bool
 }
 
 // Plan is the precomputed recipe for filling a task function's parameters. It
 // is built once by Analyze and reused for every execution of that function.
 type Plan struct {
-	fnName  string
-	params  []paramPlan
-	numData int
-	// loneStruct is true when the sole data parameter is a struct resolved
-	// per execution (kind == paramLoneStruct).
+	fnName     string
+	params     []paramPlan
+	numData    int
 	loneStruct bool
 }
 
@@ -200,9 +162,7 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 		p.params[i] = plan
 	}
 
-	// A function whose sole data parameter is a struct binds its fields by name
-	// at execution (see resolveLoneStructParam); any other struct data
-	// parameter is decoded whole from its positional slot.
+	// Any other struct data parameter is decoded whole from its positional slot.
 	if p.numData == 1 {
 		i := dataIdxs[0]
 		if st := structParamType(p.params[i].typ); st != nil {
@@ -212,6 +172,7 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 			}
 			p.params[i].kind = paramLoneStruct
 			p.params[i].fields = fields
+			p.params[i].tagged = hasArgTag(st)
 			p.numData = 0
 			p.loneStruct = true
 			return p, nil
@@ -234,15 +195,11 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 	return p, nil
 }
 
-// Resolve builds the ordered argument values for one call. Injectable
-// parameters receive values derived from ctx, logger, or client. Plain flat
-// data parameters consume args in declaration order; a sole struct data
-// parameter is instead resolved by field name or decoded whole (see Analyze
-// and resolveLoneStructParam). An error fails the task before its body runs.
+// Resolve builds the ordered argument values for one call, failing the task
+// before its body runs.
 //
-// client must be the full sdk.Client -- not just the sdk.XComClient the
-// resolve helpers narrow to -- because a paramClient parameter receives the
-// client itself, verbatim.
+// client must be the full sdk.Client -- not just the sdk.XComClient the resolve
+// helpers narrow to -- because a paramClient parameter receives it verbatim.
 func (p *Plan) Resolve(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -315,13 +272,10 @@ func (p *Plan) resolveFlatParams(
 	return out, nil
 }
 
-// resolveLoneStructParam fills the function's sole struct data parameter. It
-// binds by field name (kwarg-style) by default: every explicitly passed spec
-// entry must be claimed by some field; entries the Python side captured from
-// the stub signature's defaults (FromDefault) may go unclaimed, the same way an
-// unpassed keyword argument never reaches the callee. When instead exactly one
-// explicitly passed argument arrives that no field claims, the struct is
-// decoded whole from it (see resolveWholeStructParam).
+// resolveLoneStructParam fills the sole struct data parameter by field name.
+// Entries the Python side captured from stub defaults (FromDefault) may go
+// unclaimed, the same way an unpassed keyword argument never reaches the
+// callee; every explicitly passed one must be claimed.
 func (p *Plan) resolveLoneStructParam(
 	ctx context.Context,
 	c sdk.XComClient,
@@ -353,19 +307,19 @@ func (p *Plan) resolveLoneStructParam(
 	for _, sf := range plan.fields {
 		idx, ok := byName[sf.argName]
 		if !ok {
-			// No TaskFlow call argument carries this name -- kwarg-style, an
-			// unpassed name leaves the field at its Go zero value rather than
-			// failing the task (see the package doc comment).
+			// Kwarg-style: an unpassed name leaves the field at its zero value.
 			continue
 		}
 		claimed[idx] = true
 		binds = append(binds, fieldBind{field: sf, argIdx: idx})
 	}
 
-	// Whole-value fallback: a single explicitly passed argument that no field
-	// claims decodes whole into the struct, so a sole struct parameter can still
-	// receive an upstream object as one positional argument.
-	if len(binds) == 0 && isLoneWholeValueArg(args) {
+	// A struct carrying `arg:` tags has opted into name binding, so it never
+	// takes the whole-value fallback: otherwise a typo'd tag would quietly
+	// decode the argument whole instead of reporting the name that matched
+	// nothing. (A field name that collides with an argument name is still bound
+	// by name -- only the author's tags distinguish the two modes.)
+	if len(binds) == 0 && !plan.tagged && isLoneWholeValueArg(args) {
 		return p.resolveWholeStructParam(ctx, c, args, plan, paramIdx, out)
 	}
 
@@ -504,9 +458,8 @@ func (p *Plan) fetchArgValues(
 			"task function %s: no workload in context, cannot resolve xcom arguments", p.fnName,
 		)
 	}
-	// Always the return-value XCom -- a stub Dag cannot reference any other
-	// key. Pull from the upstream's unmapped instance (map_index nil); mapped
-	// upstream fan-in is out of scope for now.
+	// Always the return-value XCom from the unmapped upstream: a stub Dag
+	// cannot reference another key, and mapped fan-in is out of scope.
 	pull := func(i int) error {
 		a := args[i].(XComArg)
 		raw, err := c.GetXCom(
@@ -615,7 +568,7 @@ func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error)
 	if !isDecodableType(in) {
 		return paramPlan{}, fmt.Errorf(
 			"task function %s: parameter %d: type %s cannot receive a task argument "+
-				"(func/chan/unsafe-pointer values cannot be decoded)",
+				"(func, chan and unsafe-pointer values cannot be decoded, at any depth)",
 			fnName, index, in,
 		)
 	}
@@ -695,11 +648,10 @@ func buildStructFields(
 }
 
 // checkValueType verifies the Dag-declared value schema can bind to the Go
-// parameter type. The schema is an open-vocabulary JSON-schema fragment; only
-// its "type" keyword is inspected, and one pointer level is dereferenced first.
-// A nil schema, a schema whose "type" is absent or not a plain string (e.g. a
-// union's ["string","null"]), an unrecognized type, or an `any` parameter all
-// skip the check -- the strict decode still fails loudly on unusable values.
+// parameter type. The fragment is open-vocabulary JSON schema, so anything it
+// cannot speak to -- no schema, no plain-string "type" (e.g. a union's
+// ["string","null"]), an unknown type, an `any` parameter -- skips the check and
+// leaves the strict decode to fail on unusable values.
 func checkValueType(schema *genmodels.ArgValueSchema, target reflect.Type) error {
 	if schema == nil {
 		return nil
@@ -715,6 +667,13 @@ func checkValueType(schema *genmodels.ArgValueSchema, target reflect.Type) error
 	if t.Kind() == reflect.Interface {
 		return nil
 	}
+	// A type that decodes itself maps the schema's JSON type onto its own Go
+	// kind however it likes -- a Python `datetime` ships as a "string" and binds
+	// onto time.Time, whose kind is struct -- so the kind table below cannot
+	// judge it.
+	if implementsUnmarshaler(target) || implementsUnmarshaler(t) {
+		return nil
+	}
 	bindable := false
 	switch jsonType {
 	case "string":
@@ -722,7 +681,10 @@ func checkValueType(schema *genmodels.ArgValueSchema, target reflect.Type) error
 	case "integer":
 		switch t.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			// Every JSON integer decodes into a Go float, so an int-annotated
+			// stub parameter binds onto one; narrowing is the decode's call.
+			reflect.Float32, reflect.Float64:
 			bindable = true
 		}
 	case "number":
@@ -747,11 +709,10 @@ func checkValueType(schema *genmodels.ArgValueSchema, target reflect.Type) error
 	return nil
 }
 
-// decodeValue decodes a raw (generically deserialised) value into target.
-// Decoding into a struct is strict: unknown/renamed keys fail rather than
-// silently leaving fields zero. Decoding into a map / interface accepts any
-// shape, so authors opt into loose decoding by typing the parameter
-// map[string]any or any. A null value is allowed only for a nilable target.
+// decodeValue decodes a raw value into target. Structs decode strictly, so an
+// unknown or renamed key fails rather than silently leaving a field zero;
+// authors opt into loose decoding by typing the parameter map[string]any or
+// any. A null value is allowed only for a nilable target.
 func decodeValue(raw any, target reflect.Type) (reflect.Value, error) {
 	out := reflect.New(target)
 
@@ -778,17 +739,55 @@ func decodeValue(raw any, target reflect.Type) (reflect.Value, error) {
 	return out.Elem(), nil
 }
 
-// isDecodableType reports whether a value can be JSON-decoded into inType. It
-// rejects kinds json cannot target (func, chan, unsafe pointer) and non-empty
-// interfaces (only the empty interface `any` is a valid decode target).
+// isDecodableType reports whether a value can be JSON-decoded into inType,
+// rejecting kinds json cannot target (func, chan, unsafe pointer) and non-empty
+// interfaces. It recurses, so a nested one is caught once at registration
+// rather than partway through every execution's decode.
 func isDecodableType(inType reflect.Type) bool {
+	return isDecodableTypeSeen(inType, map[reflect.Type]bool{})
+}
+
+func isDecodableTypeSeen(inType reflect.Type, seen map[reflect.Type]bool) bool {
+	if implementsUnmarshaler(inType) {
+		return true
+	}
 	switch inType.Kind() {
 	case reflect.Func, reflect.Chan, reflect.UnsafePointer:
 		return false
 	case reflect.Interface:
 		return inType.NumMethod() == 0
+	case reflect.Pointer, reflect.Slice, reflect.Array:
+		return isDecodableTypeSeen(inType.Elem(), seen)
+	case reflect.Map:
+		return isDecodableTypeSeen(inType.Key(), seen) &&
+			isDecodableTypeSeen(inType.Elem(), seen)
+	case reflect.Struct:
+		if seen[inType] {
+			// Self-referential type: the enclosing call is already validating it.
+			return true
+		}
+		seen[inType] = true
+		for i := range inType.NumField() {
+			f := inType.Field(i)
+			if f.IsExported() && !isDecodableTypeSeen(f.Type, seen) {
+				return false
+			}
+		}
 	}
 	return true
+}
+
+// implementsUnmarshaler reports whether t decodes itself from JSON, so its
+// wire representation is its own business rather than something the schema
+// type check or the decodable-kind walk should secondguess. The pointer is
+// checked too, since UnmarshalJSON is conventionally declared on it.
+func implementsUnmarshaler(t reflect.Type) bool {
+	for _, cand := range []reflect.Type{t, reflect.PointerTo(t)} {
+		if cand.Implements(jsonUnmarshalerType) || cand.Implements(textUnmarshalerType) {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -796,6 +795,9 @@ var (
 	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
 	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
 	clientType       = reflect.TypeFor[sdk.Client]()
+
+	jsonUnmarshalerType = reflect.TypeFor[json.Unmarshaler]()
+	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
 
 func isContext(inType reflect.Type) bool {
