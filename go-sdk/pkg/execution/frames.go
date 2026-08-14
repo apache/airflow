@@ -62,6 +62,13 @@ func encodeRequest(id int64, body any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
 	enc.UseCompactInts(true)
+	// Honour `json` struct tags when encoding user-provided values (XCom and
+	// Variable payloads). Without this, msgpack uses Go field names, so a typed
+	// XCom pushed as a struct would cross the wire as e.g. "GoVersion" and fail
+	// to decode into the json-tagged "go_version" the value is read back with
+	// (and that the HTTP-backed client uses). `msgpack` tags still win where
+	// present, so the genmodels protocol frames are unaffected.
+	enc.SetCustomStructTag("json")
 
 	if err := enc.EncodeArrayLen(2); err != nil {
 		return nil, err
