@@ -281,6 +281,13 @@ CONFIGS_CHANGES = [
         is_invalid_if="0",
         suggestion="Please set the `parallelism` configuration parameter to a value greater than 0.",
     ),
+    ConfigChange(
+        config=ConfigParameter("core", "execute_tasks_new_python_interpreter"),
+        was_removed=False,
+        is_invalid_if="True",
+        suggestion="Only the Edge worker still reads this setting. CeleryExecutor and "
+        "LocalExecutor no longer consult it.",
+    ),
     # api
     ConfigChange(
         config=ConfigParameter("api", "access_control_allow_origin"),
