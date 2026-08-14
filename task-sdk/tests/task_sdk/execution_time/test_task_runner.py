@@ -5174,10 +5174,14 @@ class TestTaskInstanceMetrics:
             assert task_duration_calls[0].kwargs.get("tags") == {
                 "dag_id": ti.dag_id,
                 "task_id": ti.task_id,
+                "run_type": "manual",
             }
             # verify task.duration was also emitted in legacy dotted format via the
-            # registry's legacy_name derivation in metrics_template.yaml
-            backend.timing.assert_any_call(f"dag.{ti.dag_id}.{ti.task_id}.duration", mock.ANY)
+            # registry's legacy_name derivation in metrics_template.yaml. dag_id and
+            # task_id are consumed by the legacy name, leaving run_type as a tag.
+            backend.timing.assert_any_call(
+                f"dag.{ti.dag_id}.{ti.task_id}.duration", mock.ANY, tags={"run_type": "manual"}
+            )
 
     def test_operator_successes_metrics_emitted(self, create_runtime_ti, mock_supervisor_comms):
         """Test that operator_successes and ti_successes metrics are emitted on task success."""
