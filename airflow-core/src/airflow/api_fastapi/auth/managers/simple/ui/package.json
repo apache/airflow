@@ -27,7 +27,7 @@
     "react": "^19.2.8",
     "react-cookie": "^8.1.2",
     "react-dom": "^19.2.8",
-    "react-hook-form": "^7.84.0",
+    "react-hook-form": "^7.85.0",
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
@@ -45,7 +45,7 @@
     "@typescript-eslint/utils": "^8.66.0",
     "@vitejs/plugin-react-swc": "^4.3.3",
     "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^10.8.0",
+    "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-perfectionist": "^5.10.1",
@@ -54,7 +54,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "eslint-plugin-unicorn": "^67.0.0",
-    "happy-dom": "^20.11.1",
+    "happy-dom": "^20.11.2",
     "prettier": "^3.9.6",
     "ts-morph": "^28.0.0",
     "typescript": "~6.0.3",
