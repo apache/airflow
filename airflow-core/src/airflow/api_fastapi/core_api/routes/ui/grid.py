@@ -84,14 +84,7 @@ grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
 
 def _get_latest_serdag(dag_id, session):
-    serdag = session.scalar(
-        select(SerializedDagModel)
-        .where(
-            SerializedDagModel.dag_id == dag_id,
-        )
-        .order_by(SerializedDagModel.id.desc())
-        .limit(1)
-    )
+    serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     if not serdag:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -200,15 +193,27 @@ def get_dag_structure(
     run_ids = list(session.scalars(dag_runs_select_filter))
 
     task_group_sort = get_task_group_children_getter()
+    # Built once per render and passed down, intentionally not memoized/LRU-cached: it is a
+    # derived view of a mutable task-group tree, so a cache would go stale with no invalidation
+    # and would pin the whole map for the group's lifetime, fighting the streaming/expunge below.
+    # It is released when the request returns (explicitly del-eted after the latest serdag is
+    # merged on the main path).
+    latest_group_dict = latest_dag.task_group.get_task_group_dict()
     if not run_ids:
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+        nodes = [
+            task_group_to_dict_grid(x, group_dict=latest_group_dict)
+            for x in task_group_sort(latest_dag.task_group, latest_group_dict)
+        ]
         return [GridNodeResponse(**n) for n in nodes]
 
     # Process and merge the latest serdag first
     merged_nodes: list[dict[str, Any]] = []
-    nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+    nodes = [
+        task_group_to_dict_grid(x, group_dict=latest_group_dict)
+        for x in task_group_sort(latest_dag.task_group, latest_group_dict)
+    ]
     _merge_node_dicts(merged_nodes, nodes)
-    del latest_dag
+    del latest_dag, latest_group_dict
 
     # Process serdags one by one and merge immediately to reduce memory usage.
     # Use yield_per() for streaming results and expunge each serdag after processing
@@ -243,7 +248,11 @@ def get_dag_structure(
                 depth=depth,
             )
         # Merge immediately instead of collecting all Dags in memory
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
+        filtered_group_dict = filtered_dag.task_group.get_task_group_dict()
+        nodes = [
+            task_group_to_dict_grid(x, group_dict=filtered_group_dict)
+            for x in task_group_sort(filtered_dag.task_group, filtered_group_dict)
+        ]
         _merge_node_dicts(merged_nodes, nodes)
 
         session.expunge(serdag)  # to allow garbage collection

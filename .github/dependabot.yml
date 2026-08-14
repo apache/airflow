@@ -15,6 +15,11 @@
 # specific language governing permissions and limitations
 # under the License
 ---
+# NOTE: a group applies to version updates unless it declares `applies-to: security-updates`.
+# Every entry below that targets the default branch therefore carries a matching
+# `*-security-updates` group, so alert-driven bumps arrive batched instead of one PR per
+# dependency. Entries using `target-branch` deliberately have no such group - Dependabot raises
+# security updates against the default branch only, so it would never match anything there.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -26,6 +31,10 @@ updates:
       interval: "weekly"
     groups:
       github-actions-updates:
+        patterns:
+          - "*"
+      github-actions-security-updates:
+        applies-to: security-updates
         patterns:
           - "*"
 
@@ -61,6 +70,35 @@ updates:
       pip-dependency-updates:
         patterns:
           - "*"
+      pip-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: gradle
+    directories:
+      - /java-sdk
+      - /java-sdk/example
+      - /java-sdk/scala_spark_example
+    cooldown:
+      default-days: 14
+    schedule:
+      interval: weekly
+    groups:
+      java-sdk-dependency-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      java-sdk-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: npm
     cooldown:
@@ -96,12 +134,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      core-ui-major-version-updates:
+      core-ui-security-updates:
         patterns:
           - "*"
         applies-to: security-updates
-        update-types:
-          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -117,12 +153,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      auth-ui-major-version-updates:
+      auth-ui-security-updates:
         patterns:
           - "*"
         applies-to: security-updates
-        update-types:
-          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -138,6 +172,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      ui-plugin-template-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -153,6 +191,16 @@ updates:
       edge-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      edge-ui-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     cooldown:
@@ -165,6 +213,10 @@ updates:
       fab-ui-package-updates:
         patterns:
           - "*"
+      fab-ui-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
 
   - package-ecosystem: npm
     cooldown:
@@ -180,12 +232,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      registry-major-version-updates:
+      registry-security-updates:
         patterns:
           - "*"
         applies-to: security-updates
-        update-types:
-          - "major"
 
   # Repeat dependency updates on v3-3-test branch as well
   - package-ecosystem: pip
@@ -247,6 +297,123 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  # The remaining directories are mirrored onto v3-3-test as well. Dependabot raises security
+  # updates against the default branch only, so a fixed version reaches the maintenance branch
+  # through its own version updates - Dependabot resolves and regenerates the lock file on that
+  # branch, which a cherry-picked lock file diff from main cannot do. Majors stay ignored, so a
+  # fix that needs a major bump still has to be backported by hand.
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /providers/edge3/src/airflow/providers/edge3/plugins/www
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    groups:
+      3-3-edge-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /providers/fab/src/airflow/providers/fab/www
+    schedule:
+      interval: daily
+    target-branch: v3-3-test
+    groups:
+      3-3-fab-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /registry
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    groups:
+      3-3-registry-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /dev/react-plugin-tools/react_plugin_template
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    groups:
+      3-3-ui-plugin-template-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "uv"
+    cooldown:
+      default-days: 4
+    directory: "/dev/breeze"
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    groups:
+      3-3-uv-dependency-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 7
+    directory: /ts-sdk
+    schedule:
+      interval: "weekly"
+    groups:
+      ts-sdk-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      ts-sdk-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
   - package-ecosystem: "uv"
     cooldown:
       default-days: 4
@@ -257,3 +424,41 @@ updates:
       uv-dependency-updates:
         patterns:
           - "*"
+      uv-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+
+  # Go modules resolve straight to upstream repositories: there is no central registry
+  # (unlike PyPI/npm) that pre-scans a release, and whoever controls a module's namespace
+  # can publish a version at any time. To keep an unreviewed upstream Go release from being
+  # auto-merged into our dev/CI chain, we do NOT raise automatic version-update PRs here
+  # (`open-pull-requests-limit: 0`); routine Go bumps are done manually. We still accept
+  # advisory-driven security updates, which require a published GHSA advisory and so cannot
+  # be triggered by an upstream release self-declaring itself a "security" fix.
+  - package-ecosystem: "gomod"
+    cooldown:
+      default-days: 14
+    directory: "/go-sdk"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      go-sdk-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+
+  - package-ecosystem: "gomod"
+    cooldown:
+      default-days: 14
+    directory: "/go-sdk"
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    open-pull-requests-limit: 0
+    groups:
+      3-3-go-sdk-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates

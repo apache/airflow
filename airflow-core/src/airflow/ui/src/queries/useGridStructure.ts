@@ -22,12 +22,11 @@ import { useGridServiceGetDagStructure } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { useAutoRefresh } from "src/utils";
 
+// Topology only (no per-run state), so it refreshes via `gridQueryKeys` invalidation, not polling.
 export const useGridStructure = ({
   dagRunState,
   depth,
-  hasActiveRun,
   includeDownstream,
   includeUpstream,
   limit,
@@ -38,7 +37,6 @@ export const useGridStructure = ({
 }: {
   dagRunState?: DagRunState | undefined;
   depth?: number | undefined;
-  hasActiveRun?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   limit?: number;
@@ -48,7 +46,6 @@ export const useGridStructure = ({
   triggeringUser?: string | undefined;
 }) => {
   const { dagId = "" } = useParams();
-  const refetchInterval = useAutoRefresh({ dagId });
 
   // Advanced-search toggle picks between the substring ``runIdPattern`` and the
   // index-friendly ``runIdPrefixPattern`` variants of the Run ID filter.
@@ -59,26 +56,28 @@ export const useGridStructure = ({
     value: runIdPattern,
   });
 
-  // This is necessary for keepPreviousData
-  const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
-    {
-      dagId,
-      depth,
-      includeDownstream,
-      includeUpstream,
-      limit,
-      orderBy: ["-run_after"],
-      root,
-      ...runIdPatternArg,
-      runType: runType ? [runType] : undefined,
-      state: dagRunState ? [dagRunState] : undefined,
-      triggeringUser: triggeringUser ?? undefined,
-    },
-    undefined,
-    {
-      refetchInterval: hasActiveRun ? refetchInterval : false,
-    },
-  );
+  // Advanced-search toggle picks between the substring ``triggeringUser`` and the
+  // index-friendly ``triggeringUserPrefix`` variants of the Triggering User filter.
+  const triggeringUserArg = useAdvancedSearchArg({
+    patternApiKey: "triggeringUser",
+    prefixApiKey: "triggeringUserPrefix",
+    storageKey: SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
+    value: triggeringUser,
+  });
+
+  const { data: dagStructure, ...rest } = useGridServiceGetDagStructure({
+    dagId,
+    depth,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    orderBy: ["-run_after"],
+    root,
+    ...runIdPatternArg,
+    runType: runType ? [runType] : undefined,
+    state: dagRunState ? [dagRunState] : undefined,
+    ...triggeringUserArg,
+  });
 
   return { data: dagStructure, ...rest };
 };

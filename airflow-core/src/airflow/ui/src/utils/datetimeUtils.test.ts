@@ -23,6 +23,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import {
   getDuration,
   getDurationTickStep,
+  humanizeSeconds,
   renderCompactDuration,
   renderDuration,
   getRelativeTime,
@@ -169,4 +170,20 @@ describe("getDurationTickStep", () => {
   it("falls back to an even split beyond the largest known step", () => {
     expect(getDurationTickStep(10_000_000)).toBe(1_250_000);
   });
+});
+
+describe("humanizeSeconds", () => {
+  it.each([
+    [3600, "an hour"],
+    [86_400, "a day"],
+  ])("humanizes %s seconds as %s", (seconds, expected) => {
+    expect(humanizeSeconds(seconds)).toBe(expected);
+  });
+
+  it.each([[null], [undefined], [Number.NaN], [Number.POSITIVE_INFINITY]])(
+    "returns undefined without a finite interval (%s)",
+    (seconds) => {
+      expect(humanizeSeconds(seconds)).toBeUndefined();
+    },
+  );
 });

@@ -173,7 +173,12 @@ def init_log_file(local_relative_path: str) -> Path:
 
 
 def _load_logging_config() -> None:
-    """Load and cache the remote logging configuration from SDK config."""
+    """
+    Load and cache the remote logging configuration from SDK config.
+
+    SDK mirror of :func:`airflow.logging_config.load_logging_config` — see that
+    function for the ``logging_config_class`` / ``REMOTE_TASK_LOG`` contract.
+    """
     from airflow.sdk._shared.logging.factory import resolve_remote_task_log
     from airflow.sdk._shared.module_loading import import_string
     from airflow.sdk.configuration import conf

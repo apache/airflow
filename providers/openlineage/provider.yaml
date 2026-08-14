@@ -24,7 +24,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1784746595
+source-date-epoch: 1785633505
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
@@ -186,7 +186,7 @@ config:
         type: string
         example: '[{"scope": {"dag_id": "expensive_dag"}, "controls": {"extract_operator_metadata": false}}]'
         default: "[]"
-        version_added: 2.18.0
+        version_added: 2.19.0
       execution_timeout:
         description: |
           Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction for
@@ -217,7 +217,7 @@ config:
         default: "False"
         example: ~
         type: boolean
-        version_added: 2.19.0
+        version_added: 2.20.0
       extractors:
         description: |
           Register custom OpenLineage Extractors by passing a string of semicolon separated full import paths.

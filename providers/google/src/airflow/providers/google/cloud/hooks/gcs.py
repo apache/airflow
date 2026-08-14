@@ -1201,6 +1201,36 @@ class GCSHook(GoogleBaseHook):
 
         self.log.info("A new ACL entry created in bucket: %s", bucket_name)
 
+    def add_bucket_iam_binding(
+        self,
+        bucket_name: str,
+        role: str,
+        member: str,
+        user_project: str | None = None,
+    ) -> None:
+        """
+        Add a member to an IAM role binding on a bucket.
+
+        :param bucket_name: Name of a bucket.
+        :param role: The IAM role to grant.
+        :param member: The IAM member to grant the role to.
+        :param user_project: (Optional) The project to be billed for this request.
+            Required for Requester Pays buckets.
+        """
+        self.log.info("Adding %s to IAM role %s on bucket %s", member, role, bucket_name)
+        client = self.get_conn()
+        bucket = client.bucket(bucket_name=bucket_name, user_project=user_project)
+        policy = bucket.get_iam_policy(requested_policy_version=3)
+        for binding in policy.bindings:
+            if binding["role"] == role and binding.get("condition") is None:
+                binding["members"].add(member)
+                break
+        else:
+            policy.bindings.append({"role": role, "members": {member}})
+        bucket.set_iam_policy(policy)
+
+        self.log.info("Added %s to IAM role %s on bucket %s", member, role, bucket_name)
+
     def insert_object_acl(
         self,
         bucket_name: str,

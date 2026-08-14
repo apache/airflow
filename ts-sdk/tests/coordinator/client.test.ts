@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { ConnectionNotFoundError } from "../../src/sdk/client.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskContext } from "../../src/sdk/task.js";
@@ -241,5 +242,30 @@ describe("getConnection", () => {
   it("returns null for missing connections", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "CONNECTION_NOT_FOUND" } }]);
     expect(await c.getConnection("missing")).toBeNull();
+  });
+});
+
+describe("getConnectionOrThrow", () => {
+  it("returns the connection when present", async () => {
+    const c = client([
+      { body: { type: "ConnectionResult", conn_id: "warehouse", conn_type: "postgres" } },
+    ]);
+
+    await expect(c.getConnectionOrThrow("warehouse")).resolves.toMatchObject({
+      id: "warehouse",
+      type: "postgres",
+    });
+  });
+
+  it("throws ConnectionNotFoundError on a missing connection", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "CONNECTION_NOT_FOUND" } }]);
+    const result = c.getConnectionOrThrow("missing");
+    await expect(result).rejects.toThrow(ConnectionNotFoundError);
+    await expect(result).rejects.toThrow(/Connection not found: missing/);
+  });
+
+  it("propagates non-not-found errors instead of ConnectionNotFoundError", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "API_SERVER_ERROR" } }]);
+    await expect(c.getConnectionOrThrow("warehouse")).rejects.toThrow(/API_SERVER_ERROR/);
   });
 });
