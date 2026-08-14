@@ -2515,10 +2515,14 @@ LANG_SDK_AWS_CONN_URI = (
 # sources. See kubernetes-tests/lang_sdk/README.md.
 LANG_SDK_UPSTREAM_GIT_URL = "https://github.com/apache/airflow.git"
 LANG_SDK_UPSTREAM_REF = "main"
+# The target branch for which the lang-SDK artifacts are built from this checkout's own SDK
+# sources rather than fetched from upstream. Distinct from LANG_SDK_UPSTREAM_REF (the ref fetched
+# from upstream) even though both are "main" today -- one names a git ref, the other a sentinel.
+LANG_SDK_LOCAL_SOURCE_BRANCH = "main"
 
 
 def _lang_sdk_target_branch() -> str:
-    """Branch this run targets. GITHUB_BASE_REF for PRs, DEFAULT_BRANCH in CI, else this checkout's."""
+    """Branch this run targets: GITHUB_BASE_REF or DEFAULT_BRANCH if set, else this checkout's."""
     return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or AIRFLOW_BRANCH
 
 
@@ -2531,13 +2535,13 @@ def _lang_sdk_resolve_sdk_sources(staging: Path, output: Output | None) -> tuple
     any SDK rename breaks the build. Runs targeting anything else fall back to upstream main.
     """
     target = _lang_sdk_target_branch()
-    if target == LANG_SDK_UPSTREAM_REF:
+    if target == LANG_SDK_LOCAL_SOURCE_BRANCH:
         get_console(output=output).print(
             f"[info]Run targets {target}: building the lang-SDK Go/Java artifacts from this branch"
         )
         return AIRFLOW_ROOT_PATH / "go-sdk", AIRFLOW_ROOT_PATH / "java-sdk"
     get_console(output=output).print(
-        f"[info]Run targets {target}, not {LANG_SDK_UPSTREAM_REF}: building the lang-SDK Go/Java "
+        f"[info]Run targets {target}, not {LANG_SDK_LOCAL_SOURCE_BRANCH}: building the lang-SDK Go/Java "
         f"artifacts from upstream {LANG_SDK_UPSTREAM_REF}"
     )
     return _lang_sdk_fetch_upstream_sdk_sources(staging, output)

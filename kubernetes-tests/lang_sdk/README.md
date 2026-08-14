@@ -75,7 +75,7 @@ by `_lang_sdk_resolve_sdk_sources()` in `kubernetes_commands.py`:
 | `main` | the checked-out branch's own `go-sdk/` and `java-sdk/` |
 | anything else (`v3-*-test`, …) | upstream `main`, fetched fresh via `_lang_sdk_fetch_upstream_sdk_sources()` |
 
-The target is `GITHUB_BASE_REF` for a PR, then `DEFAULT_BRANCH` in CI, falling back to this
+The target is `GITHUB_BASE_REF` for a PR, then `DEFAULT_BRANCH` if set, falling back to this
 checkout's own `AIRFLOW_BRANCH`. Building a main-targeting PR's own SDK is what makes the k8s test
 exercise that PR: `go_example`/`java_example` are harness fixtures that track the checked-out branch,
 so compiling them against a *different* SDK means any SDK rename in the PR fails to build. A

@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands import kubernetes_commands
 from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
@@ -390,7 +391,7 @@ class TestLangSdkTargetBranch:
                 "main",
                 id="pr-target-wins-over-default-branch",
             ),
-            pytest.param({}, "main", id="falls-back-to-this-checkouts-branch"),
+            pytest.param({}, AIRFLOW_BRANCH, id="falls-back-to-this-checkouts-branch"),
         ],
     )
     def test_resolves_target_branch(self, env, expected, monkeypatch):
