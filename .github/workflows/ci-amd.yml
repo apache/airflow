@@ -999,6 +999,10 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: 1.25
+          # The actions/go-versions manifest trails Go security releases by weeks, so without
+          # this the pin resolves to a stale patch and the vulnerability scan below fails on
+          # standard library advisories that are already fixed upstream.
+          check-latest: true
           cache-dependency-path: go-sdk/go.sum
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Gotestsum
