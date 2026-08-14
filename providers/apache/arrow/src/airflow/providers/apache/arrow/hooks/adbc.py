@@ -84,8 +84,19 @@ class AdbcHook(DbApiHook):
     Connection Extras:
         - driver: Name of the ADBC driver to use (e.g., "adbc_driver_postgresql").
         - entrypoint: Optional Python entrypoint for the driver.
-        - db_kwargs: Dict of keyword arguments passed to the database connection.
-        - conn_kwargs: Dict of keyword arguments passed to the driver connect function.
+        - db_kwargs: Driver-specific database initialization options passed to
+          ``AdbcDatabase``.  Keys and value types are defined by the driver
+          (e.g., ``"username"``, ``"password"`` for the PostgreSQL driver).
+          Do **not** put ADBC connection options here — they belong in
+          ``conn_kwargs``.
+        - conn_kwargs: ADBC connection options as string key-value pairs.
+          Keys must use the canonical dotted ADBC option names, for example:
+          ``"adbc.connection.autocommit": "true"``,
+          ``"adbc.connection.read_only": "true"``,
+          ``"adbc.connection.current_catalog": "my_catalog"``,
+          ``"adbc.connection.current_db_schema": "my_schema"``.
+          Short names such as ``autocommit`` or ``read_only`` are **not**
+          recognised by ADBC drivers and will raise ``NotSupportedError``.
         - dialect: SQL dialect name (default: "default").
 
     Example usage:

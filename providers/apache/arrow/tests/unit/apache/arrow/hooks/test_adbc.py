@@ -245,7 +245,8 @@ class TestAdbcHook:
             extra=json.dumps(
                 {
                     "driver": "adbc_driver_sqlite",
-                    "db_kwargs": {"timeout": 30, "username": "admin"},
+                    # These are driver-specific database init options (PostgreSQL examples).
+                    "db_kwargs": {"username": "admin", "password": "secret"},
                 }
             ),
         )
@@ -256,8 +257,8 @@ class TestAdbcHook:
 
         mock_connect.assert_called_once()
         kw = mock_connect.call_args.kwargs
-        assert kw["db_kwargs"]["timeout"] == 30
         assert kw["db_kwargs"]["username"] == "admin"
+        assert kw["db_kwargs"]["password"] == "secret"
         assert kw["db_kwargs"]["uri"] == "file::memory:"
 
     @mock.patch("airflow.providers.apache.arrow.hooks.adbc.connect")
@@ -269,7 +270,11 @@ class TestAdbcHook:
             extra=json.dumps(
                 {
                     "driver": "adbc_driver_sqlite",
-                    "conn_kwargs": {"autocommit": True, "read_only": True},
+                    # conn_kwargs must use the canonical dotted ADBC option names.
+                    "conn_kwargs": {
+                        "adbc.connection.autocommit": "true",
+                        "adbc.connection.read_only": "true",
+                    },
                 }
             ),
         )
@@ -280,7 +285,10 @@ class TestAdbcHook:
 
         mock_connect.assert_called_once()
         kw = mock_connect.call_args.kwargs
-        assert kw["conn_kwargs"] == {"autocommit": True, "read_only": True}
+        assert kw["conn_kwargs"] == {
+            "adbc.connection.autocommit": "true",
+            "adbc.connection.read_only": "true",
+        }
 
     @mock.patch("airflow.providers.apache.arrow.hooks.adbc.connect")
     def test_get_conn_forwards_entrypoint(self, mock_connect):
