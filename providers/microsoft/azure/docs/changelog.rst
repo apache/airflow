@@ -34,6 +34,7 @@ Changelog
   The following changes were introduced:
 
   * Hooks
+
     * ``AzureBatchHook.get_conn`` and ``AzureBatchHook.connection`` now return an ``azure.batch.BatchClient``
       instead of an ``azure.batch.BatchServiceClient``.
     * Shared key authentication now uses ``azure.core.credentials.AzureNamedKeyCredential`` instead of
@@ -50,6 +51,7 @@ Changelog
       and ``CloudTask`` is now ``BatchTask``.
 
   * Operators
+
     * ``AzureBatchOperator`` no longer accepts the ``os_family`` parameter. A ``vm_publisher`` must now be
       provided to configure the pool's virtual machine image.
 
