@@ -19,9 +19,10 @@
 """
 Add fire_on_failure to deadline_alert.
 
-Revision ID: b4f8c2a1d9e0
+Revision ID: c70138c21ecf
 Revises: c7f0a5d2e9b4
-Create Date: 2026-07-01 12:00:00.000000
+Create Date: 2026-08-19 05:41:03.395681
+
 """
 
 from __future__ import annotations
@@ -31,7 +32,8 @@ from alembic import op
 
 from airflow.migrations.utils import disable_sqlite_fkeys
 
-revision = "b4f8c2a1d9e0"
+# revision identifiers, used by Alembic.
+revision = "c70138c21ecf"
 down_revision = "c7f0a5d2e9b4"
 branch_labels = None
 depends_on = None
