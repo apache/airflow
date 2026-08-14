@@ -40,7 +40,6 @@ from airflow.models.callback import (
     ExecutorCallback,
     TriggererCallback,
 )
-from airflow.sdk.types import DagRunProtocol
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -60,14 +59,11 @@ logger = logging.getLogger(__name__)
 CALLBACK_METRICS_PREFIX = "deadline_alerts"
 
 
-class DeadlineDagRunProtocol(DagRunProtocol, Protocol):
-    """
-    The Dag run a deadline reference is evaluated against.
+class DeadlineDagRunProtocol(Protocol):
+    """The Dag run interface deadline references are evaluated against."""
 
-    Deadlines are only ever evaluated server-side against an ORM DagRun, so this exposes
-    ``queued_at`` on top of the fields a Dag run offers during task execution.
-    """
-
+    dag_id: str
+    logical_date: datetime | None
     queued_at: datetime | None
 
 
