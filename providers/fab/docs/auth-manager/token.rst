@@ -32,6 +32,8 @@ Example
 '''''''
 
 Use the following example to generate a token via username and password.
+The FAB auth manager expects a JSON request body, so set the content type to
+``application/json``.
 
 .. code-block:: bash
 
