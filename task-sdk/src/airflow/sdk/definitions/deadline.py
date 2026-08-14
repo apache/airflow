@@ -42,11 +42,11 @@ class BaseDeadlineReference(ABC):
     """
     Base class for all Deadline Reference implementations.
 
-    This is a lightweight SDK class for DAG authoring. It only handles serialization.
-    The actual evaluation logic (_evaluate_with) is in Core's SerializedReferenceModels.
+    This is a lightweight SDK class for Dag authoring. It only handles serialization.
+    The actual evaluation logic (``_evaluate_with``) is in Core's ``SerializedReferenceModels``.
 
     For custom deadline references, users should inherit from this class and implement
-    _evaluate_with() with deferred Core imports (imports inside the method body).
+    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).
     """
 
     @property
