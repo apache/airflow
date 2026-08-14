@@ -198,7 +198,7 @@ existed unless ``resume_glue_job_on_retry`` is set. On Airflow 3.3+, ``durable``
 .. note::
   The task-UUID scan fallback (used on retry whenever XCom has no cached run id -- always the case
   on Airflow 3.0-3.2, and on Airflow 2.x once XCom itself has expired or been cleared) calls
- ``glue:GetJobRuns`` against the job's run history. Grant this action, in addition to
+  ``glue:GetJobRuns`` against the job's run history. Grant this action, in addition to
   ``glue:StartJobRun`` and ``glue:GetJobRun``, to any IAM policy relying on ``durable=True`` (or
   ``resume_glue_job_on_retry=True`` below Airflow 3.3) for crash recovery -- without it, the scan
   fails, is logged as an error, and the operator submits a fresh run instead of reconnecting.
