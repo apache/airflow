@@ -32,7 +32,10 @@ class TestStatsd:
         )
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
-        assert jmespath.search("spec.strategy", docs[0]) is None
+        assert jmespath.search("spec.strategy", docs[0]) == {
+            "type": "RollingUpdate",
+            "rollingUpdate": {"maxUnavailable": 0, "maxSurge": 1},
+        }
 
         assert jmespath.search("spec.template.spec.containers[0].name", docs[0]) == "statsd"
 
