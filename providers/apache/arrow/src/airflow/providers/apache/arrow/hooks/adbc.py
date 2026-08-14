@@ -176,6 +176,18 @@ class AdbcHook(DbApiHook):
             autocommit=False,
         )
 
+    def set_autocommit(self, conn: Connection, autocommit: bool) -> None:
+        """Set autocommit on the ADBC connection.
+
+        The DBAPI attribute ``conn.autocommit`` has no effect on the underlying
+        ADBC driver; the real lever is the ``adbc.connection.autocommit`` option.
+        This override applies the option at the driver level, then calls super()
+        to keep the Python-level bookkeeping attribute in sync so that the base
+        class ``get_autocommit()`` and ``run()`` commit-guard behave correctly.
+        """
+        conn._conn.set_options(**{"adbc.connection.autocommit": "true" if autocommit else "false"})
+        super().set_autocommit(conn, autocommit)
+
     def get_records(
         self,
         sql: str | list[str],
@@ -311,7 +323,8 @@ class AdbcHook(DbApiHook):
                     batch = self._to_record_batch(rows=chunked_rows, schema=table_schema)
                     execute_batch(cur, sql, batch)
 
-                    conn.commit()
+                    if not autocommit:
+                        conn.commit()
 
                     nb_rows += batch.num_rows
                     self.log.info("Loaded %s rows into %s so far", nb_rows, table)

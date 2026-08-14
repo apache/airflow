@@ -105,6 +105,26 @@ class TestAdbcHook:
         assert batch.num_rows == 2
         assert self.conn.commit.call_count >= 1
 
+    def test_insert_rows_autocommit_skips_explicit_commit(self):
+        """With autocommit=True the chunk loop must not call conn.commit() — drivers raise on it."""
+        rows = [("a",), ("b",)]
+        self.hook.insert_rows("table", rows, autocommit=True)
+
+        assert self.cur.executemany.called
+        assert self.conn.commit.call_count == 0
+
+    def test_set_autocommit_applies_adbc_option(self):
+        """set_autocommit must set the driver-level option, not only a Python attribute."""
+        conn = mock.MagicMock()
+        self.hook.set_autocommit(conn, True)
+        conn._conn.set_options.assert_called_once_with(**{"adbc.connection.autocommit": "true"})
+        assert conn.autocommit is True
+
+        conn.reset_mock()
+        self.hook.set_autocommit(conn, False)
+        conn._conn.set_options.assert_called_once_with(**{"adbc.connection.autocommit": "false"})
+        assert conn.autocommit is False
+
     def test_insert_rows_commit_every_zero_inserts_all_rows(self):
         """commit_every=0 must insert all rows in a single transaction, not zero rows."""
         rows = [("a",), ("b",), ("c",)]
