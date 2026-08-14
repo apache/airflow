@@ -46,10 +46,10 @@ class TestAdbcHook:
 
         self.hook = self.make_hook_for_conn(conn)
 
-        # Make fetch_arrow_table().to_pydict() return a simple column mapping
-        arrow_table = mock.MagicMock()
-        arrow_table.to_pydict.return_value = {"col": [1, 2]}
-        self.cur.fetch_arrow_table.return_value = arrow_table
+        # Return a real pyarrow Table so fetch_arrow_table().columns works correctly.
+        import pyarrow as pa
+
+        self.cur.fetch_arrow_table.return_value = pa.table({"col": [1, 2]})
 
     def make_hook_for_conn(self, conn):
         """
@@ -82,6 +82,18 @@ class TestAdbcHook:
     def test_get_records_fetch_all_handler(self):
         result = self.hook.get_records("SELECT 1")
         assert result == [(1,), (2,)]
+
+    def test_get_records_duplicate_column_names(self):
+        """Duplicate column names (e.g. a JOIN) must not collapse to fewer columns."""
+        import pyarrow as pa
+
+        # Two columns both named "id" — as produced by SELECT a.id, b.id FROM a JOIN b.
+        table = pa.table({"a_id": [10, 20], "b_id": [30, 40]}).rename_columns(["id", "id"])
+        self.cur.fetch_arrow_table.return_value = table
+
+        result = self.hook.get_records("SELECT a.id, b.id FROM a JOIN b ON a.k = b.k")
+
+        assert result == [(10, 30), (20, 40)]
 
     def test_insert_rows_uses_executemany_with_record_batch(self):
         """insert_rows must call executemany with a RecordBatch — the Arrow-native fast path."""
