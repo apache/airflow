@@ -295,7 +295,8 @@ class AdbcHook(DbApiHook):
             if not target_fields:
                 target_fields = table_schema.names
             else:
-                table_schema = schema([field for field in table_schema if field.name in target_fields])
+                fields = {field.name: field for field in table_schema}
+                table_schema = schema([fields[name] for name in target_fields])
 
             self.log.info("target fields: %s", target_fields)
             self.log.info("table_schema: %s", table_schema)

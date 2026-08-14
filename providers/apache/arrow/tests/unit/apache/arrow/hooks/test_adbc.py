@@ -143,6 +143,34 @@ class TestAdbcHook:
         assert cur.executemany.called
         assert conn.commit.call_count >= 1
 
+    def test_insert_rows_target_fields_order_preserved(self):
+        """Schema must follow target_fields order so SQL and RecordBatch agree."""
+        from pyarrow import int64
+
+        cur = mock.MagicMock(spec=Cursor)
+        cur.bind = mock.MagicMock()
+        conn = mock.MagicMock()
+        conn.cursor.return_value = cur
+        # Table declares (first TEXT, last TEXT, age INT64) — note: first before last.
+        conn.adbc_get_table_schema.return_value = schema(
+            [field("first", string()), field("last", string()), field("age", int64())]
+        )
+        conn.extra_dejson = {}
+        hook = self.make_hook_for_conn(conn)
+
+        # Insert with reversed column order and omit age.
+        rows = [("Smith", "Alice"), ("Jones", "Bob")]
+        hook.insert_rows("t", rows, target_fields=["last", "first"])
+
+        # Capture what was passed to bind().
+        assert cur.bind.called
+        batch = cur.bind.call_args[0][1]  # second positional arg is the RecordBatch
+        # Schema order must match target_fields, not the table declaration.
+        assert batch.schema.names == ["last", "first"]
+        # Values must land in the declared column order.
+        assert batch.column("last").to_pylist() == ["Smith", "Jones"]
+        assert batch.column("first").to_pylist() == ["Alice", "Bob"]
+
     @pytest.mark.skipif(
         importlib.util.find_spec("adbc_driver_sqlite") is None,
         reason="adbc_driver_sqlite not installed",
