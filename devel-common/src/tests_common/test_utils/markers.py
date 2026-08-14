@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 
 import pytest
@@ -24,6 +25,16 @@ import pytest
 skip_if_force_lowest_dependencies_marker = pytest.mark.skipif(
     os.environ.get("FORCE_LOWEST_DEPENDENCIES", "") == "true",
     reason="When lowest dependencies are set only some providers are loaded",
+)
+
+
+# "google" is never part of airflow-core's own scoped dev dependency group (see the
+# TODO in airflow-core/pyproject.toml), so its absence is a reliable signal that only
+# a subset of providers is installed (e.g. `uv sync --project airflow-core` rather than
+# a full workspace sync).
+skip_unless_all_providers_installed = pytest.mark.skipif(
+    importlib.util.find_spec("airflow.providers.google") is None,
+    reason="Requires the full provider set to be installed, not just airflow-core's own dev group",
 )
 
 
