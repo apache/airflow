@@ -2317,8 +2317,6 @@ version = "0.1.0"
 source = { editable = "devel-common" }
 dependencies = [
     { name = "apache-airflow-mypy" },
-    { name = "apache-airflow-shared-module-loading" },
-    { name = "apache-airflow-shared-secrets-masker" },
     { name = "black" },
     { name = "coverage" },
     { name = "filelock" },
@@ -2639,8 +2637,6 @@ requires-dist = [
     { name = "apache-airflow-devel-common", extras = ["coverage", "duckdb", "debuggers", "devscripts", "doc", "docs-gen", "mypy", "pytest", "sentry", "sqlalchemy"], marker = "extra == 'all'", editable = "devel-common" },
     { name = "apache-airflow-devel-common", extras = ["coverage", "duckdb", "debuggers", "devscripts", "mypy", "pytest", "sentry"], marker = "extra == 'no-doc'", editable = "devel-common" },
     { name = "apache-airflow-mypy", marker = "extra == 'mypy'", editable = "dev/mypy" },
-    { name = "apache-airflow-shared-module-loading", editable = "shared/module_loading" },
-    { name = "apache-airflow-shared-secrets-masker", editable = "shared/secrets_masker" },
     { name = "astroid", marker = "extra == 'docs'", specifier = ">=4" },
     { name = "beautifulsoup4", marker = "extra == 'sentry'", specifier = ">=4.7.1" },
     { name = "black", specifier = ">=26.1.0" },
