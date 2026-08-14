@@ -20,14 +20,12 @@ from unittest import mock
 
 import pytest
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands import kubernetes_commands
 from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
     _lang_sdk_build_java_jar,
     _lang_sdk_fetch_upstream_sdk_sources,
     _lang_sdk_resolve_sdk_sources,
-    _lang_sdk_target_branch,
     _lang_sdk_upload_artifacts,
 )
 from airflow_breeze.utils import shared_options
@@ -379,51 +377,56 @@ class TestSetupLangSdkTestNativeSelection:
         }
 
 
-class TestLangSdkTargetBranch:
+class TestLangSdkResolveSdkSources:
+    @pytest.fixture
+    def repo_root(self, tmp_path, monkeypatch):
+        root = tmp_path / "repo"
+        root.mkdir()
+        monkeypatch.setattr(kubernetes_commands, "AIRFLOW_ROOT_PATH", root)
+        return root
+
     @pytest.mark.parametrize(
-        ("env", "expected"),
+        "env",
         [
-            pytest.param({"GITHUB_BASE_REF": "main"}, "main", id="pr-targeting-main"),
-            pytest.param({"GITHUB_BASE_REF": "v3-3-test"}, "v3-3-test", id="pr-targeting-release"),
-            pytest.param({"DEFAULT_BRANCH": "v3-3-test"}, "v3-3-test", id="ci-default-branch"),
+            pytest.param({}, id="no-branch-env"),
+            # A release-branch run must build the branch's own SDKs: upstream main's speak a later
+            # supervisor_schema_version than that branch's task-SDK supervisor knows.
             pytest.param(
-                {"GITHUB_BASE_REF": "main", "DEFAULT_BRANCH": "v3-3-test"},
-                "main",
-                id="pr-target-wins-over-default-branch",
+                {"GITHUB_BASE_REF": "v3-3-test", "DEFAULT_BRANCH": "v3-3-test"},
+                id="release-branch-env",
             ),
-            pytest.param({}, AIRFLOW_BRANCH, id="falls-back-to-this-checkouts-branch"),
         ],
     )
-    def test_resolves_target_branch(self, env, expected, monkeypatch):
+    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
+    def test_checkout_with_both_sdks_builds_from_them(
+        self, mock_fetch, env, repo_root, tmp_path, monkeypatch
+    ):
         monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
         monkeypatch.delenv("DEFAULT_BRANCH", raising=False)
         for key, value in env.items():
             monkeypatch.setenv(key, value)
-
-        assert _lang_sdk_target_branch() == expected
-
-    def test_empty_env_var_does_not_mask_the_fallback(self, monkeypatch):
-        """GitHub sets GITHUB_BASE_REF to an empty string on non-PR events (push, schedule)."""
-        monkeypatch.setenv("GITHUB_BASE_REF", "")
-        monkeypatch.setenv("DEFAULT_BRANCH", "v3-3-test")
-
-        assert _lang_sdk_target_branch() == "v3-3-test"
-
-
-class TestLangSdkResolveSdkSources:
-    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
-    def test_targeting_main_uses_the_checked_out_branch(self, mock_fetch, tmp_path, monkeypatch):
-        monkeypatch.setenv("GITHUB_BASE_REF", "main")
+        (repo_root / "go-sdk").mkdir()
+        (repo_root / "java-sdk").mkdir()
 
         go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
 
-        assert go_sdk == kubernetes_commands.AIRFLOW_ROOT_PATH / "go-sdk"
-        assert java_sdk == kubernetes_commands.AIRFLOW_ROOT_PATH / "java-sdk"
+        assert (go_sdk, java_sdk) == (repo_root / "go-sdk", repo_root / "java-sdk")
         mock_fetch.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "present",
+        [
+            pytest.param((), id="neither-sdk"),
+            pytest.param(("go-sdk",), id="only-go-sdk"),
+            pytest.param(("java-sdk",), id="only-java-sdk"),
+        ],
+    )
     @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
-    def test_targeting_another_branch_falls_back_to_upstream_main(self, mock_fetch, tmp_path, monkeypatch):
-        monkeypatch.setenv("GITHUB_BASE_REF", "v3-3-test")
+    def test_checkout_without_both_sdks_falls_back_to_upstream_main(
+        self, mock_fetch, present, repo_root, tmp_path
+    ):
+        for name in present:
+            (repo_root / name).mkdir()
         mock_fetch.return_value = (tmp_path / "go-sdk", tmp_path / "java-sdk")
 
         go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
