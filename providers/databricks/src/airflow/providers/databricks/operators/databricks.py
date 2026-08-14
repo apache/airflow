@@ -24,6 +24,7 @@ import copy
 import hashlib
 import json as json_utils
 import time
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import cached_property
@@ -68,6 +69,20 @@ if TYPE_CHECKING:
     from airflow.sdk import TaskGroup
     from airflow.sdk.types import Context, Logger
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
@@ -77,9 +92,9 @@ except ImportError:
 
         external_id_key: str = "databricks_run_id"
 
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             super().__init__(**kwargs)
-            self.durable = durable
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -776,9 +791,14 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.json = json
         self.tasks = tasks
@@ -1246,9 +1266,14 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
         forward_dag_params: bool = True,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.json = json
         self.job_id = job_id

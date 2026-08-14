@@ -1571,6 +1571,12 @@ apache-airflow-task-sdk-integration-tests = false
 # past that release so 1.2.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-07-15.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
+# Temporary: google-cloud-aiplatform 1.164.0 is the first release whose "evaluation" extra
+# allows the litellm versions that carry the Python 3.14 security fixes, and it was published
+# 2026-08-12, inside the "4 days" exclude-newer window. This pins the per-package cutoff just
+# past that release so 1.164.0 resolves while any later release stays quarantined.
+# Remove once the rolling window advances past 2026-08-12.
+google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1719,6 +1725,8 @@ apache-airflow-task-sdk-integration-tests = false
 # `[tool.uv.exclude-newer-package]` above for rationale.
 # Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
+# Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
+google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
