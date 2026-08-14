@@ -214,39 +214,31 @@ class AdbcHook(DbApiHook):
         )
 
     @classmethod
-    def _execute_native_bind(cls, cursor, statement: str, record_batch: RecordBatch) -> None:
-        """Execute a statement using native Arrow bind on the cursor."""
-        cursor.bind(record_batch)
-        cursor.execute(statement)
-
-    @classmethod
     def _execute_executemany(cls, cursor, statement: str, record_batch: RecordBatch) -> None:
-        """Execute a statement using cursor.executemany."""
+        """Execute a statement using cursor.executemany with a RecordBatch.
+
+        ADBC's executemany() accepts Arrow data directly and routes it through
+        bind_stream internally, making this the Arrow-native fast path.
+        """
         cursor.executemany(statement, record_batch)
 
     def _resolve_execute_batch(
         self, cursor, executemany: bool, fast_executemany: bool
     ) -> Callable[[Cursor, str, RecordBatch], None]:
         """
-        Return the appropriate batch-execute callable for the given cursor.
+        Return the batch-execute callable for the given cursor.
 
-        Picks native Arrow bind when the cursor supports it; otherwise falls back
-        to executemany, optionally enabling fast_executemany on the cursor first.
+        ADBC's executemany() natively accepts a RecordBatch, so it is always
+        the fast path.  fast_executemany is passed through to drivers that
+        expose that knob (silently ignored otherwise).
         """
-        use_native_bind = hasattr(cursor, "bind")
-
-        if not use_native_bind and (self.supports_executemany or executemany):
-            if fast_executemany:
-                with contextlib.suppress(AttributeError):
-                    cursor.fast_executemany = True
-                    self.log.info(
-                        "Fast_executemany is enabled for conn_id '%s'!",
-                        self.get_conn_id(),
-                    )
-
-        if use_native_bind:
-            self.log.info("Native Arrow bind supported!")
-            return self._execute_native_bind
+        if fast_executemany:
+            with contextlib.suppress(AttributeError):
+                cursor.fast_executemany = True
+                self.log.info(
+                    "Fast_executemany is enabled for conn_id '%s'!",
+                    self.get_conn_id(),
+                )
         return self._execute_executemany
 
     def insert_rows(

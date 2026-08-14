@@ -37,7 +37,6 @@ class TestAdbcHook:
         self.cur = mock.MagicMock(rowcount=0, fast_executemany=False)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
-        # Schema and extras that the hook might read
         # Provide a real pyarrow Schema so _to_record_batch can build RecordBatch
         self.conn.adbc_get_table_schema.return_value = schema([field("col", string())])
         self.conn.extra_dejson = {}
@@ -45,12 +44,7 @@ class TestAdbcHook:
 
         logging.root.disabled = True
 
-        # Instantiate the hook under test
         self.hook = self.make_hook_for_conn(conn)
-
-        # Ensure the cursor used in unit tests has a native bind method
-        # to simulate native Arrow bind support.
-        self.cur.bind = mock.MagicMock()
 
         # Make fetch_arrow_table().to_pydict() return a simple column mapping
         arrow_table = mock.MagicMock()
@@ -89,15 +83,14 @@ class TestAdbcHook:
         result = self.hook.get_records("SELECT 1")
         assert result == [(1,), (2,)]
 
-    def test_insert_rows_native_bind(self):
-        table = "table"
+    def test_insert_rows_uses_executemany_with_record_batch(self):
+        """insert_rows must call executemany with a RecordBatch — the Arrow-native fast path."""
         rows = [("a",), ("b",)]
+        self.hook.insert_rows("table", rows)
 
-        # Native bind supported (cursor has bind attribute)
-        self.hook.insert_rows(table, rows)
-
-        assert self.cur.bind.called
-        assert self.cur.execute.called
+        assert self.cur.executemany.called
+        batch = self.cur.executemany.call_args[0][1]
+        assert batch.num_rows == 2
         assert self.conn.commit.call_count >= 1
 
     def test_insert_rows_commit_every_zero_inserts_all_rows(self):
@@ -105,13 +98,13 @@ class TestAdbcHook:
         rows = [("a",), ("b",), ("c",)]
         self.hook.insert_rows("table", rows, commit_every=0)
 
-        assert self.cur.bind.called
-        batch = self.cur.bind.call_args[0][1]
+        assert self.cur.executemany.called
+        batch = self.cur.executemany.call_args[0][1]
         assert batch.num_rows == 3
         assert self.conn.commit.call_count == 1
 
     def test_insert_rows_fast_executemany_not_supported(self):
-        # Cursor without native bind that doesn't support setting fast_executemany
+        # Cursor that doesn't support setting fast_executemany
         class NoFastExecCursor(mock.MagicMock):
             def __setattr__(self, name, value):
                 if name == "fast_executemany":
@@ -119,7 +112,6 @@ class TestAdbcHook:
                 super().__setattr__(name, value)
 
         cur = NoFastExecCursor(spec=Cursor)
-        delattr(cur, "bind")  # Remove bind to simulate no native bind support
         conn = mock.MagicMock()
         conn.cursor.return_value = cur
         conn.adbc_get_table_schema.return_value = schema([field("col", string())])
@@ -135,9 +127,8 @@ class TestAdbcHook:
         assert conn.commit.call_count >= 1
 
     def test_insert_rows_fast_executemany_supported(self):
-        # Cursor without native bind but supports setting fast_executemany
+        # Cursor that supports setting fast_executemany
         cur = mock.MagicMock(spec=Cursor)
-        delattr(cur, "bind")  # Remove bind to simulate no native bind support
         conn = mock.MagicMock()
         conn.cursor.return_value = cur
         conn.adbc_get_table_schema.return_value = schema([field("col", string())])
@@ -158,7 +149,6 @@ class TestAdbcHook:
         from pyarrow import int64
 
         cur = mock.MagicMock(spec=Cursor)
-        cur.bind = mock.MagicMock()
         conn = mock.MagicMock()
         conn.cursor.return_value = cur
         # Table declares (first TEXT, last TEXT, age INT64) — note: first before last.
@@ -172,9 +162,8 @@ class TestAdbcHook:
         rows = [("Smith", "Alice"), ("Jones", "Bob")]
         hook.insert_rows("t", rows, target_fields=["last", "first"])
 
-        # Capture what was passed to bind().
-        assert cur.bind.called
-        batch = cur.bind.call_args[0][1]  # second positional arg is the RecordBatch
+        assert cur.executemany.called
+        batch = cur.executemany.call_args[0][1]  # second positional arg is the RecordBatch
         # Schema order must match target_fields, not the table declaration.
         assert batch.schema.names == ["last", "first"]
         # Values must land in the declared column order.
