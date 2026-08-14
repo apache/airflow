@@ -23,6 +23,13 @@ import pytest
 
 from airflow.providers.keycloak.auth_manager import cache as cache_module
 from airflow.providers.keycloak.auth_manager.cache import single_flight
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CACHE_TIMEOUT_SECONDS_KEY,
+    CONF_CACHE_TTL_SECONDS_KEY,
+    CONF_SECTION_NAME,
+)
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +41,30 @@ def _clear_cache():
     cache_module._pending_requests.clear()
 
 
+@pytest.fixture(autouse=True)
+def _set_cache_ttl():
+    with conf_vars(
+        {
+            (CONF_SECTION_NAME, CONF_CACHE_TTL_SECONDS_KEY): "60",
+            (CONF_SECTION_NAME, CONF_CACHE_TIMEOUT_SECONDS_KEY): "120",
+        }
+    ):
+        yield
+
+
 class TestSingleFlight:
+    def test_configure_ttl(self):
+        assert cache_module._CACHE_TTL_SECONDS is None
+        with conf_vars({(CONF_SECTION_NAME, CONF_CACHE_TTL_SECONDS_KEY): "120"}):
+            cache_module._cache_ttl_seconds()
+            assert cache_module._CACHE_TTL_SECONDS == 120
+
+    def test_configure_timeout(self):
+        assert cache_module._SINGLE_FLIGHT_TIMEOUT_SECONDS is None
+        with conf_vars({(CONF_SECTION_NAME, CONF_CACHE_TIMEOUT_SECONDS_KEY): "120"}):
+            cache_module._cache_timeout_seconds()
+            assert cache_module._SINGLE_FLIGHT_TIMEOUT_SECONDS == 120
+
     def test_returns_query_result(self):
         result = single_flight(("key",), lambda: {"a", "b"})
         assert result == {"a", "b"}

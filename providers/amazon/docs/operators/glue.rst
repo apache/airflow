@@ -139,6 +139,102 @@ To submit a new AWS Glue job you can use :class:`~airflow.providers.amazon.aws.o
   The same AWS IAM role used for the crawler can be used here as well, but it will need
   policies to provide access to the output location for result data.
 
+A Glue job run that ends in ``STOPPED`` is treated as a failure, not a success -- on every
+attempt, first or retry, regardless of ``durable``. Glue's API has no way to tell a run cancelled
+manually (for example, in the AWS console) apart from one this operator's own
+:meth:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator.on_kill` stopped, which happens
+whenever ``stop_job_run_on_kill=True`` and the task is killed -- on SIGTERM, on
+``execution_timeout``, or when the task is cleared while running. The task fails and a normal
+retry resubmits, rather than a self-inflicted stop being silently reported as a false success.
+Setting ``durable=False`` does not change this.
+
+Durable execution
+==================
+
+``GlueJobOperator`` submits a job run and then polls it to completion on the worker. By default
+the operator runs in a *durable* mode that makes this crash-safe: the Glue job run id is
+persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before
+polling begins, so if the worker crashes or is preempted and the task is retried, the operator
+reconnects to the run that is already executing in Glue instead of starting a new one.
+
+This matters more for Glue because a Glue job's ``concurrent_run_limit`` defaults to ``1``, so
+submitting a second run while the first is still active does not create a harmless duplicate, it
+fails outright with ``ConcurrentRunsExceededException`` and the task keeps retrying against a run
+it can never see. Durable execution turns that retry into a normal reconnect.
+
+On retry the operator checks the prior run's state:
+
+* if it is still starting, running, waiting for capacity, or being stopped, the operator
+  reconnects and continues polling
+* if it already succeeded, the operator returns immediately without resubmitting
+* if it failed terminally, or its id has expired and is no longer found, the operator submits the
+  job fresh
+* if it already stopped, the operator submits the job fresh
+
+If the stored state is already ``STOPPED``, the operator submits fresh rather than reconnecting to
+it. If a reconnect finds the run still stopping and it settles into ``STOPPED`` while polling, the
+operator raises instead of returning a result -- see above, this applies regardless of ``durable``.
+
+This protection also applies when ``wait_for_completion=False`` -- even though that task attempt
+never polls at all, a retry after a successful submission still reconnects rather than
+resubmitting, since the run id is persisted immediately after submission regardless of whether the
+task waits for it to finish.
+
+Durable execution requires Airflow 3.3 or newer for the task state store lookup above. Below
+3.3, ``durable`` has no effect: setting it explicitly only emits a warning, and its value is
+ignored either way. The deprecated ``resume_glue_job_on_retry`` parameter is the only way to opt
+into crash recovery there, and it still works via an older mechanism: the operator checks XCom
+for a cached run id first, then falls back to scanning the job's run history for a run tagged
+with this task instance's identity, and reconnects if it finds one that is still active. The
+XCom check only ever succeeds on Airflow 2.x -- every Airflow 3 release clears task XComs before
+each non-deferral attempt, so on Airflow 3.0-3.2 every retry pays the full scan.
+
+That older mechanism only activates below 3.3 when ``resume_glue_job_on_retry=True`` is set
+explicitly -- ``durable=True`` does not turn it on there. Upgrading the provider alone, with no
+DAG change, does not turn it on either: below 3.3, behavior is unchanged from before this feature
+existed unless ``resume_glue_job_on_retry`` is set. On Airflow 3.3+, ``durable`` defaults to
+``True`` as described above, since the task state store makes it cheap.
+
+Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean`` or ``airflow db clean`` (which also targets the
+``task_state_store`` table). If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the run
+id won't be there for the next retry, and the operator falls back to the XCom/scan mechanism
+above rather than reconnecting via task state store. Avoid running cleanup on a schedule shorter
+than your longest ``retry_delay``.
+
+Clearing a task is treated the same as a retry, which matters specifically for a task whose job
+already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
+and returns immediately without submitting anything to Glue. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+To opt out and always start a fresh run on retry, set ``durable=False``:
+
+.. code-block:: python
+
+  glue_job = GlueJobOperator(
+      task_id="glue_job",
+      job_name="my_glue_job",
+      script_location="s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
+      durable=False,
+  )
+
+The task state store lookup above is only used on the synchronous path -- when ``deferrable=True``
+is set, the Triggerer already tracks the run across the wait, so a run id is never persisted there.
+``durable`` still has an effect on retry, though: a retry of a deferrable task would otherwise
+resubmit, and with ``concurrent_run_limit=1`` that fails with ``ConcurrentRunsExceededException``
+against the run it can't see. To avoid that, ``durable=True`` (or, below Airflow 3.3,
+``resume_glue_job_on_retry=True``) tags the job's arguments with this task instance's identity on
+every attempt and, on retry, scans the job's run history for that tag before submitting -- the
+same mechanism used as a fallback on the synchronous path.
+
+``durable`` supersedes the deprecated ``resume_glue_job_on_retry`` parameter on Airflow 3.3+,
+where passing ``resume_glue_job_on_retry`` still works and maps its value onto ``durable``. Below
+3.3, ``resume_glue_job_on_retry`` remains the only working option, since ``durable`` is a no-op
+there. Either way, passing it emits an ``AirflowProviderDeprecationWarning``, since the parameter
+will be removed once this provider's minimum supported Airflow version reaches 3.3.
+
 .. _howto/operator:GlueDataQualityOperator:
 
 Create an AWS Glue Data Quality

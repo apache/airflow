@@ -1002,9 +1002,13 @@ export type DAGRunClearBody = {
 export type DAGRunCollectionResponse = {
     dag_runs: Array<DAGRunResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -1152,6 +1156,10 @@ export type DagRunAssetReference = {
     data_interval_start: string | null;
     data_interval_end: string | null;
     partition_key: string | null;
+    /**
+     * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
+     */
+    triggering: boolean;
 };
 
 /**
@@ -1758,9 +1766,13 @@ export type TaskInletAssetReference = {
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */

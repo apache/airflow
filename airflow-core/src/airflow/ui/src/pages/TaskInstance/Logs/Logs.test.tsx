@@ -465,6 +465,16 @@ const findRow = (text: string) => {
   ) as HTMLElement;
 };
 
+const getRowCopyText = (row: HTMLElement) => {
+  const clone = row.cloneNode(true) as HTMLElement;
+
+  for (const element of clone.querySelectorAll("[data-copy-exclude]")) {
+    element.remove();
+  }
+
+  return clone.textContent;
+};
+
 const withFakeSelection = <T,>(selection: Selection, callback: () => T): T => {
   const getSelectionSpy = vi.spyOn(document, "getSelection").mockReturnValue(selection);
   const result = callback();
@@ -543,6 +553,72 @@ describe("Copy across virtualized rows", () => {
     expect(clipboardData.getData("text/plain").split("\n")).toContainEqual(
       expect.stringMatching(/^\[.+\] INFO - Task started$/u),
     );
+  });
+
+  it("rebuilds middle rows with the exact text mounted rows show on screen", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    const firstRow = findRow("Log message source details");
+    const taskStartedRow = findRow("Task started");
+    const headerRow = findRow("Pre Execute");
+    const lastRow = findRow("Done. Returned value was: None");
+
+    const taskStartedScreenText = getRowCopyText(taskStartedRow);
+    const headerScreenText = getRowCopyText(headerRow);
+
+    expect(taskStartedScreenText).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] INFO - Task started$/u);
+    expect(headerScreenText).toBe("▶ Pre Execute");
+
+    taskStartedRow.remove();
+
+    const range = document.createRange();
+
+    range.setStart(firstRow, 0);
+    range.setEnd(lastRow, lastRow.childNodes.length);
+
+    const selection = { getRangeAt: () => range, isCollapsed: false, rangeCount: 1 } as unknown as Selection;
+    const clipboardData = makeClipboardData();
+
+    withFakeSelection(selection, () => dispatchCopy(clipboardData));
+
+    const lines = clipboardData.getData("text/plain").split("\n");
+
+    expect(lines[0]).toBe("▶ Log message source details");
+    expect(lines).toContain(taskStartedScreenText);
+    expect(lines).toContain(headerScreenText);
+  });
+
+  it("copies the expanded marker for expanded group headers", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+    await waitForLogs();
+
+    fireEvent.click(screen.getByTestId("summary-Pre Execute"));
+    await waitFor(() => expect(getRowCopyText(findRow("Pre Execute"))).toBe("▼ Pre Execute"));
+
+    const firstRow = findRow("Log message source details");
+    const headerRow = findRow("Pre Execute");
+    const taskStartedRow = findRow("Task started");
+    const lastRow = findRow("Done. Returned value was: None");
+
+    taskStartedRow.remove();
+    headerRow.remove();
+
+    const range = document.createRange();
+
+    range.setStart(firstRow, 0);
+    range.setEnd(lastRow, lastRow.childNodes.length);
+
+    const selection = { getRangeAt: () => range, isCollapsed: false, rangeCount: 1 } as unknown as Selection;
+    const clipboardData = makeClipboardData();
+
+    withFakeSelection(selection, () => dispatchCopy(clipboardData));
+
+    expect(clipboardData.getData("text/plain").split("\n")).toContain("▼ Pre Execute");
   });
 
   it("leaves single-row selections to native copy", async () => {

@@ -51,6 +51,7 @@ alibaba
 alibabacloud
 allAuthenticatedUsers
 allowlist
+allowlists
 allUsers
 alphanumerics
 amazonaws
@@ -237,6 +238,7 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
 checksums
 childs
 chmod
@@ -318,6 +320,7 @@ contrib
 convertToIri
 cooldown
 copyable
+coreutils
 CoreV
 coroutine
 cosmosdb
@@ -1068,9 +1071,12 @@ metastore
 metavar
 mget
 mgmt
+MiB
 microservice
 microservices
 microsoft
+microVM
+microVMs
 middleware
 middlewares
 midnights
@@ -1484,6 +1490,7 @@ sanitization
 sas
 Sasl
 sasl
+sbx
 scala
 scalability
 scalable
