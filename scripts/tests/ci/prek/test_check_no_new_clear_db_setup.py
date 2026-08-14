@@ -258,7 +258,7 @@ class TestHookCli:
     def test_hook_script_is_executable(self):
         assert os.access(Path(hook.__file__), os.X_OK)
 
-    def test_generate_writes_sorted_exact_baseline(self, fake_repo):
+    def test_generate_writes_sorted_file_baseline(self, fake_repo):
         write, allowlist = fake_repo
         write(
             "airflow-core/tests/unit/test_runs.py",
@@ -282,11 +282,11 @@ class TestHookCli:
 
         assert hook.main(["--generate"]) == 0
         assert allowlist.read_text().splitlines() == [
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1",
-            "providers/common/tests/unit/test_assets.py::rows::fixture setup::clear_db_assets::6::1",
+            "airflow-core/tests/unit/test_runs.py",
+            "providers/common/tests/unit/test_assets.py",
         ]
 
-    def test_accepts_allowlisted_site_and_rejects_new_or_replaced_site(self, fake_repo):
+    def test_grandfathered_file_tolerates_line_and_cleanup_details_changing(self, fake_repo):
         write, allowlist = fake_repo
         source = write(
             "airflow-core/tests/unit/test_runs.py",
@@ -296,18 +296,36 @@ class TestHookCli:
                 clear_db_runs()
             """,
         )
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
+        allowlist.write_text("airflow-core/tests/unit/test_runs.py\n")
         _commit_all(allowlist.parents[1], "allow existing site")
+        source.write_text(
+            "import pytest\n"
+            "from tests_common.test_utils.db import clear_db_dags\n"
+            "\n"
+            "\n"
+            "@pytest.fixture\n"
+            "def renamed_fixture():\n"
+            "    clear_db_dags()\n"
+            "    clear_db_dags()\n"
+            "    yield\n"
+        )
+
         assert hook.main([str(source)]) == 0
 
-        source.write_text(
-            "from tests_common.test_utils.db import clear_db_dags\ndef setup_method():\n    clear_db_dags()\n"
+    def test_rejects_unlisted_file_with_setup_cleanup(self, fake_repo):
+        write, _ = fake_repo
+        source = write(
+            "airflow-core/tests/unit/test_runs.py",
+            """
+            from tests_common.test_utils.db import clear_db_runs
+            def setup_method():
+                clear_db_runs()
+            """,
         )
+
         assert hook.main([str(source)]) == 1
 
-    def test_rejects_moving_same_helper_within_allowlisted_owner(self, fake_repo):
+    def test_regeneration_removes_cleaned_file(self, fake_repo):
         write, allowlist = fake_repo
         source = write(
             "airflow-core/tests/unit/test_runs.py",
@@ -317,60 +335,66 @@ class TestHookCli:
                 clear_db_runs()
             """,
         )
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
-        _commit_all(allowlist.parents[1], "allow existing site")
-        source.write_text(
-            "from tests_common.test_utils.db import clear_db_runs\n"
-            "def setup_method():\n"
-            "\n"
-            "\n"
-            "    clear_db_runs()\n"
-        )
+        assert hook.main(["--generate"]) == 0
+        assert allowlist.read_text() == "airflow-core/tests/unit/test_runs.py\n"
 
-        assert hook.main([str(source)]) == 1
+        source.write_text("def setup_method():\n    pass\n")
+        assert hook.main(["--generate"]) == 0
+        assert allowlist.read_text() == ""
 
-    def test_rejects_stale_allowlist_site(self, fake_repo, capsys):
+    def test_rejects_stale_allowlist_file(self, fake_repo, capsys):
         write, allowlist = fake_repo
         source = write("airflow-core/tests/unit/test_runs.py", "def setup_method():\n    pass\n")
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
-        _commit_all(allowlist.parents[1], "allow removed site")
+        allowlist.write_text("airflow-core/tests/unit/test_runs.py\n")
+        _commit_all(allowlist.parents[1], "allow removed file")
 
         assert hook.main([str(source)]) == 1
         assert "stale" in capsys.readouterr().out.lower()
 
-    def test_all_files_rejects_allowlist_site_for_missing_file(self, fake_repo, capsys):
+    def test_all_files_rejects_allowlist_file_for_missing_file(self, fake_repo, capsys):
         _, allowlist = fake_repo
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_missing.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
+        allowlist.write_text("airflow-core/tests/unit/test_missing.py\n")
         _commit_all(allowlist.parents[1], "allow missing file")
 
         assert hook.main(["--all-files"]) == 1
         assert "test_missing.py" in capsys.readouterr().out
 
     @pytest.mark.parametrize(
+        "path",
+        [
+            "./airflow-core/tests/unit/test_runs.py\n",
+            "airflow-core//tests/unit/test_runs.py\n",
+            "airflow-core/tests/unit/./test_runs.py\n",
+        ],
+    )
+    def test_rejects_noncanonical_allowlist_path_spellings(self, path):
+        with pytest.raises(ValueError):
+            hook._parse_allowlist(path)
+
+    @pytest.mark.parametrize(
         "baseline",
         [
             "not canonical\n",
-            "airflow-core/tests/unit/test.py::setup_method::xunit setup::clear_db_runs::1::0\n",
-            "providers/z/tests/unit/test_b.py::owner::xunit setup::clear_db_runs::1::1\n"
-            "airflow-core/tests/unit/test_a.py::owner::xunit setup::clear_db_runs::1::1\n",
-            "../evil.py::owner::xunit setup::clear_db_runs::1::1\n",
-            "a.py::owner::xunit setup::clear_db_runs::1::1\n",
+            "/tmp/test.py\n",
+            "../evil.py\n",
+            "./airflow-core/tests/unit/test_runs.py\n",
+            "airflow-core//tests/unit/test_runs.py\n",
+            "airflow-core/tests/unit/./test_runs.py\n",
+            "airflow-core/tests/integration/test.py\n",
+            "airflow-core/tests/unit/test_runs.py\nairflow-core/tests/unit/test_runs.py\n",
+            "providers/z/tests/unit/test_b.py\nairflow-core/tests/unit/test_a.py\n",
         ],
     )
-    def test_rejects_malformed_nonpositive_and_unsorted_baselines(self, fake_repo, baseline, capsys):
+    def test_rejects_malformed_duplicate_unsorted_and_invalid_path_baselines(
+        self, fake_repo, baseline, capsys
+    ):
         _, allowlist = fake_repo
         allowlist.write_text(baseline)
 
         assert hook.main(["--all-files"]) == 1
         assert "allowlist" in capsys.readouterr().out.lower()
 
-    def test_allowlist_edit_cannot_grandfather_a_new_site(self, fake_repo):
+    def test_allowlist_edit_cannot_grandfather_a_new_file(self, fake_repo):
         write, allowlist = fake_repo
         source = write(
             "airflow-core/tests/unit/test_runs.py",
@@ -380,65 +404,9 @@ class TestHookCli:
                 clear_db_runs()
             """,
         )
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
+        allowlist.write_text("airflow-core/tests/unit/test_runs.py\n")
 
         assert hook.main([str(source), str(allowlist)]) == 1
-
-    def test_narrower_baseline_can_drop_legacy_test_prefix_sites(self, fake_repo):
-        _, allowlist = fake_repo
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::test_run::test prefix::clear_db_runs::1\n"
-        )
-        _commit_all(allowlist.parents[1], "legacy baseline")
-        allowlist.write_text("")
-
-        assert hook.main(["--all-files"]) == 0
-
-    def test_line_exact_baseline_can_migrate_retained_legacy_setup_site(self, fake_repo):
-        write, allowlist = fake_repo
-        source = write(
-            "airflow-core/tests/unit/test_runs.py",
-            """
-            from tests_common.test_utils.db import clear_db_runs
-            def setup_method():
-                clear_db_runs()
-            """,
-        )
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::1\n"
-        )
-        _commit_all(allowlist.parents[1], "legacy setup baseline")
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
-
-        assert hook.main([str(source), str(allowlist)]) == 0
-
-    @pytest.mark.parametrize(("legacy_count", "expected_status"), [(2, 0), (1, 1)])
-    def test_legacy_migration_sums_line_exact_occurrences(self, fake_repo, legacy_count, expected_status):
-        write, allowlist = fake_repo
-        source = write(
-            "airflow-core/tests/unit/test_runs.py",
-            """
-            from tests_common.test_utils.db import clear_db_runs
-            def setup_method():
-                clear_db_runs()
-                clear_db_runs()
-            """,
-        )
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::"
-            f"{legacy_count}\n"
-        )
-        _commit_all(allowlist.parents[1], "legacy setup baseline")
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::5::1\n"
-        )
-
-        assert hook.main([str(source), str(allowlist)]) == expected_status
 
     def test_invalid_ci_baseline_ref_fails_closed(self, fake_repo, monkeypatch, capsys):
         _, allowlist = fake_repo
@@ -447,7 +415,7 @@ class TestHookCli:
         assert hook.main(["--all-files"]) == 1
         assert "trusted baseline" in capsys.readouterr().out.lower()
 
-    def test_valid_ci_baseline_rejects_allowlist_growth(self, fake_repo, monkeypatch, capsys):
+    def test_trusted_baseline_rejects_reintroduction_of_cleaned_file(self, fake_repo, monkeypatch, capsys):
         write, allowlist = fake_repo
         write("scripts/ci/prek/check_no_new_clear_db_setup.py", "# checker\n")
         _commit_all(allowlist.parents[1], "hook baseline")
@@ -466,13 +434,14 @@ class TestHookCli:
                 clear_db_runs()
             """,
         )
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
+        allowlist.write_text("airflow-core/tests/unit/test_runs.py\n")
         monkeypatch.setenv("PRE_COMMIT_FROM_REF", base_ref)
 
         assert hook.main([str(source), str(allowlist)]) == 1
-        assert "cannot add" in capsys.readouterr().out.lower()
+        output = capsys.readouterr().out
+        assert "cannot add" in output.lower()
+        assert "may only shrink" in output
+        assert "https://github.com/apache/airflow/issues/71577" in output
 
     def test_valid_ci_baseline_with_hook_but_no_allowlist_fails_closed(self, fake_repo, monkeypatch, capsys):
         write, allowlist = fake_repo
@@ -511,9 +480,7 @@ class TestHookCli:
                 clear_db_runs()
             """,
         )
-        allowlist.write_text(
-            "airflow-core/tests/unit/test_runs.py::setup_method::xunit setup::clear_db_runs::4::1\n"
-        )
+        allowlist.write_text("airflow-core/tests/unit/test_runs.py\n")
         monkeypatch.setenv("PRE_COMMIT_FROM_REF", base_ref)
 
         assert hook.main([str(source), str(allowlist)]) == 0
@@ -541,7 +508,14 @@ class TestHookCli:
         assert "test_runs.py" in output
         assert "4" in output
         assert "clear_db_runs" in output
-        assert "owning fixture" in output
+        assert "xUnit setup setup_method" in output
+        assert "Setup-time database cleanup is not allowed in unit tests:" in output
+        assert "How to fix:" in output
+        assert "Remove this setup cleanup. The fixture or test that creates the database rows" in output
+        assert "must clean them up during teardown." in output
+        assert "Do not add this file to the allowlist." in output
+        assert "More information:" in output
+        assert "https://github.com/apache/airflow/issues/71577" in output
 
     def test_no_files_is_a_noop(self, fake_repo):
         assert hook.main([]) == 0

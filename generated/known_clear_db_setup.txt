@@ -1,228 +1,79 @@
-airflow-core/tests/unit/always/test_secrets.py::TestVariableFromSecrets.setup_method::xunit setup::clear_db_variables::141::1
-airflow-core/tests/unit/always/test_secrets_backends.py::TestBaseSecretsBackend.setup_method::xunit setup::clear_db_connections::48::1
-airflow-core/tests/unit/always/test_secrets_backends.py::TestBaseSecretsBackend.setup_method::xunit setup::clear_db_variables::49::1
-airflow-core/tests/unit/always/test_secrets_metastore.py::TestMetastoreBackendSessionSafety.setup_method::xunit setup::clear_db_connections::39::1
-airflow-core/tests/unit/always/test_secrets_metastore.py::TestMetastoreBackendSessionSafety.setup_method::xunit setup::clear_db_variables::40::1
-airflow-core/tests/unit/api/common/test_trigger_dag.py::clean_db::fixture setup::clear_db_dags::45::1
-airflow-core/tests/unit/api/common/test_trigger_dag.py::clean_db::fixture setup::clear_db_runs::44::1
-airflow-core/tests/unit/api/common/test_trigger_dag.py::clean_db::fixture setup::clear_db_serialized_dags::46::1
-airflow-core/tests/unit/api_fastapi/auth/test_tokens.py::TestRevokeToken.cleanup_revoked_tokens::fixture setup::clear_db_revoked_tokens::333::1
-airflow-core/tests/unit/api_fastapi/common/test_dagbag.py::TestDagBagSingleton.setup::xunit setup::clear_db_dags::39::1
-airflow-core/tests/unit/api_fastapi/common/test_dagbag.py::TestDagBagSingleton.setup::xunit setup::clear_db_runs::38::1
-airflow-core/tests/unit/api_fastapi/common/test_dagbag.py::TestDagBagSingleton.setup::xunit setup::clear_db_serialized_dags::40::1
-airflow-core/tests/unit/api_fastapi/common/test_exceptions.py::TestUniqueConstraintErrorHandler.setup::fixture setup::clear_db_connections::115::1
-airflow-core/tests/unit/api_fastapi/common/test_exceptions.py::TestUniqueConstraintErrorHandler.setup::fixture setup::clear_db_dags::118::1
-airflow-core/tests/unit/api_fastapi/common/test_exceptions.py::TestUniqueConstraintErrorHandler.setup::fixture setup::clear_db_pools::116::1
-airflow-core/tests/unit/api_fastapi/common/test_exceptions.py::TestUniqueConstraintErrorHandler.setup::fixture setup::clear_db_runs::117::1
-airflow-core/tests/unit/api_fastapi/conftest.py::configure_git_connection_for_dag_bundle::fixture setup::clear_db_connections::201::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py::TestAssetAliases.setup::fixture setup::clear_db_assets::719::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py::TestAssetAliases.setup::fixture setup::clear_db_dags::721::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py::TestAssetAliases.setup::fixture setup::clear_db_runs::720::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py::TestAssets.setup::fixture setup::clear_db_assets::255::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py::TestAssets.setup::fixture setup::clear_db_dags::257::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py::TestAssets.setup::fixture setup::clear_db_logs::258::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py::TestAssets.setup::fixture setup::clear_db_runs::256::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_auth.py::TestLogout.cleanup_revoked_tokens::fixture setup::clear_db_revoked_tokens::103::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_auth.py::TestLogoutTokenRevocation.cleanup_revoked_tokens::fixture setup::clear_db_revoked_tokens::167::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py::TestConnectionEndpoint.setup::fixture setup::clear_db_connection_tests::106::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py::TestConnectionEndpoint.setup::fixture setup::clear_db_connections::105::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py::TestConnectionEndpoint.setup::fixture setup::clear_db_logs::107::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_parsing.py::TestDagParsingEndpoint.setup::fixture setup::clear_db_logs::44::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py::setup::fixture setup::clear_db_assets::150::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py::setup::fixture setup::clear_db_connections::145::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py::setup::fixture setup::clear_db_dags::147::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py::setup::fixture setup::clear_db_logs::149::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py::setup::fixture setup::clear_db_runs::146::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py::setup::fixture setup::clear_db_serialized_dags::148::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_versions.py::TestDagVersionEndpoint.setup::fixture setup::clear_db_dags::34::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_versions.py::TestDagVersionEndpoint.setup::fixture setup::clear_db_serialized_dags::35::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_warning.py::setup::fixture setup::clear_db_dag_warnings::54::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_warning.py::setup::fixture setup::clear_db_dags::53::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_import_error.py::clear_db::fixture setup::clear_db_dags::107::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_import_error.py::clear_db::fixture setup::clear_db_import_errors::106::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_job.py::TestJobEndpoint.setup::xunit setup::clear_db_jobs::120::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_monitor.py::TestMonitorEndpoint.setup::fixture setup::clear_db_jobs::42::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_pools.py::TestPoolsEndpoint.setup::fixture setup::clear_db_pools::75::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py::TestBulkTaskInstances.clean_db::fixture setup::clear_db_runs::6326::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py::TestGetMappedTaskInstances.setup_attrs::fixture setup::clear_db_runs::766::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py::TestGetTaskDependencies.setup_method::xunit setup::clear_db_runs::2399::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py::TestTaskInstanceEndpoint.setup_attrs::fixture setup::clear_db_runs::134::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py::TestVariableEndpoint.setup::fixture setup::clear_db_variables::143::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_version.py::TestVersionEndpoint.setup::fixture setup::clear_db_jobs::31::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py::TestGetAssetsUi.cleanup_assets::fixture setup::clear_db_assets::500::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py::cleanup::fixture setup::clear_db_apdr::62::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py::cleanup::fixture setup::clear_db_dags::60::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py::cleanup::fixture setup::clear_db_pakl::63::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py::cleanup::fixture setup::clear_db_serialized_dags::61::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestCalendar.setup_dag_runs::fixture setup::clear_db_dags::49::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestCalendar.setup_dag_runs::fixture setup::clear_db_runs::48::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestCalendarDeadlines.setup_deadlines::fixture setup::clear_db_dags::388::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestCalendarDeadlines.setup_deadlines::fixture setup::clear_db_deadline::386::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestCalendarDeadlines.setup_deadlines::fixture setup::clear_db_runs::387::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestCalendarPlannedRunsCap.setup_dag_runs::fixture setup::clear_db_dags::339::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestCalendarPlannedRunsCap.setup_dag_runs::fixture setup::clear_db_runs::338::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestPartitionedCalendar.setup_dag_runs::fixture setup::clear_db_dags::203::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py::TestPartitionedCalendar.setup_dag_runs::fixture setup::clear_db_runs::202::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_dashboard.py::clean::fixture setup::clear_db_runs::48::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_deadlines.py::setup::fixture setup::clear_db_dags::80::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_deadlines.py::setup::fixture setup::clear_db_deadline::77::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_deadlines.py::setup::fixture setup::clear_db_deadline_alert::78::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_deadlines.py::setup::fixture setup::clear_db_runs::79::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_deadlines.py::setup::fixture setup::clear_db_serialized_dags::81::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_dependencies.py::cleanup::fixture setup::clear_db_dags::42::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_dependencies.py::cleanup::fixture setup::clear_db_serialized_dags::43::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_gantt.py::_clean::fixture setup::clear_db_assets::204::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_gantt.py::_clean::fixture setup::clear_db_runs::203::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_gantt.py::setup::fixture setup::clear_db_dags::99::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_gantt.py::setup::fixture setup::clear_db_runs::98::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_gantt.py::setup::fixture setup::clear_db_serialized_dags::100::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_grid.py::_clean::fixture setup::clear_db_assets::381::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_grid.py::_clean::fixture setup::clear_db_runs::380::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_grid.py::setup::fixture setup::clear_db_dags::161::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_grid.py::setup::fixture setup::clear_db_runs::160::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_grid.py::setup::fixture setup::clear_db_serialized_dags::162::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_partitioned_dag_runs.py::cleanup::fixture setup::clear_db_apdr::49::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_partitioned_dag_runs.py::cleanup::fixture setup::clear_db_dags::47::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_partitioned_dag_runs.py::cleanup::fixture setup::clear_db_pakl::50::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_partitioned_dag_runs.py::cleanup::fixture setup::clear_db_serialized_dags::48::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py::clean::fixture setup::clear_db_assets::103::1
-airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py::clean::fixture setup::clear_db_runs::102::1
-airflow-core/tests/unit/api_fastapi/core_api/test_app.py::TestGzipMiddleware.setup::fixture setup::clear_db_jobs::116::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_connection_tests.py::TestGetConnectionTestConnection.setup_teardown::fixture setup::clear_db_connection_tests::207::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_connection_tests.py::TestPatchConnectionTest.setup_teardown::fixture setup::clear_db_connection_tests::38::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_connection_tests.py::TestPatchConnectionTestCommitOnSuccess.setup_teardown::fixture setup::clear_db_connection_tests::101::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_connection_tests.py::TestPatchConnectionTestCommitOnSuccess.setup_teardown::fixture setup::clear_db_connections::100::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py::TestDagRunClear.setup_method::xunit setup::clear_db_runs::354::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py::TestDagRunDetail.setup_method::xunit setup::clear_db_runs::444::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py::TestDagRunState.setup_method::xunit setup::clear_db_runs::499::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py::TestDagRunTrigger.setup_method::xunit setup::clear_db_runs::46::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py::TestGetDagRunCount.setup_method::xunit setup::clear_db_runs::523::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py::TestGetPreviousDagRun.setup_method::xunit setup::clear_db_runs::619::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dags.py::TestDag.setup_method::xunit setup::clear_db_runs::36::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestGetCount.setup_method::xunit setup::clear_db_runs::3392::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestGetPreviousTI.setup_method::xunit setup::clear_db_runs::3701::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestGetTaskInstanceBreadcrumbs.setup_method::xunit setup::clear_db_runs::4266::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestGetTaskStates.setup_method::xunit setup::clear_db_runs::3890::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestPreviousDagRun.setup_method::xunit setup::clear_db_runs::3267::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIHealthEndpoint.setup_method::xunit setup::clear_db_runs::2834::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIPatchRenderedMapIndex.setup_method::xunit setup::clear_db_runs::4427::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIPutRTIF.setup_method::xunit setup::clear_db_runs::3172::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIRunState.setup_method::xunit setup::clear_db_assets::178::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIRunState.setup_method::xunit setup::clear_db_dags::177::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIRunState.setup_method::xunit setup::clear_db_logs::174::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIRunState.setup_method::xunit setup::clear_db_runs::175::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIRunState.setup_method::xunit setup::clear_db_serialized_dags::176::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTISkipDownstream.setup_method::xunit setup::clear_db_runs::2717::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTISkipDownstreamRaceCondition.setup_method::xunit setup::clear_db_runs::2747::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIUpdateState.setup_method::xunit setup::clear_db_assets::1251::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIUpdateState.setup_method::xunit setup::clear_db_logs::1252::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py::TestTIUpdateState.setup_method::xunit setup::clear_db_runs::1253::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_variables.py::setup_method::fixture setup::clear_db_variables::37::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2025_04_28/test_task_instances.py::TestTIUpdateState.setup_method::xunit setup::clear_db_assets::44::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2025_04_28/test_task_instances.py::TestTIUpdateState.setup_method::xunit setup::clear_db_runs::45::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2025_09_23/test_task_instances.py::TestTIRunConfV20250923.setup_method::xunit setup::clear_db_runs::106::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2025_09_23/test_task_instances.py::TestTIRunStateV20250923.setup_method::xunit setup::clear_db_runs::41::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_04_06/test_task_instances.py::TestConsumedEventPartitionKeyBackwardCompat.setup_method::xunit setup::clear_db_assets::268::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_04_06/test_task_instances.py::TestConsumedEventPartitionKeyBackwardCompat.setup_method::xunit setup::clear_db_runs::267::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_04_06/test_task_instances.py::TestDagRunStartDateNullableBackwardCompat.setup_method::xunit setup::clear_db_runs::59::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_04_06/test_task_instances.py::TestNextKwargsBackwardCompat.setup_method::xunit setup::clear_db_runs::141::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_04_17/test_task_instances.py::TestTeamNameFieldBackwardCompat.setup_method::xunit setup::clear_db_runs::55::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_06_30/test_connection_tests.py::TestConnectionTestEndpointVersioning.setup_teardown::fixture setup::clear_db_connection_tests::40::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_06_30/test_task_instances.py::TestPartitionDateFieldBackwardCompat.setup_method::xunit setup::clear_db_runs::55::1
-airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_10_30/test_task_instances.py::TestArgBindingsFieldBackwardCompat.setup_method::xunit setup::clear_db_runs::53::1
-airflow-core/tests/unit/assets/test_manager.py::clear_assets::fixture setup::clear_db_assets::74::1
-airflow-core/tests/unit/assets/test_manager.py::clear_teams::fixture setup::clear_db_teams::83::1
-airflow-core/tests/unit/cli/commands/test_asset_command.py::clear_runs::fixture setup::clear_db_runs::51::1
-airflow-core/tests/unit/cli/commands/test_backfill_command.py::TestCliBackfill.setup_method::xunit setup::clear_db_backfills::65::1
-airflow-core/tests/unit/cli/commands/test_backfill_command.py::TestCliBackfill.setup_method::xunit setup::clear_db_dags::64::1
-airflow-core/tests/unit/cli/commands/test_backfill_command.py::TestCliBackfill.setup_method::xunit setup::clear_db_runs::63::1
-airflow-core/tests/unit/cli/commands/test_connection_command.py::TestCliAddConnections.setup_method::xunit setup::clear_db_connections::471::1
-airflow-core/tests/unit/cli/commands/test_connection_command.py::TestCliDeleteConnections.setup_method::xunit setup::clear_db_connections::795::1
-airflow-core/tests/unit/cli/commands/test_connection_command.py::TestCliExportConnections.setup_method::xunit setup::clear_db_connections::213::1
-airflow-core/tests/unit/cli/commands/test_connection_command.py::TestCliGetConnection.setup_method::xunit setup::clear_db_connections::54::1
-airflow-core/tests/unit/cli/commands/test_connection_command.py::TestCliImportConnections.setup_method::xunit setup::clear_db_connections::832::1
-airflow-core/tests/unit/cli/commands/test_connection_command.py::TestCliListConnections.setup_method::xunit setup::clear_db_connections::87::1
-airflow-core/tests/unit/cli/commands/test_connection_command.py::TestCliTestConnections.setup_class::xunit setup::clear_db_connections::1094::1
-airflow-core/tests/unit/cli/commands/test_dag_command.py::TestCliDags.setup_method::xunit setup::clear_db_import_errors::99::1
-airflow-core/tests/unit/cli/commands/test_dag_command.py::TestCliDags.setup_method::xunit setup::clear_db_runs::98::1
-airflow-core/tests/unit/cli/commands/test_dag_command.py::TestCliDagsReserialize.setup_class::xunit setup::clear_db_dags::1162::1
-airflow-core/tests/unit/cli/commands/test_jobs_command.py::TestCliConfigList.setup_method::xunit setup::clear_db_jobs::38::1
-airflow-core/tests/unit/cli/commands/test_partition_command.py::TestPartitionsClear.seeded_taipei_runs::fixture setup::clear_db_dags::1121::1
-airflow-core/tests/unit/cli/commands/test_partition_command.py::TestPartitionsClear.seeded_taipei_runs::fixture setup::clear_db_runs::1120::1
-airflow-core/tests/unit/cli/commands/test_partition_command.py::setup_partitioned_runs::fixture setup::clear_db_dags::51::1
-airflow-core/tests/unit/cli/commands/test_partition_command.py::setup_partitioned_runs::fixture setup::clear_db_runs::50::1
-airflow-core/tests/unit/cli/commands/test_rotate_fernet_key_command.py::TestRotateFernetKeyCommand.setup_method::xunit setup::clear_db_connections::50::1
-airflow-core/tests/unit/cli/commands/test_rotate_fernet_key_command.py::TestRotateFernetKeyCommand.setup_method::xunit setup::clear_db_variables::51::1
-airflow-core/tests/unit/cli/commands/test_task_command.py::TestCliTasks.setup_class::xunit setup::clear_db_runs::85::1
-airflow-core/tests/unit/cli/commands/test_variable_command.py::TestCliVariables.setup_method::xunit setup::clear_db_variables::127::1
-airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py::clear_dags_and_bundles::fixture setup::clear_db_dag_bundles::554::1
-airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py::clear_dags_and_bundles::fixture setup::clear_db_dags::553::1
-airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py::clear_db::fixture setup::clear_db_dag_bundles::172::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.clear_parse_import_errors::fixture setup::clear_db_import_errors::210::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_assets::168::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_callbacks::172::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_dag_bundles::174::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_dags::171::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_import_errors::173::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_runs::169::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_serialized_dags::170::1
-airflow-core/tests/unit/dag_processing/test_manager.py::TestDagFileProcessorManager.setup_method::xunit setup::clear_db_teams::167::1
-airflow-core/tests/unit/jobs/test_scheduler_job.py::clear_asset_partition_rows::fixture setup::clear_db_apdr::11357::1
-airflow-core/tests/unit/jobs/test_scheduler_job.py::clear_asset_partition_rows::fixture setup::clear_db_pakl::11358::1
-airflow-core/tests/unit/jobs/test_triggerer_job.py::clean_database::fixture setup::clear_db_connections::170::1
-airflow-core/tests/unit/jobs/test_triggerer_job.py::clean_database::fixture setup::clear_db_dags::172::1
-airflow-core/tests/unit/jobs/test_triggerer_job.py::clean_database::fixture setup::clear_db_jobs::176::1
-airflow-core/tests/unit/jobs/test_triggerer_job.py::clean_database::fixture setup::clear_db_runs::171::1
-airflow-core/tests/unit/jobs/test_triggerer_job.py::clean_database::fixture setup::clear_db_triggers::175::1
-airflow-core/tests/unit/jobs/test_triggerer_job.py::clean_database::fixture setup::clear_db_variables::174::1
-airflow-core/tests/unit/jobs/test_triggerer_job.py::clean_database::fixture setup::clear_db_xcom::173::1
-airflow-core/tests/unit/models/test_asset.py::clear_assets::fixture setup::clear_db_assets::48::1
-airflow-core/tests/unit/models/test_asset_state_store.py::clean_tables::fixture setup::clear_db_assets::39::1
-airflow-core/tests/unit/models/test_connection_test.py::TestActiveConnectionUniqueConstraint.setup_method::xunit setup::clear_db_connection_tests::150::1
-airflow-core/tests/unit/models/test_connection_test.py::TestCommitToConnectionTable.setup_teardown::fixture setup::clear_db_connection_tests::204::1
-airflow-core/tests/unit/models/test_connection_test.py::TestCommitToConnectionTable.setup_teardown::fixture setup::clear_db_connections::203::1
-airflow-core/tests/unit/models/test_dag.py::TestDag.setup_method::xunit setup::clear_db_assets::206::1
-airflow-core/tests/unit/models/test_dag.py::TestDag.setup_method::xunit setup::clear_db_dags::205::1
-airflow-core/tests/unit/models/test_dag.py::TestDag.setup_method::xunit setup::clear_db_runs::204::1
-airflow-core/tests/unit/models/test_dag.py::TestQueries.setup_method::xunit setup::clear_db_dags::3378::1
-airflow-core/tests/unit/models/test_dag.py::TestQueries.setup_method::xunit setup::clear_db_runs::3377::1
-airflow-core/tests/unit/models/test_dag.py::clear_assets::fixture setup::clear_db_assets::156::1
-airflow-core/tests/unit/models/test_dag.py::clear_dags::fixture setup::clear_db_dags::146::1
-airflow-core/tests/unit/models/test_dag.py::clear_dags::fixture setup::clear_db_serialized_dags::147::1
-airflow-core/tests/unit/models/test_dag_version.py::TestDagVersion.setup_method::xunit setup::clear_db_dags::39::1
-airflow-core/tests/unit/models/test_dagcode.py::TestDagCode.setup_method::xunit setup::clear_db_dag_code::72::1
-airflow-core/tests/unit/models/test_dagcode.py::TestDagCode.setup_method::xunit setup::clear_db_dags::71::1
-airflow-core/tests/unit/models/test_dagrun.py::TestApplyPartitionDateWindowSubDay.setup_hourly_dag::fixture setup::clear_db_dags::5008::1
-airflow-core/tests/unit/models/test_dagrun.py::TestApplyPartitionDateWindowSubDay.setup_hourly_dag::fixture setup::clear_db_runs::5007::1
-airflow-core/tests/unit/models/test_dagrun.py::TestClearPartitionRuns.setup_partitioned_dag::fixture setup::clear_db_dags::4686::1
-airflow-core/tests/unit/models/test_dagrun.py::TestClearPartitionRuns.setup_partitioned_dag::fixture setup::clear_db_runs::4685::1
-airflow-core/tests/unit/models/test_dagwarning.py::TestDagWarning.setup_method::xunit setup::clear_db_dags::37::1
-airflow-core/tests/unit/models/test_task_state_store.py::clean_tables::fixture setup::clear_db_dags::44::1
-airflow-core/tests/unit/models/test_task_state_store.py::clean_tables::fixture setup::clear_db_runs::45::1
-airflow-core/tests/unit/models/test_timestamp.py::clear_db::fixture setup::clear_db_dags::39::1
-airflow-core/tests/unit/models/test_timestamp.py::clear_db::fixture setup::clear_db_logs::37::1
-airflow-core/tests/unit/models/test_timestamp.py::clear_db::fixture setup::clear_db_runs::38::1
-airflow-core/tests/unit/models/test_xcom_arg.py::clear_db::fixture setup::clear_db_dags::56::1
-airflow-core/tests/unit/models/test_xcom_arg.py::clear_db::fixture setup::clear_db_runs::55::1
-airflow-core/tests/unit/state/test_metastore.py::clean_tables::fixture setup::clear_db_assets::56::1
-airflow-core/tests/unit/state/test_metastore.py::clean_tables::fixture setup::clear_db_dags::54::1
-airflow-core/tests/unit/state/test_metastore.py::clean_tables::fixture setup::clear_db_runs::55::1
-airflow-core/tests/unit/timetables/test_assets_timetable.py::TestAssetConditionWithTimetable.clear_assets::fixture setup::clear_db_assets::277::1
-airflow-core/tests/unit/utils/test_db_cleanup.py::TestConnectionTestRequestCleanup.setup_method::xunit setup::clear_db_connection_tests::1286::1
-airflow-core/tests/unit/utils/test_db_cleanup.py::clean_database::fixture setup::clear_db_assets::80::1
-airflow-core/tests/unit/utils/test_db_cleanup.py::clean_database::fixture setup::clear_db_dag_bundles::82::1
-airflow-core/tests/unit/utils/test_db_cleanup.py::clean_database::fixture setup::clear_db_dags::81::1
-airflow-core/tests/unit/utils/test_db_cleanup.py::clean_database::fixture setup::clear_db_runs::79::1
-airflow-core/tests/unit/utils/test_dot_renderer.py::TestDotRenderer.setup_class::xunit setup::clear_db_dags::48::1
-airflow-core/tests/unit/utils/test_helpers.py::clear_db::fixture setup::clear_db_dags::50::1
-airflow-core/tests/unit/utils/test_helpers.py::clear_db::fixture setup::clear_db_runs::49::1
-airflow-core/tests/unit/utils/test_log_handlers.py::cleanup_tables::fixture setup::clear_db_connections::91::1
-airflow-core/tests/unit/utils/test_log_handlers.py::cleanup_tables::fixture setup::clear_db_runs::90::1
-providers/snowflake/tests/unit/snowflake/operators/test_snowflake.py::TestSnowflakeSqlApiOperator.setup_tests::fixture setup::clear_db_dag_bundles::307::1
-providers/snowflake/tests/unit/snowflake/operators/test_snowflake.py::TestSnowflakeSqlApiOperator.setup_tests::fixture setup::clear_db_dags::304::1
-providers/snowflake/tests/unit/snowflake/operators/test_snowflake.py::TestSnowflakeSqlApiOperator.setup_tests::fixture setup::clear_db_runs::305::1
-providers/standard/tests/unit/standard/operators/test_python.py::BasePythonTest.base_tests_setup::fixture setup::clear_db_runs::132::1
-providers/standard/tests/unit/standard/operators/test_python.py::clear_db::fixture setup::clear_db_runs::2580::1
-providers/standard/tests/unit/standard/sensors/test_external_task_sensor.py::clean_db::fixture setup::clear_db_runs::126::1
-providers/standard/tests/unit/standard/sensors/test_external_task_sensor.py::dag_bag_ext::fixture setup::clear_db_runs::1885::1
-providers/standard/tests/unit/standard/sensors/test_external_task_sensor.py::dag_bag_parent_child::fixture setup::clear_db_runs::1949::1
+airflow-core/tests/unit/always/test_secrets.py
+airflow-core/tests/unit/always/test_secrets_backends.py
+airflow-core/tests/unit/always/test_secrets_metastore.py
+airflow-core/tests/unit/api/common/test_trigger_dag.py
+airflow-core/tests/unit/api_fastapi/auth/test_tokens.py
+airflow-core/tests/unit/api_fastapi/common/test_dagbag.py
+airflow-core/tests/unit/api_fastapi/common/test_exceptions.py
+airflow-core/tests/unit/api_fastapi/conftest.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_auth.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_parsing.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_versions.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_warning.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_import_error.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_job.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_monitor.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_pools.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_version.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_auth.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_calendar.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_dashboard.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_deadlines.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_dependencies.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_gantt.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_grid.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_partitioned_dag_runs.py
+airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py
+airflow-core/tests/unit/api_fastapi/core_api/test_app.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_connection_tests.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dags.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_variables.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/v2025_04_28/test_task_instances.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/v2025_09_23/test_task_instances.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_04_06/test_task_instances.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_04_17/test_task_instances.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_06_30/test_connection_tests.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_06_30/test_task_instances.py
+airflow-core/tests/unit/api_fastapi/execution_api/versions/v2026_10_30/test_task_instances.py
+airflow-core/tests/unit/assets/test_manager.py
+airflow-core/tests/unit/cli/commands/test_asset_command.py
+airflow-core/tests/unit/cli/commands/test_backfill_command.py
+airflow-core/tests/unit/cli/commands/test_connection_command.py
+airflow-core/tests/unit/cli/commands/test_dag_command.py
+airflow-core/tests/unit/cli/commands/test_jobs_command.py
+airflow-core/tests/unit/cli/commands/test_partition_command.py
+airflow-core/tests/unit/cli/commands/test_rotate_fernet_key_command.py
+airflow-core/tests/unit/cli/commands/test_task_command.py
+airflow-core/tests/unit/cli/commands/test_variable_command.py
+airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py
+airflow-core/tests/unit/dag_processing/test_manager.py
+airflow-core/tests/unit/jobs/test_scheduler_job.py
+airflow-core/tests/unit/jobs/test_triggerer_job.py
+airflow-core/tests/unit/models/test_asset.py
+airflow-core/tests/unit/models/test_asset_state_store.py
+airflow-core/tests/unit/models/test_connection_test.py
+airflow-core/tests/unit/models/test_dag.py
+airflow-core/tests/unit/models/test_dag_version.py
+airflow-core/tests/unit/models/test_dagcode.py
+airflow-core/tests/unit/models/test_dagrun.py
+airflow-core/tests/unit/models/test_dagwarning.py
+airflow-core/tests/unit/models/test_task_state_store.py
+airflow-core/tests/unit/models/test_timestamp.py
+airflow-core/tests/unit/models/test_xcom_arg.py
+airflow-core/tests/unit/state/test_metastore.py
+airflow-core/tests/unit/timetables/test_assets_timetable.py
+airflow-core/tests/unit/utils/test_db_cleanup.py
+airflow-core/tests/unit/utils/test_dot_renderer.py
+airflow-core/tests/unit/utils/test_helpers.py
+airflow-core/tests/unit/utils/test_log_handlers.py
+providers/snowflake/tests/unit/snowflake/operators/test_snowflake.py
+providers/standard/tests/unit/standard/operators/test_python.py
+providers/standard/tests/unit/standard/sensors/test_external_task_sensor.py

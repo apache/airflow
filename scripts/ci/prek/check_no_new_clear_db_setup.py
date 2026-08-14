@@ -21,7 +21,11 @@
 #   "rich>=13.0.0",
 # ]
 # ///
-"""Prevent new direct ``clear_db_*`` calls in fixture and xUnit setup."""
+"""Prevent new direct ``clear_db_*`` calls in fixture and xUnit setup.
+
+Allowlisted test files are temporarily exempt as a whole, so added calls in an
+already-grandfathered file are intentionally not detected.
+"""
 
 from __future__ import annotations
 
@@ -29,7 +33,6 @@ import argparse
 import ast
 import os
 import subprocess
-from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -223,28 +226,25 @@ def _get_relative_path(path: Path) -> str:
     return path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
 
 
-def _build_site_key(relative_path: str, violation: Violation) -> str:
-    return "::".join((relative_path, violation.owner, violation.phase, violation.helper, str(violation.line)))
-
-
-def _inspect_paths(paths: list[Path]) -> tuple[Counter[str], dict[str, list[Violation]]]:
-    counts: Counter[str] = Counter()
+def _inspect_paths(paths: list[Path]) -> dict[str, list[Violation]]:
     details: dict[str, list[Violation]] = {}
     for path in sorted(set(paths)):
         relative = _get_relative_path(path)
-        violations = find_setup_db_cleanups(path)
-        details[relative] = violations
-        counts.update(_build_site_key(relative, violation) for violation in violations)
-    return counts, details
+        details[relative] = find_setup_db_cleanups(path)
+    return details
 
 
-def _serialize_allowlist(counts: Counter[str]) -> str:
-    return "".join(f"{key}::{counts[key]}\n" for key in sorted(counts))
+def _find_paths_with_violations(details: dict[str, list[Violation]]) -> set[str]:
+    return {relative_path for relative_path, violations in details.items() if violations}
+
+
+def _serialize_allowlist(paths: set[str]) -> str:
+    return "".join(f"{path}\n" for path in sorted(paths))
 
 
 def _is_unit_test_path(relative_path: str) -> bool:
     path = Path(relative_path)
-    if path.is_absolute() or ".." in path.parts:
+    if relative_path != path.as_posix() or path.is_absolute() or path.suffix != ".py" or ".." in path.parts:
         return False
     parts = path.parts
     if parts[:3] == ("airflow-core", "tests", "unit"):
@@ -256,40 +256,23 @@ def _is_unit_test_path(relative_path: str) -> bool:
     )
 
 
-def _parse_allowlist(text: str, *, allow_legacy_format: bool = False) -> Counter[str]:
-    counts: Counter[str] = Counter()
+def _parse_allowlist(text: str, *, allow_legacy_format: bool = False) -> set[str]:
+    paths: set[str] = set()
     for line in text.splitlines():
-        try:
-            key, raw_count = line.rsplit("::", 1)
-            count = int(raw_count)
-        except (TypeError, ValueError) as error:
-            raise ValueError(f"invalid entry: {line!r}") from error
-        parts = key.split("::")
-        if len(parts) == 5:
-            relative_path, owner, phase, helper, raw_line = parts
-            try:
-                source_line = int(raw_line)
-            except ValueError as error:
-                raise ValueError(f"invalid entry: {line!r}") from error
-        elif allow_legacy_format and len(parts) == 4:
-            relative_path, owner, phase, helper = parts
-            source_line = 1
-        else:
+        relative_path = line.split("::", 1)[0] if allow_legacy_format else line
+        if "::" in line and not allow_legacy_format:
             raise ValueError(f"invalid entry: {line!r}")
-        phases = {"fixture setup", "xunit setup"}
-        if allow_legacy_format:
-            phases.add("test prefix")
-        if not _is_unit_test_path(relative_path) or not owner or phase not in phases:
+        if not _is_unit_test_path(relative_path):
             raise ValueError(f"invalid entry: {line!r}")
-        if not _is_cleanup_helper(helper) or source_line <= 0 or count <= 0 or key in counts:
+        if relative_path in paths and not allow_legacy_format:
             raise ValueError(f"invalid entry: {line!r}")
-        counts[key] = count
-    if text != _serialize_allowlist(counts):
+        paths.add(relative_path)
+    if not allow_legacy_format and text != _serialize_allowlist(paths):
         raise ValueError("entries must be sorted, unique, and canonical")
-    return counts
+    return paths
 
 
-def _read_allowlist(path: Path) -> Counter[str]:
+def _read_allowlist(path: Path) -> set[str]:
     return _parse_allowlist(path.read_text(encoding="utf-8"))
 
 
@@ -308,7 +291,7 @@ def _base_predates_hook(baseline_ref: str) -> bool:
     return not checker.stdout.strip()
 
 
-def _load_trusted_allowlist() -> Counter[str] | None:
+def _load_trusted_allowlist() -> set[str] | None:
     relative = _get_relative_path(_ALLOWLIST_PATH)
     baseline_ref = os.environ.get("PRE_COMMIT_FROM_REF")
     if baseline_ref:
@@ -334,15 +317,8 @@ def _load_trusted_allowlist() -> Counter[str] | None:
     return _parse_allowlist(result.stdout, allow_legacy_format=True)
 
 
-def _reject_allowlist_growth(current: Counter[str], trusted: Counter[str]) -> list[str]:
-    if any(len(key.split("::")) == 4 for key in trusted):
-        # One-time migration from the unpublished semantic baseline to line-exact identities.
-        # Collapse both sides only while the trusted revision still uses the legacy format.
-        collapsed: Counter[str] = Counter()
-        for key, count in current.items():
-            collapsed["::".join(key.split("::")[:4])] += count
-        current = collapsed
-    return sorted(key for key, count in current.items() if count > trusted.get(key, 0))
+def _reject_allowlist_growth(current: set[str], trusted: set[str]) -> list[str]:
+    return sorted(current - trusted)
 
 
 def _select_paths_to_check(filenames: list[str], all_files: bool) -> tuple[list[Path], bool]:
@@ -355,39 +331,38 @@ def _select_paths_to_check(filenames: list[str], all_files: bool) -> tuple[list[
     return [path for path in paths if path.suffix == ".py"], False
 
 
-def _print_violation_details(keys: list[str], details: dict[str, list[Violation]], *, heading: str) -> None:
+def _print_violation_details(paths: list[str], details: dict[str, list[Violation]], *, heading: str) -> None:
     _print_message(heading)
-    wanted = set(keys)
+    wanted = set(paths)
     for relative_path, violations in sorted(details.items()):
+        if relative_path not in wanted:
+            continue
         for violation in violations:
-            if _build_site_key(relative_path, violation) in wanted:
-                _print_message(
-                    f"  {relative_path}:{violation.line}: {violation.helper}() "
-                    f"({violation.phase}, {violation.owner})"
-                )
+            context = "fixture" if violation.phase == "fixture setup" else "xUnit setup"
+            _print_message(f"  {relative_path}:{violation.line}")
+            _print_message(f"  {violation.helper}() in {context} {violation.owner}")
 
 
-def _check_paths(paths: list[Path], allowed: Counter[str], *, full_scope: bool) -> int:
-    actual, details = _inspect_paths(paths)
+def _check_paths(paths: list[Path], allowed: set[str], *, full_scope: bool) -> int:
+    details = _inspect_paths(paths)
     relative_paths = {_get_relative_path(path) for path in paths}
-    relevant_allowed = (
-        allowed
-        if full_scope
-        else Counter(
-            {key: count for key, count in allowed.items() if key.split("::", 1)[0] in relative_paths}
-        )
-    )
-    added = sorted(key for key, count in actual.items() if count > relevant_allowed.get(key, 0))
-    stale = sorted(key for key, count in relevant_allowed.items() if count > actual.get(key, 0))
+    relevant_allowed = allowed if full_scope else allowed & relative_paths
+    files_with_violations = _find_paths_with_violations(details)
+    added = sorted(files_with_violations - relevant_allowed)
+    stale = sorted(relevant_allowed - files_with_violations)
     if added:
         _print_violation_details(
-            added, details, heading="New setup-time database pre-cleaning is not allowed:"
+            added, details, heading="Setup-time database cleanup is not allowed in unit tests:"
         )
-        _print_message("Fix teardown in the owning fixture instead of cleaning before the next test.")
+        _print_message("How to fix:")
+        _print_message("  Remove this setup cleanup. The fixture or test that creates the database rows")
+        _print_message("  must clean them up during teardown.")
+        _print_message("Do not add this file to the allowlist.")
+        _print_message("More information: https://github.com/apache/airflow/issues/71577")
     if stale:
         _print_message("The allowlist has stale setup-cleanup entries; run this hook with --generate:")
-        for key in stale:
-            _print_message(f"  {key}")
+        for relative_path in stale:
+            _print_message(f"  {relative_path}")
     return int(bool(added or stale))
 
 
@@ -402,19 +377,24 @@ def main(argv: list[str] | None = None) -> int:
         if not args.files and not args.all_files and not args.generate:
             return 0
         if args.generate:
-            counts, _ = _inspect_paths(_iter_python_files())
-            _ALLOWLIST_PATH.write_text(_serialize_allowlist(counts), encoding="utf-8")
+            details = _inspect_paths(_iter_python_files())
+            generated_paths = _find_paths_with_violations(details)
+            _ALLOWLIST_PATH.write_text(_serialize_allowlist(generated_paths), encoding="utf-8")
             _print_message(
-                f"Wrote {len(counts)} setup-cleanup identities to {_get_relative_path(_ALLOWLIST_PATH)}."
+                f"Wrote {len(generated_paths)} setup-cleanup file paths to {_get_relative_path(_ALLOWLIST_PATH)}."
             )
             return 0
 
         allowed = _read_allowlist(_ALLOWLIST_PATH)
         trusted = _load_trusted_allowlist()
         if trusted is not None and (growth := _reject_allowlist_growth(allowed, trusted)):
-            _print_message("The allowlist cannot add or increase setup-cleanup identities:")
-            for key in growth:
-                _print_message(f"  {key}")
+            _print_message("The allowlist cannot add or reintroduce setup-cleanup file paths:")
+            for relative_path in growth:
+                _print_message(f"  {relative_path}")
+            _print_message(
+                "The baseline may only shrink; remove the new path and fix cleanup in its owning teardown."
+            )
+            _print_message("See https://github.com/apache/airflow/issues/71577 for the policy rationale.")
             return 1
         paths, full_scope = _select_paths_to_check(args.files, args.all_files)
         return _check_paths(paths, allowed, full_scope=full_scope)
