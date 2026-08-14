@@ -100,6 +100,16 @@ class TestAdbcHook:
         assert self.cur.execute.called
         assert self.conn.commit.call_count >= 1
 
+    def test_insert_rows_commit_every_zero_inserts_all_rows(self):
+        """commit_every=0 must insert all rows in a single transaction, not zero rows."""
+        rows = [("a",), ("b",), ("c",)]
+        self.hook.insert_rows("table", rows, commit_every=0)
+
+        assert self.cur.bind.called
+        batch = self.cur.bind.call_args[0][1]
+        assert batch.num_rows == 3
+        assert self.conn.commit.call_count == 1
+
     def test_insert_rows_fast_executemany_not_supported(self):
         # Cursor without native bind that doesn't support setting fast_executemany
         class NoFastExecCursor(mock.MagicMock):

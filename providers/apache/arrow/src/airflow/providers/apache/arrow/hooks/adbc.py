@@ -314,7 +314,7 @@ class AdbcHook(DbApiHook):
                     cur, executemany=executemany, fast_executemany=fast_executemany
                 )
 
-                for chunked_rows in chunked(rows, commit_every):
+                for chunked_rows in chunked(rows, commit_every or None):
                     batch = self._to_record_batch(rows=chunked_rows, schema=table_schema)
                     execute_batch(cur, sql, batch)
 
