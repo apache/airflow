@@ -19,7 +19,24 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from botocore.credentials import CredentialProvider
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from botocore.credentials import Credentials
+
+
+class _MskCredentialsProvider(CredentialProvider):
+    METHOD = "airflow"
+
+    def __init__(self, hook: MskHook) -> None:
+        self.hook = hook
+
+    def load(self) -> Credentials | None:
+        return self.hook.get_session(region_name=self.hook.region_name).get_credentials()
 
 
 class MskHook(AwsBaseHook):
@@ -35,3 +52,15 @@ class MskHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "kafka"
         super().__init__(*args, **kwargs)
+
+    def confluent_token(self, config_str: str) -> tuple[str, float]:
+        """Generate an Amazon MSK IAM token for a ``confluent_kafka`` OAuth callback."""
+        if not self.region_name:
+            raise ValueError("AWS region is required to generate an Amazon MSK IAM token")
+
+        from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+
+        token, expiry_ms = MSKAuthTokenProvider.generate_auth_token_from_credentials_provider(
+            self.region_name, _MskCredentialsProvider(self)
+        )
+        return token, expiry_ms / 1000
