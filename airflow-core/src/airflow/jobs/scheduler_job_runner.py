@@ -2961,6 +2961,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task_instance.state = TaskInstanceState.SKIPPED
                 session.merge(task_instance)
             session.flush()
+            if dag.deadline:
+                dag_run._handle_missed_deadlines(session=session)
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
             if dag_run.state in State.finished_dr_states and dag_run.run_type in (
