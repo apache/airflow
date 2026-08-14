@@ -32,6 +32,7 @@ from typing import Any
 import click
 import yaml
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.common_options import (
     option_answer,
     option_debug_resources,
@@ -2509,10 +2510,41 @@ LANG_SDK_AWS_CONN_URI = (
     "aws://test:test@/?region_name=us-east-1&"
     "endpoint_url=http%3A%2F%2Flocalstack.airflow.svc.cluster.local%3A4566"
 )
-# The Go/Java SDKs are always built from upstream main so branches with stale or missing
-# go-sdk/java-sdk copies still test current SDK sources. See kubernetes-tests/lang_sdk/README.md.
+# Runs targeting a branch other than main build the Go/Java SDKs from upstream main, so
+# release/backport branches with stale or missing go-sdk/java-sdk copies still test current SDK
+# sources. See kubernetes-tests/lang_sdk/README.md.
 LANG_SDK_UPSTREAM_GIT_URL = "https://github.com/apache/airflow.git"
 LANG_SDK_UPSTREAM_REF = "main"
+# The target branch for which the lang-SDK artifacts are built from this checkout's own SDK
+# sources rather than fetched from upstream. Distinct from LANG_SDK_UPSTREAM_REF (the ref fetched
+# from upstream) even though both are "main" today -- one names a git ref, the other a sentinel.
+LANG_SDK_LOCAL_SOURCE_BRANCH = "main"
+
+
+def _lang_sdk_target_branch() -> str:
+    """Branch this run targets: GITHUB_BASE_REF or DEFAULT_BRANCH if set, else this checkout's."""
+    return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or AIRFLOW_BRANCH
+
+
+def _lang_sdk_resolve_sdk_sources(staging: Path, output: Output | None) -> tuple[Path, Path]:
+    """Resolve the go-sdk/java-sdk trees the lang-SDK artifacts are built from.
+
+    A run targeting main builds the checked-out branch's own SDK sources, so a PR's SDK changes
+    are what the k8s test exercises -- without this, ``java_example``/``go_example`` (harness code
+    that tracks the branch) is compiled against a different SDK than the branch it belongs to, and
+    any SDK rename breaks the build. Runs targeting anything else fall back to upstream main.
+    """
+    target = _lang_sdk_target_branch()
+    if target == LANG_SDK_LOCAL_SOURCE_BRANCH:
+        get_console(output=output).print(
+            f"[info]Run targets {target}: building the lang-SDK Go/Java artifacts from this branch"
+        )
+        return AIRFLOW_ROOT_PATH / "go-sdk", AIRFLOW_ROOT_PATH / "java-sdk"
+    get_console(output=output).print(
+        f"[info]Run targets {target}, not {LANG_SDK_LOCAL_SOURCE_BRANCH}: building the lang-SDK Go/Java "
+        f"artifacts from upstream {LANG_SDK_UPSTREAM_REF}"
+    )
+    return _lang_sdk_fetch_upstream_sdk_sources(staging, output)
 
 
 def _lang_sdk_fetch_upstream_sdk_sources(staging: Path, output: Output | None) -> tuple[Path, Path]:
@@ -2582,7 +2614,7 @@ def _lang_sdk_fetch_upstream_sdk_sources(staging: Path, output: Output | None) -
 
 
 def _lang_sdk_build_go_bundle(
-    staging: Path, upstream_go_sdk: Path, output: Output | None, *, native: bool = False
+    staging: Path, go_sdk_source: Path, output: Output | None, *, native: bool = False
 ) -> None:
     """Build the Go bundle into ``staging/go-artifacts`` and copy the result into the staging dir.
 
@@ -2592,10 +2624,10 @@ def _lang_sdk_build_go_bundle(
     skipping the container image pull and reusing the runner's module/build cache.
 
     go_example's go.mod ``replace``s go-sdk by relative path, so the build runs in a scratch
-    workspace mirroring the repo layout with ``upstream_go_sdk`` at ``<workspace>/go-sdk``,
-    letting the unmodified directive resolve against the upstream copy. The scratch go_example is
-    re-tidied before packing so its go.sum reconciles to that upstream go-sdk (which may differ from
-    the in-repo go-sdk its committed go.sum was tidied against).
+    workspace mirroring the repo layout with ``go_sdk_source`` at ``<workspace>/go-sdk``, letting
+    the unmodified directive resolve against it. The scratch go_example is re-tidied before packing
+    so its go.sum reconciles to that go-sdk, which differs from the in-repo one its committed go.sum
+    was tidied against whenever the source is upstream main.
     """
     go_dir = staging / "go-artifacts"
     go_dir.mkdir(parents=True, exist_ok=True)
@@ -2604,10 +2636,10 @@ def _lang_sdk_build_go_bundle(
     example_path = workspace / example_rel
     example_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(LANG_SDK_GO_EXAMPLE_PATH, example_path, ignore=shutil.ignore_patterns(".home"))
-    # In dry-run the fetch/extract commands are skipped, so the upstream copy and build outputs
+    # In dry-run the fetch/extract commands are skipped, so the extracted copy and build outputs
     # never materialize -- skip the filesystem work that depends on them.
     if not get_dry_run():
-        shutil.copytree(upstream_go_sdk, workspace / "go-sdk")
+        shutil.copytree(go_sdk_source, workspace / "go-sdk")
     output_bin = example_path / "bin" / LANG_SDK_GO_BUNDLE_NAME
     output_bin.parent.mkdir(parents=True, exist_ok=True)
 
@@ -2677,7 +2709,7 @@ def _lang_sdk_build_go_bundle(
 
 
 def _lang_sdk_build_java_jar(
-    staging: Path, upstream_java_sdk: Path, output: Output | None, *, native: bool = False
+    staging: Path, java_sdk_source: Path, output: Output | None, *, native: bool = False
 ) -> None:
     """Publish the Java SDK to mavenLocal then build the java_example jar into ``staging/java-artifacts``.
 
@@ -2688,9 +2720,10 @@ def _lang_sdk_build_java_jar(
     cache. ``java_example`` resolves the SDK from ``mavenLocal()``, so the SDK is published first, then
     the bundle is built with java-sdk's gradle wrapper pointed at the example project (``-p``).
 
-    Both gradle invocations run against ``upstream_java_sdk`` rather than the local ``java-sdk/``;
-    only ``-p`` stays pointed at the local ``java_example``, which is test-harness code that keeps
-    tracking the checked-out branch.
+    Both gradle invocations run against ``java_sdk_source``; only ``-p`` stays pointed at the local
+    ``java_example``, which is test-harness code that keeps tracking the checked-out branch. The two
+    therefore only agree when the source is the local ``java-sdk/`` -- on a run targeting a non-main
+    branch the example is compiled against upstream main's SDK, so it must stay compatible with it.
     """
     java_dir = staging / "java-artifacts"
     java_dir.mkdir(parents=True, exist_ok=True)
@@ -2701,14 +2734,14 @@ def _lang_sdk_build_java_jar(
         )
         run_command(
             ["./gradlew", "publishToMavenLocal", "-PskipSigning=true", "--no-daemon", "--console=plain"],
-            cwd=upstream_java_sdk,
+            cwd=java_sdk_source,
             output=output,
             check=True,
         )
         get_console(output=output).print("[info]Building Java jar with the host Gradle toolchain")
         run_command(
             ["./gradlew", "-p", str(LANG_SDK_JAVA_EXAMPLE_PATH), "bundle", "--no-daemon", "--console=plain"],
-            cwd=upstream_java_sdk,
+            cwd=java_sdk_source,
             output=output,
             check=True,
         )
@@ -2738,7 +2771,7 @@ def _lang_sdk_build_java_jar(
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
             "-v",
-            f"{upstream_java_sdk}:/repo/java-sdk",
+            f"{java_sdk_source}:/repo/java-sdk",
         ]
         get_console(output=output).print("[info]Publishing Java SDK artifacts to local Maven repository")
         run_command(
@@ -3059,15 +3092,15 @@ def _setup_lang_sdk_test(
     native = os.environ.get("LANG_SDK_NATIVE_TOOLCHAIN", "").lower() == "true"
     with tempfile.TemporaryDirectory(prefix="lang_sdk_artifacts_") as tmp:
         staging = Path(tmp)
-        upstream_go_sdk, upstream_java_sdk = _lang_sdk_fetch_upstream_sdk_sources(staging, output)
+        go_sdk_source, java_sdk_source = _lang_sdk_resolve_sdk_sources(staging, output)
         steps: list[tuple[str, Callable[[Output | None], Any]]] = [
             (
                 "Build Go bundle",
-                lambda o: _lang_sdk_build_go_bundle(staging, upstream_go_sdk, o, native=native),
+                lambda o: _lang_sdk_build_go_bundle(staging, go_sdk_source, o, native=native),
             ),
             (
                 "Build Java jar",
-                lambda o: _lang_sdk_build_java_jar(staging, upstream_java_sdk, o, native=native),
+                lambda o: _lang_sdk_build_java_jar(staging, java_sdk_source, o, native=native),
             ),
             ("Deploy localstack", lambda o: _lang_sdk_deploy_localstack(python, kubernetes_version, o)),
         ]
