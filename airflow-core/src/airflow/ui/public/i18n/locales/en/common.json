@@ -420,6 +420,12 @@
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
+  "teams": {
+    "more_one": "and {{count}} more",
+    "more_other": "and {{count}} more",
+    "none": "No team",
+    "title": "Teams"
+  },
   "timeRange": {
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
