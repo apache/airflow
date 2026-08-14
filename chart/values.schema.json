@@ -2124,22 +2124,26 @@
                                         "timeoutSeconds": {
                                             "description": "Number of seconds after which the probe times out.",
                                             "type": "integer",
-                                            "default": 5
+                                            "default": 5,
+                                            "minimum": 1
                                         },
                                         "initialDelaySeconds": {
                                             "description": "Number of seconds after the container has started before the startup probe is initiated.",
                                             "type": "integer",
-                                            "default": 0
+                                            "default": 0,
+                                            "minimum": 0
                                         },
                                         "periodSeconds": {
                                             "description": "How often (in seconds) to perform the probe.",
                                             "type": "integer",
-                                            "default": 10
+                                            "default": 10,
+                                            "minimum": 1
                                         },
                                         "failureThreshold": {
                                             "description": "Number of consecutive failures required for the startup probe to fail.",
                                             "type": "integer",
-                                            "default": 6
+                                            "default": 6,
+                                            "minimum": 1
                                         }
                                     }
                                 },
@@ -2904,22 +2908,26 @@
                                         "timeoutSeconds": {
                                             "description": "Number of seconds after which the probe times out.",
                                             "type": "integer",
-                                            "default": 5
+                                            "default": 5,
+                                            "minimum": 1
                                         },
                                         "initialDelaySeconds": {
                                             "description": "Number of seconds after the container has started before the startup probe is initiated.",
                                             "type": "integer",
-                                            "default": 0
+                                            "default": 0,
+                                            "minimum": 0
                                         },
                                         "periodSeconds": {
                                             "description": "How often (in seconds) to perform the probe.",
                                             "type": "integer",
-                                            "default": 10
+                                            "default": 10,
+                                            "minimum": 1
                                         },
                                         "failureThreshold": {
                                             "description": "Number of consecutive failures required for the startup probe to fail.",
                                             "type": "integer",
-                                            "default": 6
+                                            "default": 6,
+                                            "minimum": 1
                                         }
                                     }
                                 },

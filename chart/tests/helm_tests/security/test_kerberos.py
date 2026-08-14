@@ -20,7 +20,7 @@ import json
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import HelmFailedError, render_chart
 
 
 class TestKerberos:
@@ -202,3 +202,23 @@ class TestKerberos:
             )
             == expected
         )
+
+    @pytest.mark.parametrize(
+        "override",
+        [
+            {"timeoutSeconds": 0},
+            {"initialDelaySeconds": -1},
+            {"periodSeconds": 0},
+            {"failureThreshold": 0},
+        ],
+        ids=["timeout", "initial-delay", "period", "failure-threshold"],
+    )
+    def test_kerberos_sidecar_startup_probe_rejects_invalid_values(self, override):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={
+                    "executor": "CeleryExecutor",
+                    "workers": {"celery": {"kerberosSidecar": {"enabled": True, "startupProbe": override}}},
+                },
+                show_only=["templates/workers/worker-deployment.yaml"],
+            )
