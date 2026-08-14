@@ -93,14 +93,20 @@ class TestGoogleBidManagerHook:
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.bid_manager.GoogleBidManagerHook.get_conn")
     def test_list_queries(self, get_conn_mock):
-        queries = ["test"]
-        return_value = {"queries": queries}
-        get_conn_mock.return_value.queries.return_value.list.return_value.execute.return_value = return_value
+        queries_page1 = [{"queryId": "q1"}]
+        queries_page2 = [{"queryId": "q2"}]
+        mock_request = mock.MagicMock()
+        mock_next_request = mock.MagicMock()
+        get_conn_mock.return_value.queries.return_value.list.return_value = mock_request
+        mock_request.execute.return_value = {"queries": queries_page1}
+        mock_next_request.execute.return_value = {"queries": queries_page2}
+        get_conn_mock.return_value.queries.return_value.list_next.side_effect = [mock_next_request, None]
+
         result = self.hook.list_queries()
 
         get_conn_mock.return_value.queries.return_value.list.assert_called_once_with()
-
-        assert queries == result
+        assert get_conn_mock.return_value.queries.return_value.list_next.call_count == 2
+        assert result == queries_page1 + queries_page2
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.bid_manager.GoogleBidManagerHook.get_conn")
     def test_run_query(self, get_conn_mock):
@@ -135,15 +141,22 @@ class TestGoogleBidManagerHook:
     @mock.patch("airflow.providers.google.marketing_platform.hooks.bid_manager.GoogleBidManagerHook.get_conn")
     def test_list_reports(self, get_conn_mock):
         query_id = "QUERY_ID"
-        reports = ["report1", "report2"]
-        return_value = {"reports": reports}
-        (
-            get_conn_mock.return_value.queries.return_value.reports.return_value.list.return_value.execute.return_value
-        ) = return_value
+        reports_page1 = [{"key": {"reportId": "r1"}}]
+        reports_page2 = [{"key": {"reportId": "r2"}}]
+        mock_request = mock.MagicMock()
+        mock_next_request = mock.MagicMock()
+        get_conn_mock.return_value.queries.return_value.reports.return_value.list.return_value = mock_request
+        mock_request.execute.return_value = {"reports": reports_page1}
+        mock_next_request.execute.return_value = {"reports": reports_page2}
+        get_conn_mock.return_value.queries.return_value.reports.return_value.list_next.side_effect = [
+            mock_next_request,
+            None,
+        ]
 
         result = self.hook.list_reports(query_id=query_id)
 
         get_conn_mock.return_value.queries.return_value.reports.return_value.list.assert_called_once_with(
             queryId=query_id
         )
-        assert reports == result["reports"]
+        assert get_conn_mock.return_value.queries.return_value.reports.return_value.list_next.call_count == 2
+        assert result == reports_page1 + reports_page2

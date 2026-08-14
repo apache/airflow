@@ -439,7 +439,7 @@ class GoogleBidManagerListReportsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context) -> dict:
+    def execute(self, context: Context) -> list[dict]:
         hook = GoogleBidManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -535,8 +535,12 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
 
         resource = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = resource.get("metadata", {}).get("status", {}).get("state")
-        if resource and status not in ["DONE", "FAILED"]:
-            raise AirflowException(f"Report {self.report_id} for query {self.query_id} is still running")
+        if status == "FAILED":
+            raise AirflowException(f"Report {self.report_id} for query {self.query_id} failed execution.")
+        if status != "DONE":
+            raise AirflowException(
+                f"Report {self.report_id} for query {self.query_id} is in state '{status}'. Expected 'DONE'."
+            )
 
         # If no custom report_name provided, use Bid Manager name
         file_url = resource["metadata"]["googleCloudStoragePath"]
