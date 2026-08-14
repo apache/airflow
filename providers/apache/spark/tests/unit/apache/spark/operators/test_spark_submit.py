@@ -601,6 +601,10 @@ class TestSparkSubmitOperatorResumable:
         assert "reconnect_on_retry" in str(w[0].message)
         assert operator.durable is False
 
+    def test_default_args_durable_reaches_operator(self):
+        operator = self._make_operator(default_args={"durable": False})
+        assert operator.durable is False
+
     def test_durable_false_submits_fresh_and_polls(self):
         operator = self._make_operator(durable=False)
         operator._hook = self._make_hook(should_track=True)
