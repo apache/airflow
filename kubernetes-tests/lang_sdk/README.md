@@ -63,22 +63,32 @@ coordinator scans.
 The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
 **separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).
 
-## SDK sources always come from upstream main
+## Which SDK sources get built
 
-`go-sdk/` and `java-sdk/` are young, fast-moving directories that a release/backport branch may lack
-entirely or carry a stale, branch-cut-frozen copy of. So regardless of which branch/ref this repo is
-checked out at, `breeze k8s setup-lang-sdk-test` (and `run-complete-tests --lang-sdk-test`) always
-builds the Go bundle and Java jar from upstream `main`'s `go-sdk`/`java-sdk` — fetched fresh via
-`_lang_sdk_fetch_upstream_sdk_sources()` in `kubernetes_commands.py`, never from whatever's on disk.
+`go-sdk/` and `java-sdk/` are only developed on `main`; a release/backport branch may lack them
+entirely or carry a stale, branch-cut-frozen copy. So `breeze k8s setup-lang-sdk-test` (and
+`run-complete-tests --lang-sdk-test`) picks the sources from the branch the run **targets**, resolved
+by `_lang_sdk_resolve_sdk_sources()` in `kubernetes_commands.py`:
+
+| Target branch | Go/Java SDK sources |
+| --- | --- |
+| `main` | the checked-out branch's own `go-sdk/` and `java-sdk/` |
+| anything else (`v3-*-test`, …) | upstream `main`, fetched fresh via `_lang_sdk_fetch_upstream_sdk_sources()` |
+
+The target is `GITHUB_BASE_REF` for a PR, then `DEFAULT_BRANCH` if set, falling back to this
+checkout's own `AIRFLOW_BRANCH`. Building a main-targeting PR's own SDK is what makes the k8s test
+exercise that PR: `go_example`/`java_example` are harness fixtures that track the checked-out branch,
+so compiling them against a *different* SDK means any SDK rename in the PR fails to build. A
+backport to a release-test branch still gets current SDK code, as before.
+
 Everything else — `airflow-core/`, `task-sdk/`, the deployed Airflow image, and this directory's own
-`go_example`/`java_example` harness fixtures — still comes from the checked-out branch as before, so a
-backport of a core/task-sdk fix to a release-test branch keeps testing against current SDK code.
+`go_example`/`java_example` fixtures — always comes from the checked-out branch.
 
-Because the branch's `go_example` and upstream main's `go-sdk` can diverge (a branch may change
-go-sdk's dependency graph while `go_example`'s committed `go.sum` is tidied against the in-repo
-go-sdk), the Go bundle build re-runs `go mod tidy` in its scratch workspace before packing, so the
-build reconciles to whichever `go-sdk` it is compiled against. The committed `go_example` `go.sum`
-is untouched and stays guarded by the `check-go-example-mod-tidy` prek hook.
+When the sources do come from upstream main, that copy and the branch's `go_example` can diverge (a
+branch may change go-sdk's dependency graph while `go_example`'s committed `go.sum` is tidied against
+the in-repo go-sdk), so the Go bundle build re-runs `go mod tidy` in its scratch workspace before
+packing and reconciles to whichever `go-sdk` it is compiled against. The committed `go_example`
+`go.sum` is untouched and stays guarded by the `check-go-example-mod-tidy` prek hook.
 
 ## Running it
 

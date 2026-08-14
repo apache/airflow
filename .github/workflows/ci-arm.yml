@@ -987,7 +987,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
-          go-version: 1.25
+          # Pinned to the patch: actions/go-versions trails Go security releases by weeks, and
+          # setup-go resolves from that manifest whenever it can match, so a bare 1.25 lands on a
+          # toolchain whose standard library still carries advisories the scan below fails on.
+          go-version: '1.25.13'
           cache-dependency-path: go-sdk/go.sum
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Gotestsum

@@ -19,6 +19,7 @@
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
 import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
@@ -221,7 +222,7 @@ export class DagsPage extends BasePage {
       return this.page.locator('[data-testid="dag-id"]').count();
     }
 
-    return this.page.getByTestId("table-list").locator("tbody tr").count();
+    return this.page.getByTestId("table-list").locator(DATA_ROWS).count();
   }
 
   public async getFilterOptions(filter: Locator): Promise<Array<string>> {
