@@ -352,6 +352,28 @@ def _update_dagrun_to_latest_version(
     session.flush()
 
 
+def _pin_versionless_tis_to_run_version(dag_run: DagRun, dag_version_id: UUID, session: Session) -> None:
+    """
+    Give the run's unfinished task instances a dag version if they have none.
+
+    Once the run is pinned the scheduler stops backfilling versions onto them, and one
+    without a version is never enqueued.
+    """
+    session.execute(
+        update(TaskInstance)
+        .where(
+            TaskInstance.dag_id == dag_run.dag_id,
+            TaskInstance.run_id == dag_run.run_id,
+            TaskInstance.dag_version_id.is_(None),
+            # State.unfinished holds None, which SQL IN never matches.
+            or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
+        )
+        .values(dag_version_id=dag_version_id)
+        .execution_options(synchronize_session=False)
+    )
+    session.expire(dag_run, ["task_instances"])
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -372,7 +394,9 @@ def clear_task_instances(
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
-    :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
+    :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version.
+        Runs and task instances that have no version of their own use the latest either way,
+        since there is nothing else for them to run on.
 
     :meta private:
     """
@@ -396,7 +420,14 @@ def clear_task_instances(
         # the task is terminated and becomes eligible for retry.
         else:
             dr = ti.dag_run
-            if run_on_latest_version:
+            # Nothing to re-run on but the latest, either because the task instance has no
+            # version or because its run has none and the run loop below moves it there. The
+            # two columns disagree more often than you would think: the scheduler backfills a
+            # version onto a migrated run's task instances but never onto the run itself.
+            use_latest_version = (
+                run_on_latest_version or ti.dag_version_id is None or dr.created_dag_version_id is None
+            )
+            if use_latest_version:
                 ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
             else:
                 ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
@@ -418,8 +449,8 @@ def clear_task_instances(
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
-            # Match DagVersion to latest serialized DAG when run_on_latest_version.
-            if run_on_latest_version:
+            # Match DagVersion to latest serialized DAG when running on the latest version.
+            if use_latest_version:
                 latest_dag_version = DagVersion.get_latest_version(ti.dag_id, session=session)
                 if latest_dag_version is not None:
                     ti.dag_version_id = latest_dag_version.id
@@ -461,10 +492,14 @@ def clear_task_instances(
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
+            # A run with no version of its own has nothing to preserve, so the latest is all
+            # it can be re-run on. Runs migrated from Airflow 2 are like this, as are runs
+            # whose version `airflow db clean` has since deleted.
+            use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
-                if run_on_latest_version:
+                if use_latest_version:
                     dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
                     dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
                     if dag_version:
@@ -478,14 +513,14 @@ def clear_task_instances(
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
                     log.warning("No serialized dag found for dag '%s'", dr.dag_id)
-                if dr_dag and not dr_dag.disable_bundle_versioning and run_on_latest_version:
+                if dr_dag and not dr_dag.disable_bundle_versioning and use_latest_version:
                     bundle_version = dr.dag_model.bundle_version
-                    if bundle_version is not None and run_on_latest_version:
+                    if bundle_version is not None:
                         dr.bundle_version = bundle_version
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
-            elif run_on_latest_version:
+            elif use_latest_version:
                 # Queued/running DagRun: update DR to latest version/bundle for workloads that use it.
                 dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
                 if dag_version and dr.created_dag_version_id != dag_version.id:
@@ -499,6 +534,9 @@ def clear_task_instances(
                             bundle_version = dr.dag_model.bundle_version
                             if bundle_version is not None:
                                 dr.bundle_version = bundle_version
+
+            if use_latest_version and dr.created_dag_version_id:
+                _pin_versionless_tis_to_run_version(dr, dr.created_dag_version_id, session)
     for ti in tis:
         ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()

@@ -21,7 +21,7 @@ import datetime
 import random
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -738,6 +738,143 @@ class TestClearTasks:
             assert TaskInstanceState.REMOVED not in [ti.state for ti in dr.task_instances]
             for ti in dr.task_instances:
                 assert ti.dag_version_id == old_dag_version.id
+
+    def test_clear_task_instances_without_dag_version_forces_latest(self, dag_maker, session):
+        """A Dag run carried over from Airflow 2 has no version, so clearing must pin it to the latest."""
+        dag_id = "test_clear_no_dag_version"
+        dr = self._make_versionless_run(dag_maker, session, dag_id, DagRunState.SUCCESS)
+
+        latest_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0 = session.scalar(select(TI).where(TI.dag_id == dag_id))
+        assert ti0.dag_version_id is None, "Pre-condition"
+        assert ti0.dag_run.created_dag_version_id is None, "Pre-condition"
+
+        clear_task_instances([ti0], session, run_on_latest_version=False)
+        session.commit()
+
+        dr_after = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
+        assert dr_after.created_dag_version_id == latest_dag_version.id
+        assert dr_after.bundle_version == latest_dag_version.bundle_version
+        assert dr_after.task_instances[0].dag_version_id == latest_dag_version.id
+
+    def _make_versionless_run(self, dag_maker, session, dag_id, dr_state, task_count=1, sibling_state=None):
+        """
+        Build a run shaped like Airflow 2 left it: no versions anywhere.
+
+        Task "0" is run for real; any further tasks are left in ``sibling_state``.
+        """
+        with dag_maker(dag_id, start_date=DEFAULT_DATE, catchup=True, bundle_version="v1") as dag:
+            task0 = EmptyOperator(task_id="0")
+            for index in range(1, task_count):
+                EmptyOperator(task_id=str(index))
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+
+        ti0, *siblings = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(dag.get_task("0"))
+        run_task_instance(ti0, task0)
+        for sibling in siblings:
+            sibling.state = sibling_state
+        dr.state = dr_state
+
+        # `airflow db migrate` from Airflow 2 leaves these columns NULL. Write them directly so
+        # no ORM relationship syncs the old values back, then expire so the objects are reloaded
+        # from the database like they are in a real deployment.
+        session.flush()
+        session.execute(
+            update(DagRun).where(DagRun.id == dr.id).values(created_dag_version_id=None, bundle_version=None)
+        )
+        session.execute(update(TI).where(TI.dag_id == dag.dag_id).values(dag_version_id=None))
+        session.commit()
+        session.expire_all()
+        return dr
+
+    def test_clear_task_instances_pins_task_instance_restored_by_verify_integrity(self, dag_maker, session):
+        """
+        A task instance revived by ``verify_integrity`` is given a version too.
+
+        It comes back unfinished but unversioned, and pinning the run stops the scheduler
+        backfilling one, so it would never be enqueued.
+        """
+        dag_id = "test_clear_no_dag_version_restored"
+        # Task "1" was dropped from the Dag during the Airflow 2 era and later re-added, so
+        # verify_integrity restores it when the finished run is cleared.
+        dr = self._make_versionless_run(
+            dag_maker,
+            session,
+            dag_id,
+            DagRunState.SUCCESS,
+            task_count=2,
+            sibling_state=TaskInstanceState.REMOVED,
+        )
+        latest_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0 = session.scalar(select(TI).where(TI.dag_id == dag_id, TI.task_id == "0"))
+
+        clear_task_instances([ti0], session, run_on_latest_version=False)
+        session.commit()
+
+        restored = session.scalar(select(TI).where(TI.dag_id == dag_id, TI.task_id == "1"))
+        assert restored.state is None, "verify_integrity should have restored it"
+        assert restored.dag_version_id == latest_dag_version.id
+
+    def test_clear_task_instances_pins_unfinished_siblings_on_running_run(self, dag_maker, session):
+        """A queued/running run is pinned without verify_integrity, so its siblings need one too."""
+        dag_id = "test_clear_no_dag_version_running"
+        dr = self._make_versionless_run(
+            dag_maker,
+            session,
+            dag_id,
+            DagRunState.RUNNING,
+            task_count=2,
+            sibling_state=TaskInstanceState.SCHEDULED,
+        )
+        latest_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0 = session.scalar(select(TI).where(TI.dag_id == dag_id, TI.task_id == "0"))
+
+        clear_task_instances([ti0], session, run_on_latest_version=False)
+        session.commit()
+
+        dr_after = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
+        assert dr_after.created_dag_version_id == latest_dag_version.id
+        sibling = session.scalar(select(TI).where(TI.dag_id == dag_id, TI.task_id == "1"))
+        assert sibling.dag_version_id == latest_dag_version.id
+
+    def test_clear_task_instances_keeps_run_and_task_versions_together(self, dag_maker, session):
+        """A run pinned to a version must not leave its cleared task instances on another."""
+        dag_id = "test_clear_backfilled_ti_null_run"
+        with dag_maker(dag_id, start_date=DEFAULT_DATE, catchup=True, bundle_version="v1") as dag:
+            task0 = EmptyOperator(task_id="0")
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+        (ti0,) = dr.task_instances
+        ti0.refresh_from_task(dag.get_task("0"))
+        run_task_instance(ti0, task0)
+        dr.state = DagRunState.SUCCESS
+        session.flush()
+
+        # The task instance keeps a version while the run loses its own, so the run counts as
+        # version-less and gets forced onto the latest.
+        old_dag_version = DagVersion.get_latest_version(dag_id)
+        session.execute(update(DagRun).where(DagRun.id == dr.id).values(created_dag_version_id=None))
+        session.commit()
+        session.expire_all()
+
+        with dag_maker(dag_id, start_date=DEFAULT_DATE, catchup=True, bundle_version="v2"):
+            EmptyOperator(task_id="0")
+        new_dag_version = DagVersion.get_latest_version(dag_id)
+        assert old_dag_version.id != new_dag_version.id, "Pre-condition"
+
+        ti0 = session.scalar(select(TI).where(TI.dag_id == dag_id))
+        assert ti0.dag_version_id == old_dag_version.id, "Pre-condition"
+        assert ti0.dag_run.created_dag_version_id is None, "Pre-condition"
+
+        clear_task_instances([ti0], session, run_on_latest_version=False)
+        session.commit()
+
+        dr_after = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
+        ti_after = session.scalar(select(TI).where(TI.dag_id == dag_id))
+        assert dr_after.created_dag_version_id == new_dag_version.id
+        assert ti_after.dag_version_id == dr_after.created_dag_version_id, (
+            "the run and its task instance must end up on the same version"
+        )
 
     def test_clear_subset_run_on_latest_version_only_updates_cleared_tis(self, dag_maker, session):
         """run_on_latest_version on a finished DR must not rewrite dag_version_id on TIs that were not cleared."""

@@ -110,12 +110,14 @@ const ClearTaskInstanceDialog = (props: Props) => {
     dagId,
   });
 
-  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
-    latestBundleVersion: dagDetails?.bundle_version,
-    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-    selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
-    selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
-  });
+  const { dagVersionsDiffer, runOnLatestVersionForced, shouldShowRunOnLatestOption } =
+    getRunOnLatestVersionState({
+      latestBundleVersion: dagDetails?.bundle_version,
+      latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+      selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
+      selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+      selectedVersionMissing: taskInstance?.dag_version === null,
+    });
 
   // dagVersionsDiffer becomes the fallback so the historical "auto-check when versions
   // differ" heuristic still applies when neither DAG-level nor global config is set.
@@ -264,8 +266,14 @@ const ClearTaskInstanceDialog = (props: Props) => {
             >
               {shouldShowRunOnLatestOption ? (
                 <Checkbox
-                  checked={runOnLatestVersion}
+                  checked={runOnLatestVersionForced || runOnLatestVersion}
+                  disabled={runOnLatestVersionForced}
                   onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                  title={
+                    runOnLatestVersionForced
+                      ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                      : undefined
+                  }
                 >
                   {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
                 </Checkbox>
