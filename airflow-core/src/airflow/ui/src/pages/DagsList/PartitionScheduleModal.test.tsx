@@ -31,6 +31,7 @@ import { PartitionScheduleModal } from "./PartitionScheduleModal";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) =>
       options?.count === undefined ? key : `${key}:${options.count}`,

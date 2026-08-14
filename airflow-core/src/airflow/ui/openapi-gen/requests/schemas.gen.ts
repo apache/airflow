@@ -3640,7 +3640,19 @@ export const $DAGRunCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
@@ -4484,11 +4496,16 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Partition Key'
+        },
+        triggering: {
+            type: 'boolean',
+            title: 'Triggering',
+            description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it."
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
+    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key', 'triggering'],
     title: 'DagRunAssetReference',
     description: 'DagRun serializer for asset responses.'
 } as const;
@@ -6587,7 +6604,19 @@ export const $TaskInstanceCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [

@@ -80,10 +80,12 @@ class KubernetesPodTrigger(BaseTrigger):
     :param pod_namespace: The namespace of the pod.
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the Kubernetes cluster.
+    :param connection_extras: Extra connection kwargs.
     :param cluster_context: Context that points to kubernetes cluster.
     :param config_dict: Content of kubeconfig file in dict format.
     :param poll_interval: Polling period in seconds to check for the status.
-    :param trigger_start_time: time in Datetime format when the trigger was started
+    :param trigger_start_time: Time in Datetime format when the trigger was started.
+    :param base_container_name: The container whose logs / status the trigger watches.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
