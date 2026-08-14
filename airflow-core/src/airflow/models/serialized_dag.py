@@ -346,15 +346,23 @@ class SerializedDagModel(Base):
     load_op_links = True
     __table_args__ = (Index("idx_serialized_dag_dag_id_created_at", dag_id, created_at),)
 
-    def __init__(self, dag: LazyDeserializedDAG) -> None:
+    def __init__(self, dag: LazyDeserializedDAG, *, _dag_hash: str | None = None) -> None:
+        """
+        Build a serialized Dag row.
+
+        :param _dag_hash: hash of ``dag.data`` when the caller has already computed it, used by
+            ``write_dag`` to avoid hashing the same data twice. Hashing re-sorts and re-encodes
+            the whole structure, so it is worth skipping. It must describe ``dag.data`` as it
+            stands now — recompute it first if the data was mutated after hashing, or change
+            detection on the next parse silently misbehaves.
+        """
         self.dag_id = dag.dag_id
         dag_data = dag.data
-        self.dag_hash = SerializedDagModel.hash(dag_data)
-
-        # partially ordered json data
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        self.dag_hash = SerializedDagModel.hash(dag_data) if _dag_hash is None else _dag_hash
 
         if _COMPRESS_SERIALIZED_DAGS:
+            # partially ordered json data
+            dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
             self._data = None
             self._data_compressed = zlib.compress(dag_data_json)
         else:
@@ -728,7 +736,7 @@ class SerializedDagModel(Base):
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
-            new_serialized_dag = cls(dag)
+            new_serialized_dag = cls(dag, _dag_hash=new_dag_hash)
 
             # Use direct UPDATE to avoid loading the full serialized DAG
             result = session.execute(
@@ -782,8 +790,10 @@ class SerializedDagModel(Base):
         if reused_deadline_data:
             deadline_uuid_mapping = {str(uuid6.uuid7()): data for data in reused_deadline_data.values()}
             dag.data["dag"]["deadline"] = list(deadline_uuid_mapping.keys())
+            # The data just changed, so the hash computed above no longer describes it.
+            new_dag_hash = cls.hash(dag.data)
 
-        new_serialized_dag = cls(dag)
+        new_serialized_dag = cls(dag, _dag_hash=new_dag_hash)
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
 
