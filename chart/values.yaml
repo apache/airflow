@@ -2546,7 +2546,11 @@ statsd:
   configMapAnnotations: {}
 
   # Update strategy for the StatsD Deployment
-  strategy: ~
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
 
   # When otelCollector.metricsEnabled is true, [metrics] statsd_on is set to
   # False in the rendered Airflow config because Airflow can only export metrics
