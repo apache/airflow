@@ -194,7 +194,7 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -310,7 +310,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
