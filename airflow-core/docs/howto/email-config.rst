@@ -93,7 +93,5 @@ community provider to send email through a third-party service's API. To use one
 provider distribution, set ``email_backend`` to the dotted path of its ``send_email`` function, and set
 ``email_conn_id`` to a connection holding the credentials it needs.
 
-Community providers currently offering an email backend:
-
-* **SendGrid** — see :doc:`apache-airflow-providers-sendgrid:email-backend` for setup instructions.
-* **Amazon SES** — see :doc:`apache-airflow-providers-amazon:email-backend` for setup instructions.
+The list of email backends provided by community-managed providers is available in
+:doc:`apache-airflow-providers:core-extensions/email-backends`.
