@@ -176,6 +176,25 @@ How to read it:
 > back as `needs_llm`. The rules live in `classify_change_deterministically`
 > (`dev/breeze/src/airflow_breeze/prepare_providers/provider_documentation.py`).
 
+The range the classifier reports is not fixed for the whole run — it widens once
+a provider actually gets a version bump:
+
+> [!WARNING]
+> **A version bump supersedes the provider's doc-only marker — re-run discovery
+> after Phase 4a.** When `docs/.latest-doc-only-change.txt` is present the
+> classifier starts the range at that commit, so anything older (earlier doc-only
+> changes, tooling churn) is hidden for as long as the provider has no pending
+> release. That is correct while nothing ships — but the moment the provider gets
+> a real version bump the marker no longer applies, and those commits are part of
+> what the release publishes.
+>
+> Re-run `classify-provider-changes` **after** bumping versions and fold in every
+> commit that newly appears; otherwise the release silently drops doc-only
+> entries that were only ever suppressed by the marker. The tell is a provider
+> whose commit count grows between two runs without any new merges. Observed in
+> the 2026-08-01 wave: `cohere` gained #69649, `dbt.cloud`/`presto`/`trino` gained
+> #69478, and `papermill` gained #68322 — all invisible in the first pass.
+
 Then regenerate the auto-generated build files (this does **no** classification,
 so nothing random is produced):
 
@@ -545,6 +564,33 @@ Rules:
   indent, double backticks).
 - Subjects must be the original commit subject with backticks replaced by
   single quotes (matches `message_without_backticks`). Don't paraphrase.
+- **Exception — rewrite subjects written in project-internal language.** The
+  don't-paraphrase rule keeps you honest about *what* shipped; it does not
+  oblige you to publish a subject the reader cannot act on. The changelog is
+  read by users, not by us. Rewrite the entry — keeping every `(#NNNN)` — when
+  the subject is only meaningful inside the project:
+  - **Spell out internal abbreviations.** `KPO`, `DFP`, `TI`, `RTIF`, `OL` and
+    friends are our shorthand. Write ``Add '--min-completed-minutes' to
+    'cleanup-pods' to prevent KubernetesPodOperator race condition (#70595)``,
+    not ``… to prevent KPO race condition (#70595)``.
+  - **Name what a grouped dependency bump actually changed.** Dependabot group
+    subjects such as ``Bump the fab-ui-package-updates group across 1 directory
+    with 3 updates (#70604)`` tell the reader nothing. Read the PR diff and list
+    the packages with their versions: ``Bump prettier to 3.9.6, stylelint to
+    17.14.1, webpack to 5.109.0 (#70604)``. A single-package bump still needs
+    its target version: ``Bump eslint to 10.8.0 (#70697)``.
+  - **Describe the user-visible effect, not the internal mechanic.** ``Remove
+    noqa:S101 from production code (#70378)`` names a lint directive; the reader
+    wants ``Mark asserts under 'TYPE_CHECKING' in 'DocumentLoaderOperator'
+    (#70378)``.
+  - **Drop our test vocabulary.** A system test is just an example Dag to the
+    user, so ``Remove hard-coded deferrable crawler run from example_glue system
+    test (#70206)`` becomes ``Remove hard-coded deferrable crawler run from
+    example_glue (#70206)``.
+
+  Rewrite the *wording*, never the *claim* — do not describe behaviour that did
+  not ship. When a subject is too vague to rewrite honestly, read the PR diff
+  before writing the entry.
 - **Exception — collapse within-wave "add then rename/rework" chains into one
   net entry.** When several pending commits are steps toward *one* net change —
   a feature added in one PR and renamed or reworked in a later PR, both since
@@ -585,6 +631,20 @@ Rules:
   so normalize to excluded.
 - Always keep the `(#NNNN)` PR suffix (or, for a collapsed chain, the
   comma-separated list of all involved PRs).
+- **Order entries within each section by merge order, newest first** — the exact
+  order `git log` printed them in Phase 1. `CHANGELOG_TEMPLATE.rst.jinja2`
+  iterates the changes without sorting, so that order *is* the format. It is
+  **not** descending PR number: a long-lived PR merged late carries a low number
+  and still belongs at the top (real example: `#64274` sits second in amazon
+  9.32.0's `Features`). Don't re-sort by PR number and don't group by theme.
+  The excluded block follows the same order. A collapsed chain — one entry
+  naming several PRs — sits at the position of its **first** commit, which is
+  when the change became relevant, not at the position of the later rework.
+- **Never adopt an entry a contributor pre-wrote at the top of
+  `changelog.rst`** — above the first version header — without checking its PR
+  number against `git log`. Those blocks are written before the PR merges, so
+  the number in them is a guess and is often wrong or nonexistent. Keep the
+  prose, replace the reference with the real merge commit's `(#NNNN)`.
 
 #### 4c. Regenerate templates with breeze
 
@@ -672,6 +732,24 @@ provider-by-provider:
   heading and the first version), notify the release manager immediately —
   it likely means a breaking-change or min-version note was accidentally
   written at the wrong indentation level or position.
+
+  Two variants to check for, both seen in the 2026-08-01 wave:
+  - **Already misplaced on the base branch.** A contributor adds a note for
+    their own change directly under the `Changelog` header instead of inside
+    the version section it belongs to, so it renders page-wide. Move it into
+    the section that ships the change (`google` #70869).
+  - **Pushed out of place by your own prepend.** When a note was sitting above
+    the first version header and you prepend a new section, the note ends up
+    *between* your new excluded block and the previous version — still wrong,
+    but no longer above the first header, so a scan that only looks at the top
+    of the file misses it (`openai` #69506). Check **inside every section you
+    touched** that no `.. note::` appears after the
+    `.. Below changes are excluded …` marker; a note belongs directly under the
+    version underline, before the first `~~~` header.
+
+  The same applies to a bare `Breaking changes` / `Features` / … heading sitting
+  above the first version header: a contributor pre-wrote it, and it must be
+  folded into the new version section with its PR reference corrected (Phase 4b).
 - Confirm Phase 4d ran: no `# use next version` comment remains where the
   referenced provider was bumped in this wave.
 - **If any inter-provider `>=` floor changed** (Phase 4d resolved a pin, or a
@@ -681,14 +759,38 @@ provider-by-provider:
   *"Provider dependency version bumps detected that should only be performed
   by Release Managers!"*. `git diff` the changed `pyproject.toml` files for
   `apache-airflow-providers-*` `>=` changes and list them for the RM.
-- **Scan the new changelog sections for three entry defects** — grep the lines
+- **Reconcile every new section against `git log` — this gate is mandatory.** Run
+
+  ```bash
+  python3 dev/check_changelog_entries.py --fix
+  ```
+
+  It compares each provider's newest section against the commits actually being
+  released and exits non-zero on four defects that eyeballing the diff misses:
+
+  | Code | Meaning | Action |
+  | --- | --- | --- |
+  | `MISSING` | a released commit has no entry | classify and add it (Phase 3 + 4b) |
+  | `UNKNOWN` | an entry cites a PR outside the release range | replace with the real `(#NNNN)` |
+  | `SECTION` | heading is not one of the template's five | move the entry under a template heading |
+  | `ORDER` | entries are off merge order | repaired by `--fix` |
+
+  Re-run it after **any** rebase of the release branch. A rebase silently pulls
+  new provider commits into the release range without touching `changelog.rst`,
+  and that is exactly how a shipped change ends up undocumented. Only `ORDER`
+  is auto-repairable — resolve every other code by hand before handing off.
+- **Scan the new changelog sections for these entry defects** — grep the lines
   you added: (1) a bullet whose text starts with a lowercase letter → capitalize
   it (Phase 4b); (2) a bullet in a *visible* section (Features / Bug Fixes /
   Misc / Doc-only) with no `(#NNNN)` suffix → usually no-PR release-tooling that
   belongs in the excluded block (Phase 4b); (3) an "add then rename" pair for
   the same feature left as two separate entries → collapse into one net entry
-  naming both PRs (Phase 4b). Reviewers reliably catch all three, so fix them
-  before handing off.
+  naming both PRs (Phase 4b); (4) an internal abbreviation (`KPO`, `DFP`, `TI`,
+  `RTIF`, `OL`) or the phrase "system test" → rewrite in user-facing language
+  (Phase 4b); (5) a dependency bump that names no version, or a Dependabot group
+  subject of the form "… group … with N updates" → replace with the actual
+  packages and versions from the PR diff (Phase 4b). Reviewers reliably catch
+  all of these, so fix them before handing off.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
 
 Stop here. Do not commit, do not push — the release manager opens the PR
@@ -899,6 +1001,12 @@ breaking changes, but a new commit introduced one), create the header
 above the next existing section, matching the order in
 `CHANGELOG_TEMPLATE.rst.jinja2`:
 `Breaking changes` → `Features` → `Bug Fixes` → `Misc` → `Doc-only`.
+
+Insert each entry at its **merge-order position** within the section — new
+commits are newer than everything already there, so they go at the *top*, not
+appended at the bottom. Appending is what drifts incremental providers off the
+format; `check_changelog_entries.py --fix` repairs it either way, so run it
+after this phase.
 
 If you re-bumped the version in Incremental Phase 3.5, also add or remove the
 `.. note::` block about the Airflow min version requirement to match the
