@@ -77,7 +77,7 @@ class TestGoogleCampaignManagerDeleteReportOperator:
             api_version=API_VERSION,
             task_id="test_task",
         )
-        op.execute(context=None)
+        op.execute(context={})
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             api_version=API_VERSION,
