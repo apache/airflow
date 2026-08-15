@@ -247,6 +247,7 @@ def create_gunicorn_app(
     ssl_key: str | None = None,
     ssl_ca_file: str | None = None,
     ssl_cert_reqs: VerifyMode | None = None,
+    ssl_ciphers: str | None = None,
     log_level: str = "info",
     proxy_headers: bool = False,
 ) -> AirflowGunicornApp:
@@ -261,6 +262,7 @@ def create_gunicorn_app(
     :param ssl_key: Path to SSL key file
     :param ssl_ca_file: Path to the SSL CA certs file
     :param ssl_cert_reqs: SSL client certificate requirements
+    :param ssl_ciphers: OpenSSL cipher list; ``None`` keeps the Python default
     :param log_level: Log level (debug, info, warning, error, critical)
     :param proxy_headers: Whether to trust proxy headers
     """
@@ -285,6 +287,8 @@ def create_gunicorn_app(
             options["ca_certs"] = ssl_ca_file
         if ssl_cert_reqs is not None:
             options["cert_reqs"] = ssl_cert_reqs
+        if ssl_ciphers:
+            options["ciphers"] = ssl_ciphers
 
     if proxy_headers:
         options["forwarded_allow_ips"] = "*"
