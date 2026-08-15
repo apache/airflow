@@ -1862,6 +1862,16 @@ api:
       type: string
       example: "required"
       default: "none"
+    ssl_ciphers:
+      description: |
+        OpenSSL cipher list used by the api server when SSL is enabled.
+        See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format
+        for the format. When left empty, the default cipher list of Python's ``ssl``
+        module is used.
+      version_added: 3.4.0
+      type: string
+      example: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+      default: ""
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
