@@ -65,7 +65,6 @@ def triggerer_run(
             job=Job(heartrate=triggerer_heartrate, team_name=team_name),
             capacity=capacity,
             queues=queues,
-            team_name=team_name,
         )
         run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
 
