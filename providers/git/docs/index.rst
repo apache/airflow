@@ -111,11 +111,11 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-git[github]
 
 
-==========  ======================
+==========  ===================
 Extra       Dependencies
-==========  ======================
-``github``  ``PyGithub>=2.1.1,<3``
-==========  ======================
+==========  ===================
+``github``  ``PyGithub>=2.1.1``
+==========  ===================
 
 Downloading official packages
 -----------------------------

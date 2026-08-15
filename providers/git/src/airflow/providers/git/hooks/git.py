@@ -121,7 +121,6 @@ class GitHook(BaseHook):
         # GitHub App Auth Options
         self.github_app_id = extra.get("github_app_id")
         self.github_installation_id = extra.get("github_installation_id")
-        self.github_app_private_key: str | None = None
         self.github_app_token_exp: datetime | None = None
 
         self.env: dict[str, str] = {}
@@ -263,11 +262,13 @@ class GitHook(BaseHook):
             os.chmod(askpass_script.name, stat.S_IRWXU)
 
             old_askpass = os.environ.get("GIT_ASKPASS")
+            old_lc_all = os.environ.get("LC_ALL")
             old_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
             try:
                 os.environ["GIT_ASKPASS"] = askpass_script.name
                 os.environ["GIT_TERMINAL_PROMPT"] = "0"
                 self.env["GIT_ASKPASS"] = askpass_script.name
+                self.env["LC_ALL"] = "C"
                 self.env["GIT_TERMINAL_PROMPT"] = "0"
                 yield
             finally:
@@ -277,6 +278,13 @@ class GitHook(BaseHook):
                 else:
                     self.env["GIT_ASKPASS"] = old_askpass
                     os.environ["GIT_ASKPASS"] = old_askpass
+
+                if old_lc_all is None:
+                    self.env.pop("LC_ALL", None)
+                    os.environ.pop("LC_ALL", None)
+                else:
+                    self.env["LC_ALL"] = old_lc_all
+                    os.environ["LC_ALL"] = old_lc_all
 
                 if old_terminal_prompt is None:
                     self.env.pop("GIT_TERMINAL_PROMPT", None)
@@ -348,9 +356,7 @@ class GitHook(BaseHook):
                 yield
             return
 
-        # If a GitHub App PEM is present, it should not be treated as an SSH key
-        # for configuring `GIT_SSH_COMMAND`.
-        if self.private_key and not self.github_app_private_key:
+        if self.private_key:
             with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
                 tmp_keyfile.write(self.private_key)
                 tmp_keyfile.flush()
