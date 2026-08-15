@@ -51,6 +51,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
+from airflow.models.variable import AirflowSecretsBackendAccessDenied
 from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.serialization.decoders import decode_deadline_alert
@@ -822,14 +823,26 @@ class SerializedDAG:
         :param session: Scheduler session used for metadata database lookups.
         :return: The resolved ``timedelta``.
         :raises ValueError: If the Variable cannot be resolved or converted to a valid ``timedelta``.
+        :raises AirflowSecretsBackendAccessDenied: If a backend authoritatively denies access.
         """
         for backend in ensure_secrets_loaded():
-            value = call_secrets_backend_method(
-                backend.get_variable,
-                team_name=team_name,
-                key=interval.key,
-                **({"session": session} if isinstance(backend, MetastoreBackend) else {}),
-            )
+            try:
+                value = call_secrets_backend_method(
+                    backend.get_variable,
+                    team_name=team_name,
+                    key=interval.key,
+                    **({"session": session} if isinstance(backend, MetastoreBackend) else {}),
+                )
+            except AirflowSecretsBackendAccessDenied:
+                # Authoritative deny — must NOT fall through to a less-restrictive backend.
+                raise
+            except Exception:
+                log.exception(
+                    "Unable to retrieve variable from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
+                    type(backend).__name__,
+                )
+                continue
             if value is not None:
                 return interval.coerce_to_timedelta(value)
         raise ValueError(

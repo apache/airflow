@@ -1560,6 +1560,44 @@ class TestDagRun:
         assert session.execute(select(Deadline)).scalars().one_or_none() is None
 
     @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_skips_broken_backend(self, _, session, deadline_test_dag):
+        """A backend that raises must be skipped; the Variable still resolves from the next backend."""
+        from airflow.models.variable import Variable as VariableModel
+        from airflow.secrets import BaseSecretsBackend
+        from airflow.secrets.metastore import MetastoreBackend
+
+        VariableModel.set(key="broken_backend_key", value="5", session=session)
+        session.flush()
+
+        broken_backend = mock.create_autospec(BaseSecretsBackend, instance=True)
+        broken_backend.get_variable.side_effect = RuntimeError("backend down")
+
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("broken_backend_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with mock.patch(
+            "airflow.serialization.definitions.dag.ensure_secrets_loaded",
+            return_value=[broken_backend, MetastoreBackend()],
+        ):
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
+            )
+
+        assert dag_run is not None
+        broken_backend.get_variable.assert_called_once()
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=5)
+
+    @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_resolves_from_env_var(
         self, _, session, deadline_test_dag, monkeypatch
     ):
