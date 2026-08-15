@@ -175,7 +175,7 @@ option_push = click.option(
 option_python_image = click.option(
     "--python-image",
     help="If specified this is the base python image used to build the image. "
-    "Should be something like: python:VERSION-slim-bookworm.",
+    "Should be something like: python:VERSION-slim-trixie.",
     envvar="PYTHON_IMAGE",
 )
 option_runtime_apt_command = click.option(

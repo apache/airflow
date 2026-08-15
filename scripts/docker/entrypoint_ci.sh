@@ -180,13 +180,26 @@ function environment_initialization() {
         # SSH Service
         sudo service ssh restart >/dev/null 2>&1
 
-        # Sometimes the server is not quick enough to load the keys!
-        while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
-            echo "Not all keys yet loaded by the server"
+        # Sometimes the server is not quick enough to load the keys.
+        # Different OpenSSH versions can expose a different number of host key types,
+        # so wait for any host key instead of an exact count.
+        ssh_keyscan_output=""
+        for _ in {1..200}; do
+            ssh_keyscan_output="$(ssh-keyscan -H localhost 2>/dev/null || true)"
+            if [[ "${ssh_keyscan_output}" != "" ]]; then
+                break
+            fi
+            echo "SSH host keys not loaded by the server yet"
             sleep 0.05
         done
 
-        ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+        if [[ "${ssh_keyscan_output}" == "" ]]; then
+            echo "SSH host keys were not available after waiting for ssh service to start"
+            sudo service ssh status || true
+            exit 1
+        fi
+
+        echo "${ssh_keyscan_output}" >> ~/.ssh/known_hosts
     fi
 
     if [[ ${INTEGRATION_LOCALSTACK:-"false"} == "true" ]]; then

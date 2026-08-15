@@ -31,7 +31,7 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg BASE_IMAGE="debian:bookworm-slim" \
+    --build-arg BASE_IMAGE="debian:trixie-slim" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg AIRFLOW_PYTHON_VERSION="3.13.15" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py==4.1.1" \
