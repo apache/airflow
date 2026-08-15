@@ -1801,6 +1801,7 @@ triaging
 triggerer
 triggerers
 trino
+Trixie
 trojan
 truthy
 tsql

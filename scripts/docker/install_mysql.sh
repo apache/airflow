@@ -25,7 +25,7 @@ common::get_colors
 declare -a packages
 
 # https://mariadb.org/about/#maintenance-policy
-readonly MARIADB_LTS_VERSION="10.11"
+readonly MARIADB_LTS_VERSION="11.8"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
@@ -89,9 +89,9 @@ install_mariadb_client() {
     # `libmariadb-dev` -> `libmariadb-dev-compat`
     # `mariadb-client-core` -> `mariadb-client` or `mariadb-client-compat` (11+)
     if [[ "${1}" == "dev" ]]; then
-        packages=("libmariadb-dev-compat" "mariadb-client")
+        packages=("libmariadb-dev-compat" "mariadb-client" "mariadb-client-compat")
     elif [[ "${1}" == "prod" ]]; then
-        packages=("libmariadb3-compat" "mariadb-client")
+        packages=("libmariadb3-compat" "mariadb-client" "mariadb-client-compat")
     else
         echo
         echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"

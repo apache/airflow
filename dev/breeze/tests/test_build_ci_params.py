@@ -19,9 +19,19 @@ from __future__ import annotations
 
 import pytest
 
+from airflow_breeze.global_constants import ALLOWED_DEBIAN_VERSIONS
 from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 
 INLINE_CACHE_FLAG = "--build-arg=BUILDKIT_INLINE_CACHE=1"
+
+
+@pytest.mark.parametrize("params_class", [BuildCiParams, BuildProdParams])
+def test_default_debian_version_uses_trixie(params_class: type[BuildCiParams | BuildProdParams]):
+    params = params_class()
+    assert ALLOWED_DEBIAN_VERSIONS == ["trixie"]
+    assert params.debian_version == "trixie"
+    assert params.python_base_image == "debian:trixie-slim"
 
 
 @pytest.mark.parametrize(

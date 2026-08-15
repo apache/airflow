@@ -75,10 +75,10 @@ System dependencies
 You need certain system level requirements in order to install Airflow.
 Those are requirements that are known to be needed for Linux Debian distributions:
 
-Debian Bookworm (12)
+Debian Trixie (13)
 ====================
 
-Debian Bookworm is our platform of choice for development and testing. It is the most up-to-date
+Debian Trixie is our platform of choice for development and testing. It is the most up-to-date
 Debian distribution and it is the one we use for our CI/CD system. It is also the one we recommend
 for development and testing as well as production use.
 

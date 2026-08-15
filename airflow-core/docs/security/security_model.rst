@@ -1053,7 +1053,7 @@ Supported deployment platforms
 ..............................
 
 Apache Airflow officially supports Linux-based deployment environments only. The reference
-deployment, the CI matrix, and the official Docker image are all Linux-targeted (Debian Bookworm).
+deployment, the CI matrix, and the official Docker image are all Linux-targeted (Debian Trixie).
 macOS is supported for local development but is not a deployment platform. Windows is not supported
 for deployment - except WSL2 for develop (buy only with POSIX filesystem which is the same as Linux).
 

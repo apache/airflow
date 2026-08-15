@@ -62,9 +62,9 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       debian-version:
-        description: "Base Debian distribution to use for the build (bookworm)"
+        description: "Base Debian distribution to use for the build (trixie)"
         type: string
-        default: "bookworm"
+        default: "trixie"
       install-mysql-client-type:
         description: "MySQL client type to use during build (mariadb/mysql)"
         type: string

@@ -71,7 +71,7 @@ class CommonBuildParams:
     dry_run: bool = False
     version_suffix: str | None = None
     verbose: bool = False
-    debian_version: str = "bookworm"
+    debian_version: str = "trixie"
     build_arg_values: list[str] = field(default_factory=list)
 
     @property

@@ -40,4 +40,4 @@ from __future__ import annotations
 
 AIRFLOW_BRANCH = "main"
 DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
-DEBIAN_VERSION = "bookworm"
+DEBIAN_VERSION = "trixie"
