@@ -29,11 +29,16 @@ from airflow.providers.amazon.aws.operators.neptune import (
     NeptuneStartDbClusterOperator,
     NeptuneStopDbClusterOperator,
 )
+from airflow.providers.amazon.aws.triggers.neptune import (
+    NeptuneClusterAvailableTrigger,
+    NeptuneClusterStoppedTrigger,
+)
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_ID = "test_cluster"
+REGION_NAME = "eu-west-2"
 
 EXPECTED_RESPONSE = {"db_cluster_id": CLUSTER_ID}
 
@@ -52,6 +57,31 @@ def _create_cluster(hook: NeptuneHook):
     )
     if not hook.conn.describe_db_clusters()["DBClusters"]:
         raise ValueError("AWS not properly mocked")
+
+
+@pytest.mark.parametrize(
+    ("operator_class", "trigger_class"),
+    [
+        (NeptuneStartDbClusterOperator, NeptuneClusterAvailableTrigger),
+        (NeptuneStopDbClusterOperator, NeptuneClusterStoppedTrigger),
+    ],
+)
+@mock.patch.object(NeptuneHook, "conn")
+def test_deferred_trigger_receives_region_name(mock_conn, operator_class, trigger_class):
+    operator = operator_class(
+        task_id="task_test",
+        db_cluster_id=CLUSTER_ID,
+        deferrable=True,
+        wait_for_completion=False,
+        aws_conn_id="aws_default",
+        region_name=REGION_NAME,
+    )
+
+    with pytest.raises(TaskDeferred) as deferred:
+        operator.execute(None)
+
+    assert isinstance(deferred.value.trigger, trigger_class)
+    assert deferred.value.trigger.region_name == REGION_NAME
 
 
 class TestNeptuneStartClusterOperator:

@@ -30,6 +30,22 @@ from airflow.providers.amazon.aws.triggers.neptune import (
 from airflow.triggers.base import TriggerEvent
 
 CLUSTER_ID = "test-cluster"
+REGION_NAME = "eu-west-2"
+
+
+@pytest.mark.parametrize(
+    "trigger_class",
+    [
+        NeptuneClusterAvailableTrigger,
+        NeptuneClusterStoppedTrigger,
+        NeptuneClusterInstancesAvailableTrigger,
+    ],
+)
+def test_region_name_reaches_the_hook_configuration(trigger_class):
+    trigger = trigger_class(db_cluster_id=CLUSTER_ID, region_name=REGION_NAME)
+
+    assert trigger.region_name == REGION_NAME
+    assert trigger.serialize()[1]["region_name"] == REGION_NAME
 
 
 class TestNeptuneClusterAvailableTrigger:
