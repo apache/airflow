@@ -22,7 +22,7 @@ import warnings
 from collections import Counter
 from collections.abc import AsyncIterator
 from enum import IntEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import WaiterError
 
@@ -106,6 +106,90 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             region_name=self.region_name,
             verify=self.verify,
             config=self.botocore_config,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        hook = self.hook()
+
+        async with await hook.get_async_conn() as conn:
+            waiter = hook.get_waiter(
+                self.waiter_name,
+                deferrable=True,
+                client=conn,
+            )
+
+            for _ in range(self.attempts):
+                try:
+                    await waiter.wait(
+                        **self.waiter_args,
+                        WaiterConfig={"MaxAttempts": 1},
+                    )
+                except WaiterError as error:
+                    response = error.last_response
+                    status = response.get(self._get_response_status_key(self.job_type))
+
+                    if status == "Failed":
+                        yield TriggerEvent(
+                            {
+                                "status": "failed",
+                                "job_name": self.job_name,
+                                "message": response.get("FailureReason"),
+                            }
+                        )
+                        return
+
+                    if status == "Stopped":
+                        yield TriggerEvent(
+                            {
+                                "status": "stopped",
+                                "job_name": self.job_name,
+                            }
+                        )
+                        return
+
+                    self._log_job_status(response)
+                    await asyncio.sleep(self.waiter_delay)
+                    continue
+
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "job_name": self.job_name,
+                    }
+                )
+                return
+
+        yield TriggerEvent(
+            {
+                "status": "timeout",
+                "job_name": self.job_name,
+                "message": (
+                    f"SageMaker {self.job_type} job {self.job_name!r} "
+                    f"did not complete after {self.attempts} attempts."
+                ),
+            }
+        )
+
+    def _log_job_status(self, response: dict[str, Any]) -> None:
+        status = response.get(self._get_response_status_key(self.job_type))
+
+        if self.job_type.lower() == "training":
+            secondary_status = response.get("SecondaryStatus")
+            if secondary_status:
+                self.log.info(
+                    "SageMaker %s job %s is in state %s (%s)",
+                    self.job_type,
+                    self.job_name,
+                    status,
+                    secondary_status,
+                )
+                return
+
+        self.log.info(
+            "SageMaker %s job %s is in state %s",
+            self.job_type,
+            self.job_name,
+            status,
         )
 
     @staticmethod

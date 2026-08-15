@@ -121,6 +121,122 @@ class TestSagemakerTrigger:
 
         assert response == TriggerEvent({"status": "success", "job_name": JOB_NAME})
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("aws_status", "expected_status"),
+        [
+            ("Completed", "success"),
+            ("Failed", "failed"),
+            ("Stopped", "stopped"),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_async_conn")
+    async def test_sagemaker_trigger_run_training_terminal_states(
+        self,
+        mock_async_conn,
+        mock_get_waiter,
+        aws_status,
+        expected_status,
+    ):
+        mock_async_conn.return_value.__aenter__.return_value = mock.MagicMock()
+
+        if aws_status == "Completed":
+            mock_get_waiter.return_value.wait = AsyncMock()
+        else:
+            mock_get_waiter.return_value.wait = AsyncMock(
+                side_effect=WaiterError(
+                    name="TrainingJobComplete",
+                    reason="Waiter encountered a terminal failure state",
+                    last_response={"TrainingJobStatus": aws_status},
+                )
+            )
+
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type="training",
+            waiter_delay=WAITER_DELAY,
+            waiter_max_attempts=WAITER_MAX_ATTEMPTS,
+            aws_conn_id=AWS_CONN_ID,
+        )
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert response.payload["status"] == expected_status
+        assert response.payload["job_name"] == JOB_NAME
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.sagemaker.asyncio.sleep", new_callable=AsyncMock)
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_async_conn")
+    async def test_sagemaker_trigger_run_non_terminal_state(
+        self,
+        mock_async_conn,
+        mock_get_waiter,
+        mock_sleep,
+    ):
+        mock_async_conn.return_value.__aenter__.return_value = mock.MagicMock()
+
+        mock_get_waiter.return_value.wait = AsyncMock(
+            side_effect=[
+                WaiterError(
+                    name="TrainingJobComplete",
+                    reason="Max attempts exceeded",
+                    last_response={"TrainingJobStatus": "InProgress"},
+                ),
+                None,
+            ]
+        )
+
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type=JOB_TYPE,
+            waiter_delay=WAITER_DELAY,
+            waiter_max_attempts=WAITER_MAX_ATTEMPTS,
+            aws_conn_id=AWS_CONN_ID,
+        )
+
+        response = await trigger.run().__anext__()
+
+        assert response == TriggerEvent({"status": "success", "job_name": JOB_NAME})
+        assert mock_get_waiter.return_value.wait.await_count == 2
+        mock_sleep.assert_awaited_once_with(WAITER_DELAY)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.sagemaker.asyncio.sleep", new_callable=AsyncMock)
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_async_conn")
+    async def test_sagemaker_trigger_run_timeout(
+        self,
+        mock_async_conn,
+        mock_get_waiter,
+        mock_sleep,
+    ):
+        mock_async_conn.return_value.__aenter__.return_value = mock.MagicMock()
+
+        mock_get_waiter.return_value.wait = AsyncMock(
+            side_effect=WaiterError(
+                name="TrainingJobComplete",
+                reason="Max attempts exceeded",
+                last_response={"TrainingJobStatus": "InProgress"},
+            )
+        )
+
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type=JOB_TYPE,
+            waiter_delay=WAITER_DELAY,
+            waiter_max_attempts=2,
+            aws_conn_id=AWS_CONN_ID,
+        )
+
+        response = await trigger.run().__anext__()
+
+        assert response.payload["status"] == "timeout"
+        assert response.payload["job_name"] == JOB_NAME
+        assert mock_get_waiter.return_value.wait.await_count == 2
+
 
 class TestSagemakerPipelineTrigger:
     def test_serialize(self):
