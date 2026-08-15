@@ -1627,6 +1627,37 @@ class TestDagRun:
         mock_call.assert_called_once()
         assert mock_call.call_args.kwargs["team_name"] == team_name
 
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_resolves_under_prohibit_commit(
+        self, _, session, deadline_test_dag
+    ):
+        """The scheduler creates DagRuns under ``prohibit_commit``, so the Variable lookup must reuse
+        the given session -- an implicit commit from a non-forwarded session trips the guard and no
+        Deadline is created."""
+        from airflow.models.variable import Variable as VariableModel
+
+        VariableModel.set(key="guarded_interval_key", value="5", session=session)
+        session.flush()
+
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("guarded_interval_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        # No task_states here: the helper's get_task_instance() opens its own session and would trip the guard.
+        with prohibit_commit(session):
+            dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+        session.flush()
+
+        assert dag_run is not None
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=5)
+
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
