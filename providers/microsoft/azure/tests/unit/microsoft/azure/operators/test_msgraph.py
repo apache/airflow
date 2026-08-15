@@ -342,6 +342,33 @@ class TestMSGraphAsyncOperator:
         assert trigger.data == data
         assert trigger.scopes == scopes
 
+    def test_pagination_issues_every_page_with_the_configured_request(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+        headers = {"ConsistencyLevel": "eventual"}
+        data = {"requestBody": "value"}
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users",
+                method="POST",
+                headers=headers,
+                data=data,
+                result_processor=lambda result, **context: result.get("value"),
+            )
+
+            execute_operator(operator)
+
+        requests = [call.args[0] for call in mock_get_http_response.call_args_list]
+
+        assert len(requests) == 2
+        for request in requests:
+            assert request.headers.try_get("ConsistencyLevel") == {"eventual"}
+            assert request.content == json.dumps(data).encode("utf-8")
+
     def test_execute_callable(self):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
