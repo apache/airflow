@@ -22,6 +22,7 @@ import warnings
 from base64 import b64encode
 from os.path import dirname
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -317,6 +318,29 @@ class TestMSGraphAsyncOperator:
 
         assert url == "users"
         assert query_parameters == {"$skip": 12, "$top": 12}
+
+    def test_trigger_next_link_forwards_the_request_configuration(self):
+        headers = {"ConsistencyLevel": "eventual"}
+        data = {"requestBody": "value"}
+        scopes = ["https://graph.microsoft.com/.default"]
+        operator = MSGraphAsyncOperator(
+            task_id="user_license_details",
+            conn_id="msgraph_api",
+            url="users",
+            headers=headers,
+            data=data,
+            scopes=scopes,
+        )
+        context = mock_context(task=operator)
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            operator.trigger_next_link(response, method_name="execute_complete", context=context)
+
+        trigger = mock_defer.call_args.kwargs["trigger"]
+        assert trigger.headers == headers
+        assert trigger.data == data
+        assert trigger.scopes == scopes
 
     def test_execute_callable(self):
         with pytest.warns(
