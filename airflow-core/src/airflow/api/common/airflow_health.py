@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -37,13 +37,13 @@ DOWN = "down"
 
 @provide_session
 def get_jobs_health(job_runner_class, *, session: Session = NEW_SESSION) -> list[Job]:
-    """Return all running jobs for the runner class, ordered by latest heartbeat."""
+    """Return unfinished jobs for the runner class, ordered by latest heartbeat."""
     return list(
         session.scalars(
             select(Job)
             .where(
                 Job.job_type == job_runner_class.job_type,
-                Job.state == JobState.RUNNING,
+                Job.end_date.is_(None),
             )
             .order_by(Job.latest_heartbeat.desc())
         )
@@ -101,18 +101,18 @@ def get_airflow_health() -> dict[str, Any]:
     dag_processor_instances: list[dict[str, Any]] | None = None
 
     scheduler_status = UNHEALTHY
-    triggerer_status: str | None = UNHEALTHY
-    dag_processor_status: str | None = UNHEALTHY
+    triggerer_status = UNHEALTHY
+    dag_processor_status = UNHEALTHY
 
     scheduler_detailed_status = DOWN
-    triggerer_detailed_status: str | None = DOWN
-    dag_processor_detailed_status: str | None = DOWN
+    triggerer_detailed_status = DOWN
+    dag_processor_detailed_status = DOWN
 
     try:
         scheduler_jobs = get_jobs_health(SchedulerJobRunner)
+        scheduler_status = _legacy_status(scheduler_jobs)
+        scheduler_detailed_status = _aggregate_detailed_status(scheduler_jobs)
         if scheduler_jobs:
-            scheduler_status = _legacy_status(scheduler_jobs)  # The top sorted job is confirmed alive
-            scheduler_detailed_status = _aggregate_detailed_status(scheduler_jobs)
             scheduler_instances = [
                 _job_instance_health(job, "latest_scheduler_heartbeat") for job in scheduler_jobs
             ]
@@ -124,16 +124,13 @@ def get_airflow_health() -> dict[str, Any]:
 
     try:
         triggerer_jobs = get_jobs_health(TriggererJobRunner)
+        triggerer_status = _legacy_status(triggerer_jobs)
+        triggerer_detailed_status = _aggregate_detailed_status(triggerer_jobs)
         if triggerer_jobs:
-            triggerer_status = _legacy_status(triggerer_jobs)
-            triggerer_detailed_status = _aggregate_detailed_status(triggerer_jobs)
             triggerer_instances = [_triggerer_instance_health(job) for job in triggerer_jobs]
 
             if triggerer_jobs[0].latest_heartbeat:
                 latest_triggerer_heartbeat = triggerer_jobs[0].latest_heartbeat.isoformat()
-        else:
-            triggerer_status = None
-            triggerer_detailed_status = None
     except Exception:
         metadatabase_status = UNHEALTHY
         triggerer_status = UNHEALTHY
@@ -141,16 +138,13 @@ def get_airflow_health() -> dict[str, Any]:
 
     try:
         dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
+        dag_processor_status = _legacy_status(dag_processor_jobs)
+        dag_processor_detailed_status = _aggregate_detailed_status(dag_processor_jobs)
         if dag_processor_jobs:
-            dag_processor_status = _legacy_status(dag_processor_jobs)
-            dag_processor_detailed_status = _aggregate_detailed_status(dag_processor_jobs)
             dag_processor_instances = [_dag_processor_instance_health(job) for job in dag_processor_jobs]
 
             if dag_processor_jobs[0].latest_heartbeat:
                 latest_dag_processor_heartbeat = dag_processor_jobs[0].latest_heartbeat.isoformat()
-        else:
-            dag_processor_status = None
-            dag_processor_detailed_status = None
     except Exception:
         metadatabase_status = UNHEALTHY
         dag_processor_status = UNHEALTHY
