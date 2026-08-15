@@ -96,9 +96,9 @@ class _KubernetesSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     """Logic for tracking Spark driver pods in Kubernetes."""
 
     def submit_job(self, context: Context) -> str | None:
-        self.hook._conf[_K8S_WAIT_APP_COMPLETION_CONF] = "false"
+        self.hook.conf[_K8S_WAIT_APP_COMPLETION_CONF] = "false"
         self.hook.submit(self.operator.application)
-        pod_name = self.hook._kubernetes_driver_pod
+        pod_name = self.hook.kubernetes_driver_pod
         namespace = self.hook._connection["namespace"]
         if not pod_name:
             raise RuntimeError("spark-submit did not capture a K8s driver pod name")
@@ -133,8 +133,8 @@ class _KubernetesSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     def poll_until_complete(self, external_id: str, context: Context) -> None:
         if external_id is not None:
             _, pod_name = self.operator._parse_k8s_external_id(external_id)
-            self.hook._kubernetes_driver_pod = pod_name
-        terminal_phase = self.hook._poll_k8s_driver_via_api()
+            self.hook.kubernetes_driver_pod = pod_name
+        terminal_phase = self.hook.poll_k8s_driver_via_api()
         # Cache only when the pod actually reached Succeeded, the 404/vanished path
         # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
         # and must not be cached, otherwise a retry would see "Succeeded" and skip resubmission.
@@ -150,15 +150,15 @@ class _YarnSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     """Logic for tracking Spark applications in YARN cluster mode."""
 
     def submit_job(self, context: Context) -> str | None:
-        if self.hook._conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
+        if self.hook.conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
             raise ValueError(
                 "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts "
                 "with the need to exit spark-submit immediately to persist the application ID for tracking. "
                 "Either remove the explicit conf or set durable=False."
             )
-        self.hook._conf["spark.yarn.submit.waitAppCompletion"] = "false"
+        self.hook.conf["spark.yarn.submit.waitAppCompletion"] = "false"
         self.hook.submit(self.operator.application)
-        app_id = self.hook._yarn_application_id
+        app_id = self.hook.yarn_application_id
         if not app_id:
             raise RuntimeError("spark-submit did not produce a YARN application ID")
         self.operator.log.info("YARN application submitted: %s", app_id)
@@ -181,10 +181,10 @@ class _YarnSparkSubmitBackend(_SparkSubmitDeploymentBackend):
             self.hook._run_post_submit_commands()
 
     def on_kill(self) -> None:
-        if self.hook._yarn_application_id:
+        if self.hook.yarn_application_id:
             # spark-submit has already exited (waitAppCompletion=false), so the hook's
             # CLI-based kill has nothing to terminate. Kill the YARN app via REST API instead.
-            self.hook._kill_yarn_application(self.hook._yarn_application_id)
+            self.hook.kill_yarn_application(self.hook.yarn_application_id)
         else:
             self.hook.on_kill()
 

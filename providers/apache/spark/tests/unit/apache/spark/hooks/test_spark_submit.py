@@ -1632,7 +1632,7 @@ class TestSparkSubmitHook:
         mock_client.read_namespaced_pod.side_effect = [running_pod, succeeded_pod]
 
         with patch.object(hook, "_run_post_submit_commands"):
-            hook._poll_k8s_driver_via_api()
+            hook.poll_k8s_driver_via_api()
 
         assert mock_client.delete_namespaced_pod.call_args.args[:2] == ("spark-app-abc-driver", "mynamespace")
 
@@ -1647,7 +1647,7 @@ class TestSparkSubmitHook:
         mock_client.read_namespaced_pod.return_value = failed_pod
 
         with pytest.raises(RuntimeError, match="phase=Failed"):
-            hook._poll_k8s_driver_via_api()
+            hook.poll_k8s_driver_via_api()
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_raises_after_consecutive_unknown(self, mock_get_client):
@@ -1659,7 +1659,7 @@ class TestSparkSubmitHook:
         mock_client.read_namespaced_pod.return_value = V1Pod(status=V1PodStatus(phase="Unknown"))
 
         with patch("time.sleep"), pytest.raises(RuntimeError, match="Unknown phase"):
-            hook._poll_k8s_driver_via_api()
+            hook.poll_k8s_driver_via_api()
 
         # assert that it was polled minimum 3 times to confirm the Unknown status before raising
         assert mock_client.read_namespaced_pod.call_count == 3
@@ -1677,13 +1677,13 @@ class TestSparkSubmitHook:
         mock_client.read_namespaced_pod.side_effect = [api_error, api_error, succeeded_pod]
 
         with patch.object(hook, "_run_post_submit_commands"):
-            hook._poll_k8s_driver_via_api()
+            hook.poll_k8s_driver_via_api()
 
         assert mock_client.read_namespaced_pod.call_count == 3
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_post_submit_commands_run_exactly_once_on_k8s_path(self, mock_get_client):
-        """_run_post_submit_commands must fire exactly once: in _poll_k8s_driver_via_api finally."""
+        """_run_post_submit_commands must fire exactly once: in poll_k8s_driver_via_api finally."""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
         hook._kubernetes_driver_pod = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
@@ -1692,7 +1692,7 @@ class TestSparkSubmitHook:
         mock_client.read_namespaced_pod.return_value = V1Pod(status=V1PodStatus(phase="Succeeded"))
 
         with patch.object(hook, "_run_post_submit_commands") as mock_cmd:
-            hook._poll_k8s_driver_via_api()
+            hook.poll_k8s_driver_via_api()
 
         mock_cmd.assert_called_once()
 
@@ -1708,7 +1708,7 @@ class TestSparkSubmitHook:
         mock_client.read_namespaced_pod.side_effect = api_error
 
         with pytest.raises(RuntimeError, match="K8s API unreachable"):
-            hook._poll_k8s_driver_via_api()
+            hook.poll_k8s_driver_via_api()
 
         assert mock_client.read_namespaced_pod.call_count == 3
 
@@ -1722,7 +1722,7 @@ class TestSparkSubmitHook:
         mock_client = mock_get_client.return_value
         mock_client.read_namespaced_pod.side_effect = kube_client.ApiException(status=404, reason="Not Found")
 
-        hook._poll_k8s_driver_via_api()
+        hook.poll_k8s_driver_via_api()
 
         mock_client.delete_namespaced_pod.assert_not_called()
 
@@ -2214,3 +2214,21 @@ class TestSparkSubmitHook:
         hook.on_kill()
 
         mock_put.assert_called_once()
+
+    def test_conf_mutation_writes_through(self):
+        hook = SparkSubmitHook(conn_id="")
+        hook.conf["spark.foo"] = "bar"
+        assert hook._conf["spark.foo"] == "bar"
+
+    def test_kubernetes_driver_pod_writes_through(self):
+        hook = SparkSubmitHook(conn_id="")
+        hook.kubernetes_driver_pod = "spark-app-abc-driver"
+        assert hook._kubernetes_driver_pod == "spark-app-abc-driver"
+        assert hook.kubernetes_driver_pod == "spark-app-abc-driver"
+
+    def test_yarn_application_id_is_get_only(self):
+        hook = SparkSubmitHook(conn_id="")
+        hook._yarn_application_id = "application_1486558679801_1820"
+        assert hook.yarn_application_id == "application_1486558679801_1820"
+        with pytest.raises(AttributeError):
+            hook.yarn_application_id = "application_1486558679801_1821"

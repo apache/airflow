@@ -818,7 +818,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     f"{self._submit_log_tail}"
                 )
         finally:
-            # K8s-API tracking defers post-submit commands to _poll_k8s_driver_via_api's finally
+            # K8s-API tracking defers post-submit commands to poll_k8s_driver_via_api's finally
             # block so they run once after the driver reaches a terminal state. Spark cluster-mode
             # driver tracking defers them to poll_until_complete for the same reason. All other
             # modes run them here, immediately after spark-submit exits.
@@ -1061,7 +1061,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 f"{application_id}: {resp.text[:200]}"
             ) from exc
 
-    def _kill_yarn_application(self, application_id: str) -> None:
+    def kill_yarn_application(self, application_id: str) -> None:
         """PUT ``/ws/v1/cluster/apps/{id}/state`` to kill the application (best-effort)."""
         try:
             url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}/state"
@@ -1175,7 +1175,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         f"returncode = {returncode}"
                     )
 
-    def _poll_k8s_driver_via_api(self) -> str | None:
+    def poll_k8s_driver_via_api(self) -> str | None:
         """
         Poll the K8s driver pod phase until it reaches a terminal state.
 
@@ -1385,9 +1385,27 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # state because `yarn_track_via_rm_api=True` deliberately terminates
         # `_submit_sp` right after submission to free the JVM.
         if self._yarn_application_id and self._yarn_track_via_rm_api:
-            self._kill_yarn_application(self._yarn_application_id)
+            self.kill_yarn_application(self._yarn_application_id)
 
         self._run_post_submit_commands()
+
+    @property
+    def conf(self) -> dict[str, Any]:
+        """Return the live Spark conf dict (not a copy); callers may mutate keys in place."""
+        return self._conf
+
+    @property
+    def kubernetes_driver_pod(self) -> str | None:
+        return self._kubernetes_driver_pod
+
+    @kubernetes_driver_pod.setter
+    def kubernetes_driver_pod(self, value: str | None) -> None:
+        self._kubernetes_driver_pod = value
+
+    @property
+    def yarn_application_id(self) -> str | None:
+        """YARN application id captured from spark-submit logs. Get-only."""
+        return self._yarn_application_id
 
     def query_yarn_application_status(self, application_id: str) -> str:
         """
