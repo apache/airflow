@@ -131,8 +131,7 @@ Wait on an EMR Serverless Job state
 To monitor the state of an EMR Serverless Job you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`.
 This sensor can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
-the aiobotocore module to be installed. In deferrable mode the sensor waits for job completion
-(``SUCCESS``); ``max_attempts`` caps waiter polls. Poke mode uses ``timeout``, not ``max_attempts``.
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
