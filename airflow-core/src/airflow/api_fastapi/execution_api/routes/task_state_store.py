@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.state import TaskScope
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.task_state_store import (
     TaskStateStorePutBody,
     TaskStateStoreResponse,
@@ -58,7 +59,12 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
     return TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
 
 
-@router.get("/{task_instance_id}/{key:path}")
+@router.get(
+    "/{task_instance_id}/{key:path}",
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_404_NOT_FOUND, "Task Instance not found, or it has no value for the key")]
+    ),
+)
 def get_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],

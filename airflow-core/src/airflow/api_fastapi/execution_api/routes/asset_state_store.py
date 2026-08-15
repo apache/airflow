@@ -38,6 +38,7 @@ from sqlalchemy import select
 
 from airflow._shared.state import AssetScope, AssetStateStoreWriterKind
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.asset_state_store import (
     AssetStateStorePutBody,
     AssetStateStoreResponse,
@@ -106,7 +107,12 @@ def _resolve_asset_id_by_uri(uri: str, session: SessionDep) -> int:
     return asset_id
 
 
-@router.get("/by-name/value")
+@router.get(
+    "/by-name/value",
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_404_NOT_FOUND, "Asset not found, or it has no value for the key")]
+    ),
+)
 def get_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
@@ -195,7 +201,12 @@ def clear_asset_state_store_by_name(
     get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
 
 
-@router.get("/by-uri/value")
+@router.get(
+    "/by-uri/value",
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_404_NOT_FOUND, "Asset not found, or it has no value for the key")]
+    ),
+)
 def get_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],

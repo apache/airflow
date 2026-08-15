@@ -304,6 +304,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NextRunAssetsResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -403,6 +409,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -439,6 +451,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -2130,6 +2148,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TeamCollectionResponse'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:

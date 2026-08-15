@@ -40,6 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.partitioned_dag_runs import (
     PartitionedDagRunDetailResponse,
     PartitionedDagRunResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     ReadableDagsFilterDep,
     requires_access_asset,
@@ -242,6 +243,7 @@ def _build_response(row, required_count: int, received_count: int) -> Partitione
 
 @partitioned_dag_runs_router.get(
     "/partitioned_dag_runs",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_partitioned_dag_runs(
@@ -355,6 +357,7 @@ def get_partitioned_dag_runs(
 
 @partitioned_dag_runs_router.get(
     "/pending_partitioned_dag_run/{dag_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_pending_partitioned_dag_run(
