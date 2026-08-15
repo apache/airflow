@@ -105,6 +105,3 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             )
 
         return await hook.get_sql_api_query_status_async(query_id)
-
-    def _set_context(self, context):
-        pass
