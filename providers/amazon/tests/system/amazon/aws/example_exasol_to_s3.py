@@ -20,6 +20,7 @@ from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3
 from airflow.providers.amazon.aws.transfers.exasol_to_s3 import ExasolToS3Operator
 from airflow.providers.common.compat.sdk import DAG, chain
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.exasol.hooks.exasol import exasol_fetch_all_handler
 
 try:
     from airflow.sdk import TriggerRule
@@ -51,11 +52,20 @@ with DAG(
     create_table_exasol = SQLExecuteQueryOperator(
         task_id="create_table_exasol",
         conn_id="exasol_default",
+        handler=exasol_fetch_all_handler,
         sql="""
             CREATE OR REPLACE TABLE exasol_to_s3_example (
                 a VARCHAR(100),
                 b DECIMAL(18,0)
             );
+        """,
+    )
+
+    insert_data_exasol = SQLExecuteQueryOperator(
+        task_id="insert_data_exasol",
+        conn_id="exasol_default",
+        handler=exasol_fetch_all_handler,
+        sql="""
             INSERT INTO exasol_to_s3_example (a, b)
             VALUES ('a', 1), ('a', 2), ('b', 3);
         """,
@@ -74,6 +84,7 @@ with DAG(
     drop_table_exasol = SQLExecuteQueryOperator(
         task_id="drop_table_exasol",
         conn_id="exasol_default",
+        handler=exasol_fetch_all_handler,
         sql="DROP TABLE exasol_to_s3_example;",
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -90,6 +101,7 @@ with DAG(
         test_context,
         create_s3_bucket,
         create_table_exasol,
+        insert_data_exasol,
         # TEST BODY
         exasol_to_s3_job,
         # TEST TEARDOWN
