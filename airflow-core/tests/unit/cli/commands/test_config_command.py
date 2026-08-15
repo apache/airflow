@@ -573,6 +573,13 @@ class TestConfigLint:
                 "log_filename_template",
                 "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
             ),
+            (
+                "logging",
+                "log_filename_template",
+                "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/"
+                "{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}"
+                "attempt={{ try_number }}.log",
+            ),
         ],
     )
     def test_lint_detects_shipped_conditional_removals(self, section, option, value, stdout_capture):
