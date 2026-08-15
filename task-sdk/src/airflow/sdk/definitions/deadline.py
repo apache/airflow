@@ -448,10 +448,8 @@ class VariableInterval:
         """
         Validate a raw Variable value and convert it into a ``timedelta``.
 
-        Split out from :meth:`resolve` so callers that already hold the Variable value (e.g. a
-        scheduler-side reader that must fetch it on its own session — see
-        ``DAG._process_dagrun_deadline_alerts`` — to avoid committing inside ``prohibit_commit``)
-        can reuse the exact same validation without going through ``Variable.get``.
+        Split out from :meth:`resolve` so a caller that already holds the value can reuse the
+        validation.
         """
         try:
             seconds = int(value)  # type: ignore[arg-type]  # None/non-numeric handled by the except below
