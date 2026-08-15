@@ -23,8 +23,10 @@ import pytest
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger, SageMakerTrigger
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 JOB_NAME = "job_name"
@@ -120,6 +122,91 @@ class TestSagemakerTrigger:
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "success", "job_name": JOB_NAME})
+
+    @pytest.mark.parametrize(
+        ("aws_status", "expected_status"),
+        [
+            pytest.param("Failed", "failed", id="failed"),
+            pytest.param("Stopped", "stopped", id="stopped"),
+        ],
+    )
+    def test_event_from_exception_terminal_state(self, aws_status, expected_status):
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type=JOB_TYPE,
+            waiter_delay=WAITER_DELAY,
+            waiter_max_attempts=WAITER_MAX_ATTEMPTS,
+            aws_conn_id=AWS_CONN_ID,
+        )
+        error = WaiterTerminalFailure(
+            "SageMaker job failed",
+            last_response={"TrainingJobStatus": aws_status},
+        )
+
+        response = trigger._event_from_exception(error)
+
+        assert response.payload["status"] == expected_status
+        assert response.payload["job_name"] == JOB_NAME
+
+    def test_event_from_exception_timeout(self):
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type=JOB_TYPE,
+            waiter_delay=WAITER_DELAY,
+            waiter_max_attempts=WAITER_MAX_ATTEMPTS,
+            aws_conn_id=AWS_CONN_ID,
+        )
+        error = WaiterMaxAttemptsError("Waiter error: max attempts reached")
+
+        response = trigger._event_from_exception(error)
+
+        assert response == TriggerEvent(
+            {
+                "status": "timeout",
+                "job_name": JOB_NAME,
+                "message": "Waiter error: max attempts reached",
+            }
+        )
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(
+                WaiterTerminalFailure(
+                    "SageMaker job failed",
+                    last_response={},
+                ),
+                id="missing-status",
+            ),
+            pytest.param(
+                WaiterTerminalFailure(
+                    "SageMaker job failed",
+                    last_response={"TrainingJobStatus": "Unexpected"},
+                ),
+                id="unknown-status",
+            ),
+            pytest.param(
+                AirflowException("SageMaker job failed"),
+                id="generic-error",
+            ),
+        ],
+    )
+    def test_event_from_exception_falls_back_to_error(self, error):
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type=JOB_TYPE,
+            waiter_delay=WAITER_DELAY,
+            waiter_max_attempts=WAITER_MAX_ATTEMPTS,
+            aws_conn_id=AWS_CONN_ID,
+        )
+
+        assert trigger._event_from_exception(error) == TriggerEvent(
+            {
+                "status": "error",
+                "message": "SageMaker job failed",
+                "job_name": JOB_NAME,
+            }
+        )
 
 
 class TestSagemakerPipelineTrigger:
