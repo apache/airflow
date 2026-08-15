@@ -93,6 +93,20 @@ class TestMetadataConnectionSecret:
 
         assert connection == "postgresql://someuser:somepass@somehost:7777/somedb?sslmode=require"
 
+    def test_should_correctly_use_empty_pass(self):
+        new_dict = self.non_chart_database_values.copy()
+        new_dict["pass"] = ""
+        values = {
+            "data": {
+                "metadataConnection": {
+                    **new_dict,
+                }
+            }
+        }
+        connection = self._get_connection(values)
+
+        assert connection == "postgresql://someuser@somehost:7777/somedb?sslmode=disable"
+
     def test_should_support_non_postgres_db(self):
         values = {
             "data": {
