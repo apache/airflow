@@ -94,7 +94,6 @@ def get_provider_info():
             {
                 "integration-name": "Standard",
                 "python-modules": [
-                    "airflow.providers.standard.triggers.asset",
                     "airflow.providers.standard.triggers.external_task",
                     "airflow.providers.standard.triggers.file",
                     "airflow.providers.standard.triggers.temporal",

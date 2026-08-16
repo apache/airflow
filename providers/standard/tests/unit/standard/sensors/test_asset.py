@@ -30,12 +30,9 @@ from typing import Any
 
 import pytest
 
-from airflow.providers.common.compat.sdk import Asset, AssetAlias, PokeReturnValue, TaskDeferred
-from airflow.providers.standard.exceptions import UnexpectedAssetEventTriggerEventError
+from airflow.providers.common.compat.sdk import Asset, AssetAlias, PokeReturnValue
 from airflow.providers.standard.sensors.asset import AssetEventSensor
-from airflow.providers.standard.triggers.asset import AssetEventTrigger
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
 
 pytestmark = pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="AssetEventSensor requires Airflow 3.4+")
@@ -51,7 +48,6 @@ def _ts(day: int) -> datetime:
     return datetime(2024, 1, day, tzinfo=timezone.utc)
 
 
-# top-level (importable) process_result callables, so they also work in deferrable mode
 def only_us_partitions(events: list[Any]) -> list[Any]:
     """Keep only events whose partition key targets the ``us`` region."""
     return [event for event in events if (event.partition_key or "").startswith("us|")]
@@ -67,13 +63,6 @@ def dedup_by_partition_key(events: list[Any]) -> list[Any]:
         seen.add(event.partition_key)
         out.append(event)
     return out
-
-
-class _Processor:
-    """A callable holder whose bound method cannot be serialized to an import path."""
-
-    def run(self, events: list[Any]) -> list[Any]:
-        return events
 
 
 def _partition_keys(result: Any) -> list[str | None]:
@@ -126,50 +115,6 @@ class TestInit:
             "after",
             "before",
         }
-
-    def test_deferrable_default_from_config(self):
-        # ``deferrable``'s default is bound to ``[operators] default_deferrable`` at import time, so
-        # the module has to be reloaded under the patched config to observe the new default.
-        import importlib
-
-        from airflow.providers.standard.sensors import asset as asset_module
-
-        try:
-            with conf_vars({("operators", "default_deferrable"): "True"}):
-                importlib.reload(asset_module)
-                sensor = asset_module.AssetEventSensor(task_id="s", name=ASSET_NAME)
-                assert sensor.deferrable is True
-        finally:
-            importlib.reload(asset_module)  # restore the default-config version for other tests
-
-    def test_non_deferrable_execute_delegates_to_base(self, mocker):
-        base_execute = mocker.patch(
-            "airflow.providers.standard.sensors.asset.BaseSensorOperator.execute",
-            return_value="delegated",
-        )
-        sensor = AssetEventSensor(task_id="s", name=ASSET_NAME, deferrable=False)
-        assert sensor.execute({"k": "v"}) == "delegated"
-        base_execute.assert_called_once()
-
-    def test_execute_complete_success(self):
-        sensor = AssetEventSensor(task_id="s", name="my_asset")
-        events = [{"id": 1, "partition_key": "a"}]
-        assert sensor.execute_complete({}, {"status": "success", "events": events}) == events
-
-    def test_execute_complete_failure(self):
-        sensor = AssetEventSensor(task_id="s", name="my_asset")
-        with pytest.raises(UnexpectedAssetEventTriggerEventError, match="unexpected trigger event"):
-            sensor.execute_complete({}, {"status": "boom"})
-
-    def test_execute_complete_none_event(self):
-        sensor = AssetEventSensor(task_id="s", name="my_asset")
-        with pytest.raises(UnexpectedAssetEventTriggerEventError, match="unexpected trigger event"):
-            sensor.execute_complete({})
-
-    def test_execute_complete_missing_status(self):
-        sensor = AssetEventSensor(task_id="s", name="my_asset")
-        with pytest.raises(UnexpectedAssetEventTriggerEventError, match="unexpected trigger event"):
-            sensor.execute_complete({}, {"events": []})
 
 
 @pytest.mark.db_test
@@ -326,87 +271,16 @@ class TestProcessResult:
             sensor.poke({})
 
 
-@pytest.mark.db_test
-class TestDeferrable:
-    def test_short_circuits_when_already_satisfied(self, asset_event_rows, db_supervisor_comms):
-        # Initial poke already satisfies expected_count, so execute() returns without deferring.
-        sensor = AssetEventSensor(
-            task_id="s",
-            name=ASSET_NAME,
-            process_result=only_us_partitions,
-            expected_count=3,
-            deferrable=True,
-        )
-        events = sensor.execute({})
-        assert [event["partition_key"] for event in events] == [
-            "us|2024-01-01",
-            "us|2024-01-02",
-            "us|2024-01-01",
-        ]
-
-    def test_defers_and_forwards_process_result_path(self, asset_event_rows, db_supervisor_comms):
-        # Ask for more events than exist so the initial poke fails and the sensor defers.
-        sensor = AssetEventSensor(
-            task_id="s",
-            name=ASSET_NAME,
-            partition_key="us|2024-01-01",
-            process_result=only_us_partitions,
-            expected_count=99,
-            deferrable=True,
-        )
-        with pytest.raises(TaskDeferred) as exc:
-            sensor.execute({})
-        trigger = exc.value.trigger
-        assert isinstance(trigger, AssetEventTrigger)
-        assert trigger.name == ASSET_NAME
-        assert trigger.partition_key == "us|2024-01-01"
-        assert trigger.expected_count == 99
-        assert trigger.process_result_path.endswith("test_asset.only_us_partitions")
-
-    def test_rejects_non_importable_callable(self, asset_event_rows, db_supervisor_comms):
-        # A lambda cannot be serialized to an import path for the trigger, so deferring must fail.
-        sensor = AssetEventSensor(
-            task_id="s",
-            name=ASSET_NAME,
-            expected_count=99,  # force a defer past the initial poke
-            process_result=lambda events: events,
-            deferrable=True,
-        )
-        with pytest.raises(ValueError, match="top-level importable function"):
-            sensor.execute({})
-
-    def test_rejects_bound_method_callable(self, asset_event_rows, db_supervisor_comms):
-        # A bound method resolves to ``module.Class.method`` which import_string cannot import;
-        # this must fail at defer time (not later in the triggerer).
-        sensor = AssetEventSensor(
-            task_id="s",
-            name=ASSET_NAME,
-            expected_count=99,
-            process_result=_Processor().run,
-            deferrable=True,
-        )
-        with pytest.raises(ValueError, match="not importable"):
-            sensor.execute({})
-
-    def test_forwards_poke_interval_to_trigger(self, asset_event_rows, db_supervisor_comms):
-        sensor = AssetEventSensor(
-            task_id="s", name=ASSET_NAME, expected_count=99, deferrable=True, poke_interval=42
-        )
-        with pytest.raises(TaskDeferred) as exc:
-            sensor.execute({})
-        assert exc.value.trigger.poke_interval == 42
-
-
-class TestDeferrableFilterForwarding:
-    """The regexp filter cannot run on SQLite, so verify filter -> trigger forwarding with a mock.
+class TestFilterForwarding:
+    """The regexp filter cannot run on SQLite, so verify filter forwarding with a mock.
 
     This is the one place we still patch the fetch: it lets us assert that *all* filters (including
-    ``partition_key_regexp_pattern``) are forwarded to the trigger without executing a regexp query
-    that the local SQLite backend does not support.
+    ``partition_key_regexp_pattern``) reach the fetch layer without executing a regexp query that
+    the local SQLite backend does not support.
     """
 
-    def test_forwards_all_filters_to_trigger(self, mocker):
-        mocker.patch(FETCH_PATH, return_value=[])
+    def test_forwards_all_filters_to_fetch(self, mocker):
+        fetch = mocker.patch(FETCH_PATH, return_value=[])
         sensor = AssetEventSensor(
             task_id="s",
             name=ASSET_NAME,
@@ -419,17 +293,17 @@ class TestDeferrableFilterForwarding:
             partition_key_regexp_pattern="us.*",
             extra={"region": "us"},
             expected_count=3,
-            deferrable=True,
         )
-        with pytest.raises(TaskDeferred) as exc:
-            sensor.execute({})
-        trigger = exc.value.trigger
-        assert isinstance(trigger, AssetEventTrigger)
-        assert (trigger.name, trigger.uri) == (ASSET_NAME, ASSET_URI)
-        assert (trigger.after, trigger.before) == (_ts(1), _ts(9))
-        assert trigger.ascending is False
-        assert trigger.limit == 7
-        assert trigger.partition_key == "us|2024-01-01"
-        assert trigger.partition_key_regexp_pattern == "us.*"
-        assert trigger.extra == {"region": "us"}
-        assert trigger.expected_count == 3
+        sensor.poke({})
+        assert fetch.call_args.kwargs == {
+            "name": ASSET_NAME,
+            "uri": ASSET_URI,
+            "alias_name": None,
+            "after": _ts(1),
+            "before": _ts(9),
+            "ascending": False,
+            "limit": 7,
+            "partition_key": "us|2024-01-01",
+            "partition_key_regexp_pattern": "us.*",
+            "extra": {"region": "us"},
+        }

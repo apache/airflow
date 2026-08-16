@@ -36,7 +36,7 @@ my_asset = Asset("s3://bucket/my-file.csv")
 
 # [START example_asset_event_process_result]
 def latest_event_only(events: list[Any]) -> list[Any]:
-    """Keep only the most recent event (must be a top-level importable function in deferrable mode)."""
+    """Keep only the most recent event."""
     return events[-1:]
 
 
@@ -66,13 +66,12 @@ with DAG(
     )
     # [END example_asset_event_sensor_filtered]
 
-    # [START example_asset_event_sensor_async]
-    wait_for_asset_event_async = AssetEventSensor(
-        task_id="wait_for_asset_event_async",
+    # [START example_asset_event_sensor_process_result]
+    wait_for_latest_asset_event = AssetEventSensor(
+        task_id="wait_for_latest_asset_event",
         asset=my_asset,
         process_result=latest_event_only,
-        deferrable=True,
     )
-    # [END example_asset_event_sensor_async]
+    # [END example_asset_event_sensor_process_result]
 
-    [wait_for_asset_event, wait_for_partition_events, wait_for_asset_event_async]
+    [wait_for_asset_event, wait_for_partition_events, wait_for_latest_asset_event]
