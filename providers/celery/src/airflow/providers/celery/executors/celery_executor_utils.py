@@ -254,9 +254,12 @@ def execute_workload(input: str) -> None:
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     try:
+        subprocess_logs_to_stdout = _celery_task_logs_to_stdout_override()
+        if subprocess_logs_to_stdout is None:
+            subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
         BaseExecutor.run_workload(
             workload,
-            subprocess_logs_to_stdout=_celery_task_logs_to_stdout_override(),
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
         )
     except Exception as e:
         from airflow.sdk.exceptions import TaskAlreadyRunningError

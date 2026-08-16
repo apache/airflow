@@ -292,6 +292,12 @@ The lookup order is:
     through ``execute_command`` and never reach ``supervise``, so setting either key
     has no effect there.
 
+    ``[logging] task_logs_to_stdout`` is consulted natively by Airflow core starting
+    in 3.4.0. On earlier 3.x versions this provider resolves the ``[celery]``/
+    ``[logging]`` fallback itself, so the global key still takes effect on
+    Airflow 3.0–3.3 as long as this provider version is installed — it is not
+    limited to 3.4+.
+
 .. _celery_executor:queue:
 
 Queues
