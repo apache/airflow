@@ -64,7 +64,8 @@ Post-processing results
 
 Pass a ``process_result`` callable (or a dotted import path to one) to transform, deduplicate or
 filter the fetched events **before** the count check. It receives the list of asset events and must
-return a list; the processed events are pushed to XCom.
+return a list; the processed events are pushed to XCom. It runs on every poke, so it should be
+idempotent and free of side effects.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
@@ -72,16 +73,8 @@ return a list; the processed events are pushed to XCom.
     :start-after: [START example_asset_event_process_result]
     :end-before: [END example_asset_event_process_result]
 
-Deferrable mode
----------------
-
-Set ``deferrable=True`` to run the sensor in :ref:`deferrable mode <deferring/writing>`. In this
-mode ``process_result`` runs in the triggerer, so it must be a **top-level importable function**
-(defined in an installed module, not a lambda, nested function, or bound method) and its return
-value must be JSON-serializable.
-
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
     :dedent: 4
-    :start-after: [START example_asset_event_sensor_async]
-    :end-before: [END example_asset_event_sensor_async]
+    :start-after: [START example_asset_event_sensor_process_result]
+    :end-before: [END example_asset_event_sensor_process_result]

@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Shared fixtures for the database-backed asset sensor/trigger tests.
+Shared fixtures for the database-backed asset sensor tests.
 
-The :class:`AssetEventSensor` / :class:`AssetEventTrigger` always fetch through the Task SDK
+The :class:`AssetEventSensor` always fetches through the Task SDK
 :class:`~airflow.sdk.execution_time.context.InletEventsAccessor`, which talks to
 ``SUPERVISOR_COMMS`` (normally a socket to the supervisor, which calls the execution API, which
 queries the DB). There is no supervisor in a unit test, so :class:`_DBBackedComms` replaces only
@@ -183,33 +183,3 @@ def asset_event_rows(session):
     yield events
 
     clear_db_assets()
-
-
-@pytest.fixture
-def add_asset_event(session):
-    """Return a helper that inserts (and commits) an extra asset event for ``asset_id=1``.
-
-    Useful for exercising the trigger's polling loop: insert a new matching event "between" two
-    fetches (e.g. from a patched ``asyncio.sleep``) and watch the trigger fire.
-    """
-    from airflow.models.asset import AssetEvent
-    from airflow.utils.session import create_session
-
-    def _add(*, id: int, day: int, partition_key: str | None, extra: dict[str, str] | None = None) -> None:
-        with create_session() as new_session:
-            new_session.add(
-                AssetEvent(
-                    id=id,
-                    timestamp=event_timestamp(day),
-                    partition_key=partition_key,
-                    extra=extra or {},
-                    asset_id=1,
-                    source_dag_id="producer",
-                    source_task_id="emit",
-                    source_run_id="run_1",
-                    source_map_index=-1,
-                )
-            )
-            new_session.commit()
-
-    return _add

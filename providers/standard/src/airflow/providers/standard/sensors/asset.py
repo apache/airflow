@@ -24,14 +24,6 @@ from airflow.providers.common.compat.sdk import (
     AssetAlias,
     BaseSensorOperator,
     PokeReturnValue,
-    conf,
-)
-from airflow.providers.standard.exceptions import UnexpectedAssetEventTriggerEventError
-from airflow.providers.standard.triggers.asset import (
-    AssetEventTrigger,
-    _count_satisfied,
-    _fetch_asset_events,
-    _serialize_events,
 )
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_4_PLUS
 
@@ -40,6 +32,69 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.providers.common.compat.sdk import Context
+
+
+def _count_satisfied(count: int, expected_count: int) -> bool:
+    """
+    Return whether the number of (processed) asset events satisfies the expectation.
+
+    ``expected_count == -1`` means "at least one" (``count >= 1``); any other value
+    requires an exact match (``count == expected_count``).
+    """
+    if expected_count == -1:
+        return count >= 1
+    return count == expected_count
+
+
+def _fetch_asset_events(
+    *,
+    name: str | None,
+    uri: str | None,
+    alias_name: str | None,
+    after: datetime | str | None,
+    before: datetime | str | None,
+    ascending: bool,
+    limit: int | None,
+    partition_key: str | None,
+    partition_key_regexp_pattern: str | None,
+    extra: dict[str, str] | None,
+) -> list[Any]:
+    """
+    Fetch asset events matching the given filters.
+
+    This uses the Task SDK :class:`InletEventsAccessor`, which lazily fetches events from
+    the supervisor, so it can only run where the execution API is available (i.e. on a worker).
+    """
+    from airflow.sdk.execution_time.context import InletEventsAccessor
+
+    accessor = InletEventsAccessor(asset_name=name, asset_uri=uri, alias_name=alias_name)
+    if after is not None:
+        accessor.after(after if isinstance(after, str) else after.isoformat())
+    if before is not None:
+        accessor.before(before if isinstance(before, str) else before.isoformat())
+    accessor.ascending(ascending)
+    if limit is not None:
+        accessor.limit(limit)
+    if partition_key is not None:
+        accessor.partition_key(partition_key)
+    if partition_key_regexp_pattern is not None:
+        accessor.partition_key_regexp_pattern(partition_key_regexp_pattern)
+    if extra:
+        for key, value in extra.items():
+            accessor.extra(key, value)
+    return list(accessor)
+
+
+def _serialize_events(events: list[Any]) -> list[Any]:
+    """Serialize a list of (processed) asset events to JSON-safe values."""
+    serialized: list[Any] = []
+    for event in events:
+        model_dump = getattr(event, "model_dump", None)
+        if callable(model_dump):
+            serialized.append(model_dump(mode="json"))
+        else:
+            serialized.append(event)
+    return serialized
 
 
 class AssetEventSensor(BaseSensorOperator):
@@ -71,14 +126,9 @@ class AssetEventSensor(BaseSensorOperator):
         the condition can never be satisfied (the sensor will wait until it times out).
     :param process_result: A callable (or a dotted import path to one) applied to the fetched
         events before the count check, to transform, deduplicate or filter them. It receives the
-        list of asset events and must return a list. In ``deferrable`` mode it must be a top-level
-        importable function (not a lambda, nested function, or bound method) that lives in a module
-        installed on the triggerer -- a function defined in a DAG file will import on the worker but
-        typically fail to import in the triggerer process. Its return value must be JSON-serializable,
-        because it runs in the triggerer and its result is returned via the trigger event. It should
-        be **idempotent / side-effect free**: in deferrable mode it runs once during the initial
-        synchronous poke and again on every fetch in the triggerer.
-    :param deferrable: Run the sensor in deferrable mode.
+        list of asset events and must return a list. It runs on every poke, so it should be
+        **idempotent / side-effect free**, and its return value must be JSON-serializable to be
+        pushed to XCom.
     """
 
     template_fields: Sequence[str] = (
@@ -108,7 +158,6 @@ class AssetEventSensor(BaseSensorOperator):
         extra: dict[str, str] | None = None,
         expected_count: int = -1,
         process_result: Callable[[list[Any]], list[Any]] | str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -125,7 +174,7 @@ class AssetEventSensor(BaseSensorOperator):
                 uri = asset.uri
             else:
                 raise TypeError(f"`asset` must be an Asset or AssetAlias, got {type(asset).__name__}")
-        if not (name or uri or alias_name):
+        if name is None and uri is None and alias_name is None:
             raise ValueError("One of `asset`, `name`, `uri`, or `alias_name` must be provided.")
         if expected_count < -1:
             raise ValueError(
@@ -144,43 +193,12 @@ class AssetEventSensor(BaseSensorOperator):
         self.extra = extra
         self.expected_count = expected_count
         self.process_result = process_result
-        self.deferrable = deferrable
 
     def _apply_process_result(self, events: list[Any]) -> list[Any]:
         if self.process_result is None:
             return events
         func = self.process_result if callable(self.process_result) else import_string(self.process_result)
         return func(events)
-
-    def _resolve_process_result_path(self) -> str | None:
-        """Resolve ``process_result`` to a dotted import path for use in the trigger."""
-        if self.process_result is None:
-            return None
-        if isinstance(self.process_result, str):
-            path = self.process_result
-        else:
-            func = self.process_result
-            module = getattr(func, "__module__", "")
-            qualname = getattr(func, "__qualname__", "")
-            if not module or not qualname or "<" in qualname:
-                raise ValueError(
-                    "In deferrable mode, `process_result` must be a top-level importable function "
-                    "(or a dotted import path string), not a lambda or a nested/local function."
-                )
-            path = f"{module}.{qualname}"
-        # Fail fast at defer time rather than in the triggerer: e.g. a bound method resolves to
-        # ``module.Class.method`` which ``import_string`` cannot import. This validates importability
-        # on the *worker*; the callable must also live in a module installed on the triggerer (a
-        # function defined in a DAG file may import here yet fail there).
-        try:
-            import_string(path)
-        except Exception as exc:
-            raise ValueError(
-                "In deferrable mode, `process_result` must be importable by a dotted path, but the "
-                f"resolved path {path!r} is not importable ({exc}). Pass a top-level function "
-                "(defined in an installed module, not a DAG file) or an explicit import-path string."
-            ) from exc
-        return path
 
     def poke(self, context: Context) -> PokeReturnValue:
         events = _fetch_asset_events(
@@ -205,40 +223,3 @@ class AssetEventSensor(BaseSensorOperator):
             "condition met" if done else "still waiting",
         )
         return PokeReturnValue(is_done=done, xcom_value=_serialize_events(processed) if done else None)
-
-    def execute(self, context: Context) -> Any:
-        if not self.deferrable:
-            return super().execute(context=context)
-
-        # Deferrable path: do an initial synchronous check to avoid deferring needlessly.
-        poke_result = self.poke(context)
-        if poke_result:
-            return poke_result.xcom_value if isinstance(poke_result, PokeReturnValue) else None
-
-        self.defer(
-            trigger=AssetEventTrigger(
-                name=self.name,
-                uri=self.uri,
-                alias_name=self.alias_name,
-                after=self.after,
-                before=self.before,
-                ascending=self.ascending,
-                limit=self.limit,
-                partition_key=self.partition_key,
-                partition_key_regexp_pattern=self.partition_key_regexp_pattern,
-                extra=self.extra,
-                expected_count=self.expected_count,
-                process_result_path=self._resolve_process_result_path(),
-                poke_interval=self.poke_interval,
-            ),
-            method_name="execute_complete",
-            timeout=self.timeout,
-        )
-
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
-        """Return the processed events once the trigger fires successfully."""
-        if event and event.get("status") == "success":
-            return event.get("events")
-        raise UnexpectedAssetEventTriggerEventError(
-            f"AssetEventSensor received an unexpected trigger event: {event}"
-        )
