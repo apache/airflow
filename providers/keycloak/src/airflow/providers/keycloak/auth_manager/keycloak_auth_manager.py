@@ -64,6 +64,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -139,13 +140,24 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
         return KeycloakAuthManagerUser(
-            user_id=token["user_id"], name=token["name"], access_token="", refresh_token=None
+            user_id=token["user_id"],
+            name=token["name"],
+            access_token=token.get("access_token", ""),
+            refresh_token=token.get("refresh_token"),
         )
 
     def serialize_user(self, user: KeycloakAuthManagerUser) -> dict[str, Any]:
+        if AIRFLOW_V_3_3_PLUS:
+            # Omit Keycloak JWTs from claims, they are stored in separate cookies
+            return {
+                "user_id": user.get_id(),
+                "name": user.get_name(),
+            }
         return {
             "user_id": user.get_id(),
             "name": user.get_name(),
+            "access_token": user.access_token,
+            "refresh_token": user.refresh_token,
         }
 
     async def get_user_from_token(
@@ -159,6 +171,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         :param refresh_token: Keycloak refresh JWT
         """
         user = cast("KeycloakAuthManagerUser", await super().get_user_from_token(token))
+        if not AIRFLOW_V_3_3_PLUS:
+            return user
         if access_token:
             user.access_token = access_token
             user.refresh_token = refresh_token

@@ -3335,6 +3335,39 @@ class TestDagFileProcessorManager:
 
         bundle.refresh.assert_not_called()
 
+    def test_refresh_dag_bundles_initialize_non_airflow_exception_skips_bundle(self):
+        """
+        A bundle whose initialize() raises a non AirflowException must be skipped, not
+        left to propagate and abort refresh for every other bundle.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        failing_bundle = self._make_refresh_bundle()
+        failing_bundle.name = "failing_bundle"
+        failing_bundle.is_initialized = False
+        failing_bundle.initialize.side_effect = FileNotFoundError("Repository path not found")
+
+        healthy_bundle = self._make_refresh_bundle()
+        healthy_bundle.name = "healthy_bundle"
+
+        manager._dag_bundles = [failing_bundle, healthy_bundle]
+        manager._force_refresh_bundles = set()
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        healthy_bundle.refresh.assert_called_once()
+
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.
 

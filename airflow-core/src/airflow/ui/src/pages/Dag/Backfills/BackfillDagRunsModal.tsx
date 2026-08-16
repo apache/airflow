@@ -209,7 +209,6 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
             isLoading={isBackfillLoading || isLoading}
             modelName="common:slot"
             onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
-            showRowCountHeading
             total={data?.total_entries ?? 0}
           />
         </Dialog.Body>

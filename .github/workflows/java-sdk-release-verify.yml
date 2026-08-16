@@ -93,14 +93,22 @@ jobs:
       - name: Build the source tarball from the ref (project's wrapper)
         working-directory: java-sdk
         run: ./gradlew --no-daemon sourceTarball checksumSourceTarball -PgitRef="${RELEASE_REF}"
-      - name: Install the latest Gradle to bootstrap a new wrapper for the source extracted from the tarball
+      # Bootstrap with the Gradle version the wrapper pins, not the latest release. buildSrc
+      # applies `org.gradle.kotlin.kotlin-dsl`, whose version is the one embedded in the
+      # running Gradle, and only the pinned version's is recorded in verification-metadata.xml.
+      # The checksum comes from the committed wrapper properties rather than from the server
+      # serving the archive.
+      - name: Install the pinned Gradle to bootstrap a new wrapper for the source extracted from the tarball
         run: |
           set -euo pipefail
-          meta=$(curl -fsSL https://services.gradle.org/versions/current)
-          ver=$(echo "$meta" | jq -r .version)
-          url=$(echo "$meta" | jq -r .downloadUrl)
-          sum=$(curl -fsSL "$(echo "$meta" | jq -r .checksumUrl)")
-          curl -fsSL -o /tmp/gradle.zip "$url"
+          props=java-sdk/gradle/wrapper/gradle-wrapper.properties
+          ver=$(sed -n 's#^distributionUrl=.*/gradle-\(.*\)-bin\.zip$#\1#p' "$props")
+          sum=$(sed -n 's#^distributionSha256Sum=\(.*\)$#\1#p' "$props")
+          if [ -z "$ver" ] || [ -z "$sum" ]; then
+            echo "ERROR: could not read Gradle version/sha256 from $props" >&2
+            exit 1
+          fi
+          curl -fsSL -o /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-${ver}-bin.zip"
           echo "${sum}  /tmp/gradle.zip" | sha256sum -c -
           unzip -q -d "$HOME/gradle" /tmp/gradle.zip
           echo "$HOME/gradle/gradle-${ver}/bin" >> "$GITHUB_PATH"
@@ -143,14 +151,22 @@ jobs:
           mkdir -p staged
           curl -fsSL -o "staged/${file}" "${base}/${file}"
           curl -fsSL -o "staged/${file}.sha512" "${base}/${file}.sha512"
-      - name: Install the latest Gradle to bootstrap a new wrapper for the source extracted from the tarball
+      # Bootstrap with the Gradle version the wrapper pins, not the latest release. buildSrc
+      # applies `org.gradle.kotlin.kotlin-dsl`, whose version is the one embedded in the
+      # running Gradle, and only the pinned version's is recorded in verification-metadata.xml.
+      # The checksum comes from the committed wrapper properties rather than from the server
+      # serving the archive.
+      - name: Install the pinned Gradle to bootstrap a new wrapper for the source extracted from the tarball
         run: |
           set -euo pipefail
-          meta=$(curl -fsSL https://services.gradle.org/versions/current)
-          ver=$(echo "$meta" | jq -r .version)
-          url=$(echo "$meta" | jq -r .downloadUrl)
-          sum=$(curl -fsSL "$(echo "$meta" | jq -r .checksumUrl)")
-          curl -fsSL -o /tmp/gradle.zip "$url"
+          props=java-sdk/gradle/wrapper/gradle-wrapper.properties
+          ver=$(sed -n 's#^distributionUrl=.*/gradle-\(.*\)-bin\.zip$#\1#p' "$props")
+          sum=$(sed -n 's#^distributionSha256Sum=\(.*\)$#\1#p' "$props")
+          if [ -z "$ver" ] || [ -z "$sum" ]; then
+            echo "ERROR: could not read Gradle version/sha256 from $props" >&2
+            exit 1
+          fi
+          curl -fsSL -o /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-${ver}-bin.zip"
           echo "${sum}  /tmp/gradle.zip" | sha256sum -c -
           unzip -q -d "$HOME/gradle" /tmp/gradle.zip
           echo "$HOME/gradle/gradle-${ver}/bin" >> "$GITHUB_PATH"
