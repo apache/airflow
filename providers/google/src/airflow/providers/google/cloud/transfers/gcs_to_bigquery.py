@@ -164,21 +164,10 @@ class GCSToBigQueryOperator(BaseOperator):
         by one or more columns. BigQuery supports clustering for both partitioned and
         non-partitioned tables. The order of columns given determines the sort order.
         Not applicable for external tables.
-    :param autodetect: [Optional] Indicates whether the options and schema should be inferred
-        from the source data for CSV and JSON sources. (Default: ``True``). This parameter is
-        three-state:
-
-        * ``True`` - infer the schema from the source files. The inferred schema is sent to
-          BigQuery as the load job's schema, so ``ignore_unknown_values`` has no effect: no field
-          in the source data can be unknown to a schema derived from that same data. If the
-          destination table already exists and the inferred schema differs from it, the load
-          fails with a schema mismatch unless ``schema_update_options`` permits the change.
-        * ``False`` - do not infer the schema. One of ``schema_fields`` or ``schema_object``
-          must be provided, otherwise an exception is raised.
-        * ``None`` - neither infer a schema nor supply one, so the destination table's own
-          schema is used. The table must already exist. This is the setting to use when you want
-          ``ignore_unknown_values`` to drop fields that are present in the source data but absent
-          from the destination table.
+    :param autodetect: [Optional] Whether to infer the schema from the source data for CSV and
+        JSON sources. If ``True``, the schema is inferred from the source data. If ``False``,
+        either ``schema_fields`` or ``schema_object`` must be provided. If ``None``, no schema is
+        supplied and the existing destination table's schema is used. (Default: ``True``).
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
 
         .. code-block:: python
@@ -649,23 +638,6 @@ class GCSToBigQueryOperator(BaseOperator):
         self.log.info("External table created successfully: %s", self.destination_project_dataset_table)
         return table_obj_api_repr
 
-    def _warn_if_ignore_unknown_values_is_ineffective(self) -> None:
-        # Checked against the assembled load config rather than the operator attributes, because
-        # src_fmt_configs and extra_config can still override any of these three keys.
-        load_config = self.configuration["load"]
-        if (
-            load_config.get("autodetect")
-            and load_config.get("ignoreUnknownValues")
-            and "schema" not in load_config
-        ):
-            self.log.warning(
-                "`ignore_unknown_values` is set but will have no effect. With `autodetect` enabled "
-                "and no schema supplied, the load job's schema is inferred from the source data "
-                "itself, so no source field can be unknown to it. To drop source fields that are "
-                "absent from an existing destination table, set `autodetect=None` so that the "
-                "destination table's own schema is used instead."
-            )
-
     def _use_existing_table(self):
         destination_project_id, destination_dataset, destination_table = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
@@ -793,7 +765,19 @@ class GCSToBigQueryOperator(BaseOperator):
         if self.extra_config:
             self.configuration["load"].update(self.extra_config)
 
-        self._warn_if_ignore_unknown_values_is_ineffective()
+        # Checked against the assembled load config rather than the operator attributes, because
+        # src_fmt_configs and extra_config can still override any of these three keys.
+        load_config = self.configuration["load"]
+        if (
+            load_config.get("autodetect")
+            and load_config.get("ignoreUnknownValues")
+            and "schema" not in load_config
+        ):
+            self.log.warning(
+                "`ignore_unknown_values` has no effect when `autodetect=True` and no schema is "
+                "provided. Set `autodetect=None` to use the existing destination table's schema "
+                "instead."
+            )
 
         return self.configuration
 

@@ -97,13 +97,6 @@ hash_ = "hash"
 REAL_JOB_ID = f"{job_id}_{hash_}"
 
 GCS_TO_BQ_PATH = "airflow.providers.google.cloud.transfers.gcs_to_bigquery.{}"
-IGNORE_UNKNOWN_VALUES_WARNING = (
-    "`ignore_unknown_values` is set but will have no effect. With `autodetect` enabled "
-    "and no schema supplied, the load job's schema is inferred from the source data "
-    "itself, so no source field can be unknown to it. To drop source fields that are "
-    "absent from an existing destination table, set `autodetect=None` so that the "
-    "destination table's own schema is used instead."
-)
 
 
 class TestGCSToBigQueryOperator:
@@ -2138,6 +2131,11 @@ class TestGCSToBigQueryOperator:
             pytest.param({"ignore_unknown_values": True, "autodetect": True}, True, id="autodetect_true"),
             pytest.param({"ignore_unknown_values": True, "autodetect": None}, False, id="autodetect_none"),
             pytest.param(
+                {"ignore_unknown_values": True, "autodetect": False, "schema_fields": SCHEMA_FIELDS},
+                False,
+                id="autodetect_false",
+            ),
+            pytest.param(
                 {"ignore_unknown_values": True, "schema_fields": SCHEMA_FIELDS},
                 False,
                 id="schema_fields_supplied",
@@ -2182,9 +2180,35 @@ class TestGCSToBigQueryOperator:
         with mock.patch.object(operator.log, "warning") as mock_warning:
             operator.execute(context=MagicMock())
 
-        assert mock_warning.call_args_list.count(call(IGNORE_UNKNOWN_VALUES_WARNING)) == (
-            1 if expects_warning else 0
+        if expects_warning:
+            mock_warning.assert_called_once()
+        else:
+            mock_warning.assert_not_called()
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_ignore_unknown_values_no_op_warning_names_the_fix(self, bq_hook):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            ignore_unknown_values=True,
         )
+
+        with mock.patch.object(operator.log, "warning") as mock_warning:
+            operator.execute(context=MagicMock())
+
+        mock_warning.assert_called_once()
+        assert "autodetect=None" in mock_warning.call_args.args[0]
 
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
@@ -2212,7 +2236,7 @@ class TestGCSToBigQueryOperator:
         with mock.patch.object(operator.log, "warning") as mock_warning:
             operator.execute(context=MagicMock())
 
-        assert call(IGNORE_UNKNOWN_VALUES_WARNING) not in mock_warning.call_args_list
+        mock_warning.assert_not_called()
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_no_ignore_unknown_values_warning_for_external_table(self, bq_hook):
@@ -2233,7 +2257,7 @@ class TestGCSToBigQueryOperator:
         with mock.patch.object(operator.log, "warning") as mock_warning:
             operator.execute(context=MagicMock())
 
-        assert call(IGNORE_UNKNOWN_VALUES_WARNING) not in mock_warning.call_args_list
+        mock_warning.assert_not_called()
 
 
 @pytest.fixture
