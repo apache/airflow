@@ -24,10 +24,6 @@ import time
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
-from islo import Islo
-from islo.core.api_error import ApiError
-from islo.errors import NotFoundError
-
 from airflow.providers.common.ai.sandbox.base import (
     SandboxBackend,
     SandboxError,
@@ -41,6 +37,9 @@ from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from islo import Islo
+    from islo.errors import NotFoundError
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
 
@@ -81,10 +80,16 @@ def _translate_islo_errors(operation: str) -> Iterator[None]:
         yield
     except SandboxError:
         raise
-    except ApiError as e:
-        status = f" (HTTP {e.status_code})" if e.status_code is not None else ""
-        raise SandboxTerminalError(f"Islo could not {operation}{status}.") from e
     except Exception as e:
+        try:
+            from islo.core.api_error import ApiError
+        except ImportError:
+            raise SandboxTerminalError(
+                'The Islo SDK is not installed. Install "apache-airflow-providers-common-ai[sandbox-islo]".'
+            ) from e
+        if isinstance(e, ApiError):
+            status = f" (HTTP {e.status_code})" if e.status_code is not None else ""
+            raise SandboxTerminalError(f"Islo could not {operation}{status}.") from e
         raise SandboxTerminalError(f"Islo could not {operation}: {type(e).__name__}.") from e
 
 
@@ -107,7 +112,7 @@ class IsloSandboxBackend(SandboxBackend):
     """
     Sandbox backend that runs agent commands in an `islo.dev <https://islo.dev>`__ microVM.
 
-    Islo is a hosted API with no local daemon or host-virtualisation requirement,
+    Islo is a hosted API with no local daemon or host-virtualization requirement,
     so this backend works from an Airflow worker running in a container.
     Credentials resolve lazily from an Airflow connection on first use.
 
@@ -158,6 +163,8 @@ class IsloSandboxBackend(SandboxBackend):
         if self._client is not None:
             return self._client
         with _translate_islo_errors("initialize its client"):
+            from islo import Islo
+
             if self._islo_conn_id is None:
                 self._client = Islo()
                 return self._client
@@ -193,27 +200,27 @@ class IsloSandboxBackend(SandboxBackend):
         return options
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
-        from islo.types import LifecyclePolicy
-
         if spec is not None and spec.allow_egress_to:
             raise SandboxTerminalError(
                 "The Islo backend cannot apply a per-domain egress allowlist; it can only turn "
                 "outbound access on or off. Drop allow_egress_to, or use a backend with "
                 "per-domain network rules."
             )
-        kwargs: dict[str, Any] = {
-            "internet_enabled": False if spec is None else not spec.block_network,
-            "lifecycle": LifecyclePolicy(delete_after=self._delete_after),
-        }
-        if self._image is not None:
-            kwargs["image"] = self._image
-        if self._vcpus is not None:
-            kwargs["vcpus"] = self._vcpus
-        if self._memory_mb is not None:
-            kwargs["memory_mb"] = self._memory_mb
-        if spec is not None and spec.env:
-            kwargs["env"] = dict(spec.env)
         with _translate_islo_errors("create a sandbox"):
+            from islo.types import LifecyclePolicy
+
+            kwargs: dict[str, Any] = {
+                "internet_enabled": False if spec is None else not spec.block_network,
+                "lifecycle": LifecyclePolicy(delete_after=self._delete_after),
+            }
+            if self._image is not None:
+                kwargs["image"] = self._image
+            if self._vcpus is not None:
+                kwargs["vcpus"] = self._vcpus
+            if self._memory_mb is not None:
+                kwargs["memory_mb"] = self._memory_mb
+            if spec is not None and spec.env:
+                kwargs["env"] = dict(spec.env)
             sandbox = self._get_client().sandboxes.create_sandbox(
                 name=_new_sandbox_name(),
                 request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
@@ -312,10 +319,13 @@ class IsloSandboxBackend(SandboxBackend):
 
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         _validate_positive_finite(max_bytes, "max_bytes")
+        client = self._get_client()
+        from islo.errors import NotFoundError
+
         chunks = None
         data = bytearray()
         try:
-            chunks = self._get_client().sandboxes.download_file(
+            chunks = client.sandboxes.download_file(
                 sandbox,
                 path=path,
                 request_options=self._request_options(
@@ -372,8 +382,11 @@ class IsloSandboxBackend(SandboxBackend):
         return entries
 
     def destroy(self, sandbox: str) -> None:
+        client = self._get_client()
+        from islo.errors import NotFoundError
+
         try:
-            self._get_client().sandboxes.delete_sandbox(
+            client.sandboxes.delete_sandbox(
                 sandbox_name=sandbox,
                 request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
             )
