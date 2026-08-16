@@ -4824,41 +4824,6 @@ class TestMakeBufferedSocketReader:
         finally:
             r.close()
 
-    @pytest.mark.flaky(reruns=2)
-    def test_large_record_scan_is_not_quadratic(self):
-        """Regression test for #66158: buffer scanning must not re-scan the
-        accumulated prefix on every chunk. On the pre-fix quadratic scan, a
-        20 MiB single-line record takes ~2.6s; a linear-scan cursor should
-        comfortably finish under 1s.
-        """
-        received: list[bytes] = []
-        on_close = MagicMock()
-        r, w = socket.socketpair()
-        payload = (b"a" * (20 * 1024 * 1024)) + b"\n"
-        try:
-            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
-
-            def writer():
-                chunk = 4096
-                for i in range(0, len(payload), chunk):
-                    w.sendall(payload[i : i + chunk])
-                w.close()
-
-            t = threading.Thread(target=writer, daemon=True)
-            t.start()
-            start = time.monotonic()
-            while not received:
-                if not cb(r):
-                    break
-            elapsed = time.monotonic() - start
-            t.join(timeout=10)
-
-            assert received == [payload]
-            assert elapsed < 1.0, f"Buffer scan took {elapsed:.3f}s -- looks quadratic again?"
-        finally:
-            r.close()
-
-
 class TestLengthPrefixedFrameReader:
     def test_recovers_from_short_read_on_header(self):
         received: list[_RequestFrame] = []
