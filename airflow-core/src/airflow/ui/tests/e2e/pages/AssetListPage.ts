@@ -17,6 +17,7 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 import { BasePage } from "./BasePage";
 
@@ -34,7 +35,7 @@ export class AssetListPage extends BasePage {
       name: /\d+\s+asset/i,
     });
     this.table = page.getByTestId("table-list");
-    this.rows = this.table.locator("tbody tr").filter({
+    this.rows = this.table.locator(DATA_ROWS).filter({
       has: page.locator("td"),
     });
 

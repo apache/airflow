@@ -207,18 +207,18 @@ class TestSerializedDagModel:
         assert dag_updated is True
 
     def test_serialization_metric_incremented_on_new_write(self, testing_dag_bundle):
-        """A brand new serialized DAG write emits the ``dag.serialization_writes`` metric."""
+        """A brand new serialized DAG write emits the ``dag.serialization.version_created`` metric."""
         dag = make_example_dags(example_dags_module).get("example_params_trigger_ui")
         with mock.patch(self.SERIALIZED_DAG_STATS) as mock_stats:
             assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is True
 
         mock_stats.incr.assert_called_once_with(
-            "dag.serialization_writes",
+            "dag.serialization.version_created",
             tags={"dag_id": dag.dag_id, "bundle_name": self.TEST_BUNDLE_NAME},
         )
 
     def test_serialization_metric_not_incremented_when_unchanged(self, testing_dag_bundle):
-        """Re-writing an unchanged DAG must not emit the ``dag.serialization_writes`` metric."""
+        """Re-writing an unchanged DAG must not emit any serialization metric."""
         dag = make_example_dags(example_dags_module).get("example_params_trigger_ui")
         assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is True
 
@@ -241,7 +241,7 @@ class TestSerializedDagModel:
 
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
         mock_stats.incr.assert_called_once_with(
-            "dag.serialization_writes",
+            "dag.serialization.version_updated",
             tags={"dag_id": "metric_dag", "bundle_name": self.TEST_BUNDLE_NAME},
         )
 
@@ -257,14 +257,14 @@ class TestSerializedDagModel:
 
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
         mock_stats.incr.assert_called_once_with(
-            "dag.serialization_writes",
+            "dag.serialization.version_created",
             tags={"dag_id": "metric_dag", "bundle_name": self.TEST_BUNDLE_NAME},
         )
 
     @mock.patch("airflow._shared.observability.metrics.stats._export_legacy_names", True)
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_serialization_metric_exports_new_and_legacy_names(self, mock_get_backend, testing_dag_bundle):
-        """Serializing a DAG emits both the modern ``dag.serialization_writes`` metric and its legacy name."""
+        """Serializing a DAG emits both the tagged serialization metric and its legacy name."""
         mock_backend = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_backend
         dag = make_example_dags(example_dags_module).get("example_params_trigger_ui")
@@ -273,9 +273,9 @@ class TestSerializedDagModel:
 
         mock_backend.incr.assert_has_calls(
             [
-                mock.call(f"dag.serialization_writes.{dag.dag_id}.{self.TEST_BUNDLE_NAME}"),
+                mock.call(f"dag.serialization.version_created.{dag.dag_id}.{self.TEST_BUNDLE_NAME}"),
                 mock.call(
-                    "dag.serialization_writes",
+                    "dag.serialization.version_created",
                     tags={"dag_id": dag.dag_id, "bundle_name": self.TEST_BUNDLE_NAME},
                 ),
             ]

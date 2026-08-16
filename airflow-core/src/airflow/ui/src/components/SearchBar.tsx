@@ -112,7 +112,9 @@ export const SearchBar = ({
       <Input
         data-testid="search-dags"
         onChange={onSearchChange}
-        placeholder={`${placeholder}${hotkeyDisabled ? undefined : ` (${metaKey}${translate("search.hotkey")})`}`}
+        placeholder={
+          hotkeyDisabled ? placeholder : `${placeholder} (${metaKey}${translate("search.hotkey")})`
+        }
         ref={searchRef}
         value={value}
       />
