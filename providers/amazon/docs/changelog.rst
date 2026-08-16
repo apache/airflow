@@ -26,6 +26,17 @@
 Changelog
 ---------
 
+.. warning::
+  On Airflow 3.3+, ``GlueJobOperator``'s ``durable`` parameter now defaults to ``True``: the Glue
+  job run id is persisted to task state store, and a worker crash on retry reconnects to the
+  existing run instead of starting a duplicate. Pass ``durable=False`` to restore the previous
+  behavior of always starting a fresh run on retry.
+
+  On Airflow versions below 3.3, ``durable`` still defaults to ``False`` -- upgrading the provider
+  alone does not change behavior there. Set ``durable=True`` explicitly (or the now-deprecated
+  ``resume_glue_job_on_retry=True``) to opt in to the same reconnect behavior via an older,
+  scan-based mechanism.
+
 9.34.0
 ......
 
@@ -52,11 +63,11 @@ Bug Fixes
 * ``Strip GlueDataQualityOperator ruleset after rendering (#70331)``
 * ``Move template-field validation/transformation out of init for Amazon Bedrock operators (#70306)``
 * ``Move template-field validation out of init for Amazon DataSync operator (#70324)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Keep S3DeleteObjectsOperator validation in __init__, narrow to ValueError (#70359)``
 * ``Rename StepFunctionStartExecutionOperator's input field to match its constructor argument (#70544)``
 * ``Fix mypy arg-type error in Redshift Data get_primary_keys (#70677)``
@@ -77,6 +88,10 @@ Doc-only
    * ``Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#70705)``
    * ``Wait for vector index to stabilize in 'example_bedrock_retrieve_and_generate' (#70649)``
    * ``Fix flaky Glue OpenLineage test that calls the real AWS endpoint (#70500)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+   * ``Add support for pandas 3 based xcoms in airflow (#71103)``
+   * ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
 
 9.33.0
 ......
@@ -1324,7 +1339,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 9.3.0
 .....

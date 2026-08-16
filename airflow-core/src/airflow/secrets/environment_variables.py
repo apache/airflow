@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 
+from airflow.configuration import conf
 from airflow.secrets import BaseSecretsBackend
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
@@ -34,10 +35,20 @@ TEAM_SEP = "___"
 class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
+    @staticmethod
+    def _names_a_team_namespace(secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` spells out a team scoped secret name.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no
+        team scoped variable can exist to collide with.
+        """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
+        return TEAM_SEP in secret_id
+
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
-        if TEAM_SEP in conn_id:
-            # An id containing the separator could collide with another team's namespace
-            # even on the scoped lookup below, so it must be refused before either runs.
+        if self._names_a_team_namespace(conn_id):
             return None
 
         if team_name and (
@@ -56,8 +67,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        if TEAM_SEP in key:
-            # Same collision risk as get_conn_value, see its code comment.
+        if self._names_a_team_namespace(key):
             return None
 
         if team_name and (

@@ -152,7 +152,7 @@ class _YarnSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     def submit_job(self, context: Context) -> str | None:
         if self.hook._conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
             raise ValueError(
-                "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts"
+                "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts "
                 "with the need to exit spark-submit immediately to persist the application ID for tracking. "
                 "Either remove the explicit conf or set durable=False."
             )
@@ -400,6 +400,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
         reconnect_on_retry: bool | None = None,
+        durable: bool | None = None,
         **kwargs: Any,
     ) -> None:
         if reconnect_on_retry is not None:
@@ -409,6 +410,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 stacklevel=2,
             )
             kwargs.setdefault("durable", reconnect_on_retry)
+        # Named here (not left to **kwargs) so default_args={"durable": ...} reaches it on every
+        # supported Airflow version; applied after reconnect_on_retry so an explicit durable wins.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.application = application
         self.conf = conf
