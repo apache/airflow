@@ -29,6 +29,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import make_url
 
 import airflow
+from airflow import settings
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
@@ -36,7 +37,30 @@ from airflow.providers.fab.www.extensions.init_session import init_airflow_sessi
 from airflow.providers.fab.www.extensions.init_views import init_plugins
 
 if TYPE_CHECKING:
+    from flask.sansio.app import App
+
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
+
+
+class _AirflowFlaskSQLAlchemy(SQLAlchemy):
+    """
+    Flask-SQLAlchemy extension whose engine is created via Airflow's engine hook.
+
+    Flask-SQLAlchemy normally builds its own Engine straight from
+    SQLALCHEMY_DATABASE_URI, bypassing airflow.settings.create_metadata_engine.
+    That means an override in airflow_local_settings.py (e.g. an IAM/token
+    do_connect listener) never gets applied to this engine. Route engine
+    creation through the same hook Airflow's own metadata engine uses.
+    """
+
+    def _make_engine(self, bind_key: str | None, options: dict, app: App):
+        if bind_key is not None:
+            return super()._make_engine(bind_key, options, app)
+        return settings.create_metadata_engine(
+            settings.SQL_ALCHEMY_CONN,
+            engine_args=settings.prepare_engine_args(),
+            connect_args=settings._get_connect_args("sync"),
+        )
 
 
 @cache
@@ -65,6 +89,6 @@ def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
             )
         flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-        db = SQLAlchemy(flask_app)
+        db = _AirflowFlaskSQLAlchemy(flask_app)
         yield _return_appbuilder(flask_app, db)
         db.engine.dispose(close=True)
