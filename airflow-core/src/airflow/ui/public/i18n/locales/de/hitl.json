@@ -24,6 +24,20 @@
     "success": "{{taskId}} Interaktion erfolgreich",
     "title": "Erforderliche Interaktion - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Wählen Sie eine erforderliche Aktion aus, um Details anzuzeigen"
+    },
+    "list": {
+      "completedRequiredActions": "Abgeschlossene erforderliche Aktionen ({{count}})",
+      "loadError": "Erforderliche Aktionen konnten nicht geladen werden",
+      "loadingActions": "Erforderliche Aktionen werden geladen ...",
+      "pendingRequiredActions": "Ausstehende erforderliche Aktionen ({{count}})"
+    },
+    "openReviewDrawer": "Prüfbereich öffnen",
+    "pageLimitHint": "Hier werden nur die ersten Aktionen angezeigt. Verwenden Sie \"$t(review.viewAll)\", um alle anzuzeigen.",
+    "viewAll": "Alle erforderlichen Aktionen anzeigen"
+  },
   "state": {
     "approvalReceived": "Genehmigung erhalten",
     "approvalRequired": "Genehmigung erforderlich",

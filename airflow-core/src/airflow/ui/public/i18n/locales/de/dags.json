@@ -10,17 +10,21 @@
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
+    "anyRunState": "Beliebiger Lauf",
     "favorite": {
       "all": "Alle",
       "favorite": "Favorisierte",
       "unfavorite": "Nicht favorisierte"
     },
+    "lastRunState": "Letzter Lauf",
+    "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
     },
-    "runIdPatternFilter": "Dag Läufe suchen"
+    "runIdPatternFilter": "Dag Läufe suchen",
+    "timetableType": "Zeitplantyp"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
@@ -76,6 +80,11 @@
       "upstream": "Vorangegangene"
     }
   },
+  "runStateCounts": {
+    "label": "Laufstatus",
+    "loading": "Laufstatuszahlen werden geladen",
+    "tooltip": "{{state}}: {{formattedCount}} – klicken, um Läufe zu filtern"
+  },
   "search": {
     "advanced": "Erweiterte Suche",
     "clear": "Suche zurücksetzen",
@@ -88,9 +97,9 @@
       "asc": "Sortiert nach Anzeigename (A-Z)",
       "desc": "Sortiert nach Anzeigename (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sortiert nach letztem Startdatum (Erster-Letzter)",
-      "desc": "Sortiert nach letztem Startdatum (Letzter-Erster)"
+    "lastRunAfter": {
+      "asc": "Nach spätestem Lauf danach sortieren (frühester–spätester)",
+      "desc": "Nach spätestem Lauf danach sortieren (spätester–frühester)"
     },
     "lastRunState": {
       "asc": "Sortiert nach dem Status des letzten Laufes (A-Z)",
