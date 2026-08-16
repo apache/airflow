@@ -21,7 +21,7 @@ import datetime
 import random
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -948,8 +948,56 @@ class TestClearTasks:
             only_new=True,
             session=session,
         )
-
         assert count == 0
+
+    def test_clear_only_new_after_run_on_latest_version(self, dag_maker, session):
+        """Test that only_new correctly identifies new tasks even if created_dag_version_id was mutated."""
+        with dag_maker("test_clear_new_tasks_after_latest", bundle_version="v1") as dag:
+            task0 = EmptyOperator(task_id="0")
+            task1 = EmptyOperator(task_id="1")
+
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
+        dr.state = DagRunState.SUCCESS
+        session.flush()
+
+        # V2 adds task2
+        with dag_maker("test_clear_new_tasks_after_latest", bundle_version="v2") as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+            EmptyOperator(task_id="2")
+
+        new_dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+        # Mutate the run pointer like a "run on latest version" clear would do
+        session.execute(
+            update(DagRun)
+            .where(DagRun.id == dr.id)
+            .values(created_dag_version_id=new_dag_version.id)
+        )
+        session.flush()
+
+        # Run only_new. It should still detect '2' as new, despite created_dag_version_id pointing to v2.
+        count = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            session=session,
+        )
+        assert count == 1
+        session.flush()
+
+        # Verify task '2' was created
+        updated_dr = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id)
+        )
+        all_tis = sorted(updated_dr.task_instances, key=lambda ti: ti.task_id)
+        assert len(all_tis) == 3
+        assert [ti.task_id for ti in all_tis] == ["0", "1", "2"]
 
     def test_clear_normal_task_includes_setup_and_teardown(self, dag_maker):
         with dag_maker("test_clear_normal_task_includes_setup_and_teardown") as dag:
