@@ -832,7 +832,7 @@ class TestGetAssetEvents(TestAssets):
         session.commit()
         assert len(assets) == 2
 
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get("/assets/events")
 
         assert response.status_code == 200
@@ -861,6 +861,7 @@ class TestGetAssetEvents(TestAssets):
                             "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "partition_key": None,
+                            "triggering": True,
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
@@ -890,6 +891,7 @@ class TestGetAssetEvents(TestAssets):
                             "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "partition_key": None,
+                            "triggering": True,
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
@@ -898,6 +900,34 @@ class TestGetAssetEvents(TestAssets):
             ],
             "total_entries": 2,
         }
+
+    def test_only_most_recent_consumed_event_is_flagged_as_triggering(self, test_client, session):
+        """A run consuming several events marks only its most recent consumed event as triggering it."""
+        self.create_assets(num=1)
+        older_event = AssetEvent(id=1, asset_id=1, extra={}, timestamp=DEFAULT_DATE)
+        newer_event = AssetEvent(id=2, asset_id=1, extra={}, timestamp=DEFAULT_DATE + timedelta(days=1))
+        session.add_all([older_event, newer_event])
+        dag_run = DagRun(
+            dag_id="source_dag_id",
+            run_id="run_1",
+            run_type=DagRunType.MANUAL,
+            logical_date=DEFAULT_DATE + timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=DagRunState.SUCCESS,
+        )
+        dag_run.end_date = DEFAULT_DATE
+        session.add(dag_run)
+        session.flush()
+        dag_run.consumed_asset_events.extend([older_event, newer_event])
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        events = {event["id"]: event for event in response.json()["asset_events"]}
+        assert events[1]["created_dagruns"][0]["triggering"] is False
+        assert events[2]["created_dagruns"][0]["triggering"] is True
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/assets/events")
@@ -1049,6 +1079,7 @@ class TestGetAssetEvents(TestAssets):
                             "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "partition_key": None,
+                            "triggering": True,
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
@@ -1078,6 +1109,7 @@ class TestGetAssetEvents(TestAssets):
                             "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "partition_key": None,
+                            "triggering": True,
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),

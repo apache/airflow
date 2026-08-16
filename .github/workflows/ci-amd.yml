@@ -138,6 +138,7 @@ jobs:
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
       run-java-sdk-tests: ${{ steps.selective-checks.outputs.run-java-sdk-tests }}
+      run-ts-sdk-docs: ${{ steps.selective-checks.outputs.run-ts-sdk-docs }}
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-mypy-providers: ${{ steps.selective-checks.outputs.run-mypy-providers }}
@@ -997,7 +998,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
-          go-version: 1.25
+          # Pinned to the patch: actions/go-versions trails Go security releases by weeks, and
+          # setup-go resolves from that manifest whenever it can match, so a bare 1.25 lands on a
+          # toolchain whose standard library still carries advisories the scan below fails on.
+          go-version: '1.25.13'
           cache-dependency-path: go-sdk/go.sum
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Gotestsum
@@ -1040,7 +1044,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Java
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1078,6 +1082,38 @@ jobs:
         with:
           name: java-sdk-docs
           path: generated/_build/docs/java-sdk/
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: 'true'
+
+  build-ts-sdk-docs:
+    name: "TypeScript SDK docs"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    if: needs.build-info.outputs.run-ts-sdk-docs == 'true'
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Build TypeScript SDK API reference"
+        run: breeze build-docs --sdk-docs-only --sdk=typescript
+      - name: "Upload TypeScript SDK docs artifact"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ts-sdk-docs
+          path: generated/_build/docs/ts-sdk/
           retention-days: 7
           if-no-files-found: error
           overwrite: 'true'
@@ -1137,6 +1173,7 @@ jobs:
       - tests-go-sdk
       - tests-java-sdk
       - build-java-sdk-docs
+      - build-ts-sdk-docs
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
@@ -1183,6 +1220,9 @@ jobs:
           echo "failed-jobs<<EOF" >> "${GITHUB_OUTPUT}"
           echo "${FAILED_JOBS}" >> "${GITHUB_OUTPUT}"
           echo "EOF" >> "${GITHUB_OUTPUT}"
+          # A literal newline would end the double-quoted YAML scalar the Slack payload
+          # interpolates job names into, and the action would reject the whole payload.
+          echo "failed-jobs-text=${FAILED_JOBS//$'\n'/\\n}" >> "${GITHUB_OUTPUT}"
           if [[ -n "${FAILED_JOBS}" ]]; then
             echo "has-failures=true" >> "${GITHUB_OUTPUT}"
           else
@@ -1217,12 +1257,12 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs-text }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs-text }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
       - name: "Notify Slack (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
@@ -1233,12 +1273,12 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🔁 Still not fixed: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨🔁 Still not fixed: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs-text }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🔁 Still not fixed: Scheduled CI (${{ needs.build-info.outputs.platform }}) on *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨🔁 Still not fixed: Scheduled CI (${{ needs.build-info.outputs.platform }}) on *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs-text }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
       - name: "Notify Slack (all tests passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
