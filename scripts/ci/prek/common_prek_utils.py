@@ -27,6 +27,7 @@ import subprocess
 import sys
 import textwrap
 import time
+import tokenize
 from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
@@ -821,7 +822,8 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
     When only_top_level = False then returns
         ['os', 'collections.defaultdict', 'numpy', 'pandas.DataFrame', 'json', 'pathlib.Path', 'pathlib.PurePath']
     """
-    root = ast.parse(file_path.read_text(), file_path.name)
+    with tokenize.open(file_path) as source_file:
+        root = ast.parse(source_file.read(), file_path.name)
     imports: list[str] = []
 
     nodes = ast.iter_child_nodes(root) if only_top_level else ast.walk(root)

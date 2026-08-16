@@ -244,6 +244,12 @@ class TestGetImportsFromFile:
         result = get_imports_from_file(path, only_top_level=True)
         assert result == []
 
+    def test_reads_source_with_declared_encoding(self, tmp_path):
+        path = tmp_path / "provider.py"
+        path.write_bytes(b"# -*- coding: latin-1 -*-\n# caf\xe9\nimport os\n")
+
+        assert get_imports_from_file(path, only_top_level=True) == ["os"]
+
 
 class TestInsertDocumentation:
     def test_replaces_content_between_header_and_footer(self, write_text_file):
