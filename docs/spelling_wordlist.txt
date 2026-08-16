@@ -897,6 +897,7 @@ irreproducible
 IRSA
 isfile
 ish
+islo
 isn
 isort
 istio
