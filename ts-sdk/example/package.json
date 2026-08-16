@@ -12,7 +12,7 @@
     "@apache-airflow/ts-sdk": "file:.."
   },
   "devDependencies": {
-    "@types/node": "^22.19.17",
+    "@types/node": "^26.1.2",
     "esbuild": "^0.28.2",
     "typescript": "^6.0.2"
   }
