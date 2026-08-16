@@ -225,7 +225,7 @@ def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: st
 
 
 @cache
-def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
+def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
     """Collect extension points for the UI."""
     log.debug("Initialize UI plugin")
 
