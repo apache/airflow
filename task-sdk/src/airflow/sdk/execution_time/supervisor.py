@@ -863,7 +863,9 @@ class WatchedSubprocess:
             logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(target_loggers),
+                on_close=self._on_socket_closed,
+                drop_incomplete_at_eof=True,
             ),
         )
         self.selector.register(
@@ -1993,7 +1995,9 @@ class ActivitySubprocess(WatchedSubprocess):
             read_logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(target_loggers),
+                on_close=self._on_socket_closed,
+                drop_incomplete_at_eof=True,
             ),
         )
         # We don't explicitly close the old log socket, that will get handled for us if/when the other end is
@@ -2291,6 +2295,7 @@ def make_buffered_socket_reader(
     data: bytes = b"",
     on_close: Callable[[socket], None],
     buffer_size: int = 4096,
+    drop_incomplete_at_eof: bool = False,
 ):
     buffer = bytearray(data)  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
@@ -2331,18 +2336,28 @@ def make_buffered_socket_reader(
 
         if not n_received:
             # Connection closed. Any bytes left in the buffer are an incomplete,
-            # non-newline-terminated fragment. The protocol is line-based, so a cleanly
-            # closed stream should never leave a trailing partial record -- this means
-            # the writer terminated mid-record, failed to flush, or violated the
-            # framing contract. We cannot reconstruct the missing bytes, so report it
-            # once with bounded metadata (length only; the fragment may contain
-            # secrets or multi-megabyte content) and drop it rather than handing a
-            # truncated value to the JSON decoder as if it were complete. See #66158.
+            # non-newline-terminated fragment.
+            #
+            # For newline-delimited JSON channels (drop_incomplete_at_eof=True),
+            # this means the writer terminated mid-record, failed to flush, or
+            # violated the framing contract -- we cannot reconstruct the missing
+            # bytes, so we report it once with bounded metadata (length only; the
+            # fragment may contain secrets or multi-megabyte content) and drop it
+            # rather than handing a truncated value to the JSON decoder as if it
+            # were complete. See #66158.
+            #
+            # For plain stdout/stderr forwarding, a trailing unterminated line at
+            # process exit (e.g. print(..., end="")) is ordinary, valid output --
+            # forward it as before.
             if len(buffer):
-                log.warning(
-                    "Discarding incomplete record at socket EOF",
-                    fragment_length=len(buffer),
-                )
+                if drop_incomplete_at_eof:
+                    log.warning(
+                        "Discarding incomplete record at socket EOF",
+                        fragment_length=len(buffer),
+                    )
+                else:
+                    with suppress(StopIteration):
+                        gen.send(buffer)
             return False
 
         buffer.extend(read_buffer[:n_received])

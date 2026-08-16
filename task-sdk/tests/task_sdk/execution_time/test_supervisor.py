@@ -4768,7 +4768,9 @@ class TestMakeBufferedSocketReader:
         on_close = MagicMock()
         r, w = socket.socketpair()
         try:
-            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), on_close=on_close, drop_incomplete_at_eof=True
+            )
             w.sendall(b'{"incomplete": "record"')  # no trailing newline
             w.close()
             result = True
@@ -4787,7 +4789,9 @@ class TestMakeBufferedSocketReader:
         on_close = MagicMock()
         r, w = socket.socketpair()
         try:
-            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), on_close=on_close, drop_incomplete_at_eof=True
+            )
             w.sendall(b'{"secret": "do-not-leak-me"')
             w.close()
             result = True
@@ -4797,6 +4801,26 @@ class TestMakeBufferedSocketReader:
             call_str = str(mock_logger.warning.call_args)
             assert "do-not-leak-me" not in call_str
             assert "secret" not in call_str
+        finally:
+            r.close()
+
+    def test_eof_with_incomplete_record_forwarded_by_default(self):
+        """Default behavior (drop_incomplete_at_eof=False, used by stdout/stderr
+        forwarding) must still forward a trailing unterminated fragment at EOF --
+        e.g. print(..., end="") right before process exit is ordinary output, not
+        a malformed record. Only JSON log channels opt into dropping it."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
+            w.sendall(b"final output, no newline")
+            w.close()
+            result = True
+            while result:
+                result = cb(r)
+            assert received == [b"final output, no newline"]
+            assert result is False
         finally:
             r.close()
 
