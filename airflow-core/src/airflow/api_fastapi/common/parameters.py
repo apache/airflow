@@ -85,6 +85,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+_MAXIMUM_PAGE_LIMIT: int = conf.getint("api", "maximum_page_limit")
 _FALLBACK_PAGE_LIMIT: int = conf.getint("api", "fallback_page_limit")
 
 
@@ -154,8 +155,17 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = _FALLBACK_PAGE_LIMIT) -> LimitFilter:
-        return cls().set_value(min(limit, conf.getint("api", "maximum_page_limit")))
+    def depends(
+        cls,
+        limit: Annotated[
+            NonNegativeInt,
+            Query(
+                description="Maximum number of items to return in the response. Larger values are clamped.",
+                json_schema_extra={"maximum": _MAXIMUM_PAGE_LIMIT},
+            ),
+        ] = _FALLBACK_PAGE_LIMIT,
+    ) -> LimitFilter:
+        return cls().set_value(min(limit, _MAXIMUM_PAGE_LIMIT))
 
 
 class OffsetFilter(BaseParam[NonNegativeInt]):
