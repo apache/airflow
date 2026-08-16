@@ -31,7 +31,9 @@ plugins {
     id("airflow-publish")
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
-    id("org.jsonschema2pojo") version "1.3.3"
+    // jsonschema2pojo 1.3.3 targets Java 17:
+    // https://github.com/joelittlejohn/jsonschema2pojo/blob/jsonschema2pojo-1.3.3/jsonschema2pojo-gradle-plugin/build.gradle#L45-L48
+    id("org.jsonschema2pojo") version "1.2.2"
     kotlin("plugin.serialization") version "2.4.10"
 }
 
@@ -48,11 +50,11 @@ dependencies {
 
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.22")
     implementation("com.fasterxml.jackson.core:jackson-core:2.22.1")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.1")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.1")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.1")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
-    implementation("io.ktor:ktor-network:3.5.1")
+    implementation("io.ktor:ktor-network:3.5.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
