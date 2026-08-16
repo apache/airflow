@@ -4824,6 +4824,7 @@ class TestMakeBufferedSocketReader:
         finally:
             r.close()
 
+
 class TestLengthPrefixedFrameReader:
     def test_recovers_from_short_read_on_header(self):
         received: list[_RequestFrame] = []
