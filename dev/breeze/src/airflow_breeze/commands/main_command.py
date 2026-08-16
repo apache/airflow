@@ -124,7 +124,8 @@ def main(ctx: click.Context, **kwargs: dict[str, Any]):
 
     check_for_rosetta_environment()
     check_for_python_emulation()
-    generate_provider_dependencies_if_needed()
+    if not any(argument in {"-h", "--help"} for argument in sys.argv[1:]):
+        generate_provider_dependencies_if_needed()
 
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})
