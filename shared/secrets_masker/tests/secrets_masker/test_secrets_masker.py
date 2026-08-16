@@ -1204,8 +1204,8 @@ class TestDirectMethodCalls:
         result = secrets_masker._redact_all(test_data, depth=0, replacement="***")
 
         assert result["string"] == "***"
-        assert result["number"] == 12345
-        assert result["boolean"] is True
+        assert result["number"] == "***"
+        assert result["boolean"] == "***"
         assert all(val == "***" for val in result["list"])
         assert all(val == "***" for val in result["dict"].values())
         assert all(val == "***" for val in result["nested"]["tuple"])

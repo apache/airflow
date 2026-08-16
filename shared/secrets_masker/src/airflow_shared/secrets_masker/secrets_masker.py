@@ -328,7 +328,7 @@ class SecretsMasker(logging.Filter):
         *,
         replacement: str = "***",
     ) -> Redacted:
-        if depth > max_depth or isinstance(item, str):
+        if depth > max_depth or not isinstance(item, (dict, tuple, set, list)):
             return replacement
         if isinstance(item, dict):
             return {
