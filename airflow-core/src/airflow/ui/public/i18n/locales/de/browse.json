@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Ereignis Typ"
-    },
-    "title": "Prüf-Log"
+    }
   },
   "deadlines": {
     "columns": {

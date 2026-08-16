@@ -25,6 +25,7 @@ import {
   apiCancelBackfill,
   apiWaitForNoActiveBackfill,
 } from "tests/e2e/utils/api/backfills";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export const REPROCESS_API_TO_UI = {
   completed: "All Runs",
@@ -286,7 +287,7 @@ export class BackfillPage extends BasePage {
               return false;
             }
 
-            const rows = this.backfillsTable.locator("tbody tr");
+            const rows = this.backfillsTable.locator(DATA_ROWS);
             const rowCount = await rows.count();
 
             for (let i = 0; i < rowCount; i++) {

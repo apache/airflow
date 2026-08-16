@@ -20,6 +20,7 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
+import json
 import platform
 import re
 from enum import Enum
@@ -225,11 +226,16 @@ FAB_AUTH_MANAGER = "FabAuthManager"
 GOLANG_WORKER = "go"
 
 JAVA_SDK = "java"
-ALLOWED_SDKS = [JAVA_SDK]
+TYPESCRIPT_SDK = "typescript"
+ALLOWED_SDKS = [JAVA_SDK, TYPESCRIPT_SDK]
 
 # JDK version used to build the Java SDK and its example bundles (e.g. the lang-SDK k8s system test).
 # Keep in sync with the toolchain the Java SDK Gradle build targets.
 JAVA_SDK_VERSION = "17"
+
+# Node image used to build the TypeScript SDK docs. Keep in sync with the ``engines.node``
+# requirement in ts-sdk/package.json.
+TYPESCRIPT_SDK_NODE_VERSION = "22"
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
@@ -297,8 +303,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.1.2"
-UV_VERSION = "0.11.29"
+PIP_VERSION = "26.2.1"
+UV_VERSION = "0.12.3"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -308,6 +314,7 @@ REGULAR_DOC_PACKAGES = [
     "apache-airflow-providers",
     "java-sdk",
     "task-sdk",
+    "ts-sdk",
     "apache-airflow-ctl",
 ]
 
@@ -739,6 +746,15 @@ def get_java_sdk_version() -> str:
     raise RuntimeError(f"Java SDK version not found in {props_path}")
 
 
+def get_ts_sdk_version() -> str:
+    """Read the TypeScript SDK version from 'ts-sdk/package.json'."""
+    package_json_path = AIRFLOW_ROOT_PATH / "ts-sdk" / "package.json"
+    version = json.loads(package_json_path.read_text()).get("version")
+    if not version:
+        raise RuntimeError(f"TypeScript SDK version not found in {package_json_path}")
+    return version
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
@@ -864,7 +880,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.3.0",
+        "airflow-version": "3.3.1",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
@@ -874,7 +890,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.20",
     "3.11": "3.11.15",
     "3.12": "3.12.13",
-    "3.13": "3.13.14",
+    "3.13": "3.13.15",
     "3.14": "3.14.3",
 }
 
