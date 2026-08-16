@@ -36,7 +36,7 @@ from airflow.providers.common.ai.sandbox.base import (
 from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
 
 _BASE_HOOK_PATH = "airflow.providers.common.ai.sandbox.islo.BaseHook"
-_ISLO_PATH = "airflow.providers.common.ai.sandbox.islo.Islo"
+_ISLO_PATH = "islo.Islo"
 
 
 def _connection(password="secret-key", host=None, extra=None):

@@ -799,7 +799,7 @@ Islo backend
 :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend` runs each
 sandbox in an `islo.dev <https://islo.dev>`__ microVM. Unlike ``sbx``, the
 worker talks to a hosted API and needs neither a local daemon nor host
-virtualisation, so it can run from a containerised worker.
+virtualization, so it can run from a containerized worker.
 
 Requires the ``sandbox-islo`` extra::
 
