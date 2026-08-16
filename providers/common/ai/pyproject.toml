@@ -96,6 +96,7 @@ dependencies = [
     "apache-airflow-providers-git>=0.4.0",
     "pydantic-ai-skills>=1.2.0",
 ]
+"sandbox-opensandbox" = ["opensandbox>=0.1.15"]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
     'fastavro>=1.12.1; python_version >= "3.14"',

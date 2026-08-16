@@ -70,6 +70,11 @@ def get_provider_info():
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
             },
+            {
+                "integration-name": "OpenSandbox",
+                "external-doc-url": "https://open-sandbox.ai/",
+                "tags": ["software"],
+            },
         ],
         "hooks": [
             {
