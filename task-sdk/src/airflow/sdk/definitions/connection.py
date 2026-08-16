@@ -153,6 +153,12 @@ class Connection:
         else:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
 
+        if self.port is not None:
+            if isinstance(self.port, str):
+                self.port = int(self.port)
+            if not (0 <= self.port <= 65535):
+                raise ValueError(f"Port must be between 0 and 65535, got {self.port}")
+
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
         from urllib.parse import parse_qsl
