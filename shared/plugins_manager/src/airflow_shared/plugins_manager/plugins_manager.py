@@ -87,6 +87,10 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
+# Kept in sync with ``BaseDestinationLiteral`` in ``airflow.api_fastapi.core_api.datamodels.plugins``
+BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
+
+
 class _BaseUIDict(TypedDict):
     """Shared UI fields mirroring ``BaseUIResponse``."""
 
@@ -102,14 +106,14 @@ class ExternalViewDict(_BaseUIDict):
     """Dictionary structure for entries in AirflowPlugin.external_views."""
 
     href: str
-    destination: NotRequired[Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]]
+    destination: NotRequired[BaseDestinationLiteral]
 
 
 class ReactAppDict(_BaseUIDict):
     """Dictionary structure for entries in AirflowPlugin.react_apps."""
 
     bundle_url: str
-    destination: NotRequired[Literal["nav", "dag", "dag_run", "task", "task_instance", "base", "dashboard"]]
+    destination: NotRequired[Literal[BaseDestinationLiteral, "dashboard", "dag_overview", "task_overview"]]
 
 
 class FastAPIAppDict(TypedDict):
