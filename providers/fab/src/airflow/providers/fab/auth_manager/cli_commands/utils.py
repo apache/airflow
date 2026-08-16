@@ -37,7 +37,7 @@ from airflow.providers.fab.www.extensions.init_session import init_airflow_sessi
 from airflow.providers.fab.www.extensions.init_views import init_plugins
 
 if TYPE_CHECKING:
-    from flask.sansio.app import App
+    from sqlalchemy.engine import Engine
 
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 
@@ -53,11 +53,14 @@ class _AirflowFlaskSQLAlchemy(SQLAlchemy):
     creation through the same hook Airflow's own metadata engine uses.
     """
 
-    def _make_engine(self, bind_key: str | None, options: dict, app: App):
+    def _make_engine(self, bind_key: str | None, options: dict, app: Flask) -> Engine:
         if bind_key is not None:
             return super()._make_engine(bind_key, options, app)
+            # Use this app's configured URI (a `str`), rather than the module-level
+            # `settings.SQL_ALCHEMY_CONN` (typed `str | None`), to build the engine.
+        sql_alchemy_conn: str = app.config["SQLALCHEMY_DATABASE_URI"]
         return settings.create_metadata_engine(
-            settings.SQL_ALCHEMY_CONN,
+            sql_alchemy_conn,
             engine_args=settings.prepare_engine_args(),
             connect_args=settings._get_connect_args("sync"),
         )
