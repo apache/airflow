@@ -291,6 +291,11 @@ class TestPluginsManager:
                 id="unknown-key",
             ),
             pytest.param(
+                {1: ["ml"], "dag_tag": ["ml"]},
+                "criterion names must be strings, got [1]",
+                id="non-string-and-unknown-keys",
+            ),
+            pytest.param(
                 {"dag_ids": "my_dag"},
                 "'dag_ids' must be a list of strings, got 'my_dag'",
                 id="scalar-instead-of-list",

@@ -170,6 +170,20 @@ describe("matchesAppliesTo", () => {
     expect(matchesAppliesTo(makeView({ operators: ["BashOperator"] }), context)).toBe(false);
   });
 
+  it("uses the task instance operator instead of the latest Dag task operator", () => {
+    const context: AppliesToContext = {
+      dag,
+      isLoading: false,
+      task: makeTask("run_it", "PythonOperator", "Current Python"),
+      taskInstance: makeTaskInstance("run_it", "BashOperator", "Historical Bash"),
+    };
+
+    expect(matchesAppliesTo(makeView({ operators: ["BashOperator"] }), context)).toBe(true);
+    expect(matchesAppliesTo(makeView({ operators: ["PythonOperator"] }), context)).toBe(false);
+    expect(matchesAppliesTo(makeView({ operator_names: ["Historical Bash"] }), context)).toBe(true);
+    expect(matchesAppliesTo(makeView({ operator_names: ["Current Python"] }), context)).toBe(false);
+  });
+
   it("combines Dag- and task-level criteria on a task page", () => {
     const view = makeView({ dag_tags: ["ml"], operators: ["KubernetesPodOperator"] });
 

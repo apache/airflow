@@ -162,6 +162,8 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     """Return a description of why ``applies_to`` is malformed, or ``None`` if it is valid."""
     if not isinstance(applies_to, dict):
         return f"expected a dictionary, got {type(applies_to).__name__}"
+    if non_string_keys := [key for key in applies_to if not isinstance(key, str)]:
+        return f"criterion names must be strings, got {sorted(non_string_keys, key=repr)!r}"
     if unknown_keys := set(applies_to) - _APPLIES_TO_CRITERIA:
         return f"unknown criteria {sorted(unknown_keys)}, expected any of {sorted(_APPLIES_TO_CRITERIA)}"
     for criterion, values in applies_to.items():

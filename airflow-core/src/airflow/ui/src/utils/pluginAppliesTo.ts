@@ -73,16 +73,25 @@ const matchesOperators = (
   criteria: Array<string>,
   { task, taskInstance }: AppliesToContext,
 ): boolean | undefined => {
+  if (taskInstance !== undefined) {
+    return matchesAnyName(criteria, knownNames(taskInstance.operator));
+  }
+
   const classRef = task?.class_ref as { class_name?: string } | null | undefined;
 
-  return matchesAnyName(criteria, knownNames(taskInstance?.operator, classRef?.class_name));
+  return matchesAnyName(criteria, knownNames(classRef?.class_name));
 };
 
 const matchesOperatorNames = (
   criteria: Array<string>,
   { task, taskInstance }: AppliesToContext,
-): boolean | undefined =>
-  matchesAnyName(criteria, knownNames(taskInstance?.operator_name, task?.operator_name));
+): boolean | undefined => {
+  if (taskInstance !== undefined) {
+    return matchesAnyName(criteria, knownNames(taskInstance.operator_name));
+  }
+
+  return matchesAnyName(criteria, knownNames(task?.operator_name));
+};
 
 /**
  * Decide whether a plugin view should be shown for the current route.

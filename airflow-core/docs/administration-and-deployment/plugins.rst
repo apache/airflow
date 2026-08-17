@@ -279,7 +279,7 @@ definitions in Airflow.
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
-        "destination": "dag_run",
+        "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
@@ -328,7 +328,6 @@ relevant instead of appearing on every Dag:
         "dag_ids": ["train_pipeline"],  # exact dag_id
         "task_ids": ["train_model"],  # exact task_id
         "operators": ["KubernetesPodOperator"],  # operator class name
-        "operator_names": ["@task.bash"],  # operator display name
     }
 
 All keys are optional. ``operators`` and ``operator_names`` are matched separately, the same
