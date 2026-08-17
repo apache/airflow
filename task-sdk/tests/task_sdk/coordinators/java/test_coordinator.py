@@ -261,7 +261,8 @@ class TestJavaCoordinatorAttributes:
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
         _make_jar(tmp_path / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
         coordinator = JavaCoordinator(main_class="com.example.TaskRunner")
-        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
         assert command[0] == "java"
         assert command[-1] == "com.example.TaskRunner"
         assert schema_version == "2026-06-16"

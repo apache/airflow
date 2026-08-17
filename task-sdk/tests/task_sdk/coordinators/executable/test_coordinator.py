@@ -399,9 +399,10 @@ class TestExecutableCoordinatorAttributes:
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
         coordinator = ExecutableCoordinator()
-        command, schema_version = coordinator._build_execute_task_command(
-            what=_make_ti(dag_id="tutorial_dag"), roots=[tmp_path]
-        )
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(
+                what=_make_ti(dag_id="tutorial_dag")
+            )
         assert command == [str(binary.resolve())]
         assert schema_version == "2026-06-16"
 
@@ -412,7 +413,8 @@ class TestBuildExecuteTaskCommand:
         ti = _make_ti(dag_id="tutorial_dag")
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        command, schema_version = coordinator._build_execute_task_command(what=ti, roots=[tmp_path])
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=ti)
         assert command == [str(binary.resolve())]
         assert schema_version == "2026-06-16"
 
@@ -423,16 +425,22 @@ class TestBuildExecuteTaskCommand:
         ti = _make_ti(dag_id="tutorial_dag")
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
-            coordinator._build_execute_task_command(what=ti, roots=[tmp_path])
+        with (
+            coordinator._set_scan_roots([tmp_path]),
+            pytest.raises(FileNotFoundError, match="matching bundles were rejected"),
+        ):
+            coordinator._build_execute_task_command(what=ti)
 
     def test_raises_when_dag_id_not_found(self, tmp_path):
         _build_bundle(tmp_path / "my_bundle", dag_ids=["other_dag"])
         ti = _make_ti(dag_id="tutorial_dag")
 
         coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            coordinator._build_execute_task_command(what=ti, roots=[tmp_path])
+        with (
+            coordinator._set_scan_roots([tmp_path]),
+            pytest.raises(FileNotFoundError, match="cannot find executable bundle"),
+        ):
+            coordinator._build_execute_task_command(what=ti)
 
 
 @pytest.fixture

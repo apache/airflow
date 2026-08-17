@@ -128,8 +128,7 @@ class NodeCoordinator(SubprocessCoordinator):
     def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
         return "bundles_root", self.bundles_root
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstance, roots: list[pathlib.Path]
-    ) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+        roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
