@@ -307,113 +307,12 @@ repos:
           ^tests/unit/core/test_configuration\.py$|
           ^tests/unit/models/test_renderedtifields\.py$|
           ^tests/unit/models/test_variable\.py$
-      - id: check-sdk-imports
+      - id: check-sdk-imports-in-core
         name: Check for SDK imports in core files
         entry: ../scripts/ci/prek/check_sdk_imports_in_core.py
         language: python
         types: [python]
         files: ^src/airflow/
-        exclude: |
-          (?x)
-          # Allow SDK imports in these legitimate locations
-          ^src/airflow/example_dags/.*\.py$|
-
-          # TODO: These files need to be refactored to remove SDK coupling
-          ^src/airflow/__init__\.py$|
-          ^src/airflow/api/common/mark_tasks\.py$|
-          ^src/airflow/api_fastapi/core_api/datamodels/assets\.py$|
-          ^src/airflow/api_fastapi/core_api/datamodels/connections\.py$|
-          ^src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
-          ^src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
-          ^src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|
-          ^src/airflow/api_fastapi/core_api/routes/ui/structure\.py$|
-          ^src/airflow/api_fastapi/core_api/services/public/connections\.py$|
-          ^src/airflow/api_fastapi/core_api/services/ui/connections\.py$|
-          ^src/airflow/api_fastapi/core_api/services/ui/grid\.py$|
-          ^src/airflow/api_fastapi/core_api/services/ui/task_group.py$|
-          ^src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
-          ^src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
-          ^src/airflow/api_fastapi/execution_api/versions/v2026_04_06\.py$|
-          ^src/airflow/api_fastapi/logging/decorators\.py$|
-          ^src/airflow/assets/evaluation\.py$|
-          ^src/airflow/assets/manager\.py$|
-          ^src/airflow/cli/commands/connection_command\.py$|
-          ^src/airflow/cli/commands/task_command\.py$|
-          ^src/airflow/cli/commands/triggerer_command.py$|
-          ^src/airflow/configuration\.py$|
-          ^src/airflow/dag_processing/collection\.py$|
-          ^src/airflow/dag_processing/dagbag\.py$|
-          ^src/airflow/dag_processing/importers/.*\.py$|
-          ^src/airflow/dag_processing/manager\.py$|
-          ^src/airflow/dag_processing/processor\.py$|
-          ^src/airflow/datasets/metadata\.py$|
-          ^src/airflow/exceptions\.py$|
-          ^src/airflow/executors/base_executor\.py$|
-          ^src/airflow/jobs/triggerer_job_runner\.py$|
-          ^src/airflow/lineage/hook\.py$|
-          ^src/airflow/listeners/spec/asset\.py$|
-          ^src/airflow/listeners/spec/taskinstance\.py$|
-          ^src/airflow/logging/remote\.py$|
-          ^src/airflow/models/__init__\.py$|
-          ^src/airflow/models/asset\.py$|
-          ^src/airflow/models/baseoperator\.py$|
-          ^src/airflow/models/callback\.py$|
-          ^src/airflow/models/connection\.py$|
-          ^src/airflow/models/dag\.py$|
-          ^src/airflow/models/dagrun\.py$|
-          ^src/airflow/models/deadline\.py$|
-          ^src/airflow/models/expandinput\.py$|
-          ^src/airflow/models/mappedoperator\.py$|
-          ^src/airflow/models/operator\.py$|
-          ^src/airflow/models/param\.py$|
-          ^src/airflow/models/renderedtifields\.py$|
-          ^src/airflow/models/serialized_dag\.py$|
-          ^src/airflow/models/taskinstance\.py$|
-          ^src/airflow/models/taskinstancekey\.py$|
-          ^src/airflow/models/taskmap\.py$|
-          ^src/airflow/models/taskmixin\.py$|
-          ^src/airflow/models/taskreschedule\.py$|
-          ^src/airflow/models/trigger\.py$|
-          ^src/airflow/stats\.py$|
-          ^src/airflow/models/variable\.py$|
-          ^src/airflow/models/xcom\.py$|
-          ^src/airflow/models/xcom_arg\.py$|
-          ^src/airflow/operators/subdag\.py$|
-          ^src/airflow/plugins_manager\.py$|
-          ^src/airflow/providers_manager\.py$|
-          ^src/airflow/secrets/__init__.py$|
-          ^src/airflow/serialization/decoders\.py$|
-          ^src/airflow/serialization/definitions/[_/a-z]+\.py$|
-          ^src/airflow/serialization/encoders\.py$|
-          ^src/airflow/serialization/enums\.py$|
-          ^src/airflow/serialization/helpers\.py$|
-          ^src/airflow/serialization/serialized_objects\.py$|
-          ^src/airflow/settings\.py$|
-          ^src/airflow/task/task_runner/bash_task_runner\.py$|
-          ^src/airflow/task/task_runner/standard_task_runner\.py$|
-          ^src/airflow/ti_deps/deps/mapped_task_upstream_dep\.py$|
-          ^src/airflow/ti_deps/deps/prev_dagrun_dep\.py$|
-          ^src/airflow/ti_deps/deps/trigger_rule_dep\.py$|
-          ^src/airflow/timetables/assets\.py$|
-          ^src/airflow/timetables/base\.py$|
-          ^src/airflow/timetables/simple\.py$|
-          ^src/airflow/triggers/base\.py$|
-          ^src/airflow/utils/cli\.py$|
-          ^src/airflow/utils/context\.py$|
-          ^src/airflow/utils/dag_cycle_tester\.py$|
-          ^src/airflow/utils/dag_edges\.py$|
-          ^src/airflow/utils/dag_parsing_context\.py$|
-          ^src/airflow/utils/decorators\.py$|
-          ^src/airflow/utils/dot_renderer\.py$|
-          ^src/airflow/utils/edgemodifier\.py$|
-          ^src/airflow/utils/email\.py$|
-          ^src/airflow/utils/helpers\.py$|
-          ^src/airflow/utils/operator_helpers\.py$|
-          ^src/airflow/utils/session\.py$|
-          ^src/airflow/utils/task_group\.py$|
-          ^src/airflow/utils/trigger_rule\.py$|
-          ^src/airflow/utils/json\.py$|
-          ^src/airflow/utils/types\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-schema-defaults
         name: Check schema defaults match server-side defaults
