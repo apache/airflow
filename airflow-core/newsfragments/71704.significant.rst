@@ -1,0 +1,12 @@
+``dag_cache_ttl`` is now honored when ``dag_cache_size = 0``, which previously disabled eviction and silently ignored the TTL. An ``[api] dag_cache_size = 0`` deployment now evicts on the default ``dag_cache_ttl = 3600``; set ``[api] dag_cache_ttl = 0`` to keep the old behavior. The scheduler gained the same options, ``[scheduler] dag_cache_size`` (default 0) and ``[scheduler] dag_cache_ttl`` (default 3600), so it no longer retains every Dag version it has ever seen. Each re-check resets a cached entry's expiry, so the TTL reclaims a version once its Dag runs finish and it stops being requested; memory then tracks the versions with runs in flight rather than growing for the life of the process. ``dag_cache_size`` remains the only hard ceiling.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import hashlib
+import logging
+import math
 import time
 from collections.abc import MutableMapping
 from contextlib import nullcontext
@@ -43,6 +45,31 @@ if TYPE_CHECKING:
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.definitions.dag import SerializedDAG
 
+log = logging.getLogger(__name__)
+
+
+def dag_cache_conf(section: str, size_fallback: int, ttl_fallback: int) -> tuple[int, int]:
+    """
+    Read and validate a component's ``dag_cache_size`` / ``dag_cache_ttl`` pair.
+
+    Both options treat 0 as "no limit of this kind": no size limit, and no TTL respectively.
+    Negative values are meaningless, so they are clamped to 0 with a warning rather than
+    silently selecting the most memory-hungry cache mode.
+
+    :param section: Config section holding the options, e.g. ``api`` or ``scheduler``.
+    :param size_fallback: ``dag_cache_size`` default if the option is absent.
+    :param ttl_fallback: ``dag_cache_ttl`` default if the option is absent.
+    """
+    size = conf.getint(section, "dag_cache_size", fallback=size_fallback)
+    ttl = conf.getint(section, "dag_cache_ttl", fallback=ttl_fallback)
+    if size < 0:
+        log.warning("[%s] dag_cache_size must be >= 0, using 0 (no size limit)", section)
+        size = 0
+    if ttl < 0:
+        log.warning("[%s] dag_cache_ttl must be >= 0, disabling TTL", section)
+        ttl = 0
+    return size, ttl
+
 
 class _CacheEntry(NamedTuple):
     """A cached deserialized DAG plus the metadata needed to detect staleness on lookup."""
@@ -62,9 +89,9 @@ class DBDagBag:
     """
     Internal class for retrieving dags from the database.
 
-    Optionally supports LRU+TTL caching when cache_size is provided.
-    The scheduler uses this without caching, while the API server can
-    enable caching via configuration.
+    Optionally caches deserialized dags: a size limit enables LRU eviction, and a TTL enables
+    age-based eviction with or without a size limit. Callers that pass neither get a plain dict
+    that never evicts.
 
     :meta private:
     """
@@ -74,13 +101,19 @@ class DBDagBag:
         load_op_links: bool = True,
         cache_size: int | None = None,
         cache_ttl: int | None = None,
+        *,
+        stats_prefix: str | None = None,
     ) -> None:
         """
         Initialize DBDagBag.
 
         :param load_op_links: Should the extra operator link be loaded when de-serializing the DAG?
-        :param cache_size: Size of LRU cache. If None or 0, uses unbounded dict (no eviction).
-        :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL (LRU only).
+        :param cache_size: Max cached entries. 0 or None means no size limit.
+        :param cache_ttl: Seconds until a cached entry expires, applied with or without a size limit.
+            0 or None disables TTL. With neither a size limit nor a TTL the cache never evicts.
+        :param stats_prefix: Metric namespace for this component's cache, e.g. ``scheduler.dag_bag``.
+            The ``_stat_*`` hooks append the suffixes, so every component emits the same set of
+            names. Required when a cache is enabled, unused otherwise.
         """
         self.load_op_links = load_op_links
         self._dags: MutableMapping[UUID | str, _CacheEntry] = {}
@@ -88,18 +121,37 @@ class DBDagBag:
 
         self._revalidation_interval = conf.getint("core", "min_serialized_dag_update_interval")
 
-        # Initialize bounded cache if cache_size is provided and > 0
-        if cache_size and cache_size > 0:
-            if cache_ttl and cache_ttl > 0:
-                self._dags = TTLCache(maxsize=cache_size, ttl=cache_ttl)
-            else:
-                self._dags = LRUCache(maxsize=cache_size)
+        size = max(cache_size or 0, 0)
+        ttl = max(cache_ttl or 0, 0)
+        if ttl > 0:
+            self._dags = TTLCache(maxsize=size or math.inf, ttl=ttl)
+            self._use_cache = True
+        elif size > 0:
+            self._dags = LRUCache(maxsize=size)
             self._use_cache = True
 
         # Lock required for bounded caches: cachetools caches are NOT thread-safe
-        # (LRU reordering and TTL cleanup mutate internal linked lists).
-        # nullcontext for unbounded dict avoids lock overhead in the scheduler path.
+        # (LRU reordering and TTL cleanup mutate internal linked lists). A plain dict needs no
+        # lock, so it uses nullcontext.
         self._lock: RLock | nullcontext = RLock() if self._use_cache else nullcontext()
+
+        if self._use_cache and not stats_prefix:
+            # Caching without a namespace would emit metrics under a partial name. Fail here, at
+            # wiring time, rather than from the first emission mid-request or mid-scheduling-loop.
+            raise ValueError("a cached DBDagBag needs stats_prefix to namespace its cache metrics")
+        self._stats_prefix = stats_prefix
+
+    def _stat_cache_hit(self) -> None:
+        stats.incr(f"{self._stats_prefix}.cache_hit")
+
+    def _stat_cache_miss(self) -> None:
+        stats.incr(f"{self._stats_prefix}.cache_miss")
+
+    def _stat_cache_clear(self) -> None:
+        stats.incr(f"{self._stats_prefix}.cache_clear")
+
+    def _stat_cache_size(self, size: int, *, rate: float = 1.0) -> None:
+        stats.gauge(f"{self._stats_prefix}.cache_size", size, rate=rate)
 
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
         """Read and cache a SerializedDAG (with its ``dag_hash`` for staleness detection)."""
@@ -109,9 +161,9 @@ class DBDagBag:
             return None
         with self._lock:
             self._dags[serdag.dag_version_id] = _CacheEntry(dag, serdag.dag_hash, time.monotonic())
-            cache_size = len(self._dags)
+            cache_size = len(self._dags) if self._use_cache else 0
         if self._use_cache:
-            stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
+            self._stat_cache_size(cache_size, rate=0.1)
         return dag
 
     @staticmethod
@@ -134,7 +186,7 @@ class DBDagBag:
             # cannot have gone stale yet -- serve it without touching the DB.
             if now - cached.last_validated < self._revalidation_interval:
                 if self._use_cache:
-                    stats.incr("api_server.dag_bag.cache_hit")
+                    self._stat_cache_hit()
                 return cached.dag
             # Past the window: a version may have been updated in place (same dag_version_id, new
             # content + new dag_hash) by SerializedDagModel.write_dag, so confirm the cached copy
@@ -149,7 +201,7 @@ class DBDagBag:
                     if current is not None and current.dag_hash == cached.dag_hash:
                         self._dags[version_id] = current._replace(last_validated=now)
                 if self._use_cache:
-                    stats.incr("api_server.dag_bag.cache_hit")
+                    self._stat_cache_hit()
                 return cached.dag
             # Stale (updated in place) or the version no longer exists: drop and reload below.
             with self._lock:
@@ -169,9 +221,9 @@ class DBDagBag:
         if self._use_cache:
             with self._lock:
                 if (cached := self._dags.get(version_id)) is not None:
-                    stats.incr("api_server.dag_bag.cache_hit")
+                    self._stat_cache_hit()
                     return cached.dag
-            stats.incr("api_server.dag_bag.cache_miss")
+            self._stat_cache_miss()
         return self._read_dag(serdag)
 
     def get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
@@ -203,8 +255,8 @@ class DBDagBag:
             self._dags.clear()
 
         if self._use_cache:
-            stats.incr("api_server.dag_bag.cache_clear")
-            stats.gauge("api_server.dag_bag.cache_size", 0)
+            self._stat_cache_clear()
+            self._stat_cache_size(0)
         return count
 
     @staticmethod

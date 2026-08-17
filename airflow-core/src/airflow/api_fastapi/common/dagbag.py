@@ -16,43 +16,37 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import DBDagBag, dag_cache_conf
 from airflow.models.serialized_dag import SerializedDagModel
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
 
-log = logging.getLogger(__name__)
+
+class APIServerDBDagBag(DBDagBag):
+    """
+    DagBag for the API server, reporting cache activity under ``api_server.dag_bag``.
+
+    :meta private:
+    """
+
+    @classmethod
+    def from_config(cls) -> APIServerDBDagBag:
+        """Build an instance from the ``[api]`` cache options."""
+        cache_size, cache_ttl = dag_cache_conf("api", size_fallback=64, ttl_fallback=3600)
+        return cls(cache_size=cache_size, cache_ttl=cache_ttl, stats_prefix="api_server.dag_bag")
 
 
 def create_dag_bag() -> DBDagBag:
-    """Create DagBag with configurable LRU+TTL caching for API server usage."""
-    cache_size = conf.getint("api", "dag_cache_size", fallback=64)
-    cache_ttl_config = conf.getint("api", "dag_cache_ttl", fallback=3600)
-
-    if cache_size < 0:
-        log.warning("dag_cache_size must be >= 0, using unbounded dict")
-        cache_size = 0
-    if cache_ttl_config < 0:
-        log.warning("dag_cache_ttl must be >= 0, disabling TTL")
-        cache_ttl_config = 0
-
-    # Use unbounded dict (no eviction) if cache_size is 0
-    if cache_size <= 0:
-        return DBDagBag(cache_size=0)
-
-    # Disable TTL if cache_ttl is 0
-    cache_ttl: int | None = cache_ttl_config if cache_ttl_config > 0 else None
-
-    return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
+    """Create the API server's DagBag from the ``[api]`` cache options."""
+    return APIServerDBDagBag.from_config()
 
 
 def dag_bag_from_app(request: Request) -> DBDagBag:

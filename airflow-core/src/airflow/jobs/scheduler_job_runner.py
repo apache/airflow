@@ -71,6 +71,7 @@ from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
+from airflow.jobs.scheduler_dagbag import SchedulerDBDagBag
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -370,7 +371,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = DBDagBag(load_op_links=False)
+        self.scheduler_dag_bag = SchedulerDBDagBag.from_config()
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
