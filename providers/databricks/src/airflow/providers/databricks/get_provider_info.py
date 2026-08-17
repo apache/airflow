@@ -46,7 +46,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-databricks/operators/sql.rst",
                     "/docs/apache-airflow-providers-databricks/operators/sql_statements.rst",
-                    "/docs/apache-airflow-providers-databricks/operators/sql_warehouse.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/warehouse.rst",
                     "/docs/apache-airflow-providers-databricks/operators/copy_into.rst",
                 ],
                 "tags": ["service"],
