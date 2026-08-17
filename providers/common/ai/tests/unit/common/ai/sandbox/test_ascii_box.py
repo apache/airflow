@@ -67,9 +67,7 @@ def _command_result(
 
 def _backend_with_api(**kwargs) -> tuple[AsciiBoxSandboxBackend, mock.MagicMock]:
     backend = AsciiBoxSandboxBackend(**kwargs)
-    api = mock.MagicMock(
-        spec=["create", "update", "get", "command", "read_file", "write_file", "api_client"]
-    )
+    api = mock.MagicMock(spec=["create", "update", "get", "command", "read_file", "write_file", "api_client"])
     api.api_client = mock.MagicMock(spec=["param_serialize", "call_api"])
     backend._box_api = api
     backend._request_timeout = 30.0
@@ -123,9 +121,7 @@ class TestConnection:
         backend._get_api()
 
         hook.get_connection.assert_called_once_with("my_box")
-        configuration.assert_called_once_with(
-            host="https://box.example/api/box/v1", access_token="key"
-        )
+        configuration.assert_called_once_with(host="https://box.example/api/box/v1", access_token="key")
         assert backend._resolved_no_env is False
         assert backend._request_timeout == 12.5
 
@@ -187,9 +183,7 @@ class TestCreate:
 
     @mock.patch("ascii_box_sdk.wait_until_ready", autospec=True)
     def test_spec_and_sizing_are_passed_at_creation(self, wait_ready):
-        backend, api = _backend_with_api(
-            machine_type="small", ttl_seconds=120, ready_timeout=45, no_env=True
-        )
+        backend, api = _backend_with_api(machine_type="small", ttl_seconds=120, ready_timeout=45, no_env=True)
         api.create.return_value = SimpleNamespace(box=SimpleNamespace(id="bx_created1"))
 
         box_id = backend.create(spec=SandboxSpec(block_network=False, env={"TOKEN": "value"}))

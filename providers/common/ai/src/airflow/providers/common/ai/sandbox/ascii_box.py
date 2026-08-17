@@ -65,7 +65,7 @@ def _translate_ascii_box_errors(
             from ascii_box_sdk.exceptions import ApiException
         except ImportError:
             raise SandboxTerminalError(
-                'The Ascii Box SDK is not installed. Install '
+                "The Ascii Box SDK is not installed. Install "
                 '"apache-airflow-providers-common-ai[sandbox-ascii-box]".'
             ) from e
         if isinstance(e, ApiException):
@@ -145,9 +145,7 @@ class AsciiBoxSandboxBackend(SandboxBackend):
         no_env: bool | None = None,
     ) -> None:
         if machine_type not in _MACHINE_TYPES:
-            raise ValueError(
-                f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}."
-            )
+            raise ValueError(f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}.")
         _validate_positive_finite(ttl_seconds, "ttl_seconds")
         _validate_positive_finite(ready_timeout, "ready_timeout")
         self._box_conn_id = box_conn_id
@@ -183,8 +181,7 @@ class AsciiBoxSandboxBackend(SandboxBackend):
                 api_key = (conn.password or "").strip()
                 if not api_key:
                     raise SandboxTerminalError(
-                        f"Connection {self._box_conn_id!r} has no password; "
-                        "set it to the Ascii Box API key."
+                        f"Connection {self._box_conn_id!r} has no password; set it to the Ascii Box API key."
                     )
                 base_url = (conn.host or _DEFAULT_BASE_URL).rstrip("/")
                 if not base_url.startswith("http"):
@@ -205,9 +202,7 @@ class AsciiBoxSandboxBackend(SandboxBackend):
 
             self._request_timeout = request_timeout
             self._resolved_no_env = no_env
-            self._api_client = ApiClient(
-                Configuration(host=base_url, access_token=api_key)
-            )
+            self._api_client = ApiClient(Configuration(host=base_url, access_token=api_key))
             self._box_api = BoxApi(self._api_client)
             return self._box_api
 
@@ -278,8 +273,7 @@ class AsciiBoxSandboxBackend(SandboxBackend):
         _validate_positive_finite(max_output_bytes, "max_output_bytes")
         if timeout > _MAX_COMMAND_TIMEOUT:
             raise SandboxTerminalError(
-                f"Ascii Box commands are capped at {_MAX_COMMAND_TIMEOUT} seconds; "
-                f"got timeout={timeout}."
+                f"Ascii Box commands are capped at {_MAX_COMMAND_TIMEOUT} seconds; got timeout={timeout}."
             )
         timeout_seconds = max(1, min(_MAX_COMMAND_TIMEOUT, math.ceil(timeout)))
         api = self._get_api()
@@ -333,9 +327,7 @@ class AsciiBoxSandboxBackend(SandboxBackend):
 
     def _confirm_sandbox_exists(self, sandbox: str) -> None:
         with _translate_ascii_box_errors("confirm that a sandbox still exists"):
-            box = self._get_api().get(
-                sandbox, _request_timeout=self._http_timeout(_FILE_OP_TIMEOUT)
-            ).box
+            box = self._get_api().get(sandbox, _request_timeout=self._http_timeout(_FILE_OP_TIMEOUT)).box
         if box.state not in _READY_STATES:
             raise SandboxTerminalError(
                 f"Ascii Box sandbox {sandbox!r} is not runnable (state={box.state!r})."
@@ -357,9 +349,7 @@ class AsciiBoxSandboxBackend(SandboxBackend):
             if isinstance(e, ApiException) and e.status == 404:
                 self._confirm_sandbox_exists(sandbox)
                 raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.") from e
-            with _translate_ascii_box_errors(
-                "read a sandbox file", recoverable_statuses=frozenset({400})
-            ):
+            with _translate_ascii_box_errors("read a sandbox file", recoverable_statuses=frozenset({400})):
                 raise
 
         size = getattr(response, "size", None)
@@ -399,9 +389,7 @@ class AsciiBoxSandboxBackend(SandboxBackend):
             if isinstance(e, ApiException) and e.status == 404:
                 self._confirm_sandbox_exists(sandbox)
                 raise SandboxError(f"Could not write {path!r} in the sandbox.") from e
-            with _translate_ascii_box_errors(
-                "write a sandbox file", recoverable_statuses=frozenset({400})
-            ):
+            with _translate_ascii_box_errors("write a sandbox file", recoverable_statuses=frozenset({400})):
                 raise
 
     def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
