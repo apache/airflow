@@ -94,6 +94,10 @@ export const useFilterConfigs = () => {
     value: option.value === "all" ? "" : option.value,
   }));
 
+  // "All" selects every state, which is the same as not filtering at all. Where removing the
+  // pill already says that, the option is only a second way to spell it.
+  const runStateOptionsWithoutAll = runStateOptions.filter((option) => option.value !== "");
+
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
@@ -158,7 +162,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.DAG_RUN_STATE]: {
       icon: <MdCheckCircle />,
       label: translate("dags:filters.anyRunState"),
-      options: runStateOptions,
+      options: runStateOptionsWithoutAll,
       placeholder: translate("dags:filters.anyRunStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
@@ -271,7 +275,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.LAST_DAG_RUN_STATE]: {
       icon: <MdCheckCircle />,
       label: translate("dags:filters.lastRunState"),
-      options: runStateOptions,
+      options: runStateOptionsWithoutAll,
       placeholder: translate("dags:filters.lastRunStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
