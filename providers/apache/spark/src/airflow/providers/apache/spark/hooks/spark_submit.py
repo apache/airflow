@@ -513,29 +513,64 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Assume that spark-submit is present in the path to the executing user
         return [self._connection["spark_binary"]]
 
-    def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
+    @staticmethod
+    def _mask_cmd(connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
-        connection_cmd_masked = re.sub(
-            r"("
-            r"\S*?"  # Match all non-whitespace characters before...
-            r"(?:secret|password)"  # ...literally a "secret" or "password"
-            # word (not capturing them).
-            r"\S*?"  # All non-whitespace characters before either...
-            r"(?:=|\s+)"  # ...an equal sign or whitespace characters
-            # (not capturing them).
-            r"(['\"]?)"  # An optional single or double quote.
-            r")"  # This is the end of the first capturing group.
-            r"(?:(?!\2\s).)*"  # All characters between optional quotes
-            # (matched above); if the value is quoted,
-            # it may contain whitespace.
-            r"(\2)",  # Optional matching quote.
-            r"\1******\3",
-            " ".join(connection_cmd),
-            flags=re.I,
-        )
+        #
+        # The original single-regex approach used nested lazy quantifiers with a
+        # lookahead that caused quadratic backtracking (ReDoS) on large inputs.
+        # This token-based approach is O(n): split into whitespace-delimited tokens,
+        # identify sensitive keys, then mask the associated value.
+        cmd_str = " ".join(connection_cmd)
+        sensitive_re = re.compile(r"(?:secret|password)", re.I)
+        tokens = cmd_str.split(" ")
+        result: list[str] = []
+        i = 0
 
-        return connection_cmd_masked
+        while i < len(tokens):
+            token = tokens[i]
+
+            # Check for key=value form (e.g. HivePassword='abc' or secret_key=val)
+            eq_pos = token.find("=")
+            if eq_pos != -1 and sensitive_re.search(token[:eq_pos]):
+                key_part = token[: eq_pos + 1]
+                val_part = token[eq_pos + 1 :]
+
+                if val_part and val_part[0] in ("'", '"'):
+                    quote = val_part[0]
+                    # Quoted value may span multiple tokens
+                    if val_part.endswith(quote) and len(val_part) > 1:
+                        result.append(key_part + quote + "******" + quote)
+                    else:
+                        # Consume tokens until closing quote
+                        while i + 1 < len(tokens) and not tokens[i + 1].endswith(quote):
+                            i += 1
+                        i += 1  # skip the token with the closing quote
+                        result.append(key_part + quote + "******" + quote)
+                else:
+                    result.append(key_part + "******")
+            # Check for key value form (e.g. --password mypass)
+            elif sensitive_re.search(token) and i + 1 < len(tokens):
+                result.append(token)
+                i += 1  # skip the next token (the value)
+                next_token = tokens[i]
+                if next_token and next_token[0] in ("'", '"'):
+                    quote = next_token[0]
+                    if next_token.endswith(quote) and len(next_token) > 1:
+                        result.append(quote + "******" + quote)
+                    else:
+                        while i + 1 < len(tokens) and not tokens[i + 1].endswith(quote):
+                            i += 1
+                        i += 1
+                        result.append(quote + "******" + quote)
+                else:
+                    result.append("******")
+            else:
+                result.append(token)
+            i += 1
+
+        return " ".join(result)
 
     @property
     def _submit_log_tail(self) -> str:
