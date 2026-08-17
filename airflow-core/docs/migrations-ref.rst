@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``3c525f44bea8`` (head) | ``b2f1a9c7d4e0`` | ``3.4.0``         | Add indexes on serialized_dag and dag_code.                  |
+| ``76c46545c91e`` (head) | ``3c525f44bea8`` | ``3.4.0``         | Add new index for trigger.                                   |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``3c525f44bea8``        | ``b2f1a9c7d4e0`` | ``3.4.0``         | Add indexes on serialized_dag and dag_code.                  |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``b2f1a9c7d4e0``        | ``7a98f1b7dbd3`` | ``3.4.0``         | Reference the asset event from asset_dag_run_queue (consume- |
 |                         |                  |                   | by-reference).                                               |

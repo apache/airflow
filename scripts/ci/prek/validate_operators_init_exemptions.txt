@@ -21,5 +21,4 @@ providers/google/src/airflow/providers/google/cloud/sensors/cloud_composer.py::C
 providers/google/src/airflow/providers/google/cloud/transfers/azure_fileshare_to_gcs.py::AzureFileShareToGCSOperator
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_bigquery.py::GCSToBigQueryOperator
 providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::GoogleCampaignManagerDeleteReportOperator
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/gcs_to_wasb.py::GCSToAzureBlobStorageOperator
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
