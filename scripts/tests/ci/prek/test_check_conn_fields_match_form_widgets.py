@@ -107,8 +107,8 @@ class TestCheckConnFieldsForEntry:
             pytest.param([], _get_keys(), id="empty-on-both-sides"),
             pytest.param(["a"], _skip, id="skip-hook-without-get-connection-form-widgets"),
             pytest.param(None, _skip, id="skip-missing-conn-fields-when-hook-has-no-widgets"),
-            # Hook with widgets but no conn-fields is allowed: new UI intentionally omits custom fields.
-            pytest.param(None, _get_keys("field_a"), id="no-conn-fields-with-hook-widgets-is-ok"),
+            # When hook has no custom widgets, absent conn-fields is fine.
+            pytest.param(None, lambda _: set(), id="no-conn-fields-no-hook-widgets-is-ok"),
         ],
     )
     def test_no_errors(self, conn_fields, get_keys):
@@ -123,6 +123,10 @@ class TestCheckConnFieldsForEntry:
             ),
             pytest.param(["a"], _raise, "boom", id="unexpected-exception-message"),
             pytest.param(["a"], _raise, HOOK_CLASS, id="unexpected-exception-mentions-hook-class"),
+            # absent conn-fields with hook widgets must be flagged (every widget key is "missing")
+            pytest.param(
+                None, _get_keys("auth_protocol"), "auth_protocol", id="absent-conn-fields-with-hook-widgets"
+            ),
         ],
     )
     def test_one_error_containing(self, conn_fields, get_keys, expected_in_error):

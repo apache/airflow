@@ -51,14 +51,26 @@ class TestEncryptionUtils:
                 "-salt",
                 "-pbkdf2",
                 "-pass",
-                f"pass:{password}",
+                "stdin",
                 "-in",
                 file_path,
                 "-out",
                 out_file,
             ],
+            input=f"{password}\n".encode(),
             check=True,
         )
+
+    @patch("subprocess.run")
+    def test_generate_encrypted_file_passphrase_not_on_argv(self, mock_run):
+        """The passphrase is fed on stdin, never placed on the command line (ps-visible)."""
+        password = "s3cr3t;rm -rf ~"
+        generate_encrypted_file_with_openssl("/tmp/plain.txt", password, "/tmp/out.enc")
+        args, kwargs = mock_run.call_args
+        cmd = args[0]
+        assert "stdin" in cmd
+        assert not any(password in str(part) for part in cmd), "passphrase leaked onto argv"
+        assert kwargs["input"] == f"{password}\n".encode()
 
     def test_shell_quote_single_simple(self):
         s = "simple"

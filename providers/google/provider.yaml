@@ -30,12 +30,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1783356304
+source-date-epoch: 1785633505
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 22.3.0
   - 22.2.2
   - 22.2.1
   - 22.2.0
@@ -652,6 +653,9 @@ sensors:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.sensors.bigtable
+  - integration-name: Google Cloud SQL
+    python-modules:
+      - airflow.providers.google.cloud.sensors.cloud_sql
   - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_composer
@@ -1381,6 +1385,7 @@ extra-links:
   - airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink
   - airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink
   - airflow.providers.google.cloud.links.cloud_run.CloudRunJobLoggingLink
+  - airflow.providers.google.cloud.links.cloud_run.CloudRunJobExecutionDetailsLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
@@ -1487,6 +1492,12 @@ auth-backends:
 logging:
   - airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler
   - airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler
+
+remote-logging:
+  - classpath: airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO
+    scheme: gs
+  - classpath: airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO
+    scheme: stackdriver
 
 queues:
   - airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer

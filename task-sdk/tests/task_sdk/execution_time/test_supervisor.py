@@ -160,10 +160,12 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.supervisor import (
+    SERVER_TERMINATED,
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
     ProcessTracker,
+    WatchedSubprocess,
     _make_process_nondumpable,
     _remote_logging_conn,
     in_process_api_server,
@@ -1241,6 +1243,71 @@ class TestWatchedSubprocess:
         proc.selector.close.assert_called_once()
         proc.stdin.close.assert_called_once()
 
+    def test_task_runner_starts_in_new_process_group(self, client_with_ti_start):
+        """Regression test for #65505: the task-runner child must be placed in
+        its own process group (PGID == its PID) so kill() can reach
+        subprocesses the task-runner spawns via os.killpg(); without it, a
+        venv/Popen child of the task-runner inherits the supervisor's process
+        group and killpg would signal the supervisor too (or miss the
+        grandchild entirely).
+
+        The group must already exist when start() returns: the parent sets it
+        too (double setpgid), closing the race where kill() runs before the
+        child is first scheduled (e.g. task_instances.start() failing
+        synchronously in _on_child_started).
+        """
+
+        def subprocess_main():
+            CommsDecoder()._get_response()
+            sleep(10)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+        try:
+            child_pgid = os.getpgid(proc.pid)
+            assert child_pgid == proc.pid, (
+                "Task-runner child must be its own process-group leader as soon "
+                f"as start() returns. Got pgid={child_pgid}, pid={proc.pid}."
+            )
+            assert child_pgid != os.getpgid(0), (
+                "Child's process group must differ from the supervisor's so "
+                "os.killpg() from kill() does not signal the supervisor itself."
+            )
+        finally:
+            proc.kill(signal.SIGKILL, force=True)
+            proc.wait()
+
+    def test_child_keeps_supervisor_process_group_by_default(self):
+        """Subprocess types that don't opt in to new_process_group (DAG
+        processor, triggerer, callbacks) must keep the supervisor's process
+        group: they install their own signal handlers and expect direct,
+        graceful signalling rather than group-wide delivery.
+        """
+
+        def subprocess_main():
+            sleep(30)
+
+        proc = WatchedSubprocess.start(id=uuid7(), target=subprocess_main)
+        try:
+            assert os.getpgid(proc.pid) == os.getpgid(0), (
+                "Without new_process_group=True the child must stay in the supervisor's process group."
+            )
+        finally:
+            proc.kill(signal.SIGKILL, force=True)
+
 
 class TestWatchedSubprocessKill:
     @pytest.fixture
@@ -1261,6 +1328,7 @@ class TestWatchedSubprocessKill:
             stdin=mocker.Mock(),
             client=mocker.Mock(),
             process=mock_process,
+            new_process_group=True,
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -1270,8 +1338,11 @@ class TestWatchedSubprocessKill:
         proc.selector = mock_selector
         return proc
 
-    def test_kill_process_already_exited(self, watched_subprocess, mock_process):
+    def test_kill_process_already_exited(self, watched_subprocess, mock_process, mocker):
         """Test behavior when the process has already exited."""
+        # When the process is gone, getpgid raises ProcessLookupError and the
+        # kill() path falls back to send_signal on the dead psutil.Process.
+        mocker.patch("os.getpgid", side_effect=ProcessLookupError)
         mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
         watched_subprocess.kill(signal.SIGINT, force=True)
 
@@ -1279,15 +1350,98 @@ class TestWatchedSubprocessKill:
         mock_process.wait.assert_called_once()
         assert watched_subprocess._exit_code == -1
 
-    def test_kill_process_custom_signal(self, watched_subprocess, mock_process):
-        """Test that the process is killed with the correct signal."""
+    def test_kill_process_custom_signal(self, watched_subprocess, mock_process, mocker):
+        """Test that the process is killed with the correct signal via killpg."""
+        mock_getpgid = mocker.patch("os.getpgid", side_effect=lambda pid: 12345 if pid else 54321)
+        mock_killpg = mocker.patch("os.killpg")
         mock_process.wait.return_value = 0
 
         signal_to_send = signal.SIGUSR1
         watched_subprocess.kill(signal_to_send, force=False)
 
-        mock_process.send_signal.assert_called_once_with(signal_to_send)
+        assert mock_getpgid.call_args_list == [mocker.call(12345), mocker.call(0)]
+        mock_killpg.assert_called_once_with(12345, signal_to_send)
+        mock_process.send_signal.assert_not_called()
         mock_process.wait.assert_called_once_with(timeout=0)
+
+    def test_kill_signals_process_group(self, watched_subprocess, mock_process, mocker):
+        """Regression test for #65505: kill() must signal the whole process
+        group so subprocesses spawned by the task-runner (venv children,
+        Docker exec, bash shells) are also reached.
+        """
+        mock_getpgid = mocker.patch("os.getpgid", side_effect=lambda pid: 12345 if pid else 54321)
+        mock_killpg = mocker.patch("os.killpg")
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        assert mock_getpgid.call_args_list == [mocker.call(12345), mocker.call(0)]
+        mock_killpg.assert_called_once_with(12345, signal.SIGTERM)
+        mock_process.send_signal.assert_not_called()
+
+    def test_kill_does_not_signal_supervisors_own_process_group(
+        self, watched_subprocess, mock_process, mocker
+    ):
+        """If the child never made it into its own process group (setpgid
+        failed, or the child died and its PID's group resolves to ours),
+        os.killpg would signal the supervisor itself and every sibling in its
+        group -- and no exception would be raised for the fallback to catch.
+        kill() must detect the shared group and signal the child PID alone.
+        """
+        mocker.patch("os.getpgid", return_value=54321)
+        mock_killpg = mocker.patch("os.killpg")
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        mock_killpg.assert_not_called()
+        mock_process.send_signal.assert_called_once_with(signal.SIGTERM)
+
+    def test_kill_signals_pid_only_without_new_process_group(self, mocker, mock_process):
+        """Subprocess types that don't opt in to new_process_group (DAG
+        processor, triggerer, callbacks) must be signalled directly, never
+        via killpg.
+        """
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            client=mocker.Mock(),
+            process=mock_process,
+        )
+        mock_getpgid = mocker.patch("os.getpgid")
+        mock_killpg = mocker.patch("os.killpg")
+        mock_process.wait.return_value = 0
+
+        proc.kill(signal.SIGTERM, force=False)
+
+        mock_getpgid.assert_not_called()
+        mock_killpg.assert_not_called()
+        mock_process.send_signal.assert_called_once_with(signal.SIGTERM)
+
+    @pytest.mark.parametrize("failing_call", ["getpgid", "killpg"])
+    @pytest.mark.parametrize("exc", [ProcessLookupError, PermissionError])
+    def test_kill_falls_back_to_send_signal_when_group_signal_fails(
+        self, watched_subprocess, mock_process, mocker, failing_call, exc
+    ):
+        """If os.killpg or os.getpgid raises ProcessLookupError (group
+        vanished, e.g. task already reaped) or PermissionError, fall back to
+        signalling the task-runner PID directly via send_signal.
+        """
+        if failing_call == "getpgid":
+            mocker.patch("os.getpgid", side_effect=exc)
+            mock_killpg = mocker.patch("os.killpg")
+        else:
+            mocker.patch("os.getpgid", side_effect=lambda pid: 12345 if pid else 54321)
+            mock_killpg = mocker.patch("os.killpg", side_effect=exc)
+        mock_process.wait.return_value = 0
+
+        watched_subprocess.kill(signal.SIGTERM, force=False)
+
+        if failing_call == "getpgid":
+            mock_killpg.assert_not_called()
+        mock_process.send_signal.assert_called_once_with(signal.SIGTERM)
 
     @pytest.mark.parametrize(
         ("signal_to_send", "exit_after"),
@@ -1553,9 +1707,28 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                host=None,
+                schema=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
-        expected_body={"conn_id": "test_conn", "conn_type": "mysql", "type": "ConnectionResult"},
+        expected_body={
+            "conn_id": "test_conn",
+            "conn_type": "mysql",
+            "host": None,
+            "schema": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "extra": None,
+            "type": "ConnectionResult",
+        },
     ),
     RequestTestCase(
         message=GetConnection(conn_id="test_conn"),
@@ -1563,12 +1736,26 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="password"),
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                password="password",
+                host=None,
+                schema=None,
+                login=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
             "conn_type": "mysql",
             "password": "password",
+            "host": None,
+            "schema": None,
+            "login": None,
+            "port": None,
+            "extra": None,
             "type": "ConnectionResult",
         },
         mask_secret_args=("password",),
@@ -1579,12 +1766,26 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                schema="mysql",
+                host=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
             "conn_type": "mysql",
             "schema": "mysql",
+            "host": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "extra": None,
             "type": "ConnectionResult",
         },
     ),
@@ -2571,6 +2772,10 @@ REQUEST_TEST_CASES = [
                 consumed_asset_events=[],
                 state=DagRunState.SUCCESS,
                 triggering_user_name=None,
+                data_interval_start=None,
+                data_interval_end=None,
+                end_date=None,
+                partition_key=None,
             ),
         ),
         test_id="get_dag_run",
@@ -2631,6 +2836,10 @@ REQUEST_TEST_CASES = [
                     consumed_asset_events=[],
                     state=DagRunState.SUCCESS,
                     triggering_user_name=None,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    end_date=None,
+                    partition_key=None,
                 )
             ),
         ),
@@ -3647,7 +3856,7 @@ class TestInProcessClient:
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
-        pytest.param(True, "", "AIRFLOW_CONN_AWS_DEFAULT", id="no-conn-id"),
+        pytest.param(True, "", "", id="no-conn-id"),
         pytest.param(True, "aws_default", "AIRFLOW_CONN_AWS_DEFAULT", id="explicit-default"),
         pytest.param(True, "my_aws", "AIRFLOW_CONN_MY_AWS", id="other"),
         pytest.param(False, "", "", id="no-remote-logging"),
@@ -3670,6 +3879,12 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 # Minimal enough to pass validation, we don't care what fields are in here for the tests
                 "conn_id": remote_conn,
                 "conn_type": "aws",
+                "host": None,
+                "schema": None,
+                "login": None,
+                "password": None,
+                "port": None,
+                "extra": None,
             },
         )
 
@@ -3698,7 +3913,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
 
             with _remote_logging_conn(client):
                 new_keys = os.environ.keys() - env.keys()
-                if remote_logging:
+                if remote_logging and expected_env:
                     # _remote_logging_conn sets both the connection env var and _AIRFLOW_PROCESS_CONTEXT
                     assert new_keys == {expected_env, "_AIRFLOW_PROCESS_CONTEXT"}
                 else:
@@ -3929,6 +4144,22 @@ class TestSignalRetryLogic:
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.UP_FOR_RETRY
 
+    def test_server_terminated_takes_precedence_over_retry(self, mocker):
+        """Test that a server-terminated task stays SERVER_TERMINATED even with retries enabled."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = True
+        mock_watched_subprocess._terminal_state = SERVER_TERMINATED
+
+        assert mock_watched_subprocess.final_state == SERVER_TERMINATED
+
     def test_non_signal_exit_code_without_retry_goes_to_failed(self, mocker):
         """Test that non-signal exit codes without retries enabled go to FAILED."""
         mock_watched_subprocess = ActivitySubprocess(
@@ -4007,7 +4238,7 @@ def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
             conn_id=conn_id,
             conn_type="example",
             host=None,
-            schema_=None,
+            schema=None,
             login=None,
             password=None,
             port=None,
@@ -4079,7 +4310,14 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
         subprocess.check_call([sys.executable, "-c", dedent(script)])
 
     client_with_ti_start.connections.get.return_value = ConnectionResult(
-        conn_id="test_conn", conn_type="mysql", login="a", password="password1"
+        conn_id="test_conn",
+        conn_type="mysql",
+        login="a",
+        password="password1",
+        host=None,
+        schema=None,
+        port=None,
+        extra=None,
     )
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,
@@ -4465,3 +4703,51 @@ class TestMakeBufferedSocketReader:
         finally:
             r.close()
             w.close()
+
+
+class TestLengthPrefixedFrameReader:
+    def test_recovers_from_short_read_on_header(self):
+        received: list[_RequestFrame] = []
+
+        def collecting_gen():
+            while True:
+                frame = yield
+                received.append(frame)
+
+        payload = msgspec.msgpack.encode(_RequestFrame(id=42, body={"key": "foo"}))
+        wire = len(payload).to_bytes(4, byteorder="big") + payload
+
+        class ChunkedSocket:
+            def __init__(self, data: bytes, chunk_size: int):
+                self._data = data
+                self._chunk_size = chunk_size
+                self._pos = 0
+
+            def recv(self, n):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return b""
+                chunk = remaining[: min(n, self._chunk_size)]
+                self._pos += len(chunk)
+                return chunk
+
+            def recv_into(self, buf):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return 0
+                take = min(len(buf), self._chunk_size, len(remaining))
+                buf[:take] = remaining[:take]
+                self._pos += take
+                return take
+
+        sock = ChunkedSocket(wire, chunk_size=2)
+        on_close = MagicMock()
+        cb, _ = supervisor.length_prefixed_frame_reader(collecting_gen(), on_close=on_close)
+
+        for _ in range(len(wire) + 1):
+            if not cb(sock):
+                break
+            if received:
+                break
+
+        assert received == [_RequestFrame(id=42, body={"key": "foo"})]

@@ -56,6 +56,7 @@ from airflow_e2e_tests.constants import (
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     NODE_IMAGE,
+    OPENLINEAGE_COMPAT_DB_COMPOSE_PATH,
     OPENLINEAGE_COMPOSE_PATH,
     OPENSEARCH_PATH,
     PROVIDERS_MOUNT_CONTAINER_PATH,
@@ -630,7 +631,7 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
-def _setup_openlineage_integration(dot_env_file, tmp_dir):
+def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
     """Set up the openlineage E2E test mode.
 
     The OpenLineage system-test DAGs are the single source of truth; ``prepare_dags`` copies them
@@ -643,6 +644,10 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir):
     console.print("[yellow]Preparing OpenLineage DAGs from the provider system tests...")
     prepare_dags(tmp_dir / "dags")
     copyfile(OPENLINEAGE_COMPOSE_PATH, tmp_dir / "openlineage.yml")
+
+    if os.environ.get("E2E_TARGET_AIRFLOW_VERSION", "").strip():
+        copyfile(OPENLINEAGE_COMPAT_DB_COMPOSE_PATH, tmp_dir / "openlineage-compat-db.yml")
+        compose_file_names.append("openlineage-compat-db.yml")
 
 
 def _build_ts_sdk_example_bundle(*, native=False):
@@ -784,7 +789,7 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _setup_go_sdk_integration(dot_env_file, tmp_dir)
     elif E2E_TEST_MODE == "openlineage":
         compose_file_names.append("openlineage.yml")
-        _setup_openlineage_integration(dot_env_file, tmp_dir)
+        _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names)
     elif E2E_TEST_MODE == "ts_sdk":
         compose_file_names.append("ts.yml")
         _setup_ts_sdk_integration(dot_env_file, tmp_dir)

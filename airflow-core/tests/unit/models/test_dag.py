@@ -55,7 +55,6 @@ from airflow.models.dag import (
     DagOwnerAttributes,
     DagTag,
     clear_team_name_cache,
-    get_asset_triggered_next_run_info,
     get_next_data_interval,
     get_run_data_interval,
 )
@@ -1958,6 +1957,33 @@ class TestDag:
         assert parked_states_seen == [TaskInstanceState.AWAITING_INPUT]
         assert resume_calls == [(["Approve"], {})]
 
+    @pytest.mark.execution_timeout(60)
+    def test_dag_test_preserves_defer_kwargs_through_inline_trigger(self, testing_dag_bundle):
+        """dag.test() must keep defer()-time kwargs when the inline trigger yields an event."""
+        from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
+
+        seen_kwargs: list = []
+
+        class DeferKwargOperator(BaseOperator):
+            def execute(self, context):
+                self.defer(
+                    trigger=TimeDeltaTrigger(datetime.timedelta(seconds=0)),
+                    method_name="resume",
+                    kwargs={"vpc_id": "vpc-abc123"},
+                )
+
+            def resume(self, context, event=None, vpc_id=""):
+                seen_kwargs.append(vpc_id)
+
+        dag = DAG(dag_id="test_dag_test_defer_kwargs", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            DeferKwargOperator(task_id="defer_task")
+        sync_dag_to_db(dag)
+
+        dag.test()
+
+        assert seen_kwargs == ["vpc-abc123"]  # was [""] before the fix
+
     def test_dag_connection_file(self, tmp_path, testing_dag_bundle):
         test_connections_string = """
 ---
@@ -2558,7 +2584,12 @@ class TestDagModel:
         # add queue records so we'll need a run
         dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
         asset_model: AssetModel = dag_model.schedule_assets[0]
-        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        )
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2612,7 +2643,10 @@ class TestDagModel:
         session.add(dag_model)
         session.flush()
 
-        session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=orphan_dag_id))
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=orphan_dag_id, asset_event_id=event.id))
         session.flush()
 
         with caplog.at_level(logging.DEBUG, logger="airflow.models.dag"):
@@ -2680,10 +2714,14 @@ class TestDagModel:
         )
         session.flush()
 
+        event_z = AssetEvent(asset_id=id_z, timestamp=timezone.utcnow())
+        event_a = AssetEvent(asset_id=id_a, timestamp=timezone.utcnow())
+        session.add_all([event_z, event_a])
+        session.flush()
         session.add_all(
             [
-                AssetDagRunQueue(asset_id=id_z, target_dag_id="ghost_z"),
-                AssetDagRunQueue(asset_id=id_a, target_dag_id="ghost_a"),
+                AssetDagRunQueue(asset_id=id_z, target_dag_id="ghost_z", asset_event_id=event_z.id),
+                AssetDagRunQueue(asset_id=id_a, target_dag_id="ghost_a", asset_event_id=event_a.id),
             ]
         )
         session.flush()
@@ -2727,7 +2765,14 @@ class TestDagModel:
         asset_models = dag_model.schedule_assets
         assert len(asset_models) == num_assets
         for asset_model in asset_models:
-            session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+            event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(
+                    asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id
+                )
+            )
         session.flush()
 
         # Clear identity map so N+1 on adrq.asset is exposed
@@ -2761,7 +2806,12 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
-        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        )
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -3019,12 +3069,24 @@ class TestDagModel:
             pass
 
         session.flush()
+        asset_event_ids = {
+            e.asset_id: e.id
+            for e in session.scalars(
+                select(AssetEvent).where(AssetEvent.asset_id.in_([asset1_id, asset2_id]))
+            )
+        }
         session.add_all(
             [
-                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+                AssetDagRunQueue(
+                    asset_id=asset1_id,
+                    target_dag_id=dag.dag_id,
+                    asset_event_id=asset_event_ids[asset1_id],
+                    created_at=DEFAULT_DATE,
+                ),
                 AssetDagRunQueue(
                     asset_id=asset2_id,
                     target_dag_id=dag.dag_id,
+                    asset_event_id=asset_event_ids[asset2_id],
                     created_at=DEFAULT_DATE + timedelta(hours=1),
                 ),
             ]
@@ -3777,71 +3839,6 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, catchup, restrict):
         EmptyOperator(task_id="do2", start_date=tasks_date[1][0], end_date=tasks_date[1][1])
 
     assert dag._time_restriction == restrict
-
-
-def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
-    asset1 = Asset(uri="test://asset1", name="test_asset1", group="test-group")
-    asset2 = Asset(uri="test://asset2", group="test-group")
-    asset3 = Asset(uri="test://asset3", group="test-group")
-    with dag_maker(dag_id="assets-1", schedule=[asset2]):
-        pass
-    dag1 = dag_maker.dag
-
-    with dag_maker(dag_id="assets-2", schedule=[asset1, asset2]):
-        pass
-    dag2 = dag_maker.dag
-
-    with dag_maker(dag_id="assets-3", schedule=[asset1, asset2, asset3]):
-        pass
-    dag3 = dag_maker.dag
-
-    session = dag_maker.session
-    asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
-    session.bulk_save_objects(
-        [
-            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
-            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
-        ]
-    )
-    session.flush()
-
-    assets = session.execute(select(AssetModel.uri).order_by(AssetModel.id)).all()
-
-    info = get_asset_triggered_next_run_info([dag1.dag_id], session=session)
-    assert info[dag1.dag_id] == {
-        "ready": 0,
-        "total": 1,
-        "uri": assets[0].uri,
-    }
-
-    # This time, check both dag2 and dag3 at the same time (tests filtering)
-    info = get_asset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
-    assert info[dag2.dag_id] == {
-        "ready": 1,
-        "total": 2,
-        "uri": "",
-    }
-    assert info[dag3.dag_id] == {
-        "ready": 1,
-        "total": 3,
-        "uri": "",
-    }
-
-
-@pytest.mark.need_serialized_dag
-def test_get_asset_triggered_next_run_info_with_unresolved_asset_alias(dag_maker, clear_assets):
-    asset_alias1 = AssetAlias(name="alias")
-    with dag_maker(dag_id="dag-1", schedule=[asset_alias1]):
-        pass
-    dag1 = dag_maker.dag
-    session = dag_maker.session
-    session.flush()
-
-    info = get_asset_triggered_next_run_info([dag1.dag_id], session=session)
-    assert info == {}
-
-    dag1_model = DagModel.get_dagmodel(dag1.dag_id)
-    assert dag1_model.get_asset_triggered_next_run_info(session=session) is None
 
 
 @pytest.mark.parametrize(

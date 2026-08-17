@@ -120,12 +120,12 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
           <DataTable
             columns={columns}
             data={partitionedDagRuns}
+            hideRowCountHeading
             initialState={tableState}
             isFetching={isFetching}
             isLoading={isLoading}
             modelName="partitionedDagRun"
             onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
-            showRowCountHeading={false}
             total={total}
           />
         </Dialog.Body>

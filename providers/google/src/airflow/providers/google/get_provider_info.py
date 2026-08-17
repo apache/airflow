@@ -722,6 +722,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.bigtable"],
             },
             {
+                "integration-name": "Google Cloud SQL",
+                "python-modules": ["airflow.providers.google.cloud.sensors.cloud_sql"],
+            },
+            {
                 "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
@@ -1600,6 +1604,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink",
             "airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink",
             "airflow.providers.google.cloud.links.cloud_run.CloudRunJobLoggingLink",
+            "airflow.providers.google.cloud.links.cloud_run.CloudRunJobExecutionDetailsLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocLink",
@@ -1704,6 +1709,16 @@ def get_provider_info():
         "logging": [
             "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
             "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+        ],
+        "remote-logging": [
+            {
+                "classpath": "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO",
+                "scheme": "gs",
+            },
+            {
+                "classpath": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
+                "scheme": "stackdriver",
+            },
         ],
         "queues": [
             "airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer"

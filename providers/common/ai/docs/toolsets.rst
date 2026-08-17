@@ -24,7 +24,7 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Three toolsets are included:
+Four toolsets are included:
 
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
@@ -33,8 +33,11 @@ Three toolsets are included:
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
+- :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` — give
+  the agent a shell and a filesystem inside an isolated sandbox, off the
+  Airflow worker. See :ref:`which boundary that is <sandbox-boundaries>`.
 
-All three implement pydantic-ai's
+All four implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -128,7 +131,8 @@ Curated toolset wrapping
    * - ``get_schema``
      - Returns column names and types for a table
    * - ``query``
-     - Executes a SQL query and returns rows as JSON
+     - Executes a SQL query and returns bounded, columnar JSON (see
+       :ref:`bounded-query-results`)
    * - ``check_query``
      - Validates SQL syntax without executing it
 
@@ -192,12 +196,73 @@ Parameters
   ``check_query`` as well as discovery -- every table a query references must be
   on it. See :ref:`allowed-tables-enforcement` for what this does and does not
   guarantee.
+- ``allowed_functions``: Names of functions that sqlglot does not recognize as
+  builtins but are safe to run while ``allowed_tables`` is active (e.g.
+  ``["json_build_object"]`` or a project UDF). ``None`` (default) rejects every
+  unrecognized function. Matching is case-insensitive. Only consulted when
+  ``allowed_tables`` is set.
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
   Default ``False`` -- only SELECT-family and read-only metadata
   (``DESCRIBE``/``SHOW``) statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+  Rows beyond it are not read out of a DBAPI cursor; what the driver has already
+  transferred is its own call. See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
+  See :ref:`bounded-query-results`.
+
+.. _bounded-query-results:
+
+Bounded query results
+^^^^^^^^^^^^^^^^^^^^^
+
+A tool result stays in the model's message history for the rest of the run, so its
+cost is re-paid on every subsequent model request. The ``query`` tool of both
+``SQLToolset`` and ``DataFusionToolset`` bounds that in three ways.
+
+**The result is columnar.** Column names appear once, not once per row:
+
+.. code-block:: json
+
+    {"columns": ["id", "name"], "rows": [[1, "Alice"], [2, "Bob"]], "row_count": 2}
+
+On a table with thousands of columns the repeated names, not the values, are the bulk
+of a row-of-dicts payload. Positional rows also keep columns that share a name --
+``SELECT o.id, c.id`` -- which a dict per row silently collapsed to one.
+
+**Rows are fetched, not filtered.** ``max_rows`` bounds what leaves the cursor, so a
+query matching a whole table costs the worker roughly what one matching ``max_rows``
+costs. How much is saved depends on the driver: with a server-side cursor the
+remaining rows are never sent, while a client-buffering driver (psycopg2's default
+cursor, MySQLdb) has already received them and only the per-row conversion is skipped.
+Hooks whose cursor is not DBAPI 2.0 (``ExasolHook`` passes a pyexasol statement) fall
+back to a full fetch, and ``DataFusionToolset`` materializes the full result in the
+engine before the toolset sees it; in both the payload is bounded but the transfer is
+not.
+
+**A byte budget bounds the payload.** ``max_rows`` caps rows, which says nothing about
+size -- one row of a 3000-column table is larger than a thousand rows of a narrow one.
+``max_result_bytes`` is what actually bounds context. Rows are returned as a contiguous
+prefix: the result stops at the first row that does not fit the remaining budget rather
+than skipping it and packing later ones, so a single wide row early in the result ends
+it. The result says which limit it hit:
+
+.. code-block:: json
+
+    {"columns": ["..."], "rows": ["..."], "row_count": 3,
+     "truncated": true, "truncated_by": "max_result_bytes"}
+
+``truncated_by`` is ``max_rows`` or ``max_result_bytes``. When not even one row fits,
+or the column names alone exceed the budget, the result carries a ``hint`` telling the
+agent to narrow its projection -- the only move that helps. ``total_rows`` is present
+when the driver reports a row count for the query; several (SQLite, some warehouse
+drivers) do not, and it is then omitted rather than guessed.
+
+The default budget is deliberately generous: the columnar shape alone shrinks a wide
+result several-fold, so results that fit before still fit. Lower ``max_result_bytes``
+when an agent makes many queries in one run, since every result is re-paid on every
+later request.
 
 ``DataFusionToolset``
 ---------------------
@@ -218,7 +283,8 @@ querying files on object stores (S3, local filesystem, Iceberg) via Apache DataF
    * - ``get_schema``
      - Returns column names and types for a table (Arrow schema)
    * - ``query``
-     - Executes a SQL query and returns rows as JSON
+     - Executes a SQL query and returns bounded, columnar JSON (see
+       :ref:`bounded-query-results`)
 
 Each :class:`~airflow.providers.common.sql.config.DataSourceConfig` entry
 registers a table backed by Parquet, CSV, Avro, or Iceberg data. Multiple
@@ -262,6 +328,8 @@ Parameters
   permitted. DataFusion on object stores is mostly read-only, but it does
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
+  See :ref:`bounded-query-results`.
 
 ``LoggingToolset``
 ------------------
@@ -472,6 +540,329 @@ resolves sources to local ``SKILL.md`` directories that any loader accepts:
 ``resolve_skills`` needs the Git provider (for ``GitSkills``) but not pydantic-ai,
 and removes any cloned directories when the ``with`` block exits.
 
+
+``SandboxToolset``
+------------------
+
+:class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` gives the
+agent a shell and a filesystem inside a disposable sandbox, provisioned by a
+:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` and running off the
+Airflow worker process. It exposes four tools:
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Tool
+     - What it does
+   * - ``run_command``
+     - Runs a shell command. Pipes, redirection, ``&&`` and globs work. A
+       non-zero exit is reported as output, not raised, so the model reads
+       ``stderr`` and corrects itself.
+   * - ``read_file``
+     - Reads a text file, head-first, and reports the next ``offset`` so the
+       model can page through a long file.
+   * - ``write_file``
+     - Writes text to a file, creating parent directories.
+   * - ``list_directory``
+     - Lists a directory. Directories are shown with a trailing ``/``.
+
+These are the same four names and shapes that pydantic-ai's own sandbox
+capabilities use, so a model that has seen one already knows this one, and a
+vendor that has written an adapter for one is close to having written this one.
+
+.. _sandbox-boundaries:
+
+Which boundary this is
+^^^^^^^^^^^^^^^^^^^^^^
+
+"Sandboxed" means different things at different layers, and picking the wrong
+layer is the most common way to end up with less protection than you think.
+Four boundaries exist, from smallest to largest:
+
+.. list-table::
+   :widths: 22 33 45
+   :header-rows: 1
+
+   * - Boundary
+     - What moves inside it
+     - What that protects you from
+   * - **A tool call**
+     - What ``run_command`` and the file tools do. **This toolset.**
+     - Model-written code damaging the worker host, reading its files, or
+       reaching the network from it.
+   * - **The glue between tools**
+     - Generated orchestration code, via :ref:`code mode <code-mode>` and the
+       Monty interpreter.
+     - Generated code touching anything other than the tools you registered.
+       It still runs in the worker process.
+   * - **The agent process**
+     - The whole agent loop, its LLM credentials and its message history.
+     - The agent's own credentials leaking, and any *other* toolset on the same
+       agent. Not available today.
+   * - **The whole task**
+     - The complete Airflow task, supervisor included, as
+       ``KubernetesExecutor`` does.
+     - Everything, including Airflow's own worker context and connections.
+
+``SandboxToolset`` is the first row. Being precise about what that means:
+
+- Airflow does not put its context, connections, variables, or worker
+  environment into the sandbox. Only what you pass through
+  :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in.
+- **It does not contain the agent.** The agent loop, the model calls, and every
+  other toolset on the same agent still run in the worker process with the
+  worker's credentials. An agent that has ``SandboxToolset`` *and* a toolset
+  that can reach connections has a contained code tool sitting beside a
+  credential path that is not contained. The sandbox does not change what those other
+  tools can do.
+- Boundary size is not a security level on its own. The image, the credentials
+  you inject, the network policy, and the resource limits decide the actual
+  isolation. Choose the smallest boundary that fits, then configure the runtime.
+
+If you need the whole task isolated, that is
+``KubernetesPodOperator`` or ``KubernetesExecutor`` today, not this.
+
+When to reach for it
+^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :widths: 45 55
+   :header-rows: 1
+
+   * - You want
+     - Use
+   * - The agent to analyze data, install a package, run a script it wrote, or
+       produce a file, without any of that touching the worker
+     - ``SandboxToolset``
+   * - Fewer model round-trips when chaining tools you already trust
+     - :ref:`code mode <code-mode>`. It is not a sandbox for your data; it
+       restricts generated glue code to the tools you registered
+   * - The agent to query a database with guardrails
+     - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`, which
+       enforces table allowlists. A sandbox does not help here
+   * - A whole task's worth of untrusted work isolated, with no agent involved
+     - ``KubernetesPodOperator``
+   * - Airflow's own credentials kept away from the agent
+     - Not this. Scope the connections the task can see, and give the agent only
+       the toolsets it needs
+
+Both ``code_mode=True`` and ``SandboxToolset`` can be enabled together.
+``run_command`` deliberately stays a normal tool in that setup rather than being
+folded into ``run_code``, so the model writes Monty code that calls the sandbox,
+never a shell script quoted inside a Python string. The three file tools *are*
+folded in, where they are more useful as callables.
+
+Lifecycle
+^^^^^^^^^
+
+The sandbox is created lazily on the first tool call, shared by every call in
+that agent run, and destroyed when the run ends. A run that never calls a tool
+never provisions one, and concurrent runs never share a sandbox.
+
+Files written by one call are visible to later calls in the same run. Each
+``run_command`` is a fresh shell, so shell variables and background jobs do not
+survive between calls; write state to a file if you need it later.
+
+If a command outlives its budget and the backend cannot confirm it stopped, the
+backend destroys the sandbox and the tool result says so. The next call gets a
+fresh sandbox, and files from earlier calls are gone.
+
+A recoverable failure becomes a bounded retry the model can react to. Only a
+terminal failure -- credentials rejected, daemon unreachable, sandbox gone --
+fails the task, so Airflow's own retry handles it rather than the model burning
+its retry budget.
+
+Controlling what the sandbox gets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.SandboxSpec` says what a sandbox is
+provisioned with. The default denies outbound network access and injects no
+environment.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import SandboxSpec, SbxSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(
+        SbxSandboxBackend(host_network_policy="allow-all"),
+        spec=SandboxSpec(
+            env={"HF_TOKEN": "..."},  # only what the generated code legitimately needs
+            block_network=False,  # this sandbox may reach the internet
+        ),
+    )
+
+Anything in ``env`` is readable by model-generated code, so scope it to that one
+sandbox's job rather than passing the worker's environment through.
+
+A backend that cannot enforce a field it was given **raises instead of ignoring
+it**, so a spec never gives you a false sense of a restriction being in force.
+The ``sbx`` backend applies ``allow_egress_to`` as a per-sandbox policy rule,
+but only on top of a ``deny-all`` host policy, since a local rule can narrow
+egress and never widen it. Ask for an allowlist against an open host policy and
+it refuses rather than granting nothing quietly.
+
+Using more than one sandbox
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Tool names must be unique within an agent, so two ``SandboxToolset`` instances
+need ``tool_prefix``:
+
+.. code-block:: python
+
+    toolsets = [
+        SandboxToolset(
+            SbxSandboxBackend(image="python:3.12-slim", host_network_policy="deny-all"),
+            tool_prefix="py",
+        ),
+        SandboxToolset(
+            SbxSandboxBackend(image="node:22-slim", host_network_policy="deny-all"),
+            tool_prefix="node",
+        ),
+    ]
+
+That yields ``py_run_command``, ``node_run_command`` and so on. Without a
+prefix on at least one of them, the run fails at startup with a duplicate tool
+name. Give the model instructions on which one to use for what, or it will guess.
+
+sbx backend (Docker Sandboxes)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.SbxSandboxBackend` runs each sandbox
+in a `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ microVM by
+driving the ``sbx`` CLI. Each sandbox is a real microVM with its own kernel, so
+agent code is isolated by a hardware boundary rather than a shared kernel.
+
+.. warning::
+
+   **Use this backend for local development, not production.** Docker Sandboxes
+   is built for running coding agents against a checkout on your own machine:
+   ``sbx create`` takes an agent name (``claude``, ``codex``, ``shell`` and so
+   on) and bind-mounts host paths into the sandbox, and its stock network
+   profile is described as "typical development traffic ... AI services and
+   package registries". Driving it from an Airflow worker is off-label use.
+
+   Concretely, a production worker would need all of: the ``sbx`` binary on the
+   host, an authenticated Docker account (``sbx login``), a one-time
+   ``sbx policy init``, and on Linux, KVM or nested virtualization. A worker in
+   an unprivileged container -- the normal Kubernetes deployment -- generally
+   cannot satisfy the last one at all.
+
+   Treat it as the backend you develop and test a sandboxed agent against, then
+   run something else in production. A hosted backend plugs in through
+   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, but none ships
+   with the provider yet.
+
+   **Orphans are not reclaimed automatically.** There is no server-side TTL. If
+   the worker is killed outright, the microVM and its workspace directory
+   survive. Sandboxes are named ``airflow-sandbox-*`` so an operator can find and
+   remove them; budget for that sweep.
+
+Installing the CLI is a Deployment Manager prerequisite
+(``brew install docker/tap/sbx`` or ``winget install Docker.sbx``); the backend
+needs no Python dependency. The template image must provide GNU coreutils
+``timeout``, ``base64``, ``stat`` and ``ls``, which any Debian or Ubuntu based
+image, including ``python:*-slim``, does.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.operators.agent import AgentOperator
+    from airflow.providers.common.ai.sandbox import SbxSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    AgentOperator(
+        task_id="sandboxed_analyst",
+        prompt="Estimate pi with a Monte Carlo simulation of one million points.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[SandboxToolset(SbxSandboxBackend(host_network_policy="deny-all"))],
+    )
+
+Constructor parameters:
+
+- ``image``: Container image for the sandbox. Default ``"python:3.12-slim"``.
+- ``memory``: Memory limit in binary units. ``sbx`` enforces a 1 GiB minimum.
+  Default ``"2g"``.
+- ``cpus``: CPUs to allocate. ``None`` (default) uses the ``sbx`` default, which
+  is every host CPU.
+- ``sbx_path``: Path to the ``sbx`` binary. Default ``"sbx"``.
+- ``create_timeout``: Seconds allowed for provisioning; a first-run microVM boot
+  plus an image pull can be slow. Default ``600``.
+- ``host_network_policy``: What ``sbx policy`` is set to on this host.
+  ``"unknown"`` (default) makes ``create`` refuse any spec asking for a network
+  guarantee this backend cannot make. Set ``"deny-all"`` after running
+  ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open.
+
+Bringing your own backend
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any vendor that can create a sandbox, run a command in it and destroy it can
+plug in. Subclass
+:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` in your own package
+and pass an instance to ``SandboxToolset``.
+
+**Three methods are required**: ``create``, ``run_command`` and ``destroy``. The
+three file operations ship as defaults implemented over ``run_command``, because
+reading, writing and listing a file are all expressible as shell commands.
+Override them only when the vendor has a native file API, which avoids base64
+expansion, the command-line length ceiling, and the guest needing coreutils:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import (
+        SandboxBackend,
+        SandboxExecResult,
+        SandboxSpec,
+    )
+
+
+    class AcmeSandboxBackend(SandboxBackend):
+        name = "acme"
+
+        def create(self, *, spec: SandboxSpec | None = None) -> str:
+            return acme_sdk.create_sandbox().id
+
+        def run_command(self, sandbox, command, *, timeout, max_output_bytes):
+            r = acme_sdk.exec(sandbox, command, timeout=timeout)
+            return SandboxExecResult(exit_code=r.exit_code, stdout=r.stdout, stderr=r.stderr)
+
+        def destroy(self, sandbox) -> None:
+            acme_sdk.delete_sandbox(sandbox)
+
+        # Optional: inherited from SandboxBackend unless the vendor has
+        # something better than shelling out.
+        def read_file(self, sandbox, path, *, max_bytes) -> bytes:
+            return acme_sdk.download(sandbox, path, limit=max_bytes)
+
+Four rules for an implementation:
+
+- Constructors run at Dag-parse time, so resolve credentials lazily, on first use.
+- ``destroy`` must be idempotent; destroying an already-gone sandbox is not an error.
+- Raise ``SandboxTerminalError`` when retrying cannot help and ``SandboxError``
+  when it might. The first fails the task for Airflow to retry; the second
+  becomes a bounded prompt back to the model.
+- If you cannot enforce something the ``SandboxSpec`` asks for, **raise**. Never
+  provision a weaker sandbox than the DAG author asked for.
+
+Parameters
+^^^^^^^^^^
+
+- ``backend``: The backend that provisions and drives the sandbox.
+- ``spec``: What to provision it with. Defaults to no environment and no egress.
+- ``default_command_timeout``: Seconds for a ``run_command`` the model did not
+  put a timeout on. Default ``60``.
+- ``max_command_timeout``: Hard ceiling for any single command, including a
+  model-supplied ``timeout_seconds``. Default ``300``.
+- ``max_output_lines`` / ``max_output_bytes``: Caps per output stream and per
+  file read, whichever is hit first. Defaults ``2000`` and 50 KiB. Command
+  output keeps the **tail**, where errors and the exit status live; file reads
+  keep the head and report a continuation offset.
+- ``max_read_bytes``: Largest file ``read_file`` will transfer. Default 5 MiB;
+  larger files are refused with a hint to slice them in the shell.
+- ``tool_prefix``: Prefix for the four tool names. Needed when one agent has
+  more than one ``SandboxToolset``.
+
+
 Working with LangChain
 ----------------------
 
@@ -507,7 +898,7 @@ curated, connection-managed tools:
 
 Each generated tool keeps the source tool's name, description, and argument
 schema, and routes calls back through the original toolset, so the toolset's own
-behaviour (connection resolution, ``SQLToolset``'s SQL validation, and
+behavior (connection resolution, ``SQLToolset``'s SQL validation, and
 ``allowed_tables`` filtering) still applies. ``get_tools`` runs eagerly at
 conversion time to enumerate the tools.
 
@@ -606,20 +997,38 @@ No single layer is sufficient — they work together.
        ``get_schema``, ``query``, and ``check_query``. Queries are parsed and
        every referenced table (including via subqueries, CTEs, JOINs, and
        ``DESCRIBE``) is checked against the list before execution.
-     - Cannot police data reached through side-effecting scalar functions
-       (e.g. ``pg_read_file``), and is only as exact as the SQL parser. Pair it
-       with least-privilege database grants. See
+     - Rejects ``COPY`` and every function sqlglot cannot type (the channel for
+       ``pg_read_file`` / ``query_to_xml`` / ``dblink``) unless named in
+       ``allowed_functions``. Fail-closed, but only as exact as the SQL parser. Not a
+       security boundary -- always pair it with least-privilege database grants. See
        :ref:`allowed-tables-enforcement` below.
-   * - **SQLToolset: max_rows**
-     - Truncates query results to ``max_rows`` (default 50), preventing the
-       agent from pulling entire tables into context.
-     - Does not limit the number of queries the agent can make.
+   * - **SQLToolset: max_rows / max_result_bytes**
+     - Bounds a query result by rows (default 50) and by serialized size
+       (default 64 KiB), preventing the agent from pulling entire tables into
+       context.
+     - Does not limit the number of queries the agent can make, and each result
+       stays in message history for the rest of the run. Rows past ``max_rows``
+       are not read out of the cursor, but a client-buffering driver has already
+       transferred them -- this bounds context, not database or network load.
    * - **MCPToolset: external server**
      - Connects the agent to tools exposed by an MCP server, authenticated
        through an Airflow connection.
      - Does **not** constrain what those tools do. An MCP server can expose
        shell, filesystem, or network access. Run only trusted servers and
        audit the tools they expose.
+   * - **SandboxToolset: off-worker execution**
+     - Runs the agent's commands and file operations in a disposable microVM,
+       never in the worker process. Airflow injects nothing of its own; only
+       what ``SandboxSpec`` names goes in, and egress is denied by default. A
+       backend that cannot enforce a spec field raises rather than ignoring it.
+       Commands are bounded by a timeout ceiling and per-stream output caps.
+     - **Does not contain the agent.** The agent loop and every other toolset on
+       the same agent still run in the worker with its credentials, so this does
+       not stop an agent reaching connections through some other tool. It also
+       does not sanitize what the code computes or returns. Custom images can
+       carry secrets, a backend you add can expose its own identity, the ``sbx``
+       backend leaks orphaned microVMs
+       if the worker is killed, and its CPU allocation defaults to every host CPU.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.
@@ -644,27 +1053,48 @@ When ``allowed_tables`` is set it governs every tool, not just discovery:
   cross-database reference like ``otherdb.public.orders`` is refused.
 - Constructs the list cannot describe are rejected outright while it is active:
   table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
-  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), and **inline
-  comments** -- the last because parser-vs-engine differences hide in comments
-  (MySQL executes ``/*! ... */`` while sqlglot and other engines ignore it).
+  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), ``COPY``
+  (file/program I/O), and **inline comments** -- because parser-vs-engine differences
+  hide in comments (MySQL executes ``/*! ... */`` while sqlglot and other engines
+  ignore it).
+- **Any function sqlglot does not recognize is rejected (fail-closed).** A function
+  whose string argument reaches data outside the table graph --
+  ``pg_read_file('/etc/passwd')`` (a file), ``query_to_xml('SELECT * FROM other_table', ...)``
+  (SQL over another table), a scalar ``dblink`` (a remote database) -- carries no table
+  reference for the parser to catch. Rather than maintain a denylist of such functions
+  (unbounded, engine-specific, and it would fail *open* on anything missed), the toolset
+  rejects every function sqlglot cannot type. Ordinary builtins (``count``, ``lower``,
+  ``sum``) are recognized and pass. A legitimate function sqlglot does not type
+  (``json_build_object``, ``jsonb_agg``) or a project UDF is rejected until you list it
+  in ``allowed_functions``:
+
+  .. code-block:: python
+
+      SQLToolset(
+          db_conn_id="analytics_db",
+          allowed_tables=["orders"],
+          allowed_functions=["json_build_object"],  # opt in per function you trust
+      )
 
 So ``SELECT * FROM secrets`` with ``allowed_tables=["orders"]`` is refused, and
 the rejection is handed back to the agent so it can re-target an allowed table.
 
-This is a strong **application-level guardrail**, but it is not a substitute for
-database permissions. It cannot police data reached through a function whose
-argument is itself SQL or a path: ``pg_read_file('/etc/passwd')`` reads a file,
-and ``query_to_xml('SELECT * FROM other_table', ...)`` or a scalar ``dblink``
-reads a table through a string the parser cannot inspect. Any query the engine
-parses differently from sqlglot is also a residual gap. For a hard boundary, also
-run the connection as a least-privilege role:
+.. warning::
 
-.. code-block:: sql
+    This is a strong **application-level guardrail, not a security boundary.** The
+    fail-closed function check raises the bar, but any query the engine parses
+    differently from sqlglot is a residual gap, and ``allowed_functions`` is a trust
+    decision you own. **Always** point the connection at a least-privilege database
+    role -- that is the boundary that holds even when the parser cannot see through a
+    function, and it is what actually keeps an agent (which may be under prompt
+    injection) away from data and files you have not granted it:
 
-    -- Create a read-only role with access to specific tables only
-    CREATE ROLE airflow_agent_reader;
-    GRANT SELECT ON orders, customers TO airflow_agent_reader;
-    -- Use this role's credentials in the Airflow connection
+    .. code-block:: sql
+
+        -- Create a read-only role with access to specific tables only
+        CREATE ROLE airflow_agent_reader;
+        GRANT SELECT ON orders, customers TO airflow_agent_reader;
+        -- Use this role's credentials in the Airflow connection
 
 Defense in depth: the allow-list contains the agent's *intent* (and gives it a
 correctable error), while the database role is the boundary that holds even if
@@ -708,7 +1138,8 @@ Recommended Configuration
         db_conn_id="analytics_readonly",  # Connection with SELECT-only grants
         allowed_tables=["orders", "customers"],  # Hide other tables from agent
         allow_writes=False,  # Default — validates SQL
-        max_rows=50,  # Default — truncate large results
+        max_rows=50,  # Default — cap rows
+        max_result_bytes=65536,  # Default — cap bytes; lower it for wide tables
     )
 
 **Agents that need to modify data** (use with caution):
@@ -736,8 +1167,10 @@ Before deploying an agent task to production:
    agent can call any exposed tool with any arguments.
 4. **Read-only default**: Keep ``allow_writes=False`` unless the task
    specifically requires writes.
-5. **Row limits**: Set ``max_rows`` appropriate to the use case. Large
-   result sets consume LLM context and increase cost.
+5. **Result limits**: Set ``max_rows`` and ``max_result_bytes`` appropriate to
+   the use case. ``max_rows`` alone does not bound size -- on wide tables it is
+   ``max_result_bytes`` that keeps a result from dominating the context window for
+   the rest of the run.
 6. **Model budget**: Configure pydantic-ai's ``model_settings`` (e.g.
    ``max_tokens``) and ``retries`` to bound cost and prevent runaway loops.
 7. **System prompt**: Include safety instructions in ``system_prompt`` (e.g.

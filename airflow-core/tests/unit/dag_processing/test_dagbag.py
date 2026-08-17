@@ -46,6 +46,7 @@ from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk import DAG, BaseOperator
 
@@ -185,7 +186,7 @@ class TestValidateExecutorFields:
                     "Task 'task1' specifies executor 'invalid.executor', which is not available "
                     "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
                     "Make sure 'invalid.executor' is configured for team 'test_team' or globally in your "
-                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "[core] executor configuration, or update the task's executor to use one of the "
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
@@ -204,7 +205,7 @@ class TestValidateExecutorFields:
                 UnknownExecutorException,
                 match=re.escape(
                     "Task 'task1' specifies executor 'invalid.executor', which is not available. "
-                    "Make sure it is listed in your [core] executors configuration, or update the task's "
+                    "Make sure it is listed in your [core] executor configuration, or update the task's "
                     "executor to use one of the configured executors."
                 ),
             ):
@@ -258,7 +259,7 @@ class TestValidateExecutorFields:
                     "Task 'task1' specifies executor 'unknown.executor', which is not available "
                     "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
                     "Make sure 'unknown.executor' is configured for team 'test_team' or globally in your "
-                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "[core] executor configuration, or update the task's executor to use one of the "
                     "configured executors for team 'test_team' or available global executors."
                 ),
             ):
@@ -330,7 +331,7 @@ def test_validate_executor_field_executor_not_configured():
         UnknownExecutorException,
         match=re.escape(
             "Task 't1' specifies executor 'test.custom.executor', which is not available. "
-            "Make sure it is listed in your [core] executors configuration, or update the task's "
+            "Make sure it is listed in your [core] executor configuration, or update the task's "
             "executor to use one of the configured executors."
         ),
     ):
@@ -382,6 +383,73 @@ class TestDagBag:
 
         for dag in dagbag2.dags.values():
             assert dag.bundle_name is None
+
+    @pytest.mark.parametrize(
+        ("team_name", "operator_args", "expected_pool"),
+        [
+            pytest.param(
+                "team_a",
+                "",
+                Pool.get_default_team_pool_name("team_a"),
+                id="default-pool-replaced",
+            ),
+            pytest.param(
+                "team_a",
+                ', pool="custom_pool"',
+                "custom_pool",
+                id="custom-pool-preserved",
+            ),
+            pytest.param(
+                None,
+                "",
+                Pool.DEFAULT_POOL_NAME,
+                id="no-team",
+            ),
+        ],
+    )
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_default_pool_replaced_with_team_pool(
+        self,
+        mock_manager,
+        tmp_path,
+        team_name,
+        operator_args,
+        expected_pool,
+    ):
+        mock_bundle = mock.MagicMock()
+        mock_bundle.team_name = team_name
+        mock_manager.return_value._bundle_config = {
+            "test_bundle": mock_bundle,
+        }
+
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                f"""
+                from airflow.sdk import dag
+
+                from airflow.providers.standard.operators.empty import EmptyOperator
+
+                @dag(schedule=None)
+                def my_dag():
+                    EmptyOperator(task_id="task1"{operator_args})
+
+                my_dag()
+                """
+            )
+        )
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            dagbag = DagBag(
+                dag_folder=os.fspath(tmp_path),
+                bundle_name="test_bundle",
+            )
+
+        dag = dagbag.get_dag("my_dag")
+
+        assert dag is not None
+        assert not dagbag.import_errors
+        assert dag.task_dict["task1"].pool == expected_pool
 
     def test_get_existing_dag(self, tmp_path, standard_example_dags_folder):
         """

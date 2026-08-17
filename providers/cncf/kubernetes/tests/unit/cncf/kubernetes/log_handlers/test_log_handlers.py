@@ -74,13 +74,13 @@ class TestFileTaskLogHandler:
         self.clean_up()
 
     @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_streaming_task_log"
     )
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
     @pytest.mark.usefixtures("clean_executor_loader")
-    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
-        """Test for k8s executor, the log is read from get_task_log method"""
-        mock_k8s_get_task_log.return_value = ([], [])
+    def test__read_for_k8s_executor(self, mock_k8s_get_streaming_task_log, create_task_instance, state):
+        """Test for k8s executor, the log is read from get_streaming_task_log method."""
+        mock_k8s_get_streaming_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
         ti = create_task_instance(
             dag_id="dag_for_testing_k8s_executor_log_read",
@@ -96,9 +96,9 @@ class TestFileTaskLogHandler:
             fth = FileTaskHandler("")
             fth._read(ti=ti, try_number=2)
         if state == TaskInstanceState.RUNNING:
-            mock_k8s_get_task_log.assert_called_once_with(ti, 2)
+            mock_k8s_get_streaming_task_log.assert_called_once_with(ti, 2)
         else:
-            mock_k8s_get_task_log.assert_not_called()
+            mock_k8s_get_streaming_task_log.assert_not_called()
 
     @pytest.mark.parametrize(
         ("pod_override", "namespace_to_call"),

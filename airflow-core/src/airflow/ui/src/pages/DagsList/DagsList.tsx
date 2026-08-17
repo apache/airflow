@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
+import { Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -32,6 +32,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
+import { TeamName } from "src/components/TeamName";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink } from "src/components/ui";
@@ -53,6 +54,10 @@ import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
 import { useTagFilter } from "./useTagFilter";
 
+type GetColumnsParams = {
+  readonly multiTeam: boolean;
+};
+
 type RunStateCountsContext = {
   readonly countsByDag: Record<string, Record<string, number> | undefined>;
   readonly isLoading: boolean;
@@ -62,6 +67,7 @@ type RunStateCountsContext = {
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   runStateContext: RunStateCountsContext,
+  { multiTeam }: GetColumnsParams,
 ): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
   {
     accessorKey: "is_paused",
@@ -113,7 +119,7 @@ const createColumns = (
     header: () => translate("dagDetails.nextRun"),
   },
   {
-    accessorKey: "last_run_start_date",
+    accessorKey: "last_run_run_after",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <RouterLink
@@ -155,6 +161,18 @@ const createColumns = (
     enableSorting: false,
     header: () => translate("dagDetails.tags"),
   },
+  ...(multiTeam
+    ? [
+        {
+          accessorKey: "team_name",
+          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) => (
+            <TeamName teamName={original.team_name} />
+          ),
+          enableSorting: false,
+          header: () => translate("dagDetails.team"),
+        },
+      ]
+    : []),
   {
     accessorKey: "pending_actions",
     cell: ({ row: { original: dag } }) => <NeedsReviewBadge pendingActions={dag.pending_actions} />,
@@ -202,6 +220,8 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
+  TEAMS,
+  TIMETABLE_TYPE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
@@ -228,6 +248,7 @@ export const DagsList = () => {
   const dagRunsLimit = display === "card" ? 14 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
 
   const showPaused = searchParams.get(PAUSED);
@@ -238,6 +259,8 @@ export const DagsList = () => {
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
+  const teams = searchParams.getAll(TEAMS);
+  const timetableType = searchParams.getAll(TIMETABLE_TYPE).filter((value) => value !== "");
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -301,6 +324,8 @@ export const DagsList = () => {
     pendingHitl,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
+    teams: teams.length > 0 ? teams : undefined,
+    timetableType: timetableType.length > 0 ? timetableType : undefined,
   });
 
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
@@ -315,7 +340,7 @@ export const DagsList = () => {
     stateCountLimit: runStateCountsData?.state_count_limit,
   };
 
-  const columns = createColumns(translate, runStateContext);
+  const columns = createColumns(translate, runStateContext, { multiTeam: multiTeamEnabled });
   const cardDef = createCardDef(runStateContext);
 
   const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
@@ -340,34 +365,26 @@ export const DagsList = () => {
           placeholder={translate("dags:search.dags")}
         />
         <DagsFilters />
-        <HStack justifyContent="space-between">
-          <HStack>
-            <Heading py={3} size="md">
-              {`${totalEntries} ${translate("dag", { count: totalEntries })}`}
-            </Heading>
-            <DagImportErrors iconOnly />
-          </HStack>
-          <HStack>
-            {display === "card" ? (
-              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-            ) : undefined}
-          </HStack>
-        </HStack>
       </VStack>
       <Box pb={8}>
         <DataTable
+          actions={
+            display === "card" ? (
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+            ) : undefined
+          }
           cardDef={cardDef}
           columns={columns}
           data={data?.dags ?? []}
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
+          headingExtra={<DagImportErrors iconOnly />}
           initialState={tableURLState}
           isLoading={isLoading}
           modelName="common:dag"
           onDisplayToggleChange={setDisplay}
           onStateChange={setTableURLState}
           showDisplayToggle
-          showRowCountHeading={false}
           skeletonCount={display === "card" ? 5 : undefined}
           total={totalEntries}
         />

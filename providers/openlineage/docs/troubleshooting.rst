@@ -43,6 +43,50 @@ as well as the `task_success_overtime <https://airflow.apache.org/docs/apache-ai
 configuration in Airflow config.
 
 
+Tasks remain in the running state after finishing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On Airflow 3.1, OpenLineage task-level event emission can leave a task in the ``running`` state after its task code
+has finished. This can happen when the default fork-based emission path inherits the task runner's connection to
+the Airflow supervisor. Airflow 3.2 includes fixes for related supervisor communication issues, so this symptom may
+not occur on later Airflow versions.
+
+**Possible Solution**
+
+Upgrade to Airflow 3.2 or later where possible. On Airflow 3.1, enable
+:ref:`Execute In Thread <config:openlineage__execute_in_thread>` to run task-level event emission in a time-bounded
+thread instead of a forked child process:
+
+.. code-block:: ini
+
+    [openlineage]
+    execute_in_thread = True
+
+
+Fork DeprecationWarning on Python 3.12 and later
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On Python 3.12 and later, task-level OpenLineage event emission using the default fork-based path can produce the
+following warning:
+
+.. code-block:: text
+
+    DeprecationWarning: This process is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+This warning indicates that ``fork()`` was called from a multi-threaded process.
+
+**Possible Solution**
+
+Enable :ref:`Execute In Thread <config:openlineage__execute_in_thread>` to avoid forking during task-level event
+emission:
+
+.. code-block:: ini
+
+    [openlineage]
+    execute_in_thread = True
+
+This setting does not change scheduler-side event emission performed by the process pool.
+
 Scheduler CPU or memory growing steadily while OpenLineage is enabled
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

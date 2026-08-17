@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -601,6 +601,10 @@ class TestSparkSubmitOperatorResumable:
         assert "reconnect_on_retry" in str(w[0].message)
         assert operator.durable is False
 
+    def test_default_args_durable_reaches_operator(self):
+        operator = self._make_operator(default_args={"durable": False})
+        assert operator.durable is False
+
     def test_durable_false_submits_fresh_and_polls(self):
         operator = self._make_operator(durable=False)
         operator._hook = self._make_hook(should_track=True)
@@ -819,7 +823,10 @@ class TestSparkSubmitOperatorResumable:
         hook._conf = {"spark.yarn.submit.waitAppCompletion": "true"}
         operator._hook = hook
 
-        with pytest.raises(ValueError, match="waitAppCompletion=true"):
+        with pytest.raises(
+            ValueError,
+            match=r"spark\.yarn\.submit\.waitAppCompletion=true cannot be set for cluster mode as it conflicts with the need",
+        ):
             operator.submit_job(context={})
 
     def test_yarn_poll_tolerates_transient_resourcemanager_failures(self):

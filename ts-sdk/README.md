@@ -26,11 +26,9 @@ Public TypeScript interfaces for writing Apache Airflow task handlers.
 This package defines the user-facing task handler contract and the coordinator
 runtime used to execute registered TypeScript handlers from Airflow.
 
-## Install
-
-```bash
-pnpm add @apache-airflow/ts-sdk
-```
+> **Note:** This package is not yet published to a public npm registry. Until an
+> official Apache Airflow release is available, build and use it from source (see
+> [Development](#development)).
 
 ## Task Handlers
 
@@ -92,8 +90,7 @@ queue_to_coordinator = {"typescript": "ts"}
 
 Each configured bundle directory must contain a `bundle.mjs` built with
 `airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
-Airflow metadata in the bundle itself. A `bundle.mjs` without embedded
-metadata is also accepted alongside an `airflow-metadata.yaml` sidecar.
+Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
@@ -180,11 +177,11 @@ Options:
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:
 
-| Method                                    | Description         |
-| ----------------------------------------- | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow` | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`         | XCom read/write     |
-| `getConnection(connId)`                   | Airflow Connections |
+| Method                                           | Description         |
+| ------------------------------------------------ | ------------------- |
+| `getVariable(key)` / `getVariableOrThrow`        | Airflow Variables   |
+| `getXCom(opts)` / `setXCom(opts)`                | XCom read/write     |
+| `getConnection(connId)` / `getConnectionOrThrow` | Airflow Connections |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
@@ -192,8 +189,9 @@ current task context when omitted.
 ## Cancellation
 
 `ctx.signal` is an `AbortSignal` controlled by the active runtime. Pass it to
-`fetch()`, timers, database clients, child processes, or other abortable APIs
-so tasks can clean up cooperatively when Airflow terminates the task attempt.
+`fetch()`, timers, database clients, child processes, or any other API that
+accepts an abort signal so tasks can clean up cooperatively when Airflow
+terminates the task subprocess with SIGTERM or SIGINT.
 
 ## Development
 
@@ -203,3 +201,54 @@ pnpm test
 pnpm run typecheck
 pnpm run build
 ```
+
+The committed lockfile and `pnpm-workspace.yaml` define the dependency security
+policy. Newly released dependency versions must age for 14 days before they
+can enter the lockfile, transitive dependencies cannot use Git or arbitrary
+tarball sources, and only explicitly approved dependencies can run lifecycle
+build scripts. Review changes to both files together when updating dependencies.
+
+Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
+with its own managed node + pnpm toolchain:
+
+```bash
+prek run compile-ts-sdk
+```
+
+## API reference
+
+The public API reference is generated from the TypeScript sources with
+[TypeDoc](https://typedoc.org/) and published to
+<https://airflow.apache.org/docs/ts-sdk/stable/>.
+
+Build it locally (runs the pinned toolchain in a Node container, so no local
+Node install is needed):
+
+```bash
+breeze build-docs --sdk-docs-only --sdk=typescript
+```
+
+The rendered site is staged at `generated/_build/docs/ts-sdk/stable/`, alongside
+a `stable.txt` holding the version from `ts-sdk/package.json`. To iterate on the
+docs directly instead, `npm ci && npm run build` inside `ts-sdk/docs/` writes to
+`ts-sdk/docs/_build/html/`, and `npm start` rebuilds on change.
+
+CI builds the reference on every change under `ts-sdk/src/` or `ts-sdk/docs/`,
+so a broken docs build fails the PR rather than the release.
+
+### Publishing the API docs
+
+Publishing is a separate, deliberate step — a providers-only publish wave will
+not refresh the SDK docs as a side effect. Trigger the *Publish Docs to S3*
+workflow for the release ref:
+
+```bash
+gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
+  -f ref=<RELEASE_REF> \
+  -f include-docs=ts-sdk \
+  -f destination=live
+```
+
+Use `destination=staging` first to check the output, then `live`. Confirm that
+`https://airflow.apache.org/docs/ts-sdk/stable/` resolves (allow time for cache
+invalidation) and that `/docs/ts-sdk/` redirects to it.

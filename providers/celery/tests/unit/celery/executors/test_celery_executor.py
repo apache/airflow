@@ -847,6 +847,32 @@ def test_result_backend_transport_options_with_multiple_options():
     assert result_backend_opts["master_name"] == "mymaster"
 
 
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg(monkeypatch):
+    """A driverless sql_alchemy_conn must derive a psycopg (v3) result_backend, not psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", True)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_falls_back_to_psycopg2_without_psycopg3(monkeypatch):
+    """Without psycopg/SQLAlchemy 2.0 available, the derivation must fall back to psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", False)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg2://user:pass@host/db"
+
+
 @conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): "invalid_json"})
 def test_result_backend_sentinel_kwargs_invalid_json():
     """Test that invalid JSON in sentinel_kwargs raises an error."""

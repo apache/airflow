@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Heading, Link, VStack } from "@chakra-ui/react";
+import { Badge, Box, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -133,8 +133,7 @@ export const Deadlines = () => {
   });
 
   return (
-    <Box p={2}>
-      <Heading>{translate("browse:deadlines.title")}</Heading>
+    <Box px={2}>
       <VStack align="start" gap={4} paddingY="4px">
         <FilterBar
           configs={filterConfigs}
@@ -151,7 +150,6 @@ export const Deadlines = () => {
         isLoading={isLoading}
         modelName="browse:deadlines.deadline"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

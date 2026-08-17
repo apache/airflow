@@ -239,11 +239,24 @@ def get_query_filter_by_worker_name(worker_name: str):
     return select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
 
 
+def _glob_to_like_pattern(pattern: str) -> str:
+    r"""
+    Convert a shell-style glob (``*``, ``?``) to a SQL ``LIKE`` pattern.
+
+    Literal ``LIKE`` metacharacters in the input are escaped with a backslash so
+    only glob wildcards are treated as special; the caller must pass ``escape="\"``.
+    """
+    escaped = pattern.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return escaped.replace("*", "%").replace("?", "_")
+
+
 @providers_configuration_loaded
 @provide_session
 def _fetch_edge_hosts_from_db(
     hostname: str | None = None,
     states: list | None = None,
+    worker_name_pattern: str | None = None,
+    queues: list[str] | None = None,
     *,
     session: Session = NEW_SESSION,
 ) -> Sequence[EdgeWorkerModel]:
@@ -252,14 +265,33 @@ def _fetch_edge_hosts_from_db(
         query = query.where(EdgeWorkerModel.state.in_(states))
     if hostname:
         query = query.where(EdgeWorkerModel.worker_name == hostname)
+    if worker_name_pattern:
+        query = query.where(
+            EdgeWorkerModel.worker_name.like(_glob_to_like_pattern(worker_name_pattern), escape="\\")
+        )
     query = query.order_by(EdgeWorkerModel.worker_name)
-    return session.scalars(query).all()
+    workers = session.scalars(query).all()
+    if queues:
+        # Queues are stored as a repr-encoded list in a single column, so exact
+        # membership is filtered in Python to avoid substring false positives. A
+        # worker matches if it serves any of the requested queues.
+        wanted = set(queues)
+        workers = [worker for worker in workers if worker.queues and wanted.intersection(worker.queues)]
+    return workers
 
 
 @providers_configuration_loaded
 @provide_session
-def get_registered_edge_hosts(*, states: list | None = None, session: Session = NEW_SESSION):
-    return _fetch_edge_hosts_from_db(states=states, session=session)
+def get_registered_edge_hosts(
+    *,
+    states: list | None = None,
+    worker_name_pattern: str | None = None,
+    queues: list[str] | None = None,
+    session: Session = NEW_SESSION,
+):
+    return _fetch_edge_hosts_from_db(
+        states=states, worker_name_pattern=worker_name_pattern, queues=queues, session=session
+    )
 
 
 @provide_session
