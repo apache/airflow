@@ -549,6 +549,12 @@ paths:
                 - $ref: '#/components/schemas/DAGRunLightResponse'
                 - type: 'null'
                 title: Response Get Latest Run Info
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -597,6 +603,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BaseGraphResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
