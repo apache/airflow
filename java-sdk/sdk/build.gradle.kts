@@ -33,7 +33,7 @@ plugins {
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
     // jsonschema2pojo 1.3.3 targets Java 17:
     // https://github.com/joelittlejohn/jsonschema2pojo/blob/jsonschema2pojo-1.3.3/jsonschema2pojo-gradle-plugin/build.gradle#L45-L48
-    id("org.jsonschema2pojo") version "1.2.2"
+    id("org.jsonschema2pojo") version "1.3.3"
     kotlin("plugin.serialization") version "2.4.10"
 }
 
