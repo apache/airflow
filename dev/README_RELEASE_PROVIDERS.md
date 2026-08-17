@@ -590,12 +590,21 @@ Set tags for the providers in the repo.
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
 git push upstream providers/${RELEASE_DATE}
-breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
 The `prepare-*-distributions` commands should produce the reproducible `.whl`, `.tar.gz` packages in the dist folder.
 The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
+
+> [!IMPORTANT]
+> `--version-suffix ""` is passed deliberately, and the empty value is the point: the packages
+> committed to SVN carry the **final** version in their filename (`...-6.0.1-py3-none-any.whl`), with
+> no `rcN`. That is what lets a passing vote promote them with a plain `svn mv` instead of a rebuild.
+> The [PyPI upload below](#publish-the-regular-distributions-to-pypi-release-candidates) is the
+> opposite case - it builds a *separate* set of packages from the same sources with
+> `--version-suffix rcN`, so those filenames do carry the candidate number. Mixing the two up
+> produces an SVN wave that cannot be promoted.
 
 if you only build few packages, run:
 
@@ -603,7 +612,7 @@ if you only build few packages, run:
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
 git push upstream providers/${RELEASE_DATE}
-breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix "" PACKAGE PACKAGE ....
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 
 ```
@@ -1160,7 +1169,7 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both
+breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
