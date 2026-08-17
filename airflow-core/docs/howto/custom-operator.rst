@@ -145,6 +145,8 @@ Override ``custom_operator_name`` to change the displayed name to something othe
             custom_operator_name = "Howdy"
             # ...
 
+.. _custom-operator/template-fields:
+
 Templating
 ----------
 You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize your operator.
@@ -429,3 +431,24 @@ An example of a sensor that keeps internal state and cannot be used with resched
 is :class:`airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.
 It polls the number of objects at a prefix (this number is the internal state of the sensor)
 and succeeds when there a certain amount of time has passed without the number of objects changing.
+
+Testing your operator
+---------------------
+
+Instantiate your operator and call ``execute()`` — or ``poke()`` for a sensor — with the context
+keys your code reads. This needs no Dag, no Dag run and no metadata database:
+
+.. code-block:: python
+
+    def test_hello_operator():
+        op = HelloOperator(task_id="hello", name="Bob")
+
+        assert op.execute(context={}) == "Hello Bob"
+
+Use ``op.render_template_fields(context)`` if you need to assert on rendered
+:ref:`template fields <custom-operator/template-fields>`.
+
+Reach for :ref:`dag.test() <concepts:debugging>` only when you want to exercise a whole Dag run,
+which is an integration test: it requires a metadata database and a Dag defined in a file that
+Airflow can serialize. See :ref:`Unit tests <best_practices:unit_tests>` for the full set of
+patterns, including deferrable operators.
