@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, createListCollection } from "@chakra-ui/react";
+import { useRef } from "react";
 
 import { Select } from "src/components/ui";
 
@@ -35,9 +36,15 @@ type SelectFilterConfig = {
 export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const config = filter.config as FilterConfig & SelectFilterConfig;
 
+  // Selecting an option closes the menu in the same tick as the value commits, before React has
+  // re-rendered. Recording the selection keeps the close from being mistaken for an abandoned
+  // filter, which a timing-based check gets wrong.
+  const hasJustSelected = useRef(false);
+
   const handleValueChange = ({ value }: { value: Array<string> }) => {
     const [newValue] = value;
 
+    hasJustSelected.current = true;
     onChange(newValue);
 
     // Trigger blur to close the editing mode after selection
@@ -59,7 +66,7 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
       filter={filter}
       hasValue={hasValue}
       onRemove={onRemove}
-      renderInput={(props) => (
+      renderInput={(props, { onRequestClose }) => (
         <Box
           {...props}
           alignItems="center"
@@ -90,7 +97,19 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
           <Select.Root
             border="none"
             collection={createListCollection({ items: config.options })}
+            // A filter added from the menu has nothing to show until it is given a value, so
+            // open straight onto the options instead of making the user click again.
+            defaultOpen={!hasValue}
             h="full"
+            // Dismissing the menu hands focus back to the trigger inside the pill, so no blur
+            // fires and the pill would stay in edit mode. A close that follows a selection is
+            // left alone: the blur that selection triggers collapses the pill instead.
+            onOpenChange={({ open }) => {
+              if (!open && !hasJustSelected.current) {
+                onRequestClose();
+              }
+              hasJustSelected.current = false;
+            }}
             onValueChange={handleValueChange}
             value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
           >

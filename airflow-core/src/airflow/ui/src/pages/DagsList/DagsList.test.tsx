@@ -34,9 +34,7 @@ describe("Dag Filters", () => {
     fireEvent.click(screen.getByTestId("add-filter-button"));
     fireEvent.click(await screen.findByTestId("add-filter-last_dag_run_state"));
 
-    const trigger = await screen.findByTestId("last_dag_run_state-filter");
-
-    await waitFor(() => trigger.click());
+    // A newly added select opens straight onto its options, so there is no trigger to click.
     await waitFor(() => screen.getByTestId("last_dag_run_state-filter-success").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 

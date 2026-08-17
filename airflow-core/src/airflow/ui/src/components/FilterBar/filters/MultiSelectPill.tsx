@@ -109,6 +109,11 @@ export const MultiSelectPill = ({
                 control: (provided) => ({ ...provided, border: "none", colorPalette: "brand" }),
                 menu: (provided) => ({ ...provided, zIndex: 2 }),
               }}
+              // A filter added from the menu has nothing to show until it is given a value, so
+              // open straight onto the options instead of making the user click again. Focus is
+              // left to FilterPill: autoFocus here loses a race with the Add Filter menu handing
+              // focus back to its trigger, which blurs the pill and discards the new filter.
+              defaultMenuIsOpen={values.length === 0}
               isClearable
               isMulti
               // The pill clips its own corners, and the table header it sits in scrolls, so an

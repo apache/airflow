@@ -59,11 +59,18 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
       filter={filter}
       hasValue={hasValue}
       onRemove={onRemove}
-      renderInput={() => (
+      renderInput={(_props, { onRequestClose }) => (
         <Popover.Root
           defaultOpen={!hasValue}
           key={filter.id}
           lazyMount
+          // The popover owns dismissal, so the pill never sees a blur. Deferring lets a range
+          // picked in the same tick commit first, so the pill collapses instead of being dropped.
+          onOpenChange={({ open }) => {
+            if (!open) {
+              setTimeout(onRequestClose, 0);
+            }
+          }}
           positioning={{ placement: "bottom-start" }}
           unmountOnExit
         >

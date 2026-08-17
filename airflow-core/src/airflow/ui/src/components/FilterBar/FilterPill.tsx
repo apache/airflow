@@ -27,11 +27,24 @@ import { getDefaultFilterIcon } from "./defaultIcons";
 import type { FilterState } from "./types";
 import { isEmptyFilterValue } from "./utils";
 
+/** Spread straight onto the editor's element, so everything here has to be DOM-safe. */
 export type FilterPillInputProps = {
   onBlur: () => void;
   onFocus: () => void;
   onKeyDown: (event: React.KeyboardEvent) => void;
   ref: RefObject<HTMLInputElement | null>;
+};
+
+export type FilterPillControls = {
+  /**
+   * Leave edit mode now. For editors that dismiss themselves — anything with a popover or a
+   * portalled menu — closing returns focus inside the pill, so no blur fires and the pill would
+   * otherwise stay open forever. Drops the filter when it still has no value.
+   *
+   * Passed separately from ``FilterPillInputProps`` because that object gets spread onto a DOM
+   * element, which React would warn about for a handler it does not know.
+   */
+  onRequestClose: () => void;
 };
 
 type FilterPillProps = {
@@ -42,7 +55,7 @@ type FilterPillProps = {
   // nothing to edit (boolean).
   readonly onClick?: () => void;
   readonly onRemove: () => void;
-  readonly renderInput: (props: FilterPillInputProps) => React.ReactNode;
+  readonly renderInput: (props: FilterPillInputProps, controls: FilterPillControls) => React.ReactNode;
 };
 
 export const FilterPill = ({
@@ -58,17 +71,31 @@ export const FilterPill = ({
   const [isEditing, setIsEditing] = useState(isEmpty);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Read inside the blur timeout, which would otherwise close over a stale value.
+  const valueRef = useRef(filter.value);
+
+  valueRef.current = filter.value;
 
   const handlePillClick = () => (onClick === undefined ? setIsEditing(true) : onClick());
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === "Escape") {
+  // Leaving the editor without choosing anything drops the filter rather than parking a
+  // valueless pill on the bar, which reads as active but filters nothing.
+  const stopEditing = () => {
+    if (isEmptyFilterValue(valueRef.current)) {
+      onRemove();
+    } else {
       setIsEditing(false);
     }
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === "Escape") {
+      stopEditing();
+    }
+  };
+
   const handleBlur = () => {
-    blurTimeoutRef.current = setTimeout(() => setIsEditing(false), 150);
+    blurTimeoutRef.current = setTimeout(stopEditing, 150);
   };
 
   const handleFocus = () => {
@@ -76,6 +103,11 @@ export const FilterPill = ({
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = undefined;
     }
+  };
+
+  const handleRequestClose = () => {
+    handleFocus(); // Cancels any blur already in flight so the close only happens once.
+    stopEditing();
   };
 
   useEffect(() => {
@@ -104,12 +136,15 @@ export const FilterPill = ({
   );
 
   if (isEditing) {
-    return renderInput({
-      onBlur: handleBlur,
-      onFocus: handleFocus,
-      onKeyDown: handleKeyDown,
-      ref: inputRef,
-    });
+    return renderInput(
+      {
+        onBlur: handleBlur,
+        onFocus: handleFocus,
+        onKeyDown: handleKeyDown,
+        ref: inputRef,
+      },
+      { onRequestClose: handleRequestClose },
+    );
   }
 
   return (

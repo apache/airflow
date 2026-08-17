@@ -150,3 +150,49 @@ describe("FilterBar custom editors", () => {
     expect(screen.queryByTestId("tags-pill")).not.toBeInTheDocument();
   });
 });
+
+const textConfig: FilterConfig = { key: "dag_id", label: "Dag ID", type: "text" };
+
+describe("FilterBar abandoned filters", () => {
+  it("drops a filter left without a value when its editor closes", async () => {
+    const onFiltersChange = vi.fn();
+
+    render(<FilterBar configs={[textConfig]} onFiltersChange={onFiltersChange} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-dag_id"));
+
+    // The pill focuses its input a frame after opening, and that focus cancels a pending blur.
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveFocus());
+    fireEvent.focusOut(screen.getByRole("textbox"));
+
+    // Gone entirely rather than parked on the bar as a pill that filters nothing.
+    await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
+    expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();
+  });
+
+  it("keeps a filter that has a value when its editor closes", async () => {
+    render(<FilterBar configs={[textConfig]} initialValues={{ dag_id: "abc" }} onFiltersChange={vi.fn()} />, {
+      wrapper,
+    });
+
+    fireEvent.click(screen.getByTestId("dag_id-pill"));
+
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveFocus());
+    fireEvent.focusOut(screen.getByRole("textbox"));
+
+    await waitFor(() => expect(screen.getByTestId("dag_id-pill")).toBeInTheDocument());
+  });
+
+  it("drops a filter left without a value when Escape is pressed", async () => {
+    render(<FilterBar configs={[textConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-dag_id"));
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+
+    // Absent rather than merely collapsed: a collapsed pill also has no textbox.
+    await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
+    expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();
+  });
+});
