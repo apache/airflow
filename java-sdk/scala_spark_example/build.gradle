@@ -33,13 +33,13 @@ dependencies {
     // Routes this bundle's Log4j 2 logging (and Spark's own) into Airflow task logs.
     implementation("org.apache.airflow:airflow-sdk-log4j2:${projectVersion}")
 
-    // Spark 3.5.x ships its 2.13 artifacts built against Scala 2.13.8.
-    implementation("org.scala-lang:scala-library:2.13.8")
-    implementation("org.apache.spark:spark-sql_2.13:3.5.8")
+    // Spark 3.5.x uses Scala 2.13; keep the runtime on the latest compatible patch.
+    implementation("org.scala-lang:scala-library:2.13.18")
+    implementation("org.apache.spark:spark-sql_2.13:3.5.9")
 
-    // Spark pins Log4j 2 to 2.20.0 and airflow-sdk-log4j2 to 2.26.0; align the
-    // whole family onto one version so the AirflowAppender's api/core agree.
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.26.0"))
+    // Align Spark and airflow-sdk-log4j2 on one Log4j version so the
+    // AirflowAppender's api/core agree.
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.26.1"))
 }
 
 java {

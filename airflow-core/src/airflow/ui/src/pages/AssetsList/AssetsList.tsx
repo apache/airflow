@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack } from "@chakra-ui/react";
+import { VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -194,10 +194,6 @@ export const AssetsList = () => {
           initialValues={initialValues}
           onFiltersChange={handleFiltersChange}
         />
-
-        <Heading py={3} size="md">
-          {totalEntries} {translate("common:asset", { count: totalEntries })}
-        </Heading>
       </VStack>
       <DataTable
         columns={columns}
@@ -207,7 +203,6 @@ export const AssetsList = () => {
         isLoading={isLoading}
         modelName="common:asset"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         total={totalEntries}
       />
     </>

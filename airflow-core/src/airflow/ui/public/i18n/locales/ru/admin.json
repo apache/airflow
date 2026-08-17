@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "Раздел"
-    },
-    "title": "Конфигурация Airflow"
+    }
   },
   "connections": {
     "add": "Добавить соединение",
