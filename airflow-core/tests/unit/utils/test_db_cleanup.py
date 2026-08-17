@@ -453,6 +453,27 @@ class TestDBCleanup:
             )
 
     @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids"),
+        [
+            pytest.param(["dag1"], None, id="include"),
+            pytest.param(None, ["dag1"], id="exclude"),
+        ],
+    )
+    def test_cleanup_dag_filtering_on_tables_without_their_own_dag_id(self, dag_ids, exclude_dag_ids):
+        """asset_event, task_reschedule and deadline have no dag_id column of their own."""
+        with create_session() as session:
+            run_cleanup(
+                clean_before_timestamp=pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC")),
+                table_names=["asset_event", "task_reschedule", "deadline"],
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=False,
+                confirm=False,
+                error_on_cleanup_failure=True,
+                session=session,
+            )
+
+    @pytest.mark.parametrize(
         ("dag_ids", "exclude_dag_ids", "expected_remaining"),
         [
             pytest.param(["dag1"], None, {"dag2", None}, id="include_scopes_through_dag_run"),
