@@ -22,7 +22,11 @@ import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRun,
+  useDagServiceGetDagDetails,
+  useTaskInstanceServiceGetTaskInstances,
+} from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
@@ -80,12 +84,16 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
 
   const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
 
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
+    enabled: open,
+  });
+
   const { dagVersionsDiffer, runOnLatestVersionForced, shouldShowRunOnLatestOption } =
     getRunOnLatestVersionState({
       latestBundleVersion: dagDetails?.bundle_version,
       latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
       selectedDagVersionNumber: taskInstance.dag_version_number,
-      selectedVersionMissing: taskInstance.dag_version_number === null,
+      selectedVersionMissing: dagRun?.dag_versions.length === 0,
       // Fall back to legacy heuristic when grid summary has no version (older API).
       useLatestBundleVersionAsFallback: true,
     });

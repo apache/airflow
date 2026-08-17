@@ -395,8 +395,8 @@ def clear_task_instances(
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
     :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version.
-        Runs and task instances that have no version of their own use the latest either way,
-        since there is nothing else for them to run on.
+        A run with no version of its own uses the latest either way, since there is nothing
+        else for it to run on; a task instance with no version joins its run's.
 
     :meta private:
     """
@@ -420,13 +420,9 @@ def clear_task_instances(
         # the task is terminated and becomes eligible for retry.
         else:
             dr = ti.dag_run
-            # Nothing to re-run on but the latest, either because the task instance has no
-            # version or because its run has none and the run loop below moves it there. The
-            # two columns disagree more often than you would think: the scheduler backfills a
-            # version onto a migrated run's task instances but never onto the run itself.
-            use_latest_version = (
-                run_on_latest_version or ti.dag_version_id is None or dr.created_dag_version_id is None
-            )
+            # A run with no version of its own has nothing to re-run on but the latest, and the
+            # run loop below moves it there.
+            use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
             if use_latest_version:
                 ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
             else:
@@ -454,6 +450,10 @@ def clear_task_instances(
                 latest_dag_version = DagVersion.get_latest_version(ti.dag_id, session=session)
                 if latest_dag_version is not None:
                     ti.dag_version_id = latest_dag_version.id
+            elif ti.dag_version_id is None:
+                # One without a version is never enqueued, and the run keeps its own, so it can
+                # only go there.
+                ti.dag_version_id = dr.created_dag_version_id
             session.merge(ti)
 
     if dag_run_state is not False and tis:
@@ -535,7 +535,7 @@ def clear_task_instances(
                             if bundle_version is not None:
                                 dr.bundle_version = bundle_version
 
-            if use_latest_version and dr.created_dag_version_id:
+            if dr.created_dag_version_id:
                 _pin_versionless_tis_to_run_version(dr, dr.created_dag_version_id, session)
     for ti in tis:
         ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)

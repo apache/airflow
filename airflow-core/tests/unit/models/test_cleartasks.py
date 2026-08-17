@@ -876,6 +876,46 @@ class TestClearTasks:
             "the run and its task instance must end up on the same version"
         )
 
+    def test_clear_task_instances_moves_versionless_task_to_its_run_version(self, dag_maker, session):
+        """A version-less task instance on a pinned run joins the run, not the latest version."""
+        dag_id = "test_clear_versionless_ti_pinned_run"
+        with dag_maker(dag_id, start_date=DEFAULT_DATE, catchup=True, bundle_version="v1") as dag:
+            task0 = EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(dag.get_task("0"))
+        run_task_instance(ti0, task0)
+        ti1.state = TaskInstanceState.SUCCESS
+        dr.state = DagRunState.SUCCESS
+        session.flush()
+
+        # An Airflow 2 task instance that an earlier clear left behind: it was already finished, so
+        # pinning the run did not give it a version.
+        run_dag_version = DagVersion.get_latest_version(dag_id)
+        session.execute(update(TI).where(TI.dag_id == dag_id, TI.task_id == "1").values(dag_version_id=None))
+        session.commit()
+        session.expire_all()
+
+        with dag_maker(dag_id, start_date=DEFAULT_DATE, catchup=True, bundle_version="v2"):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        assert DagVersion.get_latest_version(dag_id).id != run_dag_version.id, "Pre-condition"
+
+        ti1 = session.scalar(select(TI).where(TI.dag_id == dag_id, TI.task_id == "1"))
+        assert ti1.dag_version_id is None, "Pre-condition"
+        assert ti1.dag_run.created_dag_version_id == run_dag_version.id, "Pre-condition"
+
+        clear_task_instances([ti1], session, run_on_latest_version=False)
+        session.commit()
+
+        dr_after = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
+        ti1_after = session.scalar(select(TI).where(TI.dag_id == dag_id, TI.task_id == "1"))
+        assert dr_after.created_dag_version_id == run_dag_version.id
+        assert ti1_after.dag_version_id == run_dag_version.id, (
+            "the run and its task instance must end up on the same version"
+        )
+
     def test_clear_subset_run_on_latest_version_only_updates_cleared_tis(self, dag_maker, session):
         """run_on_latest_version on a finished DR must not rewrite dag_version_id on TIs that were not cleared."""
         with dag_maker(
