@@ -588,8 +588,8 @@ class _StubSubprocessCoordinator(SubprocessCoordinator):
     def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
         return "explicit_roots", self.explicit_roots
 
-    def _build_execute_task_command(self, *, what, roots):
-        self.recorded_roots.append(roots)
+    def _build_execute_task_command(self, *, what):
+        self.recorded_roots.append(list(self._get_scan_roots()))
         return list(self.command), self.schema_version
 
 
@@ -615,7 +615,7 @@ class TestSubprocessCoordinatorAttributes:
             pass
 
         with pytest.raises(NotImplementedError):
-            _Plain()._build_execute_task_command(what=_make_ti(), roots=[])
+            _Plain()._build_execute_task_command(what=_make_ti())
 
 
 class TestSubprocessCoordinatorExecuteTask:
@@ -885,7 +885,7 @@ class TestClassifyArtifactSource:
 
         @attrs.define(kw_only=True)
         class _Bare(SubprocessCoordinator):
-            def _build_execute_task_command(self, *, what, roots):
+            def _build_execute_task_command(self, *, what):
                 return [], None
 
         assert _Bare()._artifact_source is _ArtifactSource.TASK_BUNDLE
@@ -1083,6 +1083,17 @@ class TestExecuteTaskBundleWiring:
 
         assert coordinator.recorded_roots == [[pinned_tree]]
         mock_lock.assert_called_once_with(bundle_name="artifacts", bundle_version="sha-abc")
+
+
+class TestGetScanRoots:
+    def test_returns_bound_roots_and_clears_them_on_exit(self, tmp_path):
+        coordinator = _StubSubprocessCoordinator(command=["x"])
+
+        with coordinator._set_scan_roots([tmp_path]):
+            assert coordinator._get_scan_roots() == (tmp_path,)
+
+        with pytest.raises(RuntimeError, match="requires an active task"):
+            coordinator._get_scan_roots()
 
 
 class TestSetCurrentBundle:
