@@ -98,14 +98,14 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
             try:
                 option_value = broker_transport_options[option]
                 if not isinstance(option_value, str):
-                    raise ValueError(f"broker_transport_option {option} is invalid: {option_value}")
+                    raise ValueError(f"broker_transport_option {option} is not string: {option_value}")
                 option_json = json.loads(option_value)
                 if not isinstance(option_json, dict):
-                    raise ValueError(f"broker_transport_option {option} is invalid: {option_json}")
+                    raise ValueError(f"broker_transport_option {option} value is not dictionary: {option_json}")
                 broker_transport_options[option] = option_json
             except Exception as exc:
                 raise ValueError(
-                    f"Broker transport option {option} should be written in the correct dictionary format."
+                    f"Broker transport option {option} value should be written in the correct JSON format."
                 ) from exc
     return broker_transport_options
 
