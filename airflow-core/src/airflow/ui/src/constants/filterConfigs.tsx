@@ -69,6 +69,14 @@ export enum FilterTypes {
   TEXT = "text",
 }
 
+/**
+ * Drops the "all" entry from an option list. Selecting it matches everything, which is the same
+ * as not filtering — and since a filter left unset is removed, the pill's absence already says
+ * so. Offering it too gives two ways to spell one thing, one of which looks like a filter.
+ */
+const withoutAllOption = <TOption extends { value: string }>(options: ReadonlyArray<TOption>) =>
+  options.filter((option) => option.value !== "all");
+
 export const useFilterConfigs = () => {
   const { t: translate } = useTranslation([
     "assets",
@@ -84,19 +92,10 @@ export const useFilterConfigs = () => {
     enabled: multiTeamEnabled,
   });
 
-  const runStateOptions = dagRunStateOptions.items.map((option) => ({
-    label:
-      option.value === "all" ? (
-        translate(option.label)
-      ) : (
-        <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
-      ),
-    value: option.value === "all" ? "" : option.value,
+  const runStateOptions = withoutAllOption(dagRunStateOptions.items).map((option) => ({
+    label: <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>,
+    value: option.value,
   }));
-
-  // "All" selects every state, which is the same as not filtering at all. Where removing the
-  // pill already says that, the option is only a second way to spell it.
-  const runStateOptionsWithoutAll = runStateOptions.filter((option) => option.value !== "");
 
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
@@ -162,7 +161,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.DAG_RUN_STATE]: {
       icon: <MdCheckCircle />,
       label: translate("dags:filters.anyRunState"),
-      options: runStateOptionsWithoutAll,
+      options: runStateOptions,
       placeholder: translate("dags:filters.anyRunStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
@@ -244,18 +243,18 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.JOB_STATE]: {
       icon: <MdCheckCircle />,
       label: translate("common:state"),
-      options: jobStateOptions.items.map((option) => ({
+      options: withoutAllOption(jobStateOptions.items).map((option) => ({
         label: translate(option.label),
-        value: option.value === "all" ? "" : option.value,
+        value: option.value,
       })),
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.JOB_TYPE]: {
       icon: <MdBuild />,
       label: translate("admin:jobs.columns.jobType"),
-      options: jobTypeOptions.items.map((option) => ({
+      options: withoutAllOption(jobTypeOptions.items).map((option) => ({
         label: translate(option.label),
-        value: option.value === "all" ? "" : option.value,
+        value: option.value,
       })),
       type: FilterTypes.SELECT,
     },
@@ -275,7 +274,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.LAST_DAG_RUN_STATE]: {
       icon: <MdCheckCircle />,
       label: translate("dags:filters.lastRunState"),
-      options: runStateOptionsWithoutAll,
+      options: runStateOptions,
       placeholder: translate("dags:filters.lastRunStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
@@ -296,7 +295,6 @@ export const useFilterConfigs = () => {
       icon: <MdCheckCircle />,
       label: translate("browse:deadlines.filters.status"),
       options: [
-        { label: translate("browse:deadlines.filters.statusOptions.all"), value: "" },
         { label: translate("browse:deadlines.filters.statusOptions.pending"), value: "false" },
         { label: translate("browse:deadlines.filters.statusOptions.missed"), value: "true" },
       ],
@@ -340,9 +338,6 @@ export const useFilterConfigs = () => {
       icon: <MdPause />,
       label: translate("dags:filters.pausedState"),
       options: [
-        // Literal "all" rather than the usual "": an empty value is deleted from the URL,
-        // which would let the hide_paused_dags_by_default seeding immediately re-apply.
-        { label: translate("dags:filters.paused.all"), value: "all" },
         { label: translate("dags:filters.paused.active"), value: "false" },
         { label: translate("dags:filters.paused.paused"), value: "true" },
       ],
@@ -380,7 +375,6 @@ export const useFilterConfigs = () => {
       icon: <FiUser />,
       label: translate("hitl:requiredActionState"),
       options: [
-        { label: translate("hitl:filters.response.all"), value: "all" },
         {
           label: <StateBadge state="awaiting_input">{translate("hitl:filters.response.pending")}</StateBadge>,
           value: "false",
@@ -416,17 +410,14 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.RUN_TYPE]: {
       icon: <MdPlayArrow />,
       label: translate("common:dagRun.runType"),
-      options: dagRunTypeOptions.items.map((option) => ({
-        label:
-          option.value === "all" ? (
-            translate(option.label)
-          ) : (
-            <Flex alignItems="center" gap={1}>
-              <RunTypeIcon runType={option.value as DagRunType} />
-              {translate(option.label)}
-            </Flex>
-          ),
-        value: option.value === "all" ? "" : option.value,
+      options: withoutAllOption(dagRunTypeOptions.items).map((option) => ({
+        label: (
+          <Flex alignItems="center" gap={1}>
+            <RunTypeIcon runType={option.value as DagRunType} />
+            {translate(option.label)}
+          </Flex>
+        ),
+        value: option.value,
       })),
       type: FilterTypes.SELECT,
     },
@@ -473,14 +464,9 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.TASK_STATE]: {
       icon: <MdCheckCircle />,
       label: translate("common:state"),
-      options: taskInstanceStateOptions.items.map((option) => ({
-        label:
-          option.value === "all" ? (
-            translate(option.label)
-          ) : (
-            <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>
-          ),
-        value: option.value === "all" ? "" : option.value,
+      options: withoutAllOption(taskInstanceStateOptions.items).map((option) => ({
+        label: <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>,
+        value: option.value,
       })),
       type: FilterTypes.SELECT,
     },

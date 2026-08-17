@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
@@ -61,13 +61,15 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
   });
 
-  it("shows all dags after clicking All filter", async () => {
+  it("shows all dags after removing the paused filter", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
-    await selectPillOption("paused", "all");
+    // There is no "All" option any more; removing the pill is how you ask for every Dag.
+    fireEvent.click(within(screen.getByTestId("paused-pill")).getByRole("button"));
+
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
   });

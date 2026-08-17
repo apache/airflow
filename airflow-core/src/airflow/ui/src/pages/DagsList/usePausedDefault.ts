@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -26,18 +26,20 @@ import { useConfig } from "src/queries/useConfig";
  * Writes the ``hide_paused_dags_by_default`` default into the URL so it shows up as a
  * pill instead of filtering invisibly.
  *
- * Reset deliberately re-seeds: it deletes ``paused``, which reopens the guard below. That
- * keeps Reset idempotent with a cold page load — to see paused Dags the user picks "All",
- * which writes ``paused=all``.
+ * Seeds once per page load. Removing the pill is how you ask to see paused Dags, so re-seeding
+ * whenever the param goes missing would put it straight back and leave them unreachable.
  */
 export const usePausedDefault = () => {
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const [searchParams, setSearchParams] = useSearchParams();
+  const hasSeeded = useRef(false);
 
   useEffect(() => {
-    if (!hidePausedDagsByDefault || searchParams.has(SearchParamsKeys.PAUSED)) {
+    if (hasSeeded.current || !hidePausedDagsByDefault || searchParams.has(SearchParamsKeys.PAUSED)) {
       return;
     }
+
+    hasSeeded.current = true;
 
     // Functional form is required: PresetFiltersMenu restores a default preset from a
     // deeper effect that commits first, so an object write would clobber it with stale params.

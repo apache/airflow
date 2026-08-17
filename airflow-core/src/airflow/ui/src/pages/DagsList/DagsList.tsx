@@ -248,9 +248,7 @@ export const DagsList = () => {
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
 
-  const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
 
   const showPaused = searchParams.get(PAUSED);
   const showFavorites = searchParams.get(FAVORITE);
@@ -287,13 +285,13 @@ export const DagsList = () => {
     setSearchParams(searchParams);
   };
 
-  let paused = defaultShowPaused;
+  // No param means no paused filtering. usePausedDefault seeds the configured default on load,
+  // so an absent param after that is the user having removed the pill to see every Dag.
+  let paused = undefined;
   let isFavorite = undefined;
   let pendingHitl = undefined;
 
-  if (showPaused === "all") {
-    paused = undefined;
-  } else if (showPaused === "true") {
+  if (showPaused === "true") {
     paused = true;
   } else if (showPaused === "false") {
     paused = false;
