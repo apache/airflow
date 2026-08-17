@@ -1196,8 +1196,8 @@ class TestSchedulerJob:
         assert events[0].asset is not None
         assert events[0].source_aliases is not None
 
-    def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
-        dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
+    def test_execute_task_instances_for_paused_running_dagrun(self, session, dag_maker):
+        dag_id = "SchedulerJobTest.test_execute_task_instances_for_paused_running_dagrun"
         task_id_1 = "dummy_task"
 
         with dag_maker(dag_id=dag_id, session=session) as dag:
@@ -1206,14 +1206,20 @@ class TestSchedulerJob:
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        dr1 = dag_maker.create_dagrun(state=DagRunState.RUNNING)
         (ti1,) = dr1.task_instances
         ti1.state = State.SCHEDULED
+        orm_dag = session.get(DagModel, dag_id)
+        assert orm_dag
+        orm_dag.is_paused = True
+        session.merge(ti1)
+        session.flush()
 
-        self.job_runner._critical_section_enqueue_task_instances(session)
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
         ti1.refresh_from_db(session=session)
-        assert ti1.state == State.SCHEDULED
+        assert {queued_ti.key for queued_ti in queued_tis} == {ti1.key}
+        assert ti1.state == State.QUEUED
         session.rollback()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
