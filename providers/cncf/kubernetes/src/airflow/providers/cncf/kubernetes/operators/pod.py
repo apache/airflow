@@ -693,6 +693,19 @@ class KubernetesPodOperator(BaseOperator):
                 name,
             )
             return None
+        # Names are reusable, uids are not: once the recorded pod is deleted an unrelated pod can
+        # take its name. Identities persisted before uids were stored have nothing to compare.
+        uid = stored.get("uid")
+        if uid is not None and pod.metadata.uid != uid:
+            self.log.warning(
+                "Pod %s/%s from task state store is a different pod now "
+                "(recorded uid %s, found %s), falling back to label search.",
+                namespace,
+                name,
+                uid,
+                pod.metadata.uid,
+            )
+            return None
         if (pod.metadata.labels or {}).get(self.POD_CHECKED_KEY) == "True":
             # A prior attempt already fully processed this pod, it belongs to a previous
             # try_number, not one to reattach to. Fall through to fresh pod creation.
@@ -715,7 +728,11 @@ class KubernetesPodOperator(BaseOperator):
             return
         task_state_store.set(
             POD_IDENTIFIER_STATE_KEY,
-            {"name": pod.metadata.name, "namespace": pod.metadata.namespace},
+            {
+                "name": pod.metadata.name,
+                "namespace": pod.metadata.namespace,
+                "uid": pod.metadata.uid,
+            },
         )
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
