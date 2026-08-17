@@ -25,9 +25,11 @@ subprocess — does not have to import the task runner and everything it pulls i
 from __future__ import annotations
 
 import os
+from getpass import getuser
 from typing import TYPE_CHECKING
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+from airflow.sdk.exceptions import AirflowException
 from airflow.sdk.execution_time.tracing import detail_span
 
 if TYPE_CHECKING:
@@ -68,10 +70,6 @@ def verify_bundle_access(bundle_instance: BaseDagBundle) -> None:
     :param bundle_instance: The bundle instance to check
     :raises AirflowException: if bundle is not accessible
     """
-    from getpass import getuser
-
-    from airflow.sdk.exceptions import AirflowException
-
     bundle_path = bundle_instance.path
 
     if not bundle_path.exists():
