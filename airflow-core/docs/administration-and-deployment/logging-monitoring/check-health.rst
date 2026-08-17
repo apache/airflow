@@ -97,17 +97,17 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
 
 * Component-level fields for ``scheduler``, ``triggerer``, and ``dag_processor``
 
-  * ``status`` (legacy aggregate): ``"healthy"`` if **any** running instance is alive, otherwise ``"unhealthy"``.
-    When no running ``triggerer`` or ``dag_processor`` jobs exist, ``status`` is ``null`` for that component.
+  * ``status`` (legacy aggregate): ``"healthy"`` if **any** running instance is alive, otherwise ``"unhealthy"``
+    (including when no running jobs exist for that component).
 
   * ``detailed_status``: reflects the full set of running instances:
 
     * ``"healthy"`` — every running instance is alive
     * ``"degraded"`` — some instances are alive and some are not
-    * ``"unhealthy"`` — no running instance is alive
-    * ``null`` — no running ``triggerer`` or ``dag_processor`` jobs exist for that component
+    * ``"down"`` — no running instance is alive (including when no jobs exist)
 
-  * ``latest_*_heartbeat``: the most recent heartbeat among running jobs of that type (ordered by heartbeat descending).
+  * ``latest_*_heartbeat``: the most recent heartbeat among running jobs of that type (ordered by heartbeat descending),
+    or ``null`` when there are none.
     An instance is considered alive when its latest heartbeat is within the component health-check threshold
     (defaults and config options: ``[scheduler] scheduler_health_check_threshold``,
     ``[triggerer] triggerer_health_check_threshold``,
