@@ -559,7 +559,6 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == expected
 
         # Verify running it again produces same order
-        manager._files = []
         manager.prepare_file_queue(known_files=known_files)
         assert manager._file_queue == expected
 
@@ -999,7 +998,6 @@ class TestDagFileProcessorManager:
             run_count=1,
             last_num_of_db_queries=1,
         )
-        manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
         active_dag_count = session.scalar(
@@ -1018,6 +1016,73 @@ class TestDagFileProcessorManager:
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
+            )
+        )
+        assert active_dag_count == 0
+
+        serialized_dag_count = session.scalar(
+            select(func.count(SerializedDagModel.dag_id)).where(SerializedDagModel.dag_id == dag.dag_id)
+        )
+        # Deactivating the DagModel should not delete the SerializedDagModel
+        # SerializedDagModel gives history about Dags
+        assert serialized_dag_count == 1
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_scan_stale_dags_deactivates_zip_packaged_dags(self, session, test_zip_path):
+        """
+        Ensure that zip-packaged DAGs are marked inactive when the file is parsed but the
+        DagModel.last_parsed_time is not updated, testing fallback to the parent path when
+        comparing DAG.relative_fileloc to last_parsed entries.
+        """
+        manager = DagFileProcessorManager(
+            max_runs=1,
+            processor_timeout=10 * 60,
+        )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
+
+        test_dag_path = DagFileInfo(
+            rel_path=Path("test_zip.zip"),
+            bundle_path=Path(test_zip_path).parent,
+            bundle_name="testing",
+        )
+        dagbag = DagBag(
+            test_dag_path.absolute_path,
+            bundle_path=test_dag_path.bundle_path,
+        )
+
+        # Add stale DAG to the DB
+        dag = dagbag.get_dag("test_zip_dag")
+        sync_dag_to_db(dag, session=session)
+
+        # Add DAG to the file_parsing_stats
+        stat = DagFileStat(
+            num_dags=1,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            last_duration=1,
+            run_count=1,
+            last_num_of_db_queries=1,
+        )
+        manager._file_stats[test_dag_path] = stat
+
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
+                DagModel.dag_id == "test_zip_dag",
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path / "test_zip.py"),
+            )
+        )
+        assert active_dag_count == 1
+
+        manager._scan_stale_dags()
+
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
+                DagModel.dag_id == "test_zip_dag",
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path / "test_zip.py"),
             )
         )
         assert active_dag_count == 0
