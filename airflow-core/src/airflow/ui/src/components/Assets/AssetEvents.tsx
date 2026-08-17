@@ -118,6 +118,7 @@ export const AssetEvents = ({
         columns={[]}
         data={data?.asset_events ?? []}
         displayMode="card"
+        hideRowCountHeading
         initialState={tableUrlState}
         isLoading={isLoading}
         modelName="common:assetEvent"

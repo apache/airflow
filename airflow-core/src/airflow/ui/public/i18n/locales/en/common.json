@@ -17,8 +17,8 @@
   },
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "assetEvent_one": "$t(asset_one) Event",
-  "assetEvent_other": "$t(asset_one) Events",
+  "assetEvent_one": "$t(common:asset_one) Event",
+  "assetEvent_other": "$t(common:asset_one) Events",
   "assetInactive": {
     "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
   },
@@ -34,8 +34,8 @@
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "consumingAsset": "Consuming Asset",
-  "createdAssetEvent_one": "Created $t(assetEvent_one)",
-  "createdAssetEvent_other": "Created $t(assetEvent_other)",
+  "createdAssetEvent_one": "Created $t(common:assetEvent_one)",
+  "createdAssetEvent_other": "Created $t(common:assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -121,6 +121,8 @@
       "title": "Access Denied"
     }
   },
+  "event_one": "Event",
+  "event_other": "Events",
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
@@ -151,6 +153,7 @@
     "tooltip": "Press {{hotkey}} for fullscreen"
   },
   "generateToken": "Generate Token",
+  "includedIn": "Included in",
   "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
@@ -328,8 +331,8 @@
     "hotkey": "s",
     "show": "Show Source"
   },
-  "sourceAssetEvent_one": "Source $t(assetEvent_one)",
-  "sourceAssetEvent_other": "Source $t(assetEvent_other)",
+  "sourceAssetEvent_one": "Source $t(common:assetEvent_one)",
+  "sourceAssetEvent_other": "Source $t(common:assetEvent_other)",
   "startDate": "Start Date",
   "state": "State",
   "states": {
@@ -417,6 +420,12 @@
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
+  "teams": {
+    "more_one": "and {{count}} more",
+    "more_other": "and {{count}} more",
+    "none": "No team",
+    "title": "Teams"
+  },
   "timeRange": {
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",

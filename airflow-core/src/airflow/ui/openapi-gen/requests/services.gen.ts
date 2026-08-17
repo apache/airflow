@@ -675,6 +675,7 @@ export class BackfillService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -1027,6 +1028,7 @@ export class DagRunService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -1103,7 +1105,8 @@ export class DagRunService {
      * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
      *
      * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+     * `total_entries_limit` (a value equal to that limit means at least that many runs match).
      * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
      * on the first page.
      * @param data The data for the request.
@@ -1211,6 +1214,7 @@ export class DagRunService {
                 consuming_asset_pattern: data.consumingAssetPattern
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -1861,6 +1865,7 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Unprocessable Entity'
             }
         });
@@ -2081,6 +2086,7 @@ export class DagService {
                 dag_id: data.dagId
             },
             errors: {
+                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }
@@ -2700,9 +2706,10 @@ export class TaskInstanceService {
      * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
      *
      * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
-     * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
-     * on the first page.
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+     * `total_entries_limit` (a value equal to that limit means at least that many task instances
+     * match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is
+     * ``null`` on the first page.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -2976,6 +2983,7 @@ export class TaskInstanceService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -3232,6 +3240,7 @@ export class TaskInstanceService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -4807,6 +4816,7 @@ export class DependenciesService {
                 dependency_type: data.dependencyType
             },
             errors: {
+                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }
