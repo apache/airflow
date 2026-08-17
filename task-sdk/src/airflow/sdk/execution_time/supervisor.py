@@ -2314,11 +2314,8 @@ def make_buffered_socket_reader(
         nonlocal search_from
         # We could have read multiple lines in one go, yield them all
         while (newline_pos := buffer.find(b"\n", search_from)) != -1:
-            # Copy the record out as immutable bytes before sending it: the generator's
-            # local may still reference this value at its next suspension point, so it
-            # must not alias the buffer we're about to resize below -- resizing a
-            # bytearray while a memoryview onto it is live raises BufferError.
-            line = bytes(buffer[: newline_pos + 1])
+            # Avoid an intermediate bytearray copy while producing the immutable record.
+            line = bytes(memoryview(buffer)[: newline_pos + 1])
             gen.send(line)
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
             search_from = 0
