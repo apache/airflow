@@ -99,6 +99,13 @@ updates:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
+      # Pinned to the last shadow-gradle-plugin release that supports Java 11
+      # (see java-sdk/plugin/build.gradle.kts). Ignore minor/patch bumps too,
+      # not just majors, until the SDK's Java 11 support requirement is dropped.
+      - dependency-name: "com.gradleup.shadow:shadow-gradle-plugin"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
 
   - package-ecosystem: npm
     cooldown:
