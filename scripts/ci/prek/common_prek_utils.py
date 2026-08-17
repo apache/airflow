@@ -41,9 +41,6 @@ AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
-# Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "ibm", "microsoft"]
-
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
 # Maps a Docker build platform string (as declared in ``provider.yaml`` under
@@ -591,19 +588,54 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
     return None
 
 
-def get_all_provider_ids(exclude_suspended_providers: bool = False) -> list[str]:
+def get_provider_namespace_from_path(file_path: Path) -> str | None:
+    """Get the namespace of the nested provider the file belongs to, None if it is not nested."""
+    provider_id = get_provider_id_from_path(file_path)
+    if not provider_id or "." not in provider_id:
+        return None
+    return provider_id.split(".")[0]
+
+
+def is_duplicated_namespace_init(file_path: Path) -> bool:
+    """Check whether the file is a namespace ``__init__.py`` repeated across the namespace."""
+    if file_path.name != "__init__.py":
+        return False
+    namespace = get_provider_namespace_from_path(file_path)
+    base_dir = get_provider_base_dir_from_path(file_path)
+    if namespace is None or base_dir is None:
+        return False
+    return file_path.relative_to(base_dir).parts in {
+        ("src", "airflow", "providers", namespace, "__init__.py"),
+        ("tests", "unit", namespace, "__init__.py"),
+        ("tests", "integration", namespace, "__init__.py"),
+        ("tests", "system", namespace, "__init__.py"),
+    }
+
+
+def get_all_provider_ids(
+    exclude_suspended_providers: bool = False, exclude_not_ready_providers: bool = False
+) -> list[str]:
     """
     Get all providers from the new provider structure
+
+    :param exclude_suspended_providers: skip providers whose state is ``suspended``
+    :param exclude_not_ready_providers: skip providers whose state is ``not-ready`` - those have
+        never been published, so anything describing what is installable must leave them out
     """
     all_provider_ids = []
+    excluded_states = set()
+    if exclude_suspended_providers:
+        excluded_states.add("suspended")
+    if exclude_not_ready_providers:
+        excluded_states.add("not-ready")
     for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
         if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
             continue
-        if exclude_suspended_providers:
+        if excluded_states:
             import yaml
 
             provider_info = yaml.safe_load(provider_file.read_text())
-            if provider_info.get("state") == "suspended":
+            if provider_info.get("state") in excluded_states:
                 continue
         provider_id = get_provider_id_from_path(provider_file)
         if provider_id:

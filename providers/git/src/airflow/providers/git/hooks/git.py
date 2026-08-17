@@ -30,7 +30,7 @@ from typing import Any
 from urllib.parse import quote as urlquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class GitHook(BaseHook):
         self.env: dict[str, str] = {}
 
         if self.key_file and self.private_key:
-            raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
+            raise ValueError("Both 'key_file' and 'private_key' cannot be provided at the same time")
 
         if host_key_checking_defaulted and self._uses_ssh_transport_options():
             warnings.warn(

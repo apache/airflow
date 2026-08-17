@@ -30,6 +30,7 @@ try:
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
+    from airflow.providers.common.sql.hooks.handlers import get_row_count
     from airflow.providers.common.sql.hooks.sql import DbApiHook
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -39,15 +40,17 @@ except ImportError as e:
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from pydantic_core import SchemaValidator, core_schema
 
-from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
+from airflow.providers.common.ai.utils.query_results import (
+    DEFAULT_MAX_RESULT_BYTES,
+    QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
+    build_query_result,
+)
+from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
-
-_PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
 # JSON Schemas for the four SQL tools.
 _LIST_TABLES_SCHEMA: dict[str, Any] = {
@@ -78,6 +81,75 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     },
     "required": ["sql"],
 }
+
+
+def _trusted_row_count(cursor: Any, *, fetched: int) -> int | None:
+    """
+    Return the driver's row count for the query, or ``None`` when it cannot mean that.
+
+    ``rowcount`` is only a query total on drivers that buffer the whole result before
+    handing back the first row. Others report rows fetched *so far* -- python-oracledb
+    documents exactly that for ``SELECT`` -- which after a capped fetch equals the cap,
+    not the total. Handing an agent ``total_rows: 51`` for a ten-million-row table is
+    worse than handing it nothing: it reads as authoritative and it is wrong.
+
+    A count no larger than what was fetched is indistinguishable from that failure mode,
+    so it is discarded. Nothing is lost when the result was not truncated -- ``row_count``
+    is already the total there.
+    """
+    row_count = get_row_count(cursor)
+    if row_count is None or row_count <= fetched:
+        return None
+    return row_count
+
+
+class _CappedFetch:
+    """
+    ``DbApiHook.run`` handler that fetches at most ``limit`` rows instead of all of them.
+
+    The counterpart in ``common.sql``,
+    :func:`~airflow.providers.common.sql.hooks.handlers.fetch_all_handler`, pulls the
+    whole result set into the worker; the toolset then discards all but ``max_rows`` of
+    it, having already paid for the transfer. Fetching through the cursor keeps the cost
+    proportional to what the agent is actually shown.
+
+    How much this saves depends on the driver: with a server-side cursor the unfetched
+    rows are never sent, while a driver that buffers client-side (psycopg2's default
+    cursor, MySQLdb) has already received them and only the per-row conversion is
+    skipped. The result handed to the model is bounded either way.
+
+    Not every hook hands its handler a DBAPI cursor -- ``ExasolHook`` passes a pyexasol
+    statement, which signals "this produced rows" through ``result_type`` rather than
+    ``description``. Bounding the fetch is not possible without knowing that per driver,
+    so those fall back to a full fetch, which is what the toolset did everywhere before.
+    The payload is still bounded; only the transfer is not.
+
+    Instances are single-use -- ``total_rows`` refers to the last query run.
+    """
+
+    def __init__(self, limit: int) -> None:
+        self._limit = limit
+        #: Rows the driver reports for the query, or ``None`` when it reports none.
+        self.total_rows: int | None = None
+
+    def __call__(self, cursor: Any) -> list[tuple] | None:
+        if not hasattr(cursor, "description"):
+            fetchall = getattr(cursor, "fetchall", None)
+            if not callable(fetchall):
+                raise RuntimeError(
+                    "The database we interact with does not support DBAPI 2.0. Use a "
+                    "connection whose hook exposes a DBAPI 2.0 cursor."
+                )
+            rows = fetchall()
+            # Nothing was left behind, so the fetched count is the exact total.
+            self.total_rows = len(rows) if rows is not None else 0
+            return rows
+        if cursor.description is None:
+            # A statement that returned no result set (DDL, or DML without RETURNING).
+            return None
+        rows = cursor.fetchmany(self._limit)
+        self.total_rows = _trusted_row_count(cursor, fetched=len(rows or []))
+        return rows
 
 
 class SQLToolset(AbstractToolset[Any]):
@@ -146,7 +218,21 @@ class SQLToolset(AbstractToolset[Any]):
     :param allow_writes: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
         Default ``False`` — only SELECT-family statements are permitted.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
-        Default ``50``.
+        Default ``50``. Rows beyond it are not pulled out of the cursor. How much that
+        saves is the driver's call, not this toolset's: a client-buffering driver
+        (psycopg2's default cursor, MySQLdb) has already received the whole result by
+        the time the first row is read, so only the per-row Python conversion is
+        skipped. Treat this as a bound on what the agent is shown, not as a guarantee
+        that ``SELECT * FROM huge_table`` is cheap.
+    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes.
+        Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
+        row of a 3000-column table is larger than a thousand rows of a narrow one, and
+        a tool result stays in the model's message history for the rest of the run, so
+        its cost is re-paid on every subsequent request. Rows are returned as a
+        contiguous prefix, stopping at the first that does not fit the remaining budget
+        rather than skipping it and packing later ones, so one wide row early in the
+        result ends it. The result reports which limit it hit so the agent can narrow
+        its projection rather than page through the table.
     """
 
     def __init__(
@@ -158,6 +244,7 @@ class SQLToolset(AbstractToolset[Any]):
         schema: str | None = None,
         allow_writes: bool = False,
         max_rows: int = 50,
+        max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
     ) -> None:
         self._db_conn_id = db_conn_id
         self._allowed_tables: frozenset[str] | None = frozenset(allowed_tables) if allowed_tables else None
@@ -169,6 +256,7 @@ class SQLToolset(AbstractToolset[Any]):
         self._schema = schema
         self._allow_writes = allow_writes
         self._max_rows = max_rows
+        self._max_result_bytes = max_result_bytes
         self._hook: DbApiHook | None = None
 
         # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
@@ -254,7 +342,7 @@ class SQLToolset(AbstractToolset[Any]):
         for name, description, schema in (
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
             ("get_schema", "Get column names and types for a table.", _GET_SCHEMA_SCHEMA),
-            ("query", "Execute a SQL query and return rows as JSON.", _QUERY_SCHEMA),
+            ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
         ):
             # sequential=True because all tools use a shared DbApiHook with
@@ -272,7 +360,7 @@ class SQLToolset(AbstractToolset[Any]):
                 toolset=self,
                 tool_def=tool_def,
                 max_retries=1,
-                args_validator=_PASSTHROUGH_VALIDATOR,
+                args_validator=build_args_validator(schema),
             )
         return tools
 
@@ -373,24 +461,24 @@ class SQLToolset(AbstractToolset[Any]):
         if statements is not None:
             self._enforce_allowed_tables(statements)
 
-        rows = hook.get_records(sql)
-        # Fetch column names from cursor description.
-        col_names: list[str] | None = None
+        # One row beyond the cap, so "there is more" is knowable without fetching the
+        # rest. strip_sql_string mirrors what get_records did for the hooks that
+        # override it (Trino rejects a trailing semicolon) and is a no-op elsewhere.
+        fetch = _CappedFetch(self._max_rows + 1)
+        rows = hook.run(hook.strip_sql_string(sql), handler=fetch) or []
+
+        col_names: list[str] = []
         if hook.last_description:
             col_names = [desc[0] for desc in hook.last_description]
 
-        result: list[dict[str, Any]] | list[list[Any]]
-        if rows and col_names:
-            result = [dict(zip(col_names, row)) for row in rows[: self._max_rows]]
-        else:
-            result = [list(row) for row in (rows or [])[: self._max_rows]]
-
-        truncated = len(rows or []) > self._max_rows
-        output: dict[str, Any] = {"rows": result, "count": len(rows or [])}
-        if truncated:
-            output["truncated"] = True
-            output["max_rows"] = self._max_rows
-        return json.dumps(output, default=str)
+        return build_query_result(
+            col_names,
+            rows[: self._max_rows],
+            max_rows=self._max_rows,
+            max_result_bytes=self._max_result_bytes,
+            more_rows_available=len(rows) > self._max_rows,
+            total_rows=fetch.total_rows,
+        )
 
     def _check_query(self, sql: str) -> str:
         # Resolve the dialect best-effort: if the connection can't be reached we

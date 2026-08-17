@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
+import { Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -32,6 +32,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
+import { TeamName } from "src/components/TeamName";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink } from "src/components/ui";
@@ -164,10 +165,9 @@ const createColumns = (
     ? [
         {
           accessorKey: "team_name",
-          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) =>
-            original.team_name !== undefined && original.team_name !== null ? (
-              <RouterLink to={`/dags?teams=${original.team_name}`}>{original.team_name}</RouterLink>
-            ) : undefined,
+          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) => (
+            <TeamName teamName={original.team_name} />
+          ),
           enableSorting: false,
           header: () => translate("dagDetails.team"),
         },
@@ -221,6 +221,7 @@ const {
   OWNERS,
   PAUSED,
   TEAMS,
+  TIMETABLE_TYPE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
@@ -259,6 +260,7 @@ export const DagsList = () => {
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
   const teams = searchParams.getAll(TEAMS);
+  const timetableType = searchParams.getAll(TIMETABLE_TYPE).filter((value) => value !== "");
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -323,6 +325,7 @@ export const DagsList = () => {
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,
+    timetableType: timetableType.length > 0 ? timetableType : undefined,
   });
 
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
@@ -362,34 +365,26 @@ export const DagsList = () => {
           placeholder={translate("dags:search.dags")}
         />
         <DagsFilters />
-        <HStack justifyContent="space-between">
-          <HStack>
-            <Heading py={3} size="md">
-              {`${totalEntries} ${translate("dag", { count: totalEntries })}`}
-            </Heading>
-            <DagImportErrors iconOnly />
-          </HStack>
-          <HStack>
-            {display === "card" ? (
-              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-            ) : undefined}
-          </HStack>
-        </HStack>
       </VStack>
       <Box pb={8}>
         <DataTable
+          actions={
+            display === "card" ? (
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+            ) : undefined
+          }
           cardDef={cardDef}
           columns={columns}
           data={data?.dags ?? []}
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
+          headingExtra={<DagImportErrors iconOnly />}
           initialState={tableURLState}
           isLoading={isLoading}
           modelName="common:dag"
           onDisplayToggleChange={setDisplay}
           onStateChange={setTableURLState}
           showDisplayToggle
-          showRowCountHeading={false}
           skeletonCount={display === "card" ? 5 : undefined}
           total={totalEntries}
         />

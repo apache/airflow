@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
-from functools import cache
+from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
@@ -44,6 +45,7 @@ from airflow.api_fastapi.auth.tokens import (
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
@@ -357,13 +359,72 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         access_view: AccessView,
         user: T,
+        team_name: str | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to access a read-only state of the installation.
 
         :param access_view: the specific read-only view/state the authorization request is about.
         :param user: the user to performing the action
+        :param team_name: team the view is scoped to, if any. Managers without multi-team
+            support may accept and ignore it, which authorizes the view globally.
         """
+
+    @cached_property
+    def _is_authorized_view_team_aware(self) -> bool:
+        """Whether this manager's ``is_authorized_view`` override accepts ``team_name``."""
+        params = inspect.signature(self.is_authorized_view).parameters
+        return "team_name" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+    def authorize_view(self, *, access_view: AccessView, user: T, team_name: str | None = None) -> bool:
+        """
+        Authorize a read-only view, tolerating auth managers that predate ``team_name``.
+
+        Core calls this instead of :meth:`is_authorized_view` on team-scoped paths: an
+        override still on the old ``(access_view, user)`` signature would otherwise raise
+        ``TypeError``. Removed in Airflow 4.
+
+        A manager that does not recognise ``access_view`` at all is also tolerated, and
+        denied -- see :meth:`_authorize_view_unmapped_denied`.
+        """
+        try:
+            if self._is_authorized_view_team_aware:
+                return self.is_authorized_view(access_view=access_view, user=user, team_name=team_name)
+            warnings.warn(
+                f"The '{type(self).__name__}' auth manager is not team-aware, so team-scoped views are "
+                "authorized across all teams and may be visible to users of other teams. Add the "
+                "'team_name' argument to its is_authorized_view (or upgrade the provider). Airflow 4 "
+                "will require team-aware auth managers.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            return self.is_authorized_view(access_view=access_view, user=user)
+        except KeyError:
+            return self._authorize_view_unmapped_denied(access_view)
+
+    def _authorize_view_unmapped_denied(self, access_view: AccessView) -> bool:
+        """
+        Deny an ``AccessView`` the auth manager cannot map, instead of raising.
+
+        ``AccessView`` members are added by core, but auth managers ship as separately
+        released providers, so a core newer than the installed auth manager can name a
+        view the manager has never heard of. Managers that translate the enum through a
+        lookup table (the FAB auth manager, for one) raise ``KeyError`` on such a member,
+        which would surface as a 500 on the endpoint that consults it.
+
+        Denying keeps the endpoint working and fails closed: an unmappable view means the
+        manager cannot express who may see the records, and these views gate records with
+        no other authorization key. Upgrading the auth manager provider to a version that
+        maps the view restores access.
+        """
+        warnings.warn(
+            f"The '{type(self).__name__}' auth manager cannot map the '{access_view.name}' view, so "
+            "access to it is denied. This usually means the auth manager provider is older than "
+            "Airflow core; upgrade it to a version that supports this view.",
+            UserWarning,
+            stacklevel=3,
+        )
+        return False
 
     @abstractmethod
     def is_authorized_custom_view(self, *, method: ResourceMethod, resource_name: str, user: T) -> bool:
