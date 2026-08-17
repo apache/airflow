@@ -101,7 +101,9 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
                     raise ValueError(f"broker_transport_option {option} is not string: {option_value}")
                 option_json = json.loads(option_value)
                 if not isinstance(option_json, dict):
-                    raise ValueError(f"broker_transport_option {option} value is not dictionary: {option_json}")
+                    raise ValueError(
+                        f"broker_transport_option {option} value is not dictionary: {option_json}"
+                    )
                 broker_transport_options[option] = option_json
             except Exception as exc:
                 raise ValueError(
