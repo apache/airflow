@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
 import { FiBarChart, FiDatabase, FiUser, FiUsers } from "react-icons/fi";
@@ -412,10 +412,10 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.runType"),
       options: withoutAllOption(dagRunTypeOptions.items).map((option) => ({
         label: (
-          <Flex alignItems="center" gap={1}>
+          <Box alignItems="center" display="inline-flex" gap={1}>
             <RunTypeIcon runType={option.value as DagRunType} />
             {translate(option.label)}
-          </Flex>
+          </Box>
         ),
         value: option.value,
       })),
