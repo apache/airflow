@@ -139,6 +139,10 @@ class FoundMoreThanOnePodFailure(AirflowException):
     """When during reconnect more than one matching pod was found."""
 
 
+class PodInterrupted(AirflowException):
+    """When on_kill already deleted the child pod before it completed."""
+
+
 class KubernetesPodOperator(BaseOperator):
     """
     Execute a task in a Kubernetes Pod.
@@ -1337,9 +1341,7 @@ class KubernetesPodOperator(BaseOperator):
         # retry. Do not return as success either: the workload did not finish.
         # See https://github.com/apache/airflow/issues/71202.
         if self._killed:
-            raise AirflowException(
-                f"Pod {pod and pod.metadata.name} was interrupted before it completed."
-            )
+            raise PodInterrupted(f"Pod {pod and pod.metadata.name} was interrupted before it completed.")
         # remote pod is null (ex: pod creation failed). The original exception from
         # create/await still propagates from execute_sync's try block.
         if not remote_pod:
