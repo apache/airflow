@@ -1,0 +1,1 @@
+Fixed ``airflow db clean`` failing on the ``asset_event``, ``task_reschedule`` and ``deadline`` tables when ``--dag-ids`` or ``--exclude-dag-ids`` was used.
