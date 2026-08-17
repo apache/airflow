@@ -23,14 +23,17 @@ import random
 import pytest
 from sqlalchemy import func, select
 
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -786,6 +789,166 @@ class TestClearTasks:
         assert tis["0"].dag_version_id == new_dag_version.id
         assert tis["1"].dag_version_id == old_dag_version.id
         assert dr_after.created_dag_version_id == new_dag_version.id
+
+    @pytest.mark.parametrize("run_on_latest_version", [True, False])
+    def test_clear_running_dag_run_with_run_on_latest_version(
+        self, run_on_latest_version, dag_maker, session
+    ):
+        with dag_maker(
+            "test_clear_running_dr",
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            bundle_version="v1",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.state = TaskInstanceState.RUNNING
+        ti1.state = TaskInstanceState.SUCCESS
+        session.merge(ti0)
+        session.merge(ti1)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_running_dr",
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            bundle_version="v2",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+            EmptyOperator(task_id="2")
+        new_dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
+        clear_task_instances(qry, session, run_on_latest_version=run_on_latest_version)
+        session.commit()
+
+        dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        assert dr.state == DagRunState.RUNNING
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        assert tis["0"].state == TaskInstanceState.RESTARTING
+        expected_version = new_dag_version if run_on_latest_version else old_dag_version
+        assert tis["0"].dag_version_id == expected_version.id
+        assert tis["1"].dag_version_id == expected_version.id
+        assert dr.created_dag_version_id == expected_version.id
+        assert dr.bundle_version == expected_version.bundle_version
+        assert ("2" in tis) is run_on_latest_version
+
+    @pytest.mark.parametrize("dr_state", [DagRunState.SUCCESS, DagRunState.RUNNING])
+    def test_clear_run_on_latest_version_without_resetting_dag_run(self, dr_state, dag_maker, session):
+        """``reset_dag_runs=False`` leaves the run's state alone but must not leave its version behind."""
+        with dag_maker(
+            "test_clear_no_reset",
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            bundle_version="v1",
+        ) as dag:
+            EmptyOperator(task_id="0")
+        dr = dag_maker.create_dagrun(state=dr_state, run_type=DagRunType.SCHEDULED)
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        clear_number = dr.clear_number
+
+        ti = dr.task_instances[0]
+        ti.state = TaskInstanceState.FAILED
+        session.merge(ti)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_no_reset",
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            bundle_version="v2",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        new_dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances([ti], session, dag_run_state=False, run_on_latest_version=True)
+        session.commit()
+
+        dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        assert dr.state == dr_state
+        assert dr.clear_number == clear_number
+        assert dr.created_dag_version_id == new_dag_version.id
+        assert dr.bundle_version == "v2"
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        assert tis["0"].dag_version_id == new_dag_version.id
+        assert "1" in tis
+
+    def test_clear_run_on_latest_version_refreshes_bundle_when_dag_unchanged(self, dag_maker, session):
+        """A newer bundle updates the latest DagVersion in place, so its id cannot gate the refresh."""
+        with dag_maker(
+            "test_clear_bundle_only_change",
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            bundle_version="v1",
+        ) as dag:
+            EmptyOperator(task_id="0")
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+        old_dag_version_id = DagVersion.get_latest_version(dr.dag_id).id
+        assert dr.bundle_version == "v1"
+
+        ti = dr.task_instances[0]
+        ti.state = TaskInstanceState.FAILED
+        session.merge(ti)
+        session.flush()
+
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG(data=dag_maker.get_serialized_data()),
+            bundle_name="dag_maker",
+            bundle_version="v2",
+            session=session,
+        )
+        session.get(DagModel, dag.dag_id).bundle_version = "v2"
+        session.flush()
+        assert DagVersion.get_latest_version(dag.dag_id).id == old_dag_version_id
+
+        clear_task_instances([ti], session, run_on_latest_version=True)
+        session.commit()
+
+        dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        assert dr.bundle_version == "v2"
+
+    def test_clear_run_on_latest_version_unpins_disabled_bundle_versioning(self, dag_maker, session):
+        with dag_maker(
+            "test_clear_disable_bundle_versioning",
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            bundle_version="v1",
+        ) as dag:
+            EmptyOperator(task_id="0")
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        assert dr.bundle_version == "v1"
+
+        ti = dr.task_instances[0]
+        ti.state = TaskInstanceState.FAILED
+        session.merge(ti)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_disable_bundle_versioning",
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            bundle_version="v2",
+            disable_bundle_versioning=True,
+        ):
+            EmptyOperator(task_id="0")
+        new_dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances([ti], session, run_on_latest_version=True)
+        session.commit()
+
+        dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        assert dr.created_dag_version_id == new_dag_version.id
+        assert dr.bundle_version is None
 
     def test_clear_only_new_tasks(self, dag_maker, session):
         """Test that only_new queues only newly added tasks without clearing existing ones."""
