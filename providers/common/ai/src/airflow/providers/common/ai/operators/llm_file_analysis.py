@@ -105,6 +105,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         self.sample_rows = sample_rows
 
     def execute(self, context: Context) -> Any:
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
         request = build_file_analysis_request(
             file_path=self.file_path,
             file_conn_id=self.file_conn_id,

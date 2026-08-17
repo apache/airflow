@@ -346,3 +346,35 @@ class TestLLMFileAnalysisOperatorApproval:
             op.execute(context=_make_context())
 
         assert exc_info.value.timeout == timeout
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestLLMFileAnalysisOperatorMultimodalPromptGuard:
+    """LLMFileAnalysisOperator.execute raises before build_file_analysis_request/agent.run_sync
+    when require_approval is True and self.prompt is not a string -- covering the native template
+    rendering escape (where a string template renders to a Sequence)."""
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_build_request, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMFileAnalysisOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            file_path="/tmp/app.log",
+            require_approval=True,
+        )
+        op.prompt = ["x", object()]  # simulate post-template-render value
+
+        with pytest.raises(TypeError, match="require_approval=True"):
+            op.execute(context=_make_context())
+
+        mock_build_request.assert_not_called()
+        mock_agent.run_sync.assert_not_called()
