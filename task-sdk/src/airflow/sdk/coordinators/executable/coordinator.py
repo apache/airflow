@@ -354,8 +354,7 @@ class ExecutableCoordinator(SubprocessCoordinator):
     def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
         return "executables_root", self.executables_root
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstance, roots: list[pathlib.Path]
-    ) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+        roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version

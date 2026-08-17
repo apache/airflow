@@ -117,7 +117,8 @@ class TestNodeCoordinatorAttributes:
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
         bundle = write_bundle(tmp_path)
         coordinator = NodeCoordinator()
-        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
         assert command == ["node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
 
@@ -240,7 +241,8 @@ class TestNodeCoordinatorExecuteTaskCommand:
             bundles_root=tmp_path,
         )
 
-        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
 
         assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
