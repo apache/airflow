@@ -137,8 +137,11 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
       expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
       expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
     });
-    expect(screen.getByText("CronTriggerTimetable")).toBeInTheDocument();
-    expect(screen.getByText("NullTimetable")).toBeInTheDocument();
+    // The collapsed pill lists its values as a single joined string.
+    const pill = screen.getByTestId("timetable_type-pill");
+
+    expect(pill).toHaveTextContent("CronTriggerTimetable");
+    expect(pill).toHaveTextContent("NullTimetable");
   });
 
   it("ignores an empty timetable type from the URL", async () => {

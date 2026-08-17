@@ -111,6 +111,9 @@ export const MultiSelectPill = ({
               }}
               isClearable
               isMulti
+              // The pill clips its own corners, and the table header it sits in scrolls, so an
+              // inline menu is hidden by one of those ancestors. Portal it out to the body.
+              menuPortalTarget={document.body}
               noOptionsMessage={() => noOptionsMessage}
               onChange={(selected) => onChange(selected.map(({ value }) => value))}
               onInputChange={onInputChange}
@@ -118,6 +121,9 @@ export const MultiSelectPill = ({
               onMenuScrollToTop={onMenuScrollToTop}
               options={options}
               placeholder={filter.config.placeholder ?? filter.config.label}
+              // menuPortal is a react-select style, not a chakraStyles one; the portalled menu
+              // needs to clear the sticky table header.
+              styles={{ menuPortal: (base) => ({ ...base, zIndex: 1500 }) }}
               value={values.map((value) => ({ label: value, value }))}
             />
           </Box>
