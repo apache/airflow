@@ -55,8 +55,8 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 
 .. note::
 
-    StatsD has no resource concept, so metrics from replicas of the same component cannot be
-    told apart. Use OpenTelemetry if you need that — see
+    StatsD has no resource concept, so metrics cannot be attributed to the process that
+    produced them. Use OpenTelemetry if you need that — see
     :ref:`identifying-components-and-their-instances`.
 
 
@@ -109,30 +109,36 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
 Identifying components and their instances
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-OpenTelemetry identifies a source by two resource attributes, and they answer different questions:
+OpenTelemetry labels each metric with the resource that produced it. Two resource attributes
+decide how much of a deployment can be told apart:
 
-* ``service.name`` — *what* is reporting. Set it per component, so scheduler metrics are
-  distinguishable from triggerer or Dag processor metrics.
-* ``service.instance.id`` — *which instance* of that component is reporting. Set it per process,
-  so replicas of the same component do not collide.
+``service.name``
+    Which component reported the metric. It defaults to ``airflow`` for every Airflow process, so
+    a scheduler, a triggerer and a worker arrive under one name. Set it per component to attribute
+    a metric to the kind of process that produced it.
 
-Airflow takes ``service.name`` from ``OTEL_SERVICE_NAME``, falling back to the ``otel_service``
-option and then to ``airflow``. Any other resource attribute, including ``service.instance.id``,
-comes from ``OTEL_RESOURCE_ATTRIBUTES``, which Airflow merges into the OpenTelemetry resource.
+``service.instance.id``
+    Which process of that component reported the metric. It is unset by default, so processes
+    running the same component are indistinguishable. Set it per process to attribute a metric to
+    one of them.
+
+Airflow reads ``service.name`` from ``OTEL_SERVICE_NAME``, and every other resource attribute from
+``OTEL_RESOURCE_ATTRIBUTES``:
 
 .. code-block:: bash
 
-    # on every instance of a component that runs more than one, such as scheduler or triggerer
+    # on one of the schedulers
     export OTEL_SERVICE_NAME="airflow-scheduler"
     export OTEL_RESOURCE_ATTRIBUTES="service.instance.id=$(hostname)"
 
-Without a distinct ``service.instance.id``, every replica of a component publishes to the same
-series and the backend keeps whichever export arrived last. Gauges show this most clearly: each
-scheduler samples the metadata database on its own loop, so ``pool.open_slots`` and its siblings
-appear to flap between replicas' samples.
+Processes that share a resource also share a series, and the backend keeps whichever export
+arrived last. Where several processes run the same component this loses data rather than
+aggregating it: each scheduler samples the metadata database on its own loop, so a gauge such as
+``pool.open_slots`` reports an arbitrary scheduler's sample rather than a value derived from all
+of them.
 
-With both set, each instance forms its own series and replicas can be aggregated at query time —
-for example, the lowest number of open slots any scheduler observed:
+Once each process is identified, its samples form their own series and can be combined
+deliberately — for example, the lowest number of open slots any scheduler observed:
 
 .. code-block:: text
 
