@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-10-30"
+API_VERSION: Final[str] = "2026-11-13"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -457,6 +457,17 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+
+
+class ClearDagRunPayload(BaseModel):
+    """
+    Schema for Clear DAG Run API request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
 
 
 class UpdateHITLDetailPayload(BaseModel):

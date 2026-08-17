@@ -17,31 +17,23 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+import pytest
+from pydantic import ValidationError
 
-from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.utils.state import DagRunState
-
-
-class TriggerDAGRunPayload(StrictBaseModel):
-    """Schema for Trigger DAG Run API request."""
-
-    logical_date: UtcDateTime | None = None
-    run_after: UtcDateTime | None = None
-    conf: dict = Field(default_factory=dict)
-    reset_dag_run: bool = False
-    partition_key: str | None = None
-    note: str | None = None
+from airflow.api_fastapi.execution_api.datamodels.dagrun import ClearDagRunPayload
 
 
-class ClearDagRunPayload(StrictBaseModel):
-    """Schema for Clear DAG Run API request."""
+class TestClearDagRunPayload:
+    def test_only_failed_defaults_to_false(self):
+        """Omitting only_failed yields False so the route performs a whole-run clear."""
+        payload = ClearDagRunPayload()
+        assert payload.only_failed is False
 
-    only_failed: bool = False
+    @pytest.mark.parametrize("value", [True, False])
+    def test_only_failed_accepts_bool(self, value):
+        payload = ClearDagRunPayload(only_failed=value)
+        assert payload.only_failed is value
 
-
-class DagRunStateResponse(BaseModel):
-    """Schema for DAG Run State response."""
-
-    state: DagRunState
+    def test_only_failed_rejects_non_bool(self):
+        with pytest.raises(ValidationError):
+            ClearDagRunPayload(only_failed="not-a-bool")

@@ -17,31 +17,20 @@
 
 from __future__ import annotations
 
-from pydantic import Field
-
-from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.utils.state import DagRunState
-
-
-class TriggerDAGRunPayload(StrictBaseModel):
-    """Schema for Trigger DAG Run API request."""
-
-    logical_date: UtcDateTime | None = None
-    run_after: UtcDateTime | None = None
-    conf: dict = Field(default_factory=dict)
-    reset_dag_run: bool = False
-    partition_key: str | None = None
-    note: str | None = None
+from airflow.api_fastapi.execution_api.versions import (
+    MIN_VERSION_ONLY_FAILED_CLEAR,
+    bundle,
+)
 
 
-class ClearDagRunPayload(StrictBaseModel):
-    """Schema for Clear DAG Run API request."""
+def test_min_version_only_failed_clear_is_registered():
+    """@AC-FR004-01 The advertised failed-only clear minimum maps to a registered API version."""
+    registered = {version.value for version in bundle.versions}
+    assert MIN_VERSION_ONLY_FAILED_CLEAR in registered
 
-    only_failed: bool = False
 
-
-class DagRunStateResponse(BaseModel):
-    """Schema for DAG Run State response."""
-
-    state: DagRunState
+def test_min_version_only_failed_clear_is_supported_by_head():
+    """@AC-FR004-02 The current head version is at least the failed-only clear minimum."""
+    # bundle.versions is ordered newest-first; the first entry is head/latest.
+    latest = bundle.versions[0].value
+    assert latest >= MIN_VERSION_ONLY_FAILED_CLEAR

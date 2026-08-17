@@ -60,6 +60,17 @@ except ImportError:
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
 
+# Minimum negotiated Execution API version that honours the ``only_failed`` clear scope.
+# Cadwyn migrates unknown request fields forward instead of rejecting them, so an older core
+# would silently perform a whole-run clear. The failed-only emission is therefore gated here and
+# raises explicitly when the negotiated core is older, rather than silently clearing the whole run.
+MIN_VERSION_ONLY_FAILED_CLEAR = "2026-11-13"
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.api.datamodels._generated import API_VERSION
+else:
+    API_VERSION = ""
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -139,6 +150,25 @@ class TriggerDagRunOperator(BaseOperator):
         DAG run conf is immutable and will not be reset on rerun of an existing DAG run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing DAG run will be cleared to rerun.
+    :param auto_clear_failed_tasks: Opt-in, off by default. When set to ``True`` and the triggered
+        child run already exists in a terminal failed state, only the failed tasks (and their
+        downstream) of that run are cleared instead of resetting the whole run, so already-succeeded
+        upstream tasks are preserved and are not re-run. The clear happens on the next execution of
+        this operator (for example on a task retry): the failed child run is cleared and re-run at
+        that point, not asynchronously in the background -- so bound the number of attempts with
+        ``retries``. Because the previously-succeeded tasks are not re-executed and the failed ones
+        are, the triggered Dag's tasks should be idempotent; re-running a non-idempotent failed task
+        (or its downstream) may produce duplicate side effects. ``reset_dag_run`` takes precedence:
+        if both ``reset_dag_run`` and ``auto_clear_failed_tasks`` are set, ``reset_dag_run`` wins and
+        the whole run is cleared (ADR-017 precedence); at most one clear is ever performed. This is a
+        v1, synchronous-only feature: it applies when ``wait_for_completion=True`` and is not
+        supported with ``deferrable=True`` (setting both raises ``ValueError``). Note the brief
+        cosmetic window in which the child run may still be shown as ``failed`` until this operator
+        re-executes and triggers the clear. On Airflow 3.x the failed-only clear is delivered
+        server-side via the Execution API and therefore requires an Execution API version of at least
+        ``2026-11-13``; against an older core the operator refuses to fall back to a whole-run clear
+        and raises ``NotImplementedError`` rather than silently clearing more than requested.
+        (default: False)
     :param wait_for_completion: Whether or not wait for DAG run completion. (default: False)
     :param poke_interval: Poke interval to check DAG run status when wait_for_completion=True.
         (default: 60)
@@ -190,6 +220,7 @@ class TriggerDagRunOperator(BaseOperator):
         logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
         run_after: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
+        auto_clear_failed_tasks: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
         allowed_states: list[str | DagRunState] | None = None,
@@ -201,11 +232,18 @@ class TriggerDagRunOperator(BaseOperator):
         openlineage_inject_parent_info: bool = True,
         **kwargs,
     ) -> None:
+        if not isinstance(auto_clear_failed_tasks, bool):
+            raise TypeError(
+                f"auto_clear_failed_tasks must be a bool, got {type(auto_clear_failed_tasks).__name__}"
+            )
+        if auto_clear_failed_tasks and deferrable:
+            raise ValueError("auto_clear_failed_tasks is not supported with deferrable=True in this version.")
         super().__init__(**kwargs)
         self.trigger_dag_id = trigger_dag_id
         self.trigger_run_id = trigger_run_id
         self.conf = conf
         self.reset_dag_run = reset_dag_run
+        self.auto_clear_failed_tasks = auto_clear_failed_tasks
         self.wait_for_completion = wait_for_completion
         self.poke_interval = poke_interval
         if allowed_states:
@@ -325,6 +363,22 @@ class TriggerDagRunOperator(BaseOperator):
         if parsed_run_after and "run_after" in parameters:
             kwargs_accepted["run_after"] = parsed_run_after
 
+        if self._failed_only_clear_requested():
+            if API_VERSION < MIN_VERSION_ONLY_FAILED_CLEAR:
+                raise NotImplementedError(
+                    "auto_clear_failed_tasks requires an Execution API of at least "
+                    f"{MIN_VERSION_ONLY_FAILED_CLEAR}; the negotiated version is {API_VERSION}. "
+                    "Refusing to fall back to a whole-run clear."
+                )
+            if "only_failed_and_downstream" in parameters:
+                kwargs_accepted["only_failed_and_downstream"] = True
+            self.log.info(
+                "Requesting failed-only clear of existing run: dag_id=%s run_id=%s reason=%s",
+                self.trigger_dag_id,
+                run_id,
+                "auto_clear_failed_tasks set; only failed and downstream tasks will be cleared",
+            )
+
         if isinstance(context, Mapping):
             from airflow.utils import helpers
 
@@ -343,6 +397,40 @@ class TriggerDagRunOperator(BaseOperator):
                 )
 
         raise DagRunTriggerException(**kwargs_accepted)
+
+    def _child_run_terminally_failed(self, dag_run) -> bool:
+        """Return True when the existing child run is in a terminal failed state."""
+        return dag_run.state in self.failed_states
+
+    def _failed_only_clear_requested(self) -> bool:
+        """
+        Return True when the operator asks for a failed-only clear (ADR-017 precedence).
+
+        ``reset_dag_run`` wins over ``auto_clear_failed_tasks`` when both are set, so the
+        failed-only intent is requested only when auto-clear is on and reset is off. Shared by
+        the AF2 action resolver and the AF3 signal emission so both paths decide precedence once.
+        """
+        if self.reset_dag_run and self.auto_clear_failed_tasks:
+            self.log.warning(
+                "Both reset_dag_run and auto_clear_failed_tasks are set; reset_dag_run takes "
+                "precedence and the whole run will be cleared."
+            )
+        return self.auto_clear_failed_tasks and not self.reset_dag_run
+
+    def _resolve_already_exists_action(self, dag_run) -> str:
+        """
+        Resolve how to handle an already-existing child run (ADR-017 precedence ladder).
+
+        ``reset_dag_run`` wins over ``auto_clear_failed_tasks`` when both are set, so at most
+        one clear is ever performed. Returns ``"reset"`` (whole-run clear), ``"auto_clear"``
+        (failed-only clear of a terminal-failed run), or ``"legacy"`` (existing skip/raise).
+        """
+        if self.reset_dag_run:
+            self._failed_only_clear_requested()
+            return "reset"
+        if self._failed_only_clear_requested() and self._child_run_terminally_failed(dag_run):
+            return "auto_clear"
+        return "legacy"
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
@@ -366,8 +454,9 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
         except DagRunAlreadyExists as e:
-            if self.reset_dag_run:
-                dag_run = e.dag_run
+            dag_run = e.dag_run
+            action = self._resolve_already_exists_action(dag_run)
+            if action == "reset":
                 self.log.info("Clearing %s on %s", self.trigger_dag_id, dag_run.run_id)
 
                 # Get target dag object and call clear()
@@ -378,6 +467,17 @@ class TriggerDagRunOperator(BaseOperator):
                 # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
                 dag = SerializedDagModel.get_dag(self.trigger_dag_id)
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
+            elif action == "auto_clear":
+                self.log.info(
+                    "Auto-clearing failed tasks of existing run: dag_id=%s run_id=%s reason=%s",
+                    self.trigger_dag_id,
+                    dag_run.run_id,
+                    "terminal-failed run cleared with only_failed=True",
+                )
+
+                # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
+                dag = SerializedDagModel.get_dag(self.trigger_dag_id)
+                dag.clear(run_id=dag_run.run_id, only_failed=True)
             else:
                 if self.skip_when_already_exists:
                     raise AirflowSkipException(
