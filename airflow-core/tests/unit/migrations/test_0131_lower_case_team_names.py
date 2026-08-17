@@ -56,8 +56,18 @@ _OLD = "Data-Eng"
 _NEW = "data-eng"
 
 
+# Addressed through the mapped columns rather than by name: ``variable.key`` and
+# ``slot_pool.pool`` are reserved words on MySQL, which only quotes them correctly when
+# SQLAlchemy renders the identifier for the dialect.
+_REFERRING_ROWS = (
+    (Connection, Connection.conn_id, "c_0131"),
+    (Variable, Variable.key, "v_0131"),
+    (Pool, Pool.pool, "p_0131"),
+)
+
+
 def _team_names(conn) -> set[str]:
-    return {row.name for row in conn.execute(sa.text("SELECT name FROM team"))}
+    return set(conn.scalars(sa.select(Team.name)))
 
 
 class TestMigration0131:
@@ -82,23 +92,14 @@ class TestMigration0131:
             with settings.engine.connect() as conn:
                 assert _OLD not in _team_names(conn)
                 assert _NEW in _team_names(conn)
-                for table, key_column, key in (
-                    ("connection", "conn_id", "c_0131"),
-                    ("variable", "key", "v_0131"),
-                    ("slot_pool", "pool", "p_0131"),
-                ):
-                    team_name = conn.execute(
-                        sa.text(f"SELECT team_name FROM {table} WHERE {key_column} = :k"), {"k": key}
-                    ).scalar()
-                    assert team_name == _NEW, table
+                for model, key_column, key in _REFERRING_ROWS:
+                    team_name = conn.scalar(sa.select(model.team_name).where(key_column == key))
+                    assert team_name == _NEW, model.__tablename__
         finally:
             with settings.engine.begin() as conn:
-                conn.execute(sa.text("DELETE FROM connection WHERE conn_id = 'c_0131'"))
-                conn.execute(sa.text("DELETE FROM variable WHERE key = 'v_0131'"))
-                conn.execute(sa.text("DELETE FROM slot_pool WHERE pool = 'p_0131'"))
-                conn.execute(
-                    sa.text("DELETE FROM team WHERE name IN (:old, :new)"), {"old": _OLD, "new": _NEW}
-                )
+                for model, key_column, key in _REFERRING_ROWS:
+                    conn.execute(sa.delete(model).where(key_column == key))
+                conn.execute(sa.delete(Team).where(Team.name.in_([_OLD, _NEW])))
 
     def test_upgrade_emits_sql_offline(self, capsys):
         """``db migrate --show-sql-only`` has no rows to read, so the migration must not read any."""
