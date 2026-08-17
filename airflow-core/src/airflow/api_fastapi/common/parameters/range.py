@@ -196,14 +196,17 @@ def datetime_range_filter_factory(
             upper_bound_lte=upper_bound_lte,
             upper_bound_lt=upper_bound_lt,
         )
-        if filter_name in ("start_date", "end_date"):
-            null_lower_bound_clause = None
-            if (
-                model.__name__ == "DagRun"
-                and filter_name == "start_date"
-                and (attribute_name or filter_name) == "start_date"
-            ):
-                null_lower_bound_clause = getattr(model, "end_date").is_(None)
+        attr_name = attribute_name or filter_name
+        if filter_name in ("start_date", "end_date") or (
+            model.__name__ == "DagRun" and attr_name == "start_date"
+        ):
+            null_lower_bound_clause: ColumnElement[bool] | None = None
+            if model.__name__ == "DagRun":
+                null_lower_bound_clause = getattr(model, "id").is_not(None)
+                if attr_name == "start_date":
+                    null_lower_bound_clause = and_(
+                        null_lower_bound_clause, getattr(model, "end_date").is_(None)
+                    )
             return NullableDatetimeRangeFilter(
                 range_val, attr, null_lower_bound_clause=null_lower_bound_clause
             )
