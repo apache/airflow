@@ -4478,6 +4478,22 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
     finally:
         in_process_api_server.cache_clear()
 
+class TestShouldUseExec:
+    @pytest.mark.parametrize(
+        "platform, config_val, expected",
+        [
+            ("darwin", False, True),
+            ("darwin", True, True),
+            ("linux", False, False),
+            ("linux", True, True),
+        ]
+    )
+    def test_should_use_exec(self, monkeypatch, platform, config_val, expected):
+        from airflow.sdk.execution_time import supervisor
+        monkeypatch.setattr(supervisor.sys, "platform", platform)
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): str(config_val)}):
+            assert supervisor._should_use_exec() is expected
+
 
 class TestResolveChildTarget:
     """Test rehydrating the exec'd child's entry point from _AIRFLOW_CHILD_TARGET."""
