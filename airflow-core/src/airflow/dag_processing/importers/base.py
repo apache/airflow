@@ -75,7 +75,7 @@ class DagImportWarning:
     warning_type: str = "general"
     line_number: int | None = None
     category: type[Warning] = UserWarning
-    dag_file_path: str | None = None
+    dag_file_path: str = ""
 
 
 @dataclass

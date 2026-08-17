@@ -75,13 +75,9 @@ def _capture_with_reraise() -> Generator[list[warnings.WarningMessage], None, No
                 )
 
 
-def _format_dag_import_warning_message(message: str, source_path: str, dag_file_path: str | None) -> str:
+def _format_dag_import_warning_message(message: str, source_path: str, dag_file_path: str) -> str:
     """Include the imported Dag file when a warning points to another source file."""
-    if (
-        dag_file_path
-        and source_path != dag_file_path
-        and not source_path.startswith(f"{dag_file_path}{os.sep}")
-    ):
+    if source_path != dag_file_path and not source_path.startswith(f"{dag_file_path}{os.sep}"):
         return f"{message} (Dag file: {dag_file_path})"
     return message
 
