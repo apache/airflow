@@ -29,40 +29,45 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import make_url
 
 import airflow
-from airflow import settings
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import init_plugins
 
-if TYPE_CHECKING:
-    from sqlalchemy.engine import Engine
+try:
+    # create_metadata_engine may not exist on all Airflow core versions we test
+    # provider compatibility against (see PROVIDERS.rst min-supported-version policy).
+    from airflow.settings import create_metadata_engine
+except ImportError:
+    create_metadata_engine = None
 
+
+if TYPE_CHECKING:
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class _AirflowFlaskSQLAlchemy(SQLAlchemy):
     """
-    Flask-SQLAlchemy extension whose engine is created via Airflow's engine hook.
+    Flask-SQLAlchemy subclass that builds its engine via Airflow's engine-creation hook.
 
-    Flask-SQLAlchemy normally builds its own Engine straight from
-    SQLALCHEMY_DATABASE_URI, bypassing airflow.settings.create_metadata_engine.
-    That means an override in airflow_local_settings.py (e.g. an IAM/token
-    do_connect listener) never gets applied to this engine. Route engine
-    creation through the same hook Airflow's own metadata engine uses.
+    Airflow's ``airflow.settings.create_metadata_engine`` can be overridden in
+    ``airflow_local_settings.py`` (e.g. for IAM/token based DB auth). The stock
+    Flask-SQLAlchemy engine creation bypasses that hook entirely, so FAB CLI
+    commands (createUserJob, roles, etc.) silently ignored it. This routes engine
+    creation through the same hook the rest of Airflow uses.
     """
 
-    def _make_engine(self, bind_key: str | None, options: dict, app: Flask) -> Engine:
-        if bind_key is not None:
+    def _make_engine(self, bind_key, options, app):
+        if create_metadata_engine is None:
             return super()._make_engine(bind_key, options, app)
-            # Use this app's configured URI (a `str`), rather than the module-level
-            # `settings.SQL_ALCHEMY_CONN` (typed `str | None`), to build the engine.
-        sql_alchemy_conn: str = app.config["SQLALCHEMY_DATABASE_URI"]
-        return settings.create_metadata_engine(
-            sql_alchemy_conn,
-            engine_args=settings.prepare_engine_args(),
-            connect_args=settings._get_connect_args("sync"),
+
+        sa_url = options.pop("url", app.config["SQLALCHEMY_DATABASE_URI"])
+        connect_args = options.pop("connect_args", {}) or {}
+        return create_metadata_engine(
+            str(sa_url) if not isinstance(sa_url, str) else sa_url,
+            engine_args=options,
+            connect_args=connect_args,
         )
 
 
