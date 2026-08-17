@@ -352,6 +352,7 @@ const renderStructuredLogImpl = ({
   return (
     <chakra.div alignItems="flex-start" display="flex" key={index} lineHeight={1.5}>
       <RouterLink
+        data-copy-exclude
         id={index.toString()}
         key={`line_${index}`}
         style={{

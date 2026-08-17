@@ -94,9 +94,33 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      retry-without-cache:
+        description: "Retry the build once with the cache disabled if the cached build fails (true/false)"
+        required: false
+        default: "false"
+        type: string
       disable-airflow-repo-cache:
         description: "Disable airflow repo cache read from main."
         required: true
+        type: string
+      seed-cache-from-stashed-image:
+        description: >
+          Seed the build cache from the CI image an earlier run stashed (true/false). Worth it
+          where the registry cache is built for a different branch than the sources - the
+          previous image matches them layer for layer, the registry cache of another branch may
+          match nothing.
+        required: false
+        default: "false"
+        type: string
+      image-stash-ref:
+        description: >
+          Stash the image under a key of its own for this ref instead of the per-branch one.
+          Callers that build many different refs from one branch pass the ref here: sharing the
+          per-branch stash would make them seed each other's builds, and refs far enough apart
+          make poor caches for one another. Seeding prefers this stash and falls back to the
+          per-branch one; whoever consumes the image afterwards must restore the same key.
+        required: false
+        default: ""
         type: string
 permissions:
   contents: read
@@ -136,12 +160,68 @@ jobs:
         run: ./scripts/ci/move_docker_to_mnt.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+      # A ref is not a commit: a branch documented twice moves between the two publishes, and
+      # an image built before it moved is a cache, not an answer. The commit each stashed image
+      # is saved with tells the two apart, and it is stashed separately so that deciding costs
+      # a few bytes rather than the multi-gigabyte image the decision may make unnecessary.
+      - name: >
+          Restore the commit the CI image stashed for ref ${{ inputs.image-stash-ref }}
+          was built from
+        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         with:
-          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          key: "ci-image-commit-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            -${{ inputs.image-stash-ref }}"
+          path: "/mnt/"
+          only-current-branch: 'true'
+        id: restore-image-commit
+        if: >
+          inputs.seed-cache-from-stashed-image == 'true' && inputs.image-stash-ref != '' &&
+          inputs.push-image != 'true'
+      - name: >
+          Check whether the CI image stashed for ref ${{ inputs.image-stash-ref }} was built
+          from this commit
+        id: stashed-image
+        env:
+          COMMIT_FILE: "/mnt/ci-image-commit-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.txt"
+        run: |
+          head_sha="$(git rev-parse HEAD)"
+          stashed_sha="$(cat "${COMMIT_FILE}" 2>/dev/null || true)"
+          if [[ "${stashed_sha}" == "${head_sha}" ]]; then
+            echo "The stashed image was built from ${head_sha} - reusing it, without a build."
+            echo "reusable=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "The stashed image was built from '${stashed_sha:-unknown}', not ${head_sha}."
+            echo "It can only seed the build cache."
+          fi
+        shell: bash
+        if: steps.restore-image-commit.outputs.stash-hit == 'true'
+      # Restored ahead of the caches that feed the build, so that a build made unnecessary
+      # above skips them too.
+      - name: >
+          Restore CI docker image built for ref ${{ inputs.image-stash-ref }}
+          ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        with:
+          key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            -${{ inputs.image-stash-ref }}"
+          path: "/mnt/"
+          only-current-branch: 'true'
+        id: restore-cache-image-for-ref
+        if: >
+          inputs.seed-cache-from-stashed-image == 'true' && inputs.image-stash-ref != '' &&
+          steps.stashed-image.outputs.reusable != 'true'
+      # Scoped to the ref for the same reason the image is: the mount cache holds the dependency
+      # set the sources resolve to, and a ref's and the branch tip's are exactly what differ.
+      - name: >
+          Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
+        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        with:
+          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
           path: "/tmp/"
         id: restore-cache-mount
+        if: steps.stashed-image.outputs.reusable != 'true'
       - name: "Verify ci-cache file exists"
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
         env:
@@ -161,17 +241,57 @@ jobs:
           breeze ci-image import-mount-cache
           --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
+      - name: "Restore CI docker image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        with:
+          key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          path: "/mnt/"
+          only-current-branch: 'true'
+        id: restore-cache-image
+        if: >
+          inputs.seed-cache-from-stashed-image == 'true' &&
+          steps.stashed-image.outputs.reusable != 'true' &&
+          steps.restore-cache-image-for-ref.outputs.stash-hit != 'true'
+      # BuildKit reads an image's recorded layer cache only when it can pull that image's layers
+      # from a registry - one merely loaded into the docker engine contributes nothing. So the
+      # image an earlier run stashed is served back to the build from a registry on localhost.
+      - name: "Serve stashed image as cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          CACHE_IMAGE: "localhost:5000/ci-image-cache:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        run: |
+          docker run -d --name cache-registry -p 5000:5000 registry:2
+          breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON_MAJOR_MINOR_VERSION}" \
+            --image-file-dir "/mnt" --tag-as "${CACHE_IMAGE}"
+          docker push "${CACHE_IMAGE}"
+          echo "CACHE_FROM_IMAGE=${CACHE_IMAGE}" >> "${GITHUB_ENV}"
+        shell: bash
+        if: >
+          steps.stashed-image.outputs.reusable != 'true' && (
+          steps.restore-cache-image-for-ref.outputs.stash-hit == 'true' ||
+          steps.restore-cache-image.outputs.stash-hit == 'true')
       - name: "Login to ghcr.io"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
+        if: steps.stashed-image.outputs.reusable != 'true'
       - name: >
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
           ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }} image
-        run: >
-          breeze ci-image build --platform "${PLATFORM}"
+        run: |
+          if breeze ci-image build --platform "${PLATFORM}"; then
+            exit 0
+          fi
+          if [[ "${RETRY_WITHOUT_CACHE}" != "true" ]]; then
+            exit 1
+          fi
+          # Reached when the ref's pyproject.toml has drifted far enough from the branch the
+          # cache was built for that the cached layers cannot satisfy it. Slow, but correct.
+          echo "Build with ${DOCKER_CACHE} cache failed - retrying with the cache disabled."
+          DOCKER_CACHE="disabled" breeze ci-image build --platform "${PLATFORM}"
         env:
+          RETRY_WITHOUT_CACHE: ${{ inputs.retry-without-cache }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
@@ -188,33 +308,84 @@ jobs:
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
           PLATFORM: ${{ inputs.platform }}
+        if: steps.stashed-image.outputs.reusable != 'true'
+      - name: "Stop serving the cache image"
+        # The registry holds a second copy of a multi-gigabyte image and the export below needs
+        # the room.
+        run: |
+          docker rm -f cache-registry
+          docker rmi "${CACHE_FROM_IMAGE}"
+        shell: bash
+        if: always() && env.CACHE_FROM_IMAGE != ''
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
-        run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
-        if: inputs.upload-image-artifact == 'true'
+          COMMIT_FILE: "/mnt/ci-image-commit-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.txt"
+        run: |
+          breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
+          git rev-parse HEAD > "${COMMIT_FILE}"
+        shell: bash
+        if: inputs.upload-image-artifact == 'true' && steps.stashed-image.outputs.reusable != 'true'
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         with:
           key: ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
-        if: inputs.upload-image-artifact == 'true'
+        if: inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == ''
+      # The per-branch stash above is written by every build on this branch, so an image built
+      # from a ref other than the branch tip cannot live there: whoever restores it next would
+      # get sources they never asked for. The ref keeps its own stash instead, which is also
+      # what a later publish of that same ref reads - hence a retention that outlives the shared
+      # one, the same ref being rebuilt three days apart at the very least.
+      - name: "Stash CI docker image built for ref ${{ inputs.image-stash-ref }}"
+        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        with:
+          key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            -${{ inputs.image-stash-ref }}"
+          path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          if-no-files-found: 'error'
+          retention-days: '6'
+        if: >
+          inputs.upload-image-artifact == 'true' && inputs.image-stash-ref != '' &&
+          steps.stashed-image.outputs.reusable != 'true'
+      # Saved last and with the image's retention, so that finding this commit is enough to
+      # know the image it describes is there to be restored.
+      - name: "Stash the commit the CI image for ref ${{ inputs.image-stash-ref }} was built from"
+        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        with:
+          key: "ci-image-commit-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            -${{ inputs.image-stash-ref }}"
+          path: "/mnt/ci-image-commit-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.txt"
+          if-no-files-found: 'error'
+          retention-days: '6'
+        if: >
+          inputs.upload-image-artifact == 'true' && inputs.image-stash-ref != '' &&
+          steps.stashed-image.outputs.reusable != 'true'
       - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         run: >
           breeze ci-image export-mount-cache
           --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
-        if: inputs.upload-mount-cache-artifact == 'true'
-      - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+        if: >
+          inputs.upload-mount-cache-artifact == 'true' &&
+          steps.stashed-image.outputs.reusable != 'true'
+      - name: >
+          Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
+        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         with:
-          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
           path: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
           if-no-files-found: 'error'
-          retention-days: 2
-        if: inputs.upload-mount-cache-artifact == 'true'
+          # A ref's cache is read by the next publish of that same ref, days rather than hours
+          # later, so it gets the retention the ref's image gets rather than the branch's.
+          retention-days: ${{ inputs.image-stash-ref != '' && '6' || '2' }}
+        if: >
+          inputs.upload-mount-cache-artifact == 'true' &&
+          steps.stashed-image.outputs.reusable != 'true'
       - name: "Check disk space after build"
         run: df -H

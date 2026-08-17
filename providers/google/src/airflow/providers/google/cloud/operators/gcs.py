@@ -36,7 +36,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
-from google.api_core.exceptions import Conflict
+from google.api_core.exceptions import Conflict, GoogleAPIError
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -228,18 +228,21 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
-        if delimiter:
-            warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.match_glob = match_glob
 
+    def _warn_on_deprecated_template_fields(self) -> None:
+        if self.delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
     def execute(self, context: Context) -> list:
+        self._warn_on_deprecated_template_fields()
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -451,6 +454,91 @@ class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
         hook.insert_bucket_acl(
             bucket_name=self.bucket, entity=self.entity, role=self.role, user_project=self.user_project
         )
+
+
+class GCSBucketAddIamBindingOperator(GoogleCloudBaseOperator):
+    """
+    Adds a member to an IAM role binding on the specified bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GCSBucketAddIamBindingOperator`
+
+    :param bucket: Name of a bucket.
+    :param role: The IAM role to grant, for example ``roles/storage.objectViewer``.
+    :param member: The IAM member to grant the role to, for example
+        ``serviceAccount:example@example-project.iam.gserviceaccount.com``.
+    :param user_project: (Optional) The project to be billed for this request.
+        Required for Requester Pays buckets.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    # [START gcs_bucket_add_iam_binding_template_fields]
+    template_fields: Sequence[str] = (
+        "bucket",
+        "role",
+        "member",
+        "user_project",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    # [END gcs_bucket_add_iam_binding_template_fields]
+    operator_extra_links = (StorageLink(),)
+
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        role: str,
+        member: str,
+        user_project: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.bucket = bucket
+        self.role = role
+        self.member = member
+        self.user_project = user_project
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> None:
+        hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            uri=self.bucket,
+            project_id=hook.project_id,
+        )
+        try:
+            hook.add_bucket_iam_binding(
+                bucket_name=self.bucket,
+                role=self.role,
+                member=self.member,
+                user_project=self.user_project,
+            )
+        except GoogleAPIError as e:
+            self.log.exception(
+                "Failed to add member %s to IAM role %s on bucket %s. Google Cloud API error (%s): %s",
+                self.member,
+                self.role,
+                self.bucket,
+                type(e).__name__,
+                e,
+            )
+            raise
 
 
 class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):

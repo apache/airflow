@@ -18,7 +18,7 @@
  */
 
 export { registerTask, listRegisteredTasks } from "./sdk/registry.js";
-export { VariableNotFoundError } from "./sdk/client.js";
+export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
 export { startCoordinator, SUPERVISOR_API_VERSION } from "./coordinator/index.js";
 export type { TaskClient } from "./sdk/client.js";
 export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "./sdk/client-types.js";

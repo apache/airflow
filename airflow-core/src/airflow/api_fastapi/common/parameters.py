@@ -39,6 +39,7 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
@@ -1304,6 +1305,10 @@ QueryDagDisplayNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
     Depends(prefix_search_param_factory(DagModel.dag_display_name, "dag_display_name_prefix_pattern")),
 ]
+QueryTimetableTypePrefixPatternSearch = Annotated[
+    _PrefixSearchParam,
+    Depends(prefix_search_param_factory(DagModel.timetable_type, "timetable_type_prefix_pattern")),
+]
 QueryBundleNameFilter = Annotated[
     FilterParam[str | None],
     Depends(filter_param_factory(DagModel.bundle_name, str | None, filter_name="bundle_name")),
@@ -1476,10 +1481,13 @@ class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
         if self.value is None and self.skip_none:
             return select
 
-        # EXISTS resolves each Dag via the (dag_id, state) index instead of scanning every run in the state.
+        # Alias DagRun so this EXISTS subquery cannot auto-correlate to a DagRun the outer query
+        # may already reference (e.g. the last_dag_run_state filter), which would strip the
+        # subquery's FROM and raise. EXISTS resolves each Dag via the (dag_id, state) index.
+        any_run = aliased(DagRun)
         has_run_in_state = (
-            sql_select(DagRun.dag_id)
-            .where(DagRun.dag_id == DagModel.dag_id, DagRun.state == self.value)
+            sql_select(any_run.dag_id)
+            .where(any_run.dag_id == DagModel.dag_id, any_run.state == self.value)
             .exists()
         )
         return select.where(has_run_in_state)
@@ -1807,6 +1815,12 @@ QueryUriExactMatch = Annotated[
             ),
         )
     ),
+]
+QueryAssetGroupPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetModel.group, "group_pattern"))
+]
+QueryAssetGroupPrefixPatternSearch = Annotated[
+    _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.group, "group_prefix_pattern"))
 ]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))

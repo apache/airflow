@@ -28,3 +28,12 @@ class BaseUser:
 
     @abstractmethod
     def get_name(self) -> str: ...
+
+    def get_display_name(self) -> str:
+        """
+        Return a human-friendly display name for the user.
+
+        Not abstract for backward compatibility reasons: auth managers written
+        before this method existed keep working without any change.
+        """
+        return self.get_name()

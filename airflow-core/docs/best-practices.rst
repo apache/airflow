@@ -319,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.22"
+      pip install "ruff>=0.16.2"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -733,6 +733,8 @@ the example_python_operator.py above so the actual parsing time is about ~ 0.62 
 
 You can look into :ref:`Testing a Dag <testing>` for details on how to test individual operators.
 
+.. _best_practices:unit_tests:
+
 Unit tests
 -----------
 
@@ -786,29 +788,62 @@ This is an example test want to verify the structure of a code-generated Dag aga
 
 **Unit test for custom operator:**
 
+To unit test an operator or a sensor, call it directly. You do not need a Dag run, a Dag, or a
+metadata database — instantiate the operator and call ``execute()`` with the context keys your
+code actually reads:
+
 .. code-block:: python
 
-    import pendulum
+    def test_my_custom_operator_execute():
+        op = MyCustomOperator(task_id="my_custom_operator_task", prefix="s3://bucket/some/prefix")
 
-    from airflow.sdk import DAG, TaskInstanceState
+        assert op.execute(context={}) == "expected return value"
+
+For a sensor, call ``poke()`` and assert on the returned boolean:
+
+.. code-block:: python
+
+    def test_my_custom_sensor_poke():
+        sensor = MyCustomSensor(task_id="my_custom_sensor_task", key="some-key")
+
+        assert sensor.poke(context={}) is True
+
+If your operator renders templated fields, render them before asserting:
+
+.. code-block:: python
+
+    op.render_template_fields(context={"ds": "2021-09-13"})
+    assert op.prefix == "s3://bucket/2021-09-13"
+
+For a deferrable operator, assert that it defers with the trigger you expect, then drive the
+resume path directly:
+
+.. code-block:: python
+
+    from airflow.sdk.exceptions import TaskDeferred
 
 
-    def test_my_custom_operator_execute_no_trigger(dag):
-        TEST_TASK_ID = "my_custom_operator_task"
-        with DAG(
-            dag_id="my_custom_operator_dag",
-            schedule="@daily",
-            start_date=pendulum.datetime(2021, 9, 13, tz="UTC"),
-        ) as dag:
-            MyCustomOperator(
-                task_id=TEST_TASK_ID,
-                prefix="s3://bucket/some/prefix",
-            )
+    def test_my_custom_operator_defers():
+        op = MyCustomOperator(task_id="my_custom_operator_task", deferrable=True)
 
-        dagrun = dag.test()
-        ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
-        assert ti.state == TaskInstanceState.SUCCESS
-        # Assert something related to tasks results: ti.xcom_pull()
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context={})
+        assert isinstance(exc.value.trigger, MyCustomTrigger)
+
+        # Drive the method the trigger resumes into.
+        getattr(op, exc.value.method_name)(context={}, event={"status": "success"})
+
+.. note::
+
+    ``TaskInstance.run()`` and ``TaskInstance.render_templates()`` were removed in Airflow 3.2 —
+    ``TaskInstance`` has been an internal class since Airflow 3.0. Replace ``ti.run()`` with
+    ``op.execute(context)`` and ``ti.render_templates(context)`` with
+    ``op.render_template_fields(context)`` as shown above.
+
+To exercise a whole Dag run rather than a single operator, see
+:ref:`Testing Dags with dag.test() <concepts:debugging>`. That is an integration test: it needs a
+metadata database and a Dag that Airflow can serialize, so it is not a substitute for the unit
+tests above.
 
 
 Self-Checks

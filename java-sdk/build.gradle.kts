@@ -28,6 +28,15 @@ val projectVersion: String by project
 group = "org.apache.airflow"
 version = projectVersion
 
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy {
+            failOnDynamicVersions()
+            failOnChangingVersions()
+        }
+    }
+}
+
 if (!project.hasProperty("mavenUrl")) {
     nexusPublishing {
         repositories {

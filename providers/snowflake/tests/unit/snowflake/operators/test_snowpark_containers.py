@@ -46,6 +46,10 @@ def _make_operator(**kwargs):
 
 
 class TestSnowparkContainerJobOperator:
+    def test_invalid_spec_combinations_at_init(self):
+        with pytest.raises(ValueError, match=r"Cannot specify both"):
+            _make_operator(spec=SPEC, spec_stage=SPEC_STAGE, spec_text=SPEC_TEXT)
+
     @pytest.mark.parametrize(
         ("kwargs", "match"),
         (
@@ -53,11 +57,6 @@ class TestSnowparkContainerJobOperator:
                 {"spec": None, "spec_stage": None, "spec_text": None},
                 "Must provide either",
                 id="no_spec_provided",
-            ),
-            pytest.param(
-                {"spec": SPEC, "spec_stage": SPEC_STAGE, "spec_text": SPEC_TEXT},
-                "Cannot specify both",
-                id="both_spec_and_spec_text",
             ),
             pytest.param(
                 {"spec": SPEC, "spec_stage": None, "spec_text": None},
@@ -71,7 +70,7 @@ class TestSnowparkContainerJobOperator:
             ),
         ),
     )
-    def test_invalid_spec_combinations(self, kwargs, match):
+    def test_invalid_spec_combinations_at_execute(self, kwargs, match):
         op = _make_operator(**kwargs)
         with pytest.raises(ValueError, match=match):
             op.execute(context=None)
