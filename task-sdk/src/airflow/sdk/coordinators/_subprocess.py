@@ -447,6 +447,7 @@ class SubprocessCoordinator(BaseCoordinator):
     # resolve roots without knowing the subclass field name.
     _configured_roots: list[pathlib.Path] = attrs.field(init=False, factory=list)
     _active_bundle_info: BundleInfo | None = attrs.field(init=False, default=None)
+    _active_scan_roots: tuple[pathlib.Path, ...] | None = attrs.field(init=False, default=None)
 
     @property
     def _explicit_artifact_roots(self) -> tuple[str, Sequence[pathlib.Path]]:
@@ -526,14 +527,18 @@ class SubprocessCoordinator(BaseCoordinator):
             raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
         return [path], bundle
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstance, roots: list[pathlib.Path]
-    ) -> tuple[list[str], str | None]:
+    def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
+        """Return the artifact roots resolved for the active task."""
+        if self._active_scan_roots is None:
+            raise RuntimeError("_get_scan_roots requires an active task; call it during execute_task.")
+        return self._active_scan_roots
+
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
-        *roots* are the directories to scan for artifacts, already resolved by
-        :meth:`_init_root_source` from the coordinator's configured source.
+        Subclasses can retrieve the directories to scan for artifacts with
+        :meth:`_get_scan_roots`.
         Returns a ``(command, subprocess_schema_version)`` pair. *command* MUST
         NOT include the ``--comm`` / ``--logs`` flags — those are appended by
         :class:`_PopenActivitySubprocess` once the listening sockets have been
@@ -557,6 +562,15 @@ class SubprocessCoordinator(BaseCoordinator):
             yield
         finally:
             self._active_bundle_info = None
+
+    @contextlib.contextmanager
+    def _set_scan_roots(self, roots: Sequence[pathlib.Path]):
+        """Expose *roots* to the command builder for the duration of the task."""
+        self._active_scan_roots = tuple(roots)
+        try:
+            yield
+        finally:
+            self._active_scan_roots = None
 
     def execute_task(
         self,
@@ -584,7 +598,8 @@ class SubprocessCoordinator(BaseCoordinator):
                         bundle_version=resolved_bundle.version,
                     )
                 )
-            command, subprocess_schema_version = self._build_execute_task_command(what=what, roots=roots)
+            stack.enter_context(self._set_scan_roots(roots))
+            command, subprocess_schema_version = self._build_execute_task_command(what=what)
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,
