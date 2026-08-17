@@ -228,14 +228,13 @@ providers/google/src/airflow/providers/google/cloud/hooks/gdm.py::1
 providers/google/src/airflow/providers/google/cloud/hooks/kubernetes_engine.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/looker.py::8
 providers/google/src/airflow/providers/google/cloud/hooks/managed_kafka.py::1
-providers/google/src/airflow/providers/google/cloud/hooks/mlengine.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/spanner.py::5
 providers/google/src/airflow/providers/google/cloud/hooks/stackdriver.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/tasks.py::3
 providers/google/src/airflow/providers/google/cloud/hooks/translate.py::3
 providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/auto_ml.py::3
 providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/batch_prediction_job.py::1
-providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/custom_job.py::8
+providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/custom_job.py::9
 providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/feature_store.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/hyperparameter_tuning_job.py::1
 providers/google/src/airflow/providers/google/cloud/hooks/vertex_ai/model_service.py::2
@@ -409,7 +408,8 @@ providers/trino/src/airflow/providers/trino/hooks/trino.py::1
 providers/vespa/src/airflow/providers/vespa/operators/vespa_ingest.py::1
 providers/ydb/src/airflow/providers/ydb/hooks/ydb.py::1
 providers/ydb/src/airflow/providers/ydb/operators/ydb.py::1
-scripts/ci/prek/check_new_airflow_exception_usage.py::5
+scripts/ci/prek/check_new_airflow_exception_usage.py::4
+scripts/tests/ci/prek/test_check_new_airflow_exception_usage.py::9
 task-sdk/src/airflow/sdk/bases/sensor.py::1
 task-sdk/src/airflow/sdk/bases/skipmixin.py::3
 task-sdk/src/airflow/sdk/crypto.py::1
