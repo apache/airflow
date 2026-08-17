@@ -38,6 +38,7 @@ from airflow.serialization.definitions.deadline import (
     DeadlineAlertFields,
     SerializedDeadlineAlert,
     SerializedReferenceModels,
+    SerializedVariableInterval,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
@@ -202,7 +203,7 @@ def decode_deadline_alert(encoded_data: dict):
             "from a version that supports VariableInterval. Downgrade is not fully reversible."
         )
 
-    interval: datetime.timedelta | VariableInterval
+    interval: datetime.timedelta | SerializedVariableInterval
 
     # Backward compatibility: previously interval was stored as total_seconds() (float/int).
     # Handle numeric values by converting to timedelta.
@@ -210,8 +211,11 @@ def decode_deadline_alert(encoded_data: dict):
         interval = datetime.timedelta(seconds=raw_interval)
     else:
         deserialized = deserialize(raw_interval)
-        if isinstance(deserialized, (datetime.timedelta, VariableInterval)):
+
+        if isinstance(deserialized, datetime.timedelta):
             interval = deserialized
+        elif isinstance(deserialized, VariableInterval):
+            interval = SerializedVariableInterval(key=deserialized.key)
         else:
             raise TypeError(f"Invalid interval type: {type(deserialized).__name__}")
 
