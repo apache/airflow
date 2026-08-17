@@ -110,9 +110,7 @@ the subprocess understands:
 
 .. code-block:: python
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstanceDTO, roots: list[pathlib.Path]
-    ) -> tuple[list[str], str]: ...
+    def _build_execute_task_command(self, *, what: TaskInstanceDTO) -> tuple[list[str], str]: ...
 
 The method returns a ``(command, subprocess_schema_version)`` pair:
 
@@ -122,10 +120,11 @@ The method returns a ``(command, subprocess_schema_version)`` pair:
   subprocess understands, used by the supervisor to negotiate message formats
   across SDK versions. See `Supervisor Schema`_ below.
 
-``roots`` are the artifact directories the base class has already resolved from
-the coordinator's configured source — an explicit filesystem root, a named Dag
-bundle (``dag_bundle_name``), or the task's own bundle — so subclasses scan
-``roots`` rather than reading the configured root directly.
+Call ``self._get_scan_roots()`` to retrieve the artifact directories the base
+class has already resolved from the coordinator's configured source — an
+explicit filesystem root, a named Dag bundle (``dag_bundle_name``), or the
+task's own bundle. Subclasses should scan those roots rather than reading the
+configured root directly.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~

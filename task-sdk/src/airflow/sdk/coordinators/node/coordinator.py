@@ -161,10 +161,9 @@ class NodeCoordinator(SubprocessCoordinator):
     def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
         return "bundles_root", self.bundles_root
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstance, roots: list[pathlib.Path]
-    ) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         # Multi-bundle routing should be added here by passing `what.dag_id` and
         # `what.task_id` into bundle selection and matching against metadata["dags"].
+        roots = self._get_scan_roots()
         bundle = _find_bundle(roots)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
