@@ -112,6 +112,10 @@
     "file": "File",
     "location": "line {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Hide value",
+    "show": "Show value"
+  },
   "reparseDag": "Reparse Dag",
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
