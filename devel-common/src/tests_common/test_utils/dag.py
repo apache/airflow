@@ -68,14 +68,23 @@ def sync_dags_to_db(
     session.merge(DagBundleModel(name=bundle_name))
     session.flush()
 
-    def _write_dag(dag: DAG) -> SerializedDAG:
+    def _write_dag(dag: DAG) -> None:
         data = DagSerialization.to_dict(dag)
         SerializedDagModel.write_dag(
             LazyDeserializedDAG(data=data), bundle_name, bundle_version, session=session
         )
-        return DagSerialization.from_dict(data)
+
+    def _read_dag(dag: DAG) -> SerializedDAG:
+        serialized_dag = SerializedDagModel.get(dag.dag_id, session=session)
+        if serialized_dag is None:
+            raise RuntimeError(f"Serialized Dag {dag.dag_id!r} was not written")
+        session.refresh(serialized_dag, attribute_names=["_data", "_data_compressed"])
+        # The deserialized data cache is separate from the mapped columns refreshed above.
+        serialized_dag._SerializedDagModel__data_cache = None
+        return serialized_dag.dag
 
     SerializedDAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
-    scheduler_dags = [_write_dag(dag) for dag in dags]
+    for dag in dags:
+        _write_dag(dag)
     session.flush()
-    return scheduler_dags
+    return [_read_dag(dag) for dag in dags]
