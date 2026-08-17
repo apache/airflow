@@ -62,7 +62,7 @@ class AddRetryReasonToTaskState(VersionChange):
 
 
 class AddDagSkippedIntervalsCallbackRequest(VersionChange):
-    """Introduce ``DagSkippedIntervalsCallbackRequest`` in the ``CallbackRequest`` union."""
+    """Introduce ``DagSkippedIntervalsCallbackRequest`` in ``CallbackRequest`` union."""
 
     description = __doc__
 
