@@ -35,6 +35,7 @@
 
     Bundles <bundles/index>
     Connection types <connections/index>
+    Email backend <email-backend>
     Notifications <notifications/index>
     Operators <operators/index>
     Transfers <transfer/index>

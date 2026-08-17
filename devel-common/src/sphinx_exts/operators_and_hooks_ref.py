@@ -402,6 +402,19 @@ class LoggingDirective(BaseJinjaReferenceDirective):
         )
 
 
+class EmailBackendsDirective(BaseJinjaReferenceDirective):
+    """Generate list of email backends"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="email-backends",
+            template="email-backends.rst.jinja2",
+        )
+
+
 class AuthConfigurations(BaseJinjaReferenceDirective):
     """Generate list of configurations"""
 
@@ -553,6 +566,7 @@ def setup(app):
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
     app.add_directive("transfers-ref", TransfersReferenceDirective)
     app.add_directive("airflow-logging", LoggingDirective)
+    app.add_directive("airflow-email-backends", EmailBackendsDirective)
     app.add_directive("airflow-configurations", AuthConfigurations)
     app.add_directive("airflow-secrets-backends", SecretsBackendDirective)
     app.add_directive("airflow-connections", ConnectionsDirective)
@@ -621,6 +635,19 @@ def secret_backends(header_separator: str):
             header_separator=header_separator,
             resource_type="secrets-backends",
             template="secret_backend.rst.jinja2",
+        )
+    )
+
+
+@cli.command()
+@option_header_separator
+def email_backends(header_separator: str):
+    """Renders Email Backends content"""
+    print(
+        _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="email-backends",
+            template="email-backends.rst.jinja2",
         )
     )
 
