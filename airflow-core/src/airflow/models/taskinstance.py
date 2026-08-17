@@ -369,9 +369,8 @@ def _pin_versionless_tis_to_run_version(dag_run: DagRun, dag_version_id: UUID, s
             or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
         )
         .values(dag_version_id=dag_version_id)
-        .execution_options(synchronize_session=False)
+        .execution_options(synchronize_session="evaluate")
     )
-    session.expire(dag_run, ["task_instances"])
 
 
 def clear_task_instances(
