@@ -71,9 +71,11 @@ export const MultiSelectPill = ({
       filter={filter}
       hasValue={values.length > 0}
       onRemove={onRemove}
-      renderInput={(props) => (
+      // ``onKeyDown`` is deliberately not forwarded: react-select owns Enter (select the
+      // highlighted option, or create one) and Escape (close the menu). Letting the pill also
+      // act on Enter tears the filter down before the value it just created commits.
+      renderInput={({ onBlur, onFocus, ref }) => (
         <Box
-          {...props}
           alignItems="center"
           bg="bg"
           border="0.5px solid"
@@ -81,7 +83,10 @@ export const MultiSelectPill = ({
           borderRadius="full"
           display="flex"
           h="full"
+          onBlur={onBlur}
+          onFocus={onFocus}
           overflow="hidden"
+          ref={ref}
           tabIndex={0}
           // Wider than the single-value editors: chips plus the optional match-mode
           // toggle need the room, and a narrow control stacks them vertically.

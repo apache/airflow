@@ -196,3 +196,21 @@ describe("FilterBar abandoned filters", () => {
     expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();
   });
 });
+
+describe("FilterBar keyboard handling", () => {
+  it("leaves Enter to editors that use it to commit a value", async () => {
+    render(<FilterBar configs={[multiSelectConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-tags"));
+
+    const input = document.querySelector('input[id^="react-select"]');
+
+    expect(input).not.toBeNull();
+    fireEvent.keyDown(input as Element, { key: "Enter" });
+
+    // The pill must survive: react-select commits on Enter, and the filter used to be torn
+    // down before that value landed.
+    await waitFor(() => expect(document.querySelector('input[id^="react-select"]')).not.toBeNull());
+  });
+});

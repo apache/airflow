@@ -40,7 +40,6 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
   // re-rendered. Recording the selection keeps the close from being mistaken for an abandoned
   // filter, which a timing-based check gets wrong.
   const hasJustSelected = useRef(false);
-
   const handleValueChange = ({ value }: { value: Array<string> }) => {
     const [newValue] = value;
 
@@ -66,9 +65,11 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
       filter={filter}
       hasValue={hasValue}
       onRemove={onRemove}
-      renderInput={(props, { onRequestClose }) => (
+      // ``onKeyDown`` is deliberately not forwarded: the select owns Enter and Escape, and letting
+      // the pill also act on Enter tore the filter down before the chosen value committed. Escape
+      // still closes the pill, through ``onOpenChange`` below.
+      renderInput={({ onBlur, onFocus }, { onRequestClose }) => (
         <Box
-          {...props}
           alignItems="center"
           bg="bg"
           border="0.5px solid"
@@ -76,6 +77,8 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
           borderRadius="full"
           display="flex"
           h="full"
+          onBlur={onBlur}
+          onFocus={onFocus}
           overflow="hidden"
           tabIndex={0}
           width="330px"
