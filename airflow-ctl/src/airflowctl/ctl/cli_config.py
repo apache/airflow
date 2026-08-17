@@ -354,6 +354,35 @@ ARG_ACTION_ON_EXISTING_KEY = Arg(
     choices=("overwrite", "fail", "skip"),
 )
 
+# Jobs command args
+ARG_JOB_TYPE_FILTER = Arg(
+    flags=("--job-type",),
+    choices=("SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    help="The type of job(s) that will be checked.",
+)
+ARG_JOB_HOSTNAME_FILTER = Arg(
+    flags=("--hostname",),
+    type=str,
+    default=None,
+    help="The hostname of job(s) that will be checked.",
+)
+ARG_JOB_LOCAL_FILTER = Arg(
+    flags=("--local",),
+    action="store_true",
+    help="If passed, this command will only show jobs from the local host.",
+)
+ARG_JOB_LIMIT = Arg(
+    flags=("--limit",),
+    type=positive_int(allow_zero=True),
+    default=1,
+    help="The number of recent jobs that will be checked. To disable limit, set 0.",
+)
+ARG_JOB_ALLOW_MULTIPLE = Arg(
+    flags=("--allow-multiple",),
+    action="store_true",
+    help="If passed, this command will be successful even if multiple matching alive jobs are found.",
+)
+
 # Config arguments
 ARG_CONFIG_SECTION = Arg(
     flags=("--section",),
@@ -523,6 +552,14 @@ class CommandFactory:
             defaults_count = len(node.args.defaults)
             required_count = len(positional_args) - defaults_count
             required_param_names: set[str] = {a.arg for a in positional_args[:required_count]}
+            # Parameters whose signature default carries real meaning (e.g. ``limit: int = 100``).
+            # ``argparse`` fills an omitted flag with ``None``, so these have to be dropped from
+            # the call instead of being forwarded, or the method never sees its own default.
+            non_none_default_param_names: set[str] = {
+                arg.arg
+                for arg, default in zip(positional_args[required_count:], node.args.defaults)
+                if not (isinstance(default, ast.Constant) and default.value is None)
+            }
 
             for arg in positional_args:
                 arg_name = arg.arg
@@ -538,6 +575,7 @@ class CommandFactory:
                 "name": func_name,
                 "parameters": args,
                 "required_param_names": required_param_names,
+                "non_none_default_param_names": non_none_default_param_names,
                 "return_type": return_annotation,
                 "parent": parent_node,
             }
@@ -808,12 +846,14 @@ class CommandFactory:
             datamodel = None
             datamodel_param_name = None
             args_dict = vars(args)
+            non_none_default_param_names = api_operation.get("non_none_default_param_names") or set()
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
-                            parameter_key
-                        ]
+                        value = args_dict[parameter_key]
+                        if value is None and parameter_key in non_none_default_param_names:
+                            continue
+                        method_params[self._sanitize_method_param_key(parameter_key)] = value
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
@@ -1185,6 +1225,21 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+JOB_COMMANDS = (
+    ActionCommand(
+        name="check",
+        help="Check if job(s) are still alive.",
+        func=lazy_load_command("airflowctl.ctl.commands.jobs_command.check"),
+        args=(
+            ARG_JOB_TYPE_FILTER,
+            ARG_JOB_HOSTNAME_FILTER,
+            ARG_JOB_LOCAL_FILTER,
+            ARG_JOB_LIMIT,
+            ARG_JOB_ALLOW_MULTIPLE,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1206,6 +1261,11 @@ core_commands: list[CLICommand] = [
         name="dags",
         help="Manage Airflow Dags",
         subcommands=DAG_COMMANDS,
+    ),
+    GroupCommand(
+        name="jobs",
+        help="Manage Airflow jobs",
+        subcommands=JOB_COMMANDS,
     ),
     GroupCommand(
         name="pools",
