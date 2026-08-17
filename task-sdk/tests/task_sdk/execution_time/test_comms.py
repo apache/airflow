@@ -32,6 +32,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     MaskSecret,
     StartupDetails,
+    TriggerDagRun,
     VariableResult,
     _RequestFrame,
     _ResponseFrame,
@@ -60,6 +61,18 @@ class TestCommsModels:
     def test_mask_secret_with_objects(self, object_to_mask):
         mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
         assert mask_secret_object.value == object_to_mask
+
+    def test_trigger_dag_run_only_failed_and_downstream_defaults_false(self):
+        msg = TriggerDagRun(dag_id="d", run_id="r")
+        assert msg.only_failed_and_downstream is False  # @AC-FR002-01
+
+    @pytest.mark.parametrize("only_failed_and_downstream", [True, False])
+    def test_trigger_dag_run_only_failed_and_downstream_round_trips(self, only_failed_and_downstream):
+        msg = TriggerDagRun(
+            dag_id="d", run_id="r", only_failed_and_downstream=only_failed_and_downstream
+        )
+        restored = TriggerDagRun.model_validate_json(msg.model_dump_json())
+        assert restored.only_failed_and_downstream is only_failed_and_downstream
 
 
 class TestCommsDecoder:
