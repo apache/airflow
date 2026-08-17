@@ -176,7 +176,7 @@ Supported Formats
 - Compression is not supported for ``.parquet``, ``.avro``, image, or PDF
   inputs.
 - For ``bzip2`` and ``xz``, concatenated streams are read in full, but any
-  data after a point that does not start a valid stream (for example xz
+  data after a point that does not start a valid stream (for example ``xz``
   Stream Padding between streams, or trailing garbage) is silently ignored,
   so only the content up to that point is analyzed. ``gzip`` rejects such
   files instead (``BadGzipFile``).
