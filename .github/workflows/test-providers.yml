@@ -47,7 +47,7 @@ on:  # yamllint disable-line rule:truthy
       providers-compatibility-tests-matrix:
         description: >
           JSON-formatted array of providers compatibility tests in the form of array of dicts
-          (airflow-version, python-versions, remove-providers, run-unit-tests)
+          (airflow-version, python-versions, airflow-constraints-reference, remove-providers, run-unit-tests)
         required: true
         type: string
       providers-test-types-list-as-strings-in-json:
@@ -233,6 +233,7 @@ jobs:
           done
         if: matrix.compat.remove-providers != ''
       - name: "Download airflow package: wheel"
+        if: ${{ !contains(matrix.compat.airflow-version, '/') }}
         run: |
           pip download "apache-airflow==${{ matrix.compat.airflow-version }}" -d dist --no-deps
       - name: >
@@ -248,7 +249,7 @@ jobs:
           --use-distributions-from-dist
           --distribution-format wheel
           --use-airflow-version wheel
-          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
+          --airflow-constraints-reference ${{ matrix.compat.airflow-constraints-reference }}
           --providers-skip-constraints
           --install-airflow-with-constraints
       - name: Check amount of disk space available
@@ -268,7 +269,7 @@ jobs:
           --use-distributions-from-dist
           --distribution-format wheel
           --use-airflow-version "${AIRFLOW_VERSION}"
-          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
+          --airflow-constraints-reference ${{ matrix.compat.airflow-constraints-reference }}
           --install-airflow-with-constraints
           --providers-skip-constraints
           --skip-providers "${REMOVE_PROVIDERS}"
