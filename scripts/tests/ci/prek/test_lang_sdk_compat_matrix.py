@@ -116,6 +116,15 @@ class TestValidateCapabilities:
         with pytest.raises(matrix.CapabilitiesError, match="not supported but carries since"):
             matrix.validate_capabilities(doc, source="test")
 
+    def test_supported_gated_capability_without_native_dag_authoring_raises(self):
+        doc = _doc()
+        doc["capabilities"][matrix.NATIVE_DAG_GATE] = _entry(False)
+        with pytest.raises(
+            matrix.CapabilitiesError,
+            match="gated capabilities cannot be supported.*branching",
+        ):
+            matrix.validate_capabilities(doc, source="test")
+
     def test_supported_entry_without_since_passes(self):
         doc = _doc()
         doc["states"]["success"] = _entry(True, since=None)

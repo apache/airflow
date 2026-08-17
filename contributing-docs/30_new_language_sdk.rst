@@ -500,7 +500,7 @@ Compatibility matrix
 ~~~~~~~~~~~~~~~~~~~~
 
 The dimensions above are prose; each SDK also declares them *machine-readably* in one
-hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates every table:
+hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its published tables:
 
 .. code-block:: text
 
@@ -510,8 +510,6 @@ hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates ever
       |
       +--> java-sdk/README.md            (contributor-facing)
       +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
-      +--> airflow-core/docs/authoring-and-scheduling/language-sdks/index.rst
-           (consolidated cross-SDK matrix — TODO, not generated yet)
 
 The hook rewrites its targets and exits non-zero when either was stale, so a drifted table fails
 the build. Keep the manifest out of whatever the SDK publishes — it describes the SDK rather than

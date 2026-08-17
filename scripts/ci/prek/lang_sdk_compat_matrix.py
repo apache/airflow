@@ -200,6 +200,17 @@ def validate_capabilities(doc: object, *, source: str, expected_sdk: str | None 
         doc["states"], expected={state for state, _ in STATE_DIMENSIONS}, kind="states", source=source
     )
     _validate_entries(doc["capabilities"], expected=CAPABILITY_NAMES, kind="capabilities", source=source)
+    if not doc["capabilities"][NATIVE_DAG_GATE]["supported"]:
+        supported_gated = sorted(
+            cap.name
+            for cap in CAPABILITY_DIMENSIONS
+            if cap.gated and doc["capabilities"][cap.name]["supported"]
+        )
+        if supported_gated:
+            raise CapabilitiesError(
+                f"{source}: gated capabilities cannot be supported while {NATIVE_DAG_GATE!r} "
+                f"is not supported: {', '.join(supported_gated)}"
+            )
 
 
 def _validate_entries(entries: object, *, expected: set[str], kind: str, source: str) -> None:

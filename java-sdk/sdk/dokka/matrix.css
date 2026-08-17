@@ -17,26 +17,15 @@
  * under the License.
  */
 
-/* Dokka sizes content-table cells with `min-width: 40px` against ~31px of horizontal padding, so the
-   narrow columns of the Language SDK compatibility matrix collapse until their headers and values
-   break mid-word ("Supported", "MUST †").
-
-   These selectors necessarily apply to every content table in the API reference, because a table
-   generated from Markdown carries no class of its own. They are therefore deliberately written to
-   only *raise a floor*, never to forbid wrapping: a header stays on one line (headers are short in
-   any table), and the narrow value columns get a minimum width instead of `nowrap`. An unrelated
-   table with long prose in those columns still wraps as before rather than overflowing. */
-
-.table--container th {
-  white-space: nowrap;
-}
-
 /* Tier ("SHOULD †"), Supported ("n/a") and Since ("3.3") in the compatibility matrix. */
+.table--container th:nth-child(2),
+.table--container th:nth-child(3),
 .table--container td:nth-child(2),
 .table--container td:nth-child(3) {
   min-width: 9ch;
 }
 
+.table--container th:nth-child(4),
 .table--container td:nth-child(4) {
   min-width: 6ch;
 }
