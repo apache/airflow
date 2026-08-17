@@ -517,14 +517,13 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
-        # Reuse one client per hook; see AsyncKubernetesHook.get_conn for the rationale.
+        # Reuse one client per hook: construction parses the CA into an SSL context on
+        # the event loop and opens a new connection pool. Released via close()/cleanup().
         if self._cached_kube_client is None:
-            # No await between check and assign, or the loser's client leaks.
             self._cached_kube_client = self._build_client()
         if self._cached_token is None:
             self._cached_token = await self.get_token()
-        # get() only refreshes over the network once the token passes half its
-        # lifetime; re-set the header on every entry so refreshes propagate.
+        # get() only refreshes past half the token's lifetime; re-set the header so refreshes propagate.
         access_token = await self._cached_token.get()
         self._cached_kube_client.default_headers["Authorization"] = f"Bearer {access_token}"
         yield self._cached_kube_client
