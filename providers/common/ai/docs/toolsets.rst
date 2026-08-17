@@ -750,9 +750,9 @@ agent code is isolated by a hardware boundary rather than a shared kernel.
    cannot satisfy the last one at all.
 
    Treat it as the backend you develop and test a sandboxed agent against, then
-   run something else in production. A hosted backend plugs in through
-   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, but none ships
-   with the provider yet.
+   run something else in production. Hosted backends such as
+   :class:`~airflow.providers.common.ai.sandbox.AsciiBoxSandboxBackend` plug in
+   through :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`.
 
    **Orphans are not reclaimed automatically.** There is no server-side TTL. If
    the worker is killed outright, the microVM and its workspace directory
@@ -792,6 +792,65 @@ Constructor parameters:
   ``"unknown"`` (default) makes ``create`` refuse any spec asking for a network
   guarantee this backend cannot make. Set ``"deny-all"`` after running
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open.
+
+Ascii Box backend
+^^^^^^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.AsciiBoxSandboxBackend` runs each
+sandbox in an `Ascii Box <https://docs.ascii.dev/box/quickstart>`__ cloud
+computer. Unlike ``sbx``, the worker talks to a hosted API and needs neither a
+local daemon nor host virtualization, so it can run from a containerized worker.
+
+Requires the ``sandbox-ascii-box`` extra::
+
+    pip install "apache-airflow-providers-common-ai[sandbox-ascii-box]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import AsciiBoxSandboxBackend, SandboxSpec
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(
+        AsciiBoxSandboxBackend(box_conn_id="ascii_box_default"),
+        spec=SandboxSpec(block_network=False),
+    )
+
+Credentials come from a generic Airflow connection, resolved lazily on first
+use, so the API key lives in your configured secrets backend rather than the
+worker environment:
+
+- ``password``: the Box API key. Required.
+- ``host``: the API base URL. Optional; defaults to ``https://ascii.dev/api/box/v1``.
+- Extra: optional ``timeout`` (request timeout in seconds) and ``no_env``
+  (withhold account secrets; default ``true``).
+
+Constructor parameters:
+
+- ``box_conn_id``: Connection ID. Default ``"ascii_box_default"``. ``None`` lets
+  the backend resolve ``BOX_API_KEY`` (and optional ``BOX_BASE_URL``) from the
+  environment.
+- ``machine_type``: ``small``, ``default``, or ``large``. Default ``"default"``.
+- ``ttl_seconds``: Server-side auto-stop TTL in seconds, after which the Box is
+  archived even if the worker never got to destroy it. Default ``3600``.
+- ``ready_timeout``: Seconds to wait for a newly created Box to become ready.
+  Default ``300``.
+- ``no_env``: Create a no-env Box that receives none of the account's stored
+  secrets. ``None`` (default) reads the connection extra and otherwise defaults
+  to ``True``.
+
+Ascii Box cannot deny outbound network access or scope it to named hosts.
+``create`` therefore refuses ``block_network=True`` and ``allow_egress_to``, so a
+DAG author never believes a restriction is in force when it is not. Pass
+``SandboxSpec(block_network=False)`` on the toolset when open egress is
+acceptable.
+
+``SandboxSpec.env`` is passed at creation. File reads and writes use Box's
+native APIs for paths under ``/home/user`` or ``/tmp``. Directory listings and
+parent-directory creation use common Unix tools in the Box image. Command
+output is capped by the API and again in the backend before it reaches the
+worker. Commands are limited to 600 seconds by the API; a timeout destroys the
+Box before reporting failure, and ``ttl_seconds`` remains the orphan-cleanup
+backstop.
 
 Bringing your own backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^

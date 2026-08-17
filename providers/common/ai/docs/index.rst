@@ -238,27 +238,28 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-common-ai[anthropic]
 
 
-==============  =======================================================================================================================================
-Extra           Dependencies
-==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.0.0``
-``bedrock``     ``pydantic-ai-slim[bedrock]>=2.0.0``
-``google``      ``pydantic-ai-slim[google]>=2.0.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.0.0``
-``mcp``         ``pydantic-ai-slim[mcp]>=2.0.0``
-``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
-``shields``     ``pydantic-ai-shields>=0.3.4``
-``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
-``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
-``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
-``sql``         ``apache-airflow-providers-common-sql>=1.33.0``, ``sqlglot>=30.0.0``
-``common.sql``  ``apache-airflow-providers-common-sql>=1.33.0``
-``langchain``   ``langchain>=1.0.0``
-``llamaindex``  ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
-``pdf``         ``pypdf>=4.0.0``
-``docx``        ``python-docx>=1.0.0``
-``git``         ``apache-airflow-providers-git``
-==============  =======================================================================================================================================
+====================  =======================================================================================================================================
+Extra                 Dependencies
+====================  =======================================================================================================================================
+``anthropic``         ``pydantic-ai-slim[anthropic]>=2.0.0``
+``bedrock``           ``pydantic-ai-slim[bedrock]>=2.0.0``
+``google``            ``pydantic-ai-slim[google]>=2.0.0``
+``openai``            ``pydantic-ai-slim[openai]>=2.0.0``
+``mcp``               ``pydantic-ai-slim[mcp]>=2.0.0``
+``code-mode``         ``pydantic-ai-harness[codemode]>=0.3.0``
+``shields``           ``pydantic-ai-shields>=0.3.4``
+``skills``            ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
+``sandbox-ascii-box`` ``ascii-box-sdk>=0.0.29``
+``avro``              ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
+``parquet``           ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
+``sql``               ``apache-airflow-providers-common-sql>=1.33.0``, ``sqlglot>=30.0.0``
+``common.sql``        ``apache-airflow-providers-common-sql>=1.33.0``
+``langchain``         ``langchain>=1.0.0``
+``llamaindex``        ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
+``pdf``               ``pypdf>=4.0.0``
+``docx``              ``python-docx>=1.0.0``
+``git``               ``apache-airflow-providers-git``
+====================  =======================================================================================================================================
 
 Downloading official packages
 -----------------------------
