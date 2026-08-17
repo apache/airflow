@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import builtins
+import json
 from types import SimpleNamespace
 from unittest import mock
 
@@ -38,8 +39,8 @@ from airflow.providers.common.ai.sandbox.base import (
 _BASE_HOOK_PATH = "airflow.providers.common.ai.sandbox.ascii_box.BaseHook"
 
 
-def _api_error(status: int) -> ApiException:
-    return ApiException(status=status)
+def _api_error(status: int, body: str | None = None) -> ApiException:
+    return ApiException(status=status, body=body)
 
 
 def _connection(*, password: str | None = "box_secret", host: str | None = None, extra: dict | None = None):
@@ -212,6 +213,40 @@ class TestCreate:
         api.create.side_effect = _api_error(503)
 
         with pytest.raises(SandboxTerminalError, match="HTTP 503"):
+            backend.create(spec=SandboxSpec(block_network=False))
+
+    def test_api_error_reason_is_surfaced(self):
+        backend, api = _backend_with_api()
+        api.create.side_effect = _api_error(
+            402,
+            json.dumps(
+                {
+                    "ok": False,
+                    "status": 402,
+                    "code": "billing_required",
+                    "message": "Start the $20/month Box plan to create sandboxes.",
+                    "error": {
+                        "code": "billing_required",
+                        "message": "Start the $20/month Box plan to create sandboxes.",
+                    },
+                }
+            ),
+        )
+
+        with pytest.raises(
+            SandboxTerminalError,
+            match=r"HTTP 402\)\. billing_required: Start the \$20/month Box plan",
+        ):
+            backend.create(spec=SandboxSpec(block_network=False))
+
+    @pytest.mark.parametrize("body", [None, "", "<html>gateway</html>", "[]", '{"error": "not_a_dict"}'])
+    def test_unparseable_error_body_is_ignored(self, body):
+        backend, api = _backend_with_api()
+        api.create.side_effect = _api_error(500, body)
+
+        with pytest.raises(
+            SandboxTerminalError, match=r"^Ascii Box could not create a sandbox \(HTTP 500\)\.$"
+        ):
             backend.create(spec=SandboxSpec(block_network=False))
 
 

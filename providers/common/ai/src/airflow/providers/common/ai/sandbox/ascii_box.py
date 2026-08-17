@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import json
 import math
 import shlex
 from contextlib import contextmanager, suppress
@@ -46,10 +47,44 @@ if TYPE_CHECKING:
 
 _DEFAULT_BASE_URL = "https://ascii.dev/api/box/v1"
 _MAX_COMMAND_TIMEOUT = 600
+_MAX_ERROR_DETAIL = 300
 _FILE_OP_TIMEOUT = 120.0
 _HELPER_OUTPUT_CAP = 1024 * 1024
 _READY_STATES = frozenset({"ready", "idle", "running"})
 _MACHINE_TYPES = frozenset({"small", "default", "large"})
+
+
+def _api_error_detail(body: Any) -> str:
+    """
+    Summarize the ``code``/``message`` pair Box returns in a failed call's body.
+
+    The status code alone hides reasons the task owner has to act on, such as an
+    account that has no Box subscription yet. Returns an empty string when the
+    body is missing or is not the documented JSON error envelope.
+    """
+    if isinstance(body, bytes):
+        with suppress(UnicodeDecodeError):
+            body = body.decode("utf-8")
+    if not isinstance(body, str):
+        return ""
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        error = payload
+    parts = [
+        value.strip()
+        for key in ("code", "message")
+        if isinstance(value := error.get(key), str) and value.strip()
+    ]
+    if len(parts) == 2 and parts[0] == parts[1]:
+        del parts[1]
+    detail = ": ".join(parts)
+    return detail[:_MAX_ERROR_DETAIL]
 
 
 @contextmanager
@@ -71,7 +106,10 @@ def _translate_ascii_box_errors(
         if isinstance(e, ApiException):
             status_code = e.status if isinstance(e.status, int) else None
             status = f" (HTTP {status_code})" if status_code is not None else ""
+            detail = _api_error_detail(e.body)
             message = f"Ascii Box could not {operation}{status}."
+            if detail:
+                message = f"{message} {detail}"
             if status_code in recoverable_statuses:
                 raise SandboxError(message) from e
             raise SandboxTerminalError(message) from e

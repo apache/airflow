@@ -805,6 +805,10 @@ Requires the ``sandbox-ascii-box`` extra::
 
     pip install "apache-airflow-providers-common-ai[sandbox-ascii-box]"
 
+Box creation is a paid API call, so the account behind the key needs an active
+plan. Without one, ``create`` fails the task with the reason Box reports rather
+than a bare HTTP status.
+
 .. code-block:: python
 
     from airflow.providers.common.ai.sandbox import AsciiBoxSandboxBackend, SandboxSpec
