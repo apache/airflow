@@ -43,6 +43,7 @@ from airflow.exceptions import (
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.variable import Variable
 from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
@@ -95,7 +96,11 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
-from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedDeadlineAlert
+from airflow.serialization.definitions.deadline import (
+    DeadlineAlertFields,
+    SerializedDeadlineAlert,
+    SerializedVariableInterval,
+)
 from airflow.serialization.encoders import ensure_serialized_asset, ensure_serialized_deadline_alert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import PartitionMapperNotFound
@@ -270,6 +275,48 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
 
 def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAssetBase | BaseAsset) -> bool:
     return ensure_serialized_asset(a) == ensure_serialized_asset(b)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("3", timedelta(seconds=3)),
+        ("10", timedelta(seconds=10)),
+        ("05", timedelta(seconds=5)),
+        ("0", timedelta(0)),
+        ("-5", timedelta(seconds=-5)),
+    ],
+)
+def test_serialized_variable_interval_resolve_valid(mocker, value, expected):
+    mocker.patch.object(Variable, "get", return_value=value)
+
+    interval = SerializedVariableInterval(key="test_interval")
+
+    assert interval.resolve() == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "raise_missing", "match"),
+    [
+        (None, True, "not found"),
+        ("abc", False, "must be an integer"),
+        ("", False, "must be an integer"),
+    ],
+)
+def test_serialized_variable_interval_resolve_invalid(mocker, value, raise_missing, match):
+    if raise_missing:
+        mocker.patch.object(
+            Variable,
+            "get",
+            side_effect=KeyError("test_interval"),
+        )
+    else:
+        mocker.patch.object(Variable, "get", return_value=value)
+
+    interval = SerializedVariableInterval(key="test_interval")
+
+    with pytest.raises(ValueError, match=match):
+        interval.resolve()
 
 
 def equal_serialized_deadline_alert(

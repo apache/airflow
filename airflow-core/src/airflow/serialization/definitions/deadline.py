@@ -38,8 +38,6 @@ if TYPE_CHECKING:
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
 
-    from airflow.sdk.definitions.deadline import VariableInterval
-
 logger = logging.getLogger(__name__)
 
 
@@ -380,11 +378,35 @@ def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> dat
     return result
 
 
+@attrs.define(frozen=True)
+class SerializedVariableInterval:
+    """Core-side serialized representation of a variable-backed deadline interval."""
+
+    key: str
+
+    def resolve(self) -> timedelta:
+        from airflow.models.variable import Variable
+
+        try:
+            value = Variable.get(self.key)
+        except KeyError as e:
+            raise ValueError(f"VariableInterval '{self.key}' not found") from e
+
+        try:
+            seconds = int(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
+            ) from e
+
+        return timedelta(seconds=seconds)
+
+
 @attrs.define
 class SerializedDeadlineAlert:
     """Serialized representation of a deadline alert."""
 
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
-    interval: timedelta | VariableInterval
+    interval: timedelta | SerializedVariableInterval
     callback: Any
     name: str | None = None
