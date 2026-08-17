@@ -205,6 +205,45 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
+  it.each([
+    {
+      label: "Dag",
+      dagId: "bad id!",
+      taskId: "valid_task",
+      expected:
+        'Error: Dag "bad id!" must be made of alphanumeric characters, dashes, dots, and underscores',
+    },
+    {
+      label: "task",
+      dagId: "valid_dag",
+      taskId: "bad id!",
+      expected:
+        'Error: Task "bad id!" of Dag "valid_dag" must be made of alphanumeric characters, dashes, dots, and underscores',
+    },
+  ])(
+    "reports an invalid $label ID without a staging-bundle stack",
+    async ({ dagId, taskId, expected }) => {
+      outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+      const entry = path.join(outdir, "invalid-id-entry.ts");
+      writeFileSync(
+        entry,
+        [
+          `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+          `const invalidDag = new Dag(${JSON.stringify(dagId)});`,
+          `invalidDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
+          "await serveDags(new DagRegistry(invalidDag));",
+        ].join("\n"),
+      );
+
+      await expect(runPack([entry, "--outdir", outdir])).rejects.toHaveProperty(
+        "message",
+        expected,
+      );
+      expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+      expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+    },
+  );
+
   // A bundle can print the sentinel itself, so nothing on that line is trusted.
   it.each([
     ['{ supervisor_schema_version: "1", dags: { broken_dag: {} } }', "malformed entry"],

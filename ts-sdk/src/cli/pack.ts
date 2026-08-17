@@ -129,9 +129,15 @@ function readBundleManifest(bundlePath: string): BundleManifest {
       maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
     });
   } catch (error) {
-    throw new Error(`Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`, {
-      cause: error,
-    });
+    const stderr = (error as { stderr?: string }).stderr ?? "";
+    const reported = stderr
+      .split("\n")
+      .find((line) => /^\w*Error: /.test(line.trim()))
+      ?.trim();
+    throw new Error(
+      reported ?? `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`,
+      { cause: error },
+    );
   }
 
   // Import-time logging from user code lands on stdout too; pick the sentinel line.
