@@ -166,7 +166,7 @@ While both Dag constructors get called when the file is accessed, only ``dag_1``
 
     When searching for Dags inside the Dag bundle, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
 
-    To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
+    To consider all Python files instead, set the ``[core] dag_discovery_safe_mode`` configuration flag to ``False``. This is the setting to use when your Dags are defined through a wrapper or abstraction whose source does not contain those strings. The flag is read by the Dag file processor, so set it on that component (and on anything that runs ``airflow dags reserialize``) and restart it for the change to take effect -- otherwise Dags may appear after a manual reserialize and then disappear again on the next processor scan.
 
 You can also provide an ``.airflowignore`` file inside your Dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
