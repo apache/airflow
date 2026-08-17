@@ -35,6 +35,12 @@ class TriggerDAGRunPayload(StrictBaseModel):
     note: str | None = None
 
 
+class ClearDagRunPayload(StrictBaseModel):
+    """Schema for Clear DAG Run API request."""
+
+    only_failed: bool = False
+
+
 class DagRunStateResponse(BaseModel):
     """Schema for DAG Run State response."""
 

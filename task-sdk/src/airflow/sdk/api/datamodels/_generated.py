@@ -597,6 +597,17 @@ class TriggerDAGRunPayload(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
 
 
+class ClearDagRunPayload(BaseModel):
+    """
+    Schema for Clear DAG Run API request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+
+
 class UpdateHITLDetailPayload(BaseModel):
     """
     Schema for writing the response part of a Human-in-the-loop detail for a specific task instance.
