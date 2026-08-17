@@ -1190,16 +1190,22 @@ def test_execute_workload_forwards_task_logs_to_stdout_before_airflow_3_3(
 @pytest.mark.parametrize(
     ("config_overrides", "expected"),
     [
-        pytest.param({}, None, id="unset-defers-to-run-workload"),
-        pytest.param({("celery", "task_logs_to_stdout"): "True"}, True, id="celery-override-true"),
+        pytest.param({}, False, id="unset-defaults-to-false"),
+        pytest.param({("logging", "task_logs_to_stdout"): "True"}, True, id="global-fallback"),
+        pytest.param({("celery", "task_logs_to_stdout"): "True"}, True, id="celery-override-only"),
         pytest.param({("celery", "task_logs_to_stdout"): "False"}, False, id="celery-override-false"),
+        pytest.param(
+            {("logging", "task_logs_to_stdout"): "True", ("celery", "task_logs_to_stdout"): "False"},
+            False,
+            id="celery-overrides-global",
+        ),
     ],
 )
 def test_execute_workload_forwards_task_logs_to_stdout_on_airflow_3_3_plus(
     execute_task_workload_json, mock_celery_app, config_overrides, expected
 ):
-    """On Airflow 3.3+, run_workload() receives [celery] task_logs_to_stdout, or None when unset so it
-    can fall back to the core [logging] default itself.
+    """On Airflow 3.3+, run_workload() receives the resolved [celery]/[logging] task_logs_to_stdout
+    value, since older 3.3.x releases predate core's own [logging] fallback in run_workload().
     """
     with (
         conf_vars(config_overrides),
