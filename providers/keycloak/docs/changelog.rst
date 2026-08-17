@@ -27,10 +27,10 @@ Changelog
 
 .. note::
     Upgrading the provider does not update existing Keycloak permissions. For each existing team,
-    run ``airflow keycloak-auth-manager create-team <team>`` again to update the team ReadOnly
-    permission. For non-team installations, run
-    ``airflow keycloak-auth-manager create-permissions`` again without ``--teams`` to update the
-    global Admin permission.
+    run ``airflow keycloak-auth-manager create-team <team>`` again to update the team-specific
+    permissions and repair the global ``ReadOnly`` and ``Admin`` permissions. For non-team
+    installations, run ``airflow keycloak-auth-manager create-permissions`` again without
+    ``--teams`` to update the global ``ReadOnly`` and ``Admin`` permissions.
 
     Manually added policies attached to these permissions will also be evaluated under the
     ``AFFIRMATIVE`` strategy after the update.
@@ -39,12 +39,12 @@ Changelog
 .....
 
 .. note::
-    Keycloak's access and refresh tokens are now stored in dedicated ``_access_token`` and
-    ``_refresh_token`` cookies instead of being carried inside the Airflow JWT claims. Sessions
-    established before this release carry the tokens in the old form, so the first request after
-    the upgrade cannot be refreshed and the session is cleared -- **every logged-in user is signed
-    out once when you upgrade**. No action is required beyond logging back in; this is a one-time
-    effect of the move and does not recur.
+    For Airflow v3.3.0+ Keycloak's access and refresh tokens are now stored in dedicated
+    ``_access_token`` and ``_refresh_token`` cookies instead of being carried inside the
+    Airflow JWT claims. Sessions established before this release carry the tokens in the old form,
+    so the first request after the upgrade cannot be refreshed and the session is cleared --
+    **every logged-in user is signed out once when you upgrade**. No action is required
+    beyond logging back in; this is a one-time effect of the move and does not recur.
 
 Features
 ~~~~~~~~
