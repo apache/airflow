@@ -1031,7 +1031,6 @@ class AsyncKubernetesHook(KubernetesHook):
             # on the event loop and opens a new connection pool. Owners release it via
             # close(); triggers do so in cleanup().
             if self._cached_kube_client is None:
-                # No await between check and assign, or the loser's client leaks.
                 self._cached_kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
             yield self._cached_kube_client
             return
