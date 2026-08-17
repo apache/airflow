@@ -19,22 +19,22 @@
 import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiBarChart, FiUser, FiUsers, FiDatabase } from "react-icons/fi";
+import { FiBarChart, FiDatabase, FiUser, FiUsers } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
+  MdBuild,
+  MdCheckCircle,
+  MdCode,
+  MdComputer,
   MdDateRange,
-  MdSearch,
   MdHistory,
   MdHourglassEmpty,
-  MdCode,
   MdLabel,
   MdPause,
   MdPendingActions,
   MdPlayArrow,
-  MdCheckCircle,
-  MdBuild,
-  MdComputer,
   MdSchedule,
+  MdSearch,
   MdStar,
 } from "react-icons/md";
 import { PiQueue } from "react-icons/pi";
@@ -159,6 +159,7 @@ export const useFilterConfigs = () => {
       icon: <MdCheckCircle />,
       label: translate("dags:filters.anyRunState"),
       options: runStateOptions,
+      placeholder: translate("dags:filters.anyRunStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.DAG_VERSION]: {
@@ -219,6 +220,7 @@ export const useFilterConfigs = () => {
         { label: translate("dags:filters.favorite.favorite"), value: "true" },
         { label: translate("dags:filters.favorite.unfavorite"), value: "false" },
       ],
+      placeholder: translate("dags:filters.favoriteStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.GROUP_PATTERN]: {
@@ -270,6 +272,7 @@ export const useFilterConfigs = () => {
       icon: <MdCheckCircle />,
       label: translate("dags:filters.lastRunState"),
       options: runStateOptions,
+      placeholder: translate("dags:filters.lastRunStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
@@ -339,6 +342,7 @@ export const useFilterConfigs = () => {
         { label: translate("dags:filters.paused.active"), value: "false" },
         { label: translate("dags:filters.paused.paused"), value: "true" },
       ],
+      placeholder: translate("dags:filters.pausedPlaceholder"),
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {

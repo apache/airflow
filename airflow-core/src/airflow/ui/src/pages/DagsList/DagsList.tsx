@@ -359,33 +359,35 @@ export const DagsList = () => {
 
   return (
     <DagsLayout>
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={dagDisplayNamePattern}
-          onChange={handleSearchChange}
-          placeholder={translate("dags:search.dags")}
-        />
-        <DagsFilters />
-      </VStack>
       <Box pb={8}>
         <DataTable
-          actions={
-            display === "card" ? (
-              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-            ) : undefined
-          }
           cardDef={cardDef}
           columns={columns}
           data={data?.dags ?? []}
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
+          filterActions={
+            <VStack alignItems="flex-start" gap={2} w="100%">
+              <SearchBar
+                advancedSearch={advancedSearch}
+                defaultValue={dagDisplayNamePattern}
+                onChange={handleSearchChange}
+                placeholder={translate("dags:search.dags")}
+              />
+              <DagsFilters />
+            </VStack>
+          }
           headingExtra={<DagImportErrors iconOnly />}
           initialState={tableURLState}
           isLoading={isLoading}
           modelName="common:dag"
           onDisplayToggleChange={setDisplay}
           onStateChange={setTableURLState}
+          presentationActions={
+            display === "card" ? (
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+            ) : undefined
+          }
           showDisplayToggle
           skeletonCount={display === "card" ? 5 : undefined}
           total={totalEntries}

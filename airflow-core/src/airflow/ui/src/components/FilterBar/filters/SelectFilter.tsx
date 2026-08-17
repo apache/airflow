@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection, Box, Text } from "@chakra-ui/react";
+import { Box, createListCollection } from "@chakra-ui/react";
 
 import { Select } from "src/components/ui";
 
 import { FilterPill } from "../FilterPill";
-import type { FilterPluginProps, FilterConfig } from "../types";
+import type { FilterConfig, FilterPluginProps } from "../types";
 
 type SelectOption = {
   label: string;
@@ -73,7 +73,7 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
           tabIndex={0}
           width="330px"
         >
-          <Text
+          <Box
             alignItems="center"
             bg="gray.muted"
             borderLeftRadius="full"
@@ -86,7 +86,7 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             whiteSpace="nowrap"
           >
             {filter.config.label}:
-          </Text>
+          </Box>
           <Select.Root
             border="none"
             collection={createListCollection({ items: config.options })}

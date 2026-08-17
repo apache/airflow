@@ -204,7 +204,7 @@ export const FilterBar = ({
   };
 
   return (
-    <HStack flex="1" gap={2} minW={0} wrap="wrap">
+    <HStack display="inline-flex" flex="1" gapX={1} gapY={2} minW={0} w="100%" wrap="wrap">
       {availableConfigs.length > 0 && (
         <Menu.Root>
           <Menu.Trigger asChild>

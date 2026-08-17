@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -115,6 +115,7 @@ export const FilterPill = ({
   return (
     <Box
       _hover={{ bg: "colorPalette.subtle" }}
+      alignItems="center"
       as="button"
       bg={hasValue ? "blue.muted" : "gray.muted"}
       borderRadius="full"
@@ -125,30 +126,29 @@ export const FilterPill = ({
       display="flex"
       fontSize="sm"
       fontWeight="medium"
-      h="10"
+      gap={2}
+      h="9"
       onClick={handlePillClick}
-      px={4}
+      pl={3}
+      pr={1}
     >
-      <HStack align="center">
-        {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
-        <Box alignItems="center" display="flex" flex="1" gap={2} px={2}>
-          {filter.config.label}
-          {displayValue === undefined || displayValue === "" ? undefined : <>: {displayValue}</>}
-        </Box>
-        <IconButton
-          aria-label={`Remove ${filter.config.label} filter`}
-          borderRadius="full"
-          label={translate("common:filters.removeFilter")}
-          mr={-3}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove();
-          }}
-          size="xs"
-        >
-          <MdClose size={16} />
-        </IconButton>
-      </HStack>
+      {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
+      <Box alignItems="center" display="flex" flex="1" textWrap="nowrap">
+        {filter.config.label}
+        {displayValue === undefined || displayValue === "" ? undefined : <strong>: {displayValue}</strong>}
+      </Box>
+      <IconButton
+        aria-label={`Remove ${filter.config.label} filter`}
+        borderRadius="full"
+        label={translate("common:filters.removeFilter")}
+        onClick={(event) => {
+          event.stopPropagation();
+          onRemove();
+        }}
+        size="xs"
+      >
+        <MdClose size={16} />
+      </IconButton>
     </Box>
   );
 };

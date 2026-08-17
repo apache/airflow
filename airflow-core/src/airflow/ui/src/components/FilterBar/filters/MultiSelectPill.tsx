@@ -59,17 +59,13 @@ export const MultiSelectPill = ({
     <FilterPill
       // Each value is its own node so the collapsed chip stays queryable by value.
       displayValue={
-        <HStack as="span" gap={1}>
+        <HStack display="inline-flex" gap={1}>
           {mode === "all" && values.length >= 2 ? (
-            <Text as="span" color="fg.muted" fontSize="xs">
+            <Box as="span" color="fg.muted" fontSize="xs">
               {`(${mode})`}
-            </Text>
+            </Box>
           ) : undefined}
-          {values.map((value) => (
-            <Text as="span" key={value}>
-              {value}
-            </Text>
-          ))}
+          {values.map((value) => value).join(", ")}
         </HStack>
       }
       filter={filter}
