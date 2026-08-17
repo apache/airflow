@@ -45,13 +45,11 @@ const { calls, record } = vi.hoisted(() => {
 
   return {
     calls: captured,
-    record:
-      (name: string) =>
-      (params: unknown, key: unknown, options?: { enabled?: boolean }) => {
-        captured[name] = { key, options, params };
+    record: (name: string) => (params: unknown, key: unknown, options?: { enabled?: boolean }) => {
+      captured[name] = { key, options, params };
 
-        return { data: undefined, isLoading: false };
-      },
+      return { data: undefined, isLoading: false };
+    },
   };
 });
 

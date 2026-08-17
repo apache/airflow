@@ -105,7 +105,11 @@ describe("usePluginTabs", () => {
 
   it.each([
     ["no view is scoped", [{}], false],
-    ["a view for another destination is scoped", [{ applies_to: { dag_ids: ["x"] }, destination: "task" as const }], false],
+    [
+      "a view for another destination is scoped",
+      [{ applies_to: { dag_ids: ["x"] }, destination: "task" as const }],
+      false,
+    ],
     ["a view for this destination is scoped", [{ applies_to: { dag_ids: ["x"] } }], true],
   ])("resolves the context only when %s", (_label, views: Array<Partial<ExternalViewResponse>>, enabled) => {
     setPlugins(views.map(makeView));

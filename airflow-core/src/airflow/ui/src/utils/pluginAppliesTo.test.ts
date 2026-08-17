@@ -139,10 +139,7 @@ describe("matchesAppliesTo", () => {
   });
 
   it.each([
-    [
-      "task",
-      { dag, isLoading: false, task: makeTask("submit", "SparkSubmitOperator", "Spark Submit") },
-    ],
+    ["task", { dag, isLoading: false, task: makeTask("submit", "SparkSubmitOperator", "Spark Submit") }],
     [
       "task instance",
       {
