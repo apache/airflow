@@ -61,6 +61,16 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
   });
 
+  it("shows the default as a pill rather than filtering invisibly", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+
+    const pill = await screen.findByTestId("paused-pill");
+
+    expect(pill).toHaveTextContent("filters.paused.active");
+  });
+
   it("shows all dags after removing the paused filter", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
