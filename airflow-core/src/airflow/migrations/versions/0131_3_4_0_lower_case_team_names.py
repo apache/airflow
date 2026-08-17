@@ -48,7 +48,7 @@ _REFERRING_TABLES = ("dag_bundle_team", "connection", "variable", "slot_pool", "
 _TEAM = sa.table("team", sa.column("name", sa.String))
 
 
-def build_lower_casing_statements() -> list[ClauseElement]:
+def build_lower_casing_statements(dialect_name: str) -> list[ClauseElement]:
     """
     Build the statements that fold every stored team name to lower case.
 
@@ -66,6 +66,12 @@ def build_lower_casing_statements() -> list[ClauseElement]:
     * Case insensitive, where the two spellings are a single value: the insert and the delete
       match nothing, the referring rows keep matching their team while they are rewritten, and
       the closing unconditional update renames the row in place.
+
+    MySQL is the second case, which makes that closing update the statement that does the rename
+    -- and InnoDB refuses to update a primary key while rows still reference it, the foreign keys
+    carrying no ``ON UPDATE CASCADE``. The referring rows were folded above and already read as
+    the new name under this collation, so the check is suspended over the rename it would other-
+    wise block. A name that would collide still collides: the primary key is not what is lifted.
     """
     lowered = sa.func.lower(_TEAM.c.name)
     statements: list[ClauseElement] = [
@@ -81,13 +87,18 @@ def build_lower_casing_statements() -> list[ClauseElement]:
             .values(team_name=sa.func.lower(referring.c.team_name))
         )
     statements.append(_TEAM.delete().where(_TEAM.c.name != lowered))
-    statements.append(_TEAM.update().values(name=lowered))
+    if dialect_name == "mysql":
+        statements.append(sa.text("SET FOREIGN_KEY_CHECKS=0"))
+        statements.append(_TEAM.update().values(name=lowered))
+        statements.append(sa.text("SET FOREIGN_KEY_CHECKS=1"))
+    else:
+        statements.append(_TEAM.update().values(name=lowered))
     return statements
 
 
 def upgrade():
     """Lower case team names."""
-    for statement in build_lower_casing_statements():
+    for statement in build_lower_casing_statements(op.get_bind().dialect.name):
         op.execute(statement)
 
 

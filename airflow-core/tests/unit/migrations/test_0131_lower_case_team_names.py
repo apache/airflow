@@ -86,7 +86,7 @@ class TestMigration0131:
 
         try:
             with settings.engine.begin() as conn:
-                for statement in _migration.build_lower_casing_statements():
+                for statement in _migration.build_lower_casing_statements(conn.dialect.name):
                     conn.execute(statement)
 
             with settings.engine.connect() as conn:
@@ -108,3 +108,31 @@ class TestMigration0131:
         emitted = capsys.readouterr().out
         assert "INSERT INTO team (name) SELECT lower(team.name)" in emitted
         assert "UPDATE team SET name=lower(team.name)" in emitted
+
+    @pytest.mark.parametrize(
+        ("dialect_name", "closing"),
+        [
+            pytest.param(
+                "mysql",
+                [
+                    "SET FOREIGN_KEY_CHECKS=0",
+                    "UPDATE team SET name=lower(team.name)",
+                    "SET FOREIGN_KEY_CHECKS=1",
+                ],
+                id="mysql-suspends-the-check-over-the-rename",
+            ),
+            pytest.param(
+                "postgresql",
+                ["UPDATE team SET name=lower(team.name)"],
+                id="others-rename-under-the-check",
+            ),
+        ],
+    )
+    def test_only_mysql_suspends_foreign_key_checks(self, dialect_name, closing):
+        """InnoDB refuses the closing rename while the foreign keys still guard the old name."""
+        rendered = [
+            str(statement).strip() for statement in _migration.build_lower_casing_statements(dialect_name)
+        ]
+
+        assert rendered[-len(closing) :] == closing
+        assert "SET FOREIGN_KEY_CHECKS=0" not in rendered[: -len(closing)]
