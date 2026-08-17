@@ -75,6 +75,30 @@ updates:
         patterns:
           - "*"
 
+  - package-ecosystem: gradle
+    directories:
+      - /java-sdk
+      - /java-sdk/example
+    cooldown:
+      default-days: 14
+    schedule:
+      interval: weekly
+    groups:
+      java-sdk-dependency-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      java-sdk-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: npm
     cooldown:
       default-days: 4
