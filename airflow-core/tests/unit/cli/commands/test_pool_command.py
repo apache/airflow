@@ -29,6 +29,8 @@ from airflow.models import Pool
 from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
 
+from tests_common.test_utils.config import conf_vars
+
 pytestmark = pytest.mark.db_test
 
 
@@ -79,9 +81,57 @@ class TestCliPools:
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         assert self.session.scalar(select(Pool).where(Pool.pool == "foo")).include_deferred is False
 
+    def test_pool_set_include_deferred_rejected_when_fixed_by_config(self):
+        with conf_vars({("core", "pool_include_deferred"): "False"}):
+            with pytest.raises(SystemExit, match="include_deferred is fixed to False for all pools"):
+                pool_command.pool_set(
+                    self.parser.parse_args(["pools", "set", "locked_pool", "1", "test", "--include-deferred"])
+                )
+        assert self.session.scalar(select(Pool).where(Pool.pool == "locked_pool")) is None
+
+    def test_pool_set_include_deferred_allowed_when_matching_config(self):
+        try:
+            with conf_vars({("core", "pool_include_deferred"): "True"}):
+                pool_command.pool_set(
+                    self.parser.parse_args(["pools", "set", "locked_pool", "1", "test", "--include-deferred"])
+                )
+            assert self.session.scalar(select(Pool).where(Pool.pool == "locked_pool")).include_deferred
+        finally:
+            self._cleanup()
+
+    def test_pool_import_include_deferred_rejected_when_fixed_by_config(self, tmp_path):
+        pool_import_file_path = tmp_path / "pools_import.json"
+        pool_config_input = {"locked_pool": {"slots": 1, "description": "test", "include_deferred": True}}
+        with open(pool_import_file_path, mode="w") as file:
+            json.dump(pool_config_input, file)
+
+        with conf_vars({("core", "pool_include_deferred"): "False"}):
+            with pytest.raises(SystemExit, match="Failed to update pool"):
+                pool_command.pool_import(
+                    self.parser.parse_args(["pools", "import", str(pool_import_file_path)])
+                )
+        assert self.session.scalar(select(Pool).where(Pool.pool == "locked_pool")) is None
+
     def test_pool_get(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         pool_command.pool_get(self.parser.parse_args(["pools", "get", "foo"]))
+
+    def test_pool_get_shows_config_fixed_include_deferred(self, stdout_capture):
+        try:
+            # stored with include_deferred=False, but the cluster config fixes it to True
+            pool_command.pool_set(self.parser.parse_args(["pools", "set", "locked_pool", "1", "test"]))
+            assert (
+                self.session.scalar(select(Pool).where(Pool.pool == "locked_pool")).include_deferred is False
+            )
+            with conf_vars({("core", "pool_include_deferred"): "True"}):
+                with stdout_capture as stdout:
+                    pool_command.pool_get(
+                        self.parser.parse_args(["pools", "get", "locked_pool", "--output", "json"])
+                    )
+            # AirflowConsole stringifies values in its output
+            assert json.loads(stdout.getvalue())[0]["include_deferred"] == "True"
+        finally:
+            self._cleanup()
 
     def test_pool_delete(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))

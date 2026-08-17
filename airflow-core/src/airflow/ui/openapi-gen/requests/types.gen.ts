@@ -2283,6 +2283,7 @@ export type ConfigResponse = {
     theme: Theme | null;
     multi_team: boolean;
     rerun_with_latest_version?: boolean | null;
+    pool_include_deferred?: boolean | null;
 };
 
 /**
