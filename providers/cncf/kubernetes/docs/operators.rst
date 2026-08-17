@@ -206,7 +206,10 @@ If no identity has been persisted yet to the task state store - either because t
 worker crashed in the narrow window after the pod was created but before its identity could be
 persisted, the operator falls back to the same label search ``reattach_on_restart`` has always
 used, so a running pod from a prior attempt is still found and reattached to rather than
-duplicated. Once an identity is persisted, subsequent retries skip the label search entirely.
+duplicated. The label search is used again whenever the persisted identity cannot be trusted: the
+pod is gone, its uid no longer matches, a prior attempt already checked it, or the identity was
+written by a provider version that did not record a uid yet. A pod found that way is persisted
+again together with its uid.
 
 To always create a fresh pod on retry rather than reattaching, set ``durable=False``:
 

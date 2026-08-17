@@ -682,6 +682,16 @@ class KubernetesPodOperator(BaseOperator):
                 stored,
             )
             return None
+        uid = stored.get("uid")
+        if not isinstance(uid, str) or not uid:
+            # Written before the uid was recorded. A name on its own cannot tell the recorded pod
+            # from one that took its name, so let the run scoped label search identify it instead.
+            self.log.info(
+                "Pod identity stored in task state store for %s/%s has no uid, falling back to label search.",
+                namespace,
+                name,
+            )
+            return None
         try:
             pod = self.hook.get_pod(name, namespace)
         except ApiException as e:
@@ -693,10 +703,8 @@ class KubernetesPodOperator(BaseOperator):
                 name,
             )
             return None
-        # Names are reusable, uids are not: once the recorded pod is deleted an unrelated pod can
-        # take its name. Identities persisted before uids were stored have nothing to compare.
-        uid = stored.get("uid")
-        if uid is not None and pod.metadata.uid != uid:
+        # Names are reusable, uids are not: this is a different pod under the recorded name.
+        if pod.metadata.uid != uid:
             self.log.warning(
                 "Pod %s/%s from task state store is a different pod now "
                 "(recorded uid %s, found %s), falling back to label search.",
