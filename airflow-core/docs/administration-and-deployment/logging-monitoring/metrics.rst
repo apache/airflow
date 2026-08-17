@@ -53,6 +53,12 @@ custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`
 
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
+.. note::
+
+    StatsD has no resource concept, so metrics from replicas of the same component cannot be
+    told apart. Use OpenTelemetry if you need that — see
+    :ref:`identifying-components-and-their-instances`.
+
 
 Setup - OpenTelemetry
 ---------------------
@@ -98,40 +104,43 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
 
 
-Replicated components
----------------------
+.. _identifying-components-and-their-instances:
 
-Every Airflow process reports the same ``service.name``, so a deployment running more than one
-replica of a component — schedulers in high availability, several triggerers or Dag processors —
-sends telemetry the backend cannot attribute to an individual process.
+Identifying components and their instances
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Gauges are where this shows up in the data. Each scheduler samples the metadata database on its
-own loop and exports a value for the same series, so ``pool.open_slots`` and its siblings keep
-whichever export arrived last and appear to flap between replicas' samples.
+OpenTelemetry identifies a source by two resource attributes, and they answer different questions:
 
-Give each replica a unique ``service.instance.id`` so its samples form their own series:
+* ``service.name`` — *what* is reporting. Set it per component, so scheduler metrics are
+  distinguishable from triggerer or Dag processor metrics.
+* ``service.instance.id`` — *which instance* of that component is reporting. Set it per process,
+  so replicas of the same component do not collide.
+
+Airflow takes ``service.name`` from ``OTEL_SERVICE_NAME``, falling back to the ``otel_service``
+option and then to ``airflow``. Any other resource attribute, including ``service.instance.id``,
+comes from ``OTEL_RESOURCE_ATTRIBUTES``, which Airflow merges into the OpenTelemetry resource.
 
 .. code-block:: bash
 
-    # on each scheduler, triggerer or Dag processor
+    # on every instance of a component that runs more than one, such as scheduler or triggerer
+    export OTEL_SERVICE_NAME="airflow-scheduler"
     export OTEL_RESOURCE_ATTRIBUTES="service.instance.id=$(hostname)"
 
-Airflow merges ``OTEL_RESOURCE_ATTRIBUTES`` into the OpenTelemetry resource, so nothing else needs
-configuring. Replicas can then be aggregated at query time instead of overwriting one another —
+Without a distinct ``service.instance.id``, every replica of a component publishes to the same
+series and the backend keeps whichever export arrived last. Gauges show this most clearly: each
+scheduler samples the metadata database on its own loop, so ``pool.open_slots`` and its siblings
+appear to flap between replicas' samples.
+
+With both set, each instance forms its own series and replicas can be aggregated at query time —
 for example, the lowest number of open slots any scheduler observed:
 
 .. code-block:: text
 
     min by (pool_name) (airflow_pool_open_slots)
 
-Backends implementing the OpenTelemetry `Prometheus compatibility
-<https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/>`_ spec expose
-``service.instance.id`` as the ``instance`` label.
-
-.. note::
-
-    This applies to OpenTelemetry only. The StatsD protocol has no resource concept, so metrics
-    from replicated components cannot be distinguished this way.
+How the attributes surface depends on the backend. Those implementing the OpenTelemetry
+`Prometheus compatibility <https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/>`_
+spec expose them as the ``job`` and ``instance`` labels.
 
 
 Enable Https
