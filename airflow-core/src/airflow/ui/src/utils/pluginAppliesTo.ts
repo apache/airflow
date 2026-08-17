@@ -24,7 +24,7 @@ import type {
   TaskResponse,
 } from "openapi/requests/types.gen";
 
-type PluginView = ExternalViewResponse | ReactAppResponse;
+export type PluginView = ExternalViewResponse | ReactAppResponse;
 
 /**
  * The records the current route resolved to, used to evaluate `applies_to`.
@@ -43,6 +43,12 @@ export type AppliesToContext = {
 const isNonEmpty = (value: Array<string> | null | undefined): value is Array<string> =>
   value !== undefined && value !== null && value.length > 0;
 
+const knownNames = (...values: Array<string | null | undefined>): Array<string> =>
+  values.filter((value): value is string => value !== undefined && value !== null && value !== "");
+
+const matchesAnyName = (criteria: Array<string>, names: Array<string>): boolean | undefined =>
+  names.length === 0 ? undefined : names.some((name) => criteria.includes(name));
+
 // A criterion resolves to `undefined` when the current context cannot judge it, which
 // is distinct from `false` (context available, nothing matched).
 const matchesDagTags = (criteria: Array<string>, { dag }: AppliesToContext): boolean | undefined =>
@@ -60,28 +66,23 @@ const matchesTaskIds = (
   return taskId === undefined || taskId === null ? undefined : criteria.includes(taskId);
 };
 
-// Accept either the operator class name or its display name (`custom_operator_name`),
-// since the latter is what the UI shows and so what plugin authors tend to reach for.
+// Matched separately, the way the task instance filters are: the class name comes from
+// `task_type` and the display name from `custom_operator_name`. A decorated task
+// (`@task.bash`) is reachable only by display name, since its class name is private.
 const matchesOperators = (
   criteria: Array<string>,
   { task, taskInstance }: AppliesToContext,
 ): boolean | undefined => {
-  const names: Array<string> = [];
+  const classRef = task?.class_ref as { class_name?: string } | null | undefined;
 
-  if (taskInstance !== undefined) {
-    names.push(taskInstance.operator ?? "", taskInstance.operator_name ?? "");
-  }
-
-  if (task !== undefined) {
-    const classRef = task.class_ref as { class_name?: string } | null | undefined;
-
-    names.push(classRef?.class_name ?? "", task.operator_name ?? "");
-  }
-
-  const known = names.filter((name) => name !== "");
-
-  return known.length === 0 ? undefined : known.some((name) => criteria.includes(name));
+  return matchesAnyName(criteria, knownNames(taskInstance?.operator, classRef?.class_name));
 };
+
+const matchesOperatorNames = (
+  criteria: Array<string>,
+  { task, taskInstance }: AppliesToContext,
+): boolean | undefined =>
+  matchesAnyName(criteria, knownNames(taskInstance?.operator_name, task?.operator_name));
 
 /**
  * Decide whether a plugin view should be shown for the current route.
@@ -100,13 +101,20 @@ export const matchesAppliesTo = (view: PluginView, context: AppliesToContext): b
     return true;
   }
 
-  const { dag_ids: dagIds, dag_tags: dagTags, operators, task_ids: taskIds } = appliesTo;
+  const {
+    dag_ids: dagIds,
+    dag_tags: dagTags,
+    operator_names: operatorNames,
+    operators,
+    task_ids: taskIds,
+  } = appliesTo;
 
   const verdicts = [
     isNonEmpty(dagTags) ? matchesDagTags(dagTags, context) : undefined,
     isNonEmpty(dagIds) ? matchesDagIds(dagIds, context) : undefined,
     isNonEmpty(taskIds) ? matchesTaskIds(taskIds, context) : undefined,
     isNonEmpty(operators) ? matchesOperators(operators, context) : undefined,
+    isNonEmpty(operatorNames) ? matchesOperatorNames(operatorNames, context) : undefined,
   ].filter((verdict) => verdict !== undefined);
 
   // No criterion was evaluable (either none configured, or none judgeable here).
@@ -118,23 +126,21 @@ export const matchesAppliesTo = (view: PluginView, context: AppliesToContext): b
 };
 
 /**
+ * Whether a view configures any scoping criterion at all.
+ *
+ * Callers use this to skip fetching the context records entirely when no view needs them.
+ */
+export const hasAppliesToCriteria = (view: PluginView): boolean => {
+  const { applies_to: appliesTo } = view;
+
+  return appliesTo !== undefined && appliesTo !== null && Object.values(appliesTo).some(isNonEmpty);
+};
+
+/**
  * Whether a view should be withheld while the records its criteria need are in flight.
  *
  * Without this, a scoped view would render on first paint and disappear once the
  * queries resolve. Unscoped views never wait.
  */
-export const isAppliesToPending = (view: PluginView, context: AppliesToContext): boolean => {
-  const { applies_to: appliesTo } = view;
-
-  if (appliesTo === undefined || appliesTo === null) {
-    return false;
-  }
-
-  const hasCriteria =
-    isNonEmpty(appliesTo.dag_tags) ||
-    isNonEmpty(appliesTo.dag_ids) ||
-    isNonEmpty(appliesTo.task_ids) ||
-    isNonEmpty(appliesTo.operators);
-
-  return hasCriteria && context.isLoading;
-};
+export const isAppliesToPending = (view: PluginView, context: AppliesToContext): boolean =>
+  hasAppliesToCriteria(view) && context.isLoading;

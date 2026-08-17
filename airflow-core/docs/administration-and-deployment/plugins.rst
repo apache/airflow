@@ -327,11 +327,17 @@ relevant instead of appearing on every Dag:
         "dag_tags": ["ml"],  # Dag carries any of these tags
         "dag_ids": ["train_pipeline"],  # exact dag_id
         "task_ids": ["train_model"],  # exact task_id
-        "operators": ["KubernetesPodOperator"],  # the task's operator
+        "operators": ["KubernetesPodOperator"],  # operator class name
+        "operator_names": ["@task.bash"],  # operator display name
     }
 
-All four keys are optional. ``operators`` matches either the operator class name or its
-display name (``custom_operator_name``).
+All keys are optional. ``operators`` and ``operator_names`` are matched separately, the same
+way the task instance filters treat them: ``operators`` is the operator class name, while
+``operator_names`` is the display name shown in the UI (an operator's
+``custom_operator_name``). For a plain operator the two are identical, so either key works.
+They differ for decorator-based tasks: a ``@task.bash`` task has the display name
+``@task.bash`` but the private class name ``_BashDecoratedOperator``, so use
+``operator_names`` to target it.
 
 Criteria combine like Kubernetes label selectors — **OR within a key, AND across keys**. A
 Dag matching any listed tag satisfies ``dag_tags``, and a view configured with both
@@ -347,7 +353,7 @@ task-level destinations. Which criteria each destination can evaluate:
 
    * - Destination
      - ``dag_tags`` / ``dag_ids``
-     - ``task_ids`` / ``operators``
+     - ``task_ids`` / ``operators`` / ``operator_names``
    * - ``dag``, ``dag_run``, ``dag_overview``
      - evaluated
      - skipped
@@ -359,7 +365,14 @@ task-level destinations. Which criteria each destination can evaluate:
      - skipped
 
 If none of the configured criteria can be evaluated on a given page, the view is shown. On
-task group pages ``task_ids`` and ``operators`` are skipped, since a group is not a task.
+task group pages the task-level criteria are skipped, since a group is not a task.
+
+A malformed ``applies_to`` — one that is not a dictionary, names an unknown criterion, or
+gives a criterion something other than a list of strings — is reported as a warning when
+plugins are loaded, and ignored, so the view still loads unscoped. Configuring a criterion
+the ``destination`` cannot evaluate (for example ``task_ids`` on a ``dag`` view) is also
+warned about, since it has no effect there. Check the API server log for these warnings if a
+view is not scoped the way you expect.
 
 .. note::
     ``applies_to`` is a display convenience, not an authorization boundary. It controls

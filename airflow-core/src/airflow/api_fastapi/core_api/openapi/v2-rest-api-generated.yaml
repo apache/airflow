@@ -14977,7 +14977,14 @@ components:
             type: array
           - type: 'null'
           title: Operators
-      additionalProperties: true
+        operator_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Operator Names
+      additionalProperties: false
       type: object
       title: PluginAppliesToResponse
       description: Serializer for the optional Dag/task scoping criteria of a UI plugin.

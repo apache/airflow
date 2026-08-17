@@ -101,7 +101,7 @@ class TestGetPlugins:
                 "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
                 "icon_dark_mode": None,
                 "url_route": "test_iframe_plugin",
-                "destination": "nav",
+                "destination": "dag",
                 "category": "browse",
                 "nav_top_level": False,
                 "applies_to": {
@@ -109,6 +109,7 @@ class TestGetPlugins:
                     "dag_ids": ["example_dag"],
                     "task_ids": None,
                     "operators": None,
+                    "operator_names": None,
                 },
             },
         ]
@@ -170,14 +171,31 @@ class TestGetPlugins:
         view = ExternalViewResponse(
             name="Scoped",
             href="https://example.com/",
-            applies_to={"dag_tags": ["ml"], "operators": ["KubernetesPodOperator"]},
+            applies_to={
+                "dag_tags": ["ml"],
+                "operators": ["KubernetesPodOperator"],
+                "operator_names": ["@task.bash"],
+            },
         )
 
         assert view.applies_to is not None
         assert view.applies_to.dag_tags == ["ml"]
         assert view.applies_to.operators == ["KubernetesPodOperator"]
+        assert view.applies_to.operator_names == ["@task.bash"]
         assert view.applies_to.dag_ids is None
         assert view.applies_to.task_ids is None
+
+    def test_applies_to_rejects_unknown_criteria(self):
+        from pydantic import ValidationError
+
+        from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
+
+        with pytest.raises(ValidationError):
+            ExternalViewResponse(
+                name="Scoped",
+                href="https://example.com/",
+                applies_to={"dag_tag": ["ml"]},
+            )
 
     def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
         caplog.set_level("WARNING", "airflow.api_fastapi.core_api.routes.public.plugins")

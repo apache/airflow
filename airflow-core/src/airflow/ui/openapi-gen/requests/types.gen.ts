@@ -1548,7 +1548,7 @@ export type PluginAppliesToResponse = {
     dag_ids?: Array<(string)> | null;
     task_ids?: Array<(string)> | null;
     operators?: Array<(string)> | null;
-    [key: string]: unknown;
+    operator_names?: Array<(string)> | null;
 };
 
 /**

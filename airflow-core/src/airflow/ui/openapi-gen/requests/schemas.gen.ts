@@ -5958,9 +5958,23 @@ export const $PluginAppliesToResponse = {
                 }
             ],
             title: 'Operators'
+        },
+        operator_names: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operator Names'
         }
     },
-    additionalProperties: true,
+    additionalProperties: false,
     type: 'object',
     title: 'PluginAppliesToResponse',
     description: 'Serializer for the optional Dag/task scoping criteria of a UI plugin.'

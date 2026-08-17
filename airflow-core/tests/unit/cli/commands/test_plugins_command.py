@@ -101,7 +101,7 @@ class TestPluginsCommand:
                 ],
                 "external_views": [
                     {
-                        "destination": "nav",
+                        "destination": "dag",
                         "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
                         "name": "Test IFrame Airflow Docs",
                         "href": "https://airflow.apache.org/",

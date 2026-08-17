@@ -75,12 +75,13 @@ BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance
 class PluginAppliesToResponse(BaseModel):
     """Serializer for the optional Dag/task scoping criteria of a UI plugin."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     dag_tags: list[str] | None = None
     dag_ids: list[str] | None = None
     task_ids: list[str] | None = None
     operators: list[str] | None = None
+    operator_names: list[str] | None = None
 
 
 class BaseUIResponse(BaseModel):

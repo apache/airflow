@@ -26,7 +26,12 @@ import type {
   TaskResponse,
 } from "openapi/requests/types.gen";
 
-import { type AppliesToContext, isAppliesToPending, matchesAppliesTo } from "./pluginAppliesTo";
+import {
+  type AppliesToContext,
+  hasAppliesToCriteria,
+  isAppliesToPending,
+  matchesAppliesTo,
+} from "./pluginAppliesTo";
 
 // These fixtures carry only the fields the matcher reads, so they are cast through
 // `unknown` rather than spelling out every field of the full response types.
@@ -133,15 +138,39 @@ describe("matchesAppliesTo", () => {
     expect(matchesAppliesTo(makeView({ operators: ["PythonOperator"] }), context)).toBe(false);
   });
 
-  it("matches operators by display name as well as class name", () => {
+  it.each([
+    [
+      "task",
+      { dag, isLoading: false, task: makeTask("submit", "SparkSubmitOperator", "Spark Submit") },
+    ],
+    [
+      "task instance",
+      {
+        dag,
+        isLoading: false,
+        taskInstance: makeTaskInstance("submit", "SparkSubmitOperator", "Spark Submit"),
+      },
+    ],
+  ])(
+    "keeps class name and display name on separate keys for the %s in scope",
+    (_label, context: AppliesToContext) => {
+      expect(matchesAppliesTo(makeView({ operators: ["SparkSubmitOperator"] }), context)).toBe(true);
+      expect(matchesAppliesTo(makeView({ operator_names: ["Spark Submit"] }), context)).toBe(true);
+      // Each key sees only its own field, so a display name given to `operators` does not match.
+      expect(matchesAppliesTo(makeView({ operators: ["Spark Submit"] }), context)).toBe(false);
+      expect(matchesAppliesTo(makeView({ operator_names: ["SparkSubmitOperator"] }), context)).toBe(false);
+    },
+  );
+
+  it("targets a decorated task by its display name, which is the only name it exposes", () => {
     const context: AppliesToContext = {
       dag,
       isLoading: false,
-      taskInstance: makeTaskInstance("submit", "SparkSubmitOperator", "Spark Submit"),
+      taskInstance: makeTaskInstance("run_script", "_BashDecoratedOperator", "@task.bash"),
     };
 
-    expect(matchesAppliesTo(makeView({ operators: ["Spark Submit"] }), context)).toBe(true);
-    expect(matchesAppliesTo(makeView({ operators: ["SparkSubmitOperator"] }), context)).toBe(true);
+    expect(matchesAppliesTo(makeView({ operator_names: ["@task.bash"] }), context)).toBe(true);
+    expect(matchesAppliesTo(makeView({ operators: ["BashOperator"] }), context)).toBe(false);
   });
 
   it("combines Dag- and task-level criteria on a task page", () => {
@@ -166,5 +195,20 @@ describe("isAppliesToPending", () => {
 
   it("releases a scoped view once its context has resolved", () => {
     expect(isAppliesToPending(makeView({ dag_tags: ["ml"] }), dagContext)).toBe(false);
+  });
+});
+
+describe("hasAppliesToCriteria", () => {
+  it.each([
+    ["no applies_to", undefined, false],
+    ["an empty applies_to", {}, false],
+    ["only empty criteria lists", { dag_ids: [], operator_names: [] }, false],
+    ["dag_tags", { dag_tags: ["ml"] }, true],
+    ["dag_ids", { dag_ids: ["etl_sales"] }, true],
+    ["task_ids", { task_ids: ["train_model"] }, true],
+    ["operators", { operators: ["KubernetesPodOperator"] }, true],
+    ["operator_names", { operator_names: ["@task.bash"] }, true],
+  ])("reports %s as %s", (_label, appliesTo, expected) => {
+    expect(hasAppliesToCriteria(makeView(appliesTo))).toBe(expected);
   });
 });

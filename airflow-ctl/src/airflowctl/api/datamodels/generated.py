@@ -837,12 +837,13 @@ class PluginAppliesToResponse(BaseModel):
     """
 
     model_config = ConfigDict(
-        extra="allow",
+        extra="forbid",
     )
     dag_tags: Annotated[list[str] | None, Field(title="Dag Tags")] = None
     dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
     task_ids: Annotated[list[str] | None, Field(title="Task Ids")] = None
     operators: Annotated[list[str] | None, Field(title="Operators")] = None
+    operator_names: Annotated[list[str] | None, Field(title="Operator Names")] = None
 
 
 class PluginImportErrorResponse(BaseModel):
