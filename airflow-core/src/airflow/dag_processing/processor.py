@@ -340,8 +340,10 @@ def _execute_callbacks(
                 "run_id": request.ti.run_id,
                 "ti_id": str(request.ti.id),
             }
-        else:
+        elif isinstance(request, DagCallbackRequest):
             log_extra = {"dag_id": request.dag_id, "run_id": request.run_id}
+        else:
+            log_extra = {"dag_id": request.dag_id}
         # context_from_server can carry user-supplied run conf, and the masker cannot
         # redact inside an already-serialized string, so keep it out of log payloads.
         request_json = request.to_json(exclude={"context_from_server"})
