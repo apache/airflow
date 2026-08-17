@@ -218,6 +218,57 @@
   },
   "selectLanguage": "Seleccionar idioma",
   "selected": "Seleccionat",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Saltar les tasques que s'estan executant actualment en netejar instàncies de tasca.",
+        "label": "Evitar netejar tasques en execució"
+      },
+      "runSelection": {
+        "helper": "Opcions seleccionades per defecte en netejar una execució de Dag.",
+        "label": "Selecció de neteja d'execució per defecte"
+      },
+      "taskSelection": {
+        "helper": "Opcions seleccionades per defecte en netejar instàncies de tasca.",
+        "label": "Selecció de neteja de tasca per defecte"
+      },
+      "title": "Neteja"
+    },
+    "description": "Aquestes preferències es desen només en aquest navegador i s'apliquen a tota l'aplicació.",
+    "general": {
+      "landingPage": {
+        "helper": "Pàgina que es mostra quan obriu Airflow.",
+        "label": "Pàgina d'inici",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "General"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Direcció de disposició per als gràfics de Dag i Asset que no heu configurat individualment.",
+        "label": "Direcció del gràfic per defecte"
+      },
+      "title": "Gràfic"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opcions seleccionades per defecte en marcar l'estat d'una instància de tasca.",
+        "label": "Selecció de marcatge per defecte"
+      },
+      "title": "Marcatge"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Pestanya que es mostra primer quan obriu una instància de tasca. Els enllaços a una pestanya específica encara obren aquesta pestanya.",
+        "label": "Pestanya d'instància de tasca per defecte"
+      },
+      "title": "Instància de tasca"
+    },
+    "title": "Configuració"
+  },
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
   "source": {

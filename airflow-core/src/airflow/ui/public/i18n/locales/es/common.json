@@ -233,6 +233,57 @@
   },
   "selectLanguage": "Seleccionar Idioma",
   "selected": "Seleccionado",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Omitir las tareas que se están ejecutando actualmente al limpiar instancias de tarea.",
+        "label": "Evitar limpiar tareas en ejecución"
+      },
+      "runSelection": {
+        "helper": "Opciones seleccionadas por defecto al limpiar una ejecución del Dag.",
+        "label": "Selección de limpieza de ejecución por defecto"
+      },
+      "taskSelection": {
+        "helper": "Opciones seleccionadas por defecto al limpiar instancias de tarea.",
+        "label": "Selección de limpieza de tarea por defecto"
+      },
+      "title": "Limpieza"
+    },
+    "description": "Estas preferencias se guardan solo en este navegador y se aplican en toda la aplicación.",
+    "general": {
+      "landingPage": {
+        "helper": "Página que se muestra al abrir Airflow.",
+        "label": "Página de inicio",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "General"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Dirección del diseño para los gráficos de Dag y de Asset que no hayas configurado individualmente.",
+        "label": "Dirección del gráfico por defecto"
+      },
+      "title": "Gráfico"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opciones seleccionadas por defecto al marcar el estado de una instancia de tarea.",
+        "label": "Selección de marcado por defecto"
+      },
+      "title": "Marcado"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Pestaña que se muestra primero al abrir una instancia de tarea. Los enlaces a una pestaña específica siguen abriendo esa pestaña.",
+        "label": "Pestaña de instancia de tarea por defecto"
+      },
+      "title": "Instancia de Tarea"
+    },
+    "title": "Configuración"
+  },
   "showDetailsPanel": "Mostrar Panel de Detalles",
   "signedInAs": "Sesión iniciada como",
   "source": {

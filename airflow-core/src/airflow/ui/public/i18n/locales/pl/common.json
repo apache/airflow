@@ -261,6 +261,57 @@
   },
   "selectLanguage": "Wybierz język",
   "selected": "Wybrano",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Pomiń zadania, które są aktualnie wykonywane, podczas czyszczenia instancji zadań.",
+        "label": "Zapobiegaj czyszczeniu wykonywanych zadań"
+      },
+      "runSelection": {
+        "helper": "Opcje wybrane domyślnie podczas czyszczenia wykonania Daga.",
+        "label": "Domyślny wybór czyszczenia wykonania"
+      },
+      "taskSelection": {
+        "helper": "Opcje wybrane domyślnie podczas czyszczenia instancji zadań.",
+        "label": "Domyślny wybór czyszczenia zadań"
+      },
+      "title": "Czyszczenie"
+    },
+    "description": "Te preferencje są zapisywane wyłącznie w tej przeglądarce i obowiązują w całej aplikacji.",
+    "general": {
+      "landingPage": {
+        "helper": "Strona wyświetlana po otwarciu Airflow.",
+        "label": "Strona startowa",
+        "options": {
+          "dags": "Dagi",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "Ogólne"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Kierunek układu dla grafów Dagów i zasobów, których nie ustawiłeś indywidualnie.",
+        "label": "Domyślny kierunek grafu"
+      },
+      "title": "Graf"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opcje wybrane domyślnie podczas oznaczania stanu instancji zadania.",
+        "label": "Domyślny wybór oznaczania"
+      },
+      "title": "Oznaczanie"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Zakładka wyświetlana jako pierwsza po otwarciu instancji zadania. Linki do konkretnej zakładki nadal ją otwierają.",
+        "label": "Domyślna zakładka instancji zadania"
+      },
+      "title": "Instancja zadania"
+    },
+    "title": "Ustawienia"
+  },
   "shortcuts": {
     "categories": {
       "code": "Kod",

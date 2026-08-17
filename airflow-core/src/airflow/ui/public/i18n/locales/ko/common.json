@@ -246,6 +246,57 @@
   },
   "selectLanguage": "언어 선택",
   "selected": "선택됨",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "태스크 인스턴스를 지울 때 현재 실행 중인 태스크는 건너뜁니다.",
+        "label": "실행 중인 태스크 지우기 방지"
+      },
+      "runSelection": {
+        "helper": "Dag 실행을 지울 때 기본으로 선택되는 옵션입니다.",
+        "label": "기본 실행 지우기 선택"
+      },
+      "taskSelection": {
+        "helper": "태스크 인스턴스를 지울 때 기본으로 선택되는 옵션입니다.",
+        "label": "기본 태스크 지우기 선택"
+      },
+      "title": "지우기"
+    },
+    "description": "이 환경설정은 이 브라우저에만 저장되며 앱 전체에 적용됩니다.",
+    "general": {
+      "landingPage": {
+        "helper": "Airflow를 열 때 표시되는 페이지입니다.",
+        "label": "시작 페이지",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "일반"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "개별적으로 설정하지 않은 Dag 및 에셋 그래프의 레이아웃 방향입니다.",
+        "label": "기본 그래프 방향"
+      },
+      "title": "그래프"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "태스크 인스턴스의 상태를 표시할 때 기본으로 선택되는 옵션입니다.",
+        "label": "기본 표시 선택"
+      },
+      "title": "표시"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "태스크 인스턴스를 열 때 처음 표시되는 탭입니다. 특정 탭으로의 링크는 해당 탭을 그대로 엽니다.",
+        "label": "기본 태스크 인스턴스 탭"
+      },
+      "title": "태스크 인스턴스"
+    },
+    "title": "설정"
+  },
   "shortcuts": {
     "categories": {
       "code": "코드",
