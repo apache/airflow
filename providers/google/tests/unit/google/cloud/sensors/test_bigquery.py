@@ -43,39 +43,6 @@ TEST_PARTITION_ID = "20200101"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-@pytest.mark.parametrize(
-    ("sensor_class", "trigger_class", "extra_kwargs"),
-    [
-        (BigQueryTableExistenceSensor, BigQueryTableExistenceTrigger, {}),
-        (
-            BigQueryTablePartitionExistenceSensor,
-            BigQueryTablePartitionExistenceTrigger,
-            {"partition_id": TEST_PARTITION_ID},
-        ),
-    ],
-)
-@mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-def test_deferred_trigger_receives_impersonation_chain(mock_hook, sensor_class, trigger_class, extra_kwargs):
-    task = sensor_class(
-        task_id="check_existence",
-        project_id=TEST_PROJECT_ID,
-        dataset_id=TEST_DATASET_ID,
-        table_id=TEST_TABLE_ID,
-        gcp_conn_id=TEST_GCP_CONN_ID,
-        impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        deferrable=True,
-        **extra_kwargs,
-    )
-    mock_hook.return_value.table_exists.return_value = False
-    mock_hook.return_value.table_partition_exists.return_value = False
-
-    with pytest.raises(TaskDeferred) as exc:
-        task.execute(mock.MagicMock())
-
-    assert isinstance(exc.value.trigger, trigger_class)
-    assert exc.value.trigger.impersonation_chain == TEST_IMPERSONATION_CHAIN
-
-
 class TestBigqueryTableExistenceSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_passing_arguments_to_hook(self, mock_hook):
@@ -135,6 +102,24 @@ class TestBigqueryTableExistenceSensor:
         assert isinstance(exc.value.trigger, BigQueryTableExistenceTrigger), (
             "Trigger is not a BigQueryTableExistenceTrigger"
         )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_deferred_trigger_receives_impersonation_chain(self, mock_hook):
+        task = BigQueryTableExistenceSensor(
+            task_id="check_table_exists",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        mock_hook.return_value.table_exists.return_value = False
+
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(mock.MagicMock())
+
+        assert exc.value.trigger.impersonation_chain == TEST_IMPERSONATION_CHAIN
 
     def test_execute_deferred_failure(self):
         """Tests that an expected exception is raised in case of error event"""
@@ -238,6 +223,25 @@ class TestBigqueryTablePartitionExistenceSensor:
         assert isinstance(exc.value.trigger, BigQueryTablePartitionExistenceTrigger), (
             "Trigger is not a BigQueryTablePartitionExistenceTrigger"
         )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_deferred_trigger_receives_impersonation_chain(self, mock_hook):
+        task = BigQueryTablePartitionExistenceSensor(
+            task_id="test_task_id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            partition_id=TEST_PARTITION_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        mock_hook.return_value.table_partition_exists.return_value = False
+
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={})
+
+        assert exc.value.trigger.impersonation_chain == TEST_IMPERSONATION_CHAIN
 
     def test_execute_with_deferrable_mode_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
