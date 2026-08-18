@@ -38,6 +38,18 @@ Changelog
     metadata DB on every run, regardless of the operator's ``do_xcom_push``
     setting.
 
+.. note::
+    A deferred ``OpenAITriggerBatchOperator`` that times out now raises
+    ``OpenAIBatchTimeout``, matching the exception the non-deferrable path has always raised
+    for the same condition. Previously every non-success outcome of a deferred batch raised
+    the same ``OpenAIBatchJobException``, so a timeout and a genuine batch failure could not
+    be told apart or handled separately.
+
+    A cancelled batch now raises ``OpenAIBatchCancelled``, a subclass of
+    ``OpenAIBatchJobException``, so existing code that catches ``OpenAIBatchJobException``
+    keeps working unchanged while callers that want to distinguish cancellation can catch the
+    subclass specifically.
+
 1.8.2
 .....
 
