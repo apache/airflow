@@ -28,6 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
@@ -201,6 +202,20 @@ class _RunInfo(NamedTuple):
             session=session,
         )
         return cls(latest_run, active_run_counts.get(dag.dag_id, 0))
+
+
+def _resolve_parse_duration(
+    parse_duration: float | Mapping[str, float | None] | None, dag_id: str
+) -> float | None:
+    """
+    Pick the parse duration for one Dag.
+
+    Persisting several files in one call means the duration differs per Dag, so callers doing that
+    pass a mapping. A single file still passes one value that applies to every Dag it defines.
+    """
+    if isinstance(parse_duration, Mapping):
+        return parse_duration.get(dag_id)
+    return parse_duration
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -471,7 +486,7 @@ def update_dag_parsing_results_in_db(
     bundle_version: str | None,
     dags: Collection[LazyDeserializedDAG],
     import_errors: dict[tuple[str, str], str],
-    parse_duration: float | None,
+    parse_duration: float | Mapping[str, float | None] | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -612,7 +627,7 @@ class DagModelOperation(NamedTuple):
     def update_dags(
         self,
         orm_dags: dict[str, DagModel],
-        parse_duration: float | None,
+        parse_duration: float | Mapping[str, float | None] | None,
         *,
         session: Session,
     ) -> None:
@@ -626,7 +641,7 @@ class DagModelOperation(NamedTuple):
             dm.is_stale = False
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
-            dm.last_parse_duration = parse_duration
+            dm.last_parse_duration = _resolve_parse_duration(parse_duration, dag_id)
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:
