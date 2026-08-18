@@ -22,8 +22,11 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
-from airflow.providers.openai.exceptions import OpenAIBatchJobException
-from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_complete_event
+from airflow.providers.openai.hooks.openai import (
+    OpenAIHook,
+    build_batch_error,
+    validate_execute_complete_event,
+)
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
@@ -149,6 +152,13 @@ class OpenAITriggerBatchOperator(BaseOperator):
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
 
+    When ``deferrable`` is True and the batch does not reach a terminal state, ``execute_complete``
+    raises :class:`~airflow.providers.openai.exceptions.OpenAIBatchTimeout`, matching the exception
+    raised by the synchronous path for the same condition. A cancelled batch raises
+    :class:`~airflow.providers.openai.exceptions.OpenAIBatchCancelled` (a subclass of
+    :class:`~airflow.providers.openai.exceptions.OpenAIBatchJobException`), and any other failure
+    raises :class:`~airflow.providers.openai.exceptions.OpenAIBatchJobException`.
+
     .. seealso::
         For more information on how to use this operator, please take a look at the guide:
         :ref:`howto/operator:OpenAITriggerBatchOperator`
@@ -207,11 +217,14 @@ class OpenAITriggerBatchOperator(BaseOperator):
         Invoke this callback when the trigger fires; return immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        successful. The exception raised depends on the event's ``termination_reason``:
+        ``OpenAIBatchTimeout`` for a timeout, ``OpenAIBatchCancelled`` for a cancellation,
+        and ``OpenAIBatchJobException`` for any other failure (including events from a
+        trigger serialized before ``termination_reason`` existed).
         """
         event = validate_execute_complete_event(event)
         if event["status"] != "success":
-            raise OpenAIBatchJobException(event["message"])
+            raise build_batch_error(event["message"], event.get("termination_reason"))
 
         self.log.info("%s completed successfully.", self.task_id)
         return event["batch_id"]

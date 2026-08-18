@@ -23,7 +23,12 @@ from openai.types.batch import Batch
 from openai.types.responses import Response
 
 from airflow.providers.common.compat.sdk import Context, TaskDeferred
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchCancelled,
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+    OpenAITriggerEventError,
+)
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.operators.openai import (
     OpenAIEmbeddingOperator,
@@ -187,3 +192,37 @@ class TestOpenAITriggerBatchOperatorExecuteComplete:
     def test_invalid_event_raises_instead_of_succeeding(self, event):
         with pytest.raises(OpenAITriggerEventError):
             self._operator().execute_complete(Context(), event)
+
+    @pytest.mark.parametrize(
+        ("termination_reason", "expected_exc"),
+        [
+            pytest.param("timeout", OpenAIBatchTimeout, id="timeout"),
+            pytest.param("cancelled", OpenAIBatchCancelled, id="cancelled"),
+            pytest.param("failed", OpenAIBatchJobException, id="failed"),
+            pytest.param("expired", OpenAIBatchJobException, id="expired"),
+            pytest.param("unexpected_status", OpenAIBatchJobException, id="unexpected-status"),
+            pytest.param("polling_error", OpenAIBatchJobException, id="polling-error"),
+        ],
+    )
+    def test_execute_complete_raises_exception_matching_termination_reason(
+        self, termination_reason, expected_exc
+    ):
+        event = {
+            "status": "error",
+            "termination_reason": termination_reason,
+            "message": "boom",
+            "batch_id": BATCH_ID,
+        }
+        with pytest.raises(expected_exc, match="boom"):
+            self._operator().execute_complete(Context(), event)
+
+    @pytest.mark.parametrize("status", ["error", "cancelled"])
+    def test_execute_complete_missing_termination_reason_falls_back(self, status):
+        """A trigger serialized before ``termination_reason`` existed sends an event without
+        that key; ``execute_complete`` must fall back to ``OpenAIBatchJobException`` exactly,
+        not raise ``KeyError``.
+        """
+        event = {"status": status, "message": "boom", "batch_id": BATCH_ID}
+        with pytest.raises(OpenAIBatchJobException, match="boom") as exc_info:
+            self._operator().execute_complete(Context(), event)
+        assert type(exc_info.value) is OpenAIBatchJobException
