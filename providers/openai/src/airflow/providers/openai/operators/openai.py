@@ -148,7 +148,16 @@ class OpenAITriggerBatchOperator(BaseOperator):
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
-        Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
+        Used in both modes: in the synchronous path it bounds ``wait_for_batch``; in the
+        deferrable path it bounds the trigger's poll loop. When the deferrable path times out,
+        the operator requests cancellation of the batch using the batch id carried by the
+        trigger event, mirroring the synchronous path. Cancellation on OpenAI's side is
+        asynchronous — the batch reports ``cancelling`` for up to 10 minutes before it settles
+        as ``cancelled`` — so this only *requests* cancellation, it does not wait for it. If
+        ``execution_timeout`` is set shorter than ``timeout``, the scheduler's deferral timeout
+        fires first: the task is failed with ``TaskDeferralTimeout`` before the trigger ever
+        times out, ``execute_complete`` is never called, and this cancellation path does not
+        run. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
 
@@ -221,13 +230,53 @@ class OpenAITriggerBatchOperator(BaseOperator):
         ``OpenAIBatchTimeout`` for a timeout, ``OpenAIBatchCancelled`` for a cancellation,
         and ``OpenAIBatchJobException`` for any other failure (including events from a
         trigger serialized before ``termination_reason`` existed).
+
+        On a timeout, cancellation of the batch is requested before the timeout is raised
+        (see :meth:`_cancel_batch_quietly`). No other termination reason triggers
+        cancellation: a ``polling_error`` may be a transient, Airflow-side failure rather than
+        a real batch problem, and cancellation is irreversible, so it is left alone to run to
+        its own 24-hour completion window instead.
         """
         event = validate_execute_complete_event(event)
         if event["status"] != "success":
+            if event.get("termination_reason") == "timeout":
+                batch_id = event.get("batch_id")
+                if batch_id:
+                    self.log.warning(
+                        "%s timed out waiting for batch %s; requesting cancellation.",
+                        self.task_id,
+                        batch_id,
+                    )
+                    self._cancel_batch_quietly(batch_id)
+                else:
+                    self.log.warning(
+                        "%s timed out but the trigger event carried no batch_id; "
+                        "skipping cancellation request.",
+                        self.task_id,
+                    )
             raise build_batch_error(event["message"], event.get("termination_reason"))
 
         self.log.info("%s completed successfully.", self.task_id)
         return event["batch_id"]
+
+    def _cancel_batch_quietly(self, batch_id: str) -> None:
+        """
+        Best-effort request to cancel a batch; never raises.
+
+        Called from ``execute_complete`` after a deferred timeout, using the batch id carried
+        by the trigger event rather than ``self.batch_id`` — this method runs on a resumed task
+        instance, a fresh operator object on which ``execute``'s assignment to ``self.batch_id``
+        never happened, so ``self.batch_id`` is ``None`` here.
+
+        Cancellation on OpenAI's side is asynchronous: the batch reports ``cancelling`` for up
+        to 10 minutes before it settles as ``cancelled``, so this only requests cancellation. A
+        failure to cancel is logged, not raised, so it never masks the timeout that is the
+        task's real failure reason.
+        """
+        try:
+            self.hook.cancel_batch(batch_id)
+        except Exception as e:
+            self.log.warning("Failed to request cancellation of batch %s: %s", batch_id, e)
 
     def on_kill(self) -> None:
         """Cancel the batch if task is cancelled."""

@@ -32,6 +32,13 @@ Changelog
     keeps working unchanged while callers that want to distinguish cancellation can catch the
     subclass specifically.
 
+.. note::
+    A deferred ``OpenAITriggerBatchOperator`` that times out now requests cancellation of the
+    batch, matching the non-deferrable path. Previously a deferred timeout only failed the
+    task and left the batch running (and billing) on OpenAI's side. Cancellation on OpenAI's
+    side is asynchronous, so the batch reports ``cancelling`` for a while before it settles as
+    ``cancelled``.
+
 1.8.2
 .....
 
