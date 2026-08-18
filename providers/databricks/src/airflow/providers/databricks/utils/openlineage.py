@@ -356,6 +356,65 @@ def _is_openlineage_provider_accessible() -> bool:
     return True
 
 
+def _build_openlineage_parent_run_context(task_instance) -> dict[str, Any]:
+    """Build the standardized OpenLineage parent-run context for a task instance."""
+    parent_run_facet = _get_parent_run_facet(task_instance)
+    return {
+        "parent": {
+            "run": {"runId": parent_run_facet.run.runId},
+            "job": {
+                "namespace": parent_run_facet.job.namespace,
+                "name": parent_run_facet.job.name,
+                "facets": {
+                    "jobType": {
+                        "processingType": "BATCH",
+                        "integration": "AIRFLOW",
+                        "jobType": "TASK",
+                    }
+                },
+            },
+            "root": {
+                "run": {"runId": parent_run_facet.root.run.runId},
+                "job": {
+                    "namespace": parent_run_facet.root.job.namespace,
+                    "name": parent_run_facet.root.job.name,
+                    "facets": {
+                        "jobType": {
+                            "processingType": "BATCH",
+                            "integration": "AIRFLOW",
+                            "jobType": "DAG",
+                        }
+                    },
+                },
+            },
+        }
+    }
+
+
+def inject_openlineage_context_into_databricks_job_parameters(job_parameters: dict, context: Context) -> dict:
+    """Inject the standardized OpenLineage context into Databricks job parameters."""
+    if any(key in job_parameters for key in ("OPENLINEAGE_CONTEXT", "spark.openlineage.context")):
+        log.info(
+            "OpenLineage context is already present in Databricks job parameters. Skipping the injection."
+        )
+        return job_parameters
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage context injection into "
+            "Databricks job parameters. No action will be performed."
+        )
+        return job_parameters
+
+    log.debug("Injecting OpenLineage context into Databricks job parameters.")
+    return {
+        **job_parameters,
+        "OPENLINEAGE_CONTEXT": json.dumps(
+            _build_openlineage_parent_run_context(context["ti"]), separators=(",", ":")
+        ),
+    }
+
+
 def _extract_new_clusters_from_databricks_job(job: dict) -> list[dict]:
     """
     Collect every ``new_cluster`` definition that can carry Spark properties in a Databricks job.

@@ -1202,6 +1202,10 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
+    :param openlineage_inject_parent_job_info: If True, injects the standardized OpenLineage parent-run
+        context into the ``OPENLINEAGE_CONTEXT`` job parameter so Databricks tasks can link their
+        OpenLineage events back to the Airflow task. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
     :param repair_run: Repair the databricks run in case of failure.
     :param databricks_repair_reason_new_settings: A dict of reason and new_settings JSON object for which
             to repair the run. `None` by default. `None` means to repair at all cases with existing job
@@ -1273,6 +1277,9 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
         repair_run: bool = False,
         databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
@@ -1304,6 +1311,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.repair_run = repair_run
         self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
         self.cancel_previous_runs = cancel_previous_runs
@@ -1350,13 +1358,13 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
 
     def execute(self, context: Context):
         if self.deferrable:
-            json = self._prepare_run_now_json()
+            json = self._prepare_run_now_json(context)
             self.run_id = self._hook.run_now(json)
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
         else:
             return self.execute_resumable(context)
 
-    def _build_run_now_payload(self) -> dict[str, Any]:
+    def _build_run_now_payload(self, context: Context) -> dict[str, Any]:
         # Utility to build the run payload: merge, validate, resolve job_name -> job_id, inject params.
         # Kept separate from cancel_previous_runs so the reconnect path can rebuild the payload
         # (for repair_run) without re-cancelling the run it is reconnecting to.
@@ -1375,6 +1383,9 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             json["job_id"] = job_id
             del json["job_name"]
 
+        return self._inject_run_now_job_parameters(json, context)
+
+    def _inject_run_now_job_parameters(self, json: dict[str, Any], context: Context) -> dict[str, Any]:
         if (
             self.forward_dag_params
             and not json.get("job_parameters")
@@ -1383,10 +1394,40 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         ):
             json["job_parameters"] = dict(self.params)
 
+        if self.openlineage_inject_parent_job_info:
+            if any(k in json for k in _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS):
+                self.log.info(
+                    "Skipping OpenLineage parent job information injection because the Databricks "
+                    "run uses a legacy parameter slot that cannot be combined with job_parameters."
+                )
+            else:
+                json = self._inject_openlineage_context_into_job_parameters(json, context)
+
         return json
 
-    def _prepare_run_now_json(self) -> dict[str, Any]:
-        json = self._build_run_now_payload()
+    def _inject_openlineage_context_into_job_parameters(
+        self, json: dict[str, Any], context: Context
+    ) -> dict[str, Any]:
+        try:
+            from airflow.providers.databricks.utils.openlineage import (
+                inject_openlineage_context_into_databricks_job_parameters,
+            )
+
+            json = dict(json)
+            json["job_parameters"] = inject_openlineage_context_into_databricks_job_parameters(
+                job_parameters=json.get("job_parameters", {}), context=context
+            )
+            return json
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage context. "
+                "Databricks job parameters have not been modified by OpenLineage.",
+                exc_info=e,
+            )
+            return json
+
+    def _prepare_run_now_json(self, context: Context) -> dict[str, Any]:
+        json = self._build_run_now_payload(context)
         if self.cancel_previous_runs:
             if (job_id := json.get("job_id")) is None:
                 raise ValueError(
@@ -1398,7 +1439,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         return json
 
     def submit_job(self, context: Context) -> int:
-        json = self._prepare_run_now_json()
+        json = self._prepare_run_now_json(context)
         # Set run_id the instant the run exists so on_kill can cancel it even if the worker dies
         # before polling begins.
         self.run_id = self._hook.run_now(json)
@@ -1441,7 +1482,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         # in the poll helper). _build_run_now_payload resolves job_name -> job_id but omits
         # cancel_previous_runs, which would otherwise cancel the run we are reconnecting to.
         if not getattr(self, "_merged_json", None):
-            self._merged_json = self._build_run_now_payload()
+            self._merged_json = self._build_run_now_payload(context)
         # The run already exists here (fresh submit logged in submit_job, or reconnect logged by the
         # mixin), so the poll helper must not announce a submission.
         _handle_databricks_operator_execution(self, self._hook, self.log, context, announce_submission=False)
@@ -1480,7 +1521,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
                 # of reading a mutated self.json: on a deferral resume this is a fresh process, so any
                 # value written to self.json in execute() is gone. _get_merged_json() also recovers a
                 # job_parameters supplied via the named ``job_parameters=`` argument, not only inside json=.
-                merged = self._get_merged_json()
+                merged = self._inject_run_now_job_parameters(self._get_merged_json(), context)
                 if "job_parameters" in merged:
                     repair_json["job_parameters"] = merged["job_parameters"]
                 self._hook.repair_run(repair_json)

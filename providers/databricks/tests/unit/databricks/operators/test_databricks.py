@@ -1693,6 +1693,108 @@ class TestDatabricksSubmitRunOperatorOpenLineageInjection:
         assert submitted["new_cluster"]["spark_conf"]["spark.openlineage.parentJobNamespace"] == "ns"
 
 
+class TestDatabricksRunNowOperatorOpenLineageInjection:
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_inject_openlineage_context_into_job_parameters(self, db_mock_class, mock_inject):
+        mock_inject.side_effect = lambda job_parameters, context: {
+            **job_parameters,
+            "OPENLINEAGE_CONTEXT": '{"parent":{"job":{"facets":{"jobType":{"jobType":"TASK"}}}}}',
+        }
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        context = {"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})}
+
+        op.execute(context)
+
+        mock_inject.assert_called_once_with(job_parameters={}, context=context)
+        submitted = db_mock.run_now.call_args.args[0]
+        assert submitted["job_parameters"] == {
+            "OPENLINEAGE_CONTEXT": '{"parent":{"job":{"facets":{"jobType":{"jobType":"TASK"}}}}}'
+        }
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+        side_effect=RuntimeError("context generation failed"),
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_injection_failure_leaves_job_parameters_unchanged(self, db_mock_class, mock_inject):
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+
+        op.execute({"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})})
+
+        mock_inject.assert_called_once()
+        submitted = db_mock.run_now.call_args.args[0]
+        assert "job_parameters" not in submitted
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_does_not_inject_parent_job_info_when_disabled(self, db_mock_class, mock_inject):
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=False,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+
+        op.execute({"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})})
+
+        mock_inject.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_skips_injection_with_legacy_parameter_slots(self, db_mock_class, mock_inject):
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            notebook_params={"input": "value"},
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+
+        op.execute({"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})})
+
+        mock_inject.assert_not_called()
+        submitted = db_mock.run_now.call_args.args[0]
+        assert submitted["notebook_params"] == {"input": "value"}
+        assert "job_parameters" not in submitted
+
+
 @pytest.mark.skipif(
     not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
 )

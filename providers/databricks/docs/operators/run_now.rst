@@ -80,6 +80,33 @@ disable this parameter forwarding behavior.
   #   job_parameters={"env": "staging", "batch_size": "42"}
   # i.e. the same dict, passed straight through to the run-now request body.
 
+OpenLineage parent job information
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set ``openlineage_inject_parent_job_info=True`` to add the standardized OpenLineage context to the
+run's ``job_parameters`` under the ``OPENLINEAGE_CONTEXT`` key. The JSON value contains the Airflow
+task as the parent job, with ``jobType`` set to ``BATCH/AIRFLOW/TASK``, and the Airflow Dag as the
+root job, with ``jobType`` set to ``BATCH/AIRFLOW/DAG``. This follows the context format introduced
+in `OpenLineage #4682 <https://github.com/OpenLineage/OpenLineage/pull/4682>`_.
+
+``OPENLINEAGE_CONTEXT`` is a Databricks job parameter, not an operating-system environment variable.
+The Databricks task must expose the parameter to the downstream OpenLineage integration through its
+own configuration channel (for example, ``spark.openlineage.context`` for OpenLineage Spark or the
+``OPENLINEAGE_CONTEXT`` environment variable for dbt).
+
+The option defaults to the ``openlineage.spark_inject_parent_job_info`` configuration value. Existing
+OpenLineage context job parameters are preserved. Injection is skipped when a legacy parameter slot
+such as ``notebook_params`` or ``spark_submit_params`` is used because Databricks does not allow those
+slots to be combined with ``job_parameters``.
+
+.. code-block:: python
+
+  run_now = DatabricksRunNowOperator(
+      task_id="run_now",
+      job_id=123,
+      openlineage_inject_parent_job_info=True,
+  )
+
 
 Durable execution
 ^^^^^^^^^^^^^^^^^
