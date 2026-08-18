@@ -1579,15 +1579,16 @@ class TestDagRun:
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
     [
-        pytest.param(DagRunType.MANUAL, 1, id="manual"),
+        pytest.param(DagRunType.MANUAL, 3, id="manual"),
         pytest.param(DagRunType.BACKFILL_JOB, 3, id="backfill"),
+        pytest.param(DagRunType.SCHEDULED, 1, id="scheduled"),
     ],
 )
 @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
 def test_verify_integrity_task_start_and_end_date(
     mock_get_backend, dag_maker, session, run_type, expected_tis
 ):
-    """Test that tasks with specific dates are only created for backfill runs"""
+    """Test that tasks with specific dates are filtered out only for scheduled runs"""
     mock_stats = mock.MagicMock(spec=StatsLogger)
     mock_get_backend.return_value = mock_stats
 
@@ -1622,6 +1623,42 @@ def test_verify_integrity_task_start_and_end_date(
         count=expected_tis,
         tags={"dag_id": "test", "run_type": run_type, "task_type": "EmptyOperator"},
     )
+
+
+@pytest.mark.parametrize(
+    ("dag_kwargs", "logical_date"),
+    [
+        pytest.param(
+            {"start_date": DEFAULT_DATE + datetime.timedelta(days=365)},
+            DEFAULT_DATE,
+            id="logical-date-before-start-date",
+        ),
+        pytest.param(
+            {"start_date": DEFAULT_DATE, "end_date": DEFAULT_DATE},
+            DEFAULT_DATE + datetime.timedelta(days=365),
+            id="logical-date-after-end-date",
+        ),
+    ],
+)
+def test_manual_run_outside_task_date_window_runs_tasks(dag_maker, session, dag_kwargs, logical_date):
+    """A manual run whose logical date is outside the task date window must still run the tasks.
+
+    Otherwise no task instance is created at all, and the empty run is reported as a success
+    without anything having run.
+    """
+    with dag_maker("test_manual_outside_window", schedule="@daily", catchup=False, **dag_kwargs):
+        EmptyOperator(task_id="task1")
+        EmptyOperator(task_id="task2")
+
+    dag_run = dag_maker.create_dagrun(
+        run_type=DagRunType.MANUAL, logical_date=logical_date, run_after=logical_date
+    )
+
+    assert {ti.task_id for ti in dag_run.task_instances} == {"task1", "task2"}
+
+    dag_run.update_state(session=session)
+    session.flush()
+    assert dag_run.state == DagRunState.RUNNING
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
