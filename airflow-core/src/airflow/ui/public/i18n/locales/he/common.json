@@ -253,26 +253,6 @@
   },
   "selectLanguage": "בחר שפה",
   "selected": "נבחר",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "הדף המוצג בעת פתיחת Airflow.",
-        "label": "דף נחיתה",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "כללי"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "הכרטיסייה המוצגת ראשונה בעת פתיחת מופע משימה. קישורים לכרטיסייה מסוימת עדיין יפתחו את אותה כרטיסייה.",
-        "label": "כרטיסיית ברירת מחדל של מופע משימה"
-      },
-      "title": "מופע משימה"
-    }
-  },
   "shortcuts": {
     "categories": {
       "code": "קוד",

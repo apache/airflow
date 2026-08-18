@@ -218,26 +218,6 @@
   },
   "selectLanguage": "Seleccionar idioma",
   "selected": "Seleccionat",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Pàgina que es mostra quan obriu Airflow.",
-        "label": "Pàgina d'inici",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "General"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Pestanya que es mostra primer quan obriu una instància de tasca. Els enllaços a una pestanya específica encara obren aquesta pestanya.",
-        "label": "Pestanya d'instància de tasca per defecte"
-      },
-      "title": "Instància de tasca"
-    }
-  },
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
   "source": {

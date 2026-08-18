@@ -197,26 +197,6 @@
     "users": "Utenti"
   },
   "selectLanguage": "Seleziona la Lingua",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Pagina mostrata quando apri Airflow.",
-        "label": "Pagina iniziale",
-        "options": {
-          "dags": "Dag",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Generale"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Scheda mostrata per prima quando apri un'istanza di task. I link a una scheda specifica aprono comunque quella scheda.",
-        "label": "Scheda di default dell'istanza di task"
-      },
-      "title": "Istanza di Task"
-    }
-  },
   "showDetailsPanel": "Mostra il Pannello dei Dettagli",
   "source": {
     "hide": "Nascondi Sorgente",

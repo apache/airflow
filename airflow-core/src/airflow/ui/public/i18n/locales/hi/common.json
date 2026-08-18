@@ -243,26 +243,6 @@
   },
   "selectLanguage": "भाषा चुनें",
   "selected": "चयनित",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "जब आप Airflow खोलते हैं तो दिखाया जाने वाला पेज।",
-        "label": "लैंडिंग पेज",
-        "options": {
-          "dags": "डैग्स",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "सामान्य"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "जब आप कोई टास्क इंस्टेंस खोलते हैं तो सबसे पहले दिखाया जाने वाला टैब। किसी विशिष्ट टैब के लिंक अभी भी वही टैब खोलते हैं।",
-        "label": "डिफ़ॉल्ट टास्क इंस्टेंस टैब"
-      },
-      "title": "टास्क इंस्टेंस"
-    }
-  },
   "shortcuts": {
     "categories": {
       "code": "कोड",

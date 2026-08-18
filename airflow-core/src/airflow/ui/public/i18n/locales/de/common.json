@@ -219,26 +219,6 @@
   },
   "selectLanguage": "Sprache wählen",
   "selected": "Ausgewählt",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Seite, die beim Öffnen von Airflow angezeigt wird.",
-        "label": "Startseite",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Allgemein"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Zuerst angezeigter Tab, wenn Sie eine Task Instanz öffnen. Links zu einem bestimmten Tab öffnen weiterhin diesen Tab.",
-        "label": "Standard-Tab der Task Instanz"
-      },
-      "title": "Task Instanz"
-    }
-  },
   "showDetailsPanel": "Detailansicht einblenden",
   "signedInAs": "Angemeldet als",
   "source": {

@@ -191,26 +191,6 @@
     "users": "ユーザ"
   },
   "selectLanguage": "言語を選択",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Airflow を開いたときに表示されるページです。",
-        "label": "ランディングページ",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "全般"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "タスクインスタンスを開いたときに最初に表示されるタブです。特定のタブへのリンクはそのタブを開きます。",
-        "label": "デフォルトのタスクインスタンスタブ"
-      },
-      "title": "タスクインスタンス"
-    }
-  },
   "showDetailsPanel": "詳細パネル表示",
   "signedInAs": "サインインしているユーザ",
   "source": {

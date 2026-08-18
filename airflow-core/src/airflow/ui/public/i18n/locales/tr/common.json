@@ -217,26 +217,6 @@
   },
   "selectLanguage": "Dil Seçin",
   "selected": "Seçili",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Airflow'u açtığınızda gösterilen sayfa.",
-        "label": "Açılış sayfası",
-        "options": {
-          "dags": "Dag'ler",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Genel"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Bir görev örneğini açtığınızda ilk gösterilen sekme. Belirli bir sekmeye giden bağlantılar yine o sekmeyi açar.",
-        "label": "Varsayılan görev örneği sekmesi"
-      },
-      "title": "Görev Örneği"
-    }
-  },
   "showDetailsPanel": "Detay Panelini Göster",
   "signedInAs": "olarak giriş yapıldı",
   "source": {

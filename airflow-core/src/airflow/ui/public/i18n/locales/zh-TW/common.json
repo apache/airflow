@@ -261,17 +261,6 @@
       "title": "清除"
     },
     "description": "這些偏好設定僅會儲存在此瀏覽器中，並套用至整個應用程式。",
-    "general": {
-      "landingPage": {
-        "helper": "開啟 Airflow 時顯示的頁面。",
-        "label": "首頁",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "一般"
-    },
     "graph": {
       "defaultDirection": {
         "helper": "尚未個別設定的 Dag 與資源圖形版面配置方向。",
@@ -285,13 +274,6 @@
         "label": "預設標記選項"
       },
       "title": "標記"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "開啟任務實例時最先顯示的分頁。指向特定分頁的連結仍會開啟該分頁。",
-        "label": "預設任務實例分頁"
-      },
-      "title": "任務實例"
     },
     "title": "設定"
   },

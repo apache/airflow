@@ -261,26 +261,6 @@
   },
   "selectLanguage": "Wybierz język",
   "selected": "Wybrano",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Strona wyświetlana po otwarciu Airflow.",
-        "label": "Strona startowa",
-        "options": {
-          "dags": "Dagi",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Ogólne"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Zakładka wyświetlana jako pierwsza po otwarciu instancji zadania. Linki do konkretnej zakładki nadal ją otwierają.",
-        "label": "Domyślna zakładka instancji zadania"
-      },
-      "title": "Instancja zadania"
-    }
-  },
   "shortcuts": {
     "categories": {
       "code": "Kod",

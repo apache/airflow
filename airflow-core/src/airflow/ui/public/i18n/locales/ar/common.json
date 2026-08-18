@@ -277,26 +277,6 @@
   },
   "selectLanguage": "اختيار اللغة",
   "selected": "محدد",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "الصفحة التي تظهر عند فتح Airflow.",
-        "label": "صفحة البداية",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "عام"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "علامة التبويب التي تظهر أولاً عند فتح مثيل المهمة. الروابط إلى علامة تبويب محددة تفتح تلك العلامة كالمعتاد.",
-        "label": "علامة تبويب مثيل المهمة الافتراضية"
-      },
-      "title": "مثيل المهمة"
-    }
-  },
   "shortcuts": {
     "categories": {
       "code": "الكود",

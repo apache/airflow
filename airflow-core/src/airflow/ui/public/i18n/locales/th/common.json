@@ -178,26 +178,6 @@
     "users": "ผู้ใช้"
   },
   "selectLanguage": "เลือกภาษา",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "หน้าที่แสดงเมื่อคุณเปิด Airflow",
-        "label": "หน้าเริ่มต้น",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "ทั่วไป"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "แท็บที่แสดงเป็นอันดับแรกเมื่อคุณเปิด Task Instance ลิงก์ที่ชี้ไปยังแท็บใดแท็บหนึ่งจะยังคงเปิดแท็บนั้น",
-        "label": "แท็บ Task Instance เริ่มต้น"
-      },
-      "title": "Task Instance"
-    }
-  },
   "showDetailsPanel": "แสดงแผงรายละเอียด",
   "source": {
     "hide": "ซ่อนแหล่งที่มา",

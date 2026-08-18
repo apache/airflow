@@ -233,26 +233,6 @@
   },
   "selectLanguage": "Seleccionar Idioma",
   "selected": "Seleccionado",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Página que se muestra al abrir Airflow.",
-        "label": "Página de inicio",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "General"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Pestaña que se muestra primero al abrir una instancia de tarea. Los enlaces a una pestaña específica siguen abriendo esa pestaña.",
-        "label": "Pestaña de instancia de tarea por defecto"
-      },
-      "title": "Instancia de Tarea"
-    }
-  },
   "showDetailsPanel": "Mostrar Panel de Detalles",
   "signedInAs": "Sesión iniciada como",
   "source": {

@@ -253,26 +253,6 @@
   },
   "selectLanguage": "Choisir la langue",
   "selected": "Sélectionné",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Page affichée lorsque vous ouvrez Airflow.",
-        "label": "Page d'accueil",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Général"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Onglet affiché en premier lorsque vous ouvrez une instance de tâche. Les liens vers un onglet spécifique ouvrent toujours cet onglet.",
-        "label": "Onglet d'instance de tâche par défaut"
-      },
-      "title": "Instance de tâche"
-    }
-  },
   "shortcuts": {
     "categories": {
       "code": "Code",

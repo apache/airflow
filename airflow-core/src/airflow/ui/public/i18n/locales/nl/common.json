@@ -225,26 +225,6 @@
   },
   "selectLanguage": "Selecteer taal",
   "selected": "Geselecteerd",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Pagina die wordt getoond wanneer je Airflow opent.",
-        "label": "Startpagina",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Algemeen"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Tabblad dat als eerste wordt getoond wanneer je een taakinstantie opent. Links naar een specifiek tabblad openen dat tabblad nog steeds.",
-        "label": "Standaard taakinstantie tabblad"
-      },
-      "title": "Taakinstantie"
-    }
-  },
   "showDetailsPanel": "Details weergeven",
   "signedInAs": "Ingelogd als",
   "source": {

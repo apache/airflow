@@ -212,26 +212,6 @@
     "users": "Usuários"
   },
   "selectLanguage": "Selecionar Idioma",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Página exibida ao abrir o Airflow.",
-        "label": "Página inicial",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Geral"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "Aba exibida primeiro ao abrir uma instância de tarefa. Links para uma aba específica ainda abrem essa aba.",
-        "label": "Aba padrão da instância de tarefa"
-      },
-      "title": "Instância de Tarefa"
-    }
-  },
   "showDetailsPanel": "Mostrar Painel de Detalhes",
   "signedInAs": "Sessão iniciada como",
   "source": {

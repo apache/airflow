@@ -218,26 +218,6 @@
   },
   "selectLanguage": "Nyelv kiválasztása",
   "selected": "Kiválasztva",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Az Airflow megnyitásakor megjelenő oldal.",
-        "label": "Kezdőoldal",
-        "options": {
-          "dags": "Dag-ek",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "Általános"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "A feladatpéldány megnyitásakor először megjelenő fül. Egy adott fülre mutató hivatkozások továbbra is azt a fület nyitják meg.",
-        "label": "Alapértelmezett feladatpéldány fül"
-      },
-      "title": "Feladatpéldány"
-    }
-  },
   "showDetailsPanel": "Részletek panel megjelenítése",
   "signedInAs": "Bejelentkezve mint",
   "source": {

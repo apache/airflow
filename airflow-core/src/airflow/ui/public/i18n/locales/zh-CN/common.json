@@ -218,26 +218,6 @@
   },
   "selectLanguage": "选择语言",
   "selected": "已选择",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "打开 Airflow 时显示的页面。",
-        "label": "着陆页",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "常规"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "打开任务实例时首先显示的选项卡。指向特定选项卡的链接仍会打开该选项卡。",
-        "label": "默认任务实例选项卡"
-      },
-      "title": "任务实例"
-    }
-  },
   "showDetailsPanel": "显示详细信息",
   "signedInAs": "当前登录身份",
   "source": {

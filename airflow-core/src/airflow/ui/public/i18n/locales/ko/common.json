@@ -246,26 +246,6 @@
   },
   "selectLanguage": "언어 선택",
   "selected": "선택됨",
-  "settings": {
-    "general": {
-      "landingPage": {
-        "helper": "Airflow를 열 때 표시되는 페이지입니다.",
-        "label": "시작 페이지",
-        "options": {
-          "dags": "Dags",
-          "dashboard": "Dashboard"
-        }
-      },
-      "title": "일반"
-    },
-    "taskInstance": {
-      "defaultTab": {
-        "helper": "태스크 인스턴스를 열 때 처음 표시되는 탭입니다. 특정 탭으로의 링크는 해당 탭을 그대로 엽니다.",
-        "label": "기본 태스크 인스턴스 탭"
-      },
-      "title": "태스크 인스턴스"
-    }
-  },
   "shortcuts": {
     "categories": {
       "code": "코드",
