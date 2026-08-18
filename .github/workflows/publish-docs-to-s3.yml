@@ -344,7 +344,7 @@ jobs:
             ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
             secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -375,7 +375,7 @@ jobs:
             breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         if: >-
           steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
           steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'

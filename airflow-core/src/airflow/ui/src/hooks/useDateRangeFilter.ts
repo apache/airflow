@@ -19,7 +19,7 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import type { TFunction } from "i18next";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
@@ -56,7 +56,7 @@ type UseDateRangeFilterArgs = {
   value: DateRangeValue;
 };
 
-const validateDateInput = (dateStr: string): boolean => {
+export const validateDateInput = (dateStr: string): boolean => {
   if (!dateStr.trim()) {
     return true; // Empty is valid
   }
@@ -72,7 +72,7 @@ const validateDateInput = (dateStr: string): boolean => {
   return parsed.format(DATE_INPUT_FORMAT) === dateStr;
 };
 
-const validateTimeInput = (timeStr: string): boolean => {
+export const validateTimeInput = (timeStr: string): boolean => {
   if (!timeStr.trim()) {
     return true; // Empty is valid
   }
@@ -99,22 +99,30 @@ const validateDateRange = (startDate?: string, endDate?: string): boolean => {
   return start.isBefore(end) || start.isSame(end);
 };
 
-const combineDateAndTime = (dateStr: string, timeStr: string, tz: string): string => {
+export const combineDateAndTime = (
+  dateStr: string,
+  timeStr: string,
+  { endOfDay = false, timezone: tz }: { endOfDay?: boolean; timezone: string },
+): string => {
   const date = dayjs(dateStr, DATE_INPUT_FORMAT, true);
 
   if (!date.isValid()) {
     return "";
   }
 
+  // When no (or an invalid) time is provided, fall back to the start of the day — or the end of the
+  // day for a range's upper bound so it stays inclusive.
+  const withDefaultTime = () =>
+    (endOfDay ? date.endOf("day") : date.startOf("day")).tz(tz, true).toISOString();
+
   if (!timeStr.trim()) {
-    // If no time is provided, set to 00:00
-    return date.startOf("day").tz(tz, true).toISOString();
+    return withDefaultTime();
   }
 
   const time = dayjs(`2000-01-01 ${timeStr}`, `YYYY-MM-DD ${TIME_INPUT_FORMAT}`, true);
 
   if (!time.isValid()) {
-    return date.startOf("day").tz(tz, true).toISOString();
+    return withDefaultTime();
   }
 
   const combined = date.hour(time.hour()).minute(time.minute()).second(0).millisecond(0);
@@ -176,8 +184,10 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       validateDateInput(inputs.start) &&
       validateDateInput(inputs.end)
     ) {
-      const startDateTime = combineDateAndTime(inputs.start, inputs.startTime, selectedTimezone);
-      const endDateTime = combineDateAndTime(inputs.end, inputs.endTime, selectedTimezone);
+      const startDateTime = combineDateAndTime(inputs.start, inputs.startTime, {
+        timezone: selectedTimezone,
+      });
+      const endDateTime = combineDateAndTime(inputs.end, inputs.endTime, { timezone: selectedTimezone });
 
       if (Boolean(startDateTime) && Boolean(endDateTime) && !validateDateRange(startDateTime, endDateTime)) {
         errors.push({
@@ -252,7 +262,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
   };
 
   const handleInputChange =
-    (field: "end" | "start", inputType: "date" | "time") => (event: React.ChangeEvent<HTMLInputElement>) => {
+    (field: "end" | "start", inputType: "date" | "time") => (event: ChangeEvent<HTMLInputElement>) => {
       const inputValue = event.target.value;
       const inputKey = inputType === "date" ? field : (`${field}Time` as const);
 
@@ -264,7 +274,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
         const timeStr = field === "start" ? newInputs.startTime : newInputs.endTime;
 
         if (dayjs(dateStr, DATE_INPUT_FORMAT, true).isValid()) {
-          const combinedDateTime = combineDateAndTime(dateStr, timeStr, selectedTimezone);
+          const combinedDateTime = combineDateAndTime(dateStr, timeStr, { timezone: selectedTimezone });
 
           if (Boolean(combinedDateTime)) {
             onChange({
