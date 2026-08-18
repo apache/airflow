@@ -296,6 +296,23 @@ def test_appbuilder_views_airflow2(plugin):
     assert repair_view.default_view == "repair"
 
 
+def _patched_create_session(dag_run):
+    """Return a ``create_session`` replacement whose session yields ``dag_run`` for the run query.
+
+    The POST handler fetches the DagRun via ``session.scalars(...).one_or_none()`` and builds the
+    redirect from its persisted identifiers, so tests must supply a real-valued DagRun there.
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _factory(*args, **kwargs):
+        session = MagicMock()
+        session.scalars.return_value.one_or_none.return_value = dag_run
+        yield session
+
+    return _factory
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow-3 repair backend requires 3.1+")
 class TestDatabricksWorkflowPluginAirflow3:
     """Test Databricks Workflow Plugin functionality specific to Airflow 3.1+."""
@@ -434,10 +451,11 @@ class TestDatabricksWorkflowPluginAirflow3:
         # The task uses an EXPLICIT databricks_task_key that does not survive serialization; the
         # endpoint must recover it from the launch task's trusted task_key_map, not reconstruct md5.
         metadata = Mock(conn_id="c", run_id=999, task_key_map={"grp.nb": "EXPLICIT_KEY"})
+        dag_run = Mock(dag_id="my_dag", run_id="run1")
         try:
             with (
                 patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
-                patch("airflow.utils.session.create_session"),
+                patch("airflow.utils.session.create_session", _patched_create_session(dag_run)),
                 patch.object(m, "_read_launch_metadata", return_value=metadata),
                 patch.object(m, "DatabricksHook") as mock_hook,
                 patch.object(m, "_repair_task") as mock_repair,
@@ -451,6 +469,7 @@ class TestDatabricksWorkflowPluginAirflow3:
                     follow_redirects=False,
                 )
             assert resp.status_code == 303
+            # Redirect target is built from the DagRun's own persisted identifiers, not the request.
             assert resp.headers["location"] == "/dags/my_dag/runs/run1"
             assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["EXPLICIT_KEY"]
             assert mock_repair.call_args.kwargs["databricks_run_id"] == 999
@@ -468,10 +487,11 @@ class TestDatabricksWorkflowPluginAirflow3:
 
         m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
         dag = Mock(dag_id="my_dag", tasks=[])
+        dag_run = Mock(dag_id="my_dag", run_id="run1")
         try:
             with (
                 patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
-                patch("airflow.utils.session.create_session"),
+                patch("airflow.utils.session.create_session", _patched_create_session(dag_run)),
                 patch.object(m, "_read_launch_metadata", return_value=Mock(conn_id="c", run_id=1)),
                 patch.object(m, "DatabricksHook") as mock_hook,
                 patch.object(m, "_clear_repaired_and_downstream") as mock_clear,
@@ -499,10 +519,11 @@ class TestDatabricksWorkflowPluginAirflow3:
         dag = Mock(dag_id="my_dag")
         dag.has_task.return_value = True
         metadata = Mock(conn_id="c", run_id=42, task_key_map={"grp.nb": "EXPLICIT_KEY"})
+        dag_run = Mock(dag_id="my_dag", run_id="run1")
         try:
             with (
                 patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
-                patch("airflow.utils.session.create_session"),
+                patch("airflow.utils.session.create_session", _patched_create_session(dag_run)),
                 patch.object(m, "_read_launch_metadata", return_value=metadata),
                 patch.object(m, "_repair_task") as mock_repair,
                 patch.object(m, "_clear_repaired_and_downstream"),
@@ -532,10 +553,11 @@ class TestDatabricksWorkflowPluginAirflow3:
         dag.has_task.return_value = True
         metadata = Mock(conn_id="c", run_id=42, task_key_map={})
         expected = hashlib.md5(b"my_dag__grp.nb").hexdigest()
+        dag_run = Mock(dag_id="my_dag", run_id="run1")
         try:
             with (
                 patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
-                patch("airflow.utils.session.create_session"),
+                patch("airflow.utils.session.create_session", _patched_create_session(dag_run)),
                 patch.object(m, "_read_launch_metadata", return_value=metadata),
                 patch.object(m, "_repair_task") as mock_repair,
                 patch.object(m, "_clear_repaired_and_downstream"),
