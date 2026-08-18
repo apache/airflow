@@ -102,8 +102,9 @@ The provider's extras split into a few groups:
   ``pydantic-ai-slim`` optional dependency group; pydantic-ai supports more model providers
   than these four, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
-* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``: MCP servers, Agent Skills, and
-  code-mode tool execution.
+* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``: MCP servers, Agent
+  Skills, code-mode tool execution, and shield capabilities (input/output guards, tool
+  guards, cost tracking).
 * **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
   document pipelines.
 * **Retrieval / SQL** — ``sql``, ``common.sql``, ``langchain``, ``llamaindex``: RAG and
