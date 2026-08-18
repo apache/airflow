@@ -272,6 +272,23 @@ class OpenAIHook(BaseHook):
         """
         return self.conn.responses.create(model=model, input=input, **kwargs)
 
+    @staticmethod
+    def summarize_response_usage(response: Response) -> dict[str, Any] | None:
+        """
+        Flatten a Responses API call's token usage into an XCom-safe mapping.
+
+        Dumps the model rather than copying a fixed list of fields, so a token-usage
+        dimension the API adds later is not silently dropped. ``mode="json"`` keeps the
+        result JSON-serializable for XCom. There is no cost field to flatten: the OpenAI
+        response reports token counts only, never a monetary amount.
+
+        :param response: A response returned by :meth:`create_response`. ``usage`` is
+            optional on the SDK model, so ``None`` is returned when it is absent.
+        """
+        if response.usage is None:
+            return None
+        return response.usage.model_dump(mode="json")
+
     def get_response(self, response_id: str, **kwargs: Any) -> Response:
         """
         Retrieve a previously created model response.

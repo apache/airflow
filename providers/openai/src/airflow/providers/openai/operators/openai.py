@@ -85,9 +85,11 @@ class OpenAIResponseOperator(BaseOperator):
     """
     Operator that generates a model response using the OpenAI Responses API.
 
-    The operator is synchronous and returns the response's aggregated output text. For
-    ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
-    structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
+    The operator is synchronous and returns the response's aggregated output text; the
+    response id is also pushed to XCom (see below), so a downstream task can pick it up
+    for ``previous_response_id`` chaining without going through the hook. For
+    ``background=True`` responses, or access to the full structured response, use
+    :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
     ``max_output_tokens`` caps the number of tokens generated for the response; ``max_tool_calls``
     caps the number of built-in tool calls the model may make. Both limits are enforced by the
@@ -136,6 +138,12 @@ class OpenAIResponseOperator(BaseOperator):
         :ref:`howto/operator:OpenAIResponseOperator`
         For possible options, see:
         https://platform.openai.com/docs/api-reference/responses/create
+
+    ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID, usable as
+    a downstream call's ``previous_response_id``) and ``usage`` (the flattened response
+    usage, or ``None`` when the API omits it). ``usage`` reports token counts only --
+    the OpenAI response carries no cost field, so pricing a run means multiplying these
+    counts by your own per-token rate.
     """
 
     template_fields: Sequence[str] = ("input_text", "max_output_tokens", "max_tool_calls")
@@ -274,6 +282,8 @@ class OpenAIResponseOperator(BaseOperator):
                 response.status,
             )
         self.log.info("Generated response %s", response.id)
+        context["ti"].xcom_push(key="response_id", value=response.id)
+        context["ti"].xcom_push(key="usage", value=self.hook.summarize_response_usage(response))
         return response.output_text
 
 

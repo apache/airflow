@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, Mock, mock_open, patch
 
 import pytest
 from openai import OpenAI
@@ -34,6 +34,8 @@ from openai.types import (
 from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
+from openai.types.responses import Response, ResponseUsage
+from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -336,6 +338,33 @@ def test_cancel_response(mock_openai_hook):
     result = mock_openai_hook.cancel_response("resp_123")
     mock_openai_hook.conn.responses.cancel.assert_called_once_with("resp_123")
     assert result is expected
+
+
+def test_summarize_response_usage():
+    usage = ResponseUsage(
+        input_tokens=10,
+        input_tokens_details=InputTokensDetails(cache_write_tokens=1, cached_tokens=2),
+        output_tokens=20,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=3),
+        total_tokens=30,
+    )
+    response = Mock(spec=Response, usage=usage)
+
+    result = OpenAIHook.summarize_response_usage(response)
+
+    assert result == {
+        "input_tokens": 10,
+        "input_tokens_details": {"cache_write_tokens": 1, "cached_tokens": 2},
+        "output_tokens": 20,
+        "output_tokens_details": {"reasoning_tokens": 3},
+        "total_tokens": 30,
+    }
+
+
+def test_summarize_response_usage_without_usage():
+    response = Mock(spec=Response, usage=None)
+
+    assert OpenAIHook.summarize_response_usage(response) is None
 
 
 def test_create_conversation(mock_openai_hook):
