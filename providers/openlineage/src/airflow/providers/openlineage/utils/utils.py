@@ -982,6 +982,9 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
         "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
         "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+        "dag_version_data": lambda dagrun: (
+            DagRunInfo.dag_version_info(dagrun, "version_data") if AIRFLOW_V_3_3_PLUS else None
+        ),
         "dag_team_name": lambda dagrun: DagRunInfo.team_name(dagrun) if AIRFLOW_V_3_3_PLUS else None,
         "deadlines": lambda dagrun: DagRunInfo.deadlines(dagrun),
     }
@@ -1039,7 +1042,7 @@ class DagRunInfo(InfoJsonEncodable):
         return {"alerts": result} if result else None
 
     @classmethod
-    def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
+    def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | dict | None:
         """Extract DAG version info for given key, sourced from DagRun (on scheduler)."""
         # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
         dag_versions = safe_getattr(dagrun, "dag_versions", [])
@@ -1057,6 +1060,10 @@ class DagRunInfo(InfoJsonEncodable):
             return str(version_id) if version_id is not None else None
         if key == "version_number":
             return safe_getattr(current_version, "version_number")
+        if key == "version_data":
+            if not AIRFLOW_V_3_3_PLUS:
+                return None
+            return safe_getattr(current_version, "version_data")
         raise ValueError(f"Unsupported key: {key}`")
 
     @classmethod
@@ -1068,23 +1075,35 @@ class DagRunInfo(InfoJsonEncodable):
         # The Execution API delivers the team name on the DagRun payload it sends to the task
         # runner, so task events resolve it from there rather than through the bundle lookup below,
         # which needs a metadata DB session the task runner does not have.
-        # `hasattr` rather than a None check -- a team-less run legitimately carries None, while
-        # the scheduler's ORM DagRun has no such attribute at all.
-        if hasattr(dagrun, "team_name"):
+        # `hasattr` rather than a None check -- a team-less run legitimately carries None. The ORM
+        # DagRun exposes `team_name` too, but reading it lazy-loads the bundle, so scheduler-side
+        # runs stay on the guarded lookup below instead of risking a load on a detached instance.
+        if not isinstance(dagrun, DagRun) and hasattr(dagrun, "team_name"):
             return dagrun.team_name
 
+        # Best-effort: the scheduler stamps `_team_name` on ORM DagRun objects before
+        # listener hooks fire. It's a private attribute with no stability guarantee,
+        # so guard with hasattr and an isinstance check.
+        if hasattr(dagrun, "_team_name"):
+            return dagrun._team_name if isinstance(dagrun._team_name, str) else None
+
         try:
-            bundle_name = cls.dag_version_info(dagrun, "bundle_name")
-            if not isinstance(bundle_name, str):
+            # Reuse the existing ORM session associated with the DagRun. Creating a new session here
+            # (via @provide_session) on get_team_name() can trigger an unexpected commit error.
+            from sqlalchemy.orm import object_session
+
+            session = object_session(dagrun)
+
+            if session is None:
                 return None
 
-            from airflow.models.dagbundle import DagBundleModel
+            from airflow.models.dag import DagModel
 
-            return DagBundleModel.get_team_name(bundle_name)
+            return DagModel.get_team_name(dagrun.dag_id, session=session)
         except Exception as e:
-            log.warning(
+            log.info(
                 "OpenLineage failed to resolve the team name for dag `%s`: %s.",
-                safe_getattr(dagrun, "dag_id"),
+                dagrun.dag_id,
                 e,
             )
             log.debug("Exception details:", exc_info=True)
@@ -1094,9 +1113,10 @@ class DagRunInfo(InfoJsonEncodable):
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
-    includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
+    includes = ["duration", "log_url", "pool", "queued_dttm", "try_number"]
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
+        "note": lambda ti: safe_getattr(ti, "note", None),  # From manual state changes only
         "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
         "rendered_map_index": lambda ti: (
             getattr(ti, "rendered_map_index", None) if getattr(ti, "map_index", -1) != -1 else None

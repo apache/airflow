@@ -24,9 +24,11 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -54,12 +56,24 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     setNote(dagRun.note);
     onClose();
   };
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+  const [clearRunDefaultOptions] = useClearRunDefaultOptions();
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearRunDefaultOptions);
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const onlyNew = selectedOptions.includes("newTasks");
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
+  });
+
+  // Offered only where it changes the outcome. A non-versioned bundle (e.g. LocalDagBundle)
+  // leaves bundle_version null and resolves to the latest serialized Dag at run time anyway,
+  // so unless the run has no version at all the option would be a no-op there.
+  const { runOnLatestVersionForced, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedBundleVersion: dagRun.bundle_version,
+    selectedDagVersionNumber: dagRun.dag_versions.at(-1)?.version_number,
+    selectedVersionMissing: dagRun.dag_versions.length === 0,
   });
 
   const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
@@ -91,14 +105,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccessConfirm: handleClose,
   });
 
-  // Check if DAG versions differ (works for both bundle-versioned and local bundles)
-  const latestDagVersionNumber = dagDetails?.latest_dag_version?.version_number;
-  const dagRunVersionNumber = dagRun.dag_versions.at(-1)?.version_number;
-  const versionsDiffer =
-    latestDagVersionNumber !== undefined &&
-    dagRunVersionNumber !== undefined &&
-    latestDagVersionNumber !== dagRunVersionNumber;
-  const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
+  const shouldShowBundleVersionOption = shouldShowRunOnLatestOption && !onlyNew;
 
   return (
     <Dialog.Root
@@ -127,7 +134,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
-              defaultValues={["existingTasks"]}
+              defaultValues={clearRunDefaultOptions}
               onChange={setSelectedOptions}
               options={[
                 {
@@ -153,8 +160,14 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
           >
             {shouldShowBundleVersionOption ? (
               <Checkbox
-                checked={runOnLatestVersion}
+                checked={runOnLatestVersionForced || runOnLatestVersion}
+                disabled={runOnLatestVersionForced}
                 onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                title={
+                  runOnLatestVersionForced
+                    ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                    : undefined
+                }
               >
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>

@@ -28,18 +28,14 @@ import { Accordion, ClipboardIconButton, Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type PluginImportErrorsModalProps = {
-  importErrors: Array<PluginImportErrorResponse>;
-  onClose: () => void;
-  open: boolean;
+  readonly importErrors: Array<PluginImportErrorResponse>;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
 const PAGE_LIMIT = 15;
 
-export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = ({
-  importErrors,
-  onClose,
-  open,
-}) => {
+export const PluginImportErrorsModal = ({ importErrors, onClose, open }: PluginImportErrorsModalProps) => {
   const { t: translate } = useTranslation("admin");
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");

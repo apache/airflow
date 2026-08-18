@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, useDisclosure, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -169,6 +169,7 @@ export const Variables = () => {
       getKey: (variable) => variable.key,
     });
 
+  const variables = data?.variables ?? [];
   const columns = getColumns({
     hasSelection: selectedRows.size > 0,
     multiTeam: multiTeamEnabled,
@@ -205,22 +206,25 @@ export const Variables = () => {
           onChange={handleSearchChange}
           placeholder={translate("variables.searchPlaceholder")}
         />
-        <HStack gap={4} mt={2}>
-          <ExpandCollapseButtons
-            collapseLabel={translate("common:expand.collapse")}
-            expandLabel={translate("common:expand.expand")}
-            isExpanded={open}
-            onCollapse={onClose}
-            onExpand={onOpen}
-          />
-          <Spacer />
+        <HStack gap={4} justifyContent="flex-end" mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
       <DataTable
+        actions={
+          variables.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:expand.collapse")}
+              expandLabel={translate("common:expand.expand")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
         columns={columns}
-        data={data?.variables ?? []}
+        data={variables}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isFetching={isFetching}

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Input, Text } from "@chakra-ui/react";
-import React from "react";
+import type { ChangeEvent } from "react";
 import { MdClose } from "react-icons/md";
 
 import { IconButton } from "src/components/ui";
@@ -30,7 +30,7 @@ type DateInputProps = {
   readonly handleInputChange: (
     field: "end" | "start",
     inputType: "date" | "time",
-  ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
+  ) => (event: ChangeEvent<HTMLInputElement>) => void;
   readonly inputType: "date" | "time";
   readonly inputValue: string;
   readonly label: string;
