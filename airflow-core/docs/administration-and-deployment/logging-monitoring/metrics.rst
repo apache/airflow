@@ -56,7 +56,7 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 .. note::
 
     StatsD has no resource concept, so metrics cannot be attributed to the process that
-    produced them. Where several processes run the same component, such as schedulers in high
+    produced them. When several processes run the same component, such as schedulers in high
     availability, each exports the same series and the server keeps whichever value arrived last.
     Use OpenTelemetry to tell them apart, as described in
     :ref:`identifying-components-and-their-instances`.
