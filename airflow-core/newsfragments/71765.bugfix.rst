@@ -1,0 +1,1 @@
+Pausing a Dag no longer freezes an already-running Dag run; remaining tasks still schedule and the run can finish. New Dag runs are still not created.
