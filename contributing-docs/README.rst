@@ -143,10 +143,6 @@ You can also dive deeper into more specific areas that are important for contrib
 * `Architecture diagram <17_architecture_diagrams.rst>`__ describes how to create and
   update the architecture diagrams embedded in Airflow documentation.
 
-* `Task execution architecture <31_task_execution_architecture.rst>`__ explains what happens inside a
-  worker when a task runs: the Python Supervisor and task runner, the Coordinator layer shared by the Java
-  and Go SDKs, and the standalone Go edge worker.
-
 * `Execution API versioning <19_execution_api_versioning.rst>`__ describes how to
   version the Task Execution API and how to add new versions of the API.
 
@@ -164,3 +160,11 @@ Maintainer Tools
 * `CLI Implementation Guide <27_cli_implementation_guide.rst>`__ describes where to implement new
   CLI features following AIP-94: remote commands go to ``airflowctl``, admin/deployment commands
   stay in the ``airflow`` CLI.
+
+
+Task Execution Lifecycle
+........................
+
+* `Task execution architecture <31_task_execution_architecture.rst>`__ explains what happens inside a
+  worker when a task runs: the Python Supervisor and task runner, the Coordinator layer shared by the Java
+  and Go SDKs, and the standalone Go edge worker.
