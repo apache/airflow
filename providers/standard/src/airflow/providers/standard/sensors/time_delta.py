@@ -48,7 +48,7 @@ class TimeDeltaSensor(BaseSensorOperator):
     The delta will be evaluated against data_interval_end if present for the dag run,
     otherwise run_after will be used.
 
-    :param delta: time to wait before succeeding.
+    :param delta: time to wait before succeeding. If a templated value is provided, it will be cast to an integer representing the duration in minutes.
     :param deferrable: Run sensor in deferrable mode. If set to True, task will defer itself to avoid taking up a worker slot while it is waiting.
 
     .. seealso::
