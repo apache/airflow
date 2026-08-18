@@ -27,6 +27,7 @@ draining machinery in this module rather than re-implementing it.
 
 from __future__ import annotations
 
+import contextlib
 import ipaddress
 import itertools
 import os
@@ -34,29 +35,104 @@ import selectors
 import signal
 import socket
 import subprocess
+import threading
 import time
-from typing import TYPE_CHECKING, TypeVar, cast
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
 import structlog
 
+from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.configuration import conf
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, _warm_shutdown_signals
+from airflow.sdk.execution_time.supervisor import (
+    MIN_HEARTBEAT_INTERVAL,
+    ActivitySubprocess,
+    Heartbeater,
+    NeverRaised,
+    ProcessTracker,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    import uuid
+    from collections.abc import Generator, Sequence
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TIRunContext
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subprocess")
+
+
+class SubprocessStartupError(RuntimeError):
+    """
+    The launched runtime never completed the startup handshake with the supervisor.
+
+    :param exit_code: Exit code to report for the run — the runtime's own when it
+        managed to exit before connecting, otherwise 1.
+    """
+
+    def __init__(self, reason: str, *, exit_code: int = 1) -> None:
+        super().__init__(reason)
+        self.exit_code = exit_code
+
+
+@contextlib.contextmanager
+def _heartbeat_until_monitored(
+    client: Client, ti_id: uuid.UUID, pid: int, logger: FilteringBoundLogger
+) -> Generator[None, None, None]:
+    """
+    Keep the run's heartbeat fresh while the worker is getting the runtime up.
+
+    The task is RUNNING from before the runtime exists, but nothing heartbeats until
+    :meth:`ActivitySubprocess.wait` starts monitoring, so a slow launch — a first-time
+    Dag bundle clone, a generous ``task_startup_timeout`` — would look like a zombie to
+    ``[scheduler] task_instance_heartbeat_timeout`` and be reaped mid-startup. The Python
+    path gets this for free: its supervisor is already monitoring while the child does
+    the same work.
+
+    :meth:`ActivitySubprocess._monitor_subprocess` cannot cover this window — it services
+    and reaps a child that does not exist yet — so a dedicated thread paces a
+    :class:`~airflow.sdk.execution_time.supervisor.Heartbeater` instead, sharing the
+    send and stop policy with the monitor loop's own heartbeats.
+
+    Nothing here aborts the launch. A disowned run stops beating and is terminated by the
+    monitor loop's own heartbeat moments later, which is the code that owns killing the
+    runtime and recording SERVER_TERMINATED; with no process to kill,
+    ``on_fatal_failures`` is left unset so a transient failure is simply retried.
+    """
+    stop = threading.Event()
+
+    def _stop_beating(detail: Any) -> None:
+        logger.error(
+            "Server disowned this run while the runtime was starting; the monitor loop will terminate it",
+            detail=detail,
+        )
+        stop.set()
+
+    heartbeater = Heartbeater(client=client, ti_id=ti_id, pid=pid, on_server_terminated=_stop_beating)
+
+    def _beat() -> None:
+        # The blocking wait IS the pacing: exactly one attempt per interval, success or
+        # failure, with the sleep doubling as the stop signal. The monitor loop's
+        # if-needed gate and shrinking wait formula compensate for IO-driven select
+        # wake-ups, which a dedicated timer thread doesn't have.
+        while not stop.wait(MIN_HEARTBEAT_INTERVAL):
+            heartbeater.send_heartbeat()
+
+    thread = threading.Thread(target=_beat, name=f"startup-heartbeat-{ti_id}", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(MIN_HEARTBEAT_INTERVAL)
 
 
 def _start_server() -> socket.socket:
@@ -161,10 +237,28 @@ def _accept_connections(
     *,
     max_wait: float = 10.0,
     drain_size: int = 4096,
+    logger: FilteringBoundLogger | None = None,
 ) -> tuple[dict[socket.socket, socket.socket], dict[socket.socket, bytes]]:
     """Block until the subprocess connects to servers, draining stdout/stderr along the way."""
+    task_log = logger or log
     accepted: dict[socket.socket, socket.socket] = {}
     drained: dict[socket.socket, bytes] = {s: b"" for s in drains.values()}
+
+    def _give_up(reason: str, *, exit_code: int = 1) -> NoReturn:
+        for s in accepted.values():
+            s.close()
+        # On the happy path these bytes reach the task log through
+        # _register_pipe_readers. Emit them here too, or the runtime's own account of
+        # why it never started dies with the drain buffers.
+        for key, soc in drains.items():
+            if output := drained[soc]:
+                task_log.error(
+                    "Runtime output before startup failure",
+                    key=key,
+                    output=output.decode(errors="replace"),
+                )
+        raise SubprocessStartupError(reason, exit_code=exit_code)
+
     with selectors.DefaultSelector() as sel:
         for key, soc in itertools.chain(servers.items(), drains.items()):
             sel.register(soc, selectors.EVENT_READ, data=key)
@@ -172,27 +266,26 @@ def _accept_connections(
         while len(accepted) < len(servers):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                for s in accepted.values():
-                    s.close()
-                raise TimeoutError("process did not connect within timeout")
+                _give_up("process did not connect within timeout")
             if proc.poll() is not None:
-                for s in accepted.values():
-                    s.close()
-                raise RuntimeError(f"process exited with {proc.returncode} before connecting")
+                _give_up(
+                    f"process exited with {proc.returncode} before connecting",
+                    exit_code=proc.returncode or 1,
+                )
             for event, _ in sel.select(timeout=min(remaining, 1.0)):
                 soc = cast("socket.socket", event.fileobj)
                 if soc in drained:
                     if incoming := soc.recv(drain_size):
-                        log.debug("Draining child process stream", key=event.data)
+                        task_log.debug("Draining child process stream", key=event.data)
                         drained[soc] += incoming
                     else:
-                        log.warning("Child stream closed before ready!", key=event.data)
+                        task_log.warning("Child stream closed before ready!", key=event.data)
                         sel.unregister(soc)
                 else:
-                    log.debug("Accepting child process connection", key=event.data)
+                    task_log.debug("Accepting child process connection", key=event.data)
                     conn, _ = soc.accept()
                     if not _is_connection_from_process(conn, proc):
-                        log.warning(
+                        task_log.warning(
                             "Rejected connection not owned by child process",
                             key=event.data,
                             pid=proc.pid,
@@ -292,6 +385,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
+        ti_context: TIRunContext,
+        running_since: datetime,
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
         command: Sequence[str],
@@ -299,6 +394,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         startup_timeout: float = 10.0,
         **kwargs,
     ) -> Self:
+        task_log = logger or structlog.get_logger(logger_name="task").bind()
         with _ResourceTracker(timeout=startup_timeout) as tracker:
             comm_server, logs_server = tracker.track(_start_server(), _start_server())
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
@@ -326,13 +422,14 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
                 soc.close()
-            log.info("Starting subprocess", pid=proc.pid)
+            task_log.info("Starting subprocess", pid=proc.pid)
 
             socks, drained = _accept_connections(
                 {"comm": comm_server, "logs": logs_server},
                 {"stdout": stdout_r, "stderr": stderr_r},
                 proc,
                 max_wait=startup_timeout,
+                logger=task_log,
             )
             tracker.track(*socks.values())
 
@@ -340,7 +437,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 id=what.id,
                 pid=proc.pid,
                 process=PopenTracker(proc),
-                process_log=logger or structlog.get_logger(logger_name="task").bind(),
+                process_log=task_log,
                 start_time=time.monotonic(),
                 stdin=socks[comm_server],
                 subprocess_schema_version=subprocess_schema_version,
@@ -357,6 +454,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
                 sentry_integration=sentry_integration,
+                ti_context=ti_context,
+                running_since=running_since,
             )
 
             # Untrack everything left. 'self' keeps track of these and closes
@@ -382,9 +481,15 @@ class SubprocessCoordinator(BaseCoordinator):
     connections, draining startup output, and tearing everything down on
     failure — is handled here.
 
+    The task is reported RUNNING before :meth:`_build_execute_task_command` runs,
+    so everything a subclass does to locate its artifacts — walking a directory,
+    materializing a Dag bundle — is charged to the task's runtime rather than to
+    its queued time, and failing it fails the task instead of leaving the run
+    QUEUED for ``[scheduler] task_queued_timeout`` to pick up.
+
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
-        seconds.
+        seconds. The wait happens with the task already RUNNING.
     """
 
     task_startup_timeout: float = 10.0
@@ -414,18 +519,100 @@ class SubprocessCoordinator(BaseCoordinator):
         subprocess_logs_to_stdout: bool,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
-        command, subprocess_schema_version = self._build_execute_task_command(what=what)
-        process = _PopenActivitySubprocess.start(
-            what=what,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            client=client,
-            logger=logger,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-            command=command,
-            subprocess_schema_version=subprocess_schema_version,
-            startup_timeout=self.task_startup_timeout,
-        )
-        exit_code = process.wait()
-        return self.ExecutionResult(exit_code, process.final_state)
+        task_log = logger or structlog.get_logger(logger_name="task").bind()
+        # Hold the warm-shutdown handlers across the RUNNING window, as the Python
+        # coordinator does, so a SIGTERM here cannot orphan a task the server has
+        # been told is running.
+        with _warm_shutdown_signals():
+            # Report RUNNING before any preparation work (see the class docstring), so
+            # `_build_execute_task_command` runs on the task's clock rather than the
+            # queue's. A failure here is not ours to report: there is no run in RUNNING
+            # yet, and the redelivery it usually means (TaskAlreadyRunningError) is for
+            # the executor to swallow.
+            # The runtime does not exist yet, so this supervisor's own pid becomes the
+            # run's ownership token; the runtime's pid goes to the task log instead
+            # ("Starting subprocess"). Every later heartbeat must present the same
+            # value, so it is threaded into the supervised process too (see
+            # ActivitySubprocess.reported_pid).
+            reported_pid = os.getpid()
+            running_since = datetime.now(tz=timezone.utc)
+            ti_context = client.task_instances.start(what.id, reported_pid, running_since)
+            try:
+                with _heartbeat_until_monitored(client, what.id, reported_pid, task_log):
+                    command, subprocess_schema_version = self._build_execute_task_command(what=what)
+                    process = _PopenActivitySubprocess.start(
+                        what=what,
+                        dag_rel_path=dag_rel_path,
+                        bundle_info=bundle_info,
+                        client=client,
+                        ti_context=ti_context,
+                        running_since=running_since,
+                        reported_pid=reported_pid,
+                        logger=task_log,
+                        subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                        sentry_integration=sentry_integration,
+                        command=command,
+                        subprocess_schema_version=subprocess_schema_version,
+                        startup_timeout=self.task_startup_timeout,
+                    )
+            except SubprocessStartupError as error:
+                task_log.error("Task runtime failed to start", reason=str(error))
+                return self._finish_failed_startup(
+                    client=client,
+                    what=what,
+                    ti_context=ti_context,
+                    logger=task_log,
+                    exit_code=error.exit_code,
+                )
+            except Exception:
+                task_log.exception("Failed to launch the task runtime")
+                return self._finish_failed_startup(
+                    client=client, what=what, ti_context=ti_context, logger=task_log
+                )
+            exit_code = process.wait()
+            return self.ExecutionResult(exit_code, process.final_state)
+
+    def _finish_failed_startup(
+        self,
+        *,
+        client: Client,
+        what: TaskInstance,
+        ti_context: TIRunContext,
+        logger: FilteringBoundLogger,
+        exit_code: int = 1,
+    ) -> BaseCoordinator.ExecutionResult:
+        """
+        Report the terminal state for a run that never got a runtime to monitor.
+
+        :class:`ActivitySubprocess` only reports a terminal state out of ``wait()``,
+        which needs the very process this failure prevented, so without this the run
+        would sit RUNNING until zombie detection reaped it.
+
+        :raises Exception: whatever the terminal-state call raised. The run is RUNNING
+            on the server and this is the only thing that was going to move it, so the
+            failure has to escape and let the executor report it for the scheduler to
+            reconcile — returning a state we did not manage to record would put the run
+            right back in the RUNNING-until-reaped hole this method exists to close.
+        """
+        when = datetime.now(tz=timezone.utc)
+        state = TaskInstanceState.UP_FOR_RETRY if ti_context.should_retry else TaskInstanceState.FAILED
+        try:
+            if state is TaskInstanceState.UP_FOR_RETRY:
+                # UP_FOR_RETRY is not a TerminalStateNonSuccess, so it has its own endpoint.
+                client.task_instances.retry(
+                    id=what.id,
+                    end_date=when,
+                    rendered_map_index=None,
+                    retry_reason="Task runtime failed to start",
+                )
+            else:
+                client.task_instances.finish(
+                    id=what.id,
+                    state=state,
+                    when=when,
+                    rendered_map_index=None,
+                )
+        except Exception:
+            logger.exception("Failed to report the task runtime startup failure", state=state)
+            raise
+        return self.ExecutionResult(exit_code, state)
