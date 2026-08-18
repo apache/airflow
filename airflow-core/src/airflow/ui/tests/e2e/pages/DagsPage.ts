@@ -135,14 +135,15 @@ export class DagsPage extends BasePage {
       await this.openAddFilterMenu();
       await this.needsReviewFilter.click();
     } else {
-      // Re-opening an existing pill, versus adding the filter for the first time.
       if (await this.lastRunStatePill.isVisible().catch(() => false)) {
+        // An existing pill already holds a value, so re-opening it leaves the menu shut.
         await this.lastRunStatePill.click();
+        await this.lastRunStateFilter.click();
       } else {
+        // A filter added from the menu opens onto its options; clicking the trigger would shut it.
         await this.openAddFilterMenu();
         await this.page.getByTestId("add-filter-last_dag_run_state").click();
       }
-      await this.lastRunStateFilter.click();
       await this.page.getByTestId(`last_dag_run_state-filter-${status}`).click();
       // Selecting blurs the pill, which collapses it ~150ms later. Wait for that so a
       // follow-up call sees the pill rather than racing it and reopening the menu.
