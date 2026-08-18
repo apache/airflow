@@ -70,6 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
+from airflow.models.asset import AssetEvent
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -274,6 +275,23 @@ class PermittedEventLogFilter(PermittedDagFilter):
         return select.where(or_(Log.dag_id.in_(self.value or set()), Log.dag_id.is_(None)))
 
 
+class PermittedAssetEventFilter(PermittedDagFilter):
+    """A parameter that filters asset events to those produced by Dags the user may read."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Asset events created through the API, or emitted by a watcher, have no source Dag.
+        # They carry no per-Dag key to authorize on, so they stay visible to any caller who
+        # may read assets; only events produced by a Dag's task are scoped to that Dag's
+        # readability. Filtering here rather than after the fact keeps unauthorized rows out
+        # of the count and pagination too, so their existence does not leak either.
+        return select.where(
+            or_(
+                AssetEvent.source_dag_id.in_(self.value or set()),
+                AssetEvent.source_dag_id.is_(None),
+            )
+        )
+
+
 class PermittedTIFilter(PermittedDagFilter):
     """A parameter that filters the permitted task instances for the user."""
 
@@ -333,6 +351,9 @@ EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filt
 ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
 ReadableDagRunsFilterDep = Annotated[
     PermittedDagRunFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagRunFilter))
+]
+ReadableAssetEventsFilterDep = Annotated[
+    PermittedAssetEventFilter, Depends(permitted_dag_filter_factory("GET", PermittedAssetEventFilter))
 ]
 ReadableDagWarningsFilterDep = Annotated[
     PermittedDagWarningFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagWarningFilter))

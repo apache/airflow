@@ -65,6 +65,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
+    ReadableAssetEventsFilterDep,
     ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
@@ -324,6 +325,7 @@ def get_asset_events(
     name_pattern: QueryAssetNamePatternSearch,
     name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
+    readable_asset_events_filter: ReadableAssetEventsFilterDep,
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
@@ -342,6 +344,7 @@ def get_asset_events(
             name_pattern,
             name_prefix_pattern,
             timestamp_range,
+            readable_asset_events_filter,
         ],
         order_by=order_by,
         offset=offset,
