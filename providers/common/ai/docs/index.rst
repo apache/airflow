@@ -127,7 +127,10 @@ See the Optional dependencies table below for the exact package each extra insta
     :caption: Guides
 
     Quick start <quickstart>
-    Connection types <connections/pydantic_ai>
+    Pydantic AI connection <connections/pydantic_ai>
+    Pydantic AI (Azure OpenAI) connection <connections/pydantic_ai_azure>
+    Pydantic AI (AWS Bedrock) connection <connections/pydantic_ai_bedrock>
+    Pydantic AI (Google Vertex AI) connection <connections/pydantic_ai_vertex>
     MCP connection <connections/mcp>
     Hooks <hooks/index>
     Toolsets <toolsets>
