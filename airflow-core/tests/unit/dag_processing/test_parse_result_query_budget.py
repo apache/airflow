@@ -19,11 +19,13 @@ Statement budget for persisting Dag parse results: a change that adds round trip
 to move a number here and account for it in review.
 
 Counts are calibrated against Postgres and the tests carrying them are marked for it, since
-statement counts differ by dialect. The sweep test measures its prices, so it runs anywhere.
+statement counts differ by dialect. The sweep test derives its call count from the group cap and
+measures its prices, so it runs anywhere.
 """
 
 from __future__ import annotations
 
+import math
 import re
 import time
 from collections import Counter
@@ -41,6 +43,7 @@ from uuid6 import uuid7
 
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.manager import (
+    MAX_FILES_PER_PERSISTENCE_GROUP,
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
@@ -76,8 +79,6 @@ UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
 
 SWEEP_FILES = 4
-# Calls the manager takes for that sweep: the whole sweep is persisted together.
-SWEEP_CALLS = 1
 
 
 def _classify(statement: str) -> tuple[str, str]:
@@ -250,24 +251,33 @@ def _measure_sweep(session, tmp_path: Path, n_files: int, sockets, name: str, da
     return sum(counts.values())
 
 
-def test_sweep_pays_fixed_cost_once_per_call(session, testing_dag_bundle, tmp_path, sockets):
+@pytest.mark.parametrize(
+    "n_files",
+    [
+        pytest.param(SWEEP_FILES, id="one-group"),
+        pytest.param(MAX_FILES_PER_PERSISTENCE_GROUP + 1, id="over-the-group-cap"),
+    ],
+)
+def test_sweep_pays_fixed_cost_once_per_call(n_files, session, testing_dag_bundle, tmp_path, sockets):
     """
     How a sweep scales with the number of persistence calls it takes.
 
-    The sweep is persisted in one call, so the fixed price is paid once rather than per file. Both
-    prices are measured here, so the assertion holds on any backend.
+    A sweep is persisted a group at a time, so the fixed price is paid once per group rather than
+    once per file -- and a sweep past the cap really does split, rather than only being asserted to.
+    Both prices are measured here, so the assertion holds on any backend.
     """
     one_dag = _measure_sweep(session, tmp_path, 1, sockets, "one")
     two_dags = _measure_sweep(session, tmp_path, 1, sockets, "two", dags_per_file=2)
     per_dag = two_dags - one_dag
     fixed = one_dag - per_dag
 
-    sweep = _measure_sweep(session, tmp_path, SWEEP_FILES, sockets, "sweep")
+    sweep = _measure_sweep(session, tmp_path, n_files, sockets, f"sweep_{n_files}")
 
-    expected = SWEEP_CALLS * fixed + SWEEP_FILES * per_dag
+    calls = math.ceil(n_files / MAX_FILES_PER_PERSISTENCE_GROUP)
+    expected = calls * fixed + n_files * per_dag
     assert sweep == expected, (
-        f"a {SWEEP_FILES}-file sweep costs {sweep} statements, expected {expected} "
-        f"({SWEEP_CALLS} x {fixed} fixed + {SWEEP_FILES} x {per_dag} per Dag)."
+        f"a {n_files}-file sweep costs {sweep} statements, expected {expected} "
+        f"({calls} x {fixed} fixed + {n_files} x {per_dag} per Dag)."
     )
 
 
@@ -339,7 +349,7 @@ def test_batch_override_replaces_the_database(tmp_path):
 
 
 def test_default_manager_takes_the_batched_path(tmp_path):
-    assert DagFileProcessorManager._overrides_per_file_persist() is False
+    assert DagFileProcessorManager(max_runs=1)._overrides_per_file_persist() is False
 
 
 def _parse_result_with(

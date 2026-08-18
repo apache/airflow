@@ -2077,10 +2077,13 @@ class TestDagFileProcessorManager:
         proc.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
         manager._processors = {file: proc}
 
-        with mock.patch.object(manager, "persist_parsing_result"):
-            manager._collect_results()
+        with mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db") as db_write:
+            with mock.patch.object(manager, "persist_parsing_result") as persist:
+                manager._collect_results()
 
         assert len(manager._processors) == 0
+        persist.assert_called_once()
+        assert db_write.call_count == 0, "replacing the hook on one manager has to keep the DB out"
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(

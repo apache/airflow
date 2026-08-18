@@ -95,6 +95,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 
 def _make_execution_api() -> InProcessExecutionAPI:
@@ -1384,9 +1385,9 @@ class DagFileProcessorManager(LoggingMixin):
             files_parsed = {(bundle_name, relative_fileloc)}
             files_parsed.update(import_errors.keys())
 
-        warnings = parsing_result.warnings or []
-        if warnings and isinstance(warnings[0], dict):
-            warnings = [DagWarning(**warn) for warn in warnings]
+        dag_warnings = parsing_result.warnings or []
+        if dag_warnings and isinstance(dag_warnings[0], dict):
+            dag_warnings = [DagWarning(**warn) for warn in dag_warnings]
 
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
@@ -1395,24 +1396,35 @@ class DagFileProcessorManager(LoggingMixin):
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
             parse_duration=run_duration,
-            warnings=set(warnings),
+            warnings=set(dag_warnings),
             session=session,
             files_parsed=files_parsed,
         )
 
-    @classmethod
-    def _overrides_per_file_persist(cls) -> bool:
+    def _overrides(self, name: str) -> bool:
         """
-        Report whether a subclass has replaced the per-file persistence hook.
+        Report whether this manager has its own version of one of the hooks.
+
+        Looks at the instance as well as the class, so that replacing a hook on a single manager
+        counts. Reading only the class would leave such a manager writing to the metadata DB while
+        looking, to whoever replaced the hook, as though it no longer did.
+        """
+        if name in getattr(self, "__dict__", ()):
+            return True
+        return getattr(type(self), name) is not getattr(DagFileProcessorManager, name)
+
+    def _overrides_per_file_persist(self) -> bool:
+        """
+        Report whether the per-file persistence hook has been replaced.
 
         Batching would otherwise write straight past such an override, silently sending to the
-        metadata DB the results a deployment had arranged to send elsewhere. A subclass that also
+        metadata DB the results a deployment had arranged to send elsewhere. A manager that also
         replaced the batch hook has said where a whole sweep should go, so that one is used and
         this reports ``False``.
         """
-        if cls.persist_parsing_results is not DagFileProcessorManager.persist_parsing_results:
+        if self._overrides("persist_parsing_results"):
             return False
-        return cls.persist_parsing_result is not DagFileProcessorManager.persist_parsing_result
+        return self._overrides("persist_parsing_result")
 
     def _warn_if_batching_is_disabled(self) -> None:
         """Say once, at startup, that an override is costing this Dag processor its batched writes."""
@@ -1430,16 +1442,15 @@ class DagFileProcessorManager(LoggingMixin):
             stacklevel=2,
         )
 
-    @classmethod
-    def _overrides_handle_parsing_result(cls) -> bool:
+    def _overrides_handle_parsing_result(self) -> bool:
         """
-        Report whether a subclass has replaced the per-file result handler.
+        Report whether the per-file result handler has been replaced.
 
         Released in 3.3 as the seam for deployments that forward results instead of writing them to
         the metadata DB. Such an override persists a file itself, so it is still called once per
         file and a sweep is left with nothing to batch.
         """
-        return cls.handle_parsing_result is not DagFileProcessorManager.handle_parsing_result
+        return self._overrides("handle_parsing_result")
 
     @provide_session
     def persist_parsing_results(
@@ -1528,13 +1539,13 @@ class DagFileProcessorManager(LoggingMixin):
         session: Session,
     ) -> None:
         """Merge one bundle's parse results into a single write."""
-        dags: list = []
+        dags: list[LazyDeserializedDAG] = []
         import_errors: dict[tuple[str, str], str] = {}
         files_parsed: set[tuple[str, str]] = set()
         # Duration is per file, but the Dags of several files are written together, so it has to be
         # carried per Dag rather than as one value for the call.
         parse_durations: dict[str, float] = {}
-        warnings: set[DagWarning] = set()
+        dag_warnings: set[DagWarning] = set()
 
         for item in items:
             parsing_result = item.parsing_result
@@ -1557,7 +1568,7 @@ class DagFileProcessorManager(LoggingMixin):
             file_warnings = parsing_result.warnings or []
             if file_warnings and isinstance(file_warnings[0], dict):
                 file_warnings = [DagWarning(**warn) for warn in file_warnings]
-            warnings.update(file_warnings)
+            dag_warnings.update(file_warnings)
 
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
@@ -1566,7 +1577,7 @@ class DagFileProcessorManager(LoggingMixin):
             dags=dags,
             import_errors=import_errors,
             parse_duration=parse_durations,
-            warnings=warnings,
+            warnings=dag_warnings,
             session=session,
             files_parsed=files_parsed,
         )
