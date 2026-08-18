@@ -56,7 +56,9 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 .. note::
 
     StatsD has no resource concept, so metrics cannot be attributed to the process that
-    produced them. Use OpenTelemetry if you need that — see
+    produced them. Where several processes run the same component, such as schedulers in high
+    availability, each exports the same series and the server keeps whichever value arrived last.
+    Use OpenTelemetry to tell them apart, as described in
     :ref:`identifying-components-and-their-instances`.
 
 
@@ -119,8 +121,8 @@ decide how much of a deployment can be told apart:
 
 ``service.instance.id``
     Which process of that component reported the metric. It is unset by default, so processes
-    running the same component are indistinguishable. Set it per process to attribute a metric to
-    one of them.
+    running the same component (e.g. 2+ schedulers) are indistinguishable. Set it per process
+    to attribute a metric to one of them.
 
 Airflow reads ``service.name`` from ``OTEL_SERVICE_NAME``, and every other resource attribute from
 ``OTEL_RESOURCE_ATTRIBUTES``:
@@ -132,8 +134,8 @@ Airflow reads ``service.name`` from ``OTEL_SERVICE_NAME``, and every other resou
     export OTEL_RESOURCE_ATTRIBUTES="service.instance.id=$(hostname)"
 
 Processes that share a resource also share a series, and the backend keeps whichever export
-arrived last. Where several processes run the same component this loses data rather than
-aggregating it: each scheduler samples the metadata database on its own loop, so a gauge such as
+arrived last. When several processes run the same component, data are lost instead of aggregated:
+each scheduler samples the metadata database on its own loop, so a gauge such as
 ``pool.open_slots`` reports an arbitrary scheduler's sample rather than a value derived from all
 of them.
 
