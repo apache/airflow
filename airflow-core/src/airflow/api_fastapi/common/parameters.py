@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator, Iterable, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -1474,8 +1474,17 @@ class _PendingActionsFilter(BaseParam[bool]):
 QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
 
 
+# A lookback this large is effectively unbounded (users omit the param for "any time"); capping it
+# also keeps utcnow() - timedelta(hours=...) from overflowing on an absurdly large value.
+_MAX_DAG_RUN_STATE_WINDOW_HOURS = 24 * 366 * 100  # ~100 years
+
+
 class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
     """Filter Dags that have any DagRun in the given state, not only the latest one."""
+
+    def __init__(self, value: DagRunState | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.within_hours: int | None = None
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -1483,13 +1492,14 @@ class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
 
         # Alias DagRun so this EXISTS subquery cannot auto-correlate to a DagRun the outer query
         # may already reference (e.g. the last_dag_run_state filter), which would strip the
-        # subquery's FROM and raise. EXISTS resolves each Dag via the (dag_id, state) index.
+        # subquery's FROM and raise. EXISTS resolves each Dag via the (dag_id, state) index; the
+        # optional run_after bound is not covered by that index, so it is filtered within each
+        # Dag's matching rows (still bounded per Dag, not a full scan).
         any_run = aliased(DagRun)
-        has_run_in_state = (
-            sql_select(any_run.dag_id)
-            .where(any_run.dag_id == DagModel.dag_id, any_run.state == self.value)
-            .exists()
-        )
+        conditions = [any_run.dag_id == DagModel.dag_id, any_run.state == self.value]
+        if self.within_hours is not None:
+            conditions.append(any_run.run_after >= timezone.utcnow() - timedelta(hours=self.within_hours))
+        has_run_in_state = sql_select(any_run.dag_id).where(*conditions).exists()
         return select.where(has_run_in_state)
 
     @classmethod
@@ -1499,8 +1509,17 @@ class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
             None,
             description="Filter Dags that have any DagRun in the given state.",
         ),
+        dag_run_state_within_hours: int | None = Query(
+            None,
+            gt=0,
+            le=_MAX_DAG_RUN_STATE_WINDOW_HOURS,
+            description="Only match DagRuns whose run_after falls within the last given hours."
+            " Ignored unless dag_run_state is set.",
+        ),
     ) -> _AnyDagRunStateFilter:
-        return cls().set_value(dag_run_state)
+        obj = cls().set_value(dag_run_state)
+        obj.within_hours = dag_run_state_within_hours
+        return obj
 
 
 # DagRun

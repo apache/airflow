@@ -3598,6 +3598,10 @@ export type GetDagsUiData = {
      * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
+    /**
+     * Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
+     */
+    dagRunStateWithinHours?: number | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling

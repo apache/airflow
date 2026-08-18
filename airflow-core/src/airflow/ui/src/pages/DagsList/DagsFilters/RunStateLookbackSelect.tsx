@@ -19,52 +19,59 @@
 import { HStack, Text, type Select as ChakraSelect } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useTranslation } from "react-i18next";
-import { FiList } from "react-icons/fi";
+import { FiClock, FiZap } from "react-icons/fi";
 
-import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
 
-type RunState = "failed" | "queued" | "running" | "success";
+// "latest" matches on the latest run only; numeric values are hours; "any" has no time bound.
+export type RunStateLookback = "168" | "24" | "720" | "any" | "latest";
 
 type Props = {
   readonly dataTestId?: string;
-  readonly label: string;
-  readonly onChange: (value: string | undefined) => void;
-  readonly states: ReadonlyArray<RunState>;
+  readonly onChange: (value: RunStateLookback) => void;
   readonly triggerProps?: ChakraSelect.TriggerProps;
-  readonly value: string | undefined;
+  readonly value: RunStateLookback;
 };
 
-const ALL_VALUE = "all";
+const LOOKBACK_OPTIONS: ReadonlyArray<{ labelKey: string; value: RunStateLookback }> = [
+  { labelKey: "latestRun", value: "latest" },
+  { labelKey: "last24Hours", value: "24" },
+  { labelKey: "last7Days", value: "168" },
+  { labelKey: "last30Days", value: "720" },
+  { labelKey: "anyTime", value: "any" },
+];
 
-export const RunStateSelect = ({ dataTestId, label, onChange, states, triggerProps, value }: Props) => {
-  const { t: translate } = useTranslation(["dags", "common"]);
+export const TIME_LOOKBACKS = LOOKBACK_OPTIONS.map((option) => option.value).filter(
+  (value) => value !== "latest" && value !== "any",
+);
+
+export const RunStateLookbackSelect = ({ dataTestId, onChange, triggerProps, value }: Props) => {
+  const { t: translate } = useTranslation("dags");
 
   const collection = createListCollection({
-    items: [
-      { label: translate("dags:filters.allStates"), state: undefined, value: ALL_VALUE },
-      ...states.map((state) => ({ label: translate(`common:states.${state}`), state, value: state })),
-    ],
+    items: LOOKBACK_OPTIONS.map(({ labelKey, value: lookback }) => ({
+      label: translate(`common:timeRange.${labelKey}`),
+      value: lookback,
+    })),
   });
 
-  const current = collection.items.find((item) => item.value === (value ?? ALL_VALUE));
+  const current = collection.items.find((item) => item.value === value);
 
   return (
     <Select.Root
       collection={collection}
       data-testid={dataTestId}
-      minWidth="232px"
-      onValueChange={({ value: selected }) => onChange(selected[0] === ALL_VALUE ? undefined : selected[0])}
-      value={[value ?? ALL_VALUE]}
+      onValueChange={({ value: selected }) => onChange(selected[0] as RunStateLookback)}
+      value={[value]}
       width="fit-content"
     >
       <Select.Trigger triggerProps={triggerProps}>
         <HStack gap={2} justifyContent="space-between" pe={5} width="full">
           <Text color="fg.muted" whiteSpace="nowrap">
-            {label}:
+            {translate("common:timeRange.in")}:
           </Text>
           <HStack gap={2}>
-            {current?.state === undefined ? <FiList /> : <StateBadge state={current.state} />}
+            {value === "latest" ? <FiZap /> : <FiClock />}
             <Text whiteSpace="nowrap">{current?.label}</Text>
           </HStack>
         </HStack>
@@ -77,7 +84,7 @@ export const RunStateSelect = ({ dataTestId, label, onChange, states, triggerPro
             key={item.value}
           >
             <HStack gap={2}>
-              {item.state === undefined ? <FiList /> : <StateBadge state={item.state} />}
+              {item.value === "latest" ? <FiZap /> : <FiClock />}
               <Text>{item.label}</Text>
             </HStack>
           </Select.Item>

@@ -24,6 +24,7 @@
       "paused": "Paused"
     },
     "runIdPatternFilter": "Search Dag Runs",
+    "runState": "Run state",
     "timetableType": "Timetable type"
   },
   "ownerLink": "Owner link for {{owner}}",
