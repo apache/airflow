@@ -177,6 +177,14 @@ deployment, so eviction costs a re-fetch only where that working set is genuinel
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
+# Caps how many dag_ids are rendered in the per-tick cap log/audit row. The
+# backlog's distinct dag_id count is unbounded, so writing it straight into a
+# log field/DB row without a cap risks an unbounded payload. 20 is enough for
+# an operator to diagnose which Dags are backlogged without letting the audit
+# row's payload size run away. Internal constant, not a user setting, for the
+# same reason as the constant above.
+MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED = 20
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -2307,38 +2315,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return set()
 
         if len(pending_apdrs) >= self._max_partition_dag_runs_per_loop:
-            backlog_total = (
-                session.scalar(
-                    select(func.count())
+            # Per-dag counts across the *whole* backlog, not just this tick's oldest-cap
+            # slice (`pending_apdrs`) — a Dag whose partitions haven't reached the front of
+            # the FIFO queue yet would otherwise be missing from the log/audit row until its
+            # turn comes up.
+            backlogs_per_dag: dict[str, int] = {
+                dag_id: count
+                for dag_id, count in session.execute(
+                    select(AssetPartitionDagRun.target_dag_id, func.count())
                     .select_from(AssetPartitionDagRun)
                     .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
                     .where(
                         AssetPartitionDagRun.created_dag_run_id.is_(None),
                         DagModel.is_stale.is_(False),
                     )
+                    .group_by(AssetPartitionDagRun.target_dag_id)
                 )
-                or 0
-            )
-            # Distinct dag_ids across the *whole* backlog, not just this tick's oldest-cap
-            # slice (`pending_apdrs`) — a Dag whose partitions haven't reached the front of
-            # the FIFO queue yet would otherwise be missing from the log/audit row until its
-            # turn comes up. Same WHERE clause as the count query above so the two never drift.
-            backlog_dag_ids = set(
-                session.scalars(
-                    select(AssetPartitionDagRun.target_dag_id)
-                    .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                    .where(
-                        AssetPartitionDagRun.created_dag_run_id.is_(None),
-                        DagModel.is_stale.is_(False),
-                    )
-                    .distinct()
-                )
-            )
+            }
+            backlog_total = sum(backlogs_per_dag.values())
+            # No SQL-side ORDER BY: it would have no dag_id tie-break, and relying on dict
+            # insertion order mirroring DB row order across backends (SQLite in tests vs
+            # Postgres/MySQL in production) isn't a contract worth trusting — sort explicitly.
+            sorted_dag_ids = sorted(backlogs_per_dag, key=lambda dag_id: (-backlogs_per_dag[dag_id], dag_id))
         else:
             backlog_total = len(pending_apdrs)
             self._partition_cap_backlog_reported = False
 
         if backlog_total > self._max_partition_dag_runs_per_loop:
+            displayed_dag_ids = sorted_dag_ids[:MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED]
+            remaining_dag_id_count = len(sorted_dag_ids) - len(displayed_dag_ids)
             self.log.warning(
                 (
                     "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
@@ -2346,7 +2351,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ),
                 cap=self._max_partition_dag_runs_per_loop,
                 backlog_total=backlog_total,
-                dag_ids=backlog_dag_ids,
+                dag_ids=displayed_dag_ids,
             )
             # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
             # and writing a `Log` row that often would flood the audit table. Write it once per
@@ -2359,6 +2364,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # discard this audit row along with the rest of the tick's work.
                 # Invariant: this must run before *session* makes any writes this tick, or the
                 # new connection's commit can lock-contend with it on SQLite.
+                more_suffix = (
+                    f", and {remaining_dag_id_count} more with fewer pending runs"
+                    if remaining_dag_id_count
+                    else ""
+                )
                 try:
                     with create_session(scoped=False) as audit_session:
                         audit_session.add(
@@ -2370,7 +2380,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                     f"{self._max_partition_dag_runs_per_loop}. The remaining backlog will "
                                     f"be evaluated over subsequent ticks. A total of {backlog_total} "
                                     f"partitioned Dag runs are currently eligible and pending across "
-                                    f"ticks. Affected dag_ids: {', '.join(backlog_dag_ids)}."
+                                    f"ticks. Affected dag_ids (highest pending count first): "
+                                    f"{', '.join(displayed_dag_ids)}{more_suffix}."
                                 ),
                             )
                         )

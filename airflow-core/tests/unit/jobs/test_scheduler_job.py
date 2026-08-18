@@ -12926,6 +12926,40 @@ def _make_n_satisfied_apdrs(
     ]
 
 
+def _make_n_consumer_dags_each_with_one_pending_apdr(
+    *,
+    name_prefix: str,
+    n: int,
+    session: Session,
+    dag_maker: DagMaker,
+) -> None:
+    """
+    Build *n* distinct consumer Dags named ``cap-consumer-{name_prefix}-{i:02d}``, each with
+    exactly one pending, satisfied APDR.
+
+    Used (instead of :func:`_make_n_satisfied_apdrs`, which numbers its producer dag_id starting
+    at 1 on every call) when a test needs many distinct consumer Dags in one go: a single shared
+    producer dag_id counter, namespaced by ``name_prefix``, avoids the producer dag_id collisions
+    that calling :func:`_make_n_satisfied_apdrs` once per consumer Dag would cause.
+    """
+    for i in range(1, n + 1):
+        asset = Asset(name=f"asset-{name_prefix}-{i:02d}")
+        with dag_maker(
+            dag_id=f"cap-consumer-{name_prefix}-{i:02d}",
+            schedule=PartitionedAssetTimetable(assets=asset, default_partition_mapper=IdentityMapper()),
+            session=session,
+        ):
+            EmptyOperator(task_id="hi")
+        session.commit()
+        _produce_and_register_asset_event(
+            dag_id=f"asset-event-producer-{name_prefix}-{i:02d}",
+            asset=asset,
+            partition_key=f"k{i:02d}",
+            session=session,
+            dag_maker=dag_maker,
+        )
+
+
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_partition_cap_at_exactly_n_processes_all(dag_maker: DagMaker, session: Session):
@@ -13042,12 +13076,12 @@ def test_partition_cap_reporting(
             "will be evaluated over subsequent scheduler ticks",
             "cap": cap,
             "backlog_total": 3,
-            "dag_ids": {dag_id},
+            "dag_ids": [dag_id],
         } in caplog
         assert [row.event for row in audit_rows] == ["partition Dag run cap reached"]
         extra = audit_rows[0].extra
         assert extra is not None
-        assert f"Affected dag_ids: {dag_id}." in extra
+        assert f"Affected dag_ids (highest pending count first): {dag_id}." in extra
     else:
         assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
         assert audit_rows == []
@@ -13197,10 +13231,11 @@ def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker,
     runner._max_partition_dag_runs_per_loop = 6
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    # backlog_dag_ids is a set, so its iteration order (and thus the exact rendering in the log
-    # event and audit row) is arbitrary — assert membership, not a specific order. All seven Dags
-    # are expected, including the seventh whose APDR is deferred past this tick's cap.
-    expected_dag_ids = {f"cap-consumer-many-{i}" for i in range(1, 8)}
+    # The dag_ids list is sorted by (-count, dag_id); all seven Dags tie on count (one pending
+    # APDR each), so the tie-break is dag_id ascending — a deterministic, reproducible order,
+    # not just membership. All seven Dags are expected, including the seventh whose APDR is
+    # deferred past this tick's cap.
+    expected_dag_ids = sorted(f"cap-consumer-many-{i}" for i in range(1, 8))
     assert {
         "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
         "will be evaluated over subsequent scheduler ticks",
@@ -13212,10 +13247,110 @@ def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker,
     audit_row = session.scalar(select(Log).where(Log.event == "partition Dag run cap reached"))
     assert audit_row is not None
     assert audit_row.extra is not None
-    note_match = re.search(r"Affected dag_ids: (.+)\.$", audit_row.extra)
+    note_match = re.search(r"Affected dag_ids \(highest pending count first\): (.+)\.$", audit_row.extra)
     assert note_match is not None
-    assert set(note_match.group(1).split(", ")) == expected_dag_ids
+    assert note_match.group(1).split(", ") == expected_dag_ids
     assert "and 1 more" not in audit_row.extra
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
+def test_partition_cap_reporting_truncates_dag_id_list_beyond_max(
+    dag_maker: DagMaker, session: Session, caplog
+):
+    """
+    The log/audit ``dag_ids`` list is capped at ``MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED``,
+    ordered by descending per-dag pending count with a dag_id tie-break — not alphabetically
+    truncated — and the audit row's prose notes how many dag_ids were dropped by the cap.
+
+    Built via :func:`_make_n_consumer_dags_each_with_one_pending_apdr` rather than
+    :func:`_make_n_satisfied_apdrs` because that helper's producer dag_id numbering restarts at 1
+    on every call, colliding across these 21 consumer Dags — same issue documented on
+    :func:`test_partition_cap_reporting_lists_all_affected_dag_ids`.
+    """
+    _make_n_consumer_dags_each_with_one_pending_apdr(
+        name_prefix="trunc-low", n=20, session=session, dag_maker=dag_maker
+    )
+
+    high_asset = Asset(name="asset-cap-trunc-high")
+    with dag_maker(
+        dag_id="cap-consumer-trunc-high",
+        schedule=PartitionedAssetTimetable(assets=high_asset, default_partition_mapper=IdentityMapper()),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+    for key in ["high-1", "high-2", "high-3"]:
+        _produce_and_register_asset_event(
+            dag_id=f"asset-event-producer-trunc-high-{key}",
+            asset=high_asset,
+            partition_key=key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 5
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    expected_dag_ids = ["cap-consumer-trunc-high"] + [f"cap-consumer-trunc-low-{i:02d}" for i in range(1, 20)]
+    assert {
+        "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
+        "will be evaluated over subsequent scheduler ticks",
+        "cap": 5,
+        "backlog_total": 23,
+        "dag_ids": expected_dag_ids,
+    } in caplog
+
+    audit_row = session.scalar(select(Log).where(Log.event == "partition Dag run cap reached"))
+    assert audit_row is not None
+    assert audit_row.extra is not None
+    assert "and 1 more" in audit_row.extra
+    for dag_id in expected_dag_ids:
+        assert dag_id in audit_row.extra
+    assert "cap-consumer-trunc-low-20" not in audit_row.extra
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
+def test_partition_cap_reporting_at_exactly_max_dag_ids_no_truncation(
+    dag_maker: DagMaker, session: Session, caplog
+):
+    """
+    Cap-boundary pair to :func:`test_partition_cap_reporting_truncates_dag_id_list_beyond_max`:
+    when the backlog's distinct dag_id count equals ``MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED``
+    exactly, no dag_id is dropped and the "and N more" suffix is absent.
+
+    Built via :func:`_make_n_consumer_dags_each_with_one_pending_apdr` for the same producer
+    dag_id collision reason documented on the neighboring cap tests above.
+    """
+    _make_n_consumer_dags_each_with_one_pending_apdr(
+        name_prefix="atmax", n=20, session=session, dag_maker=dag_maker
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 5
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    expected_dag_ids = sorted(f"cap-consumer-atmax-{i:02d}" for i in range(1, 21))
+    assert {
+        "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
+        "will be evaluated over subsequent scheduler ticks",
+        "cap": 5,
+        "backlog_total": 20,
+        "dag_ids": expected_dag_ids,
+    } in caplog
+
+    audit_row = session.scalar(select(Log).where(Log.event == "partition Dag run cap reached"))
+    assert audit_row is not None
+    assert audit_row.extra is not None
+    assert "more" not in audit_row.extra
+    for dag_id in expected_dag_ids:
+        assert dag_id in audit_row.extra
 
 
 @pytest.mark.need_serialized_dag
