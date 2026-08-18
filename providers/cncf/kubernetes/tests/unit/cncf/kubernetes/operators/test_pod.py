@@ -270,7 +270,7 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.arguments
         assert dag_id == rendered.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
-        assert dag_id == rendered.env_from[0].config_map_ref.name
+        assert [dag_id] == rendered.configmaps
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 
@@ -413,6 +413,54 @@ class TestKubernetesPodOperator:
         expected = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].env_from == expected
+
+    def test_envs_from_templated_configmaps(self):
+        env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="from-env-from"))]
+        k = KubernetesPodOperator(
+            task_id="task",
+            env_from=env_from,
+            configmaps="{{ maps }}",
+            dag=DAG(
+                dag_id="dag",
+                schedule=None,
+                start_date=pendulum.now(),
+                render_template_as_native_obj=True,
+            ),
+        )
+        k.render_template_fields(context={"maps": ["from-configmaps"]})
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[0].env_from == [
+            *env_from,
+            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="from-configmaps")),
+        ]
+
+    def test_templated_volumes_are_converted_after_rendering(self):
+        volume = k8s.V1Volume(name="vol", empty_dir=k8s.V1EmptyDirVolumeSource())
+        volume_mount = k8s.V1VolumeMount(name="vol", mount_path="/mnt")
+        k = KubernetesPodOperator(
+            task_id="task",
+            volumes="{{ vols }}",
+            volume_mounts="{{ mounts }}",
+            dag=DAG(
+                dag_id="dag",
+                schedule=None,
+                start_date=pendulum.now(),
+                render_template_as_native_obj=True,
+            ),
+        )
+        k.render_template_fields(context={"vols": [volume], "mounts": [volume_mount]})
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.volumes == [volume]
+        assert pod.spec.containers[0].volume_mounts == [volume_mount]
+
+    def test_container_logs_falls_back_to_rendered_base_container_name(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            base_container_name="{{ container }}",
+            dag=DAG(dag_id="dag", schedule=None, start_date=pendulum.now()),
+        )
+        k.render_template_fields(context={"container": "rendered-base"})
+        assert k.container_logs == "rendered-base"
 
     def test_envs_from_secrets(self):
         secret_ref = "secret_name"
