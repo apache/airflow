@@ -203,6 +203,7 @@ export const TaskLogContent = ({
           data-testid="virtualized-list"
           display="block"
           overflowX="auto"
+          pb={2}
           textWrap={wrap ? "pre" : "nowrap"}
           width="100%"
         >
