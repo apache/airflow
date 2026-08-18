@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useRef } from "react";
+import React from "react";
 import {
   Table,
   Text,
@@ -31,7 +31,6 @@ import {
 
 import type { Dag, DagRun, TaskInstance } from "src/types";
 import { useTaskXcomCollection } from "src/api";
-import { useContentHeight } from "src/utils";
 import ErrorAlert from "src/components/ErrorAlert";
 
 import XcomEntry from "./XcomEntry";
@@ -51,9 +50,6 @@ const XcomCollection = ({
   mapIndex,
   tryNumber,
 }: Props) => {
-  const taskXcomRef = useRef<HTMLDivElement>(null);
-  const contentHeight = useContentHeight(taskXcomRef);
-
   const {
     data: xcomCollection,
     isLoading,
@@ -67,12 +63,7 @@ const XcomCollection = ({
   });
 
   return (
-    <Box
-      ref={taskXcomRef}
-      height="100%"
-      maxHeight={`${contentHeight}px`}
-      overflowY="auto"
-    >
+    <Box flex={1} minHeight={0} overflowY="auto">
       {isLoading && <Spinner size="xl" thickness="4px" speed="0.65s" />}
       <ErrorAlert error={error} />
       {xcomCollection &&

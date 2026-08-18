@@ -19,14 +19,11 @@
 
 import React, { useLayoutEffect, useState } from "react";
 
-// Vertical space available to a scroll container, measured down to the bottom of the nearest
-// min-height-constrained ancestor — the grid's Main box, which has a min-height floor. Anchoring to
-// that box (rather than the viewport) lets the content grow to fill the floored area even when the
-// box is taller than the viewport and the page scrolls, instead of shrinking to the fold and
-// leaving a blank strip below. When there is no such ancestor (the Main box measuring itself), it
-// falls back to the viewport minus the body's bottom padding (the Flask footer reserve). Either way
-// this avoids the `height: 100%` cascade, which over-claims because <Tabs>/<TabPanel> have sibling
-// chrome (tab headers) stacked above the panel — that cascade is what truncated the details tabs.
+// Vertical space between the top of an element and the bottom of the viewport, less the body's
+// bottom padding (the Flask footer reserve). The element's position is taken in document
+// coordinates so the result does not change while the page is scrolled — anchoring to the viewport
+// instead would feed the element's own height back into the measurement and grow it on every
+// observer tick.
 const useContentHeight = (contentRef: React.RefObject<HTMLElement>) => {
   const [height, setHeight] = useState(0);
 
@@ -34,19 +31,11 @@ const useContentHeight = (contentRef: React.RefObject<HTMLElement>) => {
     const update = () => {
       const element = contentRef.current;
       if (!element) return;
-      let container = element.parentElement;
-      while (
-        container &&
-        !(parseFloat(getComputedStyle(container).minHeight) > 0)
-      ) {
-        container = container.parentElement;
-      }
-      const bottom = container
-        ? container.getBoundingClientRect().bottom
-        : window.innerHeight -
-          (parseFloat(getComputedStyle(document.body).paddingBottom) || 0);
+      const documentTop = element.getBoundingClientRect().top + window.scrollY;
+      const footerReserve =
+        parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
       const available = Math.max(
-        bottom - element.getBoundingClientRect().top,
+        window.innerHeight - footerReserve - documentTop,
         0,
       );
       // Guard against re-setting the same value (avoids ResizeObserver feedback loops).

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useRef, useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Box, useTheme, Select, Text, Switch, Flex } from "@chakra-ui/react";
 import ReactFlow, {
   ReactFlowProvider,
@@ -39,7 +39,7 @@ import {
   useUpstreamDatasetEvents,
 } from "src/api";
 import useSelection from "src/dag/useSelection";
-import { getMetaValue, getTask, useContentHeight } from "src/utils";
+import { getMetaValue, getTask } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
 import type { DepNode, WebserverEdge } from "src/types";
@@ -132,7 +132,6 @@ const getUpstreamDatasets = (
 };
 
 const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
-  const graphRef = useRef(null);
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
@@ -244,7 +243,6 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const { colors } = useTheme();
   const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
-  const contentHeight = useContentHeight(graphRef);
 
   useOnViewportChange({
     onEnd: (viewport: Viewport) => {
@@ -310,68 +308,61 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   });
 
   return (
-    <Box
-      ref={graphRef}
-      height={`${contentHeight}px`}
-      borderWidth={1}
-      borderColor="gray.200"
-    >
-      {!!contentHeight && (
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodesDraggable={false}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          minZoom={0.25}
-          maxZoom={1}
-          onlyRenderVisibleElements
-          defaultEdgeOptions={{ zIndex: 1 }}
-          // Fit view to selected task or the whole graph on render
-          fitView
-          fitViewOptions={{
-            nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
-          }}
-        >
-          <Panel position="top-right">
-            <Box bg={colors.whiteAlpha[800]} p={1}>
-              {!!datasetsCollection?.datasets?.length && (
-                <Flex display="flex" alignItems="center">
-                  <Text fontSize="sm" mr={1}>
-                    Show datasets:
-                  </Text>
-                  <Switch
-                    id="show-datasets"
-                    isChecked={showDatasets}
-                    onChange={() => setShowDatasets(!showDatasets)}
-                  />
-                </Flex>
-              )}
-              <Text fontSize="sm">Layout:</Text>
-              <Select
-                value={arrange}
-                onChange={(e) => setArrange(e.target.value)}
-                fontSize="sm"
-                size="sm"
-              >
-                <option value="LR">Left -&gt; Right</option>
-                <option value="RL">Right -&gt; Left</option>
-                <option value="TB">Top -&gt; Bottom</option>
-                <option value="BT">Bottom -&gt; Top</option>
-              </Select>
-            </Box>
-          </Panel>
-          <Background />
-          <Controls showInteractive={false} />
-          <MiniMap
-            nodeStrokeWidth={15}
-            nodeStrokeColor={(props) => nodeStrokeColor(props, colors)}
-            nodeColor={nodeColor}
-            zoomable
-            pannable
-          />
-        </ReactFlow>
-      )}
+    <Box flex={1} minHeight={0} borderWidth={1} borderColor="gray.200">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodesDraggable={false}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        minZoom={0.25}
+        maxZoom={1}
+        onlyRenderVisibleElements
+        defaultEdgeOptions={{ zIndex: 1 }}
+        // Fit view to selected task or the whole graph on render
+        fitView
+        fitViewOptions={{
+          nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
+        }}
+      >
+        <Panel position="top-right">
+          <Box bg={colors.whiteAlpha[800]} p={1}>
+            {!!datasetsCollection?.datasets?.length && (
+              <Flex display="flex" alignItems="center">
+                <Text fontSize="sm" mr={1}>
+                  Show datasets:
+                </Text>
+                <Switch
+                  id="show-datasets"
+                  isChecked={showDatasets}
+                  onChange={() => setShowDatasets(!showDatasets)}
+                />
+              </Flex>
+            )}
+            <Text fontSize="sm">Layout:</Text>
+            <Select
+              value={arrange}
+              onChange={(e) => setArrange(e.target.value)}
+              fontSize="sm"
+              size="sm"
+            >
+              <option value="LR">Left -&gt; Right</option>
+              <option value="RL">Right -&gt; Left</option>
+              <option value="TB">Top -&gt; Bottom</option>
+              <option value="BT">Bottom -&gt; Top</option>
+            </Select>
+          </Box>
+        </Panel>
+        <Background />
+        <Controls showInteractive={false} />
+        <MiniMap
+          nodeStrokeWidth={15}
+          nodeStrokeColor={(props) => nodeStrokeColor(props, colors)}
+          nodeColor={nodeColor}
+          zoomable
+          pannable
+        />
+      </ReactFlow>
     </Box>
   );
 };

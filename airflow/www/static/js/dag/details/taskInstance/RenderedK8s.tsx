@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import React, { useRef } from "react";
+import React from "react";
 import { Code } from "@chakra-ui/react";
 import YAML from "json-to-pretty-yaml";
 
-import { getMetaValue, useContentHeight } from "src/utils";
+import { getMetaValue } from "src/utils";
 
 import useSelection from "src/dag/useSelection";
 import { useRenderedK8s } from "src/api";
@@ -35,13 +35,10 @@ const RenderedK8s = () => {
 
   const { data: renderedK8s } = useRenderedK8s(runId, taskId, mapIndex);
 
-  const k8sRef = useRef<HTMLPreElement>(null);
-  const contentHeight = useContentHeight(k8sRef);
-
   if (!isK8sExecutor || !runId || !taskId) return null;
 
   return (
-    <Code mt={3} ref={k8sRef} maxHeight={`${contentHeight}px`} overflowY="auto">
+    <Code mt={3} flex={1} minHeight={0} overflowY="auto">
       <pre>{YAML.stringify(renderedK8s)}</pre>
     </Code>
   );

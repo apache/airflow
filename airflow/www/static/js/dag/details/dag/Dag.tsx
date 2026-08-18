@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useRef, ReactNode } from "react";
+import React, { ReactNode } from "react";
 import {
   Table,
   Tbody,
@@ -41,7 +41,6 @@ import {
   getMetaValue,
   getTaskSummary,
   toSentenceCase,
-  useContentHeight,
 } from "src/utils";
 import { useGridData, useDagDetails } from "src/api";
 import Time from "src/components/Time";
@@ -60,8 +59,6 @@ const Dag = () => {
   const {
     data: { dagRuns, groups },
   } = useGridData();
-  const detailsRef = useRef<HTMLDivElement>(null);
-  const contentHeight = useContentHeight(detailsRef);
 
   const { data: dagDetailsData, isLoading: isLoadingDagDetails } =
     useDagDetails();
@@ -158,12 +155,7 @@ const Dag = () => {
   );
 
   return (
-    <Box
-      height="100%"
-      maxHeight={`${contentHeight}px`}
-      ref={detailsRef}
-      overflowY="auto"
-    >
+    <Box flex={1} minHeight={0} overflowY="auto">
       <Table variant="striped">
         <Tbody>
           {durations.length > 0 && (

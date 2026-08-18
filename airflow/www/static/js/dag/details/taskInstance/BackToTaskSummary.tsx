@@ -29,7 +29,7 @@ const BackToTaskSummary = ({ isMapIndexDefined, onClick }: Props) => {
   if (!isMapIndexDefined) return null;
 
   return (
-    <Flex justifyContent="right">
+    <Flex justifyContent="right" flexShrink={0}>
       <Button variant="ghost" colorScheme="blue" onClick={onClick} size="lg">
         Back to Dynamic Task Summary
       </Button>

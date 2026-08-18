@@ -19,7 +19,7 @@
 
 /* global moment */
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Flex,
@@ -43,7 +43,7 @@ import {
 } from "chakra-react-select";
 
 import { useEventLogs } from "src/api";
-import { getMetaValue, useContentHeight } from "src/utils";
+import { getMetaValue } from "src/utils";
 import type { DagRun } from "src/types";
 import LinkButton from "src/components/LinkButton";
 import type { EventLog as EventLogType } from "src/types/api-generated";
@@ -74,8 +74,6 @@ const dagId = getMetaValue("dag_id") || undefined;
 const columnHelper = createColumnHelper<EventLogType>();
 
 const EventLog = ({ taskId, run, showMapped }: Props) => {
-  const logRef = useRef<HTMLDivElement>(null);
-  const contentHeight = useContentHeight(logRef);
   const { tableURLState, setTableURLState } = useTableURLState({
     sorting: [{ id: "when", desc: true }],
   });
@@ -214,12 +212,7 @@ const EventLog = ({ taskId, run, showMapped }: Props) => {
   });
 
   return (
-    <Box
-      height="100%"
-      maxHeight={`${contentHeight}px`}
-      ref={logRef}
-      overflowY="auto"
-    >
+    <Box flex={1} minHeight={0} overflowY="auto">
       <Flex justifyContent="right" mb={2}>
         <IconButton
           aria-label="Refresh"

@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useRef } from "react";
+import React from "react";
 import { Box } from "@chakra-ui/react";
 
 import { useGridData } from "src/api";
-import { getMetaValue, useContentHeight } from "src/utils";
+import { getMetaValue } from "src/utils";
 import type { DagRun as DagRunType } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
@@ -37,8 +37,6 @@ const DagRun = ({ runId }: Props) => {
   const {
     data: { dagRuns },
   } = useGridData();
-  const detailsRef = useRef<HTMLDivElement>(null);
-  const contentHeight = useContentHeight(detailsRef);
 
   const run = dagRuns.find((dr) => dr.runId === runId);
 
@@ -46,12 +44,7 @@ const DagRun = ({ runId }: Props) => {
   const { runType, note } = run;
 
   return (
-    <Box
-      maxHeight={`${contentHeight}px`}
-      ref={detailsRef}
-      overflowY="auto"
-      pb={4}
-    >
+    <Box flex={1} minHeight={0} overflowY="auto" pb={4}>
       <NotesAccordion
         dagId={dagId}
         runId={runId}

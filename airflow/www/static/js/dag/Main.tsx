@@ -190,9 +190,15 @@ const Main = () => {
       height={`${mainHeight}px`}
       overflow="hidden"
       position="relative"
-      minHeight="750px"
+      display="flex"
+      flexDirection="column"
     >
-      <Accordion allowToggle index={accordionIndexes} borderTopWidth={0}>
+      <Accordion
+        allowToggle
+        index={accordionIndexes}
+        borderTopWidth={0}
+        flexShrink={0}
+      >
         <AccordionItem
           sx={{
             // Override chakra-collapse so our dropdowns still work
@@ -211,7 +217,7 @@ const Main = () => {
           </AccordionPanel>
         </AccordionItem>
       </Accordion>
-      <Flex height="100%">
+      <Flex flex={1} minHeight={0}>
         {isLoading || isEmpty(groups) ? (
           <Spinner />
         ) : (

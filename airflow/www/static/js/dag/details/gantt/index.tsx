@@ -154,7 +154,13 @@ const Gantt = ({
   const intervals = runDuration / numBars;
 
   return (
-    <Box ref={ganttRef} position="relative" height="100%" overflow="hidden">
+    <Box
+      ref={ganttRef}
+      position="relative"
+      flex={1}
+      minHeight={0}
+      overflow="hidden"
+    >
       {!runId && (
         <Alert status="warning" position="absolute" top={2}>
           <AlertIcon />

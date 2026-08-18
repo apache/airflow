@@ -156,6 +156,16 @@ const indexToTab = (
 
 export const TAB_PARAM = "tab";
 
+// Each panel fills the tab area and lays its content out as a column, so a single child can claim
+// the leftover space and scroll on its own rather than pushing the page past the viewport.
+// `overflowY` is a safety net for content that does not opt into that sizing.
+const panelProps = {
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  overflowY: "auto",
+} as const;
+
 const Details = ({
   openGroupIds,
   onToggleGroups,
@@ -260,8 +270,13 @@ const Details = ({
       : group?.instances.find((ti) => ti.runId === runId);
 
   return (
-    <Flex flexDirection="column" height="100%">
-      <Flex alignItems="center" justifyContent="space-between" flexWrap="wrap">
+    <Flex flexDirection="column" height="100%" overflow="hidden">
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        flexShrink={0}
+      >
         <Header
           mapIndex={
             mappedTaskInstance?.renderedMapIndex || mappedTaskInstance?.mapIndex
@@ -305,16 +320,19 @@ const Details = ({
           <FilterTasks taskId={taskId} />
         </Flex>
       </Flex>
-      <Divider my={2} />
+      <Divider my={2} flexShrink={0} />
       <Tabs
         size="lg"
         isLazy
         lazyBehavior="keepMounted"
-        height="100%"
+        display="flex"
+        flexDirection="column"
+        flex={1}
+        minHeight={0}
         index={tabIndex}
         onChange={onChangeTab}
       >
-        <TabList>
+        <TabList flexShrink={0}>
           <Tab>
             <MdDetails size={16} />
             <Text as="strong" ml={1}>
@@ -426,8 +444,8 @@ const Details = ({
             </Button>
           )}
         </TabList>
-        <TabPanels height="100%">
-          <TabPanel height="100%">
+        <TabPanels flex={1} minHeight={0}>
+          <TabPanel {...panelProps}>
             {isDag && <DagContent />}
             {isDagRun && <DagRunContent runId={runId} />}
             {!!runId && !!taskId && (
@@ -445,14 +463,14 @@ const Details = ({
             )}
             {showTaskDetails && <TaskDetails />}
           </TabPanel>
-          <TabPanel p={0} height="100%">
+          <TabPanel {...panelProps} p={0}>
             <Graph
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
               hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
-          <TabPanel p={0} height="100%">
+          <TabPanel {...panelProps} p={0}>
             <Gantt
               openGroupIds={openGroupIds}
               gridScrollRef={gridScrollRef}
@@ -461,10 +479,10 @@ const Details = ({
               runId={runId}
             />
           </TabPanel>
-          <TabPanel height="100%">
+          <TabPanel {...panelProps}>
             <DagCode />
           </TabPanel>
-          <TabPanel height="100%">
+          <TabPanel {...panelProps}>
             <EventLog
               taskId={isGroup || !taskId ? undefined : taskId}
               showMapped={isMapped || !taskId}
@@ -472,12 +490,12 @@ const Details = ({
             />
           </TabPanel>
           {isDag && (
-            <TabPanel height="100%">
+            <TabPanel height="100%" overflow="auto">
               <RunDuration />
             </TabPanel>
           )}
           {isDag && (
-            <TabPanel height="80%">
+            <TabPanel height="100%" overflow="auto">
               <Flex justifyContent="right" pr="30px">
                 <Checkbox
                   isChecked={showBar}
@@ -498,8 +516,8 @@ const Details = ({
           )}
           {isTaskInstance && run && (
             <TabPanel
+              {...panelProps}
               pt={mapIndex !== undefined ? "0px" : undefined}
-              height="100%"
             >
               <BackToTaskSummary
                 isMapIndexDefined={mapIndex !== undefined}
@@ -521,7 +539,7 @@ const Details = ({
             </TabPanel>
           )}
           {isMappedTaskSummary && (
-            <TabPanel height="100%">
+            <TabPanel {...panelProps}>
               <MappedInstances
                 dagId={dagId}
                 runId={runId}
@@ -533,7 +551,7 @@ const Details = ({
             </TabPanel>
           )}
           {isTaskInstance && (
-            <TabPanel height="100%">
+            <TabPanel {...panelProps}>
               <XcomCollection
                 dagId={dagId}
                 dagRunId={runId}
@@ -544,7 +562,7 @@ const Details = ({
             </TabPanel>
           )}
           {isTaskInstance && isK8sExecutor && (
-            <TabPanel height="100%">
+            <TabPanel {...panelProps}>
               <RenderedK8s />
             </TabPanel>
           )}

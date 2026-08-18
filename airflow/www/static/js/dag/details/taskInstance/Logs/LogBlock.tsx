@@ -19,7 +19,6 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { Code } from "@chakra-ui/react";
-import { useContentHeight } from "src/utils";
 
 interface Props {
   parsedLogs: string;
@@ -37,7 +36,6 @@ const LogBlock = ({
   const [autoScroll, setAutoScroll] = useState(true);
 
   const logBoxRef = useRef<HTMLPreElement>(null);
-  const contentHeight = useContentHeight(logBoxRef);
 
   const scrollToBottom = () => {
     if (logBoxRef.current) {
@@ -47,13 +45,13 @@ const LogBlock = ({
 
   useEffect(() => {
     // Always scroll to bottom when wrap or tryNumber change
-    if (contentHeight) scrollToBottom();
-  }, [wrap, tryNumber, contentHeight]);
+    scrollToBottom();
+  }, [wrap, tryNumber]);
 
   useEffect(() => {
     // When logs change, only scroll if autoScroll is enabled
-    if (autoScroll && contentHeight) scrollToBottom();
-  }, [parsedLogs, autoScroll, contentHeight]);
+    if (autoScroll) scrollToBottom();
+  }, [parsedLogs, autoScroll]);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (e.currentTarget) {
@@ -103,7 +101,8 @@ const LogBlock = ({
       ref={logBoxRef}
       onScroll={onScroll}
       onClick={onClick}
-      maxHeight={`${contentHeight}px`}
+      flex={1}
+      minHeight={0}
       overflowY="auto"
       p={3}
       display="block"

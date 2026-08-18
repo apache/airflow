@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import { Flex, Box } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 import type { Row, SortingRule } from "react-table";
@@ -27,7 +27,6 @@ import { useMappedInstances } from "src/api";
 import { StatusWithNotes } from "src/dag/StatusBox";
 import { Table, CellProps } from "src/components/Table";
 import Time from "src/components/Time";
-import { useContentHeight } from "src/utils";
 
 interface Props {
   dagId: string;
@@ -37,8 +36,6 @@ interface Props {
 }
 
 const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
-  const mappedTasksRef = useRef<HTMLDivElement>(null);
-  const contentHeight = useContentHeight(mappedTasksRef);
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([]);
@@ -125,7 +122,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   );
 
   return (
-    <Box ref={mappedTasksRef} maxHeight={`${contentHeight}px`} overflowY="auto">
+    <Box flex={1} minHeight={0} overflowY="auto">
       <Table
         data={data}
         columns={columns}

@@ -37,7 +37,8 @@ export default function CodeBlock({ code }: Props) {
 
   return (
     <Box
-      height="calc(100% - 10px)"
+      flex={1}
+      minHeight={0}
       borderWidth={2}
       borderColor="gray:100"
       position="relative"
