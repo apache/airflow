@@ -2265,23 +2265,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         This matches the UI's progress view (``_fetch_active_assets_per_dag``).
         """
         # Cap per-tick work so the scheduler transaction stays bounded and other
-        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
-        # FIFO is intentional: the oldest pending APDR fires first. A persistently
-        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
-        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
-        # in HA two schedulers can otherwise both grab the same satisfied APDR
-        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
-        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
-        # two APDRs share a `created_at` under bulk asset-event ingestion.
-        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
-        # The fetch is capped at `cap` rows. When it comes back full, we can't tell from the
-        # fetch alone whether that's the entire backlog or just this tick's slice of a larger
-        # one, so we pay for a separate lock-free `count()` query in that case only — trading
-        # an occasional extra read for not locking rows this process won't claim, and for a
-        # real number to report in logs/audit instead of the capped fetch size.
+        # scheduling work isn't starved; the remainder drains over subsequent ticks.
+        # FIFO is intentional: a persistently unsatisfiable APDR at the head (e.g.
+        # broken mapper, upstream that will never arrive) blocks newer ones until an
+        # operator removes it or fixes the mapper, surfacing the stuck state rather
+        # than silently rotating past it.
+        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path: in
+        # HA two schedulers can otherwise both grab the same satisfied APDR and race
+        # the `created_dag_run_id` UPDATE, orphaning whichever DagRun loses. The `id`
+        # tiebreaker on `order_by` keeps LIMIT deterministic when two APDRs share a
+        # `created_at` under bulk asset-event ingestion. SQLite is single-writer and
+        # silently drops `FOR UPDATE`, which is fine.
         pending_apdrs = session.scalars(
             with_row_locks(
                 select(AssetPartitionDagRun)
@@ -2302,7 +2296,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return set()
 
         if len(pending_apdrs) >= self._max_partition_dag_runs_per_loop:
-            # Per-dag counts across the *whole* backlog, not just this tick's oldest-cap
+            # A full fetch alone can't tell us whether that's the entire backlog or just
+            # this tick's slice of a larger one, so we only pay for this query then.
+            # Per-Dag counts across the *whole* backlog, not just this tick's oldest-cap
             # slice (`pending_apdrs`) — a Dag whose partitions haven't reached the front of
             # the FIFO queue yet would otherwise be missing from the log/audit row until its
             # turn comes up.
