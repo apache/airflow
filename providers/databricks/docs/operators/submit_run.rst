@@ -80,6 +80,7 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
     - ``libraries``
     - ``run_name``
     - ``timeout_seconds``
+    - ``performance_target``
 
 .. code-block:: python
 
