@@ -673,7 +673,7 @@ class SortParam(BaseParam[list[str]]):
         self,
         allowed_attrs: list[str],
         model: Base,
-        to_replace: dict[str, str | Column | list[Column]] | None = None,
+        to_replace: dict[str, str | ColumnElement | list[Column]] | None = None,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
@@ -707,7 +707,7 @@ class SortParam(BaseParam[list[str]]):
             # it back to the actual row accessor via ``to_replace`` when reading values
             # for cursor encoding.
             attr_name = lstriped_orderby
-            column: Column | None = None
+            column: ColumnElement | None = None
             if self.to_replace:
                 replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
                 if isinstance(replacement, str):

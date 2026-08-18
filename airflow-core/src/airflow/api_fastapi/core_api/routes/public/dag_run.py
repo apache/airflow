@@ -46,6 +46,7 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
+    earliest_deadline_subquery,
 )
 from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.parameters import (
@@ -540,7 +541,7 @@ def get_dag_runs(
                     "duration",
                 ],
                 DagRun,
-                {"dag_run_id": "run_id"},
+                {"dag_run_id": "run_id", "deadline": earliest_deadline_subquery},
             ).dynamic_depends(default="id")
         ),
     ],
@@ -994,7 +995,7 @@ def get_list_dag_runs_batch(
             "conf",
         ],
         DagRun,
-        {"dag_run_id": "run_id"},
+        {"dag_run_id": "run_id", "deadline": earliest_deadline_subquery},
     ).set_value([body.order_by] if body.order_by else None)
 
     base_query = select(DagRun).options(*eager_load_dag_run_for_list())

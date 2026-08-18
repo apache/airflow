@@ -35,7 +35,7 @@ from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.exceptions import ParamValidationError
-from airflow.models import DagModel, DagRun, Log
+from airflow.models import DagModel, DagRun, Deadline, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
@@ -43,6 +43,7 @@ from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, Param, result, task
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
@@ -137,6 +138,10 @@ DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
 
 DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
+
+
+async def _noop_deadline_callback(**kwargs):
+    """No-op callback used only to satisfy the Deadline relationship in tests."""
 
 
 @pytest.fixture(autouse=True)
@@ -253,6 +258,19 @@ def setup(request, dag_maker, *, session=None):
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
     dag_run4.partition_date = PARTITION_DATE4
+
+    # Attach one deadline per run with strictly increasing times so ``order_by=deadline``
+    # sorts the runs in the same order as ``DAG_RUNS_LIST`` (dag_run1 < ... < dag_run4).
+    deadline_base = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    for i, dr in enumerate([dag_run1, dag_run2, dag_run3, dag_run4], start=1):
+        session.add(
+            Deadline(
+                deadline_time=deadline_base + timedelta(days=i),
+                callback=AsyncCallback(_noop_deadline_callback),
+                dagrun_id=dr.id,
+                deadline_alert_id=None,
+            )
+        )
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -564,6 +582,7 @@ class TestGetDagRuns:
             pytest.param("updated_at", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_updated_at"),
             pytest.param("conf", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_conf"),
             pytest.param("duration", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_duration"),
+            pytest.param("deadline", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_deadline"),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1366,6 +1385,7 @@ class TestListDagRunsBatch:
             pytest.param("end_date", DAG_RUNS_LIST, id="order_by_end_date"),
             pytest.param("updated_at", DAG_RUNS_LIST, id="order_by_updated_at"),
             pytest.param("conf", DAG_RUNS_LIST, id="order_by_conf"),
+            pytest.param("deadline", DAG_RUNS_LIST, id="order_by_deadline"),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
