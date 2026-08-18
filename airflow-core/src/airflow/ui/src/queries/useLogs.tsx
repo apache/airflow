@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { UseQueryOptions } from "@tanstack/react-query";
+import Anser from "anser";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";
@@ -24,7 +25,11 @@ import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
-import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+import type {
+  StructuredLogMessage,
+  TaskInstanceResponse,
+  TaskInstancesLogResponse,
+} from "openapi/requests/types.gen";
 import {
   extractTIContext,
   renderStructuredLog,
@@ -36,9 +41,47 @@ import { parseStreamingLogContent } from "src/utils/logs";
 
 export type ParsedLogEntry = {
   element: JSX.Element | string | undefined;
+  getPlainText?: () => string;
   group?: { id: number; level: number; parentId?: number; type: "header" | "line" };
   lineNumber?: number;
+  timestamp?: string;
 };
+
+type GetLogLineTextOptions = {
+  logLevelFilters?: Array<string>;
+  logMessage: string | StructuredLogMessage;
+  showSource?: boolean;
+  showTimestamp?: boolean;
+  sourceFilters?: Array<string>;
+  translate: TFunction;
+};
+
+/**
+ * Plain-text rendering of a single log line — same pipeline as the log
+ * download, with ANSI escape codes stripped. Used to rebuild copied text for
+ * selected rows the virtualizer has unmounted.
+ */
+export const getLogLineText = ({
+  logLevelFilters,
+  logMessage,
+  showSource,
+  showTimestamp,
+  sourceFilters,
+  translate,
+}: GetLogLineTextOptions): string =>
+  Anser.ansiToText(
+    renderStructuredLog({
+      index: 0,
+      logLevelFilters,
+      logLink: "",
+      logMessage,
+      renderingMode: "text",
+      showSource,
+      showTimestamp,
+      sourceFilters,
+      translate,
+    }),
+  );
 
 type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
@@ -117,6 +160,7 @@ const parseLogs = ({
             translate,
           }),
           lineNumber: lineNumbers[index],
+          logMessage: datum,
         };
       })
       .filter(({ element }) => element !== "");
@@ -136,8 +180,10 @@ const parseLogs = ({
     const result: Array<ParsedLogEntry> = [];
     let nextGroupId = 0;
 
-    parsedLines.forEach(({ element, lineNumber }) => {
+    parsedLines.forEach(({ element, lineNumber, logMessage }) => {
       const text = innerText(element);
+      const getPlainText = () =>
+        getLogLineText({ logLevelFilters, logMessage, showSource, showTimestamp, sourceFilters, translate });
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
@@ -163,15 +209,18 @@ const parseLogs = ({
       }
 
       const currentGroup = groupStack[groupStack.length - 1];
+      const timestamp = typeof logMessage === "string" ? undefined : logMessage.timestamp;
 
       if (groupStack.length > 0 && currentGroup) {
         result.push({
           element,
+          getPlainText,
           group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
           lineNumber,
+          timestamp,
         });
       } else {
-        result.push({ element, lineNumber });
+        result.push({ element, getPlainText, lineNumber, timestamp });
       }
     });
 

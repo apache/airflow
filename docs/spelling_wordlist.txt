@@ -51,6 +51,7 @@ alibaba
 alibabacloud
 allAuthenticatedUsers
 allowlist
+allowlists
 allUsers
 alphanumerics
 amazonaws
@@ -175,7 +176,9 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
+BatchNodeState
 BatchServiceClient
 bc
 bcc
@@ -237,6 +240,7 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
 checksums
 childs
 chmod
@@ -318,6 +322,7 @@ contrib
 convertToIri
 cooldown
 copyable
+coreutils
 CoreV
 coroutine
 cosmosdb
@@ -452,6 +457,7 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
 DeleteAgentResponse
 DeleteAgentVersionResponse
 delim
@@ -524,6 +530,7 @@ downstreams
 dp
 dq
 Drillbit
+driverless
 dropdown
 druidHook
 ds
@@ -598,7 +605,9 @@ EOL
 equest
 errno
 errored
+esbuild
 eslint
+ESM
 ETag
 etag
 etl
@@ -1064,9 +1073,12 @@ metastore
 metavar
 mget
 mgmt
+MiB
 microservice
 microservices
 microsoft
+microVM
+microVMs
 middleware
 middlewares
 midnights
@@ -1425,6 +1437,7 @@ reqs
 requeue
 requeued
 requeues
+requeuing
 reserialize
 Reserializing
 resetdb
@@ -1479,6 +1492,7 @@ sanitization
 sas
 Sasl
 sasl
+sbx
 scala
 scalability
 scalable
@@ -1614,6 +1628,7 @@ StatsD
 statsd
 stderr
 stdin
+stdlib
 stdout
 StorageClass
 storages
@@ -1621,6 +1636,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+StreamingLogResponse
 strftime
 Stringified
 stringified

@@ -1,0 +1,1 @@
+Listeners registered via ``on_task_instance_success`` / ``on_task_instance_failed`` are now called for non-teardown task instances that were running when a Dag Run state is manually set to a terminal state (e.g. via the API or UI).

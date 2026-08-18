@@ -369,6 +369,9 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
 - [ADR 0004](./adr/0004-self-contained-executable-bundle.md): the self-contained executable bundle, where
   the executable *is* the bundle.
 
+Cross-cutting Lang-SDK decisions — the coordinator architecture and how non-Python tasks integrate with
+Airflow core surfaces — are recorded in [`airflow-core/adr/lang-sdk/`](../airflow-core/adr/lang-sdk).
+
 The normative, language-agnostic on-disk bundle format (the footer layout, manifest fields, and what the
 `ExecutableCoordinator` reads) is specified in
 [`executable-bundle-spec.rst`](https://github.com/apache/airflow/blob/main/task-sdk/docs/executable-bundle-spec.rst).

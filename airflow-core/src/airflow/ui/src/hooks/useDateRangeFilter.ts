@@ -19,7 +19,7 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import type { TFunction } from "i18next";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
@@ -252,7 +252,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
   };
 
   const handleInputChange =
-    (field: "end" | "start", inputType: "date" | "time") => (event: React.ChangeEvent<HTMLInputElement>) => {
+    (field: "end" | "start", inputType: "date" | "time") => (event: ChangeEvent<HTMLInputElement>) => {
       const inputValue = event.target.value;
       const inputKey = inputType === "date" ? field : (`${field}Time` as const);
 

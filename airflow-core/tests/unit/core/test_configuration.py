@@ -1124,16 +1124,16 @@ class TestConf:
         ("input_scheme", "expected_scheme"),
         [
             pytest.param(
-                "postgres://user:pass@host/db", "postgresql+psycopg2://user:pass@host/db", id="postgres"
+                "postgres://user:pass@host/db", "postgresql+psycopg://user:pass@host/db", id="postgres"
             ),
             pytest.param(
                 "postgres+psycopg2://user:pass@host/db",
-                "postgresql+psycopg2://user:pass@host/db",
+                "postgresql+psycopg://user:pass@host/db",
                 id="postgres+psycopg2",
             ),
             pytest.param(
                 "postgresql://user:pass@host/db",
-                "postgresql+psycopg2://user:pass@host/db",
+                "postgresql+psycopg://user:pass@host/db",
                 id="postgresql-bare",
             ),
             pytest.param(
@@ -1145,7 +1145,37 @@ class TestConf:
         ],
     )
     @mock.patch.dict("os.environ", {}, clear=False)
-    def test_upgrade_postgres_metastore_conn(self, input_scheme, expected_scheme):
+    @mock.patch("airflow.configuration.find_spec", return_value=object())
+    def test_upgrade_postgres_metastore_conn(self, mock_find_spec, input_scheme, expected_scheme):
+        """Assumes psycopg (v3) is installed; see the sibling ``_without_psycopg3`` test for the
+        fallback, since whether psycopg3 is actually present varies across CI environments
+        (e.g. a lowest-dependencies job that doesn't install it)."""
+        os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = input_scheme
+        test_conf = AirflowConfigParser()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            test_conf._upgrade_postgres_metastore_conn()
+        assert test_conf.get("database", "sql_alchemy_conn") == expected_scheme
+
+    @pytest.mark.parametrize(
+        ("input_scheme", "expected_scheme"),
+        [
+            pytest.param(
+                "postgres://user:pass@host/db", "postgresql+psycopg2://user:pass@host/db", id="postgres"
+            ),
+            pytest.param(
+                "postgresql+psycopg2://user:pass@host/db",
+                "postgresql+psycopg2://user:pass@host/db",
+                id="postgresql+psycopg2-noop",
+            ),
+        ],
+    )
+    @mock.patch.dict("os.environ", {}, clear=False)
+    @mock.patch("airflow.configuration.find_spec", return_value=None)
+    def test_upgrade_postgres_metastore_conn_without_psycopg3(
+        self, mock_find_spec, input_scheme, expected_scheme
+    ):
+        """Falls back to psycopg2 when the psycopg (v3) package isn't installed."""
         os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = input_scheme
         test_conf = AirflowConfigParser()
         with warnings.catch_warnings():
@@ -1952,6 +1982,25 @@ def test_provider_sections_do_not_overlap_with_core():
     )
 
 
+@pytest.mark.parametrize(
+    ("sqlite_version_info", "expect_error"),
+    [
+        ((3, 15, 0), False),
+        ((3, 14, 9), True),
+    ],
+)
+def test_validate_sqlite3_version(sqlite_version_info, expect_error, monkeypatch):
+    """_validate_sqlite3_version compares against sqlite3.sqlite_version_info, not a parsed string."""
+    monkeypatch.setenv("AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "sqlite:////tmp/airflow.db")
+    test_conf = AirflowConfigParser()
+    with mock.patch("sqlite3.sqlite_version_info", sqlite_version_info):
+        if expect_error:
+            with pytest.raises(AirflowConfigException, match="SQLite C library too old"):
+                test_conf._validate_sqlite3_version()
+        else:
+            test_conf._validate_sqlite3_version()
+
+
 @skip_if_force_lowest_dependencies_marker
 class TestProviderConfigPriority:
     """Tests that conf.get and conf.has_option respect provider metadata and cfg fallbacks with correct priority."""
@@ -2094,6 +2143,36 @@ class TestProviderConfigPriority:
         custom_value = "my_custom.celery_executor"
         with conf_vars({("celery", "celery_app_name"): custom_value}):
             assert conf.get("celery", "celery_app_name") == custom_value
+
+    def test_getsection_returns_env_var_only_provider_section(self, monkeypatch):
+        """Env vars are picked up for a provider section whose keys all default to None."""
+        from airflow.settings import conf
+
+        monkeypatch.setenv("AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT", "21600")
+        monkeypatch.setenv("AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__MASTER_NAME", "mymaster")
+
+        section = conf.getsection("celery_broker_transport_options")
+
+        assert section is not None
+        assert section["visibility_timeout"] == 21600
+        assert section["master_name"] == "mymaster"
+
+    def test_getsection_returns_env_var_only_provider_section_via_cfg_fallback(self, monkeypatch):
+        """Env vars are picked up for a section that lives only in provider cfg fallback defaults."""
+        from airflow.settings import conf
+
+        monkeypatch.setenv("AIRFLOW__ELASTICSEARCH__END_OF_LOG_MARK", "env_override_mark")
+
+        section = conf.getsection("elasticsearch")
+
+        assert section is not None
+        assert section["end_of_log_mark"] == "env_override_mark"
+
+    def test_getsection_returns_none_for_truly_unknown_section(self):
+        """Sections not declared anywhere and with no env vars still return None."""
+        from airflow.settings import conf
+
+        assert conf.getsection("section_that_does_not_exist_anywhere") is None
 
 
 # Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests

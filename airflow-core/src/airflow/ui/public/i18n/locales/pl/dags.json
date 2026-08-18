@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "Wszystkie Typy Wykonań Dagów",
     "allStates": "Wszystkie Stany",
+    "anyRunState": "Dowolne wykonanie",
     "favorite": {
       "all": "Wszystkie",
       "favorite": "Ulubione",
       "unfavorite": "Nieulubione"
     },
+    "lastRunState": "Ostatnie wykonanie",
     "paused": {
       "active": "Aktywne",
       "all": "Wszystkie",
@@ -76,6 +78,11 @@
       "upstream": "Taski nadrzędne"
     }
   },
+  "runStateCounts": {
+    "label": "Stany wykonań",
+    "loading": "Ładowanie liczby wykonań według stanu",
+    "tooltip": "{{state}}: {{formattedCount}} — kliknij, aby filtrować wykonania"
+  },
   "search": {
     "advanced": "Wyszukiwanie zaawansowane",
     "clear": "Wyczyść wyszukiwanie",
@@ -88,9 +95,9 @@
       "asc": "Sortuj według Nazwy Wyświetlanej (A-Z)",
       "desc": "Sortuj według Nazwy Wyświetlanej (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
-      "desc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
+    "lastRunAfter": {
+      "asc": "Sortuj według Daty Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Daty Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
     },
     "lastRunState": {
       "asc": "Sortuj według Stanu Ostatniego Wykonania (A-Z)",

@@ -22,7 +22,7 @@
 [build-system]
 requires = [
     "hatchling==1.31.0",
-    "packaging==26.2",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "0.6.0"
+version = "0.7.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -76,11 +76,11 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"anthropic" = ["pydantic-ai-slim[anthropic]"]
-"bedrock" = ["pydantic-ai-slim[bedrock]"]
-"google" = ["pydantic-ai-slim[google]"]
-"openai" = ["pydantic-ai-slim[openai]"]
-"mcp" = ["pydantic-ai-slim[mcp]"]
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.0.0"]
+"bedrock" = ["pydantic-ai-slim[bedrock]>=2.0.0"]
+"google" = ["pydantic-ai-slim[google]>=2.0.0"]
+"openai" = ["pydantic-ai-slim[openai]>=2.0.0"]
+"mcp" = ["pydantic-ai-slim[mcp]>=2.0.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
 # Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
@@ -105,16 +105,11 @@ dependencies = [
     "pyarrow>=22.0.0; python_version >= '3.14'",
 ]
 "sql" = [
-    "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-common-sql>=1.33.0",
     "sqlglot>=30.0.0",
 ]
-# AWSToolset: allow-listed AWS API access for agents. The amazon provider
-# supplies credential resolution (AwsBaseHook) and brings boto3/botocore.
-"aws" = [
-    "apache-airflow-providers-amazon>=9.0.0",
-]
 "common.sql" = [
-    "apache-airflow-providers-common-sql"
+    "apache-airflow-providers-common-sql>=1.33.0"
 ]
 "langchain" = [
     "langchain>=1.0.0",
@@ -130,23 +125,19 @@ dependencies = [
 "git" = [
     "apache-airflow-providers-git"
 ]
-"amazon" = [
-    "apache-airflow-providers-amazon"
-]
 
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
-    "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-git",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
-    "pydantic-ai-slim[mcp]",
+    "pydantic-ai-slim[mcp]>=2.0.0",
     "pydantic-ai-skills>=1.2.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
@@ -181,8 +172,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.6.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.6.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.7.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.7.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -58,6 +58,7 @@ from airflowctl.api.operations import (
     ProvidersOperations,
     ServerResponseError,
     TaskInstancesOperations,
+    TasksOperations,
     VariablesOperations,
     VersionOperations,
     XComOperations,
@@ -66,7 +67,6 @@ from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
     AirflowCtlException,
     AirflowCtlKeyringException,
-    AirflowCtlNotFoundException,
 )
 
 if TYPE_CHECKING:
@@ -459,6 +459,12 @@ class Client(httpx.Client):
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property
+    def tasks(self):
+        """Operations related to tasks."""
+        return TasksOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
     def variables(self):
         """Operations related to variables."""
         return VariablesOperations(self)
@@ -510,8 +516,6 @@ def get_client(
             kind=kind,
         )
         yield api_client
-    except AirflowCtlNotFoundException as e:
-        raise e
     finally:
         if api_client:
             api_client.close()

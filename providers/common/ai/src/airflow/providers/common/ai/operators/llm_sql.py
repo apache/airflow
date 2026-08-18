@@ -28,7 +28,6 @@ try:
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
-    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -135,13 +134,8 @@ class LLMSQLQueryOperator(LLMOperator):
         return hook
 
     def execute(self, context: Context) -> str:
-        if self.require_approval and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The approval review body renders the prompt as text. Return a "
-                f"str prompt, or disable require_approval."
-            )
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
 
         schema_info = self._get_schema_context()
 
@@ -226,6 +220,17 @@ class LLMSQLQueryOperator(LLMOperator):
 
     def _introspect_object_storage_schema(self):
         """Use DataFusion Engine to get the schema of object stores."""
+        try:
+            from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Object-storage schema introspection requires the `datafusion` extra of "
+                "apache-airflow-providers-common-sql. Install it with: "
+                'pip install "apache-airflow-providers-common-sql[datafusion]"'
+            ) from e
+
         engine = DataFusionEngine()
         engine.register_datasource(self.datasource_config)
         return engine.get_schema(self.datasource_config.table_name)

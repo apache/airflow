@@ -1,4 +1,23 @@
 {
+  "alerts": {
+    "seeLessContext": "הצג פחות",
+    "seeMoreContext": "הצג עוד",
+    "showMoreAlerts_one": "+{{count}} התראה נוספת",
+    "showMoreAlerts_other": "+{{count}} התראות נוספות",
+    "showMoreAlerts_two": "+{{count}} התראות נוספות"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "אין מועדים קרובים",
+      "title": "קרובים"
+    },
+    "recentlyMissed": {
+      "empty": "אין מועדים שהוחמצו",
+      "title": "מועדים שהוחמצו"
+    },
+    "showMore": "הצג עוד",
+    "title": "מועדים"
+  },
   "deferredSlotsNotCounted": "משימות בהשהיה שלא נספרו במכסות: {{count}}",
   "deferredSlotsNotCountedTooltip": "משימות בהשהיה המוצגות בסרגל נספרות מול מכסות המאגר. משימות בהשהיה המוצגות מתחת לסרגל מגיעות ממאגרים שאינם סופרים משימות בהשהיה מול המכסות.",
   "favorite": {

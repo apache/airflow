@@ -98,7 +98,18 @@ jobs:
       publish-supervisor-schema: ${{ steps.parameters.outputs.publish-supervisor-schema }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
-      default-python-version: "3.10"
+      # Docs and the registry each build the image they need rather than sharing one. Sharing
+      # meant sharing the Python too, which put the docs on 3.12 and broke publishing: Sphinx
+      # mocks third-party modules, and from 3.12 functools copies __type_params__, so a mocked
+      # decorator raises TypeError and providers fail to import. `breeze build-docs` pins itself
+      # to the default Python, so this follows the same constant rather than restating a version.
+      docs-python-version: ${{ steps.default_python.outputs.default-python-version }}
+      registry-python-version: "3.12"
+      # Discriminator for every stash this workflow writes. A bare ref would collide with any
+      # other workflow stashing an image for the same ref, and the images here are special: built
+      # from a release tag rather than a branch tip, and kept for days so the next publish of that
+      # tag reuses them. Naming them after this workflow keeps them recognisably ours.
+      image-stash-ref: "publish-docs-${{ inputs.ref }}"
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
     if: contains(fromJSON('[
@@ -119,7 +130,7 @@ jobs:
       ]'), github.event.sender.login)
     steps:
       - name: "Checkout for wave provider derivation"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -163,6 +174,21 @@ jobs:
             exit 0
           fi
           python3 dev/registry/derive_wave_providers.py
+      - name: "Derive the default Python version"
+        id: default_python
+        shell: bash
+        # `breeze build-docs` always documents on breeze's default Python, so the image this
+        # workflow builds for it has to be that same one. Reading the constant keeps the two from
+        # drifting apart and silently making the docs job build an image nothing then uses.
+        run: |
+          DEFAULT_PYTHON=$(python3 -c "
+          import re, pathlib
+          text = pathlib.Path('dev/breeze/src/airflow_breeze/global_constants.py').read_text()
+          versions = re.search(r'^ALL_PYTHON_MAJOR_MINOR_VERSIONS\s*=\s*\[(.*?)\]', text, re.M | re.S)
+          print(re.findall(r'\"([0-9]+\.[0-9]+)\"', versions.group(1))[0])
+          ")
+          echo "Default Python version: '${DEFAULT_PYTHON}'"
+          echo "default-python-version=${DEFAULT_PYTHON}" >> "${GITHUB_OUTPUT}"
       - name: "Input parameters summary"
         shell: bash
         id: parameters
@@ -242,14 +268,14 @@ jobs:
       VERBOSE: "true"
       EXTRA_BUILD_OPTIONS: ${{ needs.build-info.outputs.extra-build-options }}
       APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
-      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.docs-python-version }}"
       DOCKER_CACHE: "registry"
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout current version first to clean-up stuff"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           path: current-version
@@ -267,12 +293,22 @@ jobs:
       # registry buildx cache pushed by the last "main" Test workflow so that layer rebuilds
       # are avoided whenever the ref is close enough to main for the cache to apply.
       - name: "Checkout ${{ inputs.ref }} "
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
           fetch-tags: true
           fetch-depth: 0
+      # A local action is read from the workspace, not from the ref the workflow itself runs from,
+      # so an action added after this tag was cut is simply absent. Checking the workflow's own
+      # version out alongside supplies the definition; the image is still built from the sources
+      # above. It has to come after the checkout that populates the root, which cleans untracked
+      # siblings away.
+      - name: "Checkout the workflow version for its actions"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: workflow-version
       - name: "Apply patch commits if provided"
         run: |
           if [[ "${APPLY_COMMITS}" != "" ]]; then
@@ -292,32 +328,23 @@ jobs:
       - name: "Install Breeze from the ${{ inputs.ref }} reference"
         uses: ./.github/actions/breeze
         with:
-          python-version: "${{ needs.build-info.outputs.default-python-version }}"
-      - name: "Login to ghcr.io"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTOR: ${{ github.actor }}
-        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
-      - name: "Building image from the ${{ inputs.ref }} reference"
-        env:
-          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
-          INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
-        # The regular `breeze ci-image build` path uses the registry cache pushed by the last
-        # successful "main" Test workflow (DOCKER_CACHE=registry, --cache-from=<main>:cache-<platform>),
-        # which is the fast path for builds from main or main-like refs. When building from an old
-        # ref whose pyproject.toml has diverged from main, reusing the main cache can fail the build,
-        # so we fall back to a plain buildx build with no cache-from.
-        run: >
-          breeze ci-image build ||
-          docker buildx build --load --builder default --progress=auto --pull
-          --build-arg AIRFLOW_EXTRAS=devel-ci --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES=false
-          --build-arg AIRFLOW_USE_UV=true
-          --build-arg BUILD_PROGRESS=auto --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
-          --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
-          -t "ghcr.io/apache/airflow/main/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest" --target main .
-          -f Dockerfile.ci --platform linux/amd64
+          python-version: "${{ needs.build-info.outputs.docs-python-version }}"
+      # Built here rather than in a job of its own: a separate job could only hand the image over
+      # as a multi-gigabyte artifact, for a single consumer. The image, the commit it was built
+      # from and the mount cache are still stashed under this ref, so the next publish of the same
+      # ref seeds its build from them - or skips the build outright when the sources have not moved.
+      - name: "Build CI image linux/amd64:${{ needs.build-info.outputs.docs-python-version }}"
+        uses: ./workflow-version/.github/actions/build_ci_image_with_cache
+        with:
+          python: "${{ needs.build-info.outputs.docs-python-version }}"
+          platform: "linux/amd64"
+          image-stash-ref: "${{ needs.build-info.outputs.image-stash-ref }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          constraints-github-repository: >-
+            ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+            secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -329,25 +356,26 @@ jobs:
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
           FAIL_ON_INVENTORIES: ${{ inputs.ignore-missing-inventories != true && '--fail-on-missing-third-party-inventories' || '' }}
         run: |
-          # The Java SDK docs are built with Dokka by the separate build-java-sdk-docs job;
-          # java-sdk is not a Sphinx package, so it must not be passed to breeze build-docs.
+          # The language SDK docs are built by their own jobs with their native toolchains
+          # (Dokka for java-sdk, TypeDoc for ts-sdk). Neither is a Sphinx package, so they
+          # must not be passed to breeze build-docs.
           SPHINX_INCLUDE_DOCS=""
           for package in ${INCLUDE_DOCS}; do
-            if [[ "${package}" != "java-sdk" ]]; then
+            if [[ "${package}" != "java-sdk" && "${package}" != "ts-sdk" ]]; then
               SPHINX_INCLUDE_DOCS="${SPHINX_INCLUDE_DOCS} ${package}"
             fi
           done
           if [[ -n "${INCLUDE_DOCS}" && -z "${SPHINX_INCLUDE_DOCS// /}" ]]; then
-            echo "Only java-sdk docs were requested - skipping the Sphinx docs build."
+            echo "Only language SDK docs were requested - skipping the Sphinx docs build."
             mkdir -p generated/_build/docs
-            echo "The Sphinx docs build was skipped: only java-sdk docs were requested." \
+            echo "The Sphinx docs build was skipped: only language SDK docs were requested." \
               > generated/_build/docs/sphinx-build-skipped.txt
             echo "sphinx-build-skipped=true" >> "${GITHUB_OUTPUT}"
           else
             breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
         if: >-
           steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
           steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'
@@ -421,7 +449,7 @@ jobs:
       built: ${{ steps.sdk-present.outputs.exists }}
     steps:
       - name: "Checkout ${{ inputs.ref }}"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -462,8 +490,81 @@ jobs:
           if-no-files-found: 'error'
           overwrite: 'true'
 
+  build-ts-sdk-docs:
+    needs: [build-info]
+    timeout-minutes: 30
+    name: "Build TypeScript SDK API reference"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    outputs:
+      built: ${{ steps.sdk-present.outputs.exists }}
+    steps:
+      - name: "Checkout ${{ inputs.ref }}"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+      - name: "Decide whether to build the TypeScript SDK API reference"
+        id: sdk-present
+        env:
+          REF: ${{ inputs.ref }}
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
+        run: |
+          # Mirrors the java-sdk rule: only build for full doc builds (include-docs == 'all')
+          # or when 'ts-sdk' is explicitly listed. A providers-only publish wave must not
+          # refresh the ts-sdk docs as a side effect.
+          if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" ts-sdk "* ]]; then
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'ts-sdk' — skipping TypeDoc build."
+          elif [[ -f "ts-sdk/docs/typedoc.json" ]]; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "ts-sdk/docs/ not found at ref ${REF} — skipping TypeDoc build."
+          fi
+      - name: "Install Breeze"
+        if: steps.sdk-present.outputs.exists == 'true'
+        uses: ./.github/actions/breeze
+      # The TypeDoc toolchain is installed with `npm ci` inside the build container, which
+      # reads its download cache from HOME. Without this the ~250 pinned packages are
+      # fetched from the registry on every run.
+      - name: "Cache TypeDoc toolchain downloads"
+        if: steps.sdk-present.outputs.exists == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ts-sdk/docs/.npm-home/.npm
+          key: ts-sdk-docs-npm-${{ hashFiles('ts-sdk/docs/package-lock.json') }}
+          restore-keys: ts-sdk-docs-npm-
+      - name: "Build TypeScript SDK API reference"
+        if: steps.sdk-present.outputs.exists == 'true'
+        run: breeze build-docs --sdk-docs-only --sdk=typescript
+      - name: "Upload TypeScript SDK docs"
+        if: steps.sdk-present.outputs.exists == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ts-sdk-docs
+          path: generated/_build/docs/ts-sdk/
+          retention-days: '7'
+          if-no-files-found: 'error'
+          overwrite: 'true'
+
   publish-docs-to-s3:
-    needs: [build-docs, build-java-sdk-docs, build-info]
+    needs: [build-docs, build-java-sdk-docs, build-ts-sdk-docs, build-info, update-registry]
+    # `update-registry` is skipped for non-provider distributions, and a job whose dependency was
+    # skipped is skipped in turn, so its result is checked rather than implied - which means the
+    # two that are not conditional have to be asserted here as well.
+    if: >
+      !cancelled() && needs.build-docs.result == 'success' &&
+      needs.build-java-sdk-docs.result == 'success' &&
+      needs.build-ts-sdk-docs.result == 'success' &&
+      needs.update-registry.result != 'failure'
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -475,7 +576,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: "3.10"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.docs-python-version }}"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -486,7 +587,7 @@ jobs:
         # but it will build the CI image from the version of Airflow that is used to check out things
         # We also fetch the whole history to be able to prepare SBOM files
       - name: "Checkout current version with all history for SBOM"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -508,6 +609,12 @@ jobs:
         with:
           name: java-sdk-docs
           path: generated/_build/docs/java-sdk
+      - name: "Download TypeScript SDK docs artifact"
+        if: needs.build-ts-sdk-docs.outputs.built == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: ts-sdk-docs
+          path: generated/_build/docs/ts-sdk
       - name: "Make sure SBOM dir exists and has the right permissions"
         run: |
           sudo mkdir -vp ./files/sbom
@@ -517,7 +624,7 @@ jobs:
         env:
           AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+          PYTHON_VERSION: "${{ needs.build-info.outputs.docs-python-version }}"
           FORCE: "true"
         run: >
           breeze sbom update-sbom-information
@@ -565,7 +672,7 @@ jobs:
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@517a711dbcd0e402f90c77e7e2f81e849156e31d  # v6.2.2
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6.2.3
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -606,7 +713,10 @@ jobs:
             --destination-location "${SCHEMAS_DESTINATION}" "${args[@]}"
 
   update-registry:
-    needs: [publish-docs-to-s3, build-info]
+    # Runs alongside the docs build rather than after it: the registry reads nothing the docs
+    # build produces, so ordering the two only added its whole duration to the wait. The publish
+    # does wait for it, so a run reports success once both halves are actually out.
+    needs: [build-info]
     if: needs.build-info.outputs.registry-providers != '' || needs.build-info.outputs.registry-full-build == 'true'
     name: "Update Provider Registry"
     permissions:
@@ -616,6 +726,12 @@ jobs:
     with:
       destination: ${{ needs.build-info.outputs.destination }}
       provider: ${{ needs.build-info.outputs.registry-providers }}
+      # The registry extracts on 3.12 and the docs build on the default Python, so each builds the
+      # image it needs in the job that uses it, keyed by this ref so consecutive publishes reuse it.
+      python-version: ${{ needs.build-info.outputs.registry-python-version }}
+      # Without this the registry would read main rather than the ref being published.
+      checkout-ref: ${{ inputs.ref }}
+      image-stash-ref: ${{ needs.build-info.outputs.image-stash-ref }}
     secrets:
       DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

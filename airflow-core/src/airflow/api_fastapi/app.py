@@ -27,9 +27,9 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag
+from airflow.api_fastapi.common.exceptions import init_error_handlers
 from airflow.api_fastapi.core_api.app import (
     init_config,
-    init_error_handlers,
     init_flask_plugins,
     init_middlewares,
     init_views,
@@ -115,7 +115,19 @@ def create_app(apps: str = "all") -> FastAPI:
         title="Airflow API",
         description="Airflow API. All endpoints located under ``/api/v2`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
-        "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
+        "depending on the need of the frontend. Users should not rely on those but use the public ones instead."
+        "\n\n"
+        "**Filtering with pattern parameters.** Many list endpoints accept ``*_pattern`` and "
+        "``*_prefix_pattern`` query parameters. Unless a parameter's own description says otherwise, "
+        "``*_pattern`` is a case-insensitive substring match (SQL ``ILIKE '%term%'``) where ``%`` matches "
+        "any sequence and ``_`` matches any single character (e.g. ``%customer_%``) — convenient, but it "
+        "cannot use B-tree indexes, so it is slow on large tables. ``*_prefix_pattern`` matches the start "
+        "of the value, is case-sensitive and index-friendly (prefer it at scale); there ``%`` and ``_`` "
+        "are literal and trailing non-alphanumeric characters are stripped so the range scan stays "
+        "index-compatible under locale-aware collations "
+        "(e.g. ``test_`` matches values starting with ``test``, and ``s3://`` matches ``s3``). In both, "
+        "``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches everything. Regular expressions are not "
+        "supported by these parameters; regex-capable endpoints expose a separate parameter.",
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
         version="2",
@@ -128,7 +140,6 @@ def create_app(apps: str = "all") -> FastAPI:
     if "all" in apps_list or "execution" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
         task_exec_api_app.state.dag_bag = dag_bag
-        init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:

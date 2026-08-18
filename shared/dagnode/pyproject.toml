@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "structlog>=25.4.0",
+    "structlog>=26.1.0",
 ]
 
 [dependency-groups]
@@ -39,7 +39,7 @@ mypy = [
 [build-system]
 requires = [
     "hatchling==1.31.0",
-    "packaging==26.2",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
