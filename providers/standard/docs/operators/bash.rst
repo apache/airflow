@@ -226,6 +226,58 @@ Here's how you can use the result_processor with the BashOperator:
             )
 
 
+Multiple XCom outputs
+---------------------
+
+Pair ``output_processor`` with ``multiple_outputs=True`` to push more than one XCom from a single task. When
+the processed output is a dictionary, each key is pushed as its own XCom, which lets downstream tasks pull
+individual values by name instead of pulling the whole dictionary and indexing into it.
+
+.. tab-set::
+
+    .. tab-item:: @task.bash
+        :sync: taskflow
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_bash_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_decorator_bash_multiple_outputs]
+            :end-before: [END howto_decorator_bash_multiple_outputs]
+
+    .. tab-item:: BashOperator
+        :sync: operator
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_bash_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_bash_multiple_outputs]
+            :end-before: [END howto_operator_bash_multiple_outputs]
+
+The producing task above pushes an XCom for ``dag_folder`` and one for ``file_count``. The full dictionary is
+*also* pushed as the task's return value, so ``{{ ti.xcom_pull(task_ids="describe_dag_folder") }}`` still
+resolves to ``{"dag_folder": ..., "file_count": ...}``.
+
+.. important::
+
+    Only the **last line** written by the command is captured, so the dictionary must be the final thing the
+    command emits. A few consequences worth designing around:
+
+    * A trailing ``echo`` with no arguments emits an empty line, which becomes the captured output instead of
+      your dictionary.
+    * ``stderr`` is merged into ``stdout``, so a subcommand that writes to ``stderr`` last will overwrite the
+      captured value. Redirect noisy subcommands (for example ``2>/dev/null``) to avoid this.
+    * The dictionary must fit on a single line. Use ``jq -c`` rather than pretty-printed output, and prefer
+      ``printf`` over a multi-line ``printf`` format string.
+    * Every line the command writes is sent to the task log, including the line holding your values. Avoid
+      emitting secrets this way.
+
+.. note::
+
+    Building JSON by hand does not escape values, so a value containing a double quote produces invalid JSON.
+    When values are not known to be safe, generate the JSON with a tool that escapes properly, such as
+    ``jq -nc --arg uri "$uri" '{uri: $uri}'`` (note that ``jq`` is not installed in every image).
+
+
 Executing commands from files
 -----------------------------
 Both the ``BashOperator`` and ``@task.bash`` TaskFlow decorator enables you to execute Bash commands stored
