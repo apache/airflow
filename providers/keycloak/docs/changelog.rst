@@ -41,7 +41,6 @@ Features
 
 * ``Implement bulk authorization methods in KeycloakAuthManager (#70647)``
 * ``Move keycloak JWT tokens to separate cookies (#70550)``
-* ``Add KeycloakJWTMiddleware to KeycloakAuthManager (#70800)``
 * ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
 
 .. Below changes are excluded from the changelog. Move them to

@@ -365,7 +365,7 @@ class AzureBatchOperator(BaseOperator):
                 self.clean_up(pool_id=self.batch_pool_id)
 
     def on_kill(self) -> None:
-        self.hook.connection.begin_terminate_job(self.batch_job_id)
+        self.hook.connection.begin_terminate_job(self.batch_job_id).result()
         self.log.info("Azure Batch job (%s) terminated", self.batch_job_id)
 
     def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:
@@ -378,7 +378,7 @@ class AzureBatchOperator(BaseOperator):
         """
         if job_id:
             self.log.info("Deleting job: %s", job_id)
-            self.hook.connection.begin_delete_job(job_id)
+            self.hook.connection.begin_delete_job(job_id).result()
         if pool_id:
             self.log.info("Deleting pool: %s", pool_id)
-            self.hook.connection.begin_delete_pool(pool_id)
+            self.hook.connection.begin_delete_pool(pool_id).result()
