@@ -69,6 +69,18 @@ class TestRehydratePydanticOutput:
         result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=True)
         assert result == {"x": 7}
 
+    def test_returns_model_instances_for_generic_alias_of_base_model(self):
+        # ``list[A]`` is not ``isinstance(..., type)`` -- it must still reach TypeAdapter
+        # rather than fall back to plain json.loads and hand back a list of dicts.
+        result = rehydrate_pydantic_output(list[A], '[{"x": 7}]', serialize_output=False)
+        assert result == [A(x=7)]
+        assert isinstance(result[0], A)
+
+    def test_returns_dicts_for_generic_alias_of_base_model_when_serialize_output(self):
+        result = rehydrate_pydantic_output(list[A], '[{"x": 7}]', serialize_output=True)
+        assert result == [{"x": 7}]
+        assert not isinstance(result[0], BaseModel)
+
     def test_returns_raw_for_str_output_type(self):
         result = rehydrate_pydantic_output(str, "anything", serialize_output=False)
         assert result == "anything"
