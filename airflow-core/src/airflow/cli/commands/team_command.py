@@ -30,7 +30,12 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.connection import Connection
 from airflow.models.pool import Pool
-from airflow.models.team import Team, dag_bundle_team_association_table
+from airflow.models.team import (
+    TEAM_NAME_PATTERN,
+    Team,
+    dag_bundle_team_association_table,
+    find_invalid_team_names,
+)
 from airflow.models.variable import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -54,12 +59,23 @@ def _show_teams(teams, output):
 
 
 def _extract_team_name(args):
-    """Extract and validate team name from args."""
+    """
+    Extract a team name from args, without holding it to the name rule.
+
+    ``teams delete`` has to accept any name a row can hold, including one stored before the
+    current rule applied -- otherwise a team that violates it could never be removed.
+    """
     team_name = args.name.strip()
     if not team_name:
         raise SystemExit("Team name cannot be empty")
-    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", team_name):
-        raise SystemExit("Invalid team name: must match regex ^[a-zA-Z0-9_-]{3,50}$")
+    return team_name
+
+
+def _extract_new_team_name(args):
+    """Extract a team name for a creation path, holding it to the name rule."""
+    team_name = _extract_team_name(args)
+    if not re.fullmatch(TEAM_NAME_PATTERN, team_name):
+        raise SystemExit(f"Invalid team name: must match regex {TEAM_NAME_PATTERN}")
     return team_name
 
 
@@ -78,8 +94,8 @@ def _create_default_team_pool(team_name: str, *, session: Session) -> None:
 @providers_configuration_loaded
 @provide_session
 def team_create(args, *, session=NEW_SESSION):
-    """Create a new team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores."""
-    team_name = _extract_team_name(args)
+    """Create a new team. Team names must be 3-50 characters long and contain only lower case alphanumeric characters, hyphens, and single underscores."""
+    team_name = _extract_new_team_name(args)
 
     # Check if team with this name already exists
     if session.scalar(select(Team).where(Team.name == team_name)):
@@ -210,11 +226,22 @@ def team_sync(args, *, session=NEW_SESSION):
         for bundle in DagBundlesManager()._bundle_config.values()
         if bundle.team_name is not None
     }
+    existing_teams = Team.get_all_team_names(session=session)
+
+    # The bundle config is a second creation path for teams, so it enforces the same rule as
+    # `teams create`. Stored names are checked too: `teams sync` shipped without any validation,
+    # so a deployment can hold a name the rule rejects, and checking only the incoming config
+    # would miss a team created by an earlier sync and since dropped from it.
+    if invalid := find_invalid_team_names(dag_bundle_teams | existing_teams):
+        raise SystemExit(
+            f"Invalid team name(s): {', '.join(invalid)}. "
+            f"Team names must match regex {TEAM_NAME_PATTERN}. "
+            "Names already stored must be corrected before syncing."
+        )
 
     teams_added = 0
 
     try:
-        existing_teams = Team.get_all_team_names(session=session)
         for team_name in dag_bundle_teams:
             if team_name not in existing_teams:
                 session.add(Team(name=team_name))

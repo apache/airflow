@@ -107,6 +107,34 @@ class TestCliTeams:
         with pytest.raises(SystemExit, match="Invalid team name"):
             team_command.team_create(self.parser.parse_args(["teams", "create", "test with space"]))
 
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            pytest.param("Data-Eng", id="upper-case"),
+            pytest.param("team__x", id="consecutive-underscores"),
+            pytest.param("team_a___prod", id="spans-the-separator"),
+        ],
+    )
+    def test_team_create_rejects_a_name_the_secrets_namespace_cannot_hold(self, bad_name):
+        with pytest.raises(SystemExit, match="Invalid team name"):
+            team_command.team_create(self.parser.parse_args(["teams", "create", bad_name]))
+
+        assert self.session.scalar(select(Team).where(Team.name == bad_name)) is None
+
+    def test_team_create_allows_a_single_underscore(self):
+        team_command.team_create(self.parser.parse_args(["teams", "create", "team_a"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "team_a")) is not None
+
+    def test_team_delete_accepts_a_name_the_current_rule_rejects(self):
+        """A team stored before the rule tightened still has to be removable."""
+        self.session.add(Team(name="Data-Eng"))
+        self.session.commit()
+
+        team_command.team_delete(self.parser.parse_args(["teams", "delete", "Data-Eng", "--yes"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "Data-Eng")) is None
+
     def test_team_create_whitespace_name(self):
         """Test team creation with whitespace-only name."""
         with pytest.raises(SystemExit, match="Team name cannot be empty"):
@@ -392,6 +420,67 @@ class TestCliTeams:
         assert "integration-1" in team_names
         assert "integration-2" not in team_names
         assert "integration-3" in team_names
+
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            pytest.param("a", id="too-short"),
+            pytest.param("Team1", id="upper-case"),
+            pytest.param("team__x", id="consecutive-underscores"),
+            pytest.param("team1\n", id="trailing-newline"),
+        ],
+    )
+    def test_team_sync_rejects_an_invalid_bundle_team_name(self, bad_name):
+        """``teams sync`` is a second creation path, so it holds names to the same rule.
+
+        Unlike ``teams create`` this path does not strip its input, so a trailing newline
+        reaches the pattern -- which is why the check is ``re.fullmatch`` against an unanchored
+        pattern rather than ``re.match`` against a ``$``-anchored one.
+        """
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": bad_name,
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with pytest.raises(SystemExit, match="Invalid team name"):
+                team_command.team_sync(self.parser.parse_args(["teams", "sync"]))
+
+        assert self.session.scalars(select(Team)).all() == []
+
+    def test_team_sync_rejects_an_invalid_name_already_stored(self):
+        """``teams sync`` shipped with no validation, so stored names can already break the rule."""
+        self.session.add(Team(name="Data-Eng"))
+        self.session.commit()
+
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with pytest.raises(SystemExit, match="Data-Eng"):
+                team_command.team_sync(self.parser.parse_args(["teams", "sync"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "team1")) is None
 
     def test_team_sync(self):
         bundle_config = [
