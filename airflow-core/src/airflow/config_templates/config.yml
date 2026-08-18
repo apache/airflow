@@ -2674,10 +2674,10 @@ scheduler:
         below the working set evicts versions that are still being scheduled, costing a database
         fetch and a deserialization on the next loop. Set to 0 for no size limit, leaving eviction
         to ``dag_cache_ttl``. Set both this and ``dag_cache_ttl`` to 0 to use an unbounded dict
-        with no eviction, matching the behavior before 3.3.2; the cache then grows with the number
+        with no eviction, matching the behavior before 3.4.0; the cache then grows with the number
         of Dag versions the scheduler has ever seen, which on a long-running scheduler is
         unbounded.
-      version_added: 3.3.2
+      version_added: 3.4.0
       type: integer
       example: ~
       default: "1024"
@@ -2696,7 +2696,7 @@ scheduler:
         place is re-checked against its current ``dag_hash`` once
         ``[core] min_serialized_dag_update_interval`` has elapsed since the entry was last
         validated, so that option bounds how long a rewritten version can be served stale.
-      version_added: 3.3.2
+      version_added: 3.4.0
       type: integer
       example: ~
       default: "0"

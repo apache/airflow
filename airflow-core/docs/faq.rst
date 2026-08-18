@@ -773,7 +773,7 @@ See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, 
 How to prevent scheduler memory growth?
 ----------------------------------------
 
-The scheduler caches deserialized Dag objects, so before 3.3.2 its memory grew with every Dag
+The scheduler caches deserialized Dag objects, so before 3.4.0 its memory grew with every Dag
 version it had ever seen (see :ref:`faq:dag-version-inflation`) until the process was restarted or
 OOM killed. The cache is now bounded by default. Tune it in the ``[scheduler]`` section:
 
@@ -795,7 +795,7 @@ that are still being scheduled and costs a database fetch and a deserialization 
 switches to no size limit, leaving eviction to ``dag_cache_ttl``, which bounds memory by the
 concurrently active set rather than outright: each re-check resets an entry's expiry, so a TTL
 reclaims a version only once its runs finish and it stops being requested. Setting both to 0 uses
-an unbounded dict with no eviction, matching the behavior before 3.3.2.
+an unbounded dict with no eviction, matching the behavior before 3.4.0.
 
 Neither option affects how quickly the scheduler picks up a Dag change. A Dag update that creates
 a new version is seen immediately, because the new version is a different cache key. A version
