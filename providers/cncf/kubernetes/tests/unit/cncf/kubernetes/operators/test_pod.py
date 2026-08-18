@@ -2607,17 +2607,12 @@ class TestKubernetesPodOperatorDurableExecution:
             log_pod_spec_on_failure=False,
         )
         context = create_context(k)
-        task_state_store = MagicMock()
+        task_state_store = MagicMock(spec=["get", "set"])
         task_state_store.get.return_value = None
         context["task_state_store"] = task_state_store
 
-        mock_pod_request_obj = MagicMock()
-        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "test-pod"}}
-        created_pod = MagicMock()
-        created_pod.metadata.name = "test-pod"
-        created_pod.metadata.namespace = "default"
-        created_pod.metadata.uid = "test-pod-uid"
-        self.create_mock.return_value = created_pod
+        mock_pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod", namespace="default"))
+        self.create_mock.return_value = self._pod("test-pod", "default", "test-pod-uid")
 
         with patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None) as mock_find:
             result = k.get_or_create_pod(pod_request_obj=mock_pod_request_obj, context=context)
@@ -2640,7 +2635,7 @@ class TestKubernetesPodOperatorDurableExecution:
             log_pod_spec_on_failure=False,
         )
         context = create_context(k)
-        task_state_store = MagicMock()
+        task_state_store = MagicMock(spec=["get", "set"])
         task_state_store.get.return_value = {
             "name": "prior-pod",
             "namespace": "default",
@@ -2648,15 +2643,10 @@ class TestKubernetesPodOperatorDurableExecution:
         }
         context["task_state_store"] = task_state_store
 
-        running_pod = MagicMock()
-        running_pod.status.phase = "Running"
-        running_pod.status.reason = None
-        running_pod.metadata.name = "prior-pod"
-        running_pod.metadata.uid = "prior-pod-uid"
-        running_pod.metadata.labels = {"try_number": "1"}
+        running_pod = self._pod("prior-pod", "default", "prior-pod-uid")
         k.hook.get_pod = MagicMock(return_value=running_pod)
 
-        mock_pod_request_obj = MagicMock()
+        mock_pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="prior-pod", namespace="default"))
 
         with patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod") as mock_find:
             result = k.get_or_create_pod(pod_request_obj=mock_pod_request_obj, context=context)
@@ -2680,7 +2670,7 @@ class TestKubernetesPodOperatorDurableExecution:
             log_pod_spec_on_failure=False,
         )
         context = create_context(k)
-        task_state_store = MagicMock()
+        task_state_store = MagicMock(spec=["get", "set"])
         task_state_store.get.return_value = {
             "name": "prior-pod",
             "namespace": "default",
@@ -2688,17 +2678,11 @@ class TestKubernetesPodOperatorDurableExecution:
         }
         context["task_state_store"] = task_state_store
 
-        terminal_pod = MagicMock()
-        terminal_pod.status.phase = pod_phase
-        terminal_pod.status.reason = None
-        terminal_pod.metadata.name = "prior-pod"
-        terminal_pod.metadata.uid = "prior-pod-uid"
-        terminal_pod.metadata.labels = {"try_number": "1"}
+        terminal_pod = self._pod("prior-pod", "default", "prior-pod-uid", phase=pod_phase)
         k.hook.get_pod = MagicMock(return_value=terminal_pod)
         mock_process_pod_deletion.return_value = True
 
-        mock_pod_request_obj = MagicMock()
-        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "new-pod"}}
+        mock_pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="new-pod", namespace="default"))
 
         with patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod") as mock_find:
             result = k.get_or_create_pod(pod_request_obj=mock_pod_request_obj, context=context)
@@ -2719,7 +2703,7 @@ class TestKubernetesPodOperatorDurableExecution:
             on_finish_action="keep_pod",
         )
         context = create_context(k)
-        task_state_store = MagicMock()
+        task_state_store = MagicMock(spec=["get", "set"])
         task_state_store.get.return_value = {
             "name": "prior-pod",
             "namespace": "default",
@@ -2727,22 +2711,17 @@ class TestKubernetesPodOperatorDurableExecution:
         }
         context["task_state_store"] = task_state_store
 
-        stale_pod = MagicMock()
-        stale_pod.status.phase = PodPhase.FAILED
-        stale_pod.status.reason = None
-        stale_pod.metadata.name = "prior-pod"
-        stale_pod.metadata.uid = "prior-pod-uid"
-        stale_pod.metadata.labels = {"try_number": "1", "already_checked": "True"}
+        stale_pod = self._pod(
+            "prior-pod",
+            "default",
+            "prior-pod-uid",
+            phase=PodPhase.FAILED,
+            labels={"already_checked": "True"},
+        )
         k.hook.get_pod = MagicMock(return_value=stale_pod)
+        self.create_mock.return_value = self._pod("new-pod", "default", "new-pod-uid")
 
-        created_pod = MagicMock()
-        created_pod.metadata.name = "new-pod"
-        created_pod.metadata.namespace = "default"
-        created_pod.metadata.uid = "new-pod-uid"
-        self.create_mock.return_value = created_pod
-
-        mock_pod_request_obj = MagicMock()
-        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "new-pod"}}
+        mock_pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="new-pod", namespace="default"))
 
         with (
             patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None) as mock_find,
@@ -2771,13 +2750,19 @@ class TestKubernetesPodOperatorDurableExecution:
         )
 
     @staticmethod
-    def _running_pod(name, namespace, uid):
+    def _pod(name, namespace, uid, phase=PodPhase.RUNNING, labels=None):
         return k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name=name, namespace=namespace, uid=uid, labels={"try_number": "1"}),
-            status=k8s.V1PodStatus(phase=PodPhase.RUNNING),
+            metadata=k8s.V1ObjectMeta(
+                name=name,
+                namespace=namespace,
+                uid=uid,
+                labels={"try_number": "1", **(labels or {})},
+            ),
+            status=k8s.V1PodStatus(phase=phase),
         )
 
-    def test_durable_reconnect_skips_pod_whose_uid_no_longer_matches(self):
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_durable_reconnect_skips_pod_whose_uid_no_longer_matches(self, mock_find):
         """A pod reusing the persisted name is a different pod and must not be reattached to."""
         k = self._durable_operator()
         context = create_context(k)
@@ -2789,16 +2774,13 @@ class TestKubernetesPodOperatorDurableExecution:
         }
         context["task_state_store"] = task_state_store
 
-        k.hook.get_pod = MagicMock(
-            return_value=self._running_pod("prior-pod", "default", "an-unrelated-pod-uid")
-        )
+        k.hook.get_pod = MagicMock(return_value=self._pod("prior-pod", "default", "an-unrelated-pod-uid"))
         self.create_mock.return_value = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name="new-pod", namespace="default", uid="new-pod-uid")
         )
         pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="new-pod", namespace="default"))
 
-        with patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None) as mock_find:
-            result = k.get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
+        result = k.get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
 
         mock_find.assert_called_once_with("default", context=context)
         self.create_mock.assert_called_once_with(pod=pod_request_obj)
@@ -2808,7 +2790,8 @@ class TestKubernetesPodOperatorDurableExecution:
         )
         assert result == pod_request_obj
 
-    def test_durable_reconnect_without_uid_searches_the_namespace_it_stored(self):
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_durable_reconnect_without_uid_searches_the_namespace_it_stored(self, mock_find):
         """A legacy identity is resolved where the pod was submitted, not where this try would go."""
         k = self._durable_operator()
         context = create_context(k)
@@ -2817,11 +2800,12 @@ class TestKubernetesPodOperatorDurableExecution:
         context["task_state_store"] = task_state_store
 
         k.hook.get_pod = MagicMock()
-        running_pod = self._running_pod("prior-pod", "old-ns", "prior-pod-uid")
+        running_pod = self._pod("prior-pod", "old-ns", "prior-pod-uid")
         pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="prior-pod", namespace="new-ns"))
 
-        with patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=running_pod) as mock_find:
-            result = k.get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
+        mock_find.return_value = running_pod
+
+        result = k.get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
 
         k.hook.get_pod.assert_not_called()
         mock_find.assert_called_once_with("old-ns", context=context)
@@ -2833,7 +2817,8 @@ class TestKubernetesPodOperatorDurableExecution:
         assert result == running_pod
 
     @pytest.mark.parametrize("stored_uid", ["", 123, False])
-    def test_durable_reconnect_ignores_an_identity_whose_uid_is_invalid(self, stored_uid):
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_durable_reconnect_ignores_an_identity_whose_uid_is_invalid(self, mock_find, stored_uid):
         """A malformed uid is not an older identity, so the pod is not taken by name either."""
         k = self._durable_operator()
         context = create_context(k)
@@ -2851,14 +2836,15 @@ class TestKubernetesPodOperatorDurableExecution:
         )
         pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="new-pod", namespace="default"))
 
-        with patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None) as mock_find:
-            k.get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
+        k.get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
 
         k.hook.get_pod.assert_not_called()
         mock_find.assert_called_once_with("default", context=context)
         self.create_mock.assert_called_once_with(pod=pod_request_obj)
 
-    def test_durable_uid_mismatch_on_fixed_name_fails_closed(self):
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_durable_uid_mismatch_on_fixed_name_fails_closed(self, mock_find, mock_deletion):
         """With random_name_suffix=False the name is taken, and failing is better than adopting it."""
         k = self._durable_operator(name="my-pod", random_name_suffix=False)
         context = create_context(k)
@@ -2870,16 +2856,12 @@ class TestKubernetesPodOperatorDurableExecution:
         }
         context["task_state_store"] = task_state_store
 
-        k.hook.get_pod = MagicMock(return_value=self._running_pod("my-pod", "default", "run-b-pod-uid"))
+        k.hook.get_pod = MagicMock(return_value=self._pod("my-pod", "default", "run-b-pod-uid"))
         # The other run still holds the fixed name, so the fresh pod cannot be created.
         self.create_mock.side_effect = ApiException(status=409)
         pod_request_obj = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="my-pod", namespace="default"))
 
-        with (
-            patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None) as mock_find,
-            patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion") as mock_deletion,
-            pytest.raises(ApiException) as exc_info,
-        ):
+        with pytest.raises(ApiException) as exc_info:
             k.get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
 
         assert exc_info.value.status == 409
@@ -2922,7 +2904,7 @@ class TestKubernetesPodOperatorDurableExecution:
             durable=False,
         )
         context = create_context(k)
-        task_state_store = MagicMock()
+        task_state_store = MagicMock(spec=["get", "set"])
         task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default"}
         context["task_state_store"] = task_state_store
 

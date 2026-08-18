@@ -182,8 +182,9 @@ class KubernetesPodOperator(BaseOperator):
         ``durable`` has no effect there.
     :param durable: if the worker dies while the pod is running, reattach and monitor during the next
         try instead of creating a duplicate pod. If False, always create a new pod for each try.
-        Supersedes ``reattach_on_restart`` on Airflow 3.3+, where the reconnection uses a persisted
-        pod identity in task state store instead of a label search. Defaults to ``True`` on Airflow
+        Supersedes ``reattach_on_restart`` on Airflow 3.3+, where the reconnection uses a pod
+        identity persisted in task state store, falling back to the label search when that identity
+        no longer resolves to the pod it recorded. Defaults to ``True`` on Airflow
         3.3+. Below 3.3, ``durable`` has no effect -- setting it explicitly only emits a warning --
         and ``reattach_on_restart`` (default ``True``) is the only lever, using the same
         label-search reattach mechanism it always has.
@@ -718,7 +719,8 @@ class KubernetesPodOperator(BaseOperator):
                 name,
             )
             return None, namespace
-        # Names are reusable, uids are not: this is a different pod under the recorded name.
+        # Names are reusable, uids are not: this is a different pod under the recorded name. Only
+        # this lookup is fenced; https://github.com/apache/airflow/issues/71748 covers the rest.
         if pod.metadata.uid != uid:
             self.log.warning(
                 "Pod %s/%s from task state store is a different pod now "
