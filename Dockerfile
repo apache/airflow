@@ -51,7 +51,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_VERSION="3.3.1"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.13.14"
+ARG AIRFLOW_PYTHON_VERSION="3.13.15"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
 #
@@ -71,9 +71,9 @@ ARG PYTHON_LTO="true"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.1.2
+ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.29
+ARG AIRFLOW_UV_VERSION=0.12.3
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -193,6 +193,7 @@ pkgconf \
 sasl2-bin \
 sqlite3 \
 sudo \
+tdsodbc \
 tk-dev \
 unixodbc \
 unixodbc-dev \
@@ -248,6 +249,7 @@ rsync \
 sasl2-bin \
 sqlite3 \
 sudo \
+tdsodbc \
 unixodbc \
 wget\
 "

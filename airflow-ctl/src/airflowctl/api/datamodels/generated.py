@@ -533,6 +533,13 @@ class DagRunAssetReference(BaseModel):
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")]
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")]
     partition_key: Annotated[str | None, Field(title="Partition Key")]
+    triggering: Annotated[
+        bool,
+        Field(
+            description="Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.",
+            title="Triggering",
+        ),
+    ]
 
 
 class DagRunMutableStates(str, Enum):
@@ -2368,8 +2375,15 @@ class DAGRunCollectionResponse(BaseModel):
     total_entries: Annotated[
         int | None,
         Field(
-            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
             title="Total Entries",
+        ),
+    ] = None
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
         ),
     ] = None
     next_cursor: Annotated[
@@ -2491,8 +2505,15 @@ class TaskInstanceCollectionResponse(BaseModel):
     total_entries: Annotated[
         int | None,
         Field(
-            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
             title="Total Entries",
+        ),
+    ] = None
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
         ),
     ] = None
     next_cursor: Annotated[

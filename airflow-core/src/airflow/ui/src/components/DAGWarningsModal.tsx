@@ -27,13 +27,13 @@ import { ErrorAlert } from "./ErrorAlert";
 import { WarningAlert } from "./WarningAlert";
 
 type ImportDAGErrorModalProps = {
-  error?: unknown;
-  onClose: () => void;
-  open: boolean;
-  warnings?: Array<DAGWarningResponse>;
+  readonly error?: unknown;
+  readonly onClose: () => void;
+  readonly open: boolean;
+  readonly warnings?: Array<DAGWarningResponse>;
 };
 
-export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, onClose, open, warnings }) => {
+export const DAGWarningsModal = ({ error, onClose, open, warnings }: ImportDAGErrorModalProps) => {
   const { t: translate } = useTranslation("components");
   const heading = Boolean(error)
     ? warnings?.length !== undefined && warnings.length > 0
