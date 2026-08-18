@@ -284,6 +284,16 @@ class TestDBDagBagCache:
         if expected_maxsize is not None:
             assert dag_bag._dags.maxsize == expected_maxsize
 
+    def test_scheduler_defaults_to_a_bounded_lru_cache(self):
+        """The scheduler's default has to cap memory outright.
+
+        A TTL alone would not: each re-check resets an entry's expiry, so it bounds the cache by
+        the concurrently active set rather than by a fixed ceiling.
+        """
+        dag_bag = _create_scheduler_dag_bag()
+        assert isinstance(dag_bag._dags, LRUCache)
+        assert dag_bag._dags.maxsize == 1024
+
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
         dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)

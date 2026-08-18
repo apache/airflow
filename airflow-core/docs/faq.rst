@@ -773,28 +773,29 @@ See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, 
 How to prevent scheduler memory growth?
 ----------------------------------------
 
-The scheduler caches serialized Dag objects for the life of the process, so as Dag versions
-accumulate (see :ref:`faq:dag-version-inflation`) its memory grows until the process is
-restarted or OOM killed. Configure eviction in the ``[scheduler]`` section:
+The scheduler caches deserialized Dag objects, so before 3.3.2 its memory grew with every Dag
+version it had ever seen (see :ref:`faq:dag-version-inflation`) until the process was restarted or
+OOM killed. The cache is now bounded by default. Tune it in the ``[scheduler]`` section:
 
 .. code-block:: ini
 
     [scheduler]
-    dag_cache_size = 0     ; recommended: no size limit
-    dag_cache_ttl = 3600   ; seconds before an idle cached entry expires
+    dag_cache_size = 1024  ; max cached versions, evicting least recently used
+    dag_cache_ttl = 0      ; seconds before an idle cached entry expires (0 = no TTL)
 
-Leaving ``dag_cache_size = 0`` is the recommended starting point. The scheduler reaches the
-cache through the Dag version of each active Dag run, so its working set is the versions with
-runs in flight rather than a predictable number of entries. A size limit set too low evicts
-versions that are still being scheduled, costing a database fetch and a deserialization on the
-next loop; the TTL instead reclaims each version once its runs finish and it stops being
-requested.
+The defaults cap the cache at 1024 Dag versions and evict the least recently used one beyond
+that, so memory cannot grow with the number of versions the scheduler has ever seen. The
+scheduler reaches the cache through the Dag version of each active Dag run, so its working set is
+the versions with runs in flight; 1024 is meant to sit above that for a typical deployment.
 
-If the scheduler is still OOM killed, lower ``dag_cache_ttl`` so idle versions are
-reclaimed sooner. Only set ``dag_cache_size`` to a non-zero value if you need a hard ceiling, for
-example when so many Dag versions have runs in flight at once that the working set alone does not
-fit. Setting both to 0 uses an unbounded dict with no eviction, matching the behavior before
-3.3.2.
+If the scheduler is still OOM killed, lower ``dag_cache_size``. Raise it if you have more Dag
+versions with runs in flight than the limit, since a limit below the working set evicts versions
+that are still being scheduled and costs a database fetch and a deserialization on the next loop
+— watch ``scheduler.dag_bag.cache_miss`` to tell the two apart. Setting ``dag_cache_size = 0``
+switches to no size limit, leaving eviction to ``dag_cache_ttl``, which bounds memory by the
+concurrently active set rather than outright: each re-check resets an entry's expiry, so a TTL
+reclaims a version only once its runs finish and it stops being requested. Setting both to 0 uses
+an unbounded dict with no eviction, matching the behavior before 3.3.2.
 
 Neither option affects how quickly the scheduler picks up a Dag change. A Dag update that creates
 a new version is seen immediately, because the new version is a different cache key. A version

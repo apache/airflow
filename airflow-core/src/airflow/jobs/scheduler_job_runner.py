@@ -302,13 +302,13 @@ def _create_scheduler_dag_bag() -> DBDagBag:
     """
     Build the scheduler's DagBag from the ``[scheduler]`` cache options.
 
-    Defaults to no size limit (``dag_cache_size = 0``). The scheduler reaches the cache through
-    the Dag version of each active Dag run, so its working set is the versions with runs in
-    flight, which no fixed count predicts well. A size limit would evict versions that are still
-    being scheduled, whereas each re-check resets an entry's expiry, so the TTL reclaims each
-    version only once its runs finish and it stops being requested.
+    Defaults to an LRU cache of 1024 versions with no TTL. A size limit is the only hard ceiling:
+    each re-check resets an entry's expiry, so a TTL reclaims a version only once its runs finish
+    and it stops being requested, bounding memory by the concurrently active set rather than
+    outright. 1024 is meant to sit above the versions-with-runs-in-flight working set of a typical
+    deployment, so eviction costs a re-fetch only where that working set is genuinely larger.
     """
-    cache_size, cache_ttl = dag_cache_conf("scheduler", size_fallback=0, ttl_fallback=3600)
+    cache_size, cache_ttl = dag_cache_conf("scheduler", size_fallback=1024, ttl_fallback=0)
     return DBDagBag(
         load_op_links=False,
         cache_size=cache_size,
