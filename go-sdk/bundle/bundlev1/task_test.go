@@ -141,9 +141,6 @@ func (s *TaskSuite) TestClientSubsetInjection() {
 	s.Require().NoError(task.Execute(context.Background(), slog.New(logging.NewTeeLogger())))
 }
 
-// TestNonInjectableParamsAreRejected checks registration fails fast on
-// parameters Execute can neither inject nor bind a task argument to. This
-// replaces the historical silent zero-fill of unrecognized parameters.
 func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
 	cases := map[string]struct {
 		fn          any
@@ -189,9 +186,6 @@ func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
 	}
 }
 
-// TestExecuteArgsBindsDataParameters covers the TaskFlow path end to end at the
-// task level: literals decode onto data parameters interleaved with
-// injectables, and Execute (nil args) keeps working for argless functions.
 func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
 	var gotCountry string
 	var gotMeta map[string]any
@@ -214,22 +208,39 @@ func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
 	s.Equal(map[string]any{"k": "v"}, gotMeta)
 }
 
-// TestExecuteWithoutArgsFailsForDataParameters: a function with data
-// parameters run through the argless Execute path (e.g. the Edge Worker, or a
-// stub Dag that passes no arguments) fails loudly on the arity check instead
-// of silently zero-filling.
-func (s *TaskSuite) TestExecuteWithoutArgsFailsForDataParameters() {
-	task, err := NewTaskFunction(func(country string) error { return nil })
+func (s *TaskSuite) TestExecuteWithoutArgsZeroFillsDataParameters() {
+	type settings struct {
+		Region    string
+		Threshold float64
+	}
+	var gotCountry string
+	var gotSettings settings
+	called := false
+	task, err := NewTaskFunction(func(country string, input settings) error {
+		gotCountry, gotSettings, called = country, input, true
+		return nil
+	})
 	s.Require().NoError(err)
 
 	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()))
+	s.Require().NoError(err)
+	s.True(called, "the task body must run")
+	s.Empty(gotCountry)
+	s.Equal(settings{}, gotSettings)
+}
+
+func (s *TaskSuite) TestExecuteArgsWithoutSpecFailsForDataParameters() {
+	task, err := NewTaskFunction(func(country string) error { return nil })
+	s.Require().NoError(err)
+
+	err = task.(TaskWithArgs).ExecuteArgs(
+		context.Background(), slog.New(logging.NewTeeLogger()), nil,
+	)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "argument count mismatch")
 	}
 }
 
-// TestExecuteArgsArityMismatch fails loudly when the Dag passes more arguments
-// than the function declares data parameters.
 func (s *TaskSuite) TestExecuteArgsArityMismatch() {
 	task, err := NewTaskFunction(func(country string) error { return nil })
 	s.Require().NoError(err)

@@ -83,10 +83,6 @@ func buildBundle(t *testing.T, register func(bundlev1.Registry)) bundlev1.Bundle
 	return reg
 }
 
-// newStartupDetails builds the identifiers every task-runner test repeats, so a
-// test body shows only the task and the arg-binding specs it is about. Tests
-// needing more of the run context (retry limits, dag-run timestamps) set those
-// fields on the result.
 func newStartupDetails(
 	taskID string,
 	bindings ...genmodels.TaskArgBinding,
@@ -107,8 +103,6 @@ func newStartupDetails(
 	}
 	return details
 }
-
-// --- Tests ---
 
 func TestTaskRunnerSuccess(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
@@ -198,9 +192,6 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 	assertRetryTask(t, result, "panic: something went wrong")
 }
 
-// TestTaskRunnerBindsArgs covers the TaskFlow path through RunTask: the
-// positional-argument spec in ti_context.arg_bindings binds literals onto the
-// task function's data parameters.
 func TestTaskRunnerBindsArgs(t *testing.T) {
 	var gotCountry string
 	var gotMeta map[string]any
@@ -238,9 +229,6 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 	assert.Equal(t, map[string]any{"k": "v"}, gotMeta)
 }
 
-// TestTaskRunnerArgBindingsArityMismatch: an argument spec that does not match
-// the function's data parameters fails the task loudly instead of running it
-// with zero values.
 func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
@@ -269,16 +257,10 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	assert.False(t, ran, "the task body must not run on an arity mismatch")
 }
 
-// regionInput is a sole struct parameter whose field claims a named entry
-// out of ti_context.arg_bindings.
 type regionInput struct {
 	Region string `arg:"region"`
 }
 
-// TestTaskRunnerBindsStructArgs covers the TaskFlow path through RunTask for a
-// name-bound struct parameter: convertArgBindings must propagate each spec's
-// Name through to binding.Arg so the struct's `arg:"region"` field can claim it
-// by name.
 func TestTaskRunnerBindsStructArgs(t *testing.T) {
 	var got regionInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
@@ -307,9 +289,6 @@ func TestTaskRunnerBindsStructArgs(t *testing.T) {
 	assert.Equal(t, "eu-west-1", got.Region)
 }
 
-// TestTaskRunnerStructIgnoresUnclaimedDefault: convertArgBindings must
-// propagate from_default so a spec entry the Python side filled from the stub
-// signature's default may go unclaimed by the name-bound struct.
 func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 	var got regionInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
@@ -345,8 +324,6 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 	assert.Equal(t, "eu-west-1", got.Region)
 }
 
-// TestTaskRunnerArgBindingsTypeMismatch: a declared Dag type that cannot bind to
-// the Go parameter type fails the task loudly before the body runs.
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
@@ -370,8 +347,6 @@ func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
-// TestTaskRunnerArgBindingsUnknownKind: a wire spec whose kind is neither xcom
-// nor literal fails the task before the body runs.
 func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
@@ -395,8 +370,6 @@ func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 	assert.False(t, ran, "the task body must not run on an unknown binding kind")
 }
 
-// TestTaskRunnerArgBindingsMalformedElement: a wire spec element that is not a
-// map at all fails the task before the body runs.
 func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
@@ -420,9 +393,6 @@ func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 	assert.False(t, ran, "the task body must not run on a malformed binding element")
 }
 
-// TestTaskRunnerArgBindingsMissingRequiredFields: a wire spec entry without a
-// usable name, or an xcom entry without a task_id, fails the task before the
-// body runs instead of silently binding empty strings.
 func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 	cases := []struct {
 		name string
@@ -471,9 +441,6 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 	}
 }
 
-// TestTaskRunnerMalformedSpecHonorsShouldRetry: a spec that fails
-// convertArgBindings terminates with the same retry semantics as a binding
-// failure inside executeTask, not an unconditional FAILED.
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",

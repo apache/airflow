@@ -33,7 +33,7 @@ import pytest
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
-# Three short Go tasks; allow room for coordinator startup.
+# Allow time for coordinator startup.
 _GO_TASK_TIMEOUT = 300
 
 _DAG_ID = "taskflow_binding_dag"
@@ -116,9 +116,10 @@ def test_via_flat_args_summary_reflects_bound_arguments(completed_run: _Complete
 
 def test_via_struct_no_tags_reflects_bound_arguments(completed_run: _CompletedRun):
     """``via_struct_no_tags`` demonstrates the Go SDK's name-based struct binding
-    with no field tags at all: each field binds the TaskFlow argument spelled
-    exactly like its Go field name (``RegionCode``, ``Threshold``). The region is
-    ``make_region``'s XCom, so a struct field binds an XCom-sourced value here."""
+    with no field tags at all: each field falls back to its own Go name, matched
+    case- and underscore-insensitively, so ``RegionCode`` binds the idiomatic
+    ``region_code``. The region is ``make_region``'s XCom, so a struct field
+    binds an XCom-sourced value here."""
     assert completed_run.xcom("via_struct_no_tags") == {
         "region_code": "eu-west-1",
         "threshold": 0.75,

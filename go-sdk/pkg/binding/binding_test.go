@@ -42,16 +42,21 @@ func TestBindingSuite(t *testing.T) {
 	suite.Run(t, &BindingSuite{})
 }
 
-// argSchema builds a minimal JSON-schema fragment declaring only a "type",
-// matching what the Python stub decorator emits for a scalar/container
-// annotation.
 func argSchema(jsonType string) *genmodels.ArgValueSchema {
 	s := genmodels.ArgValueSchema{"type": jsonType}
 	return &s
 }
 
-// fakeXComClient records GetXCom calls and returns preconfigured values.
-// Resolve pulls XComs concurrently, so recording is mutex-guarded.
+func anyOfSchema(branches ...map[string]any) *genmodels.ArgValueSchema {
+	alternatives := make([]any, len(branches))
+	for i, b := range branches {
+		alternatives[i] = b
+	}
+	s := genmodels.ArgValueSchema{"anyOf": alternatives}
+	return &s
+}
+
+// fakeXComClient records concurrent GetXCom calls.
 type fakeXComClient struct {
 	sdk.Client
 
@@ -82,8 +87,6 @@ func (f *fakeXComClient) GetXCom(
 	return f.values[taskID+"/"+key], nil
 }
 
-// workloadCtx returns a context carrying an ExecuteTaskWorkload the resolver
-// reads the Dag/run identifiers from.
 func workloadCtx() context.Context {
 	return context.WithValue(
 		context.Background(),
@@ -152,16 +155,6 @@ func (s *BindingSuite) TestAnalyzeRejections() {
 			func(m map[string]chan int) error { return nil },
 			"cannot receive a task argument",
 		},
-		"struct-with-func-field-param": {
-			func(x struct {
-				Name string
-				Cb   func()
-			},
-			) error {
-				return nil
-			},
-			"cannot receive a task argument",
-		},
 		"non-client-interface": {
 			func(x interface{ NotAClientMethod() }) error { return nil },
 			"sdk.Client has no method NotAClientMethod",
@@ -187,9 +180,7 @@ func (s *BindingSuite) TestAnalyzeRejections() {
 	}
 }
 
-// selfDecodingNode has a field json could never decode on its own, plus a
-// self-reference: the walk must defer to UnmarshalJSON and must not recurse
-// forever.
+// selfDecodingNode must bypass recursive field inspection.
 type selfDecodingNode struct {
 	Cb   func()
 	Next *selfDecodingNode
@@ -204,12 +195,11 @@ type recursiveNode struct {
 
 func (s *BindingSuite) TestAnalyzeAcceptsSelfDecodingAndRecursiveTypes() {
 	for name, fn := range map[string]any{
-		"time.Time":     func(when time.Time) error { return nil },
-		"slice-of-time": func(when []time.Time) error { return nil },
-		// Not a sole parameter: a lone struct binds field-by-field, where an
-		// undecodable field is rejected regardless of UnmarshalJSON.
-		"self-decoding":    func(name string, n selfDecodingNode) error { return nil },
-		"recursive-struct": func(n recursiveNode) error { return nil },
+		"time.Time":          func(when time.Time) error { return nil },
+		"slice-of-time":      func(when []time.Time) error { return nil },
+		"self-decoding":      func(name string, n selfDecodingNode) error { return nil },
+		"self-decoding-sole": func(n selfDecodingNode) error { return nil },
+		"recursive-struct":   func(n recursiveNode) error { return nil },
 	} {
 		s.Run(name, func() {
 			_, err := Analyze(reflect.TypeOf(fn), "testFn")
@@ -218,8 +208,6 @@ func (s *BindingSuite) TestAnalyzeAcceptsSelfDecodingAndRecursiveTypes() {
 	}
 }
 
-// TestNamedClientInterfacesAreInjectable guards against sdk.Client dropping an
-// embedded interface, which would break tasks declaring it.
 func (s *BindingSuite) TestNamedClientInterfacesAreInjectable() {
 	for name, typ := range map[string]reflect.Type{
 		"Client":           reflect.TypeFor[sdk.Client](),
@@ -271,9 +259,6 @@ func (s *BindingSuite) TestResolveLiterals() {
 	s.Equal(map[string]any{"k": "v"}, got[5].Interface())
 }
 
-// TestResolveSelfDecodingLiterals: a Python datetime/UUID reaches Go as a
-// formatted string, so the parameter types that naturally receive them must
-// bind end to end and not just survive the schema check.
 func (s *BindingSuite) TestResolveSelfDecodingLiterals() {
 	fn := func(when time.Time, id uuid.UUID, ratio float64) error { return nil }
 	got, err := s.resolve(fn, []Arg{
@@ -285,7 +270,6 @@ func (s *BindingSuite) TestResolveSelfDecodingLiterals() {
 			Value:       "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
 			ValueSchema: &genmodels.ArgValueSchema{"type": "string", "format": "uuid"},
 		},
-		// An int-annotated stub parameter bound onto a Go float.
 		LiteralArg{Value: 3, ValueSchema: argSchema("integer")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
@@ -294,9 +278,6 @@ func (s *BindingSuite) TestResolveSelfDecodingLiterals() {
 	s.Equal(3.0, got[2].Interface())
 }
 
-// TestResolveTypedMapParam: a dict argument binds onto a typed map parameter
-// directly. The map is not a struct, so it stays a flat positional parameter
-// rather than taking the sole-struct name-binding path.
 func (s *BindingSuite) TestResolveTypedMapParam() {
 	fn := func(labels map[string]string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
@@ -348,34 +329,56 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 		"array-slice-ok":    {argSchema("array"), reflect.TypeFor[[]string](), ""},
 		"array-array-ok":    {argSchema("array"), reflect.TypeFor[[2]int](), ""},
 		"array-vs-map":      {argSchema("array"), reflect.TypeFor[map[string]any](), "cannot bind"},
-		// A nil schema, a fragment without a plain-string "type" (a union or a
-		// keyword-less fragment), an unrecognized type, or an `any` target all
-		// skip the check -- the strict decode still guards the value.
+		// Schemas without a usable type are unconstrained.
 		"nil-schema-skips":   {nil, reflect.TypeFor[chan int](), ""},
 		"no-type-skips":      {&genmodels.ArgValueSchema{}, reflect.TypeFor[string](), ""},
 		"union-type-skips":   {unionType, reflect.TypeFor[int](), ""},
 		"unknown-type-skips": {argSchema("uuid"), reflect.TypeFor[string](), ""},
 		"any-target-skips":   {argSchema("string"), reflect.TypeFor[any](), ""},
-		// pydantic ships a Python datetime/UUID as a formatted "string"; the Go
-		// types that receive them are a struct and an array, so they are judged
-		// by their own UnmarshalJSON/UnmarshalText rather than by kind.
-		"datetime-to-time": {
-			&genmodels.ArgValueSchema{"type": "string", "format": "date-time"},
-			reflect.TypeFor[time.Time](), "",
+
+		// Pydantic encodes bytes as a string.
+		"binary-to-string": {
+			&genmodels.ArgValueSchema{"type": "string", "format": "binary"},
+			reflect.TypeFor[string](), "",
 		},
-		"datetime-to-time-ptr": {
-			&genmodels.ArgValueSchema{"type": "string", "format": "date-time"},
-			reflect.TypeFor[*time.Time](), "",
+		"binary-vs-bytes": {
+			&genmodels.ArgValueSchema{"type": "string", "format": "binary"},
+			reflect.TypeFor[[]byte](), "cannot bind",
 		},
-		"uuid-to-uuid": {
-			&genmodels.ArgValueSchema{"type": "string", "format": "uuid"},
-			reflect.TypeFor[uuid.UUID](), "",
+
+		// Unions match any branch but preserve nullability.
+		"anyof-matching-branch": {
+			anyOfSchema(map[string]any{"type": "integer"}, map[string]any{"type": "string"}),
+			reflect.TypeFor[string](), "",
 		},
-		// time.Duration decodes itself no better than any other int64, so a
-		// Python timedelta's "PT5M" string is still rejected up front.
-		"duration-vs-int64": {
-			&genmodels.ArgValueSchema{"type": "string", "format": "duration"},
-			reflect.TypeFor[time.Duration](), "cannot bind",
+		"anyof-no-branch": {
+			anyOfSchema(map[string]any{"type": "integer"}, map[string]any{"type": "string"}),
+			reflect.TypeFor[bool](), "cannot bind",
+		},
+		"anyof-nullable-ptr-ok": {
+			anyOfSchema(
+				map[string]any{"type": "string"},
+				map[string]any{"type": "null"},
+			),
+			reflect.TypeFor[*string](), "",
+		},
+		"anyof-nullable-needs-pointer": {
+			anyOfSchema(
+				map[string]any{"type": "string"},
+				map[string]any{"type": "null"},
+			),
+			reflect.TypeFor[string](), "must be a pointer",
+		},
+		"anyof-nullable-wrong-type": {
+			anyOfSchema(
+				map[string]any{"type": "string"},
+				map[string]any{"type": "null"},
+			),
+			reflect.TypeFor[*int64](), "cannot bind",
+		},
+		"anyof-unreadable-branch-skips": {
+			anyOfSchema(map[string]any{"type": "string"}, map[string]any{"$ref": "#/x"}),
+			reflect.TypeFor[bool](), "",
 		},
 	}
 	for name, tt := range cases {
@@ -406,8 +409,6 @@ func (s *BindingSuite) TestResolveTypeMismatchFailsLoudly() {
 }
 
 func (s *BindingSuite) TestResolveLiteralDecodeFailure() {
-	// The Dag declared "any", so the type check passes but the JSON decode of a
-	// string into an int must still fail loudly.
 	fn := func(count int) error { return nil }
 	_, err := s.resolve(fn, []Arg{LiteralArg{Value: "uk"}}, &fakeXComClient{})
 	if s.Assert().Error(err) {
@@ -420,39 +421,25 @@ type extractResult struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
-// simpleInput is the minimal name-bound struct: one field, no tags, so it
-// falls back to matching its own field name, verbatim.
 type simpleInput struct {
 	Name string
 }
 
-// twoFieldInput has one field the args always match (Name) and one whose
-// arg name is never present in the tests that use it (Missing), to prove an
-// unmatched field is left at its Go zero value instead of failing the task.
 type twoFieldInput struct {
 	Name    string
 	Missing string `arg:"missing"`
 }
 
-// wholeConfig carries only `json:` tags, so it names no TaskFlow argument by
-// field. As a flat data parameter it is decoded whole; as a sole struct
-// parameter it is the whole-value fallback target.
 type wholeConfig struct {
 	Environment string `json:"environment"`
 	Region      string `json:"region"`
 }
 
-// combineInput exercises both field-binding modes side by side: Name falls
-// back to its verbatim field name, Count is explicitly named via its `arg:`
-// tag.
 type combineInput struct {
 	Name  string
 	Count int `arg:"count"`
 }
 
-// reportInput deliberately declares Ratio before Region, the reverse of the
-// wire order those names appear in, to prove field declaration order is
-// irrelevant to by-name claiming.
 type reportInput struct {
 	Ratio  float64
 	Region string `arg:"region"`
@@ -476,7 +463,7 @@ func (s *BindingSuite) TestResolveXComArgs() {
 	s.Require().Len(client.calls, 2)
 	taskIDs := make([]string, 0, 2)
 	for _, call := range client.calls {
-		// Pulls run concurrently, so assert per-call properties order-independently.
+		// Pull order is nondeterministic.
 		taskIDs = append(taskIDs, call.taskID)
 		s.Equal("dag1", call.dagID)
 		s.Equal("run1", call.runID)
@@ -511,9 +498,6 @@ func (s *BindingSuite) TestResolveXComPullFailure() {
 	}
 }
 
-// TestResolveMultipleXComPullFailures: pulls run concurrently, so several can
-// fail at once and every task id must survive into the joined error rather than
-// the report stopping at the first.
 func (s *BindingSuite) TestResolveMultipleXComPullFailures() {
 	client := &fakeXComClient{err: sdk.XComNotFound}
 	fn := func(a map[string]any, b map[string]any, c map[string]any) error { return nil }
@@ -529,9 +513,6 @@ func (s *BindingSuite) TestResolveMultipleXComPullFailures() {
 	}
 }
 
-// TestResolveWholeStructFromXCom: the package doc promises a sole struct can
-// receive an upstream object as one argument, which is the XCom case rather
-// than the literal one covered above.
 func (s *BindingSuite) TestResolveWholeStructFromXCom() {
 	client := &fakeXComClient{values: map[string]any{
 		"make_config/return_value": map[string]any{
@@ -579,9 +560,7 @@ func (s *BindingSuite) TestResolveNullHandling() {
 	}
 }
 
-// fakeArg is an out-of-catalogue Arg variant: the compiler seals the sum type
-// to this package, so the defensive default branch can only be reached from
-// inside it.
+// fakeArg exercises the defensive branch of the sealed interface.
 type fakeArg struct{}
 
 func (fakeArg) ArgName() string                   { return "fake" }
@@ -643,9 +622,6 @@ func (s *BindingSuite) TestAnalyzeLoneStructClassification() {
 }
 
 func (s *BindingSuite) TestAnalyzeMultipleStructsAreFlat() {
-	// With no marker, the old "only one struct" / "cannot mix" restrictions are
-	// gone: any struct that is not the sole data parameter is a flat whole-value
-	// slot, so these signatures are now accepted rather than rejected.
 	plan := analyze(s, func(a wholeConfig, b wholeConfig) error { return nil })
 	s.False(plan.loneStruct)
 	s.Equal(2, plan.numData)
@@ -656,8 +632,12 @@ func (s *BindingSuite) TestAnalyzeStructValidation() {
 		A string
 		B string `arg:"A"`
 	}
-	type nonDecodableField struct {
-		Bad chan int
+	type taggedNonDecodableField struct {
+		Bad chan int `arg:"bad"`
+	}
+	type foldedDuplicateArgNames struct {
+		RegionCode  string
+		Region_code string
 	}
 
 	cases := map[string]struct {
@@ -668,12 +648,14 @@ func (s *BindingSuite) TestAnalyzeStructValidation() {
 			func(input duplicateArgNames) error { return nil },
 			`fields A and B both bind arg name "A"`,
 		},
-		"non-decodable-field": {
-			func(input nonDecodableField) error { return nil },
+		"folded-duplicate-arg-names": {
+			func(input foldedDuplicateArgNames) error { return nil },
+			"differ only in case or underscores",
+		},
+		"tagged-non-decodable-field": {
+			func(input taggedNonDecodableField) error { return nil },
 			"cannot receive a task argument",
 		},
-		// A struct carrying `arg:` tags must be the sole data parameter, else its
-		// tags would be silently ignored (the struct would be decoded whole).
 		"tagged-struct-not-sole": {
 			func(prefix string, input combineInput) error { return nil },
 			"must be the function's only data parameter",
@@ -720,8 +702,6 @@ func (s *BindingSuite) TestResolveStructXComArg() {
 }
 
 func (s *BindingSuite) TestResolveStructSingleClaimedArgBindsByName() {
-	// A single argument whose name a field claims binds by name -- the tie-break
-	// that keeps a one-field struct name-bound rather than whole-value decoded.
 	fn := func(input simpleInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
@@ -742,13 +722,9 @@ func (s *BindingSuite) TestResolveStructPointer() {
 }
 
 func (s *BindingSuite) TestResolveLoneStructBothModes() {
-	// The same one-struct signature resolves either way, chosen per execution
-	// from the argument spec: field-by-field when the argument names match the
-	// struct's fields, or whole from a single argument no field claims.
 	fn := func(cfg wholeConfig) error { return nil }
 	want := wholeConfig{Environment: "production", Region: "eu-west-1"}
 
-	// Struct-based: two arguments named like the fields bind by name.
 	named, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Environment", Value: "production", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "Region", Value: "eu-west-1", ValueSchema: argSchema("string")},
@@ -756,7 +732,6 @@ func (s *BindingSuite) TestResolveLoneStructBothModes() {
 	s.Require().NoError(err)
 	s.Equal(want, named[0].Interface(), "argument names matching the fields bind field-by-field")
 
-	// Flat-based: one argument no field claims decodes whole into the struct.
 	whole, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Name:        "cfg",
@@ -768,8 +743,6 @@ func (s *BindingSuite) TestResolveLoneStructBothModes() {
 	s.Equal(want, whole[0].Interface(), "a single unclaimed argument decodes whole into the struct")
 }
 
-// taggedRegionInput opts into name binding, so a single argument its tag fails
-// to match must be reported rather than decoded whole.
 type taggedRegionInput struct {
 	Region string `arg:"regon_code"` // deliberate typo
 }
@@ -790,8 +763,6 @@ func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "typo", Value: "x", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
-	// Name is claimed, so this is name-binding (not the whole-value fallback);
-	// the leftover "typo" argument fails the task rather than being dropped.
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), `not claimed by any struct field: "typo"`)
 	}
@@ -801,8 +772,6 @@ func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultAllowed() {
 	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
-		// The Dag author never passed "threshold"; Python captured it from the
-		// stub signature's default. The struct need not mirror it.
 		LiteralArg{
 			Name:        "threshold",
 			Value:       0.75,
@@ -819,8 +788,6 @@ func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
 	for name, args := range map[string][]Arg{"nil-spec": nil, "empty-spec": {}} {
 		s.Run(name, func() {
 			_, err := s.resolve(fn, args, &fakeXComClient{})
-			// The Edge Worker path delivers no arg bindings; a struct with
-			// bindable fields must fail rather than run fully zero-valued.
 			if s.Assert().Error(err) {
 				s.Contains(err.Error(), "no TaskFlow arg bindings arrived")
 			}
@@ -829,9 +796,6 @@ func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
 }
 
 func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
-	// A lone from_default argument that no field claims is neither whole-value
-	// decoded (defaults were never explicitly passed) nor an error; the fields
-	// keep their kwarg-style zero values.
 	fn := func(input twoFieldInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{
@@ -856,4 +820,157 @@ func (s *BindingSuite) TestResolveStructUnmatchedFieldZeroValued() {
 	input := got[0].Interface().(twoFieldInput)
 	s.Equal("widget", input.Name, "the matched field binds normally")
 	s.Equal("", input.Missing, "the unmatched field is left at its Go zero value, not an error")
+}
+
+func (s *BindingSuite) TestResolveFlatParamsToleratesCapturedDefaults() {
+	fn := func(country string) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "country", Value: "uk", ValueSchema: argSchema("string")},
+		LiteralArg{
+			Name:        "verbose",
+			Value:       false,
+			ValueSchema: argSchema("boolean"),
+			FromDefault: true,
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal("uk", got[0].Interface())
+}
+
+func (s *BindingSuite) TestResolveFlatParamsBindsDefaultsWhenDeclared() {
+	fn := func(country string, verbose bool) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "country", Value: "uk", ValueSchema: argSchema("string")},
+		LiteralArg{
+			Name:        "verbose",
+			Value:       true,
+			ValueSchema: argSchema("boolean"),
+			FromDefault: true,
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal("uk", got[0].Interface())
+	s.Equal(true, got[1].Interface())
+}
+
+func (s *BindingSuite) TestResolveWholeStructIgnoresCapturedDefaults() {
+	fn := func(config wholeConfig) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "config",
+			Value:       map[string]any{"environment": "prod", "region": "eu-west-1"},
+			ValueSchema: argSchema("object"),
+		},
+		LiteralArg{
+			Name:        "verbose",
+			Value:       false,
+			ValueSchema: argSchema("boolean"),
+			FromDefault: true,
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(wholeConfig{Environment: "prod", Region: "eu-west-1"}, got[0].Interface())
+}
+
+type snakeCaseInput struct {
+	RegionCode string
+	Threshold  float64
+}
+
+func (s *BindingSuite) TestResolveUntaggedFieldsBindSnakeCaseArguments() {
+	fn := func(input snakeCaseInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "region_code", Value: "eu-west-1", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "threshold", Value: 0.75, ValueSchema: argSchema("number")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(snakeCaseInput{RegionCode: "eu-west-1", Threshold: 0.75}, got[0].Interface())
+}
+
+type embeddedCommon struct {
+	Region string `arg:"region"`
+}
+
+type embeddedInput struct {
+	embeddedCommon
+	Threshold float64
+}
+
+func (s *BindingSuite) TestResolveEmbeddedStructFields() {
+	fn := func(input embeddedInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "region", Value: "eu-west-1", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "threshold", Value: 0.75, ValueSchema: argSchema("number")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	input := got[0].Interface().(embeddedInput)
+	s.Equal("eu-west-1", input.Region)
+	s.Equal(0.75, input.Threshold)
+}
+
+type money struct {
+	Amount string
+}
+
+func (m *money) UnmarshalJSON([]byte) error { m.Amount = "decoded"; return nil }
+
+func (s *BindingSuite) TestResolveSelfDecodingTypeAgainstStringSchema() {
+	fn := func(price money) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "price", Value: "12.34", ValueSchema: argSchema("string")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(money{Amount: "decoded"}, got[0].Interface())
+}
+
+type callbackConfig struct {
+	Name string `json:"name"`
+	Cb   func() `json:"-"`
+}
+
+func (s *BindingSuite) TestResolveStructWithNonBindableField() {
+	fn := func(config callbackConfig) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "config",
+			Value:       map[string]any{"name": "widget"},
+			ValueSchema: argSchema("object"),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	config := got[0].Interface().(callbackConfig)
+	s.Equal("widget", config.Name)
+	s.Nil(config.Cb)
+}
+
+func (s *BindingSuite) TestResolveEmptyInterfaceDataParam() {
+	fn := func(payload any) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "payload",
+			Value:       map[string]any{"k": "v"},
+			ValueSchema: argSchema("object"),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(map[string]any{"k": "v"}, got[0].Interface())
+}
+
+func (s *BindingSuite) TestResolveUnboundZeroFillsDataParameters() {
+	plan := analyze(s, func(
+		ctx context.Context, country string, config wholeConfig, note *string,
+	) error {
+		return nil
+	})
+	got := plan.ResolveUnbound(workloadCtx(), slog.Default(), &fakeXComClient{})
+	s.Require().Len(got, 4)
+	s.Equal("", got[1].Interface())
+	s.Equal(wholeConfig{}, got[2].Interface())
+	s.True(got[3].IsNil())
+
+	soleStruct := analyze(s, func(input combineInput) error { return nil })
+	s.Equal(
+		combineInput{},
+		soleStruct.ResolveUnbound(workloadCtx(), slog.Default(), &fakeXComClient{})[0].Interface(),
+	)
 }

@@ -30,10 +30,7 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// TaskWithArgs is implemented by tasks that can bind positional arguments
-// captured from the Dag's TaskFlow call (delivered per execution in
-// coordinator mode). Execute(ctx, logger) is equivalent to
-// ExecuteArgs(ctx, logger, nil).
+// TaskWithArgs binds TaskFlow arguments supplied by the coordinator.
 type TaskWithArgs interface {
 	Task
 	ExecuteArgs(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
@@ -47,51 +44,54 @@ type taskFunction struct {
 
 var _ TaskWithArgs = (*taskFunction)(nil)
 
-// NewTaskFunction wraps a plain Go function as a Task, validating its signature
-// (injectable parameters, data parameters that task arguments can decode into,
-// and a return of error or (result, error)). Bundle authors normally use
-// Dag.AddTask, which calls this for them; use it directly only when building a
-// Task outside the registry.
+// NewTaskFunction validates and wraps a Go function as a Task.
 func NewTaskFunction(fn any) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
 	f := &taskFunction{fn: v, fullName: fullName}
 	if err := f.validateFn(v.Type()); err != nil {
-		// A half-built task (nil binding plan) would panic in Execute; a caller
-		// that mishandles the error must not be able to run it.
 		return nil, err
 	}
 	return f, nil
 }
 
+// Execute runs without TaskFlow arguments, as required by the Edge Worker.
 func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
-	return f.ExecuteArgs(ctx, logger, nil)
+	sdkClient := clientFrom(ctx)
+	return f.call(ctx, sdkClient, f.plan.ResolveUnbound(ctx, logger, sdkClient), logger)
 }
 
-// ExecuteArgs resolves the function's parameters — injectables from the
-// context and args onto the data parameters — and invokes it. A resolution
-// error (arity or type mismatch, xcom pull/decode failure) fails the task
-// before its body runs.
+// ExecuteArgs binds the supplied TaskFlow arguments and runs the task.
 func (f *taskFunction) ExecuteArgs(
 	ctx context.Context,
 	logger *slog.Logger,
 	args []binding.Arg,
 ) error {
-	var sdkClient sdk.Client
-	if injected, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client); ok {
-		sdkClient = injected
-	} else {
-		sdkClient = sdk.NewClient()
-	}
-
+	sdkClient := clientFrom(ctx)
 	reflectArgs, err := f.plan.Resolve(ctx, logger, sdkClient, args)
 	if err != nil {
 		return err
 	}
+	return f.call(ctx, sdkClient, reflectArgs, logger)
+}
+
+func clientFrom(ctx context.Context) sdk.Client {
+	if injected, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client); ok {
+		return injected
+	}
+	return sdk.NewClient()
+}
+
+func (f *taskFunction) call(
+	ctx context.Context,
+	sdkClient sdk.Client,
+	reflectArgs []reflect.Value,
+	logger *slog.Logger,
+) error {
 	slog.Debug("Attempting to call fn", "fn", f.fn, "args", reflectArgs)
 	retValues := f.fn.Call(reflectArgs)
 
-	err = nil
+	var err error
 	if errResult := retValues[len(retValues)-1].Interface(); errResult != nil {
 		var ok bool
 		if err, ok = errResult.(error); !ok {

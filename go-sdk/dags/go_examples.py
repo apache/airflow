@@ -92,9 +92,6 @@ def python_task_2(extracted):
 @dag(dag_id="simple_dag")
 def simple_dag():
     extracted = extract()
-    # TaskFlow-style call: "uk" is captured as a literal argument and
-    # ``extracted`` as an XCom reference; both bind onto the Go function's
-    # data parameters at execution time (this also wires extract >> transform).
     transformed = transform("uk", extracted)
     python_task_1() >> extracted >> transformed
     # ``load`` fails once then succeeds on retry; keep it a leaf (not upstream
@@ -143,10 +140,9 @@ def via_flat_args(
 ): ...
 
 
-# Capitalized parameters on purpose: with no ``arg:`` tags on the Go side, each
-# struct field binds the argument spelled exactly like its Go field name.
+# Go fields match these snake_case names without ``arg:`` tags.
 @task.stub(queue="golang")
-def via_struct_no_tags(RegionCode: str, Threshold: float): ...
+def via_struct_no_tags(region_code: str, threshold: float): ...
 
 
 @task.stub(queue="golang")
@@ -181,8 +177,8 @@ def taskflow_binding_dag():
 
     * ``via_flat_args``: every scalar literal, an array literal, keyword args,
       an unpassed ``None`` default, and XComs fanned in from two upstream tasks.
-    * ``via_struct_no_tags``: fields bind their verbatim Go names, hence this
-      stub's capitalized parameters.
+    * ``via_struct_no_tags``: fields fall back to their own Go names, matched
+      case- and underscore-insensitively.
     * ``via_struct_arg_tag``: fields bind via explicit ``arg:`` tags.
     * ``via_struct_unmatched_arg``: a Go field no argument names, and a stub
       default no Go field claims.
@@ -203,7 +199,7 @@ def taskflow_binding_dag():
         numbers=make_numbers(),
     )
     region = make_region()
-    via_struct_no_tags(RegionCode=region, Threshold=0.75)
+    via_struct_no_tags(region_code=region, threshold=0.75)
     via_struct_arg_tag(region_code=region, threshold=0.75)
     via_struct_unmatched_arg(region_code=region)
     via_flat_map(config={"region": "eu-west-1", "count": 3})

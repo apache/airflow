@@ -15,25 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package taskflowbinding holds the taskflow_binding_dag tasks, one per shape
-// of the Go SDK's TaskFlow argument binding. Where simple_dag's transform shows
-// the minimal case, these cover the surface:
-//
-//   - ViaFlatArgs: positional binding at full stretch -- literals of every
-//     scalar type, an array literal, keyword arguments, a defaulted null, and
-//     XCom fan-in from two upstream Go tasks, decoded into a strict struct and
-//     a typed slice.
-//   - ViaStructNoTags: name binding with no tags, so each field claims the
-//     argument spelled exactly like its Go field name.
-//   - ViaStructArgTag: name binding driven by explicit `arg:` tags.
-//   - ViaStructUnmatchedArg: a field no call argument names stays at its Go
-//     zero value, and a captured stub default needs no field at all.
-//   - ViaFlatMap: one dict decoded whole into a struct.
-//   - ViaStructMap: one dict bound by name onto a struct's map field.
-//   - ViaPlainMap: one dict decoded into a plain map, no struct involved.
-//
-// Every ViaStruct* call also binds MakeRegion's XCom onto its region field
-// alongside a literal, so fields are exercised with both argument sources.
+// Package taskflowbinding contains TaskFlow argument-binding examples.
 package taskflowbinding
 
 import (
@@ -44,15 +26,14 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// Config round-trips as an XCom into a struct parameter of the same type, so
-// the strict decode is exercised: an unknown or renamed key fails the task.
+// Config is an object passed through XCom.
 type Config struct {
 	Environment string `json:"environment"`
 	Region      string `json:"region"`
 	Debug       bool   `json:"debug"`
 }
 
-// MakeConfig pushes an object XCom that via_flat_args binds onto its Config parameter.
+// MakeConfig returns a Config XCom.
 func MakeConfig(log *slog.Logger) (any, error) {
 	cfg := Config{Environment: "production", Region: "eu-west-1", Debug: true}
 	log.Info(
@@ -67,27 +48,21 @@ func MakeConfig(log *slog.Logger) (any, error) {
 	return cfg, nil
 }
 
-// MakeNumbers pushes an array XCom that via_flat_args binds onto its []int parameter.
+// MakeNumbers returns an integer-slice XCom.
 func MakeNumbers(log *slog.Logger) (any, error) {
 	numbers := []int{1, 1, 2, 3, 5, 8}
 	log.Info("Pushing numbers", "numbers", fmt.Sprint(numbers))
 	return numbers, nil
 }
 
-// MakeRegion pushes the string XCom every ViaStruct* task binds onto a field.
+// MakeRegion returns a region XCom.
 func MakeRegion(log *slog.Logger) (any, error) {
 	region := "eu-west-1"
 	log.Info("Pushing region", "region", region)
 	return region, nil
 }
 
-// ViaFlatArgs is called as
-//
-//	via_flat_args("summary", 3, 2.5, True, ["metrics", "hourly"],
-//	              config=make_config(), numbers=make_numbers())
-//
-// so every bound value is fixed and any mismatch below is a binding regression.
-// note is never passed, so the stub's None default arrives as a nil *string.
+// ViaFlatArgs exercises positional binding for literals, defaults, and XComs.
 func ViaFlatArgs(
 	ctx sdk.TIRunContext,
 	log *slog.Logger,
@@ -145,18 +120,13 @@ func ViaFlatArgs(
 	}, nil
 }
 
-// ViaStructNoTagsInput has no tags, so each field binds the argument spelled
-// exactly like its Go field name -- hence the stub's capitalized parameters.
+// ViaStructNoTagsInput binds fields by folded Go name.
 type ViaStructNoTagsInput struct {
 	RegionCode string
 	Threshold  float64
 }
 
-// ViaStructNoTags is called as
-//
-//	via_struct_no_tags(RegionCode=make_region(), Threshold=0.75)
-//
-// so RegionCode arrives via make_region's XCom and Threshold as a literal.
+// ViaStructNoTags exercises binding without `arg:` tags.
 func ViaStructNoTags(
 	ctx sdk.TIRunContext,
 	log *slog.Logger,
@@ -180,19 +150,13 @@ func ViaStructNoTags(
 	}, nil
 }
 
-// ViaStructArgTagInput tags both fields: Region is genuinely renamed, proving
-// the tag remaps rather than coincidentally matching, and Threshold needs its
-// tag because an untagged field would only match "Threshold" verbatim.
+// ViaStructArgTagInput binds fields with explicit `arg:` tags.
 type ViaStructArgTagInput struct {
 	Region    string  `arg:"region_code"`
 	Threshold float64 `arg:"threshold"`
 }
 
-// ViaStructArgTag is called as
-//
-//	via_struct_arg_tag(region_code=make_region(), threshold=0.75)
-//
-// so Region arrives via make_region's XCom and Threshold as a literal.
+// ViaStructArgTag exercises explicit field-name binding.
 func ViaStructArgTag(
 	ctx sdk.TIRunContext,
 	log *slog.Logger,
@@ -216,29 +180,13 @@ func ViaStructArgTag(
 	}, nil
 }
 
-// ViaStructUnmatchedArgInput demonstrates the mismatch tolerance in both
-// directions. A field whose name has no corresponding TaskFlow call argument
-// at all is left at its Go zero value rather than failing the task: Region
-// binds normally, but Missing's arg name is never among this call's
-// arguments -- conceptually, an unpassed keyword argument falling back to
-// its default in a kwargs-style call. The reverse also holds: the stub's
-// defaulted sample_rate parameter arrives marked from_default, so this
-// struct is free not to mirror it (an explicitly passed argument no field
-// claims would fail the task instead).
+// ViaStructUnmatchedArgInput includes a field no argument supplies.
 type ViaStructUnmatchedArgInput struct {
 	Region  string `arg:"region_code"`
 	Missing string `arg:"does_not_exist"`
 }
 
-// ViaStructUnmatchedArg is called as
-//
-//	via_struct_unmatched_arg(region_code=make_region())
-//
-// -- the stub declares region_code (bound from make_region's XCom) plus a
-// defaulted sample_rate this struct deliberately omits, so Missing's arg
-// name never appears among the call's arguments and stays at its Go zero
-// value (""), while sample_rate's from_default entry goes unclaimed without
-// failing the task.
+// ViaStructUnmatchedArg exercises unmatched fields and captured defaults.
 func ViaStructUnmatchedArg(
 	ctx sdk.TIRunContext, log *slog.Logger, input ViaStructUnmatchedArgInput,
 ) (any, error) {
@@ -262,21 +210,13 @@ func ViaStructUnmatchedArg(
 	}, nil
 }
 
-// FlatMapConfig is decoded whole from a single dict argument -- the flat
-// (whole-value) side of single-map injection. The TaskFlow call passes one
-// object whose keys land on these fields; because the argument's name matches
-// no field, the runtime decodes it whole rather than binding field-by-field.
+// FlatMapConfig receives one dict as a whole value.
 type FlatMapConfig struct {
 	Region string `json:"region"`
 	Count  int    `json:"count"`
 }
 
-// ViaFlatMap is called as
-//
-//	via_flat_map(config={"region": "eu-west-1", "count": 3})
-//
-// The single "config" argument matches no FlatMapConfig field, so the whole
-// dict is decoded into the struct -- one map bound flat into a struct.
+// ViaFlatMap exercises whole-value dict decoding into a struct.
 func ViaFlatMap(
 	ctx sdk.TIRunContext, log *slog.Logger, config FlatMapConfig,
 ) (any, error) {
@@ -295,19 +235,12 @@ func ViaFlatMap(
 	return map[string]any{"region": config.Region, "count": config.Count}, nil
 }
 
-// StructMapInput is a name-bound struct whose single field is itself a map, so
-// one dict argument binds onto that field by name -- the struct-based side of
-// single-map injection.
+// StructMapInput binds a dict to a map field.
 type StructMapInput struct {
 	Payload map[string]any `arg:"payload"`
 }
 
-// ViaStructMap is called as
-//
-//	via_struct_map(payload={"region": "eu-west-1", "count": 3})
-//
-// The "payload" argument matches the Payload field by name, so the dict binds
-// onto the map field -- one map bound by name onto a struct field.
+// ViaStructMap exercises dict binding to a struct field.
 func ViaStructMap(
 	ctx sdk.TIRunContext, log *slog.Logger, input StructMapInput,
 ) (any, error) {
@@ -320,12 +253,7 @@ func ViaStructMap(
 	return map[string]any{"payload": input.Payload}, nil
 }
 
-// ViaPlainMap is called as
-//
-//	via_plain_map(labels={"team": "data", "tier": "gold"})
-//
-// The dict decodes straight into a typed map parameter, with no struct
-// involved on the Go side at all.
+// ViaPlainMap exercises dict decoding into a typed map.
 func ViaPlainMap(
 	ctx sdk.TIRunContext, log *slog.Logger, labels map[string]string,
 ) (any, error) {

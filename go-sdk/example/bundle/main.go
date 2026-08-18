@@ -140,11 +140,7 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
 	return ret, nil
 }
 
-// transform demonstrates TaskFlow-style argument binding: the Python stub Dag
-// calls “transform("uk", extract())“, so the runtime binds the "uk" literal
-// onto country and pulls extract's return-value XCom into extracted -- the
-// injectable parameters (runtime context, client, logger) are filled by type
-// as before, in any position.
+// transform receives the stub call's literal and XCom arguments.
 func transform(
 	ctx sdk.TIRunContext,
 	client sdk.VariableClient,

@@ -28,8 +28,6 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// Like example/bundle/main_test.go, this shows a task fn is unit-testable by
-// passing the data parameters directly, exactly as the runtime binds them.
 func TestViaFlatArgs(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
 	got, err := ViaFlatArgs(ctx, slog.Default(),
@@ -105,9 +103,6 @@ func TestViaStructArgTagRejectsWrongBinding(t *testing.T) {
 
 func TestViaStructUnmatchedArg(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	// Missing is left at its Go zero value, exactly as binding.Resolve leaves an
-	// unmatched struct field -- this task fn is unit-testable independent of
-	// the binding package precisely because it declares that expectation itself.
 	got, err := ViaStructUnmatchedArg(ctx, slog.Default(), ViaStructUnmatchedArgInput{
 		Region:  "eu-west-1",
 		Missing: "",

@@ -132,8 +132,6 @@ func RunTask(
 			"task_id", details.TI.TaskID,
 			"error", err,
 		)
-		// Same retry semantics as a binding failure inside executeTask: an
-		// equally permanent spec error must not terminate differently.
 		if details.TIContext.ShouldRetry {
 			return genmodels.RetryTask{
 				EndDate:     time.Now().UTC(),
@@ -149,11 +147,6 @@ func RunTask(
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
 }
 
-// convertArgBindings maps the wire-model positional-argument spec (captured from
-// the Python stub Dag's TaskFlow call) onto the runtime binding sum type. The
-// wire union generates untyped items (msgpack delivers each XComArgBinding /
-// LiteralArgBinding as a plain map), so the kind dispatch and the optional
-// value_schema fragment are unpacked here.
 func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {
 	if specsPtr == nil || len(*specsPtr) == 0 {
 		return nil, nil
@@ -208,11 +201,6 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 	return args, nil
 }
 
-// argValueSchema unpacks the optional value_schema fragment msgpack delivers as
-// a plain map into the generated ArgValueSchema type. An absent or empty
-// fragment yields nil, which the binding type check treats as unconstrained; a
-// fragment that is present but not a map is a wire error rather than a licence
-// to skip the type check.
 func argValueSchema(raw any) (*genmodels.ArgValueSchema, error) {
 	if raw == nil {
 		return nil, nil
@@ -231,10 +219,6 @@ func argValueSchema(raw any) (*genmodels.ArgValueSchema, error) {
 	return &schema, nil
 }
 
-// optionalBool reads a wire flag that defaults to false when absent. A present
-// but non-boolean value is a wire error: silently reading it as false would
-// turn a captured stub default into an explicitly passed argument and fail the
-// task for an argument the Dag author never wrote.
 func optionalBool(raw any) (bool, error) {
 	if raw == nil {
 		return false, nil
@@ -261,11 +245,6 @@ func mapIndexPtr(mapIndex *int) *int {
 
 // executeTask runs the task, handling success, failure, and panics, and returns
 // the terminal body: genmodels.SucceedTask, TaskState, or RetryTask.
-//
-// args carries the positional-argument spec from the stub Dag's TaskFlow call;
-// tasks that implement bundlev1.TaskWithArgs bind it (an empty spec still runs
-// the arity check), while a custom Task implementation that receives a
-// non-empty spec fails loudly rather than silently dropping the arguments.
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,
