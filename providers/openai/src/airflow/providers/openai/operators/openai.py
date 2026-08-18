@@ -93,6 +93,9 @@ class OpenAIResponseOperator(BaseOperator):
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        See :ref:`howto/operator:OpenAIResponseOperator` for the additional options this operator
+        can pass through, such as ``background``, ``truncation`` and ``max_output_tokens``, and for
+        a note on why ``background=True`` needs care with this synchronous operator.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
