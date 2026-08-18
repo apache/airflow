@@ -4442,8 +4442,15 @@ export const $DagRunAssetReference = {
             title: 'Logical Date'
         },
         start_date: {
-            type: 'string',
-            format: 'date-time',
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Start Date'
         },
         end_date: {
