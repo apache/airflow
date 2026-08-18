@@ -89,13 +89,17 @@ def test_openai_response_operator_execute():
         response_kwargs={"instructions": "Be concise.", "previous_response_id": "resp_prev"},
     )
     mock_hook_instance = Mock(spec=OpenAIHook)
-    mock_hook_instance.create_response.return_value = Mock(
-        spec=Response, output_text="haiku text", id="resp_123", status="completed"
-    )
+    mock_response = Mock(spec=Response, output_text="haiku text", id="resp_123", status="completed")
+    mock_hook_instance.create_response.return_value = mock_response
+    mock_hook_instance.summarize_response_usage.return_value = {"input_tokens": 5, "output_tokens": 7}
     operator.hook = mock_hook_instance
 
-    result = operator.execute(Context())
+    context = Context()
+    context["ti"] = Mock()
+    result = operator.execute(context)
 
+    # Backward compat: the return value is still the aggregated output text, unchanged
+    # by the new XCom pushes below.
     assert result == "haiku text"
     mock_hook_instance.create_response.assert_called_once_with(
         input="Write a haiku.",
@@ -103,6 +107,9 @@ def test_openai_response_operator_execute():
         instructions="Be concise.",
         previous_response_id="resp_prev",
     )
+    context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
+    context["ti"].xcom_push.assert_any_call(key="usage", value={"input_tokens": 5, "output_tokens": 7})
+    mock_hook_instance.summarize_response_usage.assert_called_once_with(mock_response)
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
