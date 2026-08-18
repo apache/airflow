@@ -59,8 +59,8 @@ class DagDef(
    *    task with the same ID is already registered.
    */
   fun addTask(task: TaskDef): DagDef {
-    require(task.owner == null) {
-      "Task '${task.id}' already belongs to Dag '${task.owner?.id}'"
+    task.owner?.let { owner ->
+      throw IllegalArgumentException("Task '${task.id}' already belongs to Dag '${owner.id}'")
     }
     require(tasks.putIfAbsent(task.id, task) == null) {
       "Tasks in Dag have duplicate ID: ${task.id}"
