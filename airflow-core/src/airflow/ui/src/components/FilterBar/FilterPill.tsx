@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, HStack } from "@chakra-ui/react";
-import type { RefObject } from "react";
+import type { RefObject, KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { MdClose } from "react-icons/md";
 
@@ -28,16 +28,16 @@ import { isEmptyFilterValue } from "./utils";
 export type FilterPillInputProps = {
   onBlur: () => void;
   onFocus: () => void;
-  onKeyDown: (event: React.KeyboardEvent) => void;
+  onKeyDown: (event: KeyboardEvent) => void;
   ref: RefObject<HTMLInputElement | null>;
 };
 
 type FilterPillProps = {
-  readonly displayValue: React.ReactNode | string;
+  readonly displayValue: ReactNode | string;
   readonly filter: FilterState;
   readonly hasValue: boolean;
   readonly onRemove: () => void;
-  readonly renderInput: (props: FilterPillInputProps) => React.ReactNode;
+  readonly renderInput: (props: FilterPillInputProps) => ReactNode;
 };
 
 export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInput }: FilterPillProps) => {
@@ -48,7 +48,7 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
 
   const handlePillClick = () => setIsEditing(true);
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" || event.key === "Escape") {
       setIsEditing(false);
     }
