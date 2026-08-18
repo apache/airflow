@@ -680,7 +680,7 @@ if AIRFLOW_V_3_1_PLUS:
         return WorkflowRunMetadata(**XComModel.deserialize_value(result))
 
     def _clear_repaired_and_downstream(
-        dag, run_id: str, task_ids: list[str], session, logger: logging.Logger
+        dag, dag_run: DagRun, task_ids: list[str], session, logger: logging.Logger
     ) -> None:
         """
         Clear the repaired tasks' instances and their downstream instances for this run.
@@ -689,16 +689,15 @@ if AIRFLOW_V_3_1_PLUS:
         their downstream lets the upstream-failed dependents resume deterministically when the
         repaired Databricks sub-runs succeed — without clearing the whole Dag.
         """
-        from sqlalchemy import select
-
         from airflow.models.taskinstance import clear_task_instances
 
         target_task_ids: set[str] = set(task_ids)
         for task_id in task_ids:
             target_task_ids.update(dag.get_task(task_id).get_flat_relative_ids(upstream=False))
 
-        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)).one()
-        tis_to_clear = [ti for ti in dr.get_task_instances(session=session) if ti.task_id in target_task_ids]
+        tis_to_clear = [
+            ti for ti in dag_run.get_task_instances(session=session) if ti.task_id in target_task_ids
+        ]
         logger.info("Clearing %s task instances after Databricks repair", len(tis_to_clear))
         clear_task_instances(tis_to_clear, session)
 
@@ -718,7 +717,6 @@ if AIRFLOW_V_3_1_PLUS:
     def repair_databricks_workflow_confirm(
         dag_id: str,
         run_id: str,
-        request: Request,
         launch_task_id: str,
         task_id: str | None = None,
         repair_all: bool = False,
@@ -731,9 +729,11 @@ if AIRFLOW_V_3_1_PLUS:
             if repair_all
             else f"This will repair task '{task_id}' and resume its downstream tasks."
         )
-        # Same-site relative action; SameSite=Lax on the auth cookie means a cross-site POST cannot
-        # carry it, so moving the mutation to POST is what protects it from CSRF.
-        action = f"{request.url.path}?{request.url.query}"
+        # Rebuild the same-site POST target from the validated identifiers rather than echoing the
+        # request URL, so no request-controlled string reaches the rendered form action. SameSite=Lax
+        # on the auth cookie means a cross-site POST cannot carry it, so moving the mutation to POST
+        # is what protects it from CSRF.
+        action = _build_repair_url(dag_id, run_id, launch_task_id, repair_all=repair_all, task_id=task_id)
         return _repair_confirmation_page(dag_id, run_id, action, summary)
 
     @repair_app.post("/{dag_id}/{run_id}")
@@ -748,9 +748,7 @@ if AIRFLOW_V_3_1_PLUS:
         """Repair failed Databricks tasks for a workflow run and resume the Airflow run."""
         run_id = unquote(run_id)
 
-        # Redirect to a same-site relative path with the identifiers percent-encoded, so the
-        # target can never be steered to another host or scheme (CodeQL open-redirect).
-        return_url = f"/dags/{quote(dag_id, safe='')}/runs/{quote(run_id, safe='')}"
+        from sqlalchemy import select
 
         from airflow.models.serialized_dag import SerializedDagModel
         from airflow.utils.session import create_session
@@ -759,6 +757,17 @@ if AIRFLOW_V_3_1_PLUS:
             dag = SerializedDagModel.get_dag(dag_id, session=session)
             if dag is None:
                 raise HTTPException(status_code=404, detail="Dag not found.")
+
+            dag_run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+            ).one_or_none()
+            if dag_run is None:
+                raise HTTPException(status_code=404, detail="Dag run not found.")
+
+            # Build the redirect target from the run's own persisted identifiers, not the request,
+            # so it is a fixed same-site path that request input cannot influence (CodeQL
+            # open-redirect).
+            return_url = f"/dags/{quote(dag_run.dag_id, safe='')}/runs/{quote(dag_run.run_id, safe='')}"
 
             metadata = _read_launch_metadata(dag_id, run_id, launch_task_id, session)
 
@@ -801,7 +810,7 @@ if AIRFLOW_V_3_1_PLUS:
                 raise HTTPException(status_code=502, detail="Databricks repair request failed.")
 
             # Clear only after a successful repair call, so a failed repair leaves state untouched.
-            _clear_repaired_and_downstream(dag, run_id, repaired_task_ids, session, log)
+            _clear_repaired_and_downstream(dag, dag_run, repaired_task_ids, session, log)
             session.commit()
 
         return RedirectResponse(return_url, status_code=303)
