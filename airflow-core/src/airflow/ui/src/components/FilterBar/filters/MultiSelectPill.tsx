@@ -27,6 +27,12 @@ import type { FilterPluginProps } from "../types";
 
 type SelectOption = { label: string; value: string };
 
+// Wider than the single-value editors, which sit at 180–330px: this one holds a row of chips,
+// and a narrow control stacks them vertically instead. The match-mode toggle needs its own room
+// again on top of that.
+const PILL_WIDTH = "460px";
+const PILL_WIDTH_WITH_MATCH_MODE = "620px";
+
 type Props = FilterPluginProps & {
   readonly noOptionsMessage: string;
   readonly onInputChange?: (value: string) => void;
@@ -88,9 +94,7 @@ export const MultiSelectPill = ({
           overflow="hidden"
           ref={ref}
           tabIndex={0}
-          // Wider than the single-value editors: chips plus the optional match-mode
-          // toggle need the room, and a narrow control stacks them vertically.
-          width={showMatchMode ? "620px" : "460px"}
+          width={showMatchMode ? PILL_WIDTH_WITH_MATCH_MODE : PILL_WIDTH}
         >
           <Text
             alignItems="center"

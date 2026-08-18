@@ -23,7 +23,7 @@ import { MultiSelectPill } from "./MultiSelectPill";
 
 /** Multiselect over a static ``config.options`` list (teams, owners). */
 export const MultiSelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const options = (filter.config.options ?? []).map((option) => ({
     label: typeof option.label === "string" ? option.label : option.value,

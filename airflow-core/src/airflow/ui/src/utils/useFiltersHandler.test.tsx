@@ -21,6 +21,7 @@ import type { PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { isValidFilterValue } from "src/components/FilterBar/utils";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -36,6 +37,11 @@ const createWrapper =
 
 const renderFiltersHandler = (initialEntries?: Array<string>) =>
   renderHook(() => useFiltersHandler([SearchParamsKeys.TAGS]), {
+    wrapper: createWrapper(initialEntries),
+  });
+
+const renderBooleanHandler = (initialEntries?: Array<string>) =>
+  renderHook(() => useFiltersHandler([SearchParamsKeys.NEEDS_REVIEW]), {
     wrapper: createWrapper(initialEntries),
   });
 
@@ -104,5 +110,33 @@ describe("useFiltersHandler multiselect writes", () => {
 
     expect(result.current.searchParams.get(SearchParamsKeys.OFFSET)).toBeNull();
     expect(result.current.searchParams.get(SearchParamsKeys.CURSOR)).toBeNull();
+  });
+});
+
+describe("useFiltersHandler boolean filters", () => {
+  it("reads an enabled boolean from the URL", () => {
+    const { result } = renderBooleanHandler(["/dags?needs_review=true"]);
+
+    expect(result.current.initialValues[SearchParamsKeys.NEEDS_REVIEW]).toBe("true");
+  });
+
+  // A boolean filter is on only while its param says so. "false" is not a second state to
+  // filter by — it means the same as no filter, so it must not resurrect the pill.
+  it("treats an explicit false as unset", () => {
+    const { result } = renderBooleanHandler(["/dags?needs_review=false"]);
+
+    expect(isValidFilterValue("boolean", result.current.initialValues[SearchParamsKeys.NEEDS_REVIEW])).toBe(
+      false,
+    );
+  });
+
+  it("writes only the enabled state back to the URL", () => {
+    const { result } = renderBooleanHandler();
+
+    act(() => result.current.handleFiltersChange({ [SearchParamsKeys.NEEDS_REVIEW]: "true" }));
+    expect(result.current.searchParams.get(SearchParamsKeys.NEEDS_REVIEW)).toBe("true");
+
+    act(() => result.current.handleFiltersChange({}));
+    expect(result.current.searchParams.get(SearchParamsKeys.NEEDS_REVIEW)).toBeNull();
   });
 });

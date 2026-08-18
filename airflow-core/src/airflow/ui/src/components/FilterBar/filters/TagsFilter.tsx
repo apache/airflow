@@ -29,7 +29,7 @@ import { MultiSelectPill } from "./MultiSelectPill";
  * tag query only runs while the pill is mounted, rather than on every FilterBar page.
  */
 export const TagsFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [pattern, setPattern] = useState("");
 
   const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({

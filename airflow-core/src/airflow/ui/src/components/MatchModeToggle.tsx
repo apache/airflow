@@ -28,7 +28,7 @@ type Props = {
 };
 
 export const MatchModeToggle = ({ mode, onModeChange }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <HStack
