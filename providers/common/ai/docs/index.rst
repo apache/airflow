@@ -129,6 +129,8 @@ See the Optional dependencies table below for the exact package each extra insta
     Quick start <quickstart>
     Connection types <connections/pydantic_ai>
     MCP connection <connections/mcp>
+    LangChain connection <connections/langchain>
+    LlamaIndex connection <connections/llamaindex>
     Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>
