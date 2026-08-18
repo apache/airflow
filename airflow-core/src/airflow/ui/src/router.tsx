@@ -21,6 +21,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
+import { TabEntity, TabName } from "src/constants/tab";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
@@ -185,22 +186,33 @@ export const routerConfig = [
       pluginRoute,
       {
         children: [
-          { element: <Overview />, handle: { entity: "dag", tab: "" }, index: true },
-          { element: <DagRuns />, handle: { entity: "dag", tab: "runs" }, path: "runs" },
-          { element: <Tasks />, handle: { entity: "dag", tab: "tasks" }, path: "tasks" },
-          { element: <Calendar />, handle: { entity: "dag", tab: "calendar" }, path: "calendar" },
+          { element: <Overview />, handle: { entity: TabEntity.Dag, tab: TabName.Overview }, index: true },
+          { element: <DagRuns />, handle: { entity: TabEntity.Dag, tab: TabName.Runs }, path: "runs" },
+          { element: <Tasks />, handle: { entity: TabEntity.Dag, tab: TabName.Tasks }, path: "tasks" },
+          {
+            element: <Calendar />,
+            handle: { entity: TabEntity.Dag, tab: TabName.Calendar },
+            path: "calendar",
+          },
           // The Required Actions tab is now a button + modal; this keeps old /required_actions
           // deep links alive by rendering the overview, where the route sync opens the modal.
           { element: <Overview />, path: "required_actions" },
-          { element: <Backfills />, handle: { entity: "dag", tab: "backfills" }, path: "backfills" },
+          {
+            element: <Backfills />,
+            handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
+            path: "backfills",
+          },
           { element: <Backfills />, path: "backfills/:backfillId" },
-          { element: <Events />, handle: { entity: "dag", tab: "events" }, path: "events" },
-          { element: <Code />, handle: { entity: "dag", tab: "code" }, path: "code" },
-          { element: <DagDetails />, handle: { entity: "dag", tab: "details" }, path: "details" },
+          { element: <Events />, handle: { entity: TabEntity.Dag, tab: TabName.Events }, path: "events" },
+          { element: <Code />, handle: { entity: TabEntity.Dag, tab: TabName.Code }, path: "code" },
+          {
+            element: <DagDetails />,
+            handle: { entity: TabEntity.Dag, tab: TabName.Details },
+            path: "details",
+          },
           pluginRoute,
         ],
         element: <Dag />,
-        handle: { entity: "dag" },
         path: "dags/:dagId",
       },
       {

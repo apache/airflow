@@ -23,6 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
+import { TabEntity, TabName } from "src/constants/tab";
 import { BaseWrapper } from "src/utils/Wrapper";
 import type { DagSearchOption } from "src/utils/option";
 
@@ -118,15 +119,7 @@ describe("SearchDags", () => {
     vi.mocked(useMatches).mockReturnValue([
       {
         data: undefined,
-        handle: { entity: "dag" },
-        id: "dag",
-        loaderData: undefined,
-        params: { dagId: "old_dag" },
-        pathname: "/dags/old_dag",
-      },
-      {
-        data: undefined,
-        handle: { entity: "dag", tab: "details" },
+        handle: { entity: TabEntity.Dag, tab: TabName.Details },
         id: "dag-details",
         loaderData: undefined,
         params: { dagId: "old_dag" },
@@ -152,7 +145,7 @@ describe("SearchDags", () => {
     vi.mocked(useMatches).mockReturnValue([
       {
         data: undefined,
-        handle: { entity: "task" },
+        handle: undefined,
         id: "task",
         loaderData: undefined,
         params: { dagId: "old_dag", runId: "run_1", taskId: "task_1" },
@@ -170,15 +163,7 @@ describe("SearchDags", () => {
     vi.mocked(useMatches).mockReturnValue([
       {
         data: undefined,
-        handle: { entity: "dag" },
-        id: "dag",
-        loaderData: undefined,
-        params: { dagId: "old_dag" },
-        pathname: "/dags/old_dag",
-      },
-      {
-        data: undefined,
-        handle: { entity: "dag", tab: "backfills" },
+        handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
         id: "dag-backfills",
         loaderData: undefined,
         params: { dagId: "old_dag" },
@@ -239,15 +224,7 @@ describe("SearchDags", () => {
     vi.mocked(useMatches).mockReturnValue([
       {
         data: undefined,
-        handle: { entity: "dag" },
-        id: "dag",
-        loaderData: undefined,
-        params: { dagId: "old_dag" },
-        pathname: "/dags/old_dag",
-      },
-      {
-        data: undefined,
-        handle: { entity: "dag", tab: "backfills" },
+        handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
         id: "dag-backfills",
         loaderData: undefined,
         params: { dagId: "old_dag" },
@@ -265,14 +242,6 @@ describe("SearchDags", () => {
 
   it("resets plugin routes when destination compatibility is unknown", () => {
     vi.mocked(useMatches).mockReturnValue([
-      {
-        data: undefined,
-        handle: { entity: "dag" },
-        id: "dag",
-        loaderData: undefined,
-        params: { dagId: "old_dag" },
-        pathname: "/dags/old_dag",
-      },
       {
         data: undefined,
         handle: undefined,

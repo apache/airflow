@@ -19,6 +19,7 @@
 import { matchRoutes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
+import { TabEntity } from "src/constants/tab";
 import { getTabPath } from "src/utils/links";
 
 import { routerConfig } from "./router";
@@ -29,9 +30,8 @@ const getAdditionalPath = (pathname: string) => {
   return getTabPath(
     matches.map((match) => ({
       handle: "handle" in match.route ? match.route.handle : undefined,
-      params: match.params,
     })),
-    "dag",
+    TabEntity.Dag,
   );
 };
 

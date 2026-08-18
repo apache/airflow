@@ -19,6 +19,7 @@
 import { describe, it, expect } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { TabEntity, TabName } from "src/constants/tab";
 
 import {
   buildTaskInstanceUrl,
@@ -29,44 +30,44 @@ import {
   getTaskInstanceLink,
 } from "./links";
 
-const getDagMatches = (tab: string) => [{ handle: { entity: "dag", tab }, params: { dagId: "example" } }];
+const getDagMatches = (tab: TabName) => [{ handle: { entity: TabEntity.Dag, tab } }];
 
 describe("getTabPath", () => {
-  it.each(["", "runs", "tasks", "calendar", "backfills", "events", "code", "details"])(
-    "preserves the %s Dag tab",
-    (tab) => {
-      expect(getTabPath(getDagMatches(tab), "dag")).toBe(tab === "" ? "" : `/${tab}`);
-    },
-  );
+  it.each(Object.values(TabName))("preserves the %s Dag tab", (tab) => {
+    expect(getTabPath(getDagMatches(tab), TabEntity.Dag)).toBe(tab === TabName.Overview ? "" : `/${tab}`);
+  });
 
   it("supports more than one compatible entity", () => {
     expect(
       getTabPath(
-        [{ handle: { entity: "task", tab: "events" }, params: { taskId: "task_1" } }],
-        ["task", "task-instance"],
+        [{ handle: { entity: TabEntity.Task, tab: TabName.Events } }],
+        [TabEntity.Task, TabEntity.TaskInstance],
       ),
     ).toBe("/events");
   });
 
   it.each([
     { matches: [] },
-    { matches: [{ handle: { entity: "asset", tab: "events" }, params: { assetId: "1" } }] },
-    { matches: [{ handle: { entity: "task", tab: "details" }, params: { taskId: "task_1" } }] },
-    { matches: [{ handle: { entity: "dag" }, params: { dagId: "example" } }] },
+    { matches: [{ handle: { entity: "asset", tab: "events" } }] },
+    { matches: [{ handle: { entity: TabEntity.Task, tab: TabName.Details } }] },
+    { matches: [{ handle: { entity: TabEntity.Dag } }] },
     {
-      matches: [{ handle: { entity: "dag", tab: 42 }, params: { dagId: "example" } }],
+      matches: [{ handle: { entity: TabEntity.Dag, tab: 42 } }],
     },
     {
-      matches: [{ handle: undefined, params: { dagId: "example" } }],
+      matches: [{ handle: { entity: TabEntity.Dag, tab: "unknown" } }],
     },
     {
-      matches: [{ handle: { entity: 42, tab: "details" }, params: { dagId: "example" } }],
+      matches: [{ handle: undefined }],
     },
     {
-      matches: [{ handle: null, params: { dagId: "example" } }],
+      matches: [{ handle: { entity: 42, tab: TabName.Details } }],
+    },
+    {
+      matches: [{ handle: null }],
     },
   ])("does not preserve unmatched or non-Dag routes", (matches) => {
-    expect(getTabPath(matches.matches, "dag")).toBe("");
+    expect(getTabPath(matches.matches, TabEntity.Dag)).toBe("");
   });
 });
 
