@@ -941,8 +941,8 @@ def update_config(args) -> None:
     the breaking configuration changes by scanning the current configuration file for parameters that have
     been renamed, removed, or had their default values changed in Airflow 3.0. To see or fix all recommended
     changes, use the --all-recommendations argument. To automatically update your airflow.cfg file, use
-    the --fix argument. This command cleans up the existing comments in airflow.cfg but creates a backup of
-    the old airflow.cfg file.
+    the --fix argument. Applying --fix cleans up the existing comments in airflow.cfg, so a backup of the
+    old airflow.cfg file is written first. A dry-run leaves the filesystem untouched.
 
     CLI Arguments:
         --fix: flag (optional)
@@ -1066,14 +1066,6 @@ def update_config(args) -> None:
                 modifications.add_remove(conf_section, conf_option)
                 changes_applied.append(f"{prefix} Removed '{conf_section}/{conf_option}' from configuration.")
 
-    backup_path = f"{AIRFLOW_CONFIG}.bak"
-    try:
-        shutil.copy2(AIRFLOW_CONFIG, backup_path)
-        console.print(f"Backup saved as '{backup_path}'.")
-    except Exception as e:
-        console.print(f"Failed to create backup: {e}")
-        raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
-
     if dry_run:
         console.print("[blue]Dry-run mode enabled. No changes will be written to airflow.cfg.[/blue]")
         with StringIO() as config_output:
@@ -1086,6 +1078,14 @@ def update_config(args) -> None:
             new_config = config_output.getvalue()
         console.print(new_config)
     else:
+        backup_path = f"{AIRFLOW_CONFIG}.bak"
+        try:
+            shutil.copy2(AIRFLOW_CONFIG, backup_path)
+            console.print(f"Backup saved as '{backup_path}'.")
+        except Exception as e:
+            console.print(f"Failed to create backup: {e}")
+            raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
+
         with open(AIRFLOW_CONFIG, "w") as config_file:
             conf.write_custom_config(
                 file=config_file,
