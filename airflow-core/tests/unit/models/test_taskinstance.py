@@ -3875,6 +3875,40 @@ def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, se
     assert dr.partition_key is None
 
 
+@pytest.mark.backend("sqlite")
+def test_runtime_partition_key_backfill_does_not_deadlock_on_sqlite(dag_maker, session):
+    """Regression test for the SQLite ``database is locked`` deadlock.
+
+    This happens when a second connection is used to trigger while
+    ``register_asset_changes_in_db`` was writing.
+
+    The asset event is now created inline on the caller's session (see
+    ``AssetManager.register_asset_change``) instead of opening a side session, so
+    on file-based SQLite (the default ``-b sqlite`` test backend) there is no
+    longer a second connection competing for the same RESERVED lock.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_backfill_sqlite", schedule=PartitionedAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    # Must not raise "sqlite3.OperationalError: database is locked."
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "us"
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
 def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
     """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
     asset = Asset(name="hello")

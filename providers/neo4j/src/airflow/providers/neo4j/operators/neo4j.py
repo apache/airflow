@@ -57,6 +57,10 @@ class Neo4jOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if sql is not None and cypher is not None:
+            raise ValueError("Cannot provide both `sql` and `cypher`. Use `cypher` only.")
+        if cypher is None and sql is None:
+            raise ValueError("Parameter `cypher` is required.")
         self.neo4j_conn_id = neo4j_conn_id
         self.cypher = cypher
         self.sql = sql
@@ -70,10 +74,10 @@ class Neo4jOperator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            if cypher is not None:
-                raise ValueError("Cannot provide both `sql` and `cypher`. Use `cypher` only.")
             cypher = self.sql
         if cypher is None:
+            # The constructor only sees whether the argument was passed; a passed field can still
+            # render to None, and the hook needs a query string.
             raise ValueError("Parameter `cypher` is required.")
 
         self.log.info("Executing: %s", cypher)

@@ -19,8 +19,8 @@ services:
   airflow:
     environment:
       - BACKEND=postgres
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://postgres:airflow@postgres/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql+psycopg://postgres:airflow@postgres/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+${POSTGRES_DRIVER:-psycopg}://postgres:airflow@postgres/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql+${POSTGRES_DRIVER:-psycopg}://postgres:airflow@postgres/airflow
     depends_on:
       postgres:
         condition: service_healthy

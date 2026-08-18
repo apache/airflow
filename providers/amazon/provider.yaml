@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1784746595
+source-date-epoch: 1785633505
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.34.0
   - 9.33.0
   - 9.32.0
   - 9.31.0
@@ -827,6 +828,9 @@ triggers:
   - integration-name: Amazon Comprehend
     python-modules:
       - airflow.providers.amazon.aws.triggers.comprehend
+  - integration-name: Amazon DynamoDB
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.dynamodb
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2
@@ -1125,6 +1129,9 @@ secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
   - airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
 
+email-backends:
+  - airflow.providers.amazon.aws.utils.emailer.send_email
+
 logging:
   - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
   - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
@@ -1166,6 +1173,21 @@ config:
         version_added: 8.7.2
         example: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize
         default: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy
+      s3_task_handler_acl_policy:
+        description: |
+          The ACL applied to task log objects uploaded to S3 by the S3 remote log handler,
+          for example ``bucket-owner-full-control``.
+
+          This is primarily useful for cross-account remote logging: when Airflow runs under one AWS
+          account but writes logs to a bucket owned by another account, S3 makes the writing account
+          the object owner, so the bucket owner cannot read or manage the log objects. Setting
+          ``bucket-owner-full-control`` grants the bucket owner full control over the uploaded logs.
+
+          When unset, no ACL is sent and the bucket's default object ownership applies.
+        type: string
+        version_added: 9.34.0
+        example: bucket-owner-full-control
+        default: ~
   aws_batch_executor:
     description: |
       This section only applies if you are using the AwsBatchExecutor in

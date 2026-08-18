@@ -68,6 +68,28 @@ class TestBuildFileAnalysisRequest:
         assert "first line" in request.user_content
         assert "format=log" in request.user_content
 
+    def test_txt_file_analysis(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text("first line\nsecond line\n", encoding="utf-8")
+
+        request = build_file_analysis_request(
+            file_path=str(path),
+            file_conn_id=None,
+            prompt="Summarize the notes",
+            multi_modal=False,
+            max_files=20,
+            max_file_size_bytes=1024,
+            max_total_size_bytes=2048,
+            max_text_chars=500,
+            sample_rows=10,
+        )
+
+        assert isinstance(request, FileAnalysisRequest)
+        assert request.resolved_paths == [str(path)]
+        assert "Summarize the notes" in request.user_content
+        assert "first line" in request.user_content
+        assert "format=txt" in request.user_content
+
     def test_file_conn_id_overrides_embedded_connection(self, tmp_path):
         path = tmp_path / "data.json"
         path.write_text('{"status": "ok"}', encoding="utf-8")
@@ -336,6 +358,8 @@ class TestFileAnalysisHelpers:
             ("dashboard.jpg", "jpg", None),
             ("report.pdf", "pdf", None),
             ("app", "log", None),
+            ("notes.txt", "txt", None),
+            ("notes.txt.gz", "txt", "gzip"),
         ],
     )
     def test_detect_file_format(self, tmp_path, filename, expected_format, expected_compression):

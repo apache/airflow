@@ -139,12 +139,12 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        if self.was_removed and not self.remove_if_equals:
-            return (
-                f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
-                f"from `{self.config.section}` section. "
-                f"{self.suggestion}"
-            )
+        if self.was_removed:
+            if self.remove_if_equals is None:
+                return self._removed_message
+            # Only the exact value is dropped, so an unreadable option must never count as a match.
+            if conf.get(self.config.section, self.config.option, fallback=None) == str(self.remove_if_equals):
+                return self._removed_message
         if self.is_invalid_if is not None:
             value = conf.get(self.config.section, self.config.option)
             if value == self.is_invalid_if:
@@ -153,6 +153,14 @@ class ConfigChange:
                     f"in `{self.config.section}` section. {self.suggestion}"
                 )
         return None
+
+    @property
+    def _removed_message(self) -> str:
+        return (
+            f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
+            f"from `{self.config.section}` section. "
+            f"{self.suggestion}"
+        )
 
 
 CONFIGS_CHANGES = [
@@ -1016,13 +1024,12 @@ def update_config(args) -> None:
             continue
         conf_section = change.config.section.lower()
         conf_option = change.config.option.lower()
-        full_key = f"{conf_section}.{conf_option}"
 
         if update_sections_lower is not None and conf_section not in update_sections_lower:
             continue
-        if update_options_lower is not None and full_key not in update_options_lower:
+        if update_options_lower is not None and conf_option not in update_options_lower:
             continue
-        if conf_section in ignore_sections_lower or full_key in ignore_options_lower:
+        if conf_section in ignore_sections_lower or conf_option in ignore_options_lower:
             continue
 
         if conf_section not in config_dict or conf_option not in config_dict[conf_section]:
