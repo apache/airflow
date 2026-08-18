@@ -13355,7 +13355,9 @@ def test_partition_cap_reporting_at_exactly_max_dag_ids_no_truncation(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
-def test_partition_cap_backlog_audit_row_written_once_per_episode(dag_maker: DagMaker, session: Session):
+def test_partition_cap_backlog_audit_row_written_once_per_episode(
+    dag_maker: DagMaker, session: Session, caplog
+):
     """
     The cap-reached audit row is written once per backlog episode, not once per tick.
 
@@ -13380,16 +13382,29 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(dag_maker: Dag
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
     runner._max_partition_dag_runs_per_loop = 2
+    caplog.set_level("DEBUG", logger="airflow.jobs.scheduler_job_runner.SchedulerJobRunner")
 
     def _count_audit_log() -> int:
         return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
 
+    def _cap_reached_levels() -> list[str]:
+        return [
+            e["log_level"]
+            for e in caplog
+            if e.get("event") == "Reached the per-tick cap on pending partitioned Dag runs; the remaining "
+            "backlog will be evaluated over subsequent scheduler ticks"
+        ]
+
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 5 pending, cap 2
+    assert _cap_reached_levels() == ["warning"]
+
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 3 pending, still over cap
     assert _count_audit_log() == 1, "backlog persisted across two ticks; audit row must only be written once"
+    assert _cap_reached_levels() == ["warning", "debug"]
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: 1 pending, drains below cap
     assert _count_audit_log() == 1, "draining below the cap must not write another audit row"
+    assert _cap_reached_levels() == ["warning", "debug"]
 
     # A fresh backlog episode for the same consumer: three more satisfied APDRs push
     # pending count back above the cap.
@@ -13410,6 +13425,7 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(dag_maker: Dag
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 4: new episode, 3 pending
     assert _count_audit_log() == 2, "a fresh backlog episode after draining should write a second audit row"
+    assert _cap_reached_levels() == ["warning", "debug", "warning"]
 
 
 @pytest.mark.need_serialized_dag
@@ -13454,7 +13470,8 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker,
 
     The audit write is purely observational, so any DBAPI-layer failure — not just
     `OperationalError` — must be caught and logged, leaving `_partition_cap_backlog_reported`
-    `False` so the next tick retries the write.
+    `False` so the next tick retries the write, and the cap-reached log stays at `warning`
+    instead of being downgraded.
     """
     _make_n_satisfied_apdrs(
         consumer_dag_id="cap-consumer-audit-failure",
@@ -13467,7 +13484,9 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker,
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
-    runner._max_partition_dag_runs_per_loop = 2
+    # cap=1 so the 3-item backlog still exceeds the cap on the second tick too (3 -> 2 -> 1
+    # remaining), keeping both ticks in the cap-reached branch.
+    runner._max_partition_dag_runs_per_loop = 1
 
     failing_session_cm = MagicMock()
     failing_session_cm.__enter__.return_value.add.side_effect = IntegrityError(
@@ -13477,11 +13496,20 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker,
 
     with mock.patch("airflow.jobs.scheduler_job_runner.create_session", return_value=failing_session_cm):
         runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
     assert "Failed to write the partition Dag run cap audit Log row" in caplog
     assert runner._partition_cap_backlog_reported is False
     audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
+
+    cap_reached_levels = [
+        e["log_level"]
+        for e in caplog
+        if e.get("event") == "Reached the per-tick cap on pending partitioned Dag runs; the remaining "
+        "backlog will be evaluated over subsequent scheduler ticks"
+    ]
+    assert cap_reached_levels == ["warning", "warning"]
 
 
 def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) -> None:

@@ -383,6 +383,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Edge-triggers the "partition Dag run cap reached" audit Log row: True once that row
         # has been committed for the current backlog episode, reset to False once the backlog
         # drains below the cap.
+        # Process-local: each scheduler in an HA deployment writes at most one audit row per
+        # episode; cross-process de-duplication would need a per-tick DB read, defeating the
+        # point of edge-triggering.
         self._partition_cap_backlog_reported = False
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
@@ -2344,7 +2347,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if backlog_total > self._max_partition_dag_runs_per_loop:
             displayed_dag_ids = sorted_dag_ids[:MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED]
             remaining_dag_id_count = len(sorted_dag_ids) - len(displayed_dag_ids)
-            self.log.warning(
+            log_cap_reached = self.log.debug if self._partition_cap_backlog_reported else self.log.warning
+            log_cap_reached(
                 (
                     "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
                     "will be evaluated over subsequent scheduler ticks"
