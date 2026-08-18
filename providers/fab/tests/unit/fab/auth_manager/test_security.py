@@ -1055,7 +1055,28 @@ def test_create_dag_specific_permissions_airflow3(session, security_manager, mon
         security_manager.create_dag_specific_permissions()
 
 
-def test_get_all_permissions(security_manager):
+def test_create_dag_specific_permissions_skips_dag_with_bad_access_control(security_manager, monkeypatch):
+    """A single DAG with an invalid access_control must not abort syncing the remaining DAGs."""
+    bad_dag = DAG("bad_access_control", schedule=None, access_control={"NonExistentRole": {ACTION_CAN_READ}})
+    good_dag = DAG("good_access_control", schedule=None, access_control={"Public": {ACTION_CAN_READ}})
+
+    import airflow.providers.fab.auth_manager.security_manager
+
+    _iter_dags_mock = mock.Mock(return_value=[bad_dag, good_dag])
+    monkeypatch.setitem(
+        airflow.providers.fab.auth_manager.security_manager.override.__dict__, "_iter_dags", _iter_dags_mock
+    )
+
+    try:
+        security_manager.create_dag_specific_permissions()
+
+        good_perms = security_manager.get_all_permissions()
+        good_resource_name = _resource_name(good_dag.dag_id, permissions.RESOURCE_DAG)
+        assert (ACTION_CAN_READ, good_resource_name) in good_perms
+    finally:
+        _delete_dag_permissions(bad_dag.dag_id, security_manager)
+        _delete_dag_permissions(good_dag.dag_id, security_manager)
+
     with assert_queries_count(1):
         perms = security_manager.get_all_permissions()
 
