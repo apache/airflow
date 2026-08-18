@@ -1,0 +1,1 @@
+Deprecate ``DagFileProcessorManager.handle_parsing_result`` and ``persist_parsing_result``; override ``persist_parsing_results`` instead, which is handed every file that finished parsing together. Overriding either deprecated method still works but stops parse results being persisted a sweep at a time.
