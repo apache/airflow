@@ -51,6 +51,8 @@ from airflow.dag_processing.manager import (
 )
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -69,6 +71,7 @@ from tests_common.test_utils.db import (
 pytestmark = pytest.mark.db_test
 
 BUNDLE = "testing"
+OTHER_BUNDLE = "testing-other"
 DAG_FILE = "budget_dags.py"
 
 # Per persistence call, and per Dag in the file. A call leaves the serialized Dag alone while the
@@ -281,11 +284,13 @@ def test_sweep_pays_fixed_cost_once_per_call(n_files, session, testing_dag_bundl
     )
 
 
-def _parse_result(tmp_path: Path, dag_id: str, run_duration: float = 0.5) -> FileParseResult:
+def _parse_result(
+    tmp_path: Path, dag_id: str, run_duration: float = 0.5, bundle_name: str = BUNDLE
+) -> FileParseResult:
     rel_path = f"{dag_id}.py"
     dag_file = tmp_path / rel_path
     return FileParseResult(
-        file=DagFileInfo(bundle_name=BUNDLE, rel_path=Path(rel_path), bundle_path=tmp_path),
+        file=DagFileInfo(bundle_name=bundle_name, rel_path=Path(rel_path), bundle_path=tmp_path),
         parsing_result=DagFileParsingResult(
             fileloc=str(dag_file), serialized_dags=_make_dags(dag_file, [dag_id], rel_path)
         ),
@@ -329,27 +334,44 @@ def test_per_file_override_still_replaces_the_database(tmp_path):
     db_write.assert_not_called()
 
 
-def test_batch_override_replaces_the_database(tmp_path):
-    """Overriding the batch seam keeps the metadata DB out of the path entirely."""
-    seen: list[int] = []
+def _collect_a_two_file_sweep(manager, tmp_path: Path, sockets, name: str, session) -> mock.MagicMock:
+    """Run a sweep of two files all the way through the manager, and report what reached the DB."""
+    sweep_dir = tmp_path / name
+    sweep_dir.mkdir()
+    _register(manager, sweep_dir, 2, sockets, dags_per_file=1)
+    # The manager persists on sessions of its own, so release ours rather than contend with them.
+    session.commit()
+
+    with mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db") as db_write:
+        manager._collect_results()
+    return db_write
+
+
+def test_a_batch_override_is_handed_the_sweep_by_the_manager(session, testing_dag_bundle, tmp_path, sockets):
+    """Dispatching to an override proves nothing unless the manager is the one routing through it."""
+    seen: list[list[str]] = []
 
     class BatchApiManager(DagFileProcessorManager):
         def persist_parsing_results(self, results, *, session=None):
-            seen.append(len(results))
+            seen.append([str(item.file.rel_path) for item in results])
 
     manager = BatchApiManager(max_runs=1)
     manager._bundle_versions[BUNDLE] = None
-    batch = [_parse_result(tmp_path, "batch_a"), _parse_result(tmp_path, "batch_b")]
 
-    with mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db") as db_write:
-        manager.persist_parsing_results(batch)
+    db_write = _collect_a_two_file_sweep(manager, tmp_path, sockets, "batch_override", session)
 
-    assert seen == [2], "the batch override should see the whole sweep at once"
+    assert seen == [["file_0.py", "file_1.py"]], "the whole sweep should arrive in one call"
     db_write.assert_not_called()
 
 
-def test_default_manager_takes_the_batched_path(tmp_path):
-    assert DagFileProcessorManager(max_runs=1)._overrides_per_file_persist() is False
+def test_the_default_manager_writes_the_sweep_to_the_database(session, testing_dag_bundle, tmp_path, sockets):
+    """The negative of the override case: with nothing replaced, a sweep still reaches the DB once."""
+    manager = DagFileProcessorManager(max_runs=1)
+    manager._bundle_versions[BUNDLE] = None
+
+    db_write = _collect_a_two_file_sweep(manager, tmp_path, sockets, "default_path", session)
+
+    db_write.assert_called_once()
 
 
 def _parse_result_with(
@@ -358,6 +380,7 @@ def _parse_result_with(
     *,
     import_errors: dict[str, str] | None = None,
     warnings: list | None = None,
+    dag_ids: list[str] | None = None,
 ) -> FileParseResult:
     rel_path = f"{dag_id}.py"
     dag_file = tmp_path / rel_path
@@ -365,7 +388,7 @@ def _parse_result_with(
         file=DagFileInfo(bundle_name=BUNDLE, rel_path=Path(rel_path), bundle_path=tmp_path),
         parsing_result=DagFileParsingResult(
             fileloc=str(dag_file),
-            serialized_dags=_make_dags(dag_file, [dag_id], rel_path),
+            serialized_dags=_make_dags(dag_file, [dag_id] if dag_ids is None else dag_ids, rel_path),
             import_errors=import_errors,
             warnings=warnings,
         ),
@@ -408,6 +431,60 @@ def test_batched_sweep_clears_import_errors_for_files_that_now_parse(session, te
     session.commit()
 
     assert not session.scalars(select(ParseImportError)).all(), "stale error should have been cleared"
+
+
+def test_batched_sweep_clears_a_stale_error_for_a_file_that_now_defines_no_dags(
+    session, testing_dag_bundle, tmp_path
+):
+    """A file can stop defining Dags altogether, and is still a file the sweep parsed."""
+    manager = DagFileProcessorManager(max_runs=1)
+    manager._bundle_versions[BUNDLE] = None
+
+    manager.persist_parsing_results(
+        [_parse_result_with(tmp_path, "emptied", import_errors={"emptied.py": "was broken"})],
+        session=session,
+    )
+    session.commit()
+    assert session.scalars(select(ParseImportError)).all()
+
+    manager.persist_parsing_results(
+        [_parse_result_with(tmp_path, "healthy"), _parse_result_with(tmp_path, "emptied", dag_ids=[])],
+        session=session,
+    )
+    session.commit()
+
+    remaining = {(error.bundle_name, error.filename) for error in session.scalars(select(ParseImportError))}
+    assert (BUNDLE, "emptied.py") not in remaining, (
+        f"the emptied file was parsed, so its stale error should have been cleared: {remaining}"
+    )
+
+
+def test_a_sweep_writes_each_bundles_files_under_its_own_version(session, testing_dag_bundle, tmp_path):
+    """A group carries one bundle's version, so a sweep spanning two must not cross them over."""
+    session.add(DagBundleModel(name=OTHER_BUNDLE))
+    session.commit()
+
+    manager = DagFileProcessorManager(max_runs=1)
+    manager._bundle_versions.update({BUNDLE: "v-testing", OTHER_BUNDLE: "v-other"})
+    manager._bundle_version_data.update({BUNDLE: {"sha": "aaa"}, OTHER_BUNDLE: {"sha": "bbb"}})
+
+    manager.persist_parsing_results(
+        [
+            _parse_result(tmp_path, "in_testing"),
+            _parse_result(tmp_path, "in_other", bundle_name=OTHER_BUNDLE),
+        ],
+        session=session,
+    )
+    session.commit()
+
+    assert session.get(DagModel, "in_testing").bundle_name == BUNDLE
+    assert session.get(DagModel, "in_other").bundle_name == OTHER_BUNDLE
+
+    versions = {version.dag_id: version for version in session.scalars(select(DagVersion))}
+    assert versions["in_testing"].bundle_version == "v-testing"
+    assert versions["in_other"].bundle_version == "v-other"
+    assert versions["in_testing"].version_data == {"sha": "aaa"}
+    assert versions["in_other"].version_data == {"sha": "bbb"}
 
 
 def test_batched_sweep_records_warnings_from_every_file(session, testing_dag_bundle, tmp_path):
