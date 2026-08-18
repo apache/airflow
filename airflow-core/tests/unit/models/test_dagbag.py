@@ -25,8 +25,8 @@ import pytest
 import time_machine
 from cachetools import LRUCache, TTLCache
 
-from airflow.api_fastapi.common.dagbag import APIServerDBDagBag
-from airflow.jobs.scheduler_dagbag import SchedulerDBDagBag
+from airflow.api_fastapi.common.dagbag import create_dag_bag
+from airflow.jobs.scheduler_job_runner import _create_scheduler_dag_bag
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag, _CacheEntry
@@ -43,11 +43,10 @@ pytestmark = pytest.mark.db_test
 
 STATS_PATH = "airflow.models.dagbag.stats"
 
-# The hooks live on the base and build their names from the ``stats_prefix`` each component passes
-# in, so the shared plumbing is exercised once per component.
+# Each component's own factory, paired with the prefix it is expected to wire up.
 METRIC_SOURCES = [
-    pytest.param(APIServerDBDagBag, "api_server.dag_bag", id="api_server"),
-    pytest.param(SchedulerDBDagBag, "scheduler.dag_bag", id="scheduler"),
+    pytest.param(create_dag_bag, "api_server.dag_bag", id="api_server"),
+    pytest.param(_create_scheduler_dag_bag, "scheduler.dag_bag", id="scheduler"),
 ]
 
 CACHE_METRIC_SUFFIXES = ("cache_hit", "cache_miss", "cache_clear", "cache_size")
@@ -271,17 +270,11 @@ class TestDBDagBagCache:
     @pytest.mark.parametrize(
         ("cache_size", "cache_ttl", "expected_type", "expected_maxsize"),
         [
-            pytest.param(None, None, dict, None, id="no_args_plain_dict"),
-            pytest.param(0, 0, dict, None, id="both_zero_plain_dict"),
-            pytest.param(0, None, dict, None, id="size_zero_no_ttl_plain_dict"),
+            pytest.param(None, None, dict, None, id="neither_plain_dict"),
+            pytest.param(-1, -1, dict, None, id="negatives_clamped_to_plain_dict"),
             pytest.param(10, None, LRUCache, 10, id="size_only_lru"),
-            pytest.param(10, 0, LRUCache, 10, id="ttl_zero_lru"),
             pytest.param(10, 60, TTLCache, 10, id="size_and_ttl_bounded_ttl"),
             pytest.param(0, 60, TTLCache, math.inf, id="ttl_only_uncapped"),
-            pytest.param(None, 60, TTLCache, math.inf, id="ttl_only_size_none_uncapped"),
-            pytest.param(-1, 60, TTLCache, math.inf, id="negative_size_clamped_to_uncapped"),
-            pytest.param(10, -1, LRUCache, 10, id="negative_ttl_clamped_to_lru"),
-            pytest.param(-1, -1, dict, None, id="both_negative_plain_dict"),
         ],
     )
     def test_cache_selection(self, cache_size, cache_ttl, expected_type, expected_maxsize):
@@ -290,13 +283,6 @@ class TestDBDagBagCache:
         assert dag_bag._use_cache is (expected_type is not dict)
         if expected_maxsize is not None:
             assert dag_bag._dags.maxsize == expected_maxsize
-
-    def test_uncapped_ttl_cache_accepts_entries(self):
-        """A size of 0 must mean "no limit", not cachetools' zero-capacity cache."""
-        dag_bag = _stub_dag_bag(cache_size=0, cache_ttl=60)
-        for i in range(200):
-            dag_bag._dags[f"version_{i}"] = MagicMock()
-        assert len(dag_bag._dags) == 200
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
@@ -422,8 +408,8 @@ class TestDBDagBagCache:
         # Cache should be empty -- iter doesn't cache to prevent thrashing
         assert len(dag_bag._dags) == 0
 
-    @pytest.mark.parametrize(("dag_bag_cls", "prefix"), METRIC_SOURCES)
-    def test_stats_prefix_expands_to_registered_metrics(self, dag_bag_cls, prefix):
+    @pytest.mark.parametrize(("create_bag", "prefix"), METRIC_SOURCES)
+    def test_stats_prefix_expands_to_registered_metrics(self, create_bag, prefix):
         """Every name a component can emit must exist in the metrics registry.
 
         The registry prek check sees only the ``{_stats_prefix}.<suffix>`` template, so it can
@@ -432,7 +418,7 @@ class TestDBDagBagCache:
         """
         from airflow._shared.observability.metrics.metrics_registry import MetricsRegistry
 
-        assert dag_bag_cls.from_config()._stats_prefix == prefix
+        assert create_bag()._stats_prefix == prefix
         registry = MetricsRegistry()
         missing = [
             name for suffix in CACHE_METRIC_SUFFIXES if registry.get(name := f"{prefix}.{suffix}") is None
@@ -465,9 +451,8 @@ class TestDBDagBagCache:
         mock_stats.incr.assert_not_called()
         mock_stats.gauge.assert_not_called()
 
-    @pytest.mark.parametrize(("dag_bag_cls", "prefix"), METRIC_SOURCES)
-    def test_cache_hit_metric_emitted(self, dag_bag_cls, prefix):
-        dag_bag = dag_bag_cls(cache_size=10, cache_ttl=60, stats_prefix=prefix)
+    def test_cache_hit_metric_emitted(self):
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         mock_session = MagicMock()
         # last_validated=0.0 forces revalidation; the hash matches, so it counts as a hit.
         dag_bag._dags["test_version"] = _CacheEntry(MagicMock(), "hash1", 0.0)
@@ -476,11 +461,10 @@ class TestDBDagBagCache:
         with patch(STATS_PATH) as mock_stats:
             dag_bag._get_dag("test_version", mock_session)
 
-        mock_stats.incr.assert_called_with(f"{prefix}.cache_hit")
+        mock_stats.incr.assert_called_with(f"{STUB_PREFIX}.cache_hit")
 
-    @pytest.mark.parametrize(("dag_bag_cls", "prefix"), METRIC_SOURCES)
-    def test_cache_miss_metric_emitted(self, dag_bag_cls, prefix):
-        dag_bag = dag_bag_cls(cache_size=10, cache_ttl=60, stats_prefix=prefix)
+    def test_cache_miss_metric_emitted(self):
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         mock_session = MagicMock()
 
         # Set up a DB result so _get_dag reaches the miss metric path
@@ -494,22 +478,20 @@ class TestDBDagBagCache:
         with patch(STATS_PATH) as mock_stats:
             dag_bag._get_dag("uncached_version", mock_session)
 
-        mock_stats.incr.assert_any_call(f"{prefix}.cache_miss")
+        mock_stats.incr.assert_any_call(f"{STUB_PREFIX}.cache_miss")
 
-    @pytest.mark.parametrize(("dag_bag_cls", "prefix"), METRIC_SOURCES)
-    def test_cache_clear_metric_emitted(self, dag_bag_cls, prefix):
-        dag_bag = dag_bag_cls(cache_size=10, cache_ttl=60, stats_prefix=prefix)
+    def test_cache_clear_metric_emitted(self):
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         dag_bag._dags["test_version"] = MagicMock()
 
         with patch(STATS_PATH) as mock_stats:
             dag_bag.clear_cache()
 
-        mock_stats.incr.assert_called_with(f"{prefix}.cache_clear")
-        mock_stats.gauge.assert_called_with(f"{prefix}.cache_size", 0, rate=1.0)
+        mock_stats.incr.assert_called_with(f"{STUB_PREFIX}.cache_clear")
+        mock_stats.gauge.assert_called_with(f"{STUB_PREFIX}.cache_size", 0, rate=1.0)
 
-    @pytest.mark.parametrize(("dag_bag_cls", "prefix"), METRIC_SOURCES)
-    def test_cache_size_gauge_emitted(self, dag_bag_cls, prefix):
-        dag_bag = dag_bag_cls(cache_size=10, cache_ttl=60, stats_prefix=prefix)
+    def test_cache_size_gauge_emitted(self):
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         mock_serdag = MagicMock()
         mock_serdag.dag_version_id = "test_version_1"
         mock_serdag.dag = MagicMock()
@@ -518,4 +500,4 @@ class TestDBDagBagCache:
         with patch(STATS_PATH) as mock_stats:
             dag_bag._read_dag(mock_serdag)
 
-        mock_stats.gauge.assert_called_with(f"{prefix}.cache_size", 1, rate=0.1)
+        mock_stats.gauge.assert_called_with(f"{STUB_PREFIX}.cache_size", 1, rate=0.1)

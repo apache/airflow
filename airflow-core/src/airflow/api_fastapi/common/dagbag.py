@@ -30,23 +30,10 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
-class APIServerDBDagBag(DBDagBag):
-    """
-    DagBag for the API server, reporting cache activity under ``api_server.dag_bag``.
-
-    :meta private:
-    """
-
-    @classmethod
-    def from_config(cls) -> APIServerDBDagBag:
-        """Build an instance from the ``[api]`` cache options."""
-        cache_size, cache_ttl = dag_cache_conf("api", size_fallback=64, ttl_fallback=3600)
-        return cls(cache_size=cache_size, cache_ttl=cache_ttl, stats_prefix="api_server.dag_bag")
-
-
 def create_dag_bag() -> DBDagBag:
-    """Create the API server's DagBag from the ``[api]`` cache options."""
-    return APIServerDBDagBag.from_config()
+    """Build the API server's DagBag from the ``[api]`` cache options."""
+    cache_size, cache_ttl = dag_cache_conf("api", size_fallback=64, ttl_fallback=3600)
+    return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl, stats_prefix="api_server.dag_bag")
 
 
 def dag_bag_from_app(request: Request) -> DBDagBag:

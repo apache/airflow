@@ -71,7 +71,6 @@ from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
-from airflow.jobs.scheduler_dagbag import SchedulerDBDagBag
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -100,7 +99,7 @@ from airflow.models.connection_test import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion, _resolve_version_data
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import DBDagBag, dag_cache_conf
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -299,6 +298,25 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+def _create_scheduler_dag_bag() -> DBDagBag:
+    """
+    Build the scheduler's DagBag from the ``[scheduler]`` cache options.
+
+    Defaults to no size limit (``dag_cache_size = 0``). The scheduler reaches the cache through
+    the Dag version of each active Dag run, so its working set is the versions with runs in
+    flight, which no fixed count predicts well. A size limit would evict versions that are still
+    being scheduled, whereas each re-check resets an entry's expiry, so the TTL reclaims each
+    version only once its runs finish and it stops being requested.
+    """
+    cache_size, cache_ttl = dag_cache_conf("scheduler", size_fallback=0, ttl_fallback=3600)
+    return DBDagBag(
+        load_op_links=False,
+        cache_size=cache_size,
+        cache_ttl=cache_ttl,
+        stats_prefix="scheduler.dag_bag",
+    )
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -371,7 +389,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = SchedulerDBDagBag.from_config()
+        self.scheduler_dag_bag = _create_scheduler_dag_bag()
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
