@@ -424,15 +424,25 @@ The decorator may be used with or without parentheses. Used bare, or with empty 
 reference is evaluated when a new Dag run is created; pass a ``DeadlineReference.TYPES`` value to
 choose a different time.
 
+The class must also be registered as part of a :doc:`plugin </administration-and-deployment/plugins>`
+by adding it to the plugin's ``deadline_references`` list, the same way custom timetables are
+registered.  The decorator makes the reference available to your Dag file as
+``DeadlineReference.<ClassName>``; the plugin registration is what lets the scheduler resolve the
+class again when it deserializes the Dag.  A custom reference that is not registered in a plugin
+raises ``DeadlineReferenceNotRegistered`` at deserialization time.
 
-**Creating a Custom Reference**
+
+**Creating and Registering a Custom Reference**
+
+Place the reference classes and the plugin that registers them in your plugins folder (e.g.
+``$AIRFLOW_HOME/plugins/deadline_references.py``):
 
 .. code-block:: python
 
     from sqlalchemy.orm import Session
 
-    from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import BaseDeadlineReference, deadline_reference
+    from airflow.plugins_manager import AirflowPlugin
+    from airflow.sdk import BaseDeadlineReference, DeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 
@@ -461,9 +471,16 @@ choose a different time.
             return your_datetime
 
 
+    # Register the classes so the scheduler can resolve them when it deserializes the Dag.
+    class MyDeadlineReferencePlugin(AirflowPlugin):
+        name = "my_deadline_reference_plugin"
+        deadline_references = [MyCustomDecoratedReference, MyQueuedReference]
+
+
 **Using a Custom Reference in a Dag**
 
-Once registered, use your custom references in Dag definitions like any other reference:
+Once the classes are decorated and registered in a plugin, use them in Dag definitions like any
+other reference:
 
 .. code-block:: python
 
@@ -529,7 +546,8 @@ followed by a more urgent escalation if the Dag is still running.
 * **No-argument Construction**: Custom references are instantiated during registration, so they must be
   constructible with no arguments. If your reference takes parameters, decorate it with ``@dataclass``
   and give every field a default value.
-* **Plugin Placement**: One convenient place for custom references is in the plugins directory.
+* **Plugin Registration**: Custom references must be listed in the ``deadline_references`` attribute
+  of an ``AirflowPlugin``, so the plugins directory is the natural home for them.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
 * **Required Parameters**: ``required_kwargs`` declares which Dag run context values Airflow should
   forward to ``_evaluate_with()``. Only ``dag_id`` and ``run_id`` are available; declaring anything

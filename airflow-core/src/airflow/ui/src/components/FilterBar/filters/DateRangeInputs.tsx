@@ -19,6 +19,7 @@
 import { HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
+import type { ChangeEvent, Dispatch, SetStateAction } from "react";
 import { MdAccessTime } from "react-icons/md";
 
 import { useTimezone } from "src/context/timezone";
@@ -35,9 +36,9 @@ type DateRangeInputsProps = {
   readonly handleInputChange: (
     field: "end" | "start",
     inputType: "date" | "time",
-  ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
+  ) => (event: ChangeEvent<HTMLInputElement>) => void;
   readonly onChange: (value: DateRangeValue) => void;
-  readonly setEditingState: React.Dispatch<React.SetStateAction<DateRangeEditingState>>;
+  readonly setEditingState: Dispatch<SetStateAction<DateRangeEditingState>>;
   readonly startDateValue: dayjs.Dayjs | undefined;
   readonly translate: TFunction;
   readonly value: DateRangeValue;
@@ -111,7 +112,7 @@ export const DateRangeInputs = ({
       "time",
     )({
       target: { value: "" },
-    } as React.ChangeEvent<HTMLInputElement>);
+    } as ChangeEvent<HTMLInputElement>);
   };
 
   return (

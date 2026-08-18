@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type React from "react";
+import type { ReactNode } from "react";
 
 export type DateRangeValue = {
   endDate?: string;
@@ -29,12 +29,12 @@ export type FilterConfig = {
   readonly defaultValue?: FilterValue;
   readonly endKey?: string;
   readonly hotkeyDisabled?: boolean;
-  readonly icon?: React.ReactNode;
+  readonly icon?: ReactNode;
   readonly key: string;
   readonly label: string;
   readonly max?: number;
   readonly min?: number;
-  readonly options?: Array<{ label: React.ReactNode | string; value: string }>;
+  readonly options?: Array<{ label: ReactNode | string; value: string }>;
   readonly placeholder?: string;
   readonly required?: boolean;
   readonly startKey?: string;

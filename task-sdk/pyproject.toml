@@ -124,7 +124,7 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 [build-system]
 requires = [
     "hatchling==1.31.0",
-    "packaging==26.2",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
@@ -224,18 +224,9 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    "pandas>=2.1.2,<3; python_version <\"3.13\"",
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    "pandas>=2.2.3,<3; python_version >=\"3.13\" and python_version <\"3.14\"",
-    # pandas 3 changes the dtypes a DataFrame reads back with, so DataFrame XComs do not
-    # round trip; capped until pandas 3 support lands.
-    # Tracked at https://github.com/apache/airflow/pull/70558
-    "pandas>=2.3.3,<3; python_version >=\"3.14\""
+    "pandas>=2.1.2; python_version <\"3.13\"",
+    "pandas>=2.2.3; python_version >=\"3.13\" and python_version <\"3.14\"",
+    "pandas>=2.3.3; python_version >=\"3.14\""
 ]
 docs = [
     "apache-airflow-devel-common[docs]",

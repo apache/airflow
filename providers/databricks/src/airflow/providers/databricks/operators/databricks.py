@@ -24,6 +24,7 @@ import copy
 import hashlib
 import json as json_utils
 import time
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import cached_property
@@ -68,6 +69,20 @@ if TYPE_CHECKING:
     from airflow.sdk import TaskGroup
     from airflow.sdk.types import Context, Logger
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
@@ -77,9 +92,9 @@ except ImportError:
 
         external_id_key: str = "databricks_run_id"
 
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             super().__init__(**kwargs)
-            self.durable = durable
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -302,6 +317,16 @@ _DICT_PARAM_FIELD_BY_TASK = {
     "sql_task": "parameters",
     "run_job_task": "job_parameters",
 }
+
+# Parameter slots in run-now payload that Databricks API rejects when combined with job_parameters
+_RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
+    "notebook_params",
+    "python_params",
+    "jar_params",
+    "spark_submit_params",
+    "python_named_params",
+    "dbt_commands",
+)
 
 
 def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
@@ -679,6 +704,13 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param git_source: Optional specification of a remote git repository from which
         supported task types are retrieved.
+    :param performance_target: Optional performance mode for the run on serverless compute.
+        Either ``PERFORMANCE_OPTIMIZED`` (prioritizes fast startup and execution) or
+        ``STANDARD`` (enables cost-efficient execution of serverless workloads). This field
+        will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/submit
     :param deferrable: Run operator in the deferrable mode.
 
         .. seealso::
@@ -725,6 +757,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         "idempotency_token",
         "access_control_list",
         "git_source",
+        "performance_target",
         "databricks_conn_id",
     )
     template_ext: Sequence[str] = (".json-tpl",)
@@ -759,6 +792,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
+        performance_target: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
@@ -766,9 +800,14 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.json = json
         self.tasks = tasks
@@ -786,6 +825,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.idempotency_token = idempotency_token
         self.access_control_list = access_control_list
         self.git_source = git_source
+        self.performance_target = performance_target
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -817,6 +857,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             "idempotency_token": self.idempotency_token,
             "access_control_list": self.access_control_list,
             "git_source": self.git_source,
+            "performance_target": self.performance_target,
         }
 
     def _get_merged_json(self) -> dict[str, Any]:
@@ -1173,12 +1214,18 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         before polling begins so that a worker crash and retry reconnects to the existing run
         instead of triggering a duplicate run of the same job. Set to ``False`` to always trigger a
         fresh run on retry. Requires Airflow 3.3+; on earlier versions it is silently ignored.
+    :param forward_dag_params: Whether to forward Dag-level params as ``job_parameters``
+        when no ``job_parameters`` are specified. (default: ``True``)
 
     .. note::
         If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
         non-empty, the operator's ``params`` are automatically forwarded as ``job_parameters``
         so that Airflow Dag params can be passed dynamically to Databricks runs without
-        hardcoding them in ``json``.
+        hardcoding them in ``json``. Set ``forward_dag_params=False`` to disable this.
+        Note that the Databricks API does not permit ``job_parameters`` to be used in combination
+        with ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
+        ``python_named_params``, or ``dbt_commands``; auto-forwarding is automatically skipped
+        when any of those parameters are set.
     """
 
     external_id_key = "databricks_run_now_id"
@@ -1229,9 +1276,15 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         repair_run: bool = False,
         databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
+        forward_dag_params: bool = True,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.json = json
         self.job_id = job_id
@@ -1254,6 +1307,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.repair_run = repair_run
         self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
         self.cancel_previous_runs = cancel_previous_runs
+        self.forward_dag_params = forward_dag_params
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -1321,7 +1375,12 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             json["job_id"] = job_id
             del json["job_name"]
 
-        if not json.get("job_parameters") and self.params:
+        if (
+            self.forward_dag_params
+            and not json.get("job_parameters")
+            and self.params
+            and not any(k in json for k in _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS)
+        ):
             json["job_parameters"] = dict(self.params)
 
         return json
@@ -1650,6 +1709,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
         a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
+    :param max_retries: Databricks task retry count. Use ``-1`` for unlimited retries.
+    :param min_retry_interval_millis: Minimum interval between Databricks task retries.
+    :param retry_on_timeout: Whether Databricks retries timed-out tasks.
     """
 
     def __init__(
@@ -1667,6 +1729,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
         workflow_run_metadata: dict[str, Any] | None = None,
+        max_retries: int | str | None = None,
+        min_retry_interval_millis: int | str | None = None,
+        retry_on_timeout: bool | str | None = None,
         **kwargs: Any,
     ):
         self.caller = caller
@@ -1682,6 +1747,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.polling_period_seconds = polling_period_seconds
         self.wait_for_termination = wait_for_termination
         self.workflow_run_metadata = workflow_run_metadata
+        self.max_retries = max_retries
+        self.min_retry_interval_millis = min_retry_interval_millis
+        self.retry_on_timeout = retry_on_timeout
 
         self.databricks_run_id: int | None = None
 
@@ -1769,21 +1837,75 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Get the base json for the task."""
         raise NotImplementedError()
 
+    def _retry_settings(self) -> dict[str, Any]:
+        """Databricks-native task retry settings that were explicitly provided."""
+        settings: dict[str, Any] = {}
+        if self.max_retries is not None:
+            settings["max_retries"] = int(self.max_retries)
+        if self.min_retry_interval_millis is not None:
+            settings["min_retry_interval_millis"] = int(self.min_retry_interval_millis)
+        if self.retry_on_timeout is not None:
+            retry_on_timeout = self.retry_on_timeout
+            if isinstance(retry_on_timeout, str):
+                retry_on_timeout = retry_on_timeout.strip().lower() in ("true", "1", "yes")
+            settings["retry_on_timeout"] = bool(retry_on_timeout)
+        return settings
+
+    def _has_retry_settings(self) -> bool:
+        """Whether any Databricks-native retry field is explicitly configured."""
+        if self._retry_settings():
+            return True
+        task_config = getattr(self, "task_config", {}) or {}
+        return any(
+            task_config.get(key) is not None
+            for key in ("max_retries", "min_retry_interval_millis", "retry_on_timeout")
+        )
+
+    def _resolved_max_retries(self) -> int | None:
+        """Return the resolved ``max_retries`` value, with operator args taking precedence."""
+        task_config = getattr(self, "task_config", {}) or {}
+        max_retries = self.max_retries if self.max_retries is not None else task_config.get("max_retries")
+
+        if isinstance(max_retries, bool) or max_retries is None:
+            return None
+        if isinstance(max_retries, str):
+            try:
+                return int(max_retries)
+            except ValueError:
+                self.log.warning(
+                    "Ignoring unparsable max_retries value %r; treating as no retry limit configured.",
+                    max_retries,
+                )
+                return None
+        if not isinstance(max_retries, int):
+            return None
+        return max_retries
+
     def _get_run_json(self) -> dict[str, Any]:
         """Get run json to be used for task submissions."""
-        run_json = {
-            "run_name": self.databricks_task_key,
-            **self._get_task_base_json(),
-        }
         if self.new_cluster and self.existing_cluster_id:
             raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
+        cluster: dict[str, Any]
         if self.new_cluster:
-            run_json["new_cluster"] = self.new_cluster
+            cluster = {"new_cluster": self.new_cluster}
         elif self.existing_cluster_id:
-            run_json["existing_cluster_id"] = self.existing_cluster_id
+            cluster = {"existing_cluster_id": self.existing_cluster_id}
         else:
             raise ValueError("Must specify either existing_cluster_id or new_cluster.")
-        return run_json
+
+        if not self._has_retry_settings():
+            # No retry settings: keep the legacy single-task runs/submit shape unchanged.
+            return {"run_name": self.databricks_task_key, **self._get_task_base_json(), **cluster}
+
+        # Retry settings are per-task SubmitTask fields, so submit the single task explicitly.
+        # The explicit task_key also gives monitoring a stable task to look up.
+        task = {
+            **self._get_task_base_json(),
+            "task_key": self.databricks_task_key,
+            **self._retry_settings(),
+            **cluster,
+        }
+        return {"run_name": self.databricks_task_key, "tasks": [task]}
 
     def _launch_job(self, context: Context | None = None) -> int | None:
         """Launch the job on Databricks."""
@@ -1834,13 +1956,14 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         base_task_json = self._get_task_base_json()
 
         result = {
-            "task_key": self.databricks_task_key,
             "depends_on": [
                 {"task_key": self._generate_databricks_task_key(task_id, task_dict)}
                 for task_id in self.upstream_task_ids
                 if task_id in relevant_upstreams
             ],
             **base_task_json,
+            "task_key": self.databricks_task_key,
+            **self._retry_settings(),
         }
 
         trigger_rule_value = (
@@ -1876,49 +1999,170 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     def monitor_databricks_job(self) -> None:
         """
-        Monitor the Databricks job.
+        Monitor the Databricks job until it terminates and surface its result.
 
-        Wait for the job to terminate. If deferrable, defer the task.
+        Picks one of three monitoring strategies, depending on whether Databricks-native retry
+        attempts can occur and whether the operator runs inside a ``DatabricksWorkflowTaskGroup``:
+
+        * standalone with native retries -> :meth:`_monitor_submit_run`, following the submit run
+          whose own terminal state already accounts for every retry attempt.
+        * workflow task with native retries -> :meth:`_monitor_workflow_task`, following the task's
+          latest attempt and tolerating in-flight retries until they are exhausted (or, for unlimited
+          retries, until the shared run is terminal).
+        * otherwise -> :meth:`_monitor_single_attempt`, following one attempt and reporting as soon
+          as it terminates (the historical behaviour, unchanged).
         """
         if self.databricks_run_id is None:
             raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
-        current_task_run_id = self._get_current_databricks_task()["run_id"]
-        run = self._hook.get_run(current_task_run_id)
-        run_page_url = run["run_page_url"]
-        self.log.info("Check the task run in Databricks: %s", run_page_url)
-        run_state = RunState(**run["state"])
+
+        max_retries = self._resolved_max_retries()
+        if max_retries is None or (max_retries != -1 and max_retries <= 0):
+            self._monitor_single_attempt()
+        elif self._databricks_workflow_task_group is None:
+            self._monitor_submit_run()
+        else:
+            self._monitor_workflow_task()
+
+    def _log_task_state(self, run_state: RunState) -> None:
         self.log.info(
             "Current state of the databricks task %s is %s",
             self.databricks_task_key,
             run_state.life_cycle_state,
         )
+
+    def _defer_on_run(
+        self,
+        run_id: int,
+        *,
+        workflow_run_id: int | None = None,
+        databricks_task_key: str | None = None,
+        max_retries: int | None = None,
+    ) -> None:
+        """Defer monitoring of ``run_id`` to the trigger, optionally with workflow-task context."""
+        self.defer(
+            trigger=DatabricksExecutionTrigger(
+                run_id=run_id,
+                databricks_conn_id=self.databricks_conn_id,
+                polling_period_seconds=self.polling_period_seconds,
+                retry_limit=self.databricks_retry_limit,
+                retry_delay=self.databricks_retry_delay,
+                retry_args=self.databricks_retry_args,
+                caller=self.caller,
+                workflow_run_id=workflow_run_id,
+                databricks_task_key=databricks_task_key,
+                max_retries=max_retries,
+            ),
+            method_name=DEFER_METHOD_NAME,
+        )
+
+    def _monitor_single_attempt(self) -> None:
+        """Follow this task's attempt run and report as soon as it terminates (no native retries)."""
+        current_task_run_id = self._get_current_databricks_task()["run_id"]
+        run = self._hook.get_run(current_task_run_id)
+        self.log.info("Check the task run in Databricks: %s", run["run_page_url"])
+        run_state = RunState(**run["state"])
+        self._log_task_state(run_state)
+
         if self.deferrable and not run_state.is_terminal:
-            self.defer(
-                trigger=DatabricksExecutionTrigger(
-                    run_id=current_task_run_id,
-                    databricks_conn_id=self.databricks_conn_id,
-                    polling_period_seconds=self.polling_period_seconds,
-                    retry_limit=self.databricks_retry_limit,
-                    retry_delay=self.databricks_retry_delay,
-                    retry_args=self.databricks_retry_args,
-                    caller=self.caller,
-                ),
-                method_name=DEFER_METHOD_NAME,
-            )
+            self._defer_on_run(current_task_run_id)
+
         while not run_state.is_terminal:
             time.sleep(self.polling_period_seconds)
             run = self._hook.get_run(current_task_run_id)
             run_state = RunState(**run["state"])
+            self._log_task_state(run_state)
 
-            self.log.info(
-                "Current state of the databricks task %s is %s",
-                self.databricks_task_key,
-                run_state.life_cycle_state,
+        errors = extract_failed_task_errors(self._hook, run, run_state)
+        self._handle_terminal_run_state(run_state, errors)
+
+    def _monitor_workflow_task(self) -> None:
+        """
+        Follow this task's latest attempt within a shared workflow run, tolerating native retries.
+
+        Inside a ``DatabricksWorkflowTaskGroup`` the run holds sibling tasks, so the operator must
+        report when its own task finishes rather than wait for the whole run. A failed attempt is
+        final once finite retries are exhausted; unlimited retries fall back to the workflow run's
+        terminal state. Each poll re-resolves the latest attempt for the task key.
+        """
+        workflow_run_id = self.databricks_run_id
+        if workflow_run_id is None:
+            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
+        current_task = self._get_current_databricks_task()
+        current_task_run_id = current_task["run_id"]
+        run = self._hook.get_run(current_task_run_id)
+        self.log.info("Check the task run in Databricks: %s", run["run_page_url"])
+        run_state = RunState(**run["state"])
+        self._log_task_state(run_state)
+        attempt_number = current_task.get("attempt_number")
+
+        # Defer whenever the outcome is not yet conclusive: a failed attempt with retries still
+        # available means a retry may follow, and the trigger waits for it without blocking a worker.
+        if self.deferrable and not self._workflow_task_is_conclusive(
+            run_state, workflow_run_id, attempt_number
+        ):
+            self._defer_on_run(
+                current_task_run_id,
+                workflow_run_id=workflow_run_id,
+                databricks_task_key=self.databricks_task_key,
+                max_retries=self._resolved_max_retries(),
             )
 
-        # Extract errors from the run response using utility function
-        errors = extract_failed_task_errors(self._hook, run, run_state)
+        while not self._workflow_task_is_conclusive(run_state, workflow_run_id, attempt_number):
+            time.sleep(self.polling_period_seconds)
+            current_task = self._get_current_databricks_task()
+            current_task_run_id = current_task["run_id"]
+            run = self._hook.get_run(current_task_run_id)
+            run_state = RunState(**run["state"])
+            self._log_task_state(run_state)
+            attempt_number = current_task.get("attempt_number")
 
+        errors = extract_failed_task_errors(self._hook, run, run_state)
+        self._handle_terminal_run_state(run_state, errors)
+
+    def _workflow_task_is_conclusive(
+        self, run_state: RunState, workflow_run_id: int, attempt_number: int | None
+    ) -> bool:
+        """Whether the attempt is final: succeeded, retries exhausted, or the run is terminal."""
+        if not run_state.is_terminal:
+            return False
+        if run_state.is_successful:
+            return True
+        max_retries = self._resolved_max_retries()
+        if (
+            max_retries is not None
+            and max_retries != -1
+            and attempt_number is not None
+            and attempt_number >= max_retries
+        ):
+            return True
+        parent_state = RunState(**self._hook.get_run(workflow_run_id)["state"])
+        return parent_state.is_terminal
+
+    def _monitor_submit_run(self) -> None:
+        """
+        Wait for a standalone submit run to terminate, tolerating Databricks-native retries.
+
+        The submit run owns exactly this operator's task, so its own terminal state already
+        accounts for every native retry attempt — we follow the run rather than any single attempt.
+        """
+        run_id = self.databricks_run_id
+        if run_id is None:
+            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
+        run = self._hook.get_run(run_id)
+        self.log.info("Check the job run in Databricks: %s", run["run_page_url"])
+        run_state = RunState(**run["state"])
+        self.log.info("Current state of the databricks run %s is %s", run_id, run_state.life_cycle_state)
+
+        if self.deferrable and not run_state.is_terminal:
+            self._defer_on_run(run_id)
+
+        while not run_state.is_terminal:
+            time.sleep(self.polling_period_seconds)
+            run = self._hook.get_run(run_id)
+            run_state = RunState(**run["state"])
+            self.log.info("Current state of the databricks run %s is %s", run_id, run_state.life_cycle_state)
+
+        errors = extract_failed_task_errors(self._hook, run, run_state)
         self._handle_terminal_run_state(run_state, errors)
 
     def execute(self, context: Context) -> None:
@@ -1949,6 +2193,31 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         run_state = RunState.from_json(event["run_state"])
         errors = event.get("errors", [])
         self._handle_terminal_run_state(run_state, errors)
+
+    def on_kill(self) -> None:
+        if self.databricks_run_id is None:
+            return
+        if self._databricks_workflow_task_group:
+            # Workflow member: cancel only this task's child run, not the shared parent workflow run.
+            # Cancelling the parent would also stop all sibling tasks.
+            # If the child run_id cannot be resolved, log and bail out — do NOT fall back to the
+            # parent run_id as that would cancel sibling tasks.
+            try:
+                run_id_to_cancel = self._get_current_databricks_task()["run_id"]
+            except Exception:
+                self.log.exception(
+                    "Task: %s could not resolve child run_id; skipping cancel to avoid stopping sibling tasks.",
+                    self.task_id,
+                )
+                return
+        else:
+            run_id_to_cancel = self.databricks_run_id
+        self._hook.cancel_run(run_id_to_cancel)
+        self.log.info(
+            "Task: %s with run_id: %s was requested to be cancelled.",
+            self.task_id,
+            run_id_to_cancel,
+        )
 
 
 class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
@@ -1985,11 +2254,17 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
         a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
+    :param max_retries: Databricks task retry count. Use ``-1`` for unlimited retries.
+    :param min_retry_interval_millis: Minimum interval between Databricks task retries.
+    :param retry_on_timeout: Whether Databricks retries timed-out tasks.
     """
 
     template_fields = (
         "notebook_params",
         "workflow_run_metadata",
+        "max_retries",
+        "min_retry_interval_millis",
+        "retry_on_timeout",
     )
     CALLER = "DatabricksNotebookOperator"
 
@@ -2010,6 +2285,9 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
         workflow_run_metadata: dict | None = None,
+        max_retries: int | str | None = None,
+        min_retry_interval_millis: int | str | None = None,
+        retry_on_timeout: bool | str | None = None,
         **kwargs: Any,
     ):
         self.notebook_path = notebook_path
@@ -2030,6 +2308,9 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
             polling_period_seconds=polling_period_seconds,
             wait_for_termination=wait_for_termination,
             workflow_run_metadata=workflow_run_metadata,
+            max_retries=max_retries,
+            min_retry_interval_millis=min_retry_interval_millis,
+            retry_on_timeout=retry_on_timeout,
             **kwargs,
         )
 
@@ -2128,6 +2409,9 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     :param new_cluster: Specs for a new cluster on which this task will be run.
     :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param max_retries: Databricks task retry count, overriding ``task_config`` when set.
+    :param min_retry_interval_millis: Minimum retry interval, overriding ``task_config`` when set.
+    :param retry_on_timeout: Whether Databricks retries timed-out tasks, overriding ``task_config`` when set.
     """
 
     CALLER = "DatabricksTaskOperator"
@@ -2135,6 +2419,9 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         "databricks_conn_id",
         "task_config",
         "workflow_run_metadata",
+        "max_retries",
+        "min_retry_interval_millis",
+        "retry_on_timeout",
     )
 
     def __init__(
@@ -2151,6 +2438,9 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
         workflow_run_metadata: dict | None = None,
+        max_retries: int | str | None = None,
+        min_retry_interval_millis: int | str | None = None,
+        retry_on_timeout: bool | str | None = None,
         **kwargs,
     ):
         self.task_config = task_config
@@ -2168,6 +2458,9 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
             polling_period_seconds=polling_period_seconds,
             wait_for_termination=wait_for_termination,
             workflow_run_metadata=workflow_run_metadata,
+            max_retries=max_retries,
+            min_retry_interval_millis=min_retry_interval_millis,
+            retry_on_timeout=retry_on_timeout,
             **kwargs,
         )
 

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKey, Index, String, Table, select
@@ -26,7 +27,27 @@ from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from sqlalchemy.orm import Session
+
+# What ``airflow teams create`` and ``airflow teams sync`` accept as a team name.
+#
+# Lower case only: the environment secrets backend upper-cases the team name to build
+# ``AIRFLOW_CONN__<TEAM>___<ID>``, so ``data_eng`` and ``Data_Eng`` resolve one namespace between
+# them and each team would read the other's Connections and Variables. Two consecutive
+# underscores are excluded so that a name can never contain the ``___`` separator itself.
+#
+# Deliberately unanchored and always used with ``re.fullmatch``: ``re.match`` against a
+# ``$``-anchored pattern also accepts a trailing newline, and unlike ``teams create`` the
+# ``teams sync`` path does not strip what the bundle config gives it.
+TEAM_NAME_PATTERN = r"(?!.*__)[a-z0-9_-]{3,50}"
+
+
+def find_invalid_team_names(names: Iterable[str]) -> list[str]:
+    """Return the names that do not satisfy :data:`TEAM_NAME_PATTERN`, sorted."""
+    return sorted({name for name in names if not re.fullmatch(TEAM_NAME_PATTERN, name)})
+
 
 dag_bundle_team_association_table = Table(
     "dag_bundle_team",

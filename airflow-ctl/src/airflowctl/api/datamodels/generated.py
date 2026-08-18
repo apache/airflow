@@ -527,12 +527,19 @@ class DagRunAssetReference(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
-    start_date: Annotated[datetime, Field(title="Start Date")]
+    start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")]
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")]
     partition_key: Annotated[str | None, Field(title="Partition Key")]
+    triggering: Annotated[
+        bool,
+        Field(
+            description="Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.",
+            title="Triggering",
+        ),
+    ]
 
 
 class DagRunMutableStates(str, Enum):
@@ -2368,8 +2375,15 @@ class DAGRunCollectionResponse(BaseModel):
     total_entries: Annotated[
         int | None,
         Field(
-            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
             title="Total Entries",
+        ),
+    ] = None
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
         ),
     ] = None
     next_cursor: Annotated[
@@ -2491,8 +2505,15 @@ class TaskInstanceCollectionResponse(BaseModel):
     total_entries: Annotated[
         int | None,
         Field(
-            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
             title="Total Entries",
+        ),
+    ] = None
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
         ),
     ] = None
     next_cursor: Annotated[
@@ -2640,6 +2661,7 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]

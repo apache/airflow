@@ -20,7 +20,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.12.0"]
+requires = ["flit_core==4.0.2"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -63,9 +63,7 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.13.0",
     "adlfs>=2023.10.0",
     "aiohttp>=3.14.0",
-    # azure-batch 15.x is a full rewrite of the Azure SDK (track 2) that removes BatchServiceClient, batch_auth,
-    # and the other references in AzureBatchHook. Lifting the upper bound cap needs a full hook rewrite.
-    "azure-batch>=8.0.0,<15.0.0",
+    "azure-batch>=15.0.0",
     # 2.2.0 adds force deletion support for Hosted agents and agent versions.
     "azure-ai-projects>=2.2.0",
     "azure-cosmos>=4.6.0",
