@@ -17,7 +17,8 @@
  * under the License.
  */
 import { Box, HStack, Text } from "@chakra-ui/react";
-import { CreatableSelect, Select as ReactSelect } from "chakra-react-select";
+import { CreatableSelect, Select as ReactSelect, type SelectInstance } from "chakra-react-select";
+import { useEffect, useRef } from "react";
 
 import { MatchModeToggle } from "src/components/MatchModeToggle";
 import { useMatchMode } from "src/hooks/useMatchMode";
@@ -60,6 +61,17 @@ export const MultiSelectPill = ({
   const values = Array.isArray(filter.value) ? filter.value : [];
   const SelectComponent = filter.config.isCreatable === true ? CreatableSelect : ReactSelect;
   const showMatchMode = filter.config.matchModeKey !== undefined && values.length >= 2;
+  const selectRef = useRef<SelectInstance<SelectOption, true> | null>(null);
+
+  // The editor only mounts when editing begins, so the caret belongs in the select from the
+  // start. This runs a frame late on purpose: FilterPill focuses its wrapper on the same tick,
+  // and the Add Filter menu hands focus back to its trigger, so claiming focus any earlier
+  // loses to one of them — and losing it blurs the pill, which discards the new filter.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => selectRef.current?.focus());
+
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   return (
     <FilterPill
@@ -82,11 +94,13 @@ export const MultiSelectPill = ({
       // act on Enter tears the filter down before the value it just created commits.
       renderInput={({ onBlur, onFocus, ref }) => (
         <Box
+          _focusWithin={{ outlineColor: "colorPalette.solid", outlineStyle: "solid", outlineWidth: "1px" }}
           alignItems="center"
           bg="bg"
           border="0.5px solid"
           borderColor="border"
           borderRadius="full"
+          colorPalette="brand"
           display="flex"
           h="full"
           onBlur={onBlur}
@@ -114,14 +128,26 @@ export const MultiSelectPill = ({
             <SelectComponent<SelectOption, true>
               aria-label={filter.config.label}
               chakraStyles={{
+                // The pill shows focus for the whole control; this inner outline is squarer than
+                // the pill and gets clipped by its rounded corners.
                 container: (provided) => ({ ...provided, width: "100%" }),
-                control: (provided) => ({ ...provided, border: "none", colorPalette: "brand" }),
+                control: (provided) => ({
+                  ...provided,
+                  // The pill draws focus for the whole control. This inner ring is squarer than
+                  // the pill, so its right end is clipped by the rounded corner.
+                  _focusVisible: { outline: "none" },
+                  border: "none",
+                  colorPalette: "brand",
+                }),
                 menu: (provided) => ({ ...provided, zIndex: 2 }),
               }}
               // A filter added from the menu has nothing to show until it is given a value, so
               // open straight onto the options instead of making the user click again. Focus is
               // left to FilterPill: autoFocus here loses a race with the Add Filter menu handing
               // focus back to its trigger, which blurs the pill and discards the new filter.
+              // Picking a value is rarely the end of it on a multiselect, so leave the menu up
+              // for the next one instead of making the user reopen it each time.
+              closeMenuOnSelect={false}
               defaultMenuIsOpen={values.length === 0}
               isClearable
               isMulti
@@ -135,6 +161,7 @@ export const MultiSelectPill = ({
               onMenuScrollToTop={onMenuScrollToTop}
               options={options}
               placeholder={filter.config.placeholder ?? filter.config.label}
+              ref={selectRef}
               // menuPortal is a react-select style, not a chakraStyles one; the portalled menu
               // needs to clear the sticky table header.
               styles={{ menuPortal: (base) => ({ ...base, zIndex: 1500 }) }}

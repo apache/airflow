@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiBarChart, FiDatabase, FiUser, FiUsers } from "react-icons/fi";
+import { FiBarChart, FiDatabase, FiTag, FiUser, FiUsers } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
   MdBuild,
@@ -29,7 +29,6 @@ import {
   MdDateRange,
   MdHistory,
   MdHourglassEmpty,
-  MdLabel,
   MdPause,
   MdPendingActions,
   MdPlayArrow,
@@ -441,7 +440,7 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.TAGS]: {
       EditorComponent: TagsFilter,
-      icon: <MdLabel />,
+      icon: <FiTag />,
       label: translate("common:dagDetails.tags"),
       matchModeKey: SearchParamsKeys.TAGS_MATCH_MODE,
       placeholder: translate("common:table.tagPlaceholder"),
