@@ -220,22 +220,6 @@
   "selectLanguage": "Sprache wählen",
   "selected": "Ausgewählt",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "Überspringt Tasks, die gerade laufen, beim Zurücksetzen von Task Instanzen.",
-        "label": "Zurücksetzen laufender Tasks verhindern"
-      },
-      "runSelection": {
-        "helper": "Standardmäßig ausgewählte Optionen beim Zurücksetzen eines Dag Laufs.",
-        "label": "Standardauswahl beim Zurücksetzen von Läufen"
-      },
-      "taskSelection": {
-        "helper": "Standardmäßig ausgewählte Optionen beim Zurücksetzen von Task Instanzen.",
-        "label": "Standardauswahl beim Zurücksetzen von Tasks"
-      },
-      "title": "Zurücksetzen"
-    },
-    "description": "Diese Einstellungen werden nur in diesem Browser gespeichert und gelten für die gesamte Anwendung.",
     "general": {
       "landingPage": {
         "helper": "Seite, die beim Öffnen von Airflow angezeigt wird.",
@@ -247,28 +231,13 @@
       },
       "title": "Allgemein"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "Layout-Richtung für Dag- und Datenset (Asset)-Graphen, die Sie nicht einzeln festgelegt haben.",
-        "label": "Standard-Graph-Richtung"
-      },
-      "title": "Graph"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "Standardmäßig ausgewählte Optionen beim Markieren des Status einer Task Instanz.",
-        "label": "Standardauswahl beim Markieren"
-      },
-      "title": "Markieren"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Zuerst angezeigter Tab, wenn Sie eine Task Instanz öffnen. Links zu einem bestimmten Tab öffnen weiterhin diesen Tab.",
         "label": "Standard-Tab der Task Instanz"
       },
       "title": "Task Instanz"
-    },
-    "title": "Einstellungen"
+    }
   },
   "showDetailsPanel": "Detailansicht einblenden",
   "signedInAs": "Angemeldet als",

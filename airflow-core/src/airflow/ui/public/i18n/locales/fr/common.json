@@ -254,22 +254,6 @@
   "selectLanguage": "Choisir la langue",
   "selected": "Sélectionné",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "Ignorer les tâches en cours d'exécution lors de la réinitialisation des instances de tâche.",
-        "label": "Empêcher la réinitialisation des tâches en cours"
-      },
-      "runSelection": {
-        "helper": "Options sélectionnées par défaut lors de la réinitialisation d'une exécution de Dag.",
-        "label": "Sélection de réinitialisation d'exécution par défaut"
-      },
-      "taskSelection": {
-        "helper": "Options sélectionnées par défaut lors de la réinitialisation des instances de tâche.",
-        "label": "Sélection de réinitialisation de tâche par défaut"
-      },
-      "title": "Réinitialisation"
-    },
-    "description": "Ces préférences sont enregistrées uniquement dans ce navigateur et s'appliquent à toute l'application.",
     "general": {
       "landingPage": {
         "helper": "Page affichée lorsque vous ouvrez Airflow.",
@@ -281,28 +265,13 @@
       },
       "title": "Général"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "Sens de disposition des graphes de Dag et d'Asset que vous n'avez pas définis individuellement.",
-        "label": "Sens du graphe par défaut"
-      },
-      "title": "Graphe"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "Options sélectionnées par défaut lors du marquage de l'état d'une instance de tâche.",
-        "label": "Sélection de marquage par défaut"
-      },
-      "title": "Marquage"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Onglet affiché en premier lorsque vous ouvrez une instance de tâche. Les liens vers un onglet spécifique ouvrent toujours cet onglet.",
         "label": "Onglet d'instance de tâche par défaut"
       },
       "title": "Instance de tâche"
-    },
-    "title": "Paramètres"
+    }
   },
   "shortcuts": {
     "categories": {

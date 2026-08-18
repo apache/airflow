@@ -198,22 +198,6 @@
   },
   "selectLanguage": "Seleziona la Lingua",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "Salta i task attualmente in esecuzione quando si cancellano le istanze di task.",
-        "label": "Impedisci la cancellazione dei task in esecuzione"
-      },
-      "runSelection": {
-        "helper": "Opzioni selezionate di default quando si cancella un run del Dag.",
-        "label": "Selezione di default per la cancellazione del run"
-      },
-      "taskSelection": {
-        "helper": "Opzioni selezionate di default quando si cancellano le istanze di task.",
-        "label": "Selezione di default per la cancellazione dei task"
-      },
-      "title": "Cancellazione"
-    },
-    "description": "Queste preferenze vengono salvate solo in questo browser e si applicano a tutta l'app.",
     "general": {
       "landingPage": {
         "helper": "Pagina mostrata quando apri Airflow.",
@@ -225,28 +209,13 @@
       },
       "title": "Generale"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "Direzione del layout per i grafici di Dag e asset che non hai impostato singolarmente.",
-        "label": "Direzione di default del grafico"
-      },
-      "title": "Grafico"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "Opzioni selezionate di default quando si contrassegna lo stato di un'istanza di task.",
-        "label": "Selezione di default per il contrassegno"
-      },
-      "title": "Contrassegno"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Scheda mostrata per prima quando apri un'istanza di task. I link a una scheda specifica aprono comunque quella scheda.",
         "label": "Scheda di default dell'istanza di task"
       },
       "title": "Istanza di Task"
-    },
-    "title": "Impostazioni"
+    }
   },
   "showDetailsPanel": "Mostra il Pannello dei Dettagli",
   "source": {

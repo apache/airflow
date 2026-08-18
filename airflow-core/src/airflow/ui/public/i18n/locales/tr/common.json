@@ -218,22 +218,6 @@
   "selectLanguage": "Dil Seçin",
   "selected": "Seçili",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "Görev örneklerini temizlerken şu anda çalışan görevleri atlayın.",
-        "label": "Çalışan görevlerin temizlenmesini engelle"
-      },
-      "runSelection": {
-        "helper": "Bir Dag çalıştırması temizlenirken varsayılan olarak seçilen seçenekler.",
-        "label": "Varsayılan çalıştırma temizleme seçimi"
-      },
-      "taskSelection": {
-        "helper": "Görev örnekleri temizlenirken varsayılan olarak seçilen seçenekler.",
-        "label": "Varsayılan görev temizleme seçimi"
-      },
-      "title": "Temizleme"
-    },
-    "description": "Bu tercihler yalnızca bu tarayıcıda kaydedilir ve uygulamanın tamamında geçerlidir.",
     "general": {
       "landingPage": {
         "helper": "Airflow'u açtığınızda gösterilen sayfa.",
@@ -245,28 +229,13 @@
       },
       "title": "Genel"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "Ayrı ayrı ayarlamadığınız Dag ve varlık grafikleri için yerleşim yönü.",
-        "label": "Varsayılan grafik yönü"
-      },
-      "title": "Grafik"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "Bir görev örneğinin durumu işaretlenirken varsayılan olarak seçilen seçenekler.",
-        "label": "Varsayılan işaretleme seçimi"
-      },
-      "title": "İşaretleme"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Bir görev örneğini açtığınızda ilk gösterilen sekme. Belirli bir sekmeye giden bağlantılar yine o sekmeyi açar.",
         "label": "Varsayılan görev örneği sekmesi"
       },
       "title": "Görev Örneği"
-    },
-    "title": "Ayarlar"
+    }
   },
   "showDetailsPanel": "Detay Panelini Göster",
   "signedInAs": "olarak giriş yapıldı",

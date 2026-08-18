@@ -192,22 +192,6 @@
   },
   "selectLanguage": "言語を選択",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "タスクインスタンスをクリアする際、現在実行中のタスクをスキップします。",
-        "label": "実行中タスクのクリアを防止"
-      },
-      "runSelection": {
-        "helper": "Dag 実行をクリアする際にデフォルトで選択されるオプションです。",
-        "label": "デフォルトの実行クリア選択"
-      },
-      "taskSelection": {
-        "helper": "タスクインスタンスをクリアする際にデフォルトで選択されるオプションです。",
-        "label": "デフォルトのタスククリア選択"
-      },
-      "title": "クリア"
-    },
-    "description": "これらの設定はこのブラウザにのみ保存され、アプリ全体に適用されます。",
     "general": {
       "landingPage": {
         "helper": "Airflow を開いたときに表示されるページです。",
@@ -219,28 +203,13 @@
       },
       "title": "全般"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "個別に設定していない Dag およびアセットのグラフのレイアウト方向です。",
-        "label": "デフォルトのグラフ方向"
-      },
-      "title": "グラフ"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "タスクインスタンスの状態をマークする際にデフォルトで選択されるオプションです。",
-        "label": "デフォルトのマーク選択"
-      },
-      "title": "マーク"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "タスクインスタンスを開いたときに最初に表示されるタブです。特定のタブへのリンクはそのタブを開きます。",
         "label": "デフォルトのタスクインスタンスタブ"
       },
       "title": "タスクインスタンス"
-    },
-    "title": "設定"
+    }
   },
   "showDetailsPanel": "詳細パネル表示",
   "signedInAs": "サインインしているユーザ",

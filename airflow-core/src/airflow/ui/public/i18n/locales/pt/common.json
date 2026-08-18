@@ -213,22 +213,6 @@
   },
   "selectLanguage": "Selecionar Idioma",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "Ignora tarefas que estão em execução ao limpar instâncias de tarefa.",
-        "label": "Impedir a limpeza de tarefas em execução"
-      },
-      "runSelection": {
-        "helper": "Opções selecionadas por padrão ao limpar uma execução do Dag.",
-        "label": "Seleção padrão para limpar execução"
-      },
-      "taskSelection": {
-        "helper": "Opções selecionadas por padrão ao limpar instâncias de tarefa.",
-        "label": "Seleção padrão para limpar tarefa"
-      },
-      "title": "Limpeza"
-    },
-    "description": "Estas preferências são salvas apenas neste navegador e aplicam-se a todo o aplicativo.",
     "general": {
       "landingPage": {
         "helper": "Página exibida ao abrir o Airflow.",
@@ -240,28 +224,13 @@
       },
       "title": "Geral"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "Direção do layout para grafos de Dag e de asset que você não configurou individualmente.",
-        "label": "Direção padrão do grafo"
-      },
-      "title": "Grafo"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "Opções selecionadas por padrão ao marcar o estado de uma instância de tarefa.",
-        "label": "Seleção padrão para marcar"
-      },
-      "title": "Marcação"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Aba exibida primeiro ao abrir uma instância de tarefa. Links para uma aba específica ainda abrem essa aba.",
         "label": "Aba padrão da instância de tarefa"
       },
       "title": "Instância de Tarefa"
-    },
-    "title": "Configurações"
+    }
   },
   "showDetailsPanel": "Mostrar Painel de Detalhes",
   "signedInAs": "Sessão iniciada como",

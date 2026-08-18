@@ -226,22 +226,6 @@
   "selectLanguage": "Selecteer taal",
   "selected": "Geselecteerd",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "Sla taken over die momenteel lopen bij het opschonen van taakinstanties.",
-        "label": "Voorkom opschonen van lopende taken"
-      },
-      "runSelection": {
-        "helper": "Opties die standaard geselecteerd zijn bij het opschonen van een Dag Run.",
-        "label": "Standaard selectie voor opschonen van Run"
-      },
-      "taskSelection": {
-        "helper": "Opties die standaard geselecteerd zijn bij het opschonen van taakinstanties.",
-        "label": "Standaard selectie voor opschonen van taken"
-      },
-      "title": "Opschonen"
-    },
-    "description": "Deze voorkeuren worden alleen in deze browser opgeslagen en gelden voor de hele app.",
     "general": {
       "landingPage": {
         "helper": "Pagina die wordt getoond wanneer je Airflow opent.",
@@ -253,28 +237,13 @@
       },
       "title": "Algemeen"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "Lay-outrichting voor Dag- en asset-grafieken die je niet afzonderlijk hebt ingesteld.",
-        "label": "Standaard grafiekrichting"
-      },
-      "title": "Grafiek"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "Opties die standaard geselecteerd zijn bij het markeren van de status van een taakinstantie.",
-        "label": "Standaard markeerselectie"
-      },
-      "title": "Markeren"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Tabblad dat als eerste wordt getoond wanneer je een taakinstantie opent. Links naar een specifiek tabblad openen dat tabblad nog steeds.",
         "label": "Standaard taakinstantie tabblad"
       },
       "title": "Taakinstantie"
-    },
-    "title": "Instellingen"
+    }
   },
   "showDetailsPanel": "Details weergeven",
   "signedInAs": "Ingelogd als",

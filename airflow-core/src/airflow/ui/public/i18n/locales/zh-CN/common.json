@@ -219,22 +219,6 @@
   "selectLanguage": "选择语言",
   "selected": "已选择",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "清除任务实例时跳过当前正在执行的任务。",
-        "label": "禁止清除正在执行的任务"
-      },
-      "runSelection": {
-        "helper": "清除 Dag 执行时默认选中的选项。",
-        "label": "默认执行清除选项"
-      },
-      "taskSelection": {
-        "helper": "清除任务实例时默认选中的选项。",
-        "label": "默认任务清除选项"
-      },
-      "title": "清除"
-    },
-    "description": "这些偏好设置仅保存在当前浏览器中，并应用于整个应用。",
     "general": {
       "landingPage": {
         "helper": "打开 Airflow 时显示的页面。",
@@ -246,28 +230,13 @@
       },
       "title": "常规"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "尚未单独设置的 Dag 和资源图形的布局方向。",
-        "label": "默认图形方向"
-      },
-      "title": "图形"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "标记任务实例状态时默认选中的选项。",
-        "label": "默认标记选项"
-      },
-      "title": "标记"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "打开任务实例时首先显示的选项卡。指向特定选项卡的链接仍会打开该选项卡。",
         "label": "默认任务实例选项卡"
       },
       "title": "任务实例"
-    },
-    "title": "设置"
+    }
   },
   "showDetailsPanel": "显示详细信息",
   "signedInAs": "当前登录身份",

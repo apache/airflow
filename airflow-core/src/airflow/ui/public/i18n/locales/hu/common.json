@@ -219,22 +219,6 @@
   "selectLanguage": "Nyelv kiválasztása",
   "selected": "Kiválasztva",
   "settings": {
-    "clearing": {
-      "preventRunningTask": {
-        "helper": "Feladatpéldányok törlésekor a jelenleg futó feladatok kihagyása.",
-        "label": "Futó feladatok törlésének megakadályozása"
-      },
-      "runSelection": {
-        "helper": "A Dag futás törlésekor alapértelmezetten kijelölt beállítások.",
-        "label": "Alapértelmezett futás törlési kijelölés"
-      },
-      "taskSelection": {
-        "helper": "Feladatpéldányok törlésekor alapértelmezetten kijelölt beállítások.",
-        "label": "Alapértelmezett feladat törlési kijelölés"
-      },
-      "title": "Törlés"
-    },
-    "description": "Ezek a beállítások csak ebben a böngészőben mentődnek, és az egész alkalmazásra érvényesek.",
     "general": {
       "landingPage": {
         "helper": "Az Airflow megnyitásakor megjelenő oldal.",
@@ -246,28 +230,13 @@
       },
       "title": "Általános"
     },
-    "graph": {
-      "defaultDirection": {
-        "helper": "Az egyénileg nem beállított Dag és adatkészlet gráfok elrendezési iránya.",
-        "label": "Alapértelmezett gráf irány"
-      },
-      "title": "Gráf"
-    },
-    "marking": {
-      "taskSelection": {
-        "helper": "Feladatpéldány állapotának megjelölésekor alapértelmezetten kijelölt beállítások.",
-        "label": "Alapértelmezett megjelölési kijelölés"
-      },
-      "title": "Megjelölés"
-    },
     "taskInstance": {
       "defaultTab": {
         "helper": "A feladatpéldány megnyitásakor először megjelenő fül. Egy adott fülre mutató hivatkozások továbbra is azt a fület nyitják meg.",
         "label": "Alapértelmezett feladatpéldány fül"
       },
       "title": "Feladatpéldány"
-    },
-    "title": "Beállítások"
+    }
   },
   "showDetailsPanel": "Részletek panel megjelenítése",
   "signedInAs": "Bejelentkezve mint",
