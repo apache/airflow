@@ -5031,6 +5031,16 @@ export const $ExternalViewResponse = {
             title: 'Nav Top Level',
             default: false
         },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         href: {
             type: 'string',
             title: 'Href'
@@ -5898,6 +5908,85 @@ export const $PatchTaskInstanceBody = {
     description: 'Request body for patching task instance state.'
 } as const;
 
+export const $PluginAppliesToResponse = {
+    properties: {
+        dag_tags: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Tags'
+        },
+        dag_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Ids'
+        },
+        task_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Ids'
+        },
+        operators: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operators'
+        },
+        operator_names: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operator Names'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'PluginAppliesToResponse',
+    description: 'Serializer for the optional Dag/task scoping criteria of a UI plugin.'
+} as const;
+
 export const $PluginCollectionResponse = {
     properties: {
         plugins: {
@@ -6433,6 +6522,16 @@ export const $ReactAppResponse = {
             ],
             title: 'Nav Top Level',
             default: false
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         bundle_url: {
             type: 'string',
