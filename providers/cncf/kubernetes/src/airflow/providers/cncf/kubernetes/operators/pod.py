@@ -676,20 +676,34 @@ class KubernetesPodOperator(BaseOperator):
         if not isinstance(stored, dict):
             return None
         name, namespace = stored.get("name"), stored.get("namespace")
-        if not isinstance(name, str) or not isinstance(namespace, str):
+        if not isinstance(name, str) or not name or not isinstance(namespace, str) or not namespace:
             self.log.warning(
                 "Pod identity stored in task state store is malformed (%s), falling back to label search.",
                 stored,
             )
             return None
         uid = stored.get("uid")
-        if not isinstance(uid, str) or not uid:
-            # Written before the uid was recorded. A name on its own cannot tell the recorded pod
-            # from one that took its name, so let the run scoped label search identify it instead.
+        if uid is None:
+            # Written before the uid was recorded. The name on its own cannot tell this pod from one
+            # that took its name, so identify it by label, in the namespace it was submitted to
+            # rather than the one rendered for this attempt, and record the uid for later retries.
             self.log.info(
-                "Pod identity stored in task state store for %s/%s has no uid, falling back to label search.",
+                "Pod identity stored in task state store for %s/%s has no uid, "
+                "resolving it by label search instead.",
                 namespace,
                 name,
+            )
+            pod = self.find_pod(namespace, context=context)
+            if pod is not None:
+                self._persist_pod_identity_to_task_state_store(context, pod)
+            return pod
+        if not isinstance(uid, str) or not uid:
+            self.log.warning(
+                "Pod identity stored in task state store for %s/%s has an invalid uid (%r), "
+                "falling back to label search.",
+                namespace,
+                name,
+                uid,
             )
             return None
         try:
