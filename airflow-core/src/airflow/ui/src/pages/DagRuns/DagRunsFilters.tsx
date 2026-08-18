@@ -53,6 +53,7 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
 
   if (dagId === undefined) {
     searchParamKeys.unshift(SearchParamsKeys.DAG_ID_PATTERN);
+    searchParamKeys.push(SearchParamsKeys.TAGS);
   }
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);

@@ -1146,6 +1146,8 @@ export class DagRunService {
      * @param data.dagVersion
      * @param data.bundleVersion
      * @param data.teams
+     * @param data.tags
+     * @param data.tagsMatchMode
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
@@ -1202,6 +1204,8 @@ export class DagRunService {
                 dag_version: data.dagVersion,
                 bundle_version: data.bundleVersion,
                 teams: data.teams,
+                tags: data.tags,
+                tags_match_mode: data.tagsMatchMode,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
                 run_id_prefix_pattern: data.runIdPrefixPattern,

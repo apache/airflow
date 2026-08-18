@@ -19,7 +19,7 @@
 import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiBarChart, FiUser, FiUsers, FiDatabase } from "react-icons/fi";
+import { FiBarChart, FiUser, FiUsers, FiDatabase, FiTag } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
   MdDateRange,
@@ -34,7 +34,7 @@ import {
 } from "react-icons/md";
 import { PiQueue } from "react-icons/pi";
 
-import { useTeamsServiceListTeams } from "openapi/queries";
+import { useDagServiceGetDagTags, useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -66,6 +66,7 @@ export const useFilterConfigs = () => {
   const { data: teamsData } = useTeamsServiceListTeams({ orderBy: ["name"] }, undefined, {
     enabled: multiTeamEnabled,
   });
+  const { data: tagsData } = useDagServiceGetDagTags({ orderBy: ["name"] });
 
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
@@ -374,6 +375,15 @@ export const useFilterConfigs = () => {
       icon: <MdSearch />,
       label: translate("hitl:subject"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.TAGS]: {
+      icon: <FiTag />,
+      label: translate("common:tags"),
+      options: [
+        { label: translate("common:allTags"), value: "" },
+        ...(tagsData?.tags ?? []).map((tag) => ({ label: tag, value: tag })),
+      ],
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.TASK_ID]: {
       hotkeyDisabled: true,

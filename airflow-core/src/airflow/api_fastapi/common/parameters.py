@@ -1074,6 +1074,52 @@ def teams_filter_factory(
     return depends_teams_filter
 
 
+class _DagIdTagsFilter(BaseParam[_TagFilterModel]):
+    """Filter rows by Dag tags through their ``dag_id``."""
+
+    def __init__(
+        self,
+        dag_id_attribute: ColumnElement | InstrumentedAttribute,
+        value: _TagFilterModel | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(value, skip_none)
+        self.dag_id_attribute = dag_id_attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value or not self.value.tags:
+            return select
+
+        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
+        operator = or_ if not self.value.tags_match_mode or self.value.tags_match_mode == "any" else and_
+        return select.where(
+            self.dag_id_attribute.in_(sql_select(DagModel.dag_id).where(operator(*conditions)))
+        )
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use tags_filter_factory instead, depends is not implemented.")
+
+
+def tags_filter_factory(
+    dag_id_attribute: ColumnElement | InstrumentedAttribute,
+) -> Callable[[list[str], Literal["any", "all"] | None], _DagIdTagsFilter]:
+    """Build a ``tags`` filter that scopes rows by Dag tags through the given ``dag_id`` column."""
+
+    def depends_tags_filter(
+        tags: list[str] = Query(default_factory=list),
+        tags_match_mode: Literal["any", "all"] | None = None,
+    ) -> _DagIdTagsFilter:
+        return _DagIdTagsFilter(dag_id_attribute).set_value(
+            _TagFilterModel(tags=tags, tags_match_mode=tags_match_mode)
+        )
+
+    return depends_tags_filter
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
