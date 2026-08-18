@@ -374,10 +374,13 @@ def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> dat
     """
     from airflow.models import DagRun
 
-    result = session.execute(select(column).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)).scalar()
-    if result is None:
+    row = session.execute(
+        select(column).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+    ).one_or_none()
+    if row is None:
         logger.warning("Could not find DagRun for dag_id=%s, run_id=%s", dag_id, run_id)
-    return result
+        return None
+    return row[0]
 
 
 @attrs.define

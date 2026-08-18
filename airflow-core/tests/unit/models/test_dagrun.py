@@ -1547,6 +1547,39 @@ class TestDagRun:
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert deadline.deadline_time == first_deadline_time
 
+    def test_dagrun_deadline_logs_when_reference_column_is_null(self, session, deadline_test_dag, caplog):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with caplog.at_level("WARNING"):
+            scheduler_dag.create_dagrun(
+                run_id="manual__null_logical_date",
+                run_type=DagRunType.MANUAL,
+                logical_date=None,
+                data_interval=None,
+                run_after=timezone.utcnow(),
+                start_date=timezone.utcnow(),
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
+            )
+
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        assert {
+            "event": "skipping deadline alert because the deadline reference evaluated to None",
+            "dag_id": "test_dag",
+            "run_id": "manual__null_logical_date",
+            "reference_type": "DagRunLogicalDateDeadline",
+            "required_dagrun_column": "logical_date",
+            "log_level": "warning",
+        } in caplog
+        assert "Could not find DagRun" not in caplog.text
+
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
         mock_err = mock.Mock()
