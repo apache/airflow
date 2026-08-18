@@ -50,7 +50,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
-    MAX_FILES_PER_PERSISTENCE_GROUP,
+    MAX_DAGS_PER_PERSISTENCE_GROUP,
     BundleState,
     DagFileInfo,
     DagFileProcessorManager,
@@ -1795,16 +1795,32 @@ class TestDagFileProcessorManager:
             "the later of the two files must be the one held back, so it sees the earlier one"
         )
 
-    def test_a_group_is_capped_so_one_transaction_cannot_lock_a_whole_sweep(self):
-        """Grouping saves a fixed per-call cost that flattens out; locked rows do not."""
+    def test_a_group_is_capped_by_dags_so_one_transaction_cannot_lock_a_whole_sweep(self):
+        """What one transaction holds locked grows with the Dags in it, not with the files."""
         manager = DagFileProcessorManager(max_runs=1)
+        per_file = 10
+        fits = MAX_DAGS_PER_PERSISTENCE_GROUP // per_file
 
-        items = [self._item(f"file_{i}.py", [f"dag_{i}"]) for i in range(MAX_FILES_PER_PERSISTENCE_GROUP + 3)]
+        items = [
+            self._item(f"file_{i}.py", [f"dag_{i}_{d}" for d in range(per_file)]) for i in range(fits + 1)
+        ]
 
         groups = manager.build_persistence_groups(items)
 
-        assert [len(group) for group in groups] == [MAX_FILES_PER_PERSISTENCE_GROUP, 3]
+        assert [len(group) for group in groups] == [fits, 1]
         assert [item for group in groups for item in group] == items, "no file may be lost or reordered"
+
+    def test_a_file_defining_more_dags_than_the_cap_is_still_written(self):
+        """A file is never split: the record of it being parsed and its import errors are its own."""
+        manager = DagFileProcessorManager(max_runs=1)
+        oversized = [f"huge_dag_{i}" for i in range(MAX_DAGS_PER_PERSISTENCE_GROUP + 5)]
+
+        groups = manager.build_persistence_groups(
+            [self._item("small.py", ["small_dag"]), self._item("huge.py", oversized)]
+        )
+
+        assert [len(group) for group in groups] == [1, 1]
+        assert len(groups[1][0].parsing_result.serialized_dags) == len(oversized)
 
     @pytest.mark.parametrize(
         ("items", "expected"),
