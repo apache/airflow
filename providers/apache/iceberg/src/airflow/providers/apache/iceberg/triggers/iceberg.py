@@ -37,6 +37,8 @@ if TYPE_CHECKING:
 
 DEFAULT_BRANCH = "main"
 WATERMARK_KEY = "snapshot_id"
+# Raised by AssetStateStoreAccessors when the trigger is watched by more than one asset.
+_MULTI_ASSET_ERROR = "concrete inlets and outlets"
 
 
 class IcebergTableSnapshotTrigger(BaseEventTrigger):
@@ -131,9 +133,25 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
         try:
             return list(store)
         except TypeError:
-            # Airflow older than the release that made the accessors iterable. It can still be
-            # addressed directly when a single asset watches the trigger.
-            return [store] if store is not None else []
+            pass
+        # Airflow older than the release that made the accessors iterable. It addresses one
+        # asset directly and refuses to guess when several watch the trigger, and it cannot be
+        # asked how many there are, so find out by reading and drop the watermark if it refuses.
+        try:
+            store.get(WATERMARK_KEY)
+        except ValueError as err:
+            # A state store backend can raise ValueError too, and swallowing that would
+            # disable the watermark without saying so.
+            if _MULTI_ASSET_ERROR not in str(err):
+                raise
+            self.log.warning(
+                "%s is watched by more than one asset, and this Airflow version cannot address "
+                "them separately; not persisting a snapshot watermark, so a triggerer restart "
+                "may re-emit the current head.",
+                self.table,
+            )
+            return []
+        return [store]
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         # serialize() is captured once when the trigger row is created, so a value mutated on

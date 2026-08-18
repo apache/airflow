@@ -255,6 +255,72 @@ async def test_a_state_store_failure_is_not_swallowed():
             await _collect(trigger, 1)
 
 
+class _LegacyAccessors:
+    """An asset_state_store from before the accessors became iterable.
+
+    It is not iterable and cannot be counted, so the only way to learn that several assets
+    watch the trigger is to read and be refused.
+    """
+
+    def __init__(self, asset_count, stored=None):
+        self._asset_count = asset_count
+        self.stored = stored
+
+    def __getitem__(self, key):
+        raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
+
+    def _check(self):
+        if self._asset_count != 1:
+            raise ValueError(
+                f"Task has {self._asset_count} concrete inlets and outlets — "
+                "use context['asset_state_store'][MY_ASSET] to specify which"
+            )
+
+    def get(self, key, default=None):
+        self._check()
+        return self.stored if self.stored is not None else default
+
+    def set(self, key, value):
+        self._check()
+        self.stored = value
+
+
+@pytest.mark.asyncio
+async def test_keeps_the_watermark_on_airflow_without_iterable_accessors():
+    """One asset on an older Airflow still resumes, addressing the store directly."""
+    store = _LegacyAccessors(asset_count=1, stored=222)
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
+    trigger.asset_state_store = store
+
+    with patch(LOAD_TABLE, return_value=_table_at(222)):
+        assert await _collect(trigger, 1, timeout=0.2) == []
+
+
+@pytest.mark.asyncio
+async def test_degrades_on_airflow_without_iterable_accessors():
+    """Several assets on an older Airflow cannot be addressed, so polling carries on unwatermarked."""
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = _LegacyAccessors(asset_count=2)
+
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        payloads = await _collect(trigger, 1)
+
+    assert [p["snapshot_id"] for p in payloads] == [111]
+
+
+@pytest.mark.asyncio
+async def test_a_legacy_state_store_failure_is_not_swallowed():
+    """The legacy path must degrade only on the refusal, not on a backend failure."""
+    store = _LegacyAccessors(asset_count=1)
+    store.get = MagicMock(side_effect=ValueError("could not decode the stored reference"))
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = store
+
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        with pytest.raises(ValueError, match="could not decode"):
+            await _collect(trigger, 1)
+
+
 @pytest.mark.asyncio
 async def test_runs_on_airflow_without_an_asset_state_store():
     """``asset_state_store`` postdates the oldest Airflow this provider supports."""
