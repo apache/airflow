@@ -139,6 +139,30 @@ def _create_assets_with_watchers(session, num: int = 2) -> list[AssetModel]:
     return assets
 
 
+def _create_assets_with_team_references(session, num: int = 2, refs_per_asset: int = 1) -> list[AssetModel]:
+    """Create ``num`` assets, each scheduling and produced by ``refs_per_asset`` team-owned Dags."""
+    bundle = DagBundleModel(name="team-bundle-assets")
+    bundle.teams.append(Team(name="team-assets"))
+    session.add(bundle)
+    session.flush()
+    assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(num)]
+    session.add_all(assets)
+    session.add_all(AssetActive.for_asset(asset) for asset in assets)
+    session.flush()
+    for i, asset in enumerate(assets):
+        for j in range(refs_per_asset):
+            session.add_all(
+                [
+                    DagModel(dag_id=f"scheduled_dag{i}_{j}", bundle_name="team-bundle-assets"),
+                    DagModel(dag_id=f"producing_dag{i}_{j}", bundle_name="team-bundle-assets"),
+                    DagScheduleAssetReference(dag_id=f"scheduled_dag{i}_{j}", asset=asset),
+                    TaskOutletAssetReference(dag_id=f"producing_dag{i}_{j}", task_id="task1", asset=asset),
+                ]
+            )
+    session.commit()
+    return assets
+
+
 def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
     assets = [
         AssetModel(
@@ -532,31 +556,9 @@ class TestGetAssets(TestAssets):
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
 
-    def _create_assets_with_team_references(self, session, num: int = 2):
-        bundle = DagBundleModel(name="team-bundle-assets")
-        bundle.teams.append(Team(name="team-assets"))
-        session.add(bundle)
-        session.flush()
-        assets = [
-            AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(num)
-        ]
-        session.add_all(assets)
-        session.add_all(AssetActive.for_asset(asset) for asset in assets)
-        session.flush()
-        for i, asset in enumerate(assets):
-            session.add_all(
-                [
-                    DagModel(dag_id=f"scheduled_dag{i}", bundle_name="team-bundle-assets"),
-                    DagModel(dag_id=f"producing_dag{i}", bundle_name="team-bundle-assets"),
-                    DagScheduleAssetReference(dag_id=f"scheduled_dag{i}", asset=asset),
-                    TaskOutletAssetReference(dag_id=f"producing_dag{i}", task_id="task1", asset=asset),
-                ]
-            )
-        session.commit()
-
     def test_assets_references_team_name_none_without_multi_team(self, test_client, session):
         """Without multi-team enabled, references keep ``team_name`` of ``None`` and no lookup happens."""
-        self._create_assets_with_team_references(session)
+        _create_assets_with_team_references(session)
 
         response = test_client.get("/assets")
         assert response.status_code == 200
@@ -567,7 +569,7 @@ class TestGetAssets(TestAssets):
     @conf_vars({("core", "multi_team"): "True"})
     def test_assets_references_include_team_name(self, test_client, session):
         """With multi-team enabled, the owning team is attached to scheduled Dags and producing tasks."""
-        self._create_assets_with_team_references(session)
+        _create_assets_with_team_references(session)
 
         response = test_client.get("/assets")
         assert response.status_code == 200
@@ -583,7 +585,7 @@ class TestGetAssets(TestAssets):
         cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
         count catches the regression.
         """
-        self._create_assets_with_team_references(session, num=5)
+        _create_assets_with_team_references(session, num=5)
 
         with assert_queries_count(9):
             response = test_client.get("/assets")
@@ -1681,6 +1683,24 @@ class TestGetAssetEndpoint(TestAssets):
             ],
             "last_asset_event": {"id": None, "timestamp": None},
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        asset = _create_assets_with_team_references(session, num=1, refs_per_asset=5)[0]
+
+        with assert_queries_count(8):
+            response = test_client.get(f"/assets/{asset.id}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert {ref["team_name"] for ref in body["scheduled_dags"]} == {"team-assets"}
+        assert {ref["team_name"] for ref in body["producing_tasks"]} == {"team-assets"}
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/assets/1")
