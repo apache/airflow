@@ -139,6 +139,7 @@
   "filter": "Filter",
   "filters": {
     "addFilter": "Add Filter",
+    "date": "Date",
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
@@ -149,7 +150,9 @@
     "runAfterTo": "Run After To",
     "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
-    "startTime": "Start Time"
+    "selectDateTime": "Select date and time",
+    "startTime": "Start Time",
+    "time": "Time"
   },
   "fullscreen": {
     "tooltip": "Press {{hotkey}} for fullscreen"

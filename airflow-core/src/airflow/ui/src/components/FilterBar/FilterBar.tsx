@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, HStack } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { IoFilter } from "react-icons/io5";
 import { MdClear } from "react-icons/md";
@@ -39,8 +39,7 @@ import { getDefaultFilterValue, isValidFilterValue } from "./utils";
 
 const defaultInitialValues: Record<string, FilterValue> = {};
 
-const getFilterIcon = (config: FilterConfig): React.ReactNode =>
-  config.icon ?? getDefaultFilterIcon(config.type);
+const getFilterIcon = (config: FilterConfig): ReactNode => config.icon ?? getDefaultFilterIcon(config.type);
 
 export const FilterBar = ({
   configs,

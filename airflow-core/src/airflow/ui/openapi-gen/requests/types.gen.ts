@@ -1150,7 +1150,7 @@ export type DagRunAssetReference = {
     run_id: string;
     dag_id: string;
     logical_date: string | null;
-    start_date: string;
+    start_date: string | null;
     end_date: string | null;
     state: string;
     data_interval_start: string | null;

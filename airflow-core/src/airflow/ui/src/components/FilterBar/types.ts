@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type React from "react";
+import type { ComponentType, ReactNode } from "react";
 
 export type DateRangeValue = {
   endDate?: string;
@@ -32,10 +32,10 @@ export type FilterConfig = {
   // Bespoke editor for filters a static ``options`` array cannot express, such as
   // search-as-you-type over a paginated endpoint. Must be a component rather than a
   // render callback so the editor can own its own hooks.
-  readonly EditorComponent?: React.ComponentType<FilterPluginProps>;
+  readonly EditorComponent?: ComponentType<FilterPluginProps>;
   readonly endKey?: string;
   readonly hotkeyDisabled?: boolean;
-  readonly icon?: React.ReactNode;
+  readonly icon?: ReactNode;
   // Multiselect only: accept free-text values that are not in ``options``.
   readonly isCreatable?: boolean;
   readonly key: string;
@@ -45,7 +45,7 @@ export type FilterConfig = {
   readonly matchModeKey?: string;
   readonly max?: number;
   readonly min?: number;
-  readonly options?: Array<{ label: React.ReactNode | string; value: string }>;
+  readonly options?: Array<{ label: ReactNode | string; value: string }>;
   readonly placeholder?: string;
   readonly startKey?: string;
   // Set on text filters whose API endpoint exposes both ``*_pattern`` (substring)

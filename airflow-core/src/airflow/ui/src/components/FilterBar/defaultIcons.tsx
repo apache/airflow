@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
 import {
   MdCalendarToday,
   MdNumbers,
@@ -28,7 +29,7 @@ import {
 
 import type { FilterConfig } from "./types";
 
-export const defaultFilterIcons: Record<FilterConfig["type"], React.ReactNode> = {
+export const defaultFilterIcons: Record<FilterConfig["type"], ReactNode> = {
   boolean: <MdToggleOn />,
   date: <MdCalendarToday />,
   daterange: <MdDateRange />,
@@ -38,4 +39,4 @@ export const defaultFilterIcons: Record<FilterConfig["type"], React.ReactNode> =
   text: <MdTextFields />,
 } as const;
 
-export const getDefaultFilterIcon = (type: FilterConfig["type"]): React.ReactNode => defaultFilterIcons[type];
+export const getDefaultFilterIcon = (type: FilterConfig["type"]): ReactNode => defaultFilterIcons[type];

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import type { RefObject } from "react";
+import type { RefObject, KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdClose } from "react-icons/md";
@@ -31,7 +31,7 @@ import { isEmptyFilterValue } from "./utils";
 export type FilterPillInputProps = {
   onBlur: () => void;
   onFocus: () => void;
-  onKeyDown: (event: React.KeyboardEvent) => void;
+  onKeyDown: (event: KeyboardEvent) => void;
   ref: RefObject<HTMLInputElement | null>;
 };
 
@@ -48,14 +48,14 @@ export type FilterPillControls = {
 };
 
 type FilterPillProps = {
-  readonly displayValue: React.ReactNode | string;
+  readonly displayValue: ReactNode | string;
   readonly filter: FilterState;
   readonly hasValue: boolean;
   // Replaces entering edit mode when the chip body is clicked, for pills that have
   // nothing to edit (boolean).
   readonly onClick?: () => void;
   readonly onRemove: () => void;
-  readonly renderInput: (props: FilterPillInputProps, controls: FilterPillControls) => React.ReactNode;
+  readonly renderInput: (props: FilterPillInputProps, controls: FilterPillControls) => ReactNode;
 };
 
 export const FilterPill = ({
@@ -88,7 +88,7 @@ export const FilterPill = ({
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" || event.key === "Escape") {
       stopEditing();
     }
