@@ -155,7 +155,7 @@ class DagFileInfo:
     @property
     def normalized_file_path_for_stats(self) -> str:
         """Return the relative file path normalized for use in stats tags."""
-        return normalize_name_for_stats(str(self.rel_path))
+        return normalize_name_for_stats(str(self.rel_path), log_warning=False)
 
 
 def _config_int_factory(section: str, key: str):
