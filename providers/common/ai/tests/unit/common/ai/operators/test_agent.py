@@ -25,7 +25,9 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import Toolset
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import (
+    ModelMessage,
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
@@ -34,9 +36,9 @@ from pydantic_ai.messages import (
     ToolReturnPart,
     UserPromptPart,
 )
-from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets.function import FunctionToolset
-from pydantic_ai.usage import UsageLimits
+from pydantic_ai.usage import RequestUsage, UsageLimits
 
 from airflow.providers.common.ai.durable.base import DurableStorageProtocol
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
@@ -81,6 +83,16 @@ def _make_mock_agent(output):
     mock_agent = MagicMock(spec=["run_sync"])
     mock_agent.run_sync.return_value = _make_mock_run_result(output)
     return mock_agent
+
+
+PRICED_COST = Decimal("0.10")
+
+
+def _build_priced_response(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    return ModelResponse(
+        parts=[TextPart(content="the answer")],
+        usage=RequestUsage(input_tokens=100, output_tokens=50, cost=PRICED_COST),
+    )
 
 
 class _InMemoryDurableStorage:
@@ -183,6 +195,49 @@ class TestAgentOperatorExecute:
 
         _, kwargs = mock_agent.run_sync.call_args
         assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
+
+    @pytest.mark.parametrize(
+        "cap_kwargs",
+        [
+            pytest.param({"max_cost": 0.05}, id="max_cost"),
+            pytest.param(
+                {"usage_limits": UsageLimits(cost_limit=Decimal("0.05"))}, id="usage_limits_cost_limit"
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_raises_when_cost_cap_exceeded(self, mock_hook_cls, cap_kwargs):
+        """A real run whose cost exceeds the configured cap raises ``UsageLimitExceeded``."""
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(_build_priced_response), **kw
+        )
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", **cap_kwargs)
+
+        with pytest.raises(UsageLimitExceeded, match=r"cost_limit.*0\.05"):
+            op.execute(context=MagicMock())
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_completes_when_cost_stays_under_max_cost(self, mock_hook_cls):
+        """A real run costing less than ``max_cost`` completes and returns the model output."""
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(_build_priced_response), **kw
+        )
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", max_cost=PRICED_COST * 2)
+
+        assert op.execute(context=MagicMock()) == "the answer"
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_raises_valueerror_for_unparsable_max_cost(self, mock_hook_cls):
+        """An unparsable templated ``max_cost`` surfaces as ``ValueError`` before any model call."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", max_cost="")
+        with pytest.raises(ValueError, match="max_cost must be a number"):
+            op.execute(context=MagicMock())
+        mock_agent.run_sync.assert_not_called()
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_regenerate_with_feedback_forwards_usage_limits(self, mock_hook_cls):

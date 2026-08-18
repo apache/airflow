@@ -49,7 +49,7 @@ from airflow.sdk import ObjectStoragePath
 PRICED_COST = Decimal("0.10")
 
 
-def _priced_model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+def _build_priced_response(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
     return ModelResponse(
         parts=[TextPart(content="the answer")],
         usage=RequestUsage(input_tokens=100, output_tokens=50, cost=PRICED_COST),
@@ -67,7 +67,7 @@ def durable_storage(tmp_path):
 async def _run_one_attempt(storage: DurableStorage, *, cost_limit: Decimal | None = None):
     """Simulate one Airflow task attempt: fresh Agent + fresh DurableStepCounter, shared cache."""
     counter = DurableStepCounter()
-    caching = CachingModel(FunctionModel(_priced_model_fn), storage=storage, counter=counter)
+    caching = CachingModel(FunctionModel(_build_priced_response), storage=storage, counter=counter)
     agent = Agent(model=caching)
     result = await agent.run("What is the answer?", usage_limits=UsageLimits(cost_limit=cost_limit))
     return result, counter

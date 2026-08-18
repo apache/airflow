@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from pydantic import BaseModel
 from pydantic_ai.messages import ToolCallPart
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
@@ -51,8 +52,7 @@ def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]
     if usage.cost is not None:
         logger.info("LLM run cost: $%s (USD, best-effort)", usage.cost)
 
-    tool_names = _extract_tool_sequence(result)
-    if tool_names:
+    if tool_names := _extract_tool_sequence(result):
         logger.info("Tool call sequence: %s", " -> ".join(tool_names))
 
     _log_output_debug(logger, result.output)
@@ -63,7 +63,6 @@ def _log_output_debug(logger: Logger | logging.Logger, output: Any) -> None:
     """Log a truncated representation of the agent output at DEBUG level."""
     if not logger.isEnabledFor(logging.DEBUG):
         return
-    from pydantic import BaseModel
 
     if isinstance(output, BaseModel):
         text = repr(output.model_dump())
@@ -76,12 +75,12 @@ def _log_output_debug(logger: Logger | logging.Logger, output: Any) -> None:
 
 def _extract_tool_sequence(result: AgentRunResult[Any]) -> list[str]:
     """Extract ordered tool names from the message history."""
-    tool_names: list[str] = []
-    for message in result.all_messages():
-        for part in getattr(message, "parts", []):
-            if isinstance(part, ToolCallPart):
-                tool_names.append(part.tool_name)
-    return tool_names
+    return [
+        part.tool_name
+        for message in result.all_messages()
+        for part in getattr(message, "parts", [])
+        if isinstance(part, ToolCallPart)
+    ]
 
 
 def wrap_toolsets_for_logging(
