@@ -20,7 +20,7 @@
 Add timetable_asset_gated to DagModel.
 
 Revision ID: 90e4d18ccadf
-Revises: 76c46545c91e
+Revises: c7f0a5d2e9b4
 Create Date: 2026-06-21 06:42:26.369414
 
 """
@@ -33,7 +33,7 @@ from alembic import op
 from airflow.migrations.utils import disable_sqlite_fkeys
 
 revision = "90e4d18ccadf"
-down_revision = "76c46545c91e"
+down_revision = "c7f0a5d2e9b4"
 branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"

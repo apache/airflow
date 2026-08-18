@@ -151,13 +151,13 @@ export const TaskStateStore = () => {
         columns={columns}
         data={data?.task_state_store ?? []}
         displayMode="table"
+        hideRowCountHeading
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="dag:taskStateStore.title"
+        modelName="dag:taskStateStore.entry"
         noRowsMessage={translate("taskStateStore.emptyStore")}
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         total={data?.total_entries ?? 0}
       />
     </>

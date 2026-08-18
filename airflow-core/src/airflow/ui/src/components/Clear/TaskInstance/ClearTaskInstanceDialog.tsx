@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { taskInstanceKey } from "src/components/ActionAccordion/columns";
@@ -29,6 +29,10 @@ import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLate
 import Time from "src/components/Time";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import {
+  useClearPreventRunningTaskDefault,
+  useClearTaskInstanceDefaultOptions,
+} from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -77,14 +81,16 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
 
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
+  const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
+  const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [preventRunningTask, setPreventRunningTask] = useState(true);
+  const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
 
@@ -104,12 +110,18 @@ const ClearTaskInstanceDialog = (props: Props) => {
     dagId,
   });
 
-  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
-    latestBundleVersion: dagDetails?.bundle_version,
-    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-    selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
-    selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId }, undefined, {
+    enabled: openDialog,
   });
+
+  const { dagVersionsDiffer, runOnLatestVersionForced, shouldShowRunOnLatestOption } =
+    getRunOnLatestVersionState({
+      latestBundleVersion: dagDetails?.bundle_version,
+      latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+      selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
+      selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+      selectedVersionMissing: dagRun?.dag_versions.length === 0,
+    });
 
   // dagVersionsDiffer becomes the fallback so the historical "auto-check when versions
   // differ" heuristic still applies when neither DAG-level nor global config is set.
@@ -215,7 +227,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
           <Dialog.Body width="full">
             <Flex justifyContent="center">
               <SegmentedControl
-                defaultValues={["downstream"]}
+                defaultValues={clearTaskInstanceDefaultOptions}
                 multiple
                 onChange={setSelectedOptions}
                 options={[
@@ -258,8 +270,14 @@ const ClearTaskInstanceDialog = (props: Props) => {
             >
               {shouldShowRunOnLatestOption ? (
                 <Checkbox
-                  checked={runOnLatestVersion}
+                  checked={runOnLatestVersionForced || runOnLatestVersion}
+                  disabled={runOnLatestVersionForced}
                   onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                  title={
+                    runOnLatestVersionForced
+                      ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                      : undefined
+                  }
                 >
                   {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
                 </Checkbox>

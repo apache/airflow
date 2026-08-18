@@ -81,6 +81,7 @@ Airflow plugins can register the following components:
 * *Macros* – Define reusable Python functions available in DAG templates.
 * *Operator Extra Links* – Add custom buttons in the task details view.
 * *Timetables & Listeners* – Implement custom scheduling logic and event hooks.
+* *Deadline References* – Register custom :doc:`Deadline Alert </howto/deadline-alerts>` reference classes.
 
 When are plugins (re)loaded?
 ----------------------------

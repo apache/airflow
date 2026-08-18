@@ -1117,10 +1117,40 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, sche
     return metadata
 
 
+def check_team_names_can_be_lower_cased(*, session: Session) -> Iterable[str]:
+    """
+    Yield an error for each group of stored team names that cannot be folded to lower case.
+
+    Team names became lower case only, and a migration rewrites the stored ones. Names that
+    differ only in case collapse onto a single row, which would silently merge two teams -- one
+    would inherit the other's Dag bundles, Connections, Variables, Pools and Triggers. Nothing
+    here can choose which name survives, so migration stops and the operator renames one first.
+    """
+    from collections import defaultdict
+
+    from airflow.models.team import Team
+
+    if not inspect(session.get_bind()).has_table(Team.__tablename__):
+        return
+
+    by_lower: dict[str, list[str]] = defaultdict(list)
+    for name in Team.get_all_team_names(session=session):
+        by_lower[name.lower()].append(name)
+
+    for lowered, names in sorted(by_lower.items()):
+        if len(names) > 1:
+            yield (
+                f"Teams {', '.join(repr(name) for name in sorted(names))} differ only in case and "
+                f"would both become '{lowered}'. Rename all but one with `airflow teams create` / "
+                "`airflow teams delete`, moving its Dag bundles, Connections, Variables and Pools "
+                "across, before migrating."
+            )
+
+
 @provide_session
 def _check_migration_errors(*, session: Session = NEW_SESSION) -> Iterable[str]:
     """:session: session of the sqlalchemy."""
-    check_functions: Iterable[Callable[..., Iterable[str]]] = ()
+    check_functions: Iterable[Callable[..., Iterable[str]]] = (check_team_names_can_be_lower_cased,)
     for check_fn in check_functions:
         log.debug("running check function %s", check_fn.__name__)
         yield from check_fn(session=session)
