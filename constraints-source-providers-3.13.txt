@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-14T13:59:53.195335
+# This constraints file was automatically generated on 2026-08-18T12:38:53.326596
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -98,7 +98,7 @@ attrs==26.1.0
 aws-sam-translator==1.111.0
 aws-xray-sdk==2.15.0
 azure-ai-projects==2.3.0
-azure-batch==14.2.0
+azure-batch==15.1.0
 azure-common==1.1.28
 azure-core==1.41.0
 azure-cosmos==4.16.2
