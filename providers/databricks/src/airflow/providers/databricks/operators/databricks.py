@@ -337,6 +337,20 @@ def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
             task_def[field] = dict(params)
 
 
+def _inject_openlineage_context_into_task_parameters(task: dict, context: Context) -> None:
+    """Inject OpenLineage context into each dict-shaped parameter field supported by a task."""
+    from airflow.providers.databricks.utils.openlineage import (
+        inject_openlineage_context_into_databricks_job_parameters,
+    )
+
+    for task_key, field in _DICT_PARAM_FIELD_BY_TASK.items():
+        task_def = task.get(task_key)
+        if isinstance(task_def, dict):
+            task_def[field] = inject_openlineage_context_into_databricks_job_parameters(
+                job_parameters=task_def.get(field) or {}, context=context
+            )
+
+
 def _coerce_json_to_dict(json: Any) -> dict[str, Any]:
     if json is None:
         return {}
@@ -716,8 +730,8 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
-        into the ``new_cluster`` ``spark_conf`` so the Spark job emits a ``parentRunFacet`` linking
-        back to the Airflow task. Defaults to the
+        into dict-shaped task parameters and the ``new_cluster`` ``spark_conf`` so the Databricks
+        job can emit a ``parentRunFacet`` linking back to the Airflow task. Defaults to the
         ``openlineage.spark_inject_parent_job_info`` config value.
     :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration
         into the ``new_cluster`` ``spark_conf`` so the Spark job sends OL events to the same backend
@@ -931,11 +945,33 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             else:
                 _inject_airflow_params_into_task(json, params_dump)
 
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Injecting OpenLineage context into Databricks task parameters.")
+            json = self._inject_openlineage_context_into_databricks_job(json, context)
+
         if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
             self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
             json = self._inject_openlineage_properties_into_databricks_job(json, context)
 
         return cast("dict[str, Any]", normalise_json_content(json))
+
+    def _inject_openlineage_context_into_databricks_job(self, json: dict, context: Context) -> dict:
+        try:
+            tasks = json.get("tasks")
+            if isinstance(tasks, list):
+                for task in tasks:
+                    if isinstance(task, dict):
+                        _inject_openlineage_context_into_task_parameters(task, context)
+            else:
+                _inject_openlineage_context_into_task_parameters(json, context)
+            return json
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage context. "
+                "Databricks task parameters have not been modified by OpenLineage.",
+                exc_info=e,
+            )
+            return json
 
     def _inject_openlineage_properties_into_databricks_job(self, json: dict, context: Context) -> dict:
         try:

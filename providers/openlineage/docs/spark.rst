@@ -100,6 +100,7 @@ Automatic injection is supported for the following operators:
 - :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator`
 - :class:`~airflow.providers.apache.livy.operators.livy.LivyOperator`
 - :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`
+- :class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator`
 - :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`
@@ -124,6 +125,11 @@ Automatic injection is supported for the following operators:
     :class:`~airflow.providers.amazon.aws.operators.emr.EmrContainerOperator` and
     :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartJobOperator` inject parent and transport
     properties through their ``spark-defaults`` configuration.
+
+    :class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator` injects the standardized
+    ``OPENLINEAGE_CONTEXT`` through Databricks job parameters. The
+    :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` supports the same
+    context in dict-shaped task parameters and retains its Spark ``spark_conf`` injection for Spark jobs.
 
 
 .. _options:spark_inject_parent_job_info:
