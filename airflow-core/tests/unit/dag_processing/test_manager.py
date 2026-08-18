@@ -1603,7 +1603,7 @@ class TestDagFileProcessorManager:
         processor.kill.assert_called_once_with(signal.SIGTERM, escalation_delay=5.0)
 
     def test_persist_parsing_results_provides_its_own_session_when_caller_omits(self):
-        """``persist_parsing_results`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
+        """An override must be able to run without a session the caller never had."""
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
         manager._file_stats[file] = DagFileStat()
@@ -1899,7 +1899,6 @@ class TestDagFileProcessorManager:
 
     @mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True)
     def test_an_override_delegating_to_super_still_persists(self, mock_write):
-        """The released implementation stays usable, so an override can add to it rather than replace it."""
 
         class WrappingManager(DagFileProcessorManager):
             def handle_parsing_result(self, file, proc, *, session=None):
