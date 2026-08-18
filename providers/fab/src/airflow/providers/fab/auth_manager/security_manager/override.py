@@ -1008,7 +1008,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                         self._merge_perm(action_name, dag_resource_name)
 
             if dag.access_control is not None:
-                self.sync_perm_for_dag(dag.dag_id, dag.access_control)
+                try:
+                    self.sync_perm_for_dag(dag.dag_id, dag.access_control)
+                except FabException:
+                    self.log.exception(
+                        "Failed to sync permissions for DAG '%s'; skipping it and continuing with "
+                        "the remaining DAGs. Fix its access_control configuration and re-run sync-perm.",
+                        dag.dag_id,
+                    )
 
     def sync_perm_for_dag(
         self,
