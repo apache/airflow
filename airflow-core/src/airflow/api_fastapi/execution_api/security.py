@@ -197,7 +197,7 @@ async def require_auth(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token subject does not match connection test ID",
             )
-    elif "callback:self" in security_scopes.scopes:
+    elif "cb:self" in security_scopes.scopes:
         cb_self_id = str(request.path_params["callback_id"])
         if str(token.id) != cb_self_id:
             raise HTTPException(

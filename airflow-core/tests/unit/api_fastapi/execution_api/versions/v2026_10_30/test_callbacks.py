@@ -24,10 +24,10 @@ MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-00000000000
 
 
 class TestRunCallbackEndpointVersioning:
-    """The callbacks/{callback_id}/run endpoint didn't exist before the 2026-08-01 API version."""
+    """The callbacks/{callback_id}/run endpoint didn't exist before the 2026-10-30 API version."""
 
     def test_old_version_returns_404(self, client):
-        """Before 2026-08-01 the route is absent, so routing itself 404s (no endpoint-shaped detail)."""
+        """Before 2026-10-30 the route is absent, so routing itself 404s (no endpoint-shaped detail)."""
         client.headers["Airflow-API-Version"] = "2026-06-30"
 
         response = client.patch(MISSING_CALLBACK_URL)

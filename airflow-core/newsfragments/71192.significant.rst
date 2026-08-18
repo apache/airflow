@@ -1,30 +1,12 @@
-Callbacks exchange a single-use token through the Execution API before they run
+Callbacks now redeem a single-use token before they run
 
-A worker now exchanges a callback's single-use token through the Execution API
-(``PATCH /execution/callbacks/{callback_id}/run``) before importing and running
-it, transitioning the callback ``QUEUED -> RUNNING`` and swapping the callback
-token for a short-lived ``execution``-scoped token. Previously a callback was
-executed without the worker making any authenticated call first, so the token
-minted for it was never validated by the API server.
+A worker now redeems a callback's single-use token with the API server
+(``PATCH /execution/callbacks/{callback_id}/run``) before importing and running the callback.
+Redeeming the token moves the callback from queued to running and swaps it for a short-lived
+execution-scoped token. Before this change a callback ran without the worker making any
+authenticated call, so the token minted for it was never checked.
 
-**Behaviour changes:**
-
-- A ``3.4`` worker requires an API server that serves the new endpoint. Mixed
-  deployments negotiate the API version, so a worker talking to an older API
-  server continues to behave as though the endpoint does not exist.
-- Callbacks now emit an intermediate ``RUNNING`` state, matching the documented
-  ``QUEUED -> RUNNING -> SUCCESS/FAILED`` lifecycle.
-- The callback token is single-use: a redelivered or replayed message that
-  reaches a callback already ``RUNNING`` or in a terminal state is refused
-  rather than executed again.
-
-* Types of change
-
-  * [ ] Dag changes
-  * [ ] Config changes
-  * [x] API changes
-  * [ ] CLI changes
-  * [x] Behaviour changes
-  * [ ] Plugin changes
-  * [ ] Dependency changes
-  * [ ] Code interface changes
+Because the token is single-use, a redelivered or replayed message that reaches a callback that is
+already running or finished is refused rather than run again. A worker on 3.4 needs an API server
+that serves this endpoint; a worker talking to an older API server negotiates the API version and
+behaves as though the endpoint is not there.

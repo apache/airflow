@@ -85,7 +85,7 @@ class TestExecutionAPIRoute:
             path="/test",
             endpoint=lambda: None,
             dependencies=[
-                Security(require_auth, scopes=["callback:self", "token:callback"]),
+                Security(require_auth, scopes=["cb:self", "token:callback"]),
             ],
         )
         assert route.allowed_token_types == frozenset({"callback"})

@@ -35,7 +35,7 @@ from airflow.utils.state import CallbackState
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
     dependencies=[
-        Security(require_auth, scopes=["callback:self", "token:callback"]),
+        Security(require_auth, scopes=["cb:self", "token:callback"]),
     ],
 )
 
