@@ -47,6 +47,8 @@ PNPM_STUB = textwrap.dedent(
     import time
     from pathlib import Path
 
+    ORPHAN_SELF_DESTRUCT_SECONDS = 60
+
     if sys.argv[1] == "install":
         print("pnpm install stub")
         sys.exit(0)
@@ -67,7 +69,7 @@ PNPM_STUB = textwrap.dedent(
         while not Path("exit_now.txt").exists() and time.monotonic() < deadline:
             time.sleep(0.05)
         sys.exit(int(behavior.removeprefix("exit:")))
-    time.sleep(60)
+    time.sleep(ORPHAN_SELF_DESTRUCT_SECONDS)
     """
 )
 
