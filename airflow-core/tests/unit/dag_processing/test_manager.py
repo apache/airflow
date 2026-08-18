@@ -3636,4 +3636,4 @@ def test_normalized_file_path_for_stats_does_not_warn(caplog):
         result = dag_file_info.normalized_file_path_for_stats
 
     assert result == "dags_test_test_dag.py"
-    assert caplog.records == []
+    assert caplog.entries == []
