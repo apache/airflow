@@ -34,7 +34,7 @@ const ImportVariablesButton = ({ disabled }: Props) => {
 
   return (
     <>
-      <Button disabled={disabled} onClick={onOpen}>
+      <Button disabled={disabled} onClick={onOpen} variant="outline">
         <FiUploadCloud /> {translate("variables.import.title")}
       </Button>
 
