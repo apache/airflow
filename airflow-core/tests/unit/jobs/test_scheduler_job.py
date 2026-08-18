@@ -40,7 +40,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -13464,12 +13464,26 @@ def test_partition_cap_audit_row_survives_outer_rollback(dag_maker: DagMaker, se
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
-def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker, session: Session, caplog):
+@pytest.mark.parametrize(
+    "audit_write_error",
+    [
+        pytest.param(IntegrityError("INSERT INTO log", {}, Exception("duplicate key")), id="dbapi_error"),
+        pytest.param(
+            # Not a DBAPIError: exercises the broader SQLAlchemyError catch, distinct from a
+            # DBAPI-layer failure.
+            InvalidRequestError("session already flushing"),
+            id="non_dbapi_sqlalchemy_error",
+        ),
+    ],
+)
+def test_partition_cap_audit_row_write_failure_is_swallowed(
+    dag_maker: DagMaker, session: Session, caplog, audit_write_error: Exception
+):
     """
-    A `DBAPIError` while writing the cap-reached audit row must not escape the tick.
+    A `SQLAlchemyError` while writing the cap-reached audit row must not escape the tick.
 
-    The audit write is purely observational, so any DBAPI-layer failure — not just
-    `OperationalError` — must be caught and logged, leaving `_partition_cap_backlog_reported`
+    The audit write is purely observational, so any SQLAlchemy-layer failure — not just a
+    `DBAPIError` — must be caught and logged, leaving `_partition_cap_backlog_reported`
     `False` so the next tick retries the write, and the cap-reached log stays at `warning`
     instead of being downgraded.
     """
@@ -13489,9 +13503,7 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(dag_maker: DagMaker,
     runner._max_partition_dag_runs_per_loop = 1
 
     failing_session_cm = MagicMock()
-    failing_session_cm.__enter__.return_value.add.side_effect = IntegrityError(
-        "INSERT INTO log", {}, Exception("duplicate key")
-    )
+    failing_session_cm.__enter__.return_value.add.side_effect = audit_write_error
     failing_session_cm.__exit__.return_value = False
 
     with mock.patch("airflow.jobs.scheduler_job_runner.create_session", return_value=failing_session_cm):

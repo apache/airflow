@@ -41,7 +41,6 @@ from sqlalchemy import (
     case,
     cast as sql_cast,
     delete,
-    exc,
     exists,
     func,
     inspect,
@@ -51,7 +50,7 @@ from sqlalchemy import (
     tuple_,
     update,
 )
-from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.exc import DBAPIError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
@@ -2389,7 +2388,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 ),
                             )
                         )
-                except (DBAPIError, exc.TimeoutError):
+                except SQLAlchemyError:
                     # Purely observational — must not fail or retry the tick's actual DagRun
                     # creation work. Leave the flag False so the next tick retries the write.
                     self.log.warning("Failed to write the partition Dag run cap audit Log row", exc_info=True)
