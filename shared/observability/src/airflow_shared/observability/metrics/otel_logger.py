@@ -432,13 +432,24 @@ class MetricsMap:
         self.histograms[name].record(value, tags)
 
 
+# The MeterProvider this process built, if any. A fork hands the child this reference and the
+# atexit hook, but the child owns neither: flushing a provider it inherited re-exports everything
+# the parent accumulated, and the reader threads behind it no longer exist.
+_provider: MeterProvider | None = None
+
+
 def flush_otel_metrics():
-    provider = metrics.get_meter_provider()
-    provider.force_flush()
+    if _provider is not None:
+        _provider.force_flush()
 
 
-def atexit_register_metrics_flush():
-    atexit.register(flush_otel_metrics)
+def _reset_provider_after_fork() -> None:
+    global _provider
+    atexit.unregister(flush_otel_metrics)
+    _provider = None
+
+
+os.register_at_fork(after_in_child=_reset_provider_after_fork)
 
 
 def get_otel_logger(
@@ -466,6 +477,9 @@ def get_otel_logger(
 
     A ``MeterProvider`` already built from ``OTEL_CONFIG_FILE`` is used as-is: the declarative
     configuration spec makes that file the sole source of SDK construction.
+
+    The pipeline is built once per process. Later calls return a logger over the same provider
+    rather than leaving a second one exporting alongside it; a fork resets that.
     """
     effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     validator = get_validator(metrics_allow_list, metrics_block_list)
@@ -473,9 +487,14 @@ def get_otel_logger(
     configured_provider = metrics.get_meter_provider()
     if os.environ.get(OTEL_CONFIG_FILE) and isinstance(configured_provider, MeterProvider):
         log.info("%s is set; using the MeterProvider it built.", OTEL_CONFIG_FILE)
-        atexit_register_metrics_flush()
         return SafeOtelLogger(
             configured_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
+        )
+
+    global _provider
+    if _provider is not None:
+        return SafeOtelLogger(
+            _provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
         )
 
     otel_env_config = load_metrics_env_config()
@@ -526,23 +545,20 @@ def get_otel_logger(
     except (ImportError, AttributeError):
         pass
 
-    metrics.set_meter_provider(
-        MeterProvider(
-            resource=resource,
-            metric_readers=readers,
-            views=[
-                View(
-                    instrument_type=metrics.Histogram,
-                    aggregation=ExponentialBucketHistogramAggregation(),
-                )
-            ],
-            shutdown_on_exit=False,
-        ),
+    _provider = MeterProvider(
+        resource=resource,
+        metric_readers=readers,
+        views=[
+            View(
+                instrument_type=metrics.Histogram,
+                aggregation=ExponentialBucketHistogramAggregation(),
+            )
+        ],
+        shutdown_on_exit=False,
     )
+    metrics.set_meter_provider(_provider)
 
     # Register a hook that flushes any in-memory metrics at shutdown.
-    atexit_register_metrics_flush()
+    atexit.register(flush_otel_metrics)
 
-    return SafeOtelLogger(
-        metrics.get_meter_provider(), effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
-    )
+    return SafeOtelLogger(_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled)

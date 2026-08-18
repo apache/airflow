@@ -20,6 +20,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 import time
 from unittest import mock
 
@@ -52,6 +53,10 @@ from airflow_shared.observability.otel_env_config import load_metrics_env_config
 
 from tests_common.test_utils.config import env_vars
 
+# Long enough that only the shutdown flush exports, so an exported metric name appears in the
+# output once per flush.
+NO_PERIODIC_EXPORT_INTERVAL_MS = 600000
+
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
     (42, "is not a string"),
@@ -76,9 +81,12 @@ def reset_meter_provider():
     """
     import opentelemetry.metrics._internal as metrics_internal
 
+    from airflow_shared.observability.metrics import otel_logger as otel_logger_module
+
     def clear() -> None:
         metrics_internal._METER_PROVIDER_SET_ONCE._done = False
         metrics_internal._METER_PROVIDER = None
+        otel_logger_module._provider = None
 
     previous = metrics_internal._METER_PROVIDER
     clear()
@@ -589,6 +597,56 @@ class TestOtelMetrics:
             f"stderr:\n{proc.stderr}"
         )
 
+    @pytest.mark.parametrize(
+        ("runner", "metric_name"),
+        [
+            ("mock_service_fork_child_without_reinit", "parent_stat"),
+            ("mock_service_fork_child_with_reinit", "child_stat"),
+        ],
+    )
+    def test_forked_child_does_not_duplicate_the_shutdown_flush(self, runner, metric_name):
+        """A fork must not turn one shutdown flush into two.
+
+        The child inherits the parent's atexit hook along with its MeterProvider, so an
+        inherited hook either re-exports everything the parent accumulated (child that never
+        initializes its own logger) or runs twice over the child's own provider (child that does).
+        """
+        test_module_name = "tests.observability.metrics.test_otel_logger"
+        function_call_str = f"import {test_module_name} as m; m.{runner}()"
+
+        proc = subprocess.run(
+            [sys.executable, "-c", function_call_str],
+            check=False,
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+
+        exports = proc.stdout.count(f'"name": "airflow.{metric_name}"')
+        assert exports == 1, (
+            f"Expected 'airflow.{metric_name}' to be exported exactly once but it was "
+            f"exported {exports} times.\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        )
+
+    def test_reinit_reuses_the_process_pipeline(self, reset_meter_provider):
+        """A second call must not leave a second pipeline exporting alongside the first.
+
+        Every ``MeterProvider`` owns a ``PeriodicExportingMetricReader`` whose thread exports on
+        its own interval, and ``shutdown_on_exit=False`` means nothing reaps one that gets
+        replaced: its instruments stop being recorded to, so it republishes frozen cumulative
+        totals alongside the live stream for the same series.
+        """
+        first = get_otel_logger(host="localhost", port=4318, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS)
+        readers_after_first = count_live_readers()
+
+        second = get_otel_logger(host="localhost", port=4318, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS)
+
+        assert second.otel is first.otel
+        assert count_live_readers() == readers_after_first
+
     def test_reinit_after_fork_exports_metrics(self):
         """Calling get_otel_logger() twice (simulating post-fork re-init) should still export metrics.
 
@@ -618,6 +676,11 @@ class TestOtelMetrics:
         )
 
 
+def count_live_readers() -> int:
+    """Number of running periodic exporter threads, i.e. how many pipelines are live."""
+    return sum(1 for t in threading.enumerate() if t.name == "OtelPeriodicExportingMetricReader")
+
+
 def mock_service_run():
     logger = get_otel_logger(debug=True)
     logger.incr("my_test_stat")
@@ -636,3 +699,20 @@ def mock_service_run_reinit():
     # Second init — simulates post-fork re-initialization
     logger = get_otel_logger(debug=True)
     logger.incr("post_fork_stat")
+
+
+def mock_service_fork_child_without_reinit():
+    """Emit a metric, then fork a child that exits without initializing its own logger."""
+    get_otel_logger(debug=True, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS).incr("parent_stat")
+    if os.fork() == 0:
+        sys.exit(0)
+    os.wait()
+
+
+def mock_service_fork_child_with_reinit():
+    """Emit a metric, then fork a child that initializes its own logger and emits its own metric."""
+    get_otel_logger(debug=True, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS).incr("parent_stat")
+    if os.fork() == 0:
+        get_otel_logger(debug=True, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS).incr("child_stat")
+        sys.exit(0)
+    os.wait()
