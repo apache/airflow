@@ -57,7 +57,7 @@ def send_email(
         )
 
     if dryrun:
-        log.info("Dryrun, not sending email with subject %r to %s", subject, to)
+        log.info("Dry run, not sending email with subject %r to %s", subject, to)
         return
 
     # ``mime_subtype`` and ``mime_charset`` are part of the email backend contract but have no
