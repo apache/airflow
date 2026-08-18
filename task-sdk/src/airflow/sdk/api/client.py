@@ -211,6 +211,12 @@ def raise_on_4xx_5xx_with_note(response: httpx.Response):
         e.add_note(
             f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
         )
+        # .detail sits behind the generic message and only reaches logs where a handler
+        # logs it by hand. Add it as a note too, so uncaught paths (e.g. the executor) keep it.
+
+        detail = getattr(e, "detail", None)
+        if detail is not None:
+            e.add_note(f"Server error detail: {detail!r}")
         raise
 
 

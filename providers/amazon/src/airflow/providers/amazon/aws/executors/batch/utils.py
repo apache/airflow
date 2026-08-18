@@ -128,6 +128,20 @@ class BatchJobCollection:
         del self.id_to_failure_counts[job_id]
         return workload_key
 
+    def remove_job(self, job_id: str) -> BatchJobWorkloadKey | None:
+        """
+        Remove a job from the collection, tolerating partially cleaned bookkeeping.
+
+        Unlike pop_by_id, this never raises: every mapping is popped defensively.
+        Returns the workload key if the job was still tracked, otherwise None.
+        """
+        workload_key = self.id_to_key.pop(job_id, None)
+        self.id_to_failure_counts.pop(job_id, None)
+        self.id_to_job_info.pop(job_id, None)
+        if workload_key is not None:
+            self.key_to_id.pop(workload_key, None)
+        return workload_key
+
     def failure_count_by_id(self, job_id: str) -> int:
         """Get the number of times a job has failed given a Batch Job Id."""
         return self.id_to_failure_counts[job_id]
