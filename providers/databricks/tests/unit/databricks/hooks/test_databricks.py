@@ -1614,6 +1614,25 @@ class TestWarehouseLifecycle:
         with pytest.raises(ValueError, match="Unexpected warehouse state: FOO"):
             WarehouseState("FOO")
 
+    def test_warehouse_state_json_round_trip(self):
+        state = WarehouseState("STOPPING")
+
+        restored = WarehouseState.from_json(state.to_json())
+
+        assert restored == state
+        assert json.loads(state.to_json()) == {"state": "STOPPING"}
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DatabricksHook, "_a_do_api_call", autospec=True)
+    async def test_a_get_warehouse_state_wraps_state(self, mock_a_do_api_call):
+        mock_a_do_api_call.return_value = {"state": "STARTING"}
+        hook = DatabricksHook()
+
+        state = await hook.a_get_warehouse_state("wh-1")
+
+        assert state == WarehouseState("STARTING")
+        mock_a_do_api_call.assert_called_once_with(hook, ("GET", "2.0/sql/warehouses/wh-1"))
+
 
 class TestRunState:
     def test_is_terminal_true(self):
