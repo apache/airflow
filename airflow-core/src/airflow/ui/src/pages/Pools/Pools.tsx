@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton, Spacer } from "@chakra-ui/react";
+import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -106,31 +106,32 @@ export const Pools = () => {
         onChange={handleSearchChange}
         placeholder={translate("pools.searchPlaceholder")}
       />
-      <HStack gap={4} mt={4}>
-        <Select.Root
-          borderWidth={0}
-          collection={poolSortOptions}
-          defaultValue={["name"]}
-          onValueChange={handleSortChange}
-          width={130}
-        >
-          <Select.Trigger>
-            <Select.ValueText placeholder={translate("pools.sort.placeholder")} />
-          </Select.Trigger>
-
-          <Select.Content>
-            {poolSortOptions.items.map((option) => (
-              <Select.Item item={option} key={option.value}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-        <Spacer />
+      <HStack gap={4} justifyContent="flex-end" mt={4}>
         <AddPoolButton />
       </HStack>
       <Box mt={4}>
         <DataTable
+          actions={
+            <Select.Root
+              borderWidth={0}
+              collection={poolSortOptions}
+              defaultValue={["name"]}
+              onValueChange={handleSortChange}
+              width={130}
+            >
+              <Select.Trigger>
+                <Select.ValueText placeholder={translate("pools.sort.placeholder")} />
+              </Select.Trigger>
+
+              <Select.Content>
+                {poolSortOptions.items.map((option) => (
+                  <Select.Item item={option} key={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          }
           cardDef={cardDef()}
           columns={[]}
           data={data ? data.pools : []}
