@@ -312,8 +312,12 @@ dev/registry/modules.json
 dev/registry/providers.json
 
 # apache-magpie — gitignored snapshot of the framework, refreshed
-# by /magpie-setup upgrade. Build artefact, not source.
-/.apache-magpie/
+# by /magpie-setup upgrade. Build artefact, not source. No trailing
+# slash: in the main checkout this is a directory, but
+# /magpie-setup worktree-init makes it a symlink to the main's
+# snapshot, and a directory-only pattern would leave every worktree
+# showing it as untracked.
+/.apache-magpie
 
 # Per-machine local-pin file. Records what THIS machine fetched and
 # when. Compared against the committed .apache-magpie.lock to

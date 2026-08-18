@@ -4496,11 +4496,16 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Partition Key'
+        },
+        triggering: {
+            type: 'boolean',
+            title: 'Triggering',
+            description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it."
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
+    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key', 'triggering'],
     title: 'DagRunAssetReference',
     description: 'DagRun serializer for asset responses.'
 } as const;
@@ -8705,6 +8710,21 @@ export const $AuthenticatedMeResponse = {
         username: {
             type: 'string',
             title: 'Username'
+        },
+        teams: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Teams',
+            description: 'Teams the user has access to. Null when the environment does not run in multi-team mode.'
         }
     },
     type: 'object',

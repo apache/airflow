@@ -342,6 +342,7 @@ export const DagRuns = () => {
     },
   );
 
+  const dagRuns = data?.dag_runs ?? [];
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
@@ -351,7 +352,7 @@ export const DagRuns = () => {
       getKey: getRowKey,
     });
 
-  const selectedDagRuns = (data?.dag_runs ?? []).filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
+  const selectedDagRuns = dagRuns.filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
 
   const columns = runColumns({
     dagId,
@@ -367,19 +368,21 @@ export const DagRuns = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <Flex alignItems="center" justifyContent="space-between">
-        <DagRunsFilters dagId={dagId} />
-        <ExpandCollapseButtons
-          collapseLabel={translate("common:collapseAllExtra")}
-          expandLabel={translate("common:expandAllExtra")}
-          isExpanded={open}
-          onCollapse={onClose}
-          onExpand={onOpen}
-        />
-      </Flex>
+      <DagRunsFilters dagId={dagId} />
       <DataTable
+        actions={
+          dagRuns.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:collapseAllExtra")}
+              expandLabel={translate("common:expandAllExtra")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
         columns={columns}
-        data={data?.dag_runs ?? []}
+        data={dagRuns}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}

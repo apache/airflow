@@ -1156,6 +1156,10 @@ export type DagRunAssetReference = {
     data_interval_start: string | null;
     data_interval_end: string | null;
     partition_key: string | null;
+    /**
+     * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
+     */
+    triggering: boolean;
 };
 
 /**
@@ -2190,6 +2194,10 @@ export type XComUpdateBody = {
 export type AuthenticatedMeResponse = {
     id: string;
     username: string;
+    /**
+     * Teams the user has access to. Null when the environment does not run in multi-team mode.
+     */
+    teams?: Array<(string)> | null;
 };
 
 /**
@@ -5419,6 +5427,10 @@ export type $OpenApiTs = {
                  */
                 200: DryRunBackfillCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -5771,6 +5783,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5835,6 +5851,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6376,6 +6396,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
@@ -6532,6 +6556,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunLightResponse | null;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -7057,6 +7085,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7273,6 +7305,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -8521,6 +8557,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BaseGraphResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
