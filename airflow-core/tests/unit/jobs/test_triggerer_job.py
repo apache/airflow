@@ -68,6 +68,7 @@ from airflow.jobs.triggerer_job_runner import (
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom import XComModel
@@ -642,7 +643,7 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     serialized_dag_model = mocker.Mock()
     task = mocker.Mock(start_from_trigger=False)
     serialized_dag_model.dag.get_task.return_value = task
-    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+    dag_bag.get_serialized_dag_model_for_run.return_value = serialized_dag_model
 
     render_log_fname = mocker.Mock(return_value="/logs/ti")
 
@@ -690,12 +691,12 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 
-    dag_bag = mocker.Mock()
+    dag_bag = DBDagBag()
     serialized_dag_model = mocker.Mock()
     task = mocker.Mock(start_from_trigger=True)
     serialized_dag_model.dag.get_task.return_value = task
     serialized_dag_model.data = {}
-    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+    mocker.patch.object(dag_bag, "get_serialized_dag_model", return_value=serialized_dag_model)
 
     session = mocker.Mock()
     jobless_supervisor._create_workload(
@@ -707,6 +708,39 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
 
     expected_version = run_created_version if pinned else latest_version
     dag_bag.get_serialized_dag_model.assert_called_once_with(version_id=expected_version, session=session)
+
+
+def test_load_triggers_survives_task_missing_from_resolved_dag_version(supervisor_builder, session, caplog):
+    """
+    A deferred TI's task may be missing from the Dag version an unpinned run resolves to
+    (latest), e.g. after the task was renamed. TaskNotFound must not escape workload
+    building — it previously killed the whole triggerer, and assign_unassigned re-handing
+    the trigger to the restarted triggerer produced a crash loop. Instead the trigger
+    gets a plain workload (no dag_data) and a warning is logged.
+    """
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, run, trigger_orm, _ = create_trigger_in_db(session, trigger)
+    assert run.bundle_version is None  # unpinned run resolves to the latest version
+
+    # The Dag is edited: the deferred task is renamed away in the new latest version
+    dag_v2 = DAG(dag_id="test_dag", schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
+    BaseOperator(task_id="renamed_ti", dag=dag_v2)
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_v2), bundle_name="testing")
+    session.commit()
+
+    job = Job(heartrate=10)
+    job.job_type = "TriggererJob"
+    job.latest_heartbeat = timezone.utcnow()
+    session.add(job)
+    session.flush()
+    supervisor = supervisor_builder(job=job)
+    session.commit()
+
+    supervisor.load_triggers()
+
+    workload = next(w for w in supervisor.creating_triggers if w.id == trigger_orm.id)
+    assert workload.dag_data is None
+    assert "Task not found in resolved Dag version; building plain workload" in caplog
 
 
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
