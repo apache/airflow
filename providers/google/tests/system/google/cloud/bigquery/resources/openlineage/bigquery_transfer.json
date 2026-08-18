@@ -27,7 +27,7 @@
                             {
                                 "fields": [],
                                 "name": "salary",
-                                "type": "INTEGER"
+                                "type": "FLOAT"
                             }
                         ]
                     }
@@ -49,7 +49,7 @@
                             {
                                 "fields": [],
                                 "name": "salary",
-                                "type": "INTEGER"
+                                "type": "FLOAT"
                             }
                         ]
                     }
@@ -85,7 +85,7 @@
                             {
                                 "fields": [],
                                 "name": "salary",
-                                "type": "INTEGER"
+                                "type": "FLOAT"
                             }
                         ]
                     }
@@ -134,7 +134,7 @@
                             {
                                 "fields": [],
                                 "name": "salary",
-                                "type": "INTEGER"
+                                "type": "FLOAT"
                             }
                         ]
                     }
