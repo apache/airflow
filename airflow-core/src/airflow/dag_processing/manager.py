@@ -108,12 +108,18 @@ def _make_execution_api() -> InProcessExecutionAPI:
     return InProcessExecutionAPI()
 
 
-MAX_FILES_PER_PERSISTENCE_GROUP = 16
+MAX_DAGS_PER_PERSISTENCE_GROUP = 32
 """
-How many files at most are persisted together in one call, and so in one transaction.
+How many Dags at most are persisted together in one call, and so in one transaction.
 
-The saving from grouping is the fixed per-call cost spread across the group, so it flattens out
-well before this bound; the ``dag`` rows the transaction holds locked do not.
+Grouping saves a fixed cost once per file, but what one transaction holds locked grows with the
+Dags in it, not the files -- a few files generating Dags dynamically can be thousands. Counting
+Dags bounds the thing that actually grows, and at this size it does not bind on files defining
+one or two Dags, which is the shape a sweep usually has.
+
+A file is never split across groups, since the record of it having been parsed and the import
+errors keyed to it belong to it as a whole. One file defining more Dags than this is still
+written on its own.
 """
 
 
@@ -1507,27 +1513,35 @@ class DagFileProcessorManager(LoggingMixin):
         actually in conflict are held back; one repeated dag_id must not cost every other file its
         place in a group.
 
-        Groups are capped at ``MAX_FILES_PER_PERSISTENCE_GROUP`` files.
+        A group carries at most ``MAX_DAGS_PER_PERSISTENCE_GROUP`` Dags.
         """
         groups: list[list[FileParseResult]] = []
         bundles: list[str] = []
+        dag_counts: list[int] = []
         # The last group to claim each dag_id, which is the earliest a file repeating it may go.
         claimed_by: dict[str, int] = {}
 
         for item in results:
             dag_ids = {dag.dag_id for dag in item.parsing_result.serialized_dags}
+            n_dags = len(item.parsing_result.serialized_dags)
             bundle_name = item.file.bundle_name
             earliest = max((claimed_by[dag_id] + 1 for dag_id in dag_ids if dag_id in claimed_by), default=0)
 
             for index in range(earliest, len(groups)):
-                if bundles[index] == bundle_name and len(groups[index]) < MAX_FILES_PER_PERSISTENCE_GROUP:
+                if (
+                    bundles[index] == bundle_name
+                    and dag_counts[index] + n_dags <= MAX_DAGS_PER_PERSISTENCE_GROUP
+                ):
                     break
             else:
+                # A new group takes the file whatever its size: a file cannot be split.
                 index = len(groups)
                 groups.append([])
                 bundles.append(bundle_name)
+                dag_counts.append(0)
 
             groups[index].append(item)
+            dag_counts[index] += n_dags
             claimed_by.update(dict.fromkeys(dag_ids, index))
         return groups
 
