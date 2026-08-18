@@ -19,8 +19,8 @@ Statement budget for persisting Dag parse results: a change that adds round trip
 to move a number here and account for it in review.
 
 Counts are calibrated against Postgres and the tests carrying them are marked for it, since
-statement counts differ by dialect. The sweep test derives its call count from the group cap and
-measures its prices, so it runs anywhere.
+statement counts differ by dialect. The sweep test derives its call count from the Dag budget a
+group carries and measures its prices, so it runs anywhere.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ from uuid6 import uuid7
 
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.manager import (
-    MAX_FILES_PER_PERSISTENCE_GROUP,
+    MAX_DAGS_PER_PERSISTENCE_GROUP,
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
@@ -255,18 +255,21 @@ def _measure_sweep(session, tmp_path: Path, n_files: int, sockets, name: str, da
 
 
 @pytest.mark.parametrize(
-    "n_files",
+    ("n_files", "dags_per_file"),
     [
-        pytest.param(SWEEP_FILES, id="one-group"),
-        pytest.param(MAX_FILES_PER_PERSISTENCE_GROUP + 1, id="over-the-group-cap"),
+        pytest.param(SWEEP_FILES, 1, id="one-group"),
+        pytest.param(5, 8, id="over-the-dag-cap"),
     ],
 )
-def test_sweep_pays_fixed_cost_once_per_call(n_files, session, testing_dag_bundle, tmp_path, sockets):
+def test_sweep_pays_fixed_cost_once_per_call(
+    n_files, dags_per_file, session, testing_dag_bundle, tmp_path, sockets
+):
     """
     How a sweep scales with the number of persistence calls it takes.
 
     A sweep is persisted a group at a time, so the fixed price is paid once per group rather than
-    once per file -- and a sweep past the cap really does split, rather than only being asserted to.
+    once per file -- and a sweep carrying more Dags than a group takes really does split, rather
+    than only being asserted to.
     Both prices are measured here, so the assertion holds on any backend.
     """
     one_dag = _measure_sweep(session, tmp_path, 1, sockets, "one")
@@ -274,13 +277,16 @@ def test_sweep_pays_fixed_cost_once_per_call(n_files, session, testing_dag_bundl
     per_dag = two_dags - one_dag
     fixed = one_dag - per_dag
 
-    sweep = _measure_sweep(session, tmp_path, n_files, sockets, f"sweep_{n_files}")
+    sweep = _measure_sweep(
+        session, tmp_path, n_files, sockets, f"sweep_{n_files}x{dags_per_file}", dags_per_file=dags_per_file
+    )
 
-    calls = math.ceil(n_files / MAX_FILES_PER_PERSISTENCE_GROUP)
-    expected = calls * fixed + n_files * per_dag
+    total_dags = n_files * dags_per_file
+    calls = math.ceil(total_dags / MAX_DAGS_PER_PERSISTENCE_GROUP)
+    expected = calls * fixed + total_dags * per_dag
     assert sweep == expected, (
-        f"a {n_files}-file sweep costs {sweep} statements, expected {expected} "
-        f"({calls} x {fixed} fixed + {n_files} x {per_dag} per Dag)."
+        f"a {n_files}-file sweep of {total_dags} Dags costs {sweep} statements, expected {expected} "
+        f"({calls} x {fixed} fixed + {total_dags} x {per_dag} per Dag)."
     )
 
 
