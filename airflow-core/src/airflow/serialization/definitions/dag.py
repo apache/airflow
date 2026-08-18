@@ -740,6 +740,18 @@ class SerializedDAG:
             select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
         ).all()
 
+        if not deadline_alert_records:
+            return
+
+        # Resolve the DagRun's team once, so a team-scoped VariableInterval is looked up
+        # against the right team (not the global scope) and the stats tags are consistent.
+        team_name = (
+            DagModel.get_team_name(self.dag_id, session=session)
+            if airflow_conf.getboolean("core", "multi_team")
+            else None
+        )
+        metrics_tags = prune_dict({"dag_id": self.dag_id, "team_name": team_name})
+
         for deadline_alert in deadline_alert_records:
             if not deadline_alert:
                 continue
@@ -761,14 +773,6 @@ class SerializedDAG:
                 )
 
                 interval = deserialized_deadline_alert.interval
-
-                # Resolve the DagRun's team once, so a team-scoped VariableInterval is looked up
-                # against the right team (not the global scope) and the stats tag is consistent.
-                team_name = (
-                    DagModel.get_team_name(self.dag_id, session=session)
-                    if airflow_conf.getboolean("core", "multi_team")
-                    else None
-                )
 
                 if isinstance(interval, VariableInterval):
                     interval = self._resolve_variable_interval(interval, team_name=team_name, session=session)
@@ -793,10 +797,7 @@ class SerializedDAG:
                                 bundle_name=orm_dagrun.dag_model.bundle_name,
                             )
                         )
-                        stats.incr(
-                            "deadline_alerts.deadline_created",
-                            tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
-                        )
+                        stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
             except Exception:
                 log.exception(
                     "Failed to create deadline for alert %s on DagRun %s (dag_id=%s); "
@@ -805,7 +806,7 @@ class SerializedDAG:
                     orm_dagrun.run_id,
                     self.dag_id,
                 )
-                stats.incr("deadline_alerts.deadline_creation_failed", tags={"dag_id": self.dag_id})
+                stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
 
     @staticmethod
     def _resolve_variable_interval(
@@ -825,6 +826,8 @@ class SerializedDAG:
         :raises ValueError: If the Variable cannot be resolved or converted to a valid ``timedelta``.
         :raises AirflowSecretsBackendAccessDenied: If a backend authoritatively denies access.
         """
+        # Collapse this loop into Variable.get_variable_from_secrets once it can reuse the
+        # caller's session; tracked at https://github.com/apache/airflow/issues/71801
         for backend in ensure_secrets_loaded():
             try:
                 value = call_secrets_backend_method(

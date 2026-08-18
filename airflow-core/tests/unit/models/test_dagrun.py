@@ -61,6 +61,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.variable import Variable as VariableModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -1398,8 +1399,6 @@ class TestDagRun:
         if isinstance(interval, VariableInterval):
             # Seed via the metastore model, not the SDK Variable (whose set() routes through
             # SUPERVISOR_COMMS), so the row lands in the variable table on this session.
-            from airflow.models.variable import Variable as VariableModel
-
             VariableModel.set(key="my_key", value="5", session=session)
             session.flush()
 
@@ -1536,8 +1535,11 @@ class TestDagRun:
             ),
         ],
     )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_failure_is_isolated(self, _, interval, failure, session, deadline_test_dag):
+    def test_dagrun_deadline_failure_is_isolated(
+        self, _, mock_stats_incr, interval, failure, session, deadline_test_dag
+    ):
         """A failure while creating any single deadline must not abort DagRun creation."""
         future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
@@ -1549,7 +1551,11 @@ class TestDagRun:
             ),
         )
 
-        with failure:
+        with (
+            conf_vars({("core", "multi_team"): "true"}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value="team_alpha"),
+            failure,
+        ):
             dag_run = self.create_dag_run(
                 dag=scheduler_dag,
                 task_states={"task_1": TaskInstanceState.SUCCESS},
@@ -1558,11 +1564,14 @@ class TestDagRun:
 
         assert dag_run is not None
         assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        mock_stats_incr.assert_any_call(
+            "deadline_alerts.deadline_creation_failed",
+            tags={"dag_id": scheduler_dag.dag_id, "team_name": "team_alpha"},
+        )
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_skips_broken_backend(self, _, session, deadline_test_dag):
         """A backend that raises must be skipped; the Variable still resolves from the next backend."""
-        from airflow.models.variable import Variable as VariableModel
         from airflow.secrets import BaseSecretsBackend
         from airflow.secrets.metastore import MetastoreBackend
 
@@ -1672,8 +1681,6 @@ class TestDagRun:
         """The scheduler creates DagRuns under ``prohibit_commit``, so the Variable lookup must reuse
         the given session -- an implicit commit from a non-forwarded session trips the guard and no
         Deadline is created."""
-        from airflow.models.variable import Variable as VariableModel
-
         VariableModel.set(key="guarded_interval_key", value="5", session=session)
         session.flush()
 
