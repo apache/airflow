@@ -601,6 +601,37 @@ def _mark_latest_changes_as_documentation_only(
     raise PrepareReleaseDocsChangesOnlyException()
 
 
+def drop_provider_to_doc_only(provider_id: str, base_branch: str) -> None:
+    """Take a provider that is already prepared for release back out of the wave.
+
+    Review can conclude that a prepared provider's changes are internal after all. Correcting the
+    changelog entry is not enough: the version bump and the changelog section are already written,
+    so the provider would still be built and uploaded. Restoring both files to their released state
+    and recording the doc-only marker is what actually removes it from the release.
+    """
+    provider_details = get_provider_details(provider_id=provider_id)
+    provider_yaml_path = get_provider_yaml(provider_id)
+    changelog_path = provider_details.root_provider_path / "docs" / "changelog.rst"
+    restore_paths = [str(path) for path in (provider_yaml_path, changelog_path) if path.exists()]
+    console_print(f"[info]Restoring {provider_id} to its released state before marking it doc-only.[/]")
+    run_command(
+        ["git", "checkout", f"{HTTPS_REMOTE}/{base_branch}", "--", *restore_paths],
+        cwd=AIRFLOW_ROOT_PATH,
+        check=True,
+    )
+    clear_cache_for_provider_metadata(provider_yaml_path=provider_yaml_path)
+    _, list_of_list_of_changes, _ = _get_all_changes_for_package(
+        provider_id=provider_id,
+        base_branch=base_branch,
+        reapply_templates_only=False,
+        only_min_version_update=False,
+    )
+    if not list_of_list_of_changes or not list_of_list_of_changes[0]:
+        console_print(f"[warning]No changes found for {provider_id} - nothing to mark as doc-only.[/]")
+        raise PrepareReleaseDocsNoChangesException()
+    _mark_latest_changes_as_documentation_only(provider_id, list_of_list_of_changes)
+
+
 VERSION_MAJOR_INDEX = 0
 VERSION_MINOR_INDEX = 1
 VERSION_PATCHLEVEL_INDEX = 2
