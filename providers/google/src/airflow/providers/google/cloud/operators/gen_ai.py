@@ -57,6 +57,25 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+def _results_file_path(results_folder: str | None, job) -> str:
+    """
+    Build the local results-file path for a batch job, refusing one that escapes ``results_folder``.
+
+    ``display_name`` and ``name`` come from the batch-job metadata returned by the Gemini
+    API. ``job.name`` is already sanitized against ``/``, but ``display_name`` (used first)
+    is not, so a ``..`` in it would place the file outside ``results_folder`` (CWE-22).
+    """
+    file_name = job.display_name or job.name.replace("/", "-")
+    path_to_file = os.path.abspath(f"{results_folder}/{file_name}.jsonl")
+    base = os.path.abspath(f"{results_folder}")
+    if base != path_to_file and os.path.commonpath([base, path_to_file]) != base:
+        raise ValueError(
+            f"Refusing to write batch-job results outside results_folder {results_folder!r}: "
+            f"file name {file_name!r} resolves to {path_to_file!r}."
+        )
+    return path_to_file
+
+
 class GenAIGenerateEmbeddingsOperator(GoogleCloudBaseOperator):
     """
     Uses the Gemini AI Embeddings API to generate embeddings for words, phrases, sentences, and code.
@@ -522,8 +541,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
-            file_name = job.display_name or job.name.replace("/", "-")
-            path_to_file = os.path.abspath(f"{self.results_folder}/{file_name}.jsonl")
+            path_to_file = _results_file_path(self.results_folder, job)
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
@@ -972,8 +990,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
             self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
-            file_name = job.display_name or job.name.replace("/", "-")
-            path_to_file = os.path.abspath(f"{self.results_folder}/{file_name}.jsonl")
+            path_to_file = _results_file_path(self.results_folder, job)
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
