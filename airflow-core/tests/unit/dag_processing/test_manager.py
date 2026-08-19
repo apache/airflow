@@ -1936,6 +1936,34 @@ class TestDagFileProcessorManager:
 
         warn.assert_called_once()
 
+    def test_an_override_delegating_to_super_reaches_the_replacement_seam(self):
+        """
+        Asserting only that the database was written cannot tell this routing from the old.
+
+        A deployment that wraps the handler and has adopted the batch seam must reach that seam,
+        not the per-file one it replaced, or its results go to the metadata DB it arranged to skip.
+        """
+        seen: list[str] = []
+
+        class WrappingApiManager(DagFileProcessorManager):
+            def handle_parsing_result(self, file, proc, *, session=None):
+                super().handle_parsing_result(file, proc)
+
+            def persist_parsing_results(self, results, *, session=None):
+                seen.extend(str(item.file.rel_path) for item in results)
+
+        manager = WrappingApiManager(max_runs=1)
+        manager._bundle_versions["testing"] = "v1"
+        self._ready_processor(manager, "wrapped.py", num_dags=1)
+
+        with mock.patch(
+            "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+        ) as write:
+            manager._collect_results()
+
+        assert seen == ["wrapped.py"]
+        write.assert_not_called()
+
     @pytest.mark.parametrize(
         ("overrides", "warns"),
         [
@@ -2063,6 +2091,27 @@ class TestDagFileProcessorManager:
             ["a.py"],
             ["b.py"],
         ], "b.py must be written after the Dag that could blame it"
+
+    def test_two_files_filing_dags_under_one_path_are_written_apart(self):
+        """
+        Failing to serialize either one records an error against the path they share.
+
+        That error stales every Dag filed under it, so a Dag written clean beside it would be
+        staled by its neighbour's failure — where writing them apart leaves the later one active.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+
+        groups = manager.build_persistence_groups(
+            [
+                self._item("file_a.py", ["dag_a"], filed_under="shared.py"),
+                self._item("file_c.py", ["dag_c"], filed_under="shared.py"),
+            ]
+        )
+
+        assert [[str(item.file.rel_path) for item in group] for group in groups] == [
+            ["file_a.py"],
+            ["file_c.py"],
+        ]
 
     def test_a_dag_is_not_written_alongside_an_error_against_the_file_it_is_filed_under(self):
         """
