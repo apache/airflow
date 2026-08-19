@@ -4564,6 +4564,17 @@ export const $DagScheduleAssetReference = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -7740,6 +7751,17 @@ export const $TaskOutletAssetReference = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
