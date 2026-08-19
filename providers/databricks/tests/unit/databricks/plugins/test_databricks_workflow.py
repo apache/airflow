@@ -698,7 +698,7 @@ class TestDatabricksWorkflowPluginAirflow3:
             # Verify no XCom was pushed due to the exception
             ti_mock.xcom_push.assert_not_called()
 
-    def test_post_repair_all_warns_on_unmapped_keys(self, caplog):
+    def test_post_repair_all_warns_on_unmapped_keys(self):
         from fastapi.testclient import TestClient
 
         from airflow.providers.databricks.plugins import databricks_workflow as m
@@ -718,6 +718,7 @@ class TestDatabricksWorkflowPluginAirflow3:
                 patch.object(m, "DatabricksHook") as mock_hook,
                 patch.object(m, "_repair_task") as mock_repair,
                 patch.object(m, "_clear_repaired_and_downstream") as mock_clear,
+                patch.object(m.log, "warning") as mock_warning,
             ):
                 mock_hook.return_value.get_run_failed_task_keys.return_value = ["KNOWN_KEY", "LEGACY_KEY"]
                 client = TestClient(m.repair_app)
@@ -729,7 +730,9 @@ class TestDatabricksWorkflowPluginAirflow3:
             assert resp.status_code == 303
             assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["KNOWN_KEY", "LEGACY_KEY"]
             assert mock_clear.call_args.args[2] == ["grp.nb"]
-            assert "Databricks repair returned task keys that could not be mapped to Airflow tasks" in caplog
+            mock_warning.assert_called_once()
+            assert "could not be mapped to Airflow tasks" in mock_warning.call_args.args[0]
+            assert mock_warning.call_args.args[1] == ["LEGACY_KEY"]
         finally:
             m.repair_app.dependency_overrides.clear()
 
@@ -773,10 +776,12 @@ class TestDatabricksWorkflowPluginAirflow3:
         from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
         plugin = DatabricksWorkflowPlugin()
-        with mock_plugin_manager(plugins=[plugin]), dag_maker("repair_roundtrip", serialized=True):
-            with DatabricksWorkflowTaskGroup(group_id="wf", databricks_conn_id="databricks_default"):
-                DatabricksNotebookOperator(task_id="nb", notebook_path="/path/nb", source="WORKSPACE")
+        with mock_plugin_manager(plugins=[plugin]):
+            with dag_maker("repair_roundtrip", serialized=True):
+                with DatabricksWorkflowTaskGroup(group_id="wf", databricks_conn_id="databricks_default"):
+                    DatabricksNotebookOperator(task_id="nb", notebook_path="/path/nb", source="WORKSPACE")
 
+            # Serialization is written on dag_maker exit; create the run from that snapshot.
             dag_run = dag_maker.create_dagrun()
             serialized = SerializedDagModel.get_dag("repair_roundtrip")
             assert serialized is not None
