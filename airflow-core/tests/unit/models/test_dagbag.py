@@ -251,7 +251,6 @@ class TestDBDagBagCache:
         ("cache_size", "cache_ttl", "expected_type", "expected_maxsize"),
         [
             pytest.param(None, None, dict, None, id="neither_plain_dict"),
-            pytest.param(-1, -1, dict, None, id="negatives_clamped_to_plain_dict"),
             pytest.param(10, None, LRUCache, 10, id="size_only_lru"),
             pytest.param(10, 60, TTLCache, 10, id="size_and_ttl_bounded_ttl"),
             pytest.param(0, 60, TTLCache, math.inf, id="ttl_only_uncapped"),
@@ -263,6 +262,27 @@ class TestDBDagBagCache:
         assert dag_bag._use_cache is (expected_type is not dict)
         if expected_maxsize is not None:
             assert dag_bag._dags.maxsize == expected_maxsize
+
+    @pytest.mark.parametrize(
+        ("cache_size", "cache_ttl", "expected_message"),
+        [
+            pytest.param(
+                -1,
+                None,
+                "cache_size must be greater than or equal to 0",
+                id="negative_size",
+            ),
+            pytest.param(
+                None,
+                -1,
+                "cache_ttl must be greater than or equal to 0",
+                id="negative_ttl",
+            ),
+        ],
+    )
+    def test_rejects_negative_cache_configuration(self, cache_size, cache_ttl, expected_message):
+        with pytest.raises(ValueError, match=expected_message):
+            DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""

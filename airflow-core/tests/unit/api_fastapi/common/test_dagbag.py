@@ -108,25 +108,3 @@ class TestCreateDagBag:
         assert dag_bag._use_cache is (expected_dags_type is not dict)
         if expected_maxsize is not None:
             assert dag_bag._dags.maxsize == expected_maxsize
-
-    @pytest.mark.parametrize(
-        ("cache_size", "cache_ttl", "expected_message"),
-        [
-            pytest.param(
-                "-1",
-                "3600",
-                "dag_cache_size must be greater than or equal to 0",
-                id="negative_size",
-            ),
-            pytest.param(
-                "64",
-                "-1",
-                "dag_cache_ttl must be greater than or equal to 0",
-                id="negative_ttl",
-            ),
-        ],
-    )
-    def test_create_dag_bag_rejects_negative_config(self, cache_size, cache_ttl, expected_message):
-        with conf_vars({("api", "dag_cache_size"): cache_size, ("api", "dag_cache_ttl"): cache_ttl}):
-            with pytest.raises(ValueError, match=expected_message):
-                create_dag_bag()

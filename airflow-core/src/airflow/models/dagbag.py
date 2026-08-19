@@ -83,7 +83,13 @@ class DBDagBag:
         :param cache_size: Max cached entries. 0 or None means no size limit.
         :param cache_ttl: Seconds until a cached entry expires, applied with or without a size limit.
             0 or None disables TTL. With neither a size limit nor a TTL the cache never evicts.
+        :raises ValueError: If ``cache_size`` or ``cache_ttl`` is negative.
         """
+        if cache_size is not None and cache_size < 0:
+            raise ValueError("cache_size must be greater than or equal to 0")
+        if cache_ttl is not None and cache_ttl < 0:
+            raise ValueError("cache_ttl must be greater than or equal to 0")
+
         self.load_op_links = load_op_links
         self._dags: MutableMapping[UUID | str, _CacheEntry] = {}
         self._use_cache = False
@@ -92,8 +98,8 @@ class DBDagBag:
 
         # A TTL applies with or without a size limit: an uncapped TTLCache is what lets
         # ``dag_cache_size = 0`` mean "no size limit" rather than "no eviction at all".
-        size = max(cache_size or 0, 0)
-        ttl = max(cache_ttl or 0, 0)
+        size = cache_size or 0
+        ttl = cache_ttl or 0
         if ttl > 0:
             self._dags = TTLCache(maxsize=size or math.inf, ttl=ttl)
             self._use_cache = True
