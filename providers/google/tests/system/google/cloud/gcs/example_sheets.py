@@ -21,7 +21,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from airflow.models.dag import DAG
 
@@ -119,7 +119,7 @@ with DAG(
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
         task_id="upload_sheet_to_gcs",
         destination_bucket=BUCKET_NAME,
-        spreadsheet_id=XComArg(create_spreadsheet, key="spreadsheet_id"),
+        spreadsheet_id=cast("str", XComArg(create_spreadsheet, key="spreadsheet_id")),
         gcp_conn_id=CONNECTION_ID,
     )
     # [END upload_sheet_to_gcs]
@@ -133,7 +133,7 @@ with DAG(
         task_id="upload_gcs_to_sheet",
         bucket_name=BUCKET_NAME,
         object_name=get_first_item(upload_sheet_to_gcs.output),
-        spreadsheet_id=XComArg(create_spreadsheet, key="spreadsheet_id"),
+        spreadsheet_id=cast("str", XComArg(create_spreadsheet, key="spreadsheet_id")),
         gcp_conn_id=CONNECTION_ID,
     )
     # [END upload_gcs_to_sheet]
