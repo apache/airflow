@@ -28,7 +28,11 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
-from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeOfDayTrigger
+from airflow.providers.standard.triggers.temporal import (
+    DateTimeTrigger,
+    TimeOfDayTrigger,
+    resolve_time_of_day_moment,
+)
 from airflow.triggers.base import StartTriggerArgs
 
 from tests_common.test_utils.compat import timezone
@@ -137,16 +141,13 @@ class TestTimeSensor:
         except TypeError as e:
             pytest.fail(f"TypeError raised: {e}")
 
-    # --- E1: target already passed today → succeed immediately (not next day) ---
     @time_machine.travel("2020-07-07 15:00:00", tick=False)
     def test_target_already_passed_today_succeeds(self):
         with DAG("e1", schedule=None, start_date=datetime(2020, 1, 1)):
             op = TimeSensor(task_id="t", target_time=time(10, 0))
         assert op.poke({}) is True
-        # Still today's date, not tomorrow
         assert op.target_datetime.date() == pendulum.date(2020, 7, 7)
 
-    # --- E2: cache moment for life of attempt (no midnight drift) ---
     def test_target_datetime_cached_across_midnight(self):
         with time_machine.travel("2020-07-07 23:59:00", tick=False):
             with DAG("e2", schedule=None, start_date=datetime(2020, 1, 1)):
@@ -157,7 +158,6 @@ class TestTimeSensor:
         assert first == second
         assert first.date() == pendulum.date(2020, 7, 7)
 
-    # --- E3: spring-forward gap → shift forward ---
     @time_machine.travel("2024-03-10 12:00:00", tick=False)
     def test_dst_spring_forward_shifts_forward(self):
         ny = pendulum.timezone("America/New_York")
@@ -166,7 +166,6 @@ class TestTimeSensor:
         # 02:30 does not exist; pendulum shifts to 03:30 EDT = 07:30 UTC
         assert op.target_datetime == pendulum.datetime(2024, 3, 10, 7, 30, tz="UTC")
 
-    # --- E4: fall-back ambiguous → fold=0 (first occurrence) ---
     @time_machine.travel("2024-11-03 12:00:00", tick=False)
     def test_dst_fall_back_uses_fold_zero(self):
         ny = pendulum.timezone("America/New_York")
@@ -175,14 +174,16 @@ class TestTimeSensor:
         # fold=0 → EDT (UTC-4) → 01:30-04:00 = 05:30 UTC
         assert op.target_datetime == pendulum.datetime(2024, 11, 3, 5, 30, tz="UTC")
 
-    # --- E5: no Dag context → UTC fallback, no crash ---
     @time_machine.travel("2020-07-07 08:00:00", tick=False)
     def test_no_dag_context_falls_back_to_utc(self):
         op = TimeSensor(task_id="t", target_time=time(10, 0))
         assert op.target_datetime == pendulum.datetime(2020, 7, 7, 10, 0, tz="UTC")
         assert op.poke({}) is False
 
-    # --- E6: TimeSensorAsync inherits the fix ---
+    def test_start_from_trigger_without_dag_raises(self):
+        with pytest.raises(ValueError, match="attached to a Dag"):
+            TimeSensor(task_id="t", target_time=time(10, 0), start_from_trigger=True)
+
     @time_machine.travel("2020-07-07 00:00:00", tick=False)
     def test_time_sensor_async_inherits_lazy_resolution(self):
         with pytest.warns(AirflowProviderDeprecationWarning, match="TimeSensorAsync is deprecated"):
@@ -194,8 +195,7 @@ class TestTimeSensor:
         assert isinstance(exc_info.value.trigger, DateTimeTrigger)
         assert exc_info.value.trigger.moment == pendulum.datetime(2020, 7, 7, 10)
 
-    # --- E7: FixedTimezone and named timezone both serialize round-trip ---
-    def test_fixed_and_named_timezone_in_start_trigger_args(self):
+    def test_fixed_and_named_tz_in_start_trigger_args(self):
         fixed = FixedTimezone(19800)  # +05:30
         with DAG("e7_fixed", schedule=None, start_date=datetime(2020, 1, 1, tzinfo=fixed)):
             op_fixed = TimeSensor(
@@ -204,7 +204,7 @@ class TestTimeSensor:
                 start_from_trigger=True,
                 end_from_trigger=True,
             )
-        assert op_fixed.start_trigger_args.trigger_kwargs["timezone"] == 19800
+        assert op_fixed.start_trigger_args.trigger_kwargs["tz"] == 19800
         assert op_fixed.start_trigger_args.trigger_kwargs["target_time"] == "10:30:00"
         assert op_fixed.start_trigger_args.trigger_kwargs["end_from_trigger"] is True
 
@@ -215,9 +215,8 @@ class TestTimeSensor:
                 target_time=time(10, 30),
                 start_from_trigger=True,
             )
-        assert op_named.start_trigger_args.trigger_kwargs["timezone"] == "Asia/Kolkata"
+        assert op_named.start_trigger_args.trigger_kwargs["tz"] == "Asia/Kolkata"
 
-        # Round-trip via TimeOfDayTrigger
         for op in (op_fixed, op_named):
             kwargs = op.start_trigger_args.trigger_kwargs
             trigger = TimeOfDayTrigger(**kwargs)
@@ -225,23 +224,18 @@ class TestTimeSensor:
             assert classpath.endswith("TimeOfDayTrigger")
             restored = TimeOfDayTrigger(**ser)
             assert restored.target_time == kwargs["target_time"]
-            assert restored.timezone == kwargs["timezone"]
+            assert restored.tz == kwargs["tz"]
 
-    # --- E8: start_trigger_args is per-instance, not shared class mutation ---
-    def test_start_trigger_args_not_shared_across_instances(self):
+    def test_start_trigger_args_are_not_shared_between_tasks(self):
         with DAG("e8", schedule=None, start_date=datetime(2020, 1, 1)):
             op_a = TimeSensor(task_id="a", target_time=time(9, 0), start_from_trigger=True)
             op_b = TimeSensor(task_id="b", target_time=time(17, 30), start_from_trigger=True)
 
+        assert TimeSensor.start_trigger_args is None
         assert op_a.start_trigger_args is not op_b.start_trigger_args
-        assert op_a.start_trigger_args is not TimeSensor.start_trigger_args
-        assert op_b.start_trigger_args is not TimeSensor.start_trigger_args
         assert op_a.start_trigger_args.trigger_kwargs["target_time"] == "09:00:00"
         assert op_b.start_trigger_args.trigger_kwargs["target_time"] == "17:30:00"
-        # Class template unchanged
-        assert TimeSensor.start_trigger_args.trigger_kwargs["target_time"] == "00:00:00"
 
-    # --- E9 HEADLINE: serialization stable across datetime.now() values ---
     @staticmethod
     def _serialized_dag_payload(dag) -> dict:
         """Serialized-Dag dict on every supported Airflow version.
@@ -307,7 +301,6 @@ class TestTimeSensor:
 
         assert first == second
 
-    # --- E10: end_from_trigger propagates into trigger kwargs (both paths) ---
     @time_machine.travel("2020-07-07 00:00:00", tick=False)
     def test_end_from_trigger_propagates(self):
         with DAG("e10", schedule=None, start_date=datetime(2020, 1, 1)):
@@ -331,6 +324,8 @@ class TestTimeSensor:
         assert isinstance(op.start_trigger_args, StartTriggerArgs)
         assert op.start_trigger_args.trigger_cls.endswith("TimeOfDayTrigger")
         assert "moment" not in op.start_trigger_args.trigger_kwargs
+        assert "timezone" not in op.start_trigger_args.trigger_kwargs
+        assert "tz" in op.start_trigger_args.trigger_kwargs
 
     def test_start_from_trigger_still_in_signature(self):
         import inspect
@@ -338,3 +333,17 @@ class TestTimeSensor:
         sig = inspect.signature(TimeSensor.__init__)
         assert "start_from_trigger" in sig.parameters
         assert sig.parameters["start_from_trigger"].default is False
+
+    @time_machine.travel("2020-07-07 08:00:00", tick=False)
+    def test_poke_and_defer_match_time_of_day_trigger_moment(self):
+        with DAG("same_moment", schedule=None, start_date=datetime(2020, 1, 1)):
+            poke_op = TimeSensor(task_id="poke", target_time=time(10, 0))
+            defer_op = TimeSensor(task_id="defer", target_time=time(10, 0), deferrable=True)
+            sft_op = TimeSensor(task_id="sft", target_time=time(10, 0), start_from_trigger=True)
+        as_of = timezone.utcnow()
+        kwargs = sft_op.start_trigger_args.trigger_kwargs
+        trigger_moment = resolve_time_of_day_moment(kwargs["target_time"], tz=kwargs["tz"], as_of=as_of)
+        assert poke_op.target_datetime == trigger_moment
+        with pytest.raises(TaskDeferred) as exc_info:
+            defer_op.execute({})
+        assert exc_info.value.trigger.moment == trigger_moment

@@ -45,7 +45,7 @@ class TimeSensor(BaseSensorOperator):
 
     When ``start_from_trigger=True``, the sensor starts directly on the triggerer
     via :class:`~airflow.providers.standard.triggers.temporal.TimeOfDayTrigger`,
-    which stores only the parse-stable ``target_time`` + timezone and resolves
+    which stores only the parse-stable ``target_time`` + tz and resolves
     the concrete moment when the trigger actually starts.
 
     :param target_time: time after which the job succeeds
@@ -63,17 +63,7 @@ class TimeSensor(BaseSensorOperator):
 
     """
 
-    # Class-level defaults are read-only templates. Instances that use
-    # start_from_trigger=True replace start_trigger_args with a *new* StartTriggerArgs
-    # so they never mutate this shared object (that mutation was a separate bug:
-    # every TimeSensor would inherit the last-constructed sensor's kwargs).
-    start_trigger_args = StartTriggerArgs(
-        trigger_cls="airflow.providers.standard.triggers.temporal.TimeOfDayTrigger",
-        trigger_kwargs={"target_time": "00:00:00", "timezone": "UTC", "end_from_trigger": False},
-        next_method="execute_complete",
-        next_kwargs=None,
-        timeout=None,
-    )
+    start_trigger_args = None
     start_from_trigger = False
 
     def __init__(
@@ -87,8 +77,7 @@ class TimeSensor(BaseSensorOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        # Store wall-clock time only; strip tzinfo so serialization is deterministic.
-        # Timezone comes from the Dag (or UTC when unattached).
+        # Wall-clock only; tzinfo is stripped so serialized target_time is deterministic.
         if isinstance(target_time, datetime.time) and target_time.tzinfo is not None:
             self.target_time = target_time.replace(tzinfo=None)
         else:
@@ -96,19 +85,22 @@ class TimeSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.start_from_trigger = start_from_trigger
         self.end_from_trigger = end_from_trigger
-        # Cached for the life of this task attempt (execute/poke/trigger-start).
-        # Avoids midnight drift if poke is re-entered after the local date rolls.
+        # Cached for this task attempt so a local-date rollover does not change the target.
         self._cached_target_datetime: datetime.datetime | None = None
 
         if self.start_from_trigger:
-            # Per-instance StartTriggerArgs — never mutate the class attribute.
-            # All values are parse-stable (no datetime.now()), so serialized Dag
-            # bytes stay identical across Dag-processor parses.
+            dag = self._dag
+            if dag is None:
+                raise ValueError(
+                    "TimeSensor(start_from_trigger=True) requires the sensor to be attached to a Dag "
+                    "so the timezone is known."
+                )
+            # Parse-stable kwargs only (no datetime.now()); moment is resolved when the trigger starts.
             self.start_trigger_args = StartTriggerArgs(
                 trigger_cls="airflow.providers.standard.triggers.temporal.TimeOfDayTrigger",
                 trigger_kwargs={
                     "target_time": self.target_time.isoformat(),
-                    "timezone": self._serializable_dag_timezone(),
+                    "tz": serializable_timezone(dag.timezone),
                     "end_from_trigger": self.end_from_trigger,
                 },
                 next_method="execute_complete",
@@ -116,29 +108,11 @@ class TimeSensor(BaseSensorOperator):
                 timeout=None,
             )
 
-    def _serializable_dag_timezone(self) -> str | int:
-        """
-        Encode the Dag timezone for trigger kwargs.
-
-        Uses ``self._dag`` (does not raise) so constructing a sensor before it is
-        attached to a Dag falls back to UTC instead of crashing. When a Dag is
-        present its timezone is encoded as an IANA name or fixed offset seconds.
-        """
-        dag = self._dag
-        if dag is None:
-            return "UTC"
-        return serializable_timezone(dag.timezone)
-
     def _resolve_target_datetime(self) -> datetime.datetime:
         """Compute the UTC moment for target_time on today's date in the Dag timezone."""
         dag = self._dag
-        # Fall back to UTC when unattached (unit tests / early construction). When a
-        # Dag is present, use its timezone so wall-clock semantics match the Dag.
-        tz: str | int | datetime.tzinfo
-        if dag is None:
-            tz = "UTC"
-        else:
-            tz = dag.timezone
+        # Unattached sensors (unit tests / early construction) use UTC.
+        tz: str | int | datetime.tzinfo = "UTC" if dag is None else dag.timezone
         return resolve_time_of_day_moment(self.target_time, tz=tz)
 
     def _get_target_datetime(self) -> datetime.datetime:
@@ -160,7 +134,6 @@ class TimeSensor(BaseSensorOperator):
         return self._get_target_datetime()
 
     def execute(self, context: Context) -> None:
-        # Resolve once for this attempt and cache (E2: no midnight recompute drift).
         moment = self._get_target_datetime()
         if self.deferrable:
             self.defer(

@@ -207,7 +207,7 @@ class DateTimeTrigger(BaseTrigger):
 
 class TimeOfDayTrigger(BaseTrigger):
     """
-    Trigger that fires once the wall-clock reaches ``target_time`` in ``timezone``.
+    Trigger that fires once the wall-clock reaches ``target_time`` in ``tz``.
 
     Unlike :class:`DateTimeTrigger`, the concrete moment is resolved when the trigger
     *starts* (not when the Dag is parsed). That keeps ``start_trigger_args`` parse-stable
@@ -217,8 +217,9 @@ class TimeOfDayTrigger(BaseTrigger):
     JSON/serde-safe (``datetime.time`` is not accepted by Airflow's trigger serde).
 
     :param target_time: wall-clock time of day (``datetime.time`` or ISO time string)
-    :param timezone: IANA name (str) or fixed offset in seconds (int); must round-trip
-        through ``pendulum.timezone``
+    :param tz: IANA name (str) or fixed offset in seconds (int); must round-trip
+        through ``pendulum.timezone``. Named ``tz`` to avoid shadowing the
+        ``timezone`` module imported from the SDK compat layer.
     :param end_from_trigger: whether the trigger should mark the task successful after
         the time condition is reached
     """
@@ -227,14 +228,13 @@ class TimeOfDayTrigger(BaseTrigger):
         self,
         target_time: datetime.time | str,
         *,
-        timezone: str | int = "UTC",
+        tz: str | int = "UTC",
         end_from_trigger: bool = False,
     ) -> None:
         super().__init__()
         self.target_time: str = _coerce_target_time(target_time).isoformat()
-        self.timezone: str | int = timezone
+        self.tz: str | int = tz
         self.end_from_trigger = end_from_trigger
-        # Resolved once at run() start and cached for this trigger attempt.
         self.moment: pendulum.DateTime | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -242,7 +242,7 @@ class TimeOfDayTrigger(BaseTrigger):
             "airflow.providers.standard.triggers.temporal.TimeOfDayTrigger",
             {
                 "target_time": self.target_time,
-                "timezone": self.timezone,
+                "tz": self.tz,
                 "end_from_trigger": self.end_from_trigger,
             },
         )
@@ -251,15 +251,14 @@ class TimeOfDayTrigger(BaseTrigger):
         """Resolve today's target moment, then reuse DateTimeTrigger's wait loop."""
         self.moment = resolve_time_of_day_moment(
             self.target_time,
-            tz=self.timezone,
+            tz=self.tz,
         )
         self.log.info(
-            "TimeOfDayTrigger resolved target_time=%s timezone=%r -> moment=%s",
+            "TimeOfDayTrigger resolved target_time=%s tz=%r -> moment=%s",
             self.target_time,
-            self.timezone,
+            self.tz,
             self.moment,
         )
-        # Delegate sleep/poll logic — do not duplicate the wait loop.
         delegate = DateTimeTrigger(moment=self.moment, end_from_trigger=self.end_from_trigger)
         async for event in delegate.run():
             yield event
