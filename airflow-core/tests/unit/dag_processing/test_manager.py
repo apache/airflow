@@ -42,6 +42,7 @@ import pytest
 import time_machine
 from sqlalchemy import event, func, select
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
@@ -1742,7 +1743,7 @@ class TestDagFileProcessorManager:
             )
 
         with mock.patch.object(manager, "_persist_bundle_group", autospec=True) as mock_group:
-            manager.persist_parsing_results(items, session=mock.MagicMock())
+            manager.persist_parsing_results(items, session=mock.MagicMock(spec=Session))
 
         assert [len(call.args[1]) for call in mock_group.call_args_list] == [1, 1], (
             "conflicting files must be written separately so the second sees the first"
@@ -1767,7 +1768,7 @@ class TestDagFileProcessorManager:
             )
 
         with mock.patch.object(manager, "_persist_bundle_group", autospec=True) as mock_group:
-            manager.persist_parsing_results(items, session=mock.MagicMock())
+            manager.persist_parsing_results(items, session=mock.MagicMock(spec=Session))
 
         assert [len(call.args[1]) for call in mock_group.call_args_list] == [2]
 
@@ -2028,7 +2029,7 @@ class TestDagFileProcessorManager:
         with mock.patch(
             "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
         ) as write:
-            manager._persist_bundle_group("testing", [blamer, blamed], session=mock.MagicMock())
+            manager._persist_bundle_group("testing", [blamer, blamed], session=mock.MagicMock(spec=Session))
 
         assert ("testing", "blamed.py") not in write.call_args.kwargs["import_errors"], (
             "the file's own parse is the last word on it"
@@ -2052,7 +2053,7 @@ class TestDagFileProcessorManager:
         with mock.patch(
             "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
         ) as write:
-            manager._persist_bundle_group("testing", [warned, owner], session=mock.MagicMock())
+            manager._persist_bundle_group("testing", [warned, owner], session=mock.MagicMock(spec=Session))
 
         assert not write.call_args.kwargs["warnings"], "the Dag's own file said nothing about it"
 
@@ -2153,7 +2154,9 @@ class TestDagFileProcessorManager:
             "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
         ) as write:
             manager._persist_bundle_group(
-                "testing", [blamer, self._item("blamed.py", ["blamed_dag"])], session=mock.MagicMock()
+                "testing",
+                [blamer, self._item("blamed.py", ["blamed_dag"])],
+                session=mock.MagicMock(spec=Session),
             )
 
         assert write.call_args.kwargs["import_errors"] == {}, (
@@ -2192,7 +2195,7 @@ class TestDagFileProcessorManager:
         with mock.patch(
             "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
         ) as write:
-            manager._persist_bundle_group("testing", [collected], session=mock.MagicMock())
+            manager._persist_bundle_group("testing", [collected], session=mock.MagicMock(spec=Session))
 
         assert write.call_args.kwargs["bundle_version"] == "v-old"
         assert write.call_args.kwargs["version_data"] == {"sha": "old"}
@@ -2235,24 +2238,59 @@ class TestDagFileProcessorManager:
 
         assert manager._file_stats[file] is before, "nothing about the file was learned"
 
+    def test_only_the_malformed_result_is_lost_when_grouping_cannot_read_it(self):
+        """Grouping reads the Dags a parser sent, and one it cannot read must not lose the sweep."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = "v1"
+        good_a, malformed, good_b = (
+            self._ready_processor(manager, name, num_dags=1)
+            for name in ("good_a.py", "malformed.py", "good_b.py")
+        )
+        # A Dag whose payload has no dag_id: LazyDeserializedDAG raises when grouping reads it.
+        manager._processors[malformed].parsing_result.serialized_dags[0].data["dag"].pop("dag_id")
+
+        with mock.patch(
+            "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+        ) as write:
+            manager._collect_results()
+
+        written = {dag.dag_id for call in write.call_args_list for dag in call.kwargs["dags"]}
+        assert written == {"good_a_dag_0", "good_b_dag_0"}, "the files that could be read are still written"
+        assert manager._file_stats[malformed].num_dags == 0, "and the one that could not is not"
+
+    def test_the_startup_notice_names_the_override_costing_the_batching(self, cap_structlog):
+        """A DeprecationWarning is filtered out of a running Dag processor; the log is not."""
+
+        class ApiBackedManager(DagFileProcessorManager):
+            def handle_parsing_result(self, file, proc, *, session=None):
+                pass
+
+        ApiBackedManager(max_runs=1)._warn_if_batching_is_disabled()
+
+        assert any("overrides handle_parsing_result" in entry["event"] for entry in cap_structlog)
+
     def test_cleanup_survives_a_hook_dropping_a_processor(self):
         """The cleanup must not become the failure that hides whatever brought us here."""
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_versions["testing"] = "v1"
         dropped = self._ready_processor(manager, "dropped.py", num_dags=1)
         kept = self._ready_processor(manager, "kept.py", num_dags=1)
-        closed = mock.patch.object(manager._processors[kept], "close")
+        closes = {
+            name: mock.patch.object(manager._processors[file], "close", autospec=True)
+            for name, file in (("dropped", dropped), ("kept", kept))
+        }
 
         def drop_one_and_fail(_):
             manager._processors.pop(dropped)
             raise RuntimeError("the sweep failed")
 
-        with closed as close:
+        with closes["dropped"] as dropped_close, closes["kept"] as kept_close:
             with mock.patch.object(manager, "_persist_sweep", autospec=True, side_effect=drop_one_and_fail):
                 with pytest.raises(RuntimeError, match="the sweep failed"):
                     manager._collect_results()
 
-        close.assert_called_once()
+        kept_close.assert_called_once()
+        assert dropped_close.call_count == 1, "dropping a processor from the mapping is not closing it"
         assert manager._processors == {}
 
     def test_a_file_that_cannot_be_handled_does_not_discard_its_neighbours(self):
