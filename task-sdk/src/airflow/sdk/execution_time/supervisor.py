@@ -2423,7 +2423,12 @@ def process_log_messages_from_subprocess(
         if level := NAME_TO_LEVEL.get(event.pop("level")):
             msg = event.pop("event", None)
             for target in loggers:
-                target.log(level, msg, **event)
+                try:
+                    target.log(level, msg, **event)
+                except ValueError:
+                    # The log file handle can already be closed while we drain buffered output of
+                    # a killed subprocess. Drop the leftover line instead of crashing the job.
+                    continue
 
 
 def forward_to_log(

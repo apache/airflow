@@ -752,6 +752,14 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
 
     def close(self):
+        # If the subprocess was killed, we may never have read EOF from its sockets, so they can
+        # still be registered in the shared selector. Unregister and close them before closing the
+        # log file handle, otherwise a later select() delivers stale events whose callbacks write
+        # to the closed handle and crash the whole dag processor job.
+        for sock in list(self._open_sockets):
+            self._on_socket_closed(sock)
+            with contextlib.suppress(OSError):
+                sock.close()
         try:
             self.logger_filehandle.close()
         except OSError:

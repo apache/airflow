@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import re
+import selectors
 import shutil
 import signal
 import textwrap
@@ -611,6 +612,36 @@ class TestDagFileProcessorManager:
             manager.terminate_orphan_processes(present=set())
 
         assert manager._processors == {}
+
+    def test_terminate_orphan_processes_unregisters_stale_sockets_on_close(self):
+        """A killed processor may still have sockets registered in the shared selector.
+
+        kill() can return before EOF was read from the subprocess sockets. If close() left them
+        registered, a later select() would deliver stale events that write to the already closed
+        log file handle and crash the whole dag processor job.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        processor, _ = self.mock_processor()
+        stale_sock, _keep_alive = socketpair()
+        processor.selector.register(
+            stale_sock, selectors.EVENT_READ, (lambda sock: False, lambda sock: None)
+        )
+        processor._open_sockets[stale_sock] = "logs"
+
+        manager._processors[versioned_file] = processor
+
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+        ):
+            manager.terminate_orphan_processes(present=set())
+
+        assert manager._processors == {}
+        assert stale_sock not in processor._open_sockets
+        with pytest.raises(KeyError):
+            processor.selector.get_key(stale_sock)
+        processor.logger_filehandle.close.assert_called_once()
 
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
