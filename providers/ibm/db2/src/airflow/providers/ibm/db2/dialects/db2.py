@@ -26,6 +26,44 @@ class Db2Dialect(Dialect):
     Provides Db2-specific SQL generation, particularly for MERGE (upsert) operations.
     """
 
+    def get_column_names(
+        self,
+        table: str,
+        schema: str | None = None,
+        **kwargs,
+    ) -> list[str] | None:
+        """
+        Return column names for a table, excluding identity columns.
+
+        Db2 marks auto-generated identity columns with ``autoincrement=True`` in the
+        SQLAlchemy reflection result.  Excluding them here mirrors the hook-level
+        behaviour that was previously implemented on ``Db2Hook``, and delegates the
+        actual inspector call to the base ``Dialect.get_column_names`` predicate API.
+
+        :param table: Table name (may include schema prefix as ``schema.table``)
+        :param schema: Optional schema name; takes precedence over a schema prefix in *table*
+        :return: Column names with identity (autoincrement) columns removed
+        """
+        return super().get_column_names(
+            table,
+            schema,
+            predicate=lambda col: not col.get("autoincrement", False),
+        )
+
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
+        """
+        Return primary key column names for a table.
+
+        The base ``Dialect.get_primary_keys`` implementation is identical to what
+        ``Db2Hook`` previously provided, so this simply delegates to it via ``super()``.
+        It is explicit here to make the Db2-level API surface clear.
+
+        :param table: Table name (may include schema prefix as ``schema.table``)
+        :param schema: Optional schema name; takes precedence over a schema prefix in *table*
+        :return: List of primary key column names
+        """
+        return super().get_primary_keys(table, schema)
+
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """
         Generate MERGE SQL statement for Db2.

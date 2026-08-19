@@ -20,13 +20,10 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.ibm.db2.dialects.db2 import Db2Dialect
-
-if TYPE_CHECKING:
-    from airflow.providers.common.sql.dialects.dialect import Dialect
 
 
 class Db2Hook(DbApiHook):
@@ -61,7 +58,7 @@ class Db2Hook(DbApiHook):
         return "db2"
 
     @cached_property
-    def dialect(self) -> Dialect:
+    def dialect(self) -> Db2Dialect:
         return Db2Dialect(self)
 
     @staticmethod
@@ -148,38 +145,27 @@ class Db2Hook(DbApiHook):
 
         return base_uri
 
-    def get_column_names(self, table: str, schema: str | None = None) -> list[str]:
+    def get_column_names(self, table: str, schema: str | None = None) -> list[str] | None:
         """
         Get column names for a table, excluding identity columns.
 
-        Uses the SQLAlchemy inspector to detect identity columns (``GENERATED ALWAYS AS IDENTITY``)
-        and exclude them from the result, as they should not appear in INSERT statements.
+        Delegates to :meth:`Db2Dialect.get_column_names`, which filters out columns
+        that Db2 marks as ``autoincrement=True`` (i.e. ``GENERATED ALWAYS AS IDENTITY``).
 
         :param table: Table name
-        :param schema: Schema name (optional, uses connection schema if not provided)
-        :return: List of column names excluding identity columns
+        :param schema: Schema name (optional)
+        :return: Column names excluding identity columns
         """
-        # Get all columns from SQLAlchemy inspector
-        columns = self.inspector.get_columns(table, schema=schema)
+        return self.dialect.get_column_names(table, schema)
 
-        # Filter out identity columns (those with autoincrement=True)
-        column_names = [col["name"] for col in columns if not col.get("autoincrement", False)]
-
-        self.log.debug("Column names for table '%s' (excluding identity columns): %s", table, column_names)
-        return column_names
-
-    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str]:
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         """
         Get primary key column names for a table.
 
-        Uses SQLAlchemy inspector to retrieve primary key information from the database.
+        Delegates to :meth:`Db2Dialect.get_primary_keys`.
 
         :param table: Table name
-        :param schema: Schema name (optional, uses connection schema if not provided)
+        :param schema: Schema name (optional)
         :return: List of primary key column names
         """
-        pk_constraint = self.inspector.get_pk_constraint(table, schema=schema)
-        pk_columns = pk_constraint.get("constrained_columns", [])
-
-        self.log.debug("Primary key columns for table '%s': %s", table, pk_columns)
-        return pk_columns
+        return self.dialect.get_primary_keys(table, schema)
