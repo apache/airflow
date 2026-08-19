@@ -1633,7 +1633,7 @@ class DagFileProcessorManager(LoggingMixin):
                 if not proc.is_ready:
                     # This processor hasn't finished yet, or we haven't read all the output from it yet
                     continue
-                finished.append(file)
+                finished.append((file, proc))
                 if handles_each_file:
                     self.handle_parsing_result(file, proc)
                     continue
@@ -1660,11 +1660,11 @@ class DagFileProcessorManager(LoggingMixin):
                 self._persist_sweep(to_persist)
         finally:
             # Leaving these open leaks their sockets and keeps them queued as if still running.
-            # A hook that ran above may have dropped one already, and this must not become the
-            # failure that hides whatever brought us here.
-            for file in finished:
-                if (processor := self._processors.pop(file, None)) is not None:
-                    processor.close()
+            # Close what was collected rather than what is still registered: a hook that ran above
+            # may have dropped one, and dropping it is not closing it.
+            for file, processor in finished:
+                self._processors.pop(file, None)
+                processor.close()
 
     def _persist_sweep(self, to_persist: list[FileParseResult]) -> None:
         """
