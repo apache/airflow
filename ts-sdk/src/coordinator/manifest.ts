@@ -18,27 +18,57 @@
  */
 
 import { SUPERVISOR_API_VERSION } from "./protocol.js";
-import { listRegisteredTasks, type TaskRegistration } from "../sdk/registry.js";
+import { listRegistryDags, type DagRegistry } from "../sdk/registry.js";
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
 /** Marks the manifest line on stdout, which import-time logging may also reach. */
 export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
 
+// Mirrors the Python task-SDK KEY_REGEX and validate_key in airflow.sdk.definitions._internal.node.
+// Checked here rather than in Dag()/task() registration: that runs on every
+// bundle module load, including at task-execution-runtime startup, whereas
+// this only runs once, when the bundle is packed.
+const KEY_REGEX = /^[\p{L}\p{N}_.-]+$/u;
+const MAX_KEY_LENGTH = 250;
+
+function validateKey(label: string, value: string): void {
+  if (typeof value !== "string" || !KEY_REGEX.test(value)) {
+    throw new Error(
+      `${label} must be made of alphanumeric characters, dashes, dots, and underscores`,
+    );
+  }
+  if (value.length > MAX_KEY_LENGTH) {
+    throw new Error(`${label} must be less than ${MAX_KEY_LENGTH} characters, not ${value.length}`);
+  }
+}
+
 /** Bundle manifest fields only the built bundle itself knows: the schema
  *  version it was compiled against and the Dag/task pairs it registered.
- *  `airflow-ts-pack` runs `node bundle.mjs --airflow-metadata` to read this. */
+ *  Registered Dags without tasks appear with an empty `tasks` list so
+ *  `airflow-ts-pack` (which runs `node bundle.mjs --airflow-metadata` to
+ *  read this) can warn about them instead of silently dropping them. */
 export interface BundleManifest {
   supervisor_schema_version: string;
   dags: Record<string, { tasks: string[] }>;
 }
 
-export function buildBundleManifest(
-  registrations: readonly TaskRegistration[] = listRegisteredTasks(),
-): BundleManifest {
+export function buildBundleManifest(registry: DagRegistry): BundleManifest {
   const dags: BundleManifest["dags"] = {};
-  for (const { dagId, taskId } of registrations) {
-    (dags[dagId] ??= { tasks: [] }).tasks.push(taskId);
+  for (const { dagId, tasks } of listRegistryDags(registry)) {
+    validateKey(`Dag "${dagId}"`, dagId);
+    for (const taskId of tasks) {
+      validateKey(`Task "${taskId}" of Dag "${dagId}"`, taskId);
+    }
+    Object.defineProperty(dags, dagId, {
+      configurable: true,
+      enumerable: true,
+      value: { tasks: [...tasks] },
+      writable: true,
+    });
   }
-  return { supervisor_schema_version: SUPERVISOR_API_VERSION, dags };
+  return {
+    supervisor_schema_version: SUPERVISOR_API_VERSION,
+    dags,
+  };
 }
