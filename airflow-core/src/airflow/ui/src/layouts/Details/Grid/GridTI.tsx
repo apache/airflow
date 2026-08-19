@@ -55,14 +55,17 @@ export const GridTI = ({
 
   const [searchParams] = useSearchParams();
 
-  const taskUrl = buildTaskInstanceUrl({
-    currentPathname: location.pathname,
-    dagId,
-    isGroup,
-    isMapped: Boolean(isMapped),
-    runId,
-    taskId,
-  });
+  const hasTaskInstance = instance.dag_version_number !== null && instance.dag_version_number !== undefined;
+  const taskUrl = hasTaskInstance
+    ? buildTaskInstanceUrl({
+        currentPathname: location.pathname,
+        dagId,
+        isGroup,
+        isMapped: Boolean(isMapped),
+        runId,
+        taskId,
+      })
+    : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
   // Remove try_number query param when navigating to reset to the
   // latest try of the task instance and avoid issues with invalid try numbers:

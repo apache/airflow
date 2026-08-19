@@ -162,7 +162,7 @@ correct Airflow tag/version/branch and Python versions in the URL.
 
 1. Installing just Airflow:
 
-> Note: Only `pip` installation is currently officially supported.
+> Note: Only `pip` and `uv` installation is currently officially supported.
 
 While it is possible to install Airflow with tools like [Poetry](https://python-poetry.org) or
 [pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
@@ -296,7 +296,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State       | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-------------|-----------------|-----------------------|------------------|
-| 3         | 3.3.0                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.3.1                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.2                | EOL         | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL         | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL         | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |

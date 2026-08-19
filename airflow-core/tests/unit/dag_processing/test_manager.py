@@ -157,6 +157,40 @@ def _create_zip_bundle_with_valid_and_broken_dags(zip_path: Path) -> None:
         )
 
 
+def _create_zip_bundle_with_keywordless_dag(zip_path: Path) -> None:
+    """Build a zip with one keyword-bearing member and one keyword-less ("wrapped") member.
+
+    ``with_keywords.py`` contains the ``airflow``/``dag`` strings the safe-mode heuristic looks
+    for. ``no_keywords.py`` mimics a custom wrapper whose source contains neither ``airflow`` nor
+    ``dag``/``asset`` -- exactly the case ``dag_discovery_safe_mode=False`` exists to support.
+    """
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr(
+            "with_keywords.py",
+            textwrap.dedent(
+                """
+                from airflow.sdk import DAG
+
+                with DAG(dag_id="zip_with_keywords"):
+                    pass
+                """
+            ),
+        )
+        zf.writestr(
+            "no_keywords.py",
+            textwrap.dedent(
+                """
+                from mycompany.pipelines import flow
+
+
+                @flow(name="nightly")
+                def nightly():
+                    run_step("extract")
+                """
+            ),
+        )
+
+
 class TestDagFileProcessorManager:
     @pytest.fixture(autouse=True)
     def _disable_examples(self):
@@ -308,6 +342,56 @@ class TestDagFileProcessorManager:
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
         mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
+    @pytest.mark.parametrize(
+        "safe_mode",
+        [
+            pytest.param(False, id="safe-mode-off-includes-keywordless"),
+            pytest.param(True, id="safe-mode-on-filters-keywordless"),
+        ],
+    )
+    def test_find_files_in_bundle_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
+        (tmp_path / "with_keywords.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "no_keywords.py").write_text("from mycompany.pipelines import flow\n")
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.name = "testing"
+        bundle.path = tmp_path
+
+        with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
+            manager = DagFileProcessorManager(max_runs=1)
+
+        expected = {Path("with_keywords.py")}
+        if not safe_mode:
+            expected.add(Path("no_keywords.py"))
+        assert set(manager._find_files_in_bundle(bundle)) == expected
+
+    @pytest.mark.parametrize(
+        "safe_mode",
+        [
+            pytest.param(False, id="safe-mode-off-includes-keywordless"),
+            pytest.param(True, id="safe-mode-on-filters-keywordless"),
+        ],
+    )
+    def test_get_observed_filelocs_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
+        """ZIP-member discovery used for deactivation must honor the configured safe_mode.
+
+        With ``dag_discovery_safe_mode=False`` a keyword-less (wrapped) zip member is parsed and
+        activated, so it must also be reported as observed -- otherwise it is deactivated right
+        after being parsed. This path previously hardcoded safe_mode=True.
+        """
+        zip_path = tmp_path / "test_zip.zip"
+        _create_zip_bundle_with_keywordless_dag(zip_path)
+
+        with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
+            manager = DagFileProcessorManager(max_runs=1)
+        observed_filelocs = manager._get_observed_filelocs(
+            {DagFileInfo(bundle_name="testing", rel_path=Path("test_zip.zip"), bundle_path=tmp_path)}
+        )
+
+        expected = {"test_zip.zip/with_keywords.py"}
+        if not safe_mode:
+            expected.add("test_zip.zip/no_keywords.py")
+        assert observed_filelocs == expected
 
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
@@ -576,7 +660,6 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == expected
 
         # Verify running it again produces same order
-        manager._files = []
         manager.prepare_file_queue(known_files=known_files)
         assert manager._file_queue == expected
 
@@ -1016,7 +1099,6 @@ class TestDagFileProcessorManager:
             run_count=1,
             last_num_of_db_queries=1,
         )
-        manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
         active_dag_count = session.scalar(
@@ -1035,6 +1117,73 @@ class TestDagFileProcessorManager:
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
+            )
+        )
+        assert active_dag_count == 0
+
+        serialized_dag_count = session.scalar(
+            select(func.count(SerializedDagModel.dag_id)).where(SerializedDagModel.dag_id == dag.dag_id)
+        )
+        # Deactivating the DagModel should not delete the SerializedDagModel
+        # SerializedDagModel gives history about Dags
+        assert serialized_dag_count == 1
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_scan_stale_dags_deactivates_zip_packaged_dags(self, session, test_zip_path):
+        """
+        Ensure that zip-packaged DAGs are marked inactive when the file is parsed but the
+        DagModel.last_parsed_time is not updated, testing fallback to the parent path when
+        comparing DAG.relative_fileloc to last_parsed entries.
+        """
+        manager = DagFileProcessorManager(
+            max_runs=1,
+            processor_timeout=10 * 60,
+        )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
+
+        test_dag_path = DagFileInfo(
+            rel_path=Path("test_zip.zip"),
+            bundle_path=Path(test_zip_path).parent,
+            bundle_name="testing",
+        )
+        dagbag = DagBag(
+            test_dag_path.absolute_path,
+            bundle_path=test_dag_path.bundle_path,
+        )
+
+        # Add stale DAG to the DB
+        dag = dagbag.get_dag("test_zip_dag")
+        sync_dag_to_db(dag, session=session)
+
+        # Add DAG to the file_parsing_stats
+        stat = DagFileStat(
+            num_dags=1,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            last_duration=1,
+            run_count=1,
+            last_num_of_db_queries=1,
+        )
+        manager._file_stats[test_dag_path] = stat
+
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
+                DagModel.dag_id == "test_zip_dag",
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path / "test_zip.py"),
+            )
+        )
+        assert active_dag_count == 1
+
+        manager._scan_stale_dags()
+
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
+                DagModel.dag_id == "test_zip_dag",
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path / "test_zip.py"),
             )
         )
         assert active_dag_count == 0
@@ -3186,6 +3335,39 @@ class TestDagFileProcessorManager:
 
         bundle.refresh.assert_not_called()
 
+    def test_refresh_dag_bundles_initialize_non_airflow_exception_skips_bundle(self):
+        """
+        A bundle whose initialize() raises a non AirflowException must be skipped, not
+        left to propagate and abort refresh for every other bundle.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        failing_bundle = self._make_refresh_bundle()
+        failing_bundle.name = "failing_bundle"
+        failing_bundle.is_initialized = False
+        failing_bundle.initialize.side_effect = FileNotFoundError("Repository path not found")
+
+        healthy_bundle = self._make_refresh_bundle()
+        healthy_bundle.name = "healthy_bundle"
+
+        manager._dag_bundles = [failing_bundle, healthy_bundle]
+        manager._force_refresh_bundles = set()
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        healthy_bundle.refresh.assert_called_once()
+
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.
 
@@ -3620,3 +3802,20 @@ class TestMultiTeamMetrics:
         # Two bundles resolved in a single batched query; the repeat call is served from cache.
         mock_get_team_names.assert_called_once()
         assert manager._bundle_name_to_team_name == {"bundle_a": "team_alpha", "bundle_b": "team_alpha"}
+
+
+def test_normalized_file_path_for_stats_does_not_warn(caplog):
+    """
+    rel_path always contains "/" for any nested DAG file, so normalizing it for stats
+    always requires substitution -- this must not log a warning on every DAG file, every
+    processing cycle.
+    """
+    dag_file_info = DagFileInfo(
+        bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path("dags/test/test_dag.py")
+    )
+
+    with caplog.at_level(logging.WARNING, logger="airflow._shared.observability.metrics.stats"):
+        result = dag_file_info.normalized_file_path_for_stats
+
+    assert result == "dags_test_test_dag.py"
+    assert caplog.entries == []
