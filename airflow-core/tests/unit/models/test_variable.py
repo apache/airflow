@@ -374,7 +374,7 @@ class TestVariable:
         Variable.set(key="k", value="v1", session=session)
 
         Variable.set(key="k", value="v2", team_name=testing_team.name, session=session)
-        
+
         assert Variable.get("k") == "v2"
 
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
