@@ -157,6 +157,7 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
             self.hook.get_credentials = self.dummy_get_credentials
 
+    @mock.patch(GENERATIVE_MODEL_STRING.format("_evaluation_import_error"), None)
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_eval_task"))
     def test_run_evaluation(self, mock_eval_task, mock_model) -> None:
