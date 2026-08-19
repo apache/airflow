@@ -780,13 +780,13 @@ OOM killed. The cache is now bounded by default. Tune it in the ``[scheduler]`` 
 .. code-block:: ini
 
     [scheduler]
-    dag_cache_size = 1024  ; max cached versions, evicting least recently used
+    dag_cache_size = 512   ; max cached versions, evicting least recently used
     dag_cache_ttl = 0      ; seconds before an idle cached entry expires (0 = no TTL)
 
-The defaults cap the cache at 1024 Dag versions and evict the least recently used one beyond
+The defaults cap the cache at 512 Dag versions and evict the least recently used one beyond
 that, so memory cannot grow with the number of versions the scheduler has ever seen. The
 scheduler reaches the cache through the Dag version of each active Dag run, so its working set is
-the versions with runs in flight; 1024 is meant to sit above that for a typical deployment.
+the versions with runs in flight; 512 is meant to sit above that for a typical deployment.
 
 If the scheduler is still OOM killed, lower ``dag_cache_size``. Raise it if you have more Dag
 versions with runs in flight than the limit, since a limit below the working set evicts versions

@@ -2680,7 +2680,7 @@ scheduler:
       version_added: 3.4.0
       type: integer
       example: ~
-      default: "1024"
+      default: "512"
     dag_cache_ttl:
       description: |
         Seconds a deserialized SerializedDAG stays in the scheduler's cache. Defaults to 0, which

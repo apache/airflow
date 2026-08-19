@@ -292,7 +292,7 @@ class TestDBDagBagCache:
         """
         dag_bag = _create_scheduler_dag_bag()
         assert isinstance(dag_bag._dags, LRUCache)
-        assert dag_bag._dags.maxsize == 1024
+        assert dag_bag._dags.maxsize == 512
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
