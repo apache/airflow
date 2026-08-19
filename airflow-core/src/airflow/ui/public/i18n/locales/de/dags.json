@@ -98,8 +98,8 @@
       "desc": "Sortiert nach Anzeigename (Z-A)"
     },
     "lastRunAfter": {
-      "asc": "Nach spätestem Lauf danach sortieren (frühester–spätester)",
-      "desc": "Nach spätestem Lauf danach sortieren (spätester–frühester)"
+      "asc": "Nach spätestem Gelaufen-nach Zeitstempel sortieren (frühester–spätester)",
+      "desc": "Nach spätestem Gelaufen-nach Zeitstempel sortieren (spätester–frühester)"
     },
     "lastRunState": {
       "asc": "Sortiert nach dem Status des letzten Laufes (A-Z)",
