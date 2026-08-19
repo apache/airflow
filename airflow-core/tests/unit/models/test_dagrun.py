@@ -1536,8 +1536,8 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
-    @mock.patch.object(Deadline, "handle_miss")
-    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(Deadline, "handle_miss", autospec=True)
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @pytest.mark.parametrize("fire_on_failure", [True, False])
     def test_dagrun_failure_handles_pending_deadline(
         self, mock_prune, mock_handle_miss, fire_on_failure, session, deadline_test_dag
@@ -1574,7 +1574,7 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.FAILED
 
-    @mock.patch.object(Deadline, "handle_miss")
+    @mock.patch.object(Deadline, "handle_miss", autospec=True)
     def test_dagrun_failure_skips_already_missed_deadline(self, mock_handle_miss, session, deadline_test_dag):
         scheduler_dag = deadline_test_dag()
 
@@ -1605,7 +1605,7 @@ class TestDagRun:
         assert deadline.missed is True
         assert dag_run.state == DagRunState.FAILED
 
-    @mock.patch.object(Deadline, "handle_miss")
+    @mock.patch.object(Deadline, "handle_miss", autospec=True)
     def test_dagrun_deadlock_handles_pending_deadline(self, mock_handle_miss, dag_maker, session):
         with dag_maker(
             dag_id="test_dagrun_deadlock_handles_pending_deadline",
@@ -1649,7 +1649,7 @@ class TestDagRun:
         mock_handle_miss.assert_called_once()
         assert dag_run.state == DagRunState.FAILED
 
-    @mock.patch.object(Deadline, "handle_miss", side_effect=RuntimeError("deadline failure"))
+    @mock.patch.object(Deadline, "handle_miss", autospec=True, side_effect=RuntimeError("deadline failure"))
     def test_dagrun_failure_ignores_missed_deadline_handling_error(
         self, mock_handle_miss, session, deadline_test_dag
     ):
@@ -1684,6 +1684,7 @@ class TestDagRun:
     @mock.patch.object(
         Deadline,
         "handle_miss",
+        autospec=True,
         side_effect=SQLAlchemyError("deadline database failure"),
     )
     def test_dagrun_failure_reraises_missed_deadline_sqlalchemy_error(
