@@ -2704,26 +2704,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
                 )
 
-                if data_interval is not None:
-                    skipped_summary = self._collect_skipped_intervals(
-                        serdag=serdag,
-                        new_info=next_info,
-                        session=session,
-                        listener_has_impls=listener_has_impls,
-                    )
-                    if skipped_summary is not None:
-                        if listener_has_impls:
-                            skipped_intervals_listener_events.append((serdag.dag_id, skipped_summary))
-                        if serdag.has_on_skipped_intervals_callback:
-                            skip_callback_requests.append(
-                                DagSkippedIntervalsCallbackRequest.from_summary(
-                                    filepath=dag_model.relative_fileloc or "",
-                                    bundle_name=dag_model.bundle_name,
-                                    bundle_version=created_run.bundle_version,
-                                    dag_id=serdag.dag_id,
-                                    summary=skipped_summary,
-                                )
+                skipped_summary = self._collect_skipped_intervals(
+                    serdag=serdag,
+                    new_info=next_info,
+                    session=session,
+                    listener_has_impls=listener_has_impls,
+                )
+                if skipped_summary is not None:
+                    if listener_has_impls:
+                        skipped_intervals_listener_events.append((serdag.dag_id, skipped_summary))
+                    if serdag.has_on_skipped_intervals_callback:
+                        skip_callback_requests.append(
+                            DagSkippedIntervalsCallbackRequest.from_summary(
+                                filepath=dag_model.relative_fileloc or "",
+                                bundle_name=dag_model.bundle_name,
+                                bundle_version=created_run.bundle_version,
+                                dag_id=serdag.dag_id,
+                                summary=skipped_summary,
                             )
+                        )
 
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
