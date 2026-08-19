@@ -624,6 +624,7 @@ class TestDagFileProcessorManager:
         versioned_file = _get_versioned_file_info("callbacks.py")
         processor, _ = self.mock_processor()
         stale_sock, _keep_alive = socketpair()
+        stale_sock_fd = stale_sock.fileno()
         processor.selector.register(
             stale_sock, selectors.EVENT_READ, (lambda sock: False, lambda sock: None)
         )
@@ -639,8 +640,7 @@ class TestDagFileProcessorManager:
 
         assert manager._processors == {}
         assert stale_sock not in processor._open_sockets
-        with pytest.raises(KeyError):
-            processor.selector.get_key(stale_sock)
+        assert stale_sock_fd not in processor.selector.get_map()
         processor.logger_filehandle.close.assert_called_once()
 
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
