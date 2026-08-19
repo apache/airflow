@@ -356,6 +356,59 @@ In case you want to also release a pre-installed provider that is in ``not-ready
 you want to release it before you switch their state to ``ready``), pass
 ``--include-not-ready-providers``.
 
+### Dropping a prepared provider back to doc-only (no PyPI artifact)
+
+Two different outcomes are both called "doc-only", and the difference decides whether the provider
+gets a PyPI release at all:
+
+| | What it means | PyPI artifact |
+|---|---|---|
+| A `doc-only` entry in the changelog | The provider *is* released; one of the entries in the release happens to be documentation | **Yes** |
+| The `.latest-doc-only-change.txt` marker | The provider is *not* released at all; only its documentation is republished | **No** |
+
+The second case comes up when a provider was already prepared with, say, a `Misc` entry, and review
+then concludes the change is internal or documentation only, so there is nothing for users to install.
+Changing the changelog entry is not enough — the version bump and the changelog stay prepared, and the
+provider would still be built and uploaded. The provider has to be dropped back to doc-only:
+
+1. Undo the prepared changes for that provider — the version bump in `provider.yaml` and the new
+   changelog section — so the provider is back to its released state:
+
+   ```shell script
+   git checkout -- providers/PROVIDER/provider.yaml providers/PROVIDER/docs/changelog.rst
+   ```
+
+2. Re-run the documentation preparation for that provider alone:
+
+   ```shell script
+   breeze release-management prepare-provider-documentation PROVIDER
+   ```
+
+3. Answer **`N`** to `Does the provider: PROVIDER have any changes apart from 'doc-only'?`.
+
+   This writes `providers/PROVIDER/docs/.latest-doc-only-change.txt` and stops preparing that
+   provider — no version bump, no changelog section, no distribution.
+
+4. Commit the marker file. It is the only artifact of the whole sequence, and it must be committed
+   or the next release will prepare the provider again:
+
+   ```shell script
+   git add providers/PROVIDER/docs/.latest-doc-only-change.txt
+   ```
+
+The marker holds the full commit hash of the latest change that was declared doc-only. On the next
+release, the tooling counts commits since that hash rather than since the last release tag, so:
+
+* if nothing landed since the marker, the provider is skipped with
+  `The provider has doc-only changes since the last release. Skipping`;
+* if something did land, only the commits after the marker are classified, so the changes already
+  declared doc-only are not offered for classification a second time.
+
+> [!NOTE]
+> The same applies when using the `prepare-providers-documentation` skill — it classifies commits,
+> but the decision that a prepared provider should not be released at all is still made by the
+> release manager, and is still recorded by this marker file.
+
 ## Update versions of dependent providers to the next version
 
 Sometimes when contributors want to use next version of a dependent provider, instead of
@@ -435,6 +488,14 @@ following labels to the PR (if they aren't already set from the original PR):
 
 * `skip common compat check`
 * `allow provider dependency bump`
+
+The rebase before merging is also the point to check the wave in the other direction. The incremental
+flow looks for commits that are *missing* from the release; it does not look for providers that are in
+the release but should no longer be there. If review concluded that a prepared provider's only changes
+are internal or documentation, that provider still carries its version bump and changelog section, and
+it would still be built and uploaded. Drop it back with [Dropping a prepared provider back to
+doc-only](#dropping-a-prepared-provider-back-to-doc-only-no-pypi-artifact) before merging, so the
+decision made in review is actually reflected in what gets released.
 
 Once approved, merge it - be careful to do it quickly so that no new PRs are merged for
 providers in the meantime; if they are, you'd miss them in the changelog.
