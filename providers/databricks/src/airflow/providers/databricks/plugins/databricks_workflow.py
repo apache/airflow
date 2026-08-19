@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urlencode, urlsplit
 
 from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
@@ -382,6 +382,16 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
 
     name = "Repair All Failed Tasks"
 
+    @property
+    def operators(self):
+        # Declared so deserialization keeps this plugin link instead of replacing it with
+        # XComOperatorLink. Lazy import avoids a circular import with the operator module.
+        from airflow.providers.databricks.operators.databricks_workflow import (
+            _CreateDatabricksWorkflowOperator,
+        )
+
+        return [_CreateDatabricksWorkflowOperator]
+
     def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
         operator,
@@ -489,6 +499,17 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
 
     name = "Repair a single task"
 
+    @property
+    def operators(self):
+        # Declared so deserialization keeps this plugin link instead of replacing it with
+        # XComOperatorLink. Lazy import avoids a circular import with the operator module.
+        from airflow.providers.databricks.operators.databricks import (
+            DatabricksNotebookOperator,
+            DatabricksTaskOperator,
+        )
+
+        return [DatabricksNotebookOperator, DatabricksTaskOperator]
+
     def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
         operator,
@@ -570,34 +591,57 @@ def _build_repair_url(
     link — the endpoint derives them server-side, so the request cannot point the repair at an
     arbitrary connection or Databricks run.
     """
-    from urllib.parse import urlencode
-
     query: dict[str, Any] = {"launch_task_id": launch_task_id}
     if repair_all:
         query["repair_all"] = "true"
     if task_id:
         query["task_id"] = task_id
 
-    base_url = conf.get("api", "base_url", fallback="").rstrip("/")
+    # Same-site relative path only. Using the full ``[api] base_url`` (scheme + host) would make
+    # the confirmation POST cross-origin when that setting names a different domain than the UI,
+    # and SameSite=Lax would then withhold the auth cookie.
     return (
-        f"{base_url}{REPAIR_URL_PREFIX}/{quote(dag_id, safe='')}/{quote(run_id, safe='')}?{urlencode(query)}"
+        f"{_api_root_path()}{REPAIR_URL_PREFIX}/{quote(dag_id, safe='')}/"
+        f"{quote(run_id, safe='')}?{urlencode(query)}"
     )
+
+
+def _api_root_path() -> str:
+    """Path prefix from ``[api] base_url``, or empty when the API is mounted at the origin root."""
+    return urlsplit(conf.get("api", "base_url", fallback="") or "").path.rstrip("/")
+
+
+def _ui_run_path(dag_id: str, run_id: str) -> str:
+    """Same-site relative path to the Dag run in the UI, including the API root path if set."""
+    return f"{_api_root_path()}/dags/{quote(dag_id, safe='')}/runs/{quote(run_id, safe='')}"
 
 
 def _get_launch_task_id_v3(operator: BaseOperator, ti_key: TaskInstanceKey) -> str | None:
     """
     Resolve the ``task_id`` of the workflow's launch task for an extra-link render.
 
-    The link only needs to name the launch task; the repair endpoint reads that task's trusted
-    ``WorkflowRunMetadata`` XCom server-side. Returns ``None`` when the operator is not part of a
-    Databricks workflow task group (so the link is not rendered).
+    Works on both live operators and deserialized ones. ``SerializedTaskGroup`` has no
+    ``get_child_by_label``, so this never calls it. Returns ``None`` when the launch task
+    cannot be found (so the link is not rendered).
     """
-    task_group = operator.task_group
-    if not task_group:
-        return None
-    if ".launch" in ti_key.task_id:
+    if ti_key.task_id.endswith(".launch"):
         return ti_key.task_id
-    return get_launch_task_id(task_group)
+
+    for tid in getattr(operator, "upstream_task_ids", ()) or ():
+        if tid.endswith(".launch"):
+            return tid
+
+    task_group = getattr(operator, "task_group", None)
+    while task_group is not None:
+        child_id = getattr(task_group, "child_id", None)
+        children = getattr(task_group, "children", None)
+        if callable(child_id) and children is not None:
+            launch_id = child_id("launch")
+            if launch_id in children:
+                child = children[launch_id]
+                return getattr(child, "task_id", launch_id)
+        task_group = getattr(task_group, "parent_group", None)
+    return None
 
 
 if AIRFLOW_V_3_1_PLUS:
@@ -729,10 +773,9 @@ if AIRFLOW_V_3_1_PLUS:
             if repair_all
             else f"This will repair task '{task_id}' and resume its downstream tasks."
         )
-        # Rebuild the same-site POST target from the validated identifiers rather than echoing the
-        # request URL, so no request-controlled string reaches the rendered form action. SameSite=Lax
-        # on the auth cookie means a cross-site POST cannot carry it, so moving the mutation to POST
-        # is what protects it from CSRF.
+        # Rebuild a same-site relative POST target from the validated identifiers rather than
+        # echoing the request URL. SameSite=Lax on the auth cookie means a cross-site POST cannot
+        # carry it, so moving the mutation to POST is what protects it from CSRF.
         action = _build_repair_url(dag_id, run_id, launch_task_id, repair_all=repair_all, task_id=task_id)
         return _repair_confirmation_page(dag_id, run_id, action, summary)
 
@@ -766,8 +809,9 @@ if AIRFLOW_V_3_1_PLUS:
 
             # Build the redirect target from the run's own persisted identifiers, not the request,
             # so it is a fixed same-site path that request input cannot influence (CodeQL
-            # open-redirect).
-            return_url = f"/dags/{quote(dag_run.dag_id, safe='')}/runs/{quote(dag_run.run_id, safe='')}"
+            # open-redirect). Include the API root path so a non-root ``[api] base_url`` does
+            # not 404 the UI after repair.
+            return_url = _ui_run_path(dag_run.dag_id, dag_run.run_id)
 
             metadata = _read_launch_metadata(dag_id, run_id, launch_task_id, session)
 
@@ -788,7 +832,20 @@ if AIRFLOW_V_3_1_PLUS:
                         _task_id_to_key(dag_id, t.task_id, metadata.task_key_map): t.task_id
                         for t in dag.tasks
                     }
-                    repaired_task_ids = [key_to_task_id[k] for k in task_keys if k in key_to_task_id]
+                    repaired_task_ids = []
+                    unmapped_keys = []
+                    for task_key in task_keys:
+                        mapped_task_id = key_to_task_id.get(task_key)
+                        if mapped_task_id is None:
+                            unmapped_keys.append(task_key)
+                        else:
+                            repaired_task_ids.append(mapped_task_id)
+                    if unmapped_keys:
+                        log.warning(
+                            "Databricks repair returned task keys that could not be mapped "
+                            "to Airflow tasks: %s",
+                            unmapped_keys,
+                        )
                 else:
                     task_keys = [_task_id_to_key(dag_id, repaired_task_ids[0], metadata.task_key_map)]
 
