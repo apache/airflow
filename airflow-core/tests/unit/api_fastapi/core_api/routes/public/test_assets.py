@@ -27,6 +27,7 @@ from sqlalchemy import delete, func, select, update
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.core_api.security import PermittedAssetEventFilter
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -39,8 +40,10 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.base import ID_LEN
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset
@@ -58,6 +61,7 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
+    clear_db_teams,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
@@ -68,6 +72,10 @@ pytestmark = pytest.mark.db_test
 
 
 def _create_assets(session, num: int = 2) -> list[AssetModel]:
+    # Event fixtures in this module attribute their events to these Dag ids. /assets/events
+    # scopes results to the Dags the caller may read, so the Dags have to exist for the
+    # fixtures to represent a real deployment.
+    _ensure_dags(session, "source_dag_id", "d", "d1", "d2")
     assets = [
         AssetModel(
             id=i,
@@ -131,6 +139,30 @@ def _create_assets_with_watchers(session, num: int = 2) -> list[AssetModel]:
     return assets
 
 
+def _create_assets_with_team_references(session, num: int = 2, refs_per_asset: int = 1) -> list[AssetModel]:
+    """Create ``num`` assets, each scheduling and produced by ``refs_per_asset`` team-owned Dags."""
+    bundle = DagBundleModel(name="team-bundle-assets")
+    bundle.teams.append(Team(name="team-assets"))
+    session.add(bundle)
+    session.flush()
+    assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(num)]
+    session.add_all(assets)
+    session.add_all(AssetActive.for_asset(asset) for asset in assets)
+    session.flush()
+    for i, asset in enumerate(assets):
+        for j in range(refs_per_asset):
+            session.add_all(
+                [
+                    DagModel(dag_id=f"scheduled_dag{i}_{j}", bundle_name="team-bundle-assets"),
+                    DagModel(dag_id=f"producing_dag{i}_{j}", bundle_name="team-bundle-assets"),
+                    DagScheduleAssetReference(dag_id=f"scheduled_dag{i}_{j}", asset=asset),
+                    TaskOutletAssetReference(dag_id=f"producing_dag{i}_{j}", task_id="task1", asset=asset),
+                ]
+            )
+    session.commit()
+    return assets
+
+
 def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
     assets = [
         AssetModel(
@@ -173,7 +205,29 @@ def _create_provided_asset_alias(session, asset_alias: AssetAliasModel) -> None:
     session.commit()
 
 
+def _ensure_dags(session, *dag_ids: str) -> None:
+    """Register the Dags that asset-event fixtures attribute their events to.
+
+    ``/assets/events`` scopes events to the Dags the caller may read, and that scoping
+    resolves against ``DagModel``. Fixtures that create events with a ``source_dag_id``
+    therefore need the corresponding Dag to exist, as it would in a real deployment.
+    """
+    from airflow.models.dagbundle import DagBundleModel
+
+    session.merge(DagBundleModel(name="testing"))
+    session.flush()
+    for dag_id in dag_ids:
+        if session.get(DagModel, dag_id) is None:
+            session.add(DagModel(dag_id=dag_id, bundle_name="testing"))
+    session.commit()
+
+
+def _ensure_source_dag(session) -> None:
+    _ensure_dags(session, "source_dag_id")
+
+
 def _create_assets_events(session, num: int = 2, varying_timestamps=False) -> None:
+    _ensure_source_dag(session)
     assets_events = [
         AssetEvent(
             id=i,
@@ -191,6 +245,7 @@ def _create_assets_events(session, num: int = 2, varying_timestamps=False) -> No
 
 
 def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
+    _ensure_source_dag(session)
     assets_events = [
         AssetEvent(
             id=i,
@@ -208,11 +263,13 @@ def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
 
 
 def _create_provided_asset_event(session, asset_event: AssetEvent) -> None:
+    _ensure_source_dag(session)
     session.add(asset_event)
     session.commit()
 
 
 def _create_dag_run(session, num: int = 2):
+    _ensure_source_dag(session)
     dag_runs = [
         DagRun(
             dag_id="source_dag_id",
@@ -262,6 +319,7 @@ class TestAssets:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
+        clear_db_teams()
         clear_db_dag_bundles()
         clear_db_logs()
 
@@ -497,6 +555,45 @@ class TestGetAssets(TestAssets):
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
+
+    def test_assets_references_team_name_none_without_multi_team(self, test_client, session):
+        """Without multi-team enabled, references keep ``team_name`` of ``None`` and no lookup happens."""
+        _create_assets_with_team_references(session)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset0"]["scheduled_dags"][0]["team_name"] is None
+        assert assets["asset0"]["producing_tasks"][0]["team_name"] is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_assets_references_include_team_name(self, test_client, session):
+        """With multi-team enabled, the owning team is attached to scheduled Dags and producing tasks."""
+        _create_assets_with_team_references(session)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset0"]["scheduled_dags"][0]["team_name"] == "team-assets"
+        assert assets["asset0"]["producing_tasks"][0]["team_name"] == "team-assets"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        _create_assets_with_team_references(session, num=5)
+
+        with assert_queries_count(9):
+            response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset4"]["scheduled_dags"][0]["team_name"] == "team-assets"
+        assert assets["asset4"]["producing_tasks"][0]["team_name"] == "team-assets"
 
     @pytest.mark.parametrize(
         ("params", "expected_assets"),
@@ -822,6 +919,84 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
         assert len(response.json()["asset_aliases"]) == 50
 
 
+class TestGetAssetEventsPerDagScoping(TestAssets):
+    """``/assets/events`` returns only events the caller is entitled to see.
+
+    An event produced by a Dag's task is scoped to that Dag's readability. An event with no
+    source Dag — created through the API, or emitted by a watcher — carries no per-Dag key to
+    authorize on and stays visible.
+    """
+
+    def test_filter_scopes_to_source_dag_and_keeps_dagless_events(self):
+        """The clause admits the readable Dags and rows with no source Dag."""
+        rendered = str(PermittedAssetEventFilter({"readable_dag"}).to_orm(select(AssetEvent)))
+
+        assert "source_dag_id IN" in rendered
+        assert "source_dag_id IS NULL" in rendered
+
+    def test_filter_with_no_readable_dags_still_admits_dagless_events(self, session):
+        """A caller who may read no Dag at all still sees events that belong to no Dag."""
+        self.create_assets(session=session, num=1)
+        session.add(AssetEvent(id=1, asset_id=1, extra={}, timestamp=DEFAULT_DATE))
+        session.add(
+            AssetEvent(id=2, asset_id=1, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE)
+        )
+        session.commit()
+
+        statement = PermittedAssetEventFilter(set()).to_orm(select(AssetEvent))
+        visible = session.scalars(statement).all()
+
+        assert [event.id for event in visible] == [1]
+
+    def test_filter_admits_only_events_from_readable_dags(self, session):
+        """An event produced by a Dag the caller cannot read is not returned."""
+        self.create_assets(session=session, num=1)
+        session.add(
+            AssetEvent(id=1, asset_id=1, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE)
+        )
+        session.add(AssetEvent(id=2, asset_id=1, extra={}, source_dag_id="other_dag", timestamp=DEFAULT_DATE))
+        session.commit()
+
+        statement = PermittedAssetEventFilter({"source_dag_id"}).to_orm(select(AssetEvent))
+        visible = session.scalars(statement).all()
+
+        assert [event.id for event in visible] == [1]
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_ids"),
+        [
+            pytest.param(["source_dag_id"], [1, 3], id="one-readable-dag-plus-dagless"),
+            pytest.param(["source_dag_id", "other_dag"], [1, 2, 3], id="both-dags-readable"),
+            pytest.param([], [3], id="no-readable-dags-still-sees-dagless"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_endpoint_returns_only_events_the_caller_may_read(
+        self, mock_get_authorized_dag_ids, test_client, session, readable_dags, expected_ids
+    ):
+        """End-to-end: the route itself scopes the response, not just the filter class."""
+        mock_get_authorized_dag_ids.return_value = set(readable_dags)
+
+        self.create_assets(session=session, num=1)
+        session.add_all(
+            [
+                AssetEvent(id=1, asset_id=1, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE),
+                AssetEvent(id=2, asset_id=1, extra={}, source_dag_id="other_dag", timestamp=DEFAULT_DATE),
+                # No source Dag: created through the API or emitted by a watcher.
+                AssetEvent(id=3, asset_id=1, extra={}, timestamp=DEFAULT_DATE),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert sorted(event["id"] for event in body["asset_events"]) == expected_ids
+        # The count must be scoped too, so the existence of hidden events does not leak.
+        assert body["total_entries"] == len(expected_ids)
+
+
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
         asset1, asset2 = self.create_assets(session=session)
@@ -832,7 +1007,9 @@ class TestGetAssetEvents(TestAssets):
         session.commit()
         assert len(assets) == 2
 
-        with assert_queries_count(4):
+        # 5 rather than 4: resolving the caller's readable Dags, so events can be scoped
+        # to them, costs one additional query — the same cost the queued-events routes pay.
+        with assert_queries_count(5):
             response = test_client.get("/assets/events")
 
         assert response.status_code == 200
@@ -928,6 +1105,33 @@ class TestGetAssetEvents(TestAssets):
         events = {event["id"]: event for event in response.json()["asset_events"]}
         assert events[1]["created_dagruns"][0]["triggering"] is False
         assert events[2]["created_dagruns"][0]["triggering"] is True
+
+    def test_should_return_created_dag_run_without_start_date(self, test_client, session):
+        self.create_assets(num=1, session=session)
+        _ensure_dags(session, "producer_dag")
+        asset_event = AssetEvent(
+            asset_id=1,
+            source_dag_id="producer_dag",
+            source_run_id="producer_run",
+            timestamp=DEFAULT_DATE,
+        )
+        dag_run = DagRun(
+            dag_id="consumer_dag",
+            run_id="asset-triggered-run",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=DEFAULT_DATE,
+            start_date=None,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=DagRunState.QUEUED,
+        )
+        dag_run.consumed_asset_events.append(asset_event)
+        session.add(dag_run)
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        assert response.json()["asset_events"][0]["created_dagruns"][0]["start_date"] is None
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/assets/events")
@@ -1480,6 +1684,24 @@ class TestGetAssetEndpoint(TestAssets):
             "last_asset_event": {"id": None, "timestamp": None},
         }
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        asset = _create_assets_with_team_references(session, num=1, refs_per_asset=5)[0]
+
+        with assert_queries_count(8):
+            response = test_client.get(f"/assets/{asset.id}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert {ref["team_name"] for ref in body["scheduled_dags"]} == {"team-assets"}
+        assert {ref["team_name"] for ref in body["producing_tasks"]} == {"team-assets"}
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/assets/1")
         assert response.status_code == 401
@@ -1589,6 +1811,73 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 200
         assert response.json() == {"queued_events": [], "total_entries": 0}
+
+
+class TestQueuedEventsDagAxisAuthorization:
+    """The Dag axis of the queued-events routes must match what the route does to the Dag.
+
+    Deleting queued events cancels a Dag's pending asset-triggered scheduling, which is a
+    write to that Dag's scheduling state, so those routes require Dag edit. Reading them
+    requires only Dag read.
+    """
+
+    @staticmethod
+    def _dag_axis_methods(route) -> list[str]:
+        """Return the ``method`` captured by each ``requires_access_dag`` on a route."""
+        from airflow.api_fastapi.core_api.security import requires_access_dag
+
+        module = requires_access_dag.__module__
+        methods = []
+        for dependency in route.dependant.dependencies:
+            call = dependency.call
+            # requires_access_dag returns a closure; the ResourceMethod it was built with
+            # is captured in one of that closure's cells.
+            if getattr(call, "__module__", None) != module or not call.__closure__:
+                continue
+            if call.__qualname__.split(".")[0] != "requires_access_dag":
+                continue
+            for cell in call.__closure__:
+                value = cell.cell_contents
+                if isinstance(value, str) and value in {"GET", "POST", "PUT", "DELETE", "MENU"}:
+                    methods.append(value)
+        return methods
+
+    @pytest.fixture
+    def routes_by_path(self, test_client):
+        return {
+            (r.path, tuple(sorted(r.methods))): r for r in test_client.app.routes if hasattr(r, "dependant")
+        }
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/assets/{asset_id}/queuedEvents",
+            "/dags/{dag_id}/assets/queuedEvents",
+            "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+        ],
+    )
+    def test_delete_queued_events_requires_dag_edit(self, routes_by_path, path):
+        matches = [
+            r for (p, methods), r in routes_by_path.items() if p.endswith(path) and "DELETE" in methods
+        ]
+        assert matches, f"no DELETE route registered for {path}"
+        for route in matches:
+            assert self._dag_axis_methods(route) == ["PUT"], (
+                f"DELETE {path} must gate the Dag axis on edit, not read"
+            )
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/dags/{dag_id}/assets/queuedEvents",
+            "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+        ],
+    )
+    def test_get_queued_events_requires_only_dag_read(self, routes_by_path, path):
+        matches = [r for (p, methods), r in routes_by_path.items() if p.endswith(path) and "GET" in methods]
+        assert matches, f"no GET route registered for {path}"
+        for route in matches:
+            assert self._dag_axis_methods(route) == ["GET"]
 
 
 class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
