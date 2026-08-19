@@ -46,9 +46,14 @@ When to use this provider
 
 ``common.ai`` is built on `pydantic-ai <https://ai.pydantic.dev/>`__, so the model vendor
 (OpenAI, Anthropic, Google, Bedrock, …) is picked by the connection ``llm_conn_id`` points
-at — switching providers later is a connection change, not a Dag rewrite. Existing LangChain
-tools aren't locked out either: with the ``langchain`` extra installed, they can be wrapped
-in ``LangChainToolset`` and dropped straight into a common.ai agent (see :doc:`toolsets`).
+at — switching providers later is a connection change, not a Dag rewrite. Most connections
+use the generic ``pydanticai`` type, but Azure OpenAI, Bedrock, and Vertex AI also have their
+own connection types (``pydanticai-azure``, ``pydanticai-bedrock``, ``pydanticai-vertex``) for
+provider-specific authentication. Existing LangChain
+tools aren't locked out either: pydantic-ai ships ``pydantic_ai.ext.langchain.LangChainToolset``
+upstream, which wraps LangChain tools for a common.ai agent, and the provider's own
+:func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`
+converts the other way — Airflow-managed toolsets into LangChain tools (see :doc:`toolsets`).
 The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools all
 run in the Airflow worker, where they get retries, logging, and observability like any other
 task.
@@ -59,11 +64,26 @@ Use it when a Dag needs:
   :doc:`LLMOperator and @task.llm <operators/llm>`, with Pydantic-typed output pushed to XCom.
 * **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
 * **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
-  in the worker, calling Airflow-defined :doc:`toolsets <toolsets>` (SQL, hooks, MCP servers),
-  with optional human-in-the-loop review and durable step replay — if the task retries after
-  a failure, completed steps are replayed from cache instead of re-executing.
-* **Document pipelines** — loading, file analysis, embeddings, and retrieval for RAG
-  (see :doc:`operators/index`).
+  in the worker, calling Airflow-defined :doc:`toolsets <toolsets>` (SQL, hooks, MCP servers,
+  :ref:`Agent Skills <agent-skills>`), optionally collapsed into a single sandboxed
+  :ref:`code mode <code-mode>` call, with optional human-in-the-loop review and durable step
+  replay — if the task retries after a failure, completed steps are replayed from cache
+  instead of re-executing. Guardrails from the upstream ``pydantic-ai-shields`` package
+  (``InputGuard``, ``OutputGuard``, ``ToolGuard``, ``CostTracking``) plug into the same agent
+  loop (see :doc:`operators/agent`).
+* **Analyzing files or comparing schemas with an LLM** —
+  :doc:`LLMFileAnalysisOperator <operators/llm_file_analysis>` reads a file (object storage or
+  local) into a prompt; :doc:`LLMSchemaCompareOperator <operators/llm_schema_compare>` diffs
+  schemas across systems and flags drift a plain equality check would miss.
+* **Generating SQL from natural language** —
+  :doc:`LLMSQLQueryOperator <operators/llm_sql>` returns the generated query via XCom for
+  ``SQLExecuteQueryOperator`` or a downstream task to run; it does not execute the query itself.
+* **Document pipelines for RAG** —
+  :doc:`DocumentLoaderOperator <operators/document_loader>` parses files into structured text
+  and metadata, :doc:`LlamaIndexEmbeddingOperator <operators/llamaindex_embedding>` embeds it,
+  and :doc:`LlamaIndexRetrievalOperator <operators/llamaindex_retrieval>` retrieves the closest
+  chunks for an :doc:`LLMOperator <operators/llm>` prompt (see :doc:`operators/index` for the
+  full set).
 
 Use a vendor's own provider instead when the Dag needs that vendor's **native API surface** —
 a service the vendor runs for you, which no vendor-neutral operator wraps:
@@ -127,8 +147,13 @@ See the Optional dependencies table below for the exact package each extra insta
     :caption: Guides
 
     Quick start <quickstart>
-    Connection types <connections/pydantic_ai>
+    Pydantic AI connection <connections/pydantic_ai>
+    Pydantic AI (Azure OpenAI) connection <connections/pydantic_ai_azure>
+    Pydantic AI (AWS Bedrock) connection <connections/pydantic_ai_bedrock>
+    Pydantic AI (Google Vertex AI) connection <connections/pydantic_ai_vertex>
     MCP connection <connections/mcp>
+    LangChain connection <connections/langchain>
+    LlamaIndex connection <connections/llamaindex>
     Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>

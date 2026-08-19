@@ -7873,6 +7873,13 @@
                         }
                     ]
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 120,
+                    "minimum": 0,
+                    "x-docsSection": "Kubernetes"
+                },
                 "securityContexts": {
                     "description": "Security context definition for the PgBouncer.",
                     "type": "object",

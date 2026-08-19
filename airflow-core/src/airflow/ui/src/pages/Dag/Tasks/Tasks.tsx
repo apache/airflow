@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -126,20 +125,19 @@ export const Tasks = () => {
   });
 
   return (
-    <Box>
+    <>
       <ErrorAlert error={tasksError} />
-
-      <TaskFilters tasksData={data} />
 
       <DataTable
         columns={columns}
         data={filteredTasks}
         displayMode="card"
+        filterActions={<TaskFilters tasksData={data} />}
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:task"
         total={data ? data.total_entries : 0}
       />
-    </Box>
+    </>
   );
 };

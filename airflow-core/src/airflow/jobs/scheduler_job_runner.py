@@ -155,6 +155,18 @@ DM = DagModel
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
+SCHEDULER_DAG_CACHE_SIZE = 512
+"""
+Max deserialized Dag versions the scheduler keeps in memory.
+
+The scheduler reaches its DagBag through the Dag version of each active Dag run, so an
+unbounded cache retains every version the process has ever seen and grows for the life of
+the process. Sized to sit above the versions-with-runs-in-flight working set of a typical
+deployment, so eviction costs a re-fetch only where that working set is genuinely larger.
+
+:meta private:
+"""
+
 # Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
 # Bounds the per-tick transaction so executor heartbeats and regular scheduling
 # aren't starved; remaining APDRs drain across subsequent ticks.
@@ -370,7 +382,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = DBDagBag(load_op_links=False)
+        self.scheduler_dag_bag = DBDagBag(load_op_links=False, cache_size=SCHEDULER_DAG_CACHE_SIZE)
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
