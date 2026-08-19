@@ -342,12 +342,15 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
     """
     Poll a Databricks SQL warehouse until it reaches a target lifecycle state.
 
+    Databricks has no cancel API for warehouse start or stop, so this trigger does
+    not override ``on_kill``. Clearing a deferred wait leaves warehouse state unchanged.
+
     :param warehouse_id: ID of the Databricks SQL warehouse.
     :param target_state: Lifecycle state to wait for (``RUNNING`` or ``STOPPED``).
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
-    :param timeout: Maximum number of seconds to wait after the trigger starts polling.
-        The deadline uses ``time.monotonic()`` locally so it survives trigger serialization
-        without depending on wall-clock time.
+    :param end_time: Absolute Unix timestamp when the wait must stop. The operator
+        sets this from ``timeout`` before deferring so a triggerer restart or HA
+        rebalance does not reset the deadline.
     :param polling_period_seconds: Controls the rate of the poll for the warehouse state.
         By default, the trigger will poll every 30 seconds.
     :param retry_limit: The number of times to retry the connection in case of service outages.
@@ -363,7 +366,7 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
         warehouse_id: str,
         target_state: str,
         databricks_conn_id: str,
-        timeout: float,
+        end_time: float,
         polling_period_seconds: int = 30,
         retry_limit: int = 3,
         retry_delay: int = 10,
@@ -377,7 +380,7 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
         self.warehouse_id = warehouse_id
         self.target_state = target_state
         self.databricks_conn_id = databricks_conn_id
-        self.timeout = timeout
+        self.end_time = end_time
         self.polling_period_seconds = polling_period_seconds
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
@@ -398,21 +401,13 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
                 "warehouse_id": self.warehouse_id,
                 "target_state": self.target_state,
                 "databricks_conn_id": self.databricks_conn_id,
-                "timeout": self.timeout,
+                "end_time": self.end_time,
                 "polling_period_seconds": self.polling_period_seconds,
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
                 "caller": self.caller,
             },
-        )
-
-    async def on_kill(self) -> None:
-        # Warehouses have no cancel-start/stop API. Clearing a deferred start must not stop the
-        # warehouse — the Dag author may still want it running after the wait is abandoned.
-        self.log.info(
-            "Databricks SQL warehouse %s wait cancelled; leaving warehouse state unchanged.",
-            self.warehouse_id,
         )
 
     def _build_trigger_event(
@@ -425,19 +420,19 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
             "last_state": last_state,
         }
         if state is not None:
+            # Same typed JSON payload as RunState / SQLStatementState triggers.
             payload["state"] = state.to_json()
         return TriggerEvent(payload)
 
     async def run(self):
         async with self.hook:
-            deadline = time.monotonic() + self.timeout
             last_state = "unknown"
             last_warehouse_state: WarehouseState | None = None
-            while time.monotonic() < deadline:
+            while time.time() < self.end_time:
                 warehouse_state = await self.hook.a_get_warehouse_state(self.warehouse_id)
                 last_warehouse_state = warehouse_state
                 last_state = warehouse_state.state
-                now = time.monotonic()
+                now = time.time()
                 if warehouse_state.state == self.target_state:
                     yield self._build_trigger_event(
                         status="success", last_state=last_state, state=warehouse_state
@@ -448,7 +443,7 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
                         status="deleted", last_state=last_state, state=warehouse_state
                     )
                     return
-                if now >= deadline:
+                if now >= self.end_time:
                     break
                 self.log.info(
                     "Databricks SQL warehouse %s is %s; waiting for %s.",
@@ -456,7 +451,7 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
                     warehouse_state.state,
                     self.target_state,
                 )
-                await asyncio.sleep(min(self.polling_period_seconds, deadline - now))
+                await asyncio.sleep(min(self.polling_period_seconds, self.end_time - now))
             yield self._build_trigger_event(
                 status="timeout", last_state=last_state, state=last_warehouse_state
             )
