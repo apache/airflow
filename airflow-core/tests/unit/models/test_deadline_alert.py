@@ -24,10 +24,20 @@ import time_machine
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.models import deadline as deadline_models
+from airflow.models.deadline import ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk.definitions.deadline import BaseDeadlineReference, DeadlineReference
+from airflow.sdk.definitions.deadline import (
+    DAGRUN_CREATED_TIMING,
+    DAGRUN_QUEUED_TIMING,
+    EVALUATION_TIMING_FIELD,
+    REFERENCE_TYPE_FIELD,
+    BaseDeadlineReference,
+    DeadlineReference,
+)
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
+from airflow.serialization.encoders import encode_deadline_reference
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
@@ -37,6 +47,24 @@ DEADLINE_NAME = "Test Alert"
 DEADLINE_INTERVAL = 60
 DEADLINE_CALLBACK = {"path": "test.callback"}
 SERIALIZED_DAG_ID = "serialized_dag_uuid"
+
+
+class CustomQueuedReference(BaseDeadlineReference):
+    """A queued-anchored custom reference which overrides serialize_reference, as the docs suggest."""
+
+    evaluation_timing = DAGRUN_QUEUED_TIMING
+
+    def serialize_reference(self) -> dict:
+        return {REFERENCE_TYPE_FIELD: self.reference_name}
+
+
+def test_core_timing_constants_match_the_sdk():
+    """Core cannot import these from the SDK, so guard the copies against drift."""
+    assert (
+        deadline_models.EVALUATION_TIMING_FIELD,
+        deadline_models.DAGRUN_CREATED_TIMING,
+        deadline_models.DAGRUN_QUEUED_TIMING,
+    ) == (EVALUATION_TIMING_FIELD, DAGRUN_CREATED_TIMING, DAGRUN_QUEUED_TIMING)
 
 
 def _clean_db():
@@ -236,11 +264,32 @@ class TestDeadlineAlert:
                 dag_id="test_dag",
             )
 
+    @pytest.mark.parametrize(
+        ("reference", "expected_timing"),
+        [
+            pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, DAGRUN_QUEUED_TIMING, id="sdk_queued"),
+            pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, DAGRUN_CREATED_TIMING, id="sdk_created"),
+            pytest.param(CustomQueuedReference(), DAGRUN_QUEUED_TIMING, id="custom_queued"),
+            pytest.param(
+                SerializedReferenceModels.SerializedCustomReference(CustomQueuedReference()),
+                DAGRUN_QUEUED_TIMING,
+                id="wrapped_custom_queued",
+            ),
+            pytest.param(
+                SerializedReferenceModels.DagRunQueuedAtDeadline(),
+                DAGRUN_QUEUED_TIMING,
+                id="serialized_queued",
+            ),
+            pytest.param(
+                ReferenceModels.DagRunQueuedAtDeadline(), DAGRUN_QUEUED_TIMING, id="core_legacy_queued"
+            ),
+        ],
+    )
+    def test_encoded_reference_carries_evaluation_timing(self, reference, expected_timing):
+        assert encode_deadline_reference(reference)[EVALUATION_TIMING_FIELD] == expected_timing
+
     def test_core_deadline_reference_treated_as_builtins(self):
         """Test that refs from airflow.models.deadline are still treated as builtins."""
-        from airflow.models.deadline import ReferenceModels
-        from airflow.serialization.encoders import encode_deadline_reference
-
         ref = ReferenceModels.DagRunLogicalDateDeadline()
         serialized = encode_deadline_reference(ref)
 
