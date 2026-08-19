@@ -16,25 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-
-import { Modal } from "src/components/ui";
-
-import LanguageSelector from "./LanguageSelector";
-
-type LanguageModalProps = {
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
-};
-
-const LanguageModal = ({ isOpen, onClose }: LanguageModalProps) => {
-  const { t: translate } = useTranslation();
-
-  return (
-    <Modal lazyMount onOpenChange={onClose} open={isOpen} title={translate("selectLanguage")}>
-      <LanguageSelector />
-    </Modal>
-  );
-};
-
-export default LanguageModal;
+export * from "./Modal";
