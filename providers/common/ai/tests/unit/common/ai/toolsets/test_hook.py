@@ -20,6 +20,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.hook import (
@@ -49,6 +50,10 @@ class _FakeHook:
 
     def no_docstring(self, x: int) -> int:
         return x * 2
+
+    def failing_method(self, x: int) -> int:
+        """Always raise, for testing call_tool failure handling."""
+        raise RuntimeError("boom")
 
     def request(
         self, endpoint: str | None = None, data: dict[str, object] | str | None = None, **kwargs: object
@@ -202,6 +207,21 @@ class TestHookToolsetCallTool:
             )
         )
         assert result == "contents of test.txt"
+
+    def test_wraps_failure_in_model_retry(self):
+        hook = _FakeHook()
+        ts = HookToolset(hook, allowed_methods=["failing_method"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+
+        with pytest.raises(ModelRetry, match="failing_method tool failed: boom"):
+            asyncio.run(
+                ts.call_tool(
+                    "failing_method",
+                    {"x": 1},
+                    ctx=MagicMock(),
+                    tool=tools["failing_method"],
+                )
+            )
 
 
 class TestBuildJsonSchemaFromSignature:

@@ -24,6 +24,7 @@ import re
 import types
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
@@ -61,6 +62,10 @@ class HookToolset(AbstractToolset[Any]):
         auto-discovery is intentionally not supported for safety.
     :param tool_name_prefix: Optional prefix prepended to each tool name
         (e.g. ``"s3_"`` → ``"s3_list_keys"``).
+
+    When a tool call fails, the hook's own error message is returned to the agent as a
+    retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its arguments within
+    the run instead of failing the task.
     """
 
     def __init__(
@@ -136,7 +141,10 @@ class HookToolset(AbstractToolset[Any]):
     ) -> Any:
         method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
         method: Callable[..., Any] = getattr(self._hook, method_name)
-        result = method(**tool_args)
+        try:
+            result = method(**tool_args)
+        except Exception as e:
+            raise ModelRetry(f"The {name} tool failed: {e}") from e
         return _serialize_for_llm(result)
 
 
