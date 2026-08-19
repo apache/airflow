@@ -60,10 +60,11 @@ class KinesisTrigger(BaseEventTrigger):
     :param batch_size: Maximum records per ``GetRecords`` call and trigger event. Must be between 1 and
         10,000. Record data is base64-encoded before it is stored in the metadata database, so use a
         conservative value for large records.
-    :param waiter_delay: Seconds between complete polling sweeps. Kinesis permits at most five
-        ``GetRecords`` calls per second per shard. When reading a backlog with ``TRIM_HORIZON``, draining
-        ``N`` records from one shard takes roughly ``ceil(N / batch_size) * waiter_delay`` seconds when
-        calls return full batches; with the defaults, 10,000 records take about 1,000 seconds.
+    :param waiter_delay: Seconds between complete polling sweeps. Must be less than the five-minute
+        shard iterator lifetime. Kinesis permits at most five ``GetRecords`` calls per second per shard.
+        When reading a backlog with ``TRIM_HORIZON``, draining ``N`` records from one shard takes roughly
+        ``ceil(N / batch_size) * waiter_delay`` seconds when calls return full batches; with the defaults,
+        10,000 records take about 1,000 seconds.
     :param region_name: AWS region for the Kinesis client.
     :param verify: Whether to verify SSL certificates, or the path to a CA bundle.
     :param botocore_config: Botocore configuration passed to the Kinesis client.
@@ -88,8 +89,8 @@ class KinesisTrigger(BaseEventTrigger):
             )
         if not 1 <= batch_size <= 10_000:
             raise ValueError("batch_size must be between 1 and 10000")
-        if waiter_delay < 1:
-            raise ValueError("waiter_delay must be at least 1 second")
+        if not 0 < waiter_delay < 300:
+            raise ValueError("waiter_delay must be between 1 and 299 seconds")
 
         self.stream_name = stream_name
         self.aws_conn_id = aws_conn_id
@@ -223,6 +224,31 @@ class KinesisTrigger(BaseEventTrigger):
             )
         return response["ShardIterator"]
 
+    async def _get_records(
+        self,
+        client: BaseAwsConnection,
+        shard_id: str,
+        shard_iterator: str,
+        after_sequence_number: str | None,
+        fallback_iterator_type: str,
+    ) -> dict[str, Any]:
+        try:
+            return await client.get_records(
+                ShardIterator=shard_iterator,
+                Limit=self.batch_size,
+            )
+        except client.exceptions.ExpiredIteratorException:
+            shard_iterator = await self._get_shard_iterator(
+                client,
+                shard_id,
+                after_sequence_number,
+                fallback_iterator_type,
+            )
+            return await client.get_records(
+                ShardIterator=shard_iterator,
+                Limit=self.batch_size,
+            )
+
     @staticmethod
     def _build_event_records(shard_id: str, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         event_records = []
@@ -264,18 +290,13 @@ class KinesisTrigger(BaseEventTrigger):
             while True:
                 for shard_id, shard_iterator in list(iterators.items()):
                     try:
-                        response = await client.get_records(
-                            ShardIterator=shard_iterator,
-                            Limit=self.batch_size,
-                        )
-                    except client.exceptions.ExpiredIteratorException:
-                        iterators[shard_id] = await self._get_shard_iterator(
+                        response = await self._get_records(
                             client,
                             shard_id,
+                            shard_iterator,
                             sequence_numbers.get(shard_id),
                             fallback_iterator_types.get(shard_id, self.shard_iterator_type),
                         )
-                        continue
                     except client.exceptions.ProvisionedThroughputExceededException:
                         self.log.warning("Kinesis read throughput exceeded for shard %s", shard_id)
                         continue

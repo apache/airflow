@@ -153,7 +153,8 @@ def test_serialize(trigger):
         ({"shard_iterator_type": "AT_TIMESTAMP"}, "shard_iterator_type must be one of"),
         ({"batch_size": 0}, "batch_size must be between"),
         ({"batch_size": 10_001}, "batch_size must be between"),
-        ({"waiter_delay": 0}, "waiter_delay must be at least"),
+        ({"waiter_delay": 0}, "waiter_delay must be between"),
+        ({"waiter_delay": 300}, "waiter_delay must be between"),
     ],
 )
 def test_invalid_arguments_raise(kwargs, message):
@@ -533,7 +534,7 @@ async def test_expired_iterator_is_recovered_from_checkpoint(mock_sleep, hook_pr
             StartingSequenceNumber="123",
         ),
     ]
-    mock_sleep.assert_awaited_once_with(10)
+    mock_sleep.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -575,7 +576,7 @@ async def test_child_iterator_recovery_preserves_trim_horizon(mock_sleep, hook_p
             ShardIteratorType="TRIM_HORIZON",
         ),
     ]
-    assert mock_sleep.await_count == 2
+    mock_sleep.assert_awaited_once_with(10)
 
 
 @pytest.mark.asyncio
