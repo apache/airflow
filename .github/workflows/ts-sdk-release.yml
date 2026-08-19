@@ -15,13 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-name: Publish TypeScript SDK
+name: Release TypeScript SDK
 
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
+      release_type:
+        description: "Stage the package for review or publish it directly"
+        required: true
+        type: choice
+        options:
+          - staged
+          - formal
       tag:
         description: "TypeScript SDK release tag (ts-sdk/<version>)"
+        required: true
+        type: string
+      npm_tag:
+        description: "npm dist-tag (for example: beta or latest)"
         required: true
         type: string
 
@@ -29,44 +40,47 @@ permissions:
   contents: read
 
 concurrency:
-  group: ts-sdk-npm-publish
+  group: ts-sdk-npm-release
   cancel-in-progress: false
 
 jobs:
-  validate-tag:
-    name: Validate release tag
+  staged-release:
+    name: Stage release on npm
+    if: inputs.release_type == 'staged'
     runs-on: ubuntu-latest
-    outputs:
-      npm-tag: ${{ steps.validate.outputs.npm-tag }}
-      version: ${{ steps.validate.outputs.version }}
+    environment: ts-sdk-npm
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - name: Validate tag format
-        id: validate
+      - name: Validate release inputs
+        id: release
         env:
+          NPM_TAG: ${{ inputs.npm_tag }}
           RELEASE_TAG: ${{ inputs.tag }}
           SEMVER_PATTERN: >-
             ^ts-sdk/([0-9]+\.[0-9]+\.[0-9]+
-            (-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?
-            (\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?)$
+            (-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?)$
         run: |
           set -euo pipefail
           if [[ ! "${RELEASE_TAG}" =~ ${SEMVER_PATTERN// /} ]]; then
-            echo "Tag must have the form ts-sdk/<semver>" >&2
+            echo "Release tag must have the form ts-sdk/<semver>" >&2
             exit 1
           fi
-          echo "version=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
-          if [[ -n "${BASH_REMATCH[2]}" ]]; then
-            echo "npm-tag=next" >> "${GITHUB_OUTPUT}"
-          else
-            echo "npm-tag=latest" >> "${GITHUB_OUTPUT}"
+          version="${BASH_REMATCH[1]}"
+          if [[ ! "${NPM_TAG}" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "A valid npm_tag is required" >&2
+            exit 1
           fi
-
-  build:
-    name: Verify and package release
-    needs: validate-tag
-    runs-on: ubuntu-latest
-    environment: ts-sdk-npm
-    steps:
+          if [[ "${version}" == *-* && "${NPM_TAG}" == "latest" ]]; then
+            echo "Prereleases must not use the latest npm dist-tag" >&2
+            exit 1
+          fi
+          if [[ "${version}" != *-* && "${NPM_TAG}" != "latest" ]]; then
+            echo "Stable releases must use the latest npm dist-tag" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
       - name: Checkout release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -83,69 +97,137 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "24.11.1"
+          node-version: "24.19.0"
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
-      - name: Enable the pinned pnpm version
-        run: corepack enable
-      - name: Verify package version
-        working-directory: ts-sdk
-        env:
-          EXPECTED_VERSION: ${{ needs.validate-tag.outputs.version }}
+      - name: Enable release toolchain
         run: |
           set -euo pipefail
-          test "$(node --print "require('./package.json').version")" = "${EXPECTED_VERSION}"
-      - name: Install dependencies
+          node --input-type=module --eval '
+            import { execFileSync } from "node:child_process";
+            const npmVersion = execFileSync("npm", ["--version"], { encoding: "utf8" });
+            const [major, minor] = npmVersion.split(".").map(Number);
+            if (major < 11 || (major === 11 && minor < 15)) process.exit(1);
+          '
+          corepack enable
+      - name: Verify package identity
         working-directory: ts-sdk
-        run: pnpm install --frozen-lockfile
-      - name: Test and build package
+        env:
+          EXPECTED_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(node --print "require('./package.json').name")" = "apache-airflow-ts-sdk"
+          test "$(node --print "require('./package.json').version")" = "${EXPECTED_VERSION}"
+      - name: Verify and package release
         working-directory: ts-sdk
         run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
           pnpm run lint
           pnpm run format:check
           pnpm run typecheck
           pnpm test
           pnpm run build
           npm pack --dry-run
-      - name: Create package tarball
-        working-directory: ts-sdk
-        run: npm pack --pack-destination ../package-artifact
-      - name: Upload package tarball
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: ts-sdk-package
-          path: package-artifact/*.tgz
-          if-no-files-found: error
+          mkdir -p ../package-artifact
+          npm pack --pack-destination ../package-artifact
+      - name: Stage with npm trusted publishing
+        env:
+          NPM_TAG: ${{ inputs.npm_tag }}
+        run: >-
+          npm stage publish package-artifact/*.tgz
+          --access public --tag "${NPM_TAG}"
 
-  publish:
-    name: Publish package to npm
-    needs: [validate-tag, build]
+  formal-release:
+    name: Publish formal release to npm
+    if: inputs.release_type == 'formal'
     runs-on: ubuntu-latest
     environment: ts-sdk-npm
     permissions:
       contents: read
       id-token: write
     steps:
+      - name: Validate release inputs
+        id: release
+        env:
+          NPM_TAG: ${{ inputs.npm_tag }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          SEMVER_PATTERN: >-
+            ^ts-sdk/([0-9]+\.[0-9]+\.[0-9]+
+            (-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?)$
+        run: |
+          set -euo pipefail
+          if [[ ! "${RELEASE_TAG}" =~ ${SEMVER_PATTERN// /} ]]; then
+            echo "Release tag must have the form ts-sdk/<semver>" >&2
+            exit 1
+          fi
+          version="${BASH_REMATCH[1]}"
+          if [[ ! "${NPM_TAG}" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "A valid npm_tag is required" >&2
+            exit 1
+          fi
+          if [[ "${version}" == *-* && "${NPM_TAG}" == "latest" ]]; then
+            echo "Prereleases must not use the latest npm dist-tag" >&2
+            exit 1
+          fi
+          if [[ "${version}" != *-* && "${NPM_TAG}" != "latest" ]]; then
+            echo "Stable releases must use the latest npm dist-tag" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm checkout is the requested tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor HEAD "$(git rev-parse refs/remotes/origin/main)"
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "24.11.1"
+          node-version: "24.19.0"
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
-      - name: Check npm supports trusted publishing
+      - name: Enable release toolchain
         run: |
+          set -euo pipefail
           node --input-type=module --eval '
             import { execFileSync } from "node:child_process";
             const npmVersion = execFileSync("npm", ["--version"], { encoding: "utf8" });
             const [major, minor] = npmVersion.split(".").map(Number);
-            if (major < 11 || (major === 11 && minor < 5)) process.exit(1);
+            if (major < 11 || (major === 11 && minor < 15)) process.exit(1);
           '
-      - name: Download verified package tarball
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-        with:
-          name: ts-sdk-package
-          path: package-artifact
+          corepack enable
+      - name: Verify package identity
+        working-directory: ts-sdk
+        env:
+          EXPECTED_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(node --print "require('./package.json').name")" = "apache-airflow-ts-sdk"
+          test "$(node --print "require('./package.json').version")" = "${EXPECTED_VERSION}"
+      - name: Verify and package release
+        working-directory: ts-sdk
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm run lint
+          pnpm run format:check
+          pnpm run typecheck
+          pnpm test
+          pnpm run build
+          npm pack --dry-run
+          mkdir -p ../package-artifact
+          npm pack --pack-destination ../package-artifact
       - name: Publish with npm trusted publishing
         env:
-          NPM_TAG: ${{ needs.validate-tag.outputs.npm-tag }}
-        run: npm publish package-artifact/*.tgz --access public --tag "${NPM_TAG}"
+          NPM_TAG: ${{ inputs.npm_tag }}
+        run: >-
+          npm publish package-artifact/*.tgz
+          --access public --tag "${NPM_TAG}"
