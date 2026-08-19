@@ -244,6 +244,22 @@ describe("runPack", () => {
     },
   );
 
+  it("reports the last error from a failed bundle", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "multiple-errors-entry.ts");
+    writeFileSync(
+      entry,
+      ['console.error("Error: earlier failure");', 'throw new Error("final failure");'].join("\n"),
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toHaveProperty(
+      "message",
+      "Error: final failure",
+    );
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
   // A bundle can print the sentinel itself, so nothing on that line is trusted.
   it.each([
     ['{ supervisor_schema_version: "1", dags: { broken_dag: {} } }', "malformed entry"],

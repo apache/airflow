@@ -132,6 +132,7 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     const stderr = (error as { stderr?: string }).stderr ?? "";
     const reported = stderr
       .split("\n")
+      .reverse()
       .find((line) => /^\w*Error: /.test(line.trim()))
       ?.trim();
     throw new Error(
