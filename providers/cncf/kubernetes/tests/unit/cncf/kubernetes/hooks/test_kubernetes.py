@@ -126,6 +126,24 @@ class TestTimeoutK8sApiClient:
             assert call_kwargs["_request_timeout"] == expected_timeout
             assert out == "ok"
 
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_verify_ssl", "expected_ssl_ca_cert"),
+        [
+            pytest.param({"ssl_ca_cert": "/path/to/ca.pem"}, True, "/path/to/ca.pem", id="ssl-ca-cert-only"),
+            pytest.param(
+                {"ssl_ca_cert": "/path/to/ca.pem", "disable_verify_ssl": True},
+                False,
+                "/path/to/ca.pem",
+                id="ssl-ca-cert-and-disable-verify-ssl",
+            ),
+        ],
+    )
+    def test_ssl_ca_cert_sets_configuration(self, kwargs, expected_verify_ssl, expected_ssl_ca_cert):
+        """ssl_ca_cert is applied to the client configuration, independently of disable_verify_ssl."""
+        cli = _TimeoutK8sApiClient(**kwargs)
+        assert cli.configuration.ssl_ca_cert == expected_ssl_ca_cert
+        assert cli.configuration.verify_ssl is expected_verify_ssl
+
 
 class TestTimeoutAsyncK8sApiClient:
     @pytest.mark.asyncio
@@ -222,6 +240,8 @@ class TestKubernetesHook:
             ("default_kube_config", {}),
             ("disable_verify_ssl", {"disable_verify_ssl": True}),
             ("disable_verify_ssl_empty", {"disable_verify_ssl": ""}),
+            ("ssl_ca_cert", {"ssl_ca_cert": "/extra/ca.pem"}),
+            ("ssl_ca_cert_empty", {"ssl_ca_cert": ""}),
             ("disable_tcp_keepalive", {"disable_tcp_keepalive": True}),
             ("disable_tcp_keepalive_empty", {"disable_tcp_keepalive": ""}),
             ("sidecar_container_image", {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"}),
@@ -412,6 +432,62 @@ class TestKubernetesHook:
         api_conn = kubernetes_hook.get_conn()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
         assert api_conn.configuration.verify_ssl is False
+
+    @pytest.mark.parametrize(
+        ("ssl_ca_cert_param", "conn_id", "expected"),
+        (
+            ("/param/ca.pem", None, "/param/ca.pem"),
+            (None, "ssl_ca_cert", "/extra/ca.pem"),
+            ("/param/ca.pem", "ssl_ca_cert", "/param/ca.pem"),
+            (None, "ssl_ca_cert_empty", None),
+        ),
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    def test_ssl_ca_cert(self, ssl_ca_cert_param, conn_id, expected):
+        """
+        Verifies that ssl_ca_cert from the hook param or connection extra is applied to the
+        returned ApiClient's configuration. Hook param should beat extra.
+        """
+        kubernetes_hook = KubernetesHook(conn_id=conn_id, ssl_ca_cert=ssl_ca_cert_param)
+        api_conn = kubernetes_hook.get_conn()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.ssl_ca_cert == expected
+
+    @pytest.mark.parametrize(
+        "config_source",
+        [
+            pytest.param("in_cluster", id="in_cluster"),
+            pytest.param("kube_config_path", id="kube_config_path"),
+            pytest.param("kube_config", id="kube_config"),
+            pytest.param("config_dict", id="config_dict"),
+            pytest.param("default", id="default_client"),
+        ],
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
+    def test_ssl_ca_cert_applies_to_client_configuration(self, config_source):
+        """
+        Verifies that ssl_ca_cert is propagated to the returned ApiClient's configuration
+        regardless of which configuration-loading branch of get_conn() is taken.
+        """
+        if config_source == "in_cluster":
+            kubernetes_hook = KubernetesHook(conn_id="in_cluster", ssl_ca_cert="/param/ca.pem")
+        elif config_source == "kube_config_path":
+            kubernetes_hook = KubernetesHook(conn_id="kube_config_path", ssl_ca_cert="/param/ca.pem")
+        elif config_source == "kube_config":
+            kubernetes_hook = KubernetesHook(conn_id="kube_config", ssl_ca_cert="/param/ca.pem")
+        elif config_source == "config_dict":
+            kubernetes_hook = KubernetesHook(
+                config_dict={"apiVersion": "v1", "kind": "Config"},
+                ssl_ca_cert="/param/ca.pem",
+            )
+        else:
+            kubernetes_hook = KubernetesHook(ssl_ca_cert="/param/ca.pem")
+
+        api_conn = kubernetes_hook.get_conn()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.ssl_ca_cert == "/param/ca.pem"
 
     @pytest.mark.parametrize(
         ("disable_tcp_keepalive", "conn_id", "expected"),
@@ -619,7 +695,9 @@ class TestKubernetesHook:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri):
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
-            mock_get_client.assert_called_with(cluster_context="test", disable_verify_ssl=None)
+            mock_get_client.assert_called_with(
+                cluster_context="test", disable_verify_ssl=None, ssl_ca_cert=None
+            )
             assert kubernetes_hook.get_namespace() == "test"
 
     def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):
