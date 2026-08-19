@@ -27,7 +27,7 @@ plain JavaScript), running on Node.js. A matching Python stub Dag still declares
 dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
 :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
-The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **beta** and its API may change.
+The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in **beta** and its API may change.
 
 .. warning::
 
