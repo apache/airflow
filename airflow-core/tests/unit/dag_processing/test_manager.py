@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import math
 import os
 import random
 import re
@@ -40,7 +41,7 @@ from unittest.mock import MagicMock
 import msgspec
 import pytest
 import time_machine
-from sqlalchemy import event, func, select
+from sqlalchemy import delete, event, func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from uuid6 import uuid7
@@ -61,14 +62,22 @@ from airflow.dag_processing.manager import (
 )
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.models import DagModel, DbCallbackRequest
-from airflow.models.asset import TaskOutletAssetReference
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetModel,
+    DagScheduleAssetAliasReference,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
+)
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG as SdkDAG
+from airflow.sdk import DAG as SdkDAG, Asset, AssetAlias
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -201,22 +210,28 @@ def _create_zip_bundle_with_keywordless_dag(zip_path: Path) -> None:
 
 
 def _make_serialized_dags(
-    dag_file: Path, dag_ids: list[str], rel_path: str, *, n_tasks: int = 1
+    dag_file: Path,
+    dag_ids: list[str],
+    rel_path: str,
+    *,
+    n_tasks: int = 1,
+    schedule_on: Asset | None = None,
+    outlet: Asset | None = None,
 ) -> list[LazyDeserializedDAG]:
     """
     Serialized Dags filed under ``rel_path``, backed by a real file.
 
-    DagCode reads the source off disk; without a real file the Dags fail to serialize and the
-    measured statements stop resembling a real parse.
+    DagCode reads the source off disk, so a test that persists these needs one; :meth:`_lazy_dag`
+    is enough for tests that only group them.
     """
     dag_file.parent.mkdir(parents=True, exist_ok=True)
-    dag_file.write_text("# statement budget fixture\n")
+    dag_file.write_text("# dag_processing test fixture\n")
 
     dags = []
     for dag_id in dag_ids:
-        dag = SdkDAG(dag_id=dag_id, schedule="@daily")
+        dag = SdkDAG(dag_id=dag_id, schedule=[schedule_on] if schedule_on else "@daily")
         for task in range(n_tasks):
-            EmptyOperator(task_id=f"task{task}", dag=dag)
+            EmptyOperator(task_id=f"task{task}", dag=dag, outlets=[outlet] if outlet else [])
         dag.fileloc = str(dag_file)
         dag.relative_fileloc = rel_path
         dags.append(LazyDeserializedDAG.from_dag(dag))
@@ -270,9 +285,88 @@ FIXED_PER_CALL = 10
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
 
-SWEEP_FILES = 4
-# Calls the manager takes for that sweep: one per file today, 1 if a sweep is ever batched.
-SWEEP_CALLS = 4
+EQUIV_BUNDLE = "equiv"
+EQUIV_OTHER_BUNDLE = "equiv-other"
+
+_SHARED_FROM_FIRST = Asset(name="shared", uri="s3://shared", extra={"from": "first"})
+_SHARED_FROM_SECOND = Asset(name="shared", uri="s3://shared", extra={"from": "second"})
+_CROSSING_FROM_Y = Asset(name="crossing", uri="s3://crossing", extra={"from": "y"})
+_CROSSING_FROM_Z = Asset(name="crossing", uri="s3://crossing", extra={"from": "z"})
+_HANDOFF = Asset(name="handoff", uri="s3://handoff")
+_SHARED_ALIAS = AssetAlias(name="shared_alias")
+
+# Sweep shapes where merging files into one write has something to get wrong. Each entry is the
+# argument list for one file, in the order the sweep collected them; see
+# ``test_a_sweep_persisted_together_lands_where_one_file_at_a_time_would``.
+SWEEP_SHAPES: dict[str, list[dict]] = {
+    "plain": [{"rel_path": f"plain_{i}.py", "dags": [(f"plain_{i}", f"plain_{i}.py")]} for i in range(3)],
+    "duplicate_dag_id": [
+        {"rel_path": "first.py", "dags": [("shared", "first.py")]},
+        {"rel_path": "second.py", "dags": [("shared", "second.py")]},
+    ],
+    "error_against_a_file_that_then_parses": [
+        {"rel_path": "blamer.py", "errors": {"blamed.py": "reported by another file"}},
+        {"rel_path": "blamed.py", "dags": [("blamed_dag", "blamed.py")]},
+    ],
+    "dag_filed_under_a_file_that_errored": [
+        {"rel_path": "broken.py", "errors": {"broken.py": "it broke"}},
+        {"rel_path": "healthy.py", "dags": [("filed_elsewhere", "broken.py")]},
+    ],
+    "file_that_now_defines_nothing": [
+        {"rel_path": "emptied.py", "errors": {"emptied.py": "was broken"}},
+        {"rel_path": "healthy.py", "dags": [("healthy_dag", "healthy.py")]},
+        {"rel_path": "emptied.py"},
+    ],
+    "two_bundles_interleaved": [
+        {"rel_path": "a.py", "dags": [("a_dag", "a.py")]},
+        {"rel_path": "b.py", "dags": [("b_dag", "b.py")], "bundle": EQUIV_OTHER_BUNDLE},
+        {"rel_path": "c.py", "dags": [("c_dag", "c.py")]},
+    ],
+    "warning_then_a_clean_parse": [
+        {
+            "rel_path": "warner.py",
+            "warnings": [{"dag_id": "warned_dag", "warning_type": "non-existent pool", "message": "gone"}],
+        },
+        {"rel_path": "owner.py", "dags": [("warned_dag", "owner.py")]},
+    ],
+    # The case the whole ordering guarantee exists for: last write decides what the asset is.
+    "one_asset_defined_differently_by_two_files": [
+        {
+            "rel_path": "first.py",
+            "dags": [("asset_first", "first.py")],
+            "assets": [(_SHARED_FROM_FIRST, None)],
+        },
+        {
+            "rel_path": "second.py",
+            "dags": [("asset_second", "second.py")],
+            "assets": [(_SHARED_FROM_SECOND, None)],
+        },
+    ],
+    # Assets are not scoped to a bundle, so an interleaved sweep can reorder who wins. The asset is
+    # shared by the middle and last files deliberately: were the last allowed to join the first
+    # file's group to fill it, it would be written before the middle one and lose an asset it
+    # should win.
+    "one_asset_across_two_bundles": [
+        {"rel_path": "x.py", "dags": [("asset_x", "x.py")]},
+        {
+            "rel_path": "y.py",
+            "dags": [("asset_y", "y.py")],
+            "bundle": EQUIV_OTHER_BUNDLE,
+            "assets": [(_CROSSING_FROM_Y, None)],
+        },
+        {"rel_path": "z.py", "dags": [("asset_z", "z.py")], "assets": [(_CROSSING_FROM_Z, None)]},
+    ],
+    # One file's outlet is another's schedule, so the rows land in whichever order they are written.
+    "an_asset_produced_and_consumed_in_one_sweep": [
+        {"rel_path": "producer.py", "dags": [("producer", "producer.py")], "assets": [(None, _HANDOFF)]},
+        {"rel_path": "consumer.py", "dags": [("consumer", "consumer.py")], "assets": [(_HANDOFF, None)]},
+    ],
+    # The snapshot covers aliases, so something has to make one.
+    "one_alias_scheduled_by_two_files": [
+        {"rel_path": "alias_a.py", "dags": [("alias_a", "alias_a.py")], "assets": [(_SHARED_ALIAS, None)]},
+        {"rel_path": "alias_b.py", "dags": [("alias_b", "alias_b.py")], "assets": [(_SHARED_ALIAS, None)]},
+    ],
+}
 
 
 class TestDagFileProcessorManager:
@@ -1684,16 +1778,25 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].last_finish_time > original_stat.last_finish_time
         assert manager._file_stats[file].num_dags == 0
 
-    def _ready_processor(self, manager, rel_path: str, num_dags: int = 0):
-        """Register a finished processor for ``rel_path`` and return its file."""
-        file = DagFileInfo(bundle_name="testing", rel_path=Path(rel_path), bundle_path=TEST_DAGS_FOLDER)
+    def _ready_processor(self, manager, rel_path: str, num_dags: int = 0, dag_dir: Path | None = None):
+        """
+        Register a finished processor for ``rel_path`` and return its file.
+
+        ``dag_dir`` backs the Dags with a real file, which persisting them needs. Tests that only
+        group results leave it unset and get the cheaper :meth:`_lazy_dag`.
+        """
+        bundle_path = TEST_DAGS_FOLDER if dag_dir is None else dag_dir
+        file = DagFileInfo(bundle_name="testing", rel_path=Path(rel_path), bundle_path=bundle_path)
         manager._file_stats.setdefault(file, DagFileStat())
         processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
         processor.had_callbacks = False
-        processor.parsing_result = DagFileParsingResult(
-            fileloc=rel_path,
-            serialized_dags=[self._lazy_dag(f"{Path(rel_path).stem}_dag_{i}") for i in range(num_dags)],
-        )
+        dag_ids = [f"{Path(rel_path).stem}_dag_{i}" for i in range(num_dags)]
+        if dag_dir is None:
+            fileloc, dags = rel_path, [self._lazy_dag(dag_id) for dag_id in dag_ids]
+        else:
+            fileloc = str(dag_dir / rel_path)
+            dags = _make_serialized_dags(dag_dir / rel_path, dag_ids, rel_path)
+        processor.parsing_result = DagFileParsingResult(fileloc=fileloc, serialized_dags=dags)
         manager._processors[file] = processor
         return file
 
@@ -4301,28 +4404,350 @@ class TestDagFileProcessorManager:
         assert manager._bundle_versions["mock_bundle"] == "newhash"
         assert manager._bundle_version_data["mock_bundle"] == test_data
 
+    # --- persisting a sweep against a real database ---
+
+    @staticmethod
+    def _persisted_result(
+        tmp_path: Path,
+        dag_id: str,
+        run_duration: float = 0.5,
+        bundle_name: str = "testing",
+        bundle_version: str | None = None,
+        version_data: dict | None = None,
+        *,
+        import_errors: dict[str, str] | None = None,
+        warnings: list | None = None,
+        dag_ids: list[str] | None = None,
+    ) -> FileParseResult:
+        """One finished parse filed under ``<dag_id>.py``, backed by a file so it can be written."""
+        rel_path = f"{dag_id}.py"
+        dag_file = tmp_path / rel_path
+        return FileParseResult(
+            file=DagFileInfo(bundle_name=bundle_name, rel_path=Path(rel_path), bundle_path=tmp_path),
+            parsing_result=DagFileParsingResult(
+                fileloc=str(dag_file),
+                serialized_dags=_make_serialized_dags(
+                    dag_file, [dag_id] if dag_ids is None else dag_ids, rel_path
+                ),
+                import_errors=import_errors,
+                warnings=warnings,
+            ),
+            run_duration=run_duration,
+            stat=DagFileStat(),
+            bundle_version=bundle_version,
+            version_data=version_data,
+        )
+
+    def test_batched_sweep_keeps_each_files_own_parse_duration(self, session, testing_dag_bundle, tmp_path):
+        """Duration is per file, so writing several files together must not level them out."""
+        durations = {"sweep_a": 1.5, "sweep_b": 4.25}
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        manager.persist_parsing_results(
+            [self._persisted_result(tmp_path, dag_id, d) for dag_id, d in durations.items()],
+            session=session,
+        )
+        session.commit()
+
+        for dag_id, duration in durations.items():
+            assert session.get(DagModel, dag_id).last_parse_duration == duration
+
+    def test_batched_sweep_keeps_each_files_import_errors(self, session, testing_dag_bundle, tmp_path):
+        """Merging a sweep must not lose one file's import errors, nor attribute them to another."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        manager.persist_parsing_results(
+            [
+                self._persisted_result(tmp_path, "err_a", import_errors={"err_a.py": "boom a"}),
+                self._persisted_result(tmp_path, "err_b"),
+            ],
+            session=session,
+        )
+        session.commit()
+
+        recorded = {e.filename: e.stacktrace for e in session.scalars(select(ParseImportError))}
+        assert recorded == {"err_a.py": "boom a"}
+
+    def test_batched_sweep_clears_import_errors_for_files_that_now_parse(
+        self, session, testing_dag_bundle, tmp_path
+    ):
+        """A file in the sweep with no errors must have its stale error cleared, not left behind."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        manager.persist_parsing_results(
+            [self._persisted_result(tmp_path, "fixed", import_errors={"fixed.py": "was broken"})],
+            session=session,
+        )
+        session.commit()
+        assert session.scalars(select(ParseImportError)).all()
+
+        manager.persist_parsing_results([self._persisted_result(tmp_path, "fixed")], session=session)
+        session.commit()
+
+        assert not session.scalars(select(ParseImportError)).all(), "stale error should have been cleared"
+
+    def test_batched_sweep_clears_a_stale_error_for_a_file_that_now_defines_no_dags(
+        self, session, testing_dag_bundle, tmp_path
+    ):
+        """A file can stop defining Dags altogether, and is still a file the sweep parsed."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        manager.persist_parsing_results(
+            [self._persisted_result(tmp_path, "emptied", import_errors={"emptied.py": "was broken"})],
+            session=session,
+        )
+        session.commit()
+        assert session.scalars(select(ParseImportError)).all()
+
+        manager.persist_parsing_results(
+            [
+                self._persisted_result(tmp_path, "healthy"),
+                self._persisted_result(tmp_path, "emptied", dag_ids=[]),
+            ],
+            session=session,
+        )
+        session.commit()
+
+        remaining = {(e.bundle_name, e.filename) for e in session.scalars(select(ParseImportError))}
+        assert ("testing", "emptied.py") not in remaining, (
+            f"the emptied file was parsed, so its stale error should have been cleared: {remaining}"
+        )
+
+    def test_batched_sweep_records_warnings_from_every_file(self, session, testing_dag_bundle, tmp_path):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+        session.execute(delete(DagWarning))
+        session.commit()
+
+        def warning_for(dag_id: str) -> dict:
+            return {
+                "dag_id": dag_id,
+                "warning_type": DagWarningType.NONEXISTENT_POOL,
+                "message": f"{dag_id} wants a missing pool",
+            }
+
+        manager.persist_parsing_results(
+            [
+                self._persisted_result(tmp_path, "warn_a", warnings=[warning_for("warn_a")]),
+                self._persisted_result(tmp_path, "warn_b", warnings=[warning_for("warn_b")]),
+            ],
+            session=session,
+        )
+        session.commit()
+
+        assert {w.dag_id for w in session.scalars(select(DagWarning))} == {"warn_a", "warn_b"}
+
+    def test_a_sweep_writes_each_bundles_files_under_its_own_version(
+        self, session, testing_dag_bundle, tmp_path
+    ):
+        """A group carries one bundle's version, so a sweep spanning two must not cross them over."""
+        session.add(DagBundleModel(name="testing-other"))
+        session.commit()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions.update({"testing": "v-testing", "testing-other": "v-other"})
+        manager._bundle_version_data.update({"testing": {"sha": "aaa"}, "testing-other": {"sha": "bbb"}})
+
+        manager.persist_parsing_results(
+            [
+                self._persisted_result(
+                    tmp_path, "in_testing", bundle_version="v-testing", version_data={"sha": "aaa"}
+                ),
+                self._persisted_result(
+                    tmp_path,
+                    "in_other",
+                    bundle_name="testing-other",
+                    bundle_version="v-other",
+                    version_data={"sha": "bbb"},
+                ),
+            ],
+            session=session,
+        )
+        session.commit()
+
+        assert session.get(DagModel, "in_testing").bundle_name == "testing"
+        assert session.get(DagModel, "in_other").bundle_name == "testing-other"
+
+        versions = {version.dag_id: version for version in session.scalars(select(DagVersion))}
+        assert versions["in_testing"].bundle_version == "v-testing"
+        assert versions["in_other"].bundle_version == "v-other"
+        assert versions["in_testing"].version_data == {"sha": "aaa"}
+        assert versions["in_other"].version_data == {"sha": "bbb"}
+
+    def test_a_group_that_rolls_back_keeps_what_an_earlier_group_committed(
+        self, session, testing_dag_bundle, tmp_path
+    ):
+        """
+        Each group is its own transaction, which is the whole reason a sweep is split into them.
+
+        Mocking the write proves the split; only a real one proves the earlier group survived the
+        later rollback rather than sharing its fate.
+        """
+        session.add(DagBundleModel(name="testing-other"))
+        session.commit()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions.update({"testing": None, "testing-other": None})
+        real_write = update_dag_parsing_results_in_db
+
+        def fail_for_the_second_bundle(*args, **kwargs):
+            if kwargs["bundle_name"] == "testing-other":
+                raise OperationalError("simulated", {}, Exception("write failed"))
+            return real_write(*args, **kwargs)
+
+        with mock.patch(
+            "airflow.dag_processing.manager.update_dag_parsing_results_in_db",
+            side_effect=fail_for_the_second_bundle,
+        ):
+            manager._persist_sweep(
+                [
+                    self._persisted_result(tmp_path, "committed_dag"),
+                    self._persisted_result(tmp_path, "rolled_back_dag", bundle_name="testing-other"),
+                ]
+            )
+
+        assert session.get(DagModel, "committed_dag") is not None, (
+            "the group that succeeded must not be undone by the one that followed it"
+        )
+        assert session.get(DagModel, "rolled_back_dag") is None
+
+    def test_a_failing_group_does_not_discard_one_that_already_succeeded(self, tmp_path):
+        """
+        ``update_dag_parsing_results_in_db`` rolls the session back before retrying an OperationalError.
+
+        Sharing one transaction across groups would let that rollback discard a group already
+        written, while its files were still recorded as persisted.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions.update({"bundle_a": None, "bundle_b": None})
+
+        def result_in(bundle: str, dag_id: str) -> FileParseResult:
+            item = self._persisted_result(tmp_path, dag_id)
+            return item._replace(
+                file=DagFileInfo(bundle_name=bundle, rel_path=item.file.rel_path, bundle_path=tmp_path)
+            )
+
+        good = result_in("bundle_a", "group_good")
+        bad = result_in("bundle_b", "group_bad")
+        manager._file_stats.update({good.file: DagFileStat(), bad.file: DagFileStat(run_count=2)})
+
+        calls: list[str] = []
+
+        def persist(results, **kwargs):
+            bundle = results[0].file.bundle_name
+            calls.append(bundle)
+            if bundle == "bundle_b":
+                raise OperationalError("simulated contention", None, Exception())
+
+        with mock.patch.object(manager, "persist_parsing_results", autospec=True, side_effect=persist):
+            manager._persist_sweep([good, bad])
+
+        assert calls == ["bundle_a", "bundle_b"], "each bundle must be persisted by its own call"
+        assert manager._file_stats[good.file] is good.stat, "the written group keeps its parse stat"
+        assert manager._file_stats[bad.file] is not bad.stat, "the failed group must not claim success"
+        assert manager._file_stats[bad.file].run_count == 3
+
+    def _collect_a_two_file_sweep(self, manager, tmp_path: Path, name: str, session) -> mock.MagicMock:
+        """Run a sweep of two files all the way through the manager, and report what reached the DB."""
+        sweep_dir = tmp_path / name
+        sweep_dir.mkdir()
+        for i in range(2):
+            self._ready_processor(manager, f"file_{i}.py", num_dags=1, dag_dir=sweep_dir)
+        # The manager persists on sessions of its own, so release ours rather than contend with them.
+        session.commit()
+
+        with mock.patch(
+            "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+        ) as db_write:
+            manager._collect_results()
+        return db_write
+
+    def test_a_per_file_override_still_replaces_the_database(self, tmp_path):
+        """Batching past an existing per-file override would send its results to the DB, silently."""
+        calls: list[str] = []
+
+        class ApiBackedManager(DagFileProcessorManager):
+            def persist_parsing_result(self, *, relative_fileloc, session, **kwargs):
+                assert session is not None, "override must be handed a session it did not create"
+                calls.append(relative_fileloc)
+
+        manager = ApiBackedManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+        batch = [
+            self._persisted_result(tmp_path, "override_a"),
+            self._persisted_result(tmp_path, "override_b"),
+        ]
+
+        with mock.patch(
+            "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+        ) as db_write:
+            manager.persist_parsing_results(batch)
+
+        assert calls == ["override_a.py", "override_b.py"]
+        db_write.assert_not_called()
+
+    def test_a_batch_override_is_handed_the_sweep_by_the_manager(self, session, testing_dag_bundle, tmp_path):
+        """Dispatching to an override proves nothing unless the manager is the one routing through it."""
+        seen: list[list[str]] = []
+
+        class BatchApiManager(DagFileProcessorManager):
+            def persist_parsing_results(self, results, *, session=None):
+                seen.append([str(item.file.rel_path) for item in results])
+
+        manager = BatchApiManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        db_write = self._collect_a_two_file_sweep(manager, tmp_path, "batch_override", session)
+
+        assert seen == [["file_0.py", "file_1.py"]], "files that can share a group arrive in one call"
+        db_write.assert_not_called()
+
+    def test_a_batch_override_is_called_once_per_group_not_once_per_sweep(self, tmp_path):
+        """A sweep spanning bundles cannot be one write, so the seam has to be documented per group."""
+        seen: list[list[str]] = []
+
+        class BatchApiManager(DagFileProcessorManager):
+            def persist_parsing_results(self, results, *, session=None):
+                seen.append([str(item.file.rel_path) for item in results])
+
+        manager = BatchApiManager(max_runs=1)
+        manager._bundle_versions.update({"testing": None, "testing-other": None})
+
+        manager._persist_sweep(
+            [
+                self._persisted_result(tmp_path, "in_testing_a"),
+                self._persisted_result(tmp_path, "in_other", bundle_name="testing-other"),
+                self._persisted_result(tmp_path, "in_testing_b"),
+            ]
+        )
+
+        assert seen == [["in_testing_a.py"], ["in_other.py"], ["in_testing_b.py"]], (
+            "groups are contiguous runs, so an interleaved sweep is written in the order it arrived"
+        )
+
+    def test_the_default_manager_writes_the_sweep_to_the_database(
+        self, session, testing_dag_bundle, tmp_path
+    ):
+        """The negative of the override case: with nothing replaced, a sweep still reaches the DB once."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        db_write = self._collect_a_two_file_sweep(manager, tmp_path, "default_path", session)
+
+        db_write.assert_called_once()
+
     # --- statement budget ---
     #
     # A change that adds round trips to persistence has to move a number here and account for it in
     # review. The per-call counts are calibrated against Postgres and marked for it, since statement
     # counts differ by dialect; the sweep test measures both of its prices, so it runs anywhere.
 
-    def _ready_processor(self, manager, rel_path: str, dag_dir: Path, dag_ids: list[str]):
-        """Register a finished parse of ``rel_path``, with its Dags backed by a real file."""
-        file = DagFileInfo(bundle_name="testing", rel_path=Path(rel_path), bundle_path=dag_dir)
-        manager._file_stats.setdefault(file, DagFileStat())
-        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
-        processor.had_callbacks = False
-        processor.parsing_result = DagFileParsingResult(
-            fileloc=str(dag_dir / rel_path),
-            serialized_dags=_make_serialized_dags(dag_dir / rel_path, dag_ids, rel_path),
-        )
-        manager._processors[file] = processor
-        return file
-
-    @staticmethod
     def _measure_persistence_call(
-        session, dags: list[LazyDeserializedDAG], counted: list[LazyDeserializedDAG], rel_path: str
+        self, session, dags: list[LazyDeserializedDAG], counted: list[LazyDeserializedDAG], rel_path: str
     ) -> Counter[tuple[str, str]]:
         """Count one steady-state call: the first pass inserts the rows, the counted pass re-persists."""
         files_parsed = {("testing", rel_path)}
@@ -4350,9 +4775,7 @@ class TestDagFileProcessorManager:
 
         def register():
             for i in range(n_files):
-                self._ready_processor(
-                    manager, f"file_{i}.py", sweep_dir, [f"dag_{i}_{d}" for d in range(dags_per_file)]
-                )
+                self._ready_processor(manager, f"file_{i}.py", num_dags=dags_per_file, dag_dir=sweep_dir)
 
         register()
         manager._collect_results()
@@ -4395,25 +4818,182 @@ class TestDagFileProcessorManager:
             f"({FIXED_PER_CALL} per call + {per_dag} per Dag).\n{_statement_breakdown(counts)}"
         )
 
-    def test_a_sweep_pays_the_fixed_cost_once_per_call(self, session, testing_dag_bundle, tmp_path):
+    @pytest.mark.parametrize(
+        ("n_files", "dags_per_file"),
+        [
+            pytest.param(4, 1, id="one-group"),
+            pytest.param(5, 8, id="over-the-dag-cap"),
+        ],
+    )
+    def test_a_sweep_pays_the_fixed_cost_once_per_group(
+        self, n_files, dags_per_file, session, testing_dag_bundle, tmp_path
+    ):
         """
         How a sweep scales with the number of persistence calls it takes.
 
-        Batching a sweep into one call moves ``SWEEP_CALLS`` to 1. Both prices are measured here, so
-        the assertion holds on any backend.
+        A sweep is persisted a group at a time, so the fixed price is paid once per group rather than
+        once per file -- and a sweep carrying more Dags than a group takes really does split, rather
+        than only being asserted to. Both prices are measured, so this holds on any backend.
         """
         one_dag = self._measure_sweep(session, tmp_path, 1, "one")
         two_dags = self._measure_sweep(session, tmp_path, 1, "two", dags_per_file=2)
         per_dag = two_dags - one_dag
         fixed = one_dag - per_dag
 
-        sweep = self._measure_sweep(session, tmp_path, SWEEP_FILES, "sweep")
-
-        expected = SWEEP_CALLS * fixed + SWEEP_FILES * per_dag
-        assert sweep == expected, (
-            f"a {SWEEP_FILES}-file sweep costs {sweep} statements, expected {expected} "
-            f"({SWEEP_CALLS} x {fixed} fixed + {SWEEP_FILES} x {per_dag} per Dag)."
+        sweep = self._measure_sweep(
+            session, tmp_path, n_files, f"sweep_{n_files}x{dags_per_file}", dags_per_file=dags_per_file
         )
+
+        total_dags = n_files * dags_per_file
+        calls = math.ceil(total_dags / MAX_DAGS_PER_PERSISTENCE_GROUP)
+        expected = calls * fixed + total_dags * per_dag
+        assert sweep == expected, (
+            f"a {n_files}-file sweep of {total_dags} Dags costs {sweep} statements, expected {expected} "
+            f"({calls} x {fixed} fixed + {total_dags} x {per_dag} per Dag)."
+        )
+
+    # --- equivalence with writing a sweep a file at a time ---
+
+    @staticmethod
+    def _equivalence_file(
+        tmp_path: Path,
+        rel_path: str,
+        dags: list[tuple[str, str]] | None = None,
+        assets: list[tuple[Asset | None, Asset | None]] | None = None,
+        errors: dict[str, str] | None = None,
+        warnings: list[dict] | None = None,
+        bundle: str = EQUIV_BUNDLE,
+        version: str | None = "v1",
+    ) -> FileParseResult:
+        """One finished parse. ``dags`` is (dag_id, the file the Dag is filed under)."""
+        (tmp_path / rel_path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel_path).write_text("# equivalence fixture\n")
+        pairs = assets or [(None, None)] * len(dags or [])
+        return FileParseResult(
+            file=DagFileInfo(bundle_name=bundle, rel_path=Path(rel_path), bundle_path=tmp_path),
+            parsing_result=DagFileParsingResult(
+                fileloc=str(tmp_path / rel_path),
+                serialized_dags=[
+                    _make_serialized_dags(
+                        tmp_path / under,
+                        [dag_id],
+                        under,
+                        schedule_on=pairs[index][0],
+                        outlet=pairs[index][1],
+                    )[0]
+                    for index, (dag_id, under) in enumerate(dags or [])
+                ],
+                import_errors=errors,
+                warnings=warnings,
+            ),
+            run_duration=0.5,
+            stat=DagFileStat(),
+            bundle_version=version,
+            version_data={"sha": version} if version else None,
+        )
+
+    @staticmethod
+    def _equivalence_snapshot(session) -> dict[str, list[tuple[str, ...]]]:
+        """Everything a sweep writes that a reader can tell apart."""
+
+        def rows(stmt):
+            return sorted(tuple(str(column) for column in row) for row in session.execute(stmt).all())
+
+        session.expire_all()
+        return {
+            "dag": rows(
+                select(
+                    DagModel.dag_id,
+                    DagModel.bundle_name,
+                    DagModel.bundle_version,
+                    DagModel.relative_fileloc,
+                    DagModel.is_stale,
+                    DagModel.has_import_errors,
+                )
+            ),
+            "dag_version": rows(
+                select(DagVersion.dag_id, DagVersion.bundle_version, DagVersion.version_data)
+            ),
+            "import_error": rows(
+                select(ParseImportError.bundle_name, ParseImportError.filename, ParseImportError.stacktrace)
+            ),
+            "warning": rows(select(DagWarning.dag_id, DagWarning.warning_type, DagWarning.message)),
+            # Assets are shared across files and bundles, so whichever file is written last decides
+            # what they look like.
+            "asset": rows(select(AssetModel.name, AssetModel.uri, AssetModel.group, AssetModel.extra)),
+            "asset_alias": rows(select(AssetAliasModel.name, AssetAliasModel.group)),
+            "asset_active": rows(select(AssetActive.name, AssetActive.uri)),
+            # Read references through what names an asset: the surrogate ids differ between halves
+            # once the rows are cleared and made again.
+            "schedule_ref": rows(
+                select(DagScheduleAssetReference.dag_id, AssetModel.name, AssetModel.uri).join(
+                    AssetModel, AssetModel.id == DagScheduleAssetReference.asset_id
+                )
+            ),
+            "schedule_alias_ref": rows(
+                select(DagScheduleAssetAliasReference.dag_id, AssetAliasModel.name).join(
+                    AssetAliasModel, AssetAliasModel.id == DagScheduleAssetAliasReference.alias_id
+                )
+            ),
+            "outlet_ref": rows(
+                select(
+                    TaskOutletAssetReference.dag_id, TaskOutletAssetReference.task_id, AssetModel.name
+                ).join(AssetModel, AssetModel.id == TaskOutletAssetReference.asset_id)
+            ),
+        }
+
+    @staticmethod
+    def _equivalence_reset(session) -> None:
+        """
+        Clear what a sweep writes, leaving the bundles it is written against.
+
+        Assets included: left behind, the second half finds the first half's rows already there and
+        updates them where it should have created them.
+        """
+        session.execute(delete(DagWarning))
+        session.commit()
+        clear_db_assets()
+        clear_db_serialized_dags()
+        clear_db_import_errors()
+        clear_db_dags()
+        for name in (EQUIV_BUNDLE, EQUIV_OTHER_BUNDLE):
+            session.merge(DagBundleModel(name=name))
+        session.commit()
+
+    @staticmethod
+    def _equivalence_persist(sweep: list[FileParseResult], *, batched: bool) -> None:
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions.update({EQUIV_BUNDLE: "v1", EQUIV_OTHER_BUNDLE: "v1"})
+        if batched:
+            manager._persist_sweep(sweep)
+        else:
+            for item in sweep:
+                manager._persist_sweep([item])
+
+    @pytest.mark.parametrize("shape", list(SWEEP_SHAPES))
+    def test_a_sweep_persisted_together_lands_where_one_file_at_a_time_would(self, shape, session, tmp_path):
+        """
+        Everything a sweep carries used to be scoped to one file per write: import errors, warnings,
+        Dag rows, versions. Merging them makes that state shared, and each kind of it can be merged
+        wrongly on its own. Rather than argue each kind through, write the same sweep both ways and
+        compare the database afterwards.
+        """
+
+        def build(where: str) -> list[FileParseResult]:
+            return [self._equivalence_file(tmp_path / where, **spec) for spec in SWEEP_SHAPES[shape]]
+
+        self._equivalence_reset(session)
+        self._equivalence_persist(build("sequential"), batched=False)
+        sequential = self._equivalence_snapshot(session)
+
+        self._equivalence_reset(session)
+        self._equivalence_persist(build("batched"), batched=True)
+        batched = self._equivalence_snapshot(session)
+
+        # A failed write is caught and the file throttled, so two halves that both failed agree on an
+        # empty database and pass for equivalent. Every shape here defines Dags.
+        assert sequential["dag"], "the sequential half wrote nothing to compare against"
+        assert batched == sequential
 
 
 class TestMultiTeamMetrics:
