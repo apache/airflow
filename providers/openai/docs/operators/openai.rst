@@ -53,6 +53,14 @@ The OpenAIResponseOperator requires the ``input_text`` prompt. Use the ``conn_id
 specify the OpenAI connection to use, and ``response_kwargs`` to pass through options such as
 ``tools``, ``conversation`` or ``previous_response_id``.
 
+Use ``max_output_tokens`` and ``max_tool_calls`` to cap generation per run -- both are templated,
+so a ceiling can vary by environment or Dag run without hardcoding it. These are *token*-level
+ceilings enforced by the OpenAI API itself; OpenAI exposes no monetary cost limit on the Responses
+API, so this operator has no cost cap. For a monetary limit, use
+:doc:`apache-airflow-providers-common-ai:index` instead. Hitting ``max_output_tokens`` does not
+fail the request: the response comes back with ``status="incomplete"`` and truncated
+``output_text``, so ``return_value`` will be the truncated text, not an error.
+
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python
     :start-after: [START howto_operator_openai_response]
