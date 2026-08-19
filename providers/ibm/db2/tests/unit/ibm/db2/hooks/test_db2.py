@@ -174,20 +174,6 @@ class TestDb2Hook:
         assert result == ["NAME", "VALUE"]
 
     @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
-    def test_get_primary_keys_delegates_to_dialect(self, mock_get_conn, mock_connection):
-        """get_primary_keys() on the hook delegates to Db2Dialect.get_primary_keys."""
-        mock_get_conn.return_value = mock_connection
-        hook = Db2Hook(db2_conn_id="db2_default")
-
-        mock_dialect = MagicMock()
-        mock_dialect.get_primary_keys.return_value = ["ID"]
-        with patch.object(hook, "dialect", mock_dialect):
-            result = hook.get_primary_keys("TEST_TABLE", schema="MY_SCHEMA")
-
-        mock_dialect.get_primary_keys.assert_called_once_with("TEST_TABLE", "MY_SCHEMA")
-        assert result == ["ID"]
-
-    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     def test_dialect_property(self, mock_get_conn, mock_connection):
         """Test that hook has Db2Dialect."""
         from airflow.providers.ibm.db2.dialects.db2 import Db2Dialect

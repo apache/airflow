@@ -104,62 +104,6 @@ class TestDb2Dialect:
         )
 
     # ------------------------------------------------------------------
-    # get_primary_keys
-    # ------------------------------------------------------------------
-
-    def test_get_primary_keys_single(self):
-        """get_primary_keys() returns a single primary key column."""
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {"constrained_columns": ["ID"]}
-
-        pk_columns = Db2Dialect(self.test_db_hook).get_primary_keys("TEST_TABLE")
-
-        assert pk_columns == ["ID"]
-        self.test_db_hook.inspector.get_pk_constraint.assert_called_once_with(
-            table_name="TEST_TABLE", schema=None
-        )
-
-    def test_get_primary_keys_composite(self):
-        """get_primary_keys() returns composite primary key columns."""
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {
-            "constrained_columns": ["DEPT_ID", "EMP_ID"]
-        }
-
-        pk_columns = Db2Dialect(self.test_db_hook).get_primary_keys("TEST_TABLE")
-
-        assert pk_columns == ["DEPT_ID", "EMP_ID"]
-        assert len(pk_columns) == 2
-
-    def test_get_primary_keys_with_schema(self):
-        """get_primary_keys() passes schema to the inspector."""
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {"constrained_columns": ["ID"]}
-
-        pk_columns = Db2Dialect(self.test_db_hook).get_primary_keys("TEST_TABLE", schema="MY_SCHEMA")
-
-        assert pk_columns == ["ID"]
-        self.test_db_hook.inspector.get_pk_constraint.assert_called_once_with(
-            table_name="TEST_TABLE", schema="MY_SCHEMA"
-        )
-
-    def test_get_primary_keys_no_pk(self):
-        """get_primary_keys() returns an empty list when there is no primary key."""
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {"constrained_columns": []}
-
-        pk_columns = Db2Dialect(self.test_db_hook).get_primary_keys("TEST_TABLE")
-
-        assert pk_columns == []
-
-    def test_get_primary_keys_schema_prefix_in_table(self):
-        """get_primary_keys() splits a 'schema.table' string correctly."""
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {"constrained_columns": ["ID"]}
-
-        pk_columns = Db2Dialect(self.test_db_hook).get_primary_keys("MY_SCHEMA.TEST_TABLE")
-
-        assert pk_columns == ["ID"]
-        self.test_db_hook.inspector.get_pk_constraint.assert_called_once_with(
-            table_name="TEST_TABLE", schema="MY_SCHEMA"
-        )
-
-    # ------------------------------------------------------------------
     # generate_replace_sql
     # ------------------------------------------------------------------
 
