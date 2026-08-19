@@ -1937,6 +1937,37 @@ class TestDagFileProcessorManager:
         else:
             manager._warn_if_batching_is_disabled()
 
+    def test_a_file_that_cannot_be_handled_does_not_discard_its_neighbours(self):
+        """
+        Working out what a file leaves to persist can reach the DB, for the team its bundle is in.
+
+        Persisting a sweep together means one such failure arrives before any of it is written, so
+        it has to be contained to its own file rather than take the sweep down with it.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = "v1"
+        good = self._ready_processor(manager, "good.py", num_dags=1)
+        bad = self._ready_processor(manager, "bad.py", num_dags=1)
+        # Counts from the last successful parse, which the throttled retry must preserve.
+        manager._file_stats[bad] = DagFileStat(num_dags=7, import_errors=2, run_count=3)
+        build = manager._build_parse_result
+
+        def fail_for_bad(file, proc):
+            if file == bad:
+                raise RuntimeError("team lookup failed")
+            return build(file, proc)
+
+        with mock.patch.object(manager, "_build_parse_result", side_effect=fail_for_bad):
+            with mock.patch.object(manager, "_persist_sweep", autospec=True) as sweep:
+                manager._collect_results()
+
+        assert [item.file for item in sweep.call_args.args[0]] == [good], (
+            "the file that could be handled must still be persisted"
+        )
+        assert manager._processors == {}
+        assert manager._file_stats[bad].run_count == 4, "the failed file must be counted as run"
+        assert manager._file_stats[bad].num_dags == 7, "and must not claim results it never produced"
+
     def test_finished_processors_are_closed_even_when_persistence_raises(self):
         """A processor left open leaks its sockets and stays queued as though it were still running."""
         manager = DagFileProcessorManager(max_runs=1)
