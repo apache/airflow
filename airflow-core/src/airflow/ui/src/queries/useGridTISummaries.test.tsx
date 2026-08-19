@@ -18,7 +18,7 @@
  */
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
-import React from "react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import {
@@ -60,7 +60,7 @@ const createMockResponse = (chunks: Array<string>) => {
 
 const createWrapper =
   (queryClient: QueryClient) =>
-  ({ children }: { readonly children: React.ReactNode }) => (
+  ({ children }: { readonly children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 

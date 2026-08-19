@@ -18,23 +18,25 @@
  */
 import { useTranslation } from "react-i18next";
 
-import { ButtonGroupToggle } from "src/components/ui";
+import type { FilterPluginProps } from "../types";
+import { MultiSelectPill } from "./MultiSelectPill";
 
-type PausedValue = "all" | "false" | "true";
+/** Multiselect over a static ``config.options`` list (teams, owners). */
+export const MultiSelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
+  const { t: translate } = useTranslation();
 
-type Props = {
-  readonly onChange: (value: PausedValue) => void;
-  readonly value: PausedValue;
-};
+  const options = (filter.config.options ?? []).map((option) => ({
+    label: typeof option.label === "string" ? option.label : option.value,
+    value: option.value,
+  }));
 
-export const PausedFilter = ({ onChange, value }: Props) => {
-  const { t: translate } = useTranslation("dags");
-
-  const options = [
-    { label: translate("filters.paused.all"), value: "all" as const },
-    { label: translate("filters.paused.active"), value: "false" as const },
-    { label: translate("filters.paused.paused"), value: "true" as const },
-  ];
-
-  return <ButtonGroupToggle<PausedValue> onChange={onChange} options={options} value={value} />;
+  return (
+    <MultiSelectPill
+      filter={filter}
+      noOptionsMessage={translate("table.noResultsFound")}
+      onChange={onChange}
+      onRemove={onRemove}
+      options={options}
+    />
+  );
 };
