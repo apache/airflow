@@ -297,12 +297,14 @@ Troubleshooting
 
   - Check Airflow and webserver logs for detailed error messages
   - Ensure all environment variables are set and exported correctly
-  - Verify callback URLs in your SSO provider match your Airflow webserver URL (typically ``http://your-airflow-domain/oauth-authorized``)
+  - Verify callback URLs in your SSO provider match your Airflow webserver URL (typically ``http://your-airflow-domain/auth/oauth-authorized/<provider>``)
 
 - **Redirect URI mismatch**:
 
-  - In your OAuth provider, set the redirect URI to: ``http://your-airflow-domain/oauth-authorized``
-  - For development, this might be: ``http://localhost:8080/oauth-authorized``
+  - In your OAuth provider, set the redirect URI to: ``http://your-airflow-domain/auth/oauth-authorized/<provider>``,
+    where ``<provider>`` is the ``name`` you gave it in ``OAUTH_PROVIDERS``
+  - For development, this might be: ``http://localhost:8080/auth/oauth-authorized/google``
+  - On Airflow 2 the path had no ``/auth`` prefix: ``http://your-airflow-domain/oauth-authorized/<provider>``
 
 - **Scope-related errors**:
 

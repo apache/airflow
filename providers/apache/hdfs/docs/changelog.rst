@@ -33,11 +33,12 @@ Changelog
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 4.12.1
 ......

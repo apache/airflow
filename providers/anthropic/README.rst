@@ -57,7 +57,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``anthropic``                               ``>=0.101.0``
+``anthropic``                               ``>=0.121.0``
 ==========================================  ==================
 
 Optional dependencies

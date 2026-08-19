@@ -63,7 +63,7 @@
     "@msgpack/msgpack": "^3.1.2"
   },
   "peerDependencies": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.2"
   },
   "peerDependenciesMeta": {
     "esbuild": {
@@ -72,8 +72,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "esbuild": "^0.28.1",
-    "@types/node": "^22.19.17",
+    "esbuild": "^0.28.2",
+    "@types/node": "^26.1.2",
     "eslint": "^10.4.0",
     "json-schema-to-typescript": "^15.0.4",
     "prettier": "^3.8.3",
