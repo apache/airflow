@@ -31,6 +31,8 @@ import datetime
 import json
 import types
 import typing
+import uuid
+from collections.abc import Mapping, Sequence
 from functools import cache
 from inspect import Parameter, Signature, signature
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -67,6 +69,7 @@ class _ValueSchemaGenerator(GenerateJsonSchema):
 
 # Most-derived first: datetime subclasses date, so it must be matched before date.
 _TEMPORAL_BASES = (datetime.datetime, datetime.date, datetime.time, datetime.timedelta)
+_NATIVE_VALUE_BASES = (*_TEMPORAL_BASES, uuid.UUID)
 
 
 def _normalize_temporal_annotation(annotation: Any) -> Any:
@@ -138,9 +141,9 @@ def _build_wire_form(annotation: Any) -> _ValueWireForm | None:
     TypeAdapter construction is one of pydantic's most expensive operations and
     annotations are static, so re-serializations of the same Dag must not re-pay it.
 
-    Pairing them is what keeps a literal from being rendered in a spelling its own
-    ``value_schema`` does not describe: both come from the same adapter, including when
-    the temporal-normalization retry below settles on a different annotation.
+    Pairing them keeps an explicitly supported native value from being rendered in a
+    spelling its own ``value_schema`` does not describe, including when the
+    temporal-normalization retry below settles on a different annotation.
     """
     # PydanticUserError/TypeError cover annotations pydantic can't schema; either way,
     # that degrades to no schema rather than failing Dag serialization.
@@ -153,32 +156,145 @@ def _build_wire_form(annotation: Any) -> _ValueWireForm | None:
     return None
 
 
+def _unwrap_annotated(annotation: Any) -> Any:
+    while typing.get_origin(annotation) is typing.Annotated:
+        annotation = typing.get_args(annotation)[0]
+    return annotation
+
+
+def _get_annotation_native_base(annotation: Any) -> type[Any] | None:
+    annotation = _unwrap_annotated(annotation)
+    if not isinstance(annotation, type):
+        return None
+    return next((base for base in _NATIVE_VALUE_BASES if issubclass(annotation, base)), None)
+
+
+def _get_value_native_base(value: Any) -> type[Any] | None:
+    return next((base for base in _NATIVE_VALUE_BASES if isinstance(value, base)), None)
+
+
+def _has_native_value_annotation(annotation: Any) -> bool:
+    annotation = _unwrap_annotated(annotation)
+    if _get_annotation_native_base(annotation) is not None:
+        return True
+    return any(
+        arg is not Ellipsis and _has_native_value_annotation(arg) for arg in typing.get_args(annotation)
+    )
+
+
+def _annotation_accepts_value(annotation: Any, value: Any) -> bool:
+    annotation = _unwrap_annotated(annotation)
+    if annotation is Any:
+        return False
+
+    annotation_native_base = _get_annotation_native_base(annotation)
+    if annotation_native_base is not None:
+        return annotation_native_base is _get_value_native_base(value)
+
+    origin = typing.get_origin(annotation)
+    if origin in (typing.Union, types.UnionType):
+        return any(_annotation_accepts_value(member, value) for member in typing.get_args(annotation))
+    if origin is typing.Literal:
+        return value in typing.get_args(annotation)
+
+    runtime_type = origin or annotation
+    try:
+        return isinstance(value, runtime_type)
+    except TypeError:
+        return False
+
+
+def _select_union_member(annotation: Any, value: Any) -> Any:
+    unwrapped = _unwrap_annotated(annotation)
+    if typing.get_origin(unwrapped) not in (typing.Union, types.UnionType):
+        return annotation
+    return next(
+        (member for member in typing.get_args(unwrapped) if _annotation_accepts_value(member, value)),
+        annotation,
+    )
+
+
+def _origin_accepts_value(origin: Any, value: Any) -> bool:
+    try:
+        return isinstance(value, origin)
+    except TypeError:
+        return False
+
+
+def _get_json_sort_key(value: Any) -> str:
+    return json.dumps(value, allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+
 def _to_json_value(value: Any, annotation: Any) -> Any:
     """
-    Render a native value in the JSON form its ``value_schema`` advertises.
+    Render supported native values in the JSON form their ``value_schema`` advertises.
 
-    A ``datetime``/``timedelta``/``UUID`` is not JSON-serializable, so without this it
-    could not cross the language boundary at all. Dumping it through the same adapter
-    that produced the schema gives every lang SDK exactly one spelling per format --
-    RFC 3339 timestamps, ISO-8601 durations, canonical UUIDs -- instead of each Dag
-    author picking their own.
+    Temporal and UUID values are converted directly or recursively inside lists, tuples,
+    mapping values, and sets. Each native leaf uses the same adapter that produced its schema,
+    giving every lang SDK one spelling per format without opting unrelated pydantic-supported
+    types into serialization. Sets containing supported leaves become deterministically ordered
+    JSON arrays so repeated Dag serialization remains stable.
 
-    Values pydantic cannot render for this annotation pass through untouched, leaving
-    the JSON-serializability check to reject them.
+    Unsupported values and containers pass through untouched, leaving the
+    JSON-serializability check to reject them.
     """
     if annotation is Parameter.empty or annotation is None or annotation is Any:
         return value
-    if isinstance(value, datetime.datetime):
-        # A naive timestamp is ambiguous once it leaves Python: Go would read it as UTC,
-        # JavaScript as the worker's local time, and Java would refuse to parse it. Pin
-        # the offset here, using the same default timezone the rest of Airflow applies.
-        value = coerce_datetime(value)
-    wire_form = _get_wire_form(annotation)
-    if wire_form is None:
+
+    annotation = _select_union_member(annotation, value)
+    annotation_native_base = _get_annotation_native_base(annotation)
+    value_native_base = _get_value_native_base(value)
+    if annotation_native_base is not None:
+        if annotation_native_base is not value_native_base:
+            return value
+        if value_native_base is datetime.datetime:
+            # A naive timestamp is ambiguous once it leaves Python: Go would read it as UTC,
+            # JavaScript as the worker's local time, and Java would refuse to parse it. Pin
+            # the offset here, using the same default timezone the rest of Airflow applies.
+            value = coerce_datetime(value)
+        wire_form = _get_wire_form(annotation)
+        if wire_form is None:
+            return value
+        # warnings=False: a value that does not match its annotation is the JSON-literal
+        # check's business, not a serializer warning's.
+        return wire_form.adapter.dump_python(value, mode="json", warnings=False)
+
+    unwrapped = _unwrap_annotated(annotation)
+    origin = typing.get_origin(unwrapped)
+    args = typing.get_args(unwrapped)
+    if not args or not _origin_accepts_value(origin, value):
         return value
-    # warnings=False: a value that does not match its annotation is the JSON-literal
-    # check's business, not a serializer warning's.
-    return wire_form.adapter.dump_python(value, mode="json", warnings=False)
+
+    if isinstance(value, dict) and isinstance(origin, type) and issubclass(origin, Mapping):
+        value_annotation = args[1]
+        return {key: _to_json_value(item, value_annotation) for key, item in value.items()}
+
+    if origin is set and isinstance(value, set):
+        item_annotation = args[0]
+        if not _has_native_value_annotation(item_annotation):
+            return value
+        rendered = [_to_json_value(item, item_annotation) for item in value]
+        try:
+            return sorted(rendered, key=_get_json_sort_key)
+        except (TypeError, ValueError):
+            return value
+
+    if not isinstance(origin, type) or not issubclass(origin, Sequence):
+        return value
+    if isinstance(value, list):
+        item_annotation = args[0]
+        return [_to_json_value(item, item_annotation) for item in value]
+    if not isinstance(value, tuple):
+        return value
+    if origin is tuple:
+        if len(args) == 2 and args[1] is Ellipsis:
+            return tuple(_to_json_value(item, args[0]) for item in value)
+        if len(args) != len(value):
+            return value
+        return tuple(
+            _to_json_value(item, item_annotation) for item, item_annotation in zip(value, args, strict=True)
+        )
+    return tuple(_to_json_value(item, args[0]) for item in value)
 
 
 def _validate_stub_signature(sig: Signature, task_id: str) -> None:

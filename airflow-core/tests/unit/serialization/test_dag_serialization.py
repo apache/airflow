@@ -3638,7 +3638,14 @@ def test_stub_task_native_literals_serialize_to_their_wire_form():
     with DAG(dag_id="native_arg_bindings_dag", schedule=None) as dag:
 
         @task.stub
-        def schedule_window(starts_at: datetime, on_day: date, every: timedelta, trace_id: uuid.UUID): ...
+        def schedule_window(
+            starts_at: datetime,
+            on_day: date,
+            every: timedelta,
+            trace_id: uuid.UUID,
+            checkpoints: list[dict[str, datetime | None]],
+            observed_at: set[datetime],
+        ): ...
 
         schedule_window(
             # Naive on purpose: the offset must be pinned at serialization time, because an
@@ -3647,6 +3654,8 @@ def test_stub_task_native_literals_serialize_to_their_wire_form():
             date(2024, 1, 2),
             timedelta(days=1, hours=2),
             uuid.UUID("6BA7B810-9DAD-11D1-80B4-00C04FD430C8"),
+            [{"started_at": datetime(2024, 1, 3, 4, 5, 6), "finished_at": None}],
+            {datetime(2024, 1, 5, 4, 5, 6), datetime(2024, 1, 4, 4, 5, 6)},
         )
 
     ser_dag = DagSerialization.to_dict(dag)
@@ -3677,6 +3686,33 @@ def test_stub_task_native_literals_serialize_to_their_wire_form():
             "kind": "literal",
             "value_schema": {"type": "string", "format": "uuid"},
             "value": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+        },
+        {
+            "name": "checkpoints",
+            "kind": "literal",
+            "value_schema": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "anyOf": [
+                            {"type": "string", "format": "date-time"},
+                            {"type": "null"},
+                        ]
+                    },
+                },
+            },
+            "value": [{"started_at": "2024-01-03T04:05:06Z", "finished_at": None}],
+        },
+        {
+            "name": "observed_at",
+            "kind": "literal",
+            "value_schema": {
+                "type": "array",
+                "items": {"type": "string", "format": "date-time"},
+                "uniqueItems": True,
+            },
+            "value": ["2024-01-04T04:05:06Z", "2024-01-05T04:05:06Z"],
         },
     ]
 

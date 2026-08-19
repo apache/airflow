@@ -18,14 +18,29 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import enum
 import typing
 import uuid
+from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import pendulum
 import pytest
 
 from airflow.serialization.stub_arg_bindings import _infer_value_schema, _to_json_value
+
+
+class _PlainEnum(enum.Enum):
+    VALUE = "value"
+
+
+class _StringEnum(str, enum.Enum):
+    VALUE = "value"
+
+
+class _IntegerEnum(int, enum.Enum):
+    VALUE = 1
 
 
 @pytest.mark.parametrize(
@@ -63,7 +78,6 @@ from airflow.serialization.stub_arg_bindings import _infer_value_schema, _to_jso
         pytest.param(datetime.date, {"type": "string", "format": "date"}, id="date"),
         pytest.param(datetime.time, {"type": "string", "format": "time"}, id="time"),
         pytest.param(datetime.timedelta, {"type": "string", "format": "duration"}, id="timedelta"),
-        pytest.param(bytes, {"type": "string", "format": "binary"}, id="bytes"),
         pytest.param(
             typing.Literal["a", "b"],
             {"type": "string", "enum": ["a", "b"]},
@@ -159,59 +173,185 @@ def test_infer_value_schema_unhashable_annotation_generates_uncached():
 
 
 @pytest.mark.parametrize(
-    ("annotation", "value", "expected"),
+    ("annotation", "value", "expected_value", "expected_schema"),
     [
         pytest.param(
             datetime.datetime,
             datetime.datetime(2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
             "2024-01-02T03:04:05Z",
+            {"type": "string", "format": "date-time"},
             id="aware-datetime",
         ),
-        pytest.param(datetime.date, datetime.date(2024, 1, 2), "2024-01-02", id="date"),
-        pytest.param(datetime.time, datetime.time(3, 4, 5), "03:04:05", id="time"),
-        pytest.param(datetime.timedelta, datetime.timedelta(minutes=5), "PT5M", id="timedelta"),
+        pytest.param(
+            datetime.date,
+            datetime.date(2024, 1, 2),
+            "2024-01-02",
+            {"type": "string", "format": "date"},
+            id="date",
+        ),
+        pytest.param(
+            datetime.time,
+            datetime.time(3, 4, 5),
+            "03:04:05",
+            {"type": "string", "format": "time"},
+            id="time",
+        ),
+        pytest.param(
+            datetime.timedelta,
+            datetime.timedelta(minutes=5),
+            "PT5M",
+            {"type": "string", "format": "duration"},
+            id="timedelta",
+        ),
         pytest.param(
             datetime.timedelta,
             datetime.timedelta(days=1, hours=2, minutes=3, seconds=4),
             "P1DT2H3M4S",
+            {"type": "string", "format": "duration"},
             id="timedelta-compound",
         ),
         pytest.param(
-            datetime.timedelta, datetime.timedelta(seconds=-90), "-PT1M30S", id="timedelta-negative"
+            datetime.timedelta,
+            datetime.timedelta(seconds=-90),
+            "-PT1M30S",
+            {"type": "string", "format": "duration"},
+            id="timedelta-negative",
         ),
         pytest.param(
             datetime.timedelta,
             datetime.timedelta(milliseconds=1500),
             "PT1.5S",
+            {"type": "string", "format": "duration"},
             id="timedelta-fractional",
         ),
         pytest.param(
             uuid.UUID,
             uuid.UUID("6BA7B810-9DAD-11D1-80B4-00C04FD430C8"),
             "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+            {"type": "string", "format": "uuid"},
             id="uuid-normalized-to-lowercase",
         ),
         pytest.param(
             pendulum.DateTime,
             pendulum.datetime(2024, 1, 2, 3, 4, 5),
             "2024-01-02T03:04:05Z",
+            {"type": "string", "format": "date-time"},
             id="pendulum-datetime-via-normalized-annotation",
         ),
         # Values that are already JSON pass through unchanged.
-        pytest.param(str, "plain", "plain", id="str-untouched"),
-        pytest.param(int, 3, 3, id="int-untouched"),
-        pytest.param(dict, {"k": "v"}, {"k": "v"}, id="dict-untouched"),
+        pytest.param(str, "plain", "plain", {"type": "string"}, id="str-untouched"),
+        pytest.param(int, 3, 3, {"type": "integer", "format": "int64"}, id="int-untouched"),
+        pytest.param(
+            dict,
+            {"k": "v"},
+            {"k": "v"},
+            {"type": "object", "additionalProperties": True},
+            id="dict-untouched",
+        ),
         pytest.param(
             list[datetime.datetime],
-            [datetime.datetime(2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc)],
+            [datetime.datetime(2024, 1, 2, 3, 4, 5)],
             ["2024-01-02T03:04:05Z"],
-            id="list-of-datetimes",
+            {"type": "array", "items": {"type": "string", "format": "date-time"}},
+            id="list",
+        ),
+        pytest.param(
+            typing.Sequence[datetime.datetime],
+            [datetime.datetime(2024, 1, 2, 3, 4, 5)],
+            ["2024-01-02T03:04:05Z"],
+            {"type": "array", "items": {"type": "string", "format": "date-time"}},
+            id="sequence",
+        ),
+        pytest.param(
+            set[datetime.datetime],
+            {
+                datetime.datetime(2024, 1, 3, 3, 4, 5),
+                datetime.datetime(2024, 1, 2, 3, 4, 5),
+            },
+            ["2024-01-02T03:04:05Z", "2024-01-03T03:04:05Z"],
+            {
+                "type": "array",
+                "items": {"type": "string", "format": "date-time"},
+                "uniqueItems": True,
+            },
+            id="set-deterministic-order",
+        ),
+        pytest.param(
+            set[datetime.datetime],
+            set(),
+            [],
+            {
+                "type": "array",
+                "items": {"type": "string", "format": "date-time"},
+                "uniqueItems": True,
+            },
+            id="empty-set",
+        ),
+        pytest.param(
+            typing.Mapping[str, datetime.datetime],
+            {"when": datetime.datetime(2024, 1, 2, 3, 4, 5)},
+            {"when": "2024-01-02T03:04:05Z"},
+            {
+                "type": "object",
+                "additionalProperties": {"type": "string", "format": "date-time"},
+            },
+            id="mapping-value",
+        ),
+        pytest.param(
+            tuple[datetime.datetime, uuid.UUID],
+            (
+                datetime.datetime(2024, 1, 2, 3, 4, 5),
+                uuid.UUID("6BA7B810-9DAD-11D1-80B4-00C04FD430C8"),
+            ),
+            ("2024-01-02T03:04:05Z", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"),
+            {
+                "type": "array",
+                "prefixItems": [
+                    {"type": "string", "format": "date-time"},
+                    {"type": "string", "format": "uuid"},
+                ],
+                "minItems": 2,
+                "maxItems": 2,
+            },
+            id="fixed-tuple",
+        ),
+        pytest.param(
+            tuple[datetime.datetime, ...],
+            (
+                datetime.datetime(2024, 1, 2, 3, 4, 5),
+                datetime.datetime(2024, 1, 3, 3, 4, 5),
+            ),
+            ("2024-01-02T03:04:05Z", "2024-01-03T03:04:05Z"),
+            {"type": "array", "items": {"type": "string", "format": "date-time"}},
+            id="variadic-tuple",
+        ),
+        pytest.param(
+            list[dict[str, datetime.datetime | None]],
+            [
+                {"when": datetime.datetime(2024, 1, 2, 3, 4, 5)},
+                {"when": None},
+            ],
+            [{"when": "2024-01-02T03:04:05Z"}, {"when": None}],
+            {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "anyOf": [
+                            {"type": "string", "format": "date-time"},
+                            {"type": "null"},
+                        ]
+                    },
+                },
+            },
+            id="deep-optional",
         ),
     ],
 )
-def test_to_json_value_renders_natives_in_their_wire_form(annotation, value, expected):
+def test_to_json_value_renders_natives_in_their_wire_form(annotation, value, expected_value, expected_schema):
     """A native literal reaches the lang SDK in the one spelling its value_schema advertises."""
-    assert _to_json_value(value, annotation) == expected
+    assert _to_json_value(value, annotation) == expected_value
+    assert _infer_value_schema(annotation) == expected_schema
 
 
 def test_to_json_value_pins_an_offset_on_a_naive_datetime():
@@ -233,6 +373,27 @@ def test_to_json_value_leaves_unconstrained_arguments_alone(annotation):
 def test_to_json_value_passes_through_a_value_the_annotation_does_not_describe():
     """A mismatched literal is the JSON-serializability check's business, not a serializer error."""
     assert _to_json_value({"not": "an int"}, int) == {"not": "an int"}
+
+
+@pytest.mark.parametrize(
+    ("annotation", "value"),
+    [
+        pytest.param(_PlainEnum, _PlainEnum.VALUE, id="plain-enum"),
+        pytest.param(Decimal, Decimal("1.20"), id="decimal"),
+        pytest.param(Path, Path("/tmp/example"), id="path"),
+        pytest.param(_StringEnum, _StringEnum.VALUE, id="string-enum"),
+        pytest.param(_IntegerEnum, _IntegerEnum.VALUE, id="integer-enum"),
+        pytest.param(set[int], {1}, id="set-without-native-leaf"),
+        pytest.param(
+            set[datetime.datetime | Decimal],
+            {Decimal("1.20")},
+            id="set-with-unsupported-member",
+        ),
+    ],
+)
+def test_to_json_value_leaves_other_pydantic_types_and_non_json_containers_alone(annotation, value):
+    """Native conversion must not opt unrelated pydantic types or containers into the wire format."""
+    assert _to_json_value(value, annotation) is value
 
 
 def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):

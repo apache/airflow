@@ -43,18 +43,28 @@ by pydantic from the stub annotation, carried verbatim, unknown keywords ignored
 lang SDK should decode the value into. Every SDK is expected to follow the same table,
 so a Dag author sees one behaviour regardless of the task's language:
 
-===================  ==========  ====================================  =========================
-Python annotation    ``type``    ``format`` / wire spelling            Native target
-===================  ==========  ====================================  =========================
-``datetime``         string      ``date-time`` ``2024-01-02T03:04:05Z``  timestamp
-``date``             string      ``date`` ``2024-01-02``                 date
-``time``             string      ``time`` ``03:04:05``                    time of day
-``timedelta``        string      ``duration`` ``P1DT2H3M4S`` ``-PT1M30S`` duration
-``UUID``             string      ``uuid`` ``6ba7b810-9dad-...-...``       UUID
-``bytes``            string      ``binary`` (raw text, **not** base64)   byte string
-``int``              integer     ``int64``                                64-bit integer
-``float``            number      ``double``                               64-bit float
-===================  ==========  ====================================  =========================
+=========================  ========================  ====================================  ==================  =================================
+Python annotation          JSON-schema signal        Wire spelling                         Native target       Inline literal handling
+=========================  ========================  ====================================  ==================  =================================
+``datetime``               string + ``date-time``    ``2024-01-02T03:04:05Z``              timestamp           converted
+``date``                   string + ``date``         ``2024-01-02``                         date                converted
+``time``                   string + ``time``         ``03:04:05``                           time of day         converted
+``timedelta``              string + ``duration``     ``P1DT2H3M4S`` or ``-PT1M30S``         duration            converted
+``UUID``                   string + ``uuid``         ``6ba7b810-9dad-...-...``              UUID                converted
+``int``                    integer + ``int64``       ``42``                                 64-bit integer      JSON-native
+``float``                  number + ``double``       ``1.5``                                64-bit float        JSON-native
+``Enum`` (string value)    string + ``enum``         ``"value"``                            enum                member rejected; pass ``.value``
+``str``-backed ``Enum``    string + ``enum``         ``"value"``                            enum                JSON-native
+``int``-backed ``Enum``    integer + ``enum``        ``1``                                  enum                JSON-native
+``Decimal``                number or string          ``1.2`` or ``"1.20"``                   decimal             rejected; pass number/string
+``Path``                   string + ``path``         ``"/tmp/example"``                     path or string      rejected; pass string
+``set[datetime]``          array + ``uniqueItems``   ``["2024-01-02T03:04:05Z"]``           set of timestamps   converted in stable order
+=========================  ========================  ====================================  ==================  =================================
+
+``Inline literal handling`` describes a value captured directly from the Python Dag. The
+schema also accompanies XCom bindings, where the value is produced later. Schema generation
+does not itself serialize a literal: unsupported Python objects are rejected before a binding
+is emitted even when pydantic can describe their eventual JSON representation.
 
 Timestamps always carry an explicit offset -- a naive ``datetime`` is pinned to Airflow's
 default timezone at serialization time -- because an offset-less timestamp means different
