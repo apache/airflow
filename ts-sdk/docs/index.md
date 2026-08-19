@@ -34,19 +34,23 @@ The SDK is currently distributed as source in the `ts-sdk/` directory of the
 Apache Airflow repository. Build it there and add it as a local dependency of
 your task bundle; it is not yet published to a public npm registry.
 
-Register a task handler. Handlers receive a `TaskContext` and a `TaskClient`;
-any non-`undefined` return value is pushed to XCom under the `"return_value"`
-key by the active runtime, matching Python `@task` behavior:
+Define a Dag and register its task handlers. Handlers receive a `TaskContext`
+and a `TaskClient`; any non-`undefined` return value is pushed to XCom under
+the `"return_value"` key by the active runtime, matching Python `@task`
+behavior:
 
 ```ts
-import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
   return { message: `Hello from ${ctx.taskId}: ${greeting}` };
 }
 
-registerTask({ dagId: "example_dag", taskId: "say_hello" }, sayHello);
+const dag = new Dag("example_dag");
+dag.task("say_hello", sayHello);
+
+await serveDags(new DagRegistry(dag));
 ```
 
 ## Coordinators
