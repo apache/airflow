@@ -45,7 +45,7 @@ Time is evaluated against the wall-clock date in the Dag's timezone at execution
 
 When ``start_from_trigger=True``, the sensor starts on the triggerer via
 :class:`~airflow.providers.standard.triggers.temporal.TimeOfDayTrigger`. The trigger
-stores only the parse-stable ``target_time`` and timezone; the concrete moment is
+stores only the parse-stable ``target_time`` and ``tz``; the concrete moment is
 resolved when the trigger starts, so repeated Dag parses do not create new Dag versions.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py

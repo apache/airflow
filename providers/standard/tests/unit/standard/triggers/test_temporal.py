@@ -156,25 +156,24 @@ async def test_datetime_trigger_mocked(mock_sleep, mock_utcnow):
 def test_time_of_day_trigger_serialization():
     trigger = TimeOfDayTrigger(
         target_time=datetime.time(10, 30, 45),
-        timezone="Asia/Singapore",
+        tz="Asia/Singapore",
         end_from_trigger=True,
     )
     classpath, kwargs = trigger.serialize()
     assert classpath == "airflow.providers.standard.triggers.temporal.TimeOfDayTrigger"
     assert kwargs == {
         "target_time": "10:30:45",
-        "timezone": "Asia/Singapore",
+        "tz": "Asia/Singapore",
         "end_from_trigger": True,
     }
-    # Accepts ISO string (post-serde form)
     restored = TimeOfDayTrigger(**kwargs)
     assert restored.serialize() == (classpath, kwargs)
 
 
-def test_time_of_day_trigger_fixed_offset_timezone():
-    trigger = TimeOfDayTrigger(target_time="07:00:00", timezone=19800, end_from_trigger=False)
+def test_time_of_day_trigger_fixed_offset_tz():
+    trigger = TimeOfDayTrigger(target_time="07:00:00", tz=19800, end_from_trigger=False)
     _, kwargs = trigger.serialize()
-    assert kwargs["timezone"] == 19800
+    assert kwargs["tz"] == 19800
     assert kwargs["target_time"] == "07:00:00"
 
 
@@ -209,7 +208,7 @@ def test_serializable_timezone_named_and_fixed():
 async def test_time_of_day_trigger_fires_for_past_target():
     """If today's target is already past, the trigger should fire immediately."""
     past = (timezone.utcnow() - datetime.timedelta(hours=1)).time().replace(microsecond=0)
-    trigger = TimeOfDayTrigger(target_time=past, timezone="UTC", end_from_trigger=False)
+    trigger = TimeOfDayTrigger(target_time=past, tz="UTC", end_from_trigger=False)
     trigger_task = asyncio.create_task(trigger.run().__anext__())
     await asyncio.sleep(0.5)
     assert trigger_task.done() is True
