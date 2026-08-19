@@ -191,9 +191,8 @@ For example, to trigger a rolling restart of the API server pods:
 The API server also evicts cached SerializedDAG objects via ``dag_cache_size`` and
 ``dag_cache_ttl``, which reduces memory growth from Dag version accumulation regardless of
 server type. Note that only ``dag_cache_size`` caps memory outright. A cached entry's TTL is
-refreshed only when the entry is checked against the database after
-``[core] min_serialized_dag_update_interval``, not on every request. If the TTL is shorter than
-that interval, even frequently requested entries can expire and reload between checks.
+refreshed only when the entry is checked against the database after ``[core] min_serialized_dag_update_interval``, not on every request.
+If the TTL is shorter than that interval, even frequently requested entries can expire and reload between checks.
 
 In many Kubernetes environments, relying solely on Kubernetes OOM kills or
 crash restarts is not recommended, as memory growth may not always trigger an
