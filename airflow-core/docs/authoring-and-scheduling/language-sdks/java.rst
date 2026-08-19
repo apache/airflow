@@ -226,8 +226,8 @@ Register tasks manually in a ``BundleBuilder``:
       @Override
       public Iterable<DagDef> getDags() {
         var dag = new DagDef("my_dag")
-            .addTask(new TaskDef("fetch", FetchTask.class))
-            .addTask(new TaskDef("process", ProcessTask.class));
+            .addTask("fetch", FetchTask.class)
+            .addTask("process", ProcessTask.class);
         return List.of(dag);
       }
     }

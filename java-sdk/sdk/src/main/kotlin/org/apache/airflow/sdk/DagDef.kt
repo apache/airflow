@@ -32,8 +32,8 @@ import kotlin.Throws
  *
  * ```java
  * var dag = new DagDef("java_etl")
- *     .addTask(new TaskDef("extract", Extract.class))
- *     .addTask(new TaskDef("load", Load.class));
+ *     .addTask("extract", Extract.class)
+ *     .addTask("load", Load.class);
  * ```
  *
  * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
@@ -45,6 +45,21 @@ class DagDef(
   val id: String, // TODO: charset check?
 ) {
   internal val tasks = linkedMapOf<String, TaskDef>()
+
+  /**
+   * Registers a task from its ID and implementation class.
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [Task]. Must have a public no-arg
+   *    constructor.
+   * @return This Dag, for chaining.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  fun addTask(
+    id: String,
+    definition: Class<out Task>,
+  ): DagDef = addTask(TaskDef(id, definition))
 
   /**
    * Registers a task with this Dag.

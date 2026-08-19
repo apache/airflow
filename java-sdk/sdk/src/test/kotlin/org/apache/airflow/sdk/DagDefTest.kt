@@ -44,6 +44,17 @@ internal class DagDefTest {
   }
 
   @Test
+  @DisplayName("Should register a task from its id and implementation class")
+  fun shouldRegisterTaskFromIdAndImplementationClass() {
+    val dag = DagDef("dag").addTask("extract", NoOp::class.java)
+
+    val task = dag.tasks.getValue("extract")
+    Assertions.assertEquals("extract", task.id)
+    Assertions.assertEquals(NoOp::class.java, task.definition)
+    Assertions.assertEquals(dag, task.owner)
+  }
+
+  @Test
   @DisplayName("Should reject duplicate task ids")
   fun shouldRejectDuplicateTaskIds() {
     val dag = DagDef("dag").addTask(TaskDef("extract", NoOp::class.java))

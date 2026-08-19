@@ -73,8 +73,8 @@ public class InterfaceExampleBuilder {
 
   public static DagDef build() {
     return new DagDef("java_interface_example")
-        .addTask(new TaskDef("extract", Extract.class))
-        .addTask(new TaskDef("transform", Transform.class))
-        .addTask(new TaskDef("load", Load.class));
+        .addTask("extract", Extract.class)
+        .addTask("transform", Transform.class)
+        .addTask("load", Load.class);
   }
 }

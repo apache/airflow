@@ -19,7 +19,7 @@
 
 package org.apache.airflow.example
 
-import org.apache.airflow.sdk.{Bundle, BundleBuilder, Client, Context, DagDef, Server, Task, TaskDef}
+import org.apache.airflow.sdk.{Bundle, BundleBuilder, Client, Context, DagDef, Server, Task}
 import org.apache.logging.log4j.{LogManager, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.sum
@@ -135,9 +135,9 @@ class SparkLoad extends Task {
 object ScalaSparkExample {
   def build(): DagDef =
     new DagDef(SparkEtl.DagId)
-      .addTask(new TaskDef(SparkEtl.ExtractTaskId, classOf[SparkExtract]))
-      .addTask(new TaskDef(SparkEtl.TransformTaskId, classOf[SparkTransform]))
-      .addTask(new TaskDef(SparkEtl.LoadTaskId, classOf[SparkLoad]))
+      .addTask(SparkEtl.ExtractTaskId, classOf[SparkExtract])
+      .addTask(SparkEtl.TransformTaskId, classOf[SparkTransform])
+      .addTask(SparkEtl.LoadTaskId, classOf[SparkLoad])
 }
 
 /** Bundle entry point served to Airflow's Java coordinator. */
