@@ -416,6 +416,10 @@ class TestBashDecorator:
         else:
             assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS,
+        reason="Airflow 2 resolves @task.bash to its own bundled decorator, which ignores multiple_outputs",
+    )
     def test_multiple_outputs_true(self):
         """Verify `multiple_outputs=True` reaches the operator instead of being ignored."""
         with self.dag_maker:
