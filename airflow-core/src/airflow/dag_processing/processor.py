@@ -457,7 +457,19 @@ def _execute_dag_skipped_intervals_callback(
             callback(context)
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
-            stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
+            stats.incr(
+                "dag.callback_exceptions",
+                tags=prune_dict(
+                    {
+                        "dag_id": request.dag_id,
+                        "team_name": (
+                            DagModel.get_team_name(request.dag_id)
+                            if conf.getboolean("core", "multi_team")
+                            else None
+                        ),
+                    }
+                ),
+            )
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
