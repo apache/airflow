@@ -270,6 +270,21 @@ class TestTimeDeltaSensorAsync:
             op.execute(context)
             defer_mock.assert_called_once()
 
+    def test_time_delta_sensor_templating_error(self, mocker):
+        op = TimeDeltaSensor(
+            task_id="time_sensor_check", delta="{{ 'nothing' }}", dag=self.dag, deferrable=True
+        )
+        time = pendulum.datetime(year=2024, month=8, day=1, tz="UTC")
+
+        with time_machine.travel(time, tick=False):
+            data_interval_end = time.add(hours=1)
+            context = {"data_interval_end": data_interval_end}
+            op.render_template_fields(context)
+            with pytest.raises(
+                ValueError, match=re.escape("invalid literal for int() with base 10: 'nothing'")
+            ):
+                op.execute(context)
+
     @pytest.mark.parametrize(
         "time_to_wait",
         [timedelta(minutes=1), 1, "{{ 1*2 }}"],
