@@ -901,6 +901,23 @@ git diff --name-only <base-branch>..HEAD -- '**/provider.yaml' \
 - **Bucket B — not in the wave.** The provider has unrecorded commits but no
   new version section, so it is a candidate to *join*. Classify it
   (Incremental Phase 3), then take it to **Incremental Phase 3.6**.
+- **Bucket C — in the wave but no longer warranting a release.** The sweep
+  above only finds commits *missing* from a wave; this bucket is the opposite
+  direction, and nothing else in the flow looks for it. A provider that review
+  has since concluded is internal-only or documentation-only still carries the
+  version bump and changelog section written by the initial run, so it would
+  still be built and uploaded to PyPI. Find these by re-reading the entries of
+  each in-wave provider's newest changelog section: if every entry is
+  `Doc-only`, or review reclassified the last remaining non-doc entry as
+  documentation, the provider should leave the wave.
+
+  Dropping it back is three edits, not a re-run: revert the `provider.yaml`
+  version bump, remove the new `changelog.rst` section, and write the newest
+  doc-only commit hash (full hash, trailing newline) into
+  `providers/<provider-path>/docs/.latest-doc-only-change.txt`. **Ask the
+  release manager before doing it** — taking a provider out of a wave is their
+  decision, and a `Misc` entry that merely *looks* internal may still be
+  something they want released.
 
 Most Bucket B rows are ordinary noise — repo-wide tooling and test commits
 that correctly keep a provider out of the release. A Bucket B provider whose
