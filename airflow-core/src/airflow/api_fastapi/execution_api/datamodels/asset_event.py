@@ -32,6 +32,9 @@ class DagRunAssetReference(StrictBaseModel):
     dag_id: str
     logical_date: datetime | None
     start_date: datetime | None
+    # Always set on a Dag run, so clients of versions that require a non-null start_date can be
+    # served this value while the run has not started yet.
+    run_after: datetime
     end_date: datetime | None
     state: str
     data_interval_start: datetime | None
