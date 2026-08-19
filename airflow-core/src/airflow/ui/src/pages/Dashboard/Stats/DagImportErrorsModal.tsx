@@ -29,13 +29,13 @@ import { Accordion, ClipboardIconButton, Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
-  onClose: () => void;
-  open: boolean;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
 const PAGE_LIMIT = 15;
 
-export const DagImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
+export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
