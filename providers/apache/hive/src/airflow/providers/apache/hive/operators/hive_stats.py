@@ -43,6 +43,11 @@ _PLAIN_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # embedded quote doubled (e.g. ``"a""b"``). Used to detect identifiers the caller has
 # already escaped so they are left untouched instead of being double-escaped.
 _QUOTED_IDENT_RE = re.compile(r'"(?:[^"]|"")*"')
+# One component of a qualified ``<catalog>.<schema>.<table>`` name: either a quoted
+# identifier (which may itself contain dots) or a run of characters up to the next
+# separating dot. Matching in that order means only the dots *outside* a quoted
+# identifier separate components, so ``"my.table"`` stays a single identifier.
+_QUALIFIED_NAME_PART_RE = re.compile(r'"(?:[^"]|"")*"|[^.]+')
 
 
 def _quote_presto_identifier(identifier: str) -> str:
@@ -56,6 +61,18 @@ def _quote_presto_identifier(identifier: str) -> str:
     if _PLAIN_IDENT_RE.fullmatch(identifier) or _QUOTED_IDENT_RE.fullmatch(identifier):
         return identifier
     return '"' + identifier.replace('"', '""') + '"'
+
+
+def _quote_presto_table(table: str) -> str:
+    """
+    Quote a possibly qualified Presto/Trino table name.
+
+    The name is split into components on the dots that separate catalog, schema and
+    table, and each component is quoted with :func:`_quote_presto_identifier`. Dots
+    inside a quoted identifier are part of the name rather than separators, so
+    ``db."odd.name"`` keeps its two components instead of being split into three.
+    """
+    return ".".join(_quote_presto_identifier(part) for part in _QUALIFIED_NAME_PART_RE.findall(table))
 
 
 class HiveStatsCollectionOperator(BaseOperator):
@@ -167,8 +184,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         placeholder = presto.placeholder
         where_clause_ = [f"{_quote_presto_identifier(k)} = {placeholder}" for k in self.partition.keys()]
         where_clause = " AND\n        ".join(where_clause_)
-        quoted_table = ".".join(_quote_presto_identifier(part) for part in self.table.split("."))
-        sql = f"SELECT {exprs_str} FROM {quoted_table} WHERE {where_clause};"
+        sql = f"SELECT {exprs_str} FROM {_quote_presto_table(self.table)} WHERE {where_clause};"
 
         self.log.info("Executing SQL check: %s", sql)
         row = presto.get_first(sql, parameters=tuple(self.partition.values()))

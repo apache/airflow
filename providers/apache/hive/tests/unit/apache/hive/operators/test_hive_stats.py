@@ -26,6 +26,7 @@ import pytest
 from airflow.providers.apache.hive.operators.hive_stats import (
     HiveStatsCollectionOperator,
     _quote_presto_identifier,
+    _quote_presto_table,
 )
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.presto.hooks.presto import PrestoHook
@@ -79,6 +80,10 @@ class MockPrestoHook(PrestoHook):
         ('"weird-col"', '"weird-col"'),
         ('"test-123-quoted"', '"test-123-quoted"'),
         ('"a""b"', '"a""b"'),
+        # A dot inside a pre-quoted identifier is part of the name; the helper sees one
+        # identifier and leaves it alone (splitting on dots is the caller's job, and is
+        # covered by test_quote_presto_table below).
+        ('"my.table"', '"my.table"'),
         # A malformed pre-quoted identifier (unbalanced / lone inner quote) is not a
         # valid quoted identifier, so it is escaped as a literal name instead.
         ('"a"b"', '"""a""b"""'),
@@ -86,6 +91,34 @@ class MockPrestoHook(PrestoHook):
 )
 def test_quote_presto_identifier(identifier, expected):
     assert _quote_presto_identifier(identifier) == expected
+
+
+@pytest.mark.parametrize(
+    ("table", "expected"),
+    [
+        # Bare and qualified plain names are emitted unchanged.
+        ("tbl", "tbl"),
+        ("db.tbl", "db.tbl"),
+        # Components that are not plain word identifiers are quoted one by one.
+        ("my-db.my-tbl", '"my-db"."my-tbl"'),
+        ("db.odd tbl", 'db."odd tbl"'),
+        # Pre-quoted components are passed through rather than re-escaped, including
+        # ones carrying a correctly doubled embedded quote.
+        ('"weird-tbl"', '"weird-tbl"'),
+        ('db."a""b"', 'db."a""b"'),
+        # Only the dots outside a quoted identifier separate components, so a quoted
+        # name containing a dot stays whole instead of being torn into two fragments
+        # and re-escaped into nonsense such as '"""my"."table"""'.
+        ('"my.table"', '"my.table"'),
+        ('db."odd.name"', 'db."odd.name"'),
+        ('"my.db"."odd.name"', '"my.db"."odd.name"'),
+        # Trailing SQL after a closing quote is not a valid quoted identifier, so it is
+        # escaped into one inert component instead of breaking out of the FROM clause.
+        ('db."x"; DROP TABLE users--', 'db."x"."; DROP TABLE users--"'),
+    ],
+)
+def test_quote_presto_table(table, expected):
+    assert _quote_presto_table(table) == expected
 
 
 class TestHiveStatsCollectionOperator(TestHiveEnvironment):
@@ -352,6 +385,10 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
             # name is quoted per dotted component.
             ("weird-table", 'FROM "weird-table"'),
             ("my-db.my-tbl", 'FROM "my-db"."my-tbl"'),
+            # A dot inside a quoted component is part of the identifier, not a
+            # catalog/schema separator, so the name reaches the FROM clause intact.
+            ('"my.table"', 'FROM "my.table"'),
+            ('db."odd.name"', 'FROM db."odd.name"'),
             # An embedded double quote is doubled, so an injection payload is
             # contained as a single inert identifier instead of breaking out of
             # the FROM clause (and is no longer rejected outright).
