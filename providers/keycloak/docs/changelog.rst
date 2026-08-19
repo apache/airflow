@@ -53,7 +53,6 @@ Features
 * ``Make KeycloakAuthManager '_CACHE_TTL_SECONDS' configurable (#70839)``
 * ``Add KeycloakJWTMiddleware to KeycloakAuthManager (#70800, #71077, #71506)``
 * ``Implement bulk authorization methods in KeycloakAuthManager (#70647)``
-* ``Move keycloak JWT tokens to separate cookies (#70550, #70981)``
 * ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
 
 Bug Fixes
@@ -62,6 +61,7 @@ Bug Fixes
 * ``Fix Keycloak multi-team permission repair (#71614)``
 * ``Make Keycloak permission creation quietly idempotent like its sibling helpers (#71505)``
 * ``Fix Keycloak access for individual roles (#70906)``
+* ``Move keycloak JWT tokens to separate cookies (#70550, #70981)``
 
 Misc
 ~~~~
