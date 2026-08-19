@@ -1279,24 +1279,11 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Post-process a single finished parse result.
 
-        Overriding this still receives every file, one at a time, and is still supported -- but a
-        sweep can then no longer be persisted a group at a time, so batching is skipped for the
-        whole Dag processor. :meth:`persist_parsing_results` is the seam to prefer where it is
-        enough, since it keeps batching.
+        Detects callback-only processing, updates file stats, emits metrics, and writes through
+        :meth:`persist_parsing_results`. Owns its session, so an override need not inherit one.
 
-        Detects callback-only processing, updates file stats, emits metrics, and persists the
-        file's Dags and import errors through :meth:`persist_parsing_results`, so a subclass that
-        adopted that seam is not written past.
-
-        Owns its own DB session via ``@provide_session`` so subclasses that
-        forward results without touching the metadata DB (e.g. AIP-92 API-backed
-        deployments) can override this method without inheriting a session
-        created by the caller.
-
-        If persistence fails, the error is logged and the previous persisted
-        DAG/import-error counts are preserved while a minimal timestamp update
-        throttles immediate retries, so other files in the same
-        ``_collect_results`` cycle still run.
+        Still supported, but overriding it means a sweep is no longer persisted a group at a time.
+        Prefer :meth:`persist_parsing_results` where it is enough.
         """
         result = self._build_parse_result(file, proc)
         if result is None:
@@ -1431,9 +1418,14 @@ class DagFileProcessorManager(LoggingMixin):
                 DeprecationWarning,
                 stacklevel=2,
             )
-        elif self._overrides_handle_parsing_result():
-            # Not deprecated: nothing replaces handling a file in full, so say what it costs
-            # somewhere an operator will actually see it.
+            self.log.warning(
+                "%s overrides persist_parsing_result, so parse results are persisted one file at "
+                "a time rather than a group at a time.",
+                type(self).__name__,
+            )
+        if self._overrides_handle_parsing_result():
+            # Not deprecated: nothing replaces handling a file in full. Reported on its own,
+            # since a manager may replace this and the write below it for the same deployment.
             self.log.warning(
                 "%s overrides handle_parsing_result, so parse results are persisted one file at a "
                 "time rather than a group at a time.",
@@ -1459,35 +1451,15 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Persist one group of a sweep's parse results in a single pass.
 
-        Everything :func:`update_dag_parsing_results_in_db` does besides writing the Dags is paid
-        once per call, so several files together cost far fewer statements than file by file. A
-        sweep is split by :meth:`build_persistence_groups` first, so a sweep spanning bundles, or
-        carrying more Dags than a group takes, arrives as more than one call.
+        Override this to send results somewhere other than the metadata DB (e.g. AIP-92). It is
+        handed one group, not a whole sweep, and only files that produced Dags. Everything written
+        here goes on the one session, so a caller handing over more than one group gets them in one
+        transaction; the manager splits first so each group gets its own.
 
-        This is the seam to override for deployments sending results somewhere other than the
-        metadata DB (e.g. AIP-92); one that overrides only the per-file
-        :meth:`persist_parsing_result` is still called once per file instead, with batching skipped.
-
-        Whatever is handed over is written on the one session, so a caller passing results that do
-        not form a single group gets them in a single transaction. The manager never does: it splits
-        a sweep with :meth:`build_persistence_groups` and calls this once per group, which is what
-        gives each group a transaction of its own.
-
-        Raising from the built-in write discards the whole group, and the caller then persists each
-        file on its own, since the group was one transaction and nothing was kept. A replaced write
-        gets no such retry -- see :meth:`_persist_sweep`.
-
-        The one transaction holds while the metadata DB is the only thing being written. Under the
-        FAB auth manager it does not: syncing a Dag's permissions commits on this session partway
-        through the group, so a later failure can leave the Dags written before it committed and the
-        rest rolled back. The per-file retry then rewrites what was already kept, which the writes
-        themselves tolerate, but a listener watching import errors sees the same file announced
-        twice.
-
-        Note that a replaced write is not reached without touching the metadata DB in multi-team
-        deployments: the team a bundle belongs to is looked up while working out what a file leaves
-        to persist, and a file whose lookup fails never arrives here. Callback-only completions do
-        not arrive here either; :meth:`handle_parsing_result` sees every file.
+        The built-in write keeps nothing when it raises, so the caller retries the group a file at
+        a time. A replaced one may have kept it, so it does not. Two caveats to "nothing was kept":
+        the FAB auth manager commits Dag permissions part way through, and listeners are told what a
+        write did before it commits, so a retry can announce the same thing twice.
         """
         if self._overrides_per_file_persist():
             for item in results:
@@ -1509,21 +1481,17 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Split a sweep into units that can each be written in a single call.
 
-        Groups are contiguous runs of the sweep, so writing them in turn writes every file in the
-        order it arrived. Files share far more than a dag_id -- assets, aliases and triggers are
-        shared across bundles by design -- and for all of it the last write wins, so a file allowed
-        to overtake another would quietly change which definition survives.
+        Groups are contiguous runs, so writing them in turn writes every file in the order it
+        arrived. Assets, aliases and triggers are shared across bundles and the last write wins, so
+        a file that overtook another would change which definition survives.
 
-        A run ends where the next file cannot join it: a different bundle, since the bundle fixes
-        the version the write needs; a dag_id the run already claims, since merging two files
-        defining one dag_id would lose the duplicate warning that comes from comparing an incoming
-        Dag against the file already recorded; a file the run and the incoming file both speak
-        for, whichever way round, since an error recorded against a file is applied after the Dags
-        filed under it are written and would leave every one of them stale; or
-        ``MAX_DAGS_PER_PERSISTENCE_GROUP``.
+        A run ends where the next file cannot join it: a different bundle version, a dag_id the run
+        claims, a file either speaks for (an error against a file stales the Dags filed under it,
+        and that is applied after they are written), or ``MAX_DAGS_PER_PERSISTENCE_GROUP``. Files
+        are not counted -- ``[dag_processor] parsing_processes`` already bounds how many arrive.
         """
         groups: list[list[FileParseResult]] = []
-        bundles: list[str] = []
+        bundles: list[tuple[str, str | None, dict | None]] = []
         dag_counts: list[int] = []
         claimed_dag_ids: list[set[str]] = []
         # Where a run files its Dags, and which files it reports on: a collision either way round
@@ -1537,10 +1505,11 @@ class DagFileProcessorManager(LoggingMixin):
             dag_locs = {dag.relative_fileloc for dag in dags if dag.relative_fileloc}
             file_locs = {str(item.file.rel_path), *(item.parsing_result.import_errors or ())}
             bundle_name = item.file.bundle_name
+            bundle_key = (bundle_name, item.bundle_version, item.version_data)
 
             joins_run = (
                 bool(groups)
-                and bundles[-1] == bundle_name
+                and bundles[-1] == (bundle_name, item.bundle_version, item.version_data)
                 and dag_counts[-1] + len(dags) <= MAX_DAGS_PER_PERSISTENCE_GROUP
                 and claimed_dag_ids[-1].isdisjoint(dag_ids)
                 and dag_locs_claimed[-1].isdisjoint(file_locs)
@@ -1550,7 +1519,7 @@ class DagFileProcessorManager(LoggingMixin):
             if not joins_run:
                 # A new group takes the file whatever its size; a file cannot be split.
                 groups.append([])
-                bundles.append(bundle_name)
+                bundles.append(bundle_key)
                 dag_counts.append(0)
                 claimed_dag_ids.append(set())
                 dag_locs_claimed.append(set())
@@ -1629,7 +1598,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Such an override owns persistence too, leaving a sweep nothing to write together.
         handles_each_file = self._overrides_handle_parsing_result()
         try:
-            for file, proc in self._processors.items():
+            for file, proc in list(self._processors.items()):
                 if not proc.is_ready:
                     # This processor hasn't finished yet, or we haven't read all the output from it yet
                     continue
@@ -1670,13 +1639,12 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Persist a sweep one group at a time, falling back to single files when a group fails.
 
-        Each group gets its own transaction: ``update_dag_parsing_results_in_db`` rolls the session
-        back before retrying an ``OperationalError``, which would otherwise discard groups already
-        written alongside it while their files stayed recorded as persisted. Under the FAB auth
-        manager a group is not quite one transaction -- see :meth:`persist_parsing_results`.
+        Each group gets its own call and so its own transaction, because
+        ``update_dag_parsing_results_in_db`` rolls the session back before retrying an
+        ``OperationalError`` and would otherwise discard groups already written beside it.
 
-        A subclass handling files one at a time gets single-file groups, so the fallback cannot hand
-        it a file it has already accepted.
+        A subclass handling files one at a time gets single-file groups, so the fallback cannot
+        hand it a file it has already accepted.
         """
         if self._overrides_per_file_persist():
             groups = [[item] for item in to_persist]
