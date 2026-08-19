@@ -48,6 +48,7 @@ from .validators import (
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
+    from opentelemetry.sdk.metrics.export import MetricReader
     from opentelemetry.util.types import Attributes
 
     from .protocols import DeltaType
@@ -432,9 +433,9 @@ class MetricsMap:
         self.histograms[name].record(value, tags)
 
 
-# The MeterProvider this process built, if any. A fork hands the child this reference and the
-# atexit hook, but the child owns neither: flushing a provider it inherited re-exports everything
-# the parent accumulated, and the reader threads behind it no longer exist.
+# The MeterProvider this process built, if any. A fork hands the child both this reference and the
+# atexit hook, but the child owns neither: were it to flush a provider it inherited, everything the
+# parent accumulated would be exported a second time, by a process that recorded none of it.
 _provider: MeterProvider | None = None
 
 
@@ -443,9 +444,64 @@ def flush_otel_metrics():
         _provider.force_flush()
 
 
+def _collect_nothing(reader: MetricReader, timeout_millis: float = 10_000) -> None:
+    """Collect callback that yields no measurements, so the reader never reaches its exporter."""
+    return None
+
+
+def _stop_inherited_readers(provider: MeterProvider) -> None:
+    """
+    Stop the exporter threads a fork handed this child.
+
+    The SDK restarts every ``PeriodicExportingMetricReader`` ticker in the child
+    (``register_at_fork(after_in_child=...)``), so the pipeline a child inherits goes on exporting
+    the totals the parent held at the moment of the fork -- once per interval, for as long as the
+    child lives, as a second writer on a cumulative series it does not record to. A child that
+    emits metrics of its own builds its own pipeline in :func:`get_otel_logger`.
+
+    Setting the shutdown event ends the restarted ticker at its first wait, and dropping the
+    collect callback keeps the one collection it makes on its way out from publishing those
+    totals.
+
+    Only this provider's own readers are touched: ``_all_metric_readers`` is a class attribute
+    shared with every provider in the process, including ones Airflow did not build.
+    """
+    readers = getattr(provider, "_metric_readers", None)
+    if readers is None:
+        log.warning("Could not find the inherited metric readers; they may keep exporting.")
+        return
+
+    for reader in readers:
+        reader._collect = _collect_nothing
+        if (shutdown_event := getattr(reader, "_shutdown_event", None)) is not None:
+            shutdown_event.set()
+
+
+def _drop_inherited_exit_handler(provider: object) -> None:
+    """
+    Stop a provider this module did not build from flushing the parent's state at child exit.
+
+    A ``MeterProvider`` built by the SDK -- from ``OTEL_CONFIG_FILE`` or by an instrumentation
+    agent -- defaults to ``shutdown_on_exit=True`` and registers its own atexit shutdown, which a
+    fork hands to the child along with everything the parent had accumulated. Its readers are left
+    running: on that path they are the only pipeline the child has.
+
+    A provider without that handler is either one built here (``shutdown_on_exit=False``) or one
+    that never registered it, so there is nothing to drop either way.
+    """
+    handler = getattr(provider, "_atexit_handler", None)
+    if handler is None:
+        return
+    atexit.unregister(handler)
+    provider._atexit_handler = None  # type: ignore[attr-defined]
+
+
 def _reset_provider_after_fork() -> None:
     global _provider
     atexit.unregister(flush_otel_metrics)
+    _drop_inherited_exit_handler(metrics.get_meter_provider())
+    if _provider is not None:
+        _stop_inherited_readers(_provider)
     _provider = None
 
 
@@ -476,10 +532,15 @@ def get_otel_logger(
     scales (milliseconds to hours).
 
     A ``MeterProvider`` already built from ``OTEL_CONFIG_FILE`` is used as-is: the declarative
-    configuration spec makes that file the sole source of SDK construction.
+    configuration spec makes that file the sole source of SDK construction. Its lifecycle stays the
+    deployment's -- the SDK builds it with its own atexit shutdown, so no flush hook is registered
+    for it here. Across a fork the child drops only the inherited copy of that hook, so it cannot
+    export what the parent accumulated; the readers the SDK revives in the child are left running,
+    because on that path they are the only pipeline the child has.
 
-    The pipeline is built once per process. Later calls return a logger over the same provider
-    rather than leaving a second one exporting alongside it; a fork resets that.
+    The pipeline built here is built once per process. Later calls return a logger over the same
+    provider rather than leaving a second one exporting alongside it; a forked child stops the one
+    it inherited and builds its own.
     """
     effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     validator = get_validator(metrics_allow_list, metrics_block_list)
@@ -533,8 +594,8 @@ def get_otel_logger(
     # This is necessary when get_otel_logger() is called after a process fork:
     # the parent's _METER_PROVIDER_SET_ONCE._done = True is inherited by the child,
     # causing set_meter_provider() to silently fail with "Overriding of current
-    # MeterProvider is not allowed". The child then uses the parent's stale provider
-    # whose PeriodicExportingMetricReader thread is dead after fork.
+    # MeterProvider is not allowed", leaving the parent's provider installed globally for
+    # anything that reads it -- carrying the parent's accumulated state, not the child's.
     # On first call (no fork), _done is already False so this is a no-op.
     # See: https://github.com/apache/airflow/issues/64690
     try:

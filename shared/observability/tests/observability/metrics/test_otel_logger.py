@@ -28,6 +28,7 @@ import pytest
 from opentelemetry import metrics
 from opentelemetry.metrics import MeterProvider
 from opentelemetry.sdk.metrics import MeterProvider as SDKMeterProvider
+from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.metrics.view import (
     ExplicitBucketHistogramAggregation,
     ExponentialBucketHistogramAggregation,
@@ -56,6 +57,9 @@ from tests_common.test_utils.config import env_vars
 # Long enough that only the shutdown flush exports, so an exported metric name appears in the
 # output once per flush.
 NO_PERIODIC_EXPORT_INTERVAL_MS = 600000
+
+# Short enough that a live exporter thread publishes several times over the child's lifetime.
+PERIODIC_EXPORT_INTERVAL_MS = 200
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
@@ -631,6 +635,78 @@ class TestOtelMetrics:
             f"exported {exports} times.\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         )
 
+    @staticmethod
+    def run_forking_helper(runner: str, tmp_path) -> str:
+        """Run one of this module's forking helpers and return what its child exported."""
+        child_output = tmp_path / "child_stdout.json"
+        test_module_name = "tests.observability.metrics.test_otel_logger"
+        function_call_str = f"import {test_module_name} as m; m.{runner}()"
+
+        proc = subprocess.run(
+            [sys.executable, "-c", function_call_str],
+            check=False,
+            env={**os.environ, "CHILD_OUTPUT_FILE": str(child_output)},
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        assert child_output.exists(), f"Child never redirected its output\nstderr:\n{proc.stderr}"
+        return child_output.read_text()
+
+    @pytest.mark.parametrize(
+        ("runner", "own_metric"),
+        [
+            ("mock_service_fork_child_periodic_no_reinit", None),
+            ("mock_service_fork_child_periodic_reinit", "child_stat"),
+        ],
+    )
+    def test_forked_child_stops_exporting_the_inherited_pipeline(self, tmp_path, runner, own_metric):
+        """Test that a forked child stops exporting the pipeline it inherited, not the one it builds.
+
+        The SDK restarts every ``PeriodicExportingMetricReader`` ticker in a forked child, so an
+        inherited pipeline keeps publishing the totals the parent had accumulated at the moment of
+        the fork -- once per interval, for the child's whole life, from a process that records
+        nothing to it.
+        """
+        child_exports = self.run_forking_helper(runner, tmp_path)
+
+        assert child_exports.count('"name": "airflow.parent_stat"') == 0, (
+            f"Child re-exported the parent's metric:\n{child_exports}"
+        )
+        if own_metric:
+            assert f'"name": "airflow.{own_metric}"' in child_exports, (
+                f"Child stopped exporting its own metric:\n{child_exports}"
+            )
+
+    def test_forked_child_does_not_flush_a_provider_it_did_not_build(self, tmp_path):
+        """Test that a child does not run the atexit shutdown of a provider it inherited.
+
+        ``shutdown_on_exit=True`` is the SDK default for a ``MeterProvider`` built from
+        ``OTEL_CONFIG_FILE`` or by an instrumentation agent, and a fork hands that hook to the
+        child along with everything the parent accumulated.
+        """
+        child_exports = self.run_forking_helper("mock_service_fork_child_under_foreign_provider", tmp_path)
+
+        assert "foreign_counter" not in child_exports, (
+            f"Child ran the inherited provider's shutdown hook:\n{child_exports}"
+        )
+
+    def test_forked_child_leaves_other_pipelines_alone(self, tmp_path):
+        """Test that stopping the inherited pipeline spares a provider Airflow did not build.
+
+        ``MeterProvider._all_metric_readers`` is a class attribute shared by every provider in the
+        process, so reaching for that instead of this provider's own readers would silence an
+        ``opentelemetry-instrument`` pipeline in every forked child.
+        """
+        child_exports = self.run_forking_helper("mock_service_fork_child_beside_foreign_provider", tmp_path)
+
+        assert "foreign_counter" in child_exports, (
+            f"Child stopped a pipeline Airflow does not own:\n{child_exports}"
+        )
+        assert child_exports.count('"name": "airflow.parent_stat"') == 0
+
     def test_reinit_reuses_the_process_pipeline(self, reset_meter_provider):
         """A second call must not leave a second pipeline exporting alongside the first.
 
@@ -716,3 +792,57 @@ def mock_service_fork_child_with_reinit():
         get_otel_logger(debug=True, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS).incr("child_stat")
         sys.exit(0)
     os.wait()
+
+
+def _redirect_child_output() -> None:
+    """Point fd 1 at ``CHILD_OUTPUT_FILE``, so a child's exports are told apart from its parent's."""
+    os.dup2(os.open(os.environ["CHILD_OUTPUT_FILE"], os.O_WRONLY | os.O_CREAT | os.O_TRUNC), 1)
+
+
+def _build_foreign_provider(export_interval_ms: float, *, shutdown_on_exit: bool) -> SDKMeterProvider:
+    """Build a pipeline Airflow does not own, as an instrumentation agent would."""
+    provider = SDKMeterProvider(
+        metric_readers=[
+            PeriodicExportingMetricReader(ConsoleMetricExporter(), export_interval_millis=export_interval_ms)
+        ],
+        shutdown_on_exit=shutdown_on_exit,
+    )
+    provider.get_meter("foreign").create_counter("foreign_counter").add(7)
+    return provider
+
+
+def _fork_child_writing_exports_to_file(reinit: bool) -> None:
+    """Emit a metric, then fork a child that outlives several export intervals."""
+    get_otel_logger(debug=True, conf_interval=PERIODIC_EXPORT_INTERVAL_MS).incr("parent_stat")
+    if os.fork() == 0:
+        _redirect_child_output()
+        if reinit:
+            get_otel_logger(debug=True, conf_interval=PERIODIC_EXPORT_INTERVAL_MS).incr("child_stat")
+        time.sleep(PERIODIC_EXPORT_INTERVAL_MS * 5 / 1000)
+        os._exit(0)
+    os.wait()
+
+
+def mock_service_fork_child_periodic_no_reinit():
+    """Fork a child that never initializes a logger of its own."""
+    _fork_child_writing_exports_to_file(reinit=False)
+
+
+def mock_service_fork_child_periodic_reinit():
+    """Fork a child that initializes its own logger and emits its own metric."""
+    _fork_child_writing_exports_to_file(reinit=True)
+
+
+def mock_service_fork_child_under_foreign_provider():
+    """Fork under an SDK-built provider that kept its own atexit shutdown; the child exits cleanly."""
+    metrics.set_meter_provider(_build_foreign_provider(NO_PERIODIC_EXPORT_INTERVAL_MS, shutdown_on_exit=True))
+    if os.fork() == 0:
+        _redirect_child_output()
+        sys.exit(0)  # a normal exit runs the atexit hooks
+    os.wait()
+
+
+def mock_service_fork_child_beside_foreign_provider():
+    """Fork an idle child while both Airflow's pipeline and one it does not own are exporting."""
+    _build_foreign_provider(PERIODIC_EXPORT_INTERVAL_MS, shutdown_on_exit=False)
+    _fork_child_writing_exports_to_file(reinit=False)
