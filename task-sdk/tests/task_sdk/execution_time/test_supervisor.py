@@ -4306,6 +4306,32 @@ def test_process_log_messages_from_subprocess_tolerates_closed_log_file():
     gen.send(b'{"level": "error", "event": "log line after the subprocess was killed"}\n')
 
 
+def test_process_log_messages_from_subprocess_reraises_unrelated_value_error():
+    """Only closed file write errors are dropped; any other ValueError still propagates."""
+    import io
+
+    from airflow.sdk.log import logging_processors
+
+    class ExplodingFile(io.RawIOBase):
+        def writable(self):
+            return True
+
+        def write(self, data):
+            raise ValueError("boom")
+
+    broken_log = structlog.wrap_logger(
+        structlog.BytesLogger(ExplodingFile()),
+        processors=logging_processors(json_output=True),
+        logger_name="processor",
+    ).bind()
+
+    gen = process_log_messages_from_subprocess(loggers=(broken_log,))
+    next(gen)
+
+    with pytest.raises(ValueError, match="boom"):
+        gen.send(b'{"level": "error", "event": "some log line"}\n')
+
+
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     def subprocess_main():
         # This is run in the subprocess!
