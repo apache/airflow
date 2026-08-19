@@ -1489,6 +1489,12 @@ class DagFileProcessorManager(LoggingMixin):
         claims, a file either speaks for (an error against a file stales the Dags filed under it,
         and that is applied after they are written), or ``MAX_DAGS_PER_PERSISTENCE_GROUP``. Files
         are not counted -- ``[dag_processor] parsing_processes`` already bounds how many arrive.
+
+        A file reporting import errors also ends the run, whatever it reports on. Staling the Dags
+        filed under a path is the last thing a write does, while what a write reads about existing
+        Dags -- whether one is registered elsewhere, whether an asset still has a live Dag
+        scheduling it -- it reads first. Writing a file at a time put those in the other order, so
+        a later file saw what an earlier one staled.
         """
         groups: list[list[FileParseResult]] = []
         bundles: list[tuple[str, str | None, dict | None]] = []
@@ -1498,6 +1504,7 @@ class DagFileProcessorManager(LoggingMixin):
         # has to end the run.
         dag_locs_claimed: list[set[str]] = []
         file_locs_claimed: list[set[str]] = []
+        run_ended = False
 
         for item in results:
             dags = item.parsing_result.serialized_dags
@@ -1509,7 +1516,8 @@ class DagFileProcessorManager(LoggingMixin):
 
             joins_run = (
                 bool(groups)
-                and bundles[-1] == (bundle_name, item.bundle_version, item.version_data)
+                and not run_ended
+                and bundles[-1] == bundle_key
                 and dag_counts[-1] + len(dags) <= MAX_DAGS_PER_PERSISTENCE_GROUP
                 and claimed_dag_ids[-1].isdisjoint(dag_ids)
                 and dag_locs_claimed[-1].isdisjoint(file_locs)
@@ -1524,12 +1532,14 @@ class DagFileProcessorManager(LoggingMixin):
                 claimed_dag_ids.append(set())
                 dag_locs_claimed.append(set())
                 file_locs_claimed.append(set())
+                run_ended = False
 
             groups[-1].append(item)
             dag_counts[-1] += len(dags)
             claimed_dag_ids[-1].update(dag_ids)
             dag_locs_claimed[-1].update(dag_locs)
             file_locs_claimed[-1].update(file_locs)
+            run_ended = bool(item.parsing_result.import_errors)
         return groups
 
     def _persist_bundle_group(
