@@ -23,7 +23,7 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1784746595
+source-date-epoch: 1785633505
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
@@ -63,6 +63,9 @@ integrations:
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst
     tags: [ai]
+  - integration-name: Docker Sandboxes
+    external-doc-url: https://docs.docker.com/ai/sandboxes/
+    tags: [software]
 
 hooks:
   - integration-name: Pydantic AI
@@ -147,6 +150,16 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook
     hook-name: "Pydantic AI"
     connection-type: pydanticai
+    external-services:
+      - OpenAI
+      - Anthropic
+      - Google
+      - AWS Bedrock
+      - Groq
+      - Mistral AI
+      - DeepSeek
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -167,6 +180,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
     hook-name: "Pydantic AI (Azure OpenAI)"
     connection-type: pydanticai-azure
+    external-services:
+      - Azure OpenAI
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -195,6 +210,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook
     hook-name: "Pydantic AI (AWS Bedrock)"
     connection-type: pydanticai-bedrock
+    external-services:
+      - AWS Bedrock
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -278,6 +295,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook
     hook-name: "Pydantic AI (Google Vertex AI)"
     connection-type: pydanticai-vertex
+    external-services:
+      - Google Vertex AI
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -374,6 +393,14 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.langchain.LangChainHook
     hook-name: "LangChain"
     connection-type: langchain
+    external-services:
+      - OpenAI
+      - Anthropic
+      - Groq
+      - Mistral AI
+      - DeepSeek
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -407,6 +434,10 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook
     hook-name: "LlamaIndex"
     connection-type: llamaindex
+    external-services:
+      - OpenAI
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -460,8 +491,14 @@ toolsets:
       - airflow.providers.common.ai.toolsets.datafusion
       - airflow.providers.common.ai.toolsets.logging
       - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.sandbox
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge
+
+retry-policies:
+  - integration-name: Common AI
+    python-modules:
+      - airflow.providers.common.ai.policies.retry
 
 task-decorators:
   - class-name: airflow.providers.common.ai.decorators.agent.agent_task

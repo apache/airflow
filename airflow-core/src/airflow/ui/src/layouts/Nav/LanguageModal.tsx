@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { Dialog } from "src/components/ui";
@@ -28,7 +27,7 @@ type LanguageModalProps = {
   readonly onClose: () => void;
 };
 
-const LanguageModal: React.FC<LanguageModalProps> = ({ isOpen, onClose }) => {
+const LanguageModal = ({ isOpen, onClose }: LanguageModalProps) => {
   const { t: translate } = useTranslation();
 
   return (

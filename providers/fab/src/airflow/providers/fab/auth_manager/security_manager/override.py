@@ -24,6 +24,7 @@ import importlib
 import itertools
 import json
 import logging
+import re
 import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
@@ -69,6 +70,7 @@ from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.auth_manager.models import (
     Action,
@@ -332,6 +334,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
@@ -973,7 +976,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perms = self.get_all_permissions()
 
         for dag in _iter_dags():
-            print(dag)
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = permissions.resource_name(dag.dag_id, resource_name)
                 for action_name in resource_values["actions"]:
@@ -2425,13 +2427,69 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
+    def _get_azure_tenant_id(self) -> str | None:
+        """
+        Resolve the Azure AD tenant the deployment is configured against.
+
+        Prefers an explicit ``tenant_id`` in ``client_kwargs``; otherwise derives it from
+        the tenant segment of the configured Azure endpoints, which is where the documented
+        configuration puts it (``https://login.microsoftonline.com/<tenant-id>/...``).
+
+        Returns ``None`` when the configuration is tenant-agnostic (the ``common`` or
+        ``organizations`` endpoints), because there is then no single issuer to pin to.
+        """
+        azure = self.oauth_remotes["azure"]
+
+        tenant_id = azure.client_kwargs.get("tenant_id")
+        if tenant_id:
+            return tenant_id
+
+        for url in (
+            getattr(azure, "api_base_url", None),
+            getattr(azure, "access_token_url", None),
+            getattr(azure, "authorize_url", None),
+        ):
+            if not isinstance(url, str):
+                continue
+            match = re.search(r"login\.microsoftonline\.com/([^/]+)/", url)
+            if match and match.group(1) not in ("common", "organizations", "consumers"):
+                return match.group(1)
+
+        return None
+
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
+            tenant_id = self._get_azure_tenant_id()
+            if not tenant_id:
+                raise AirflowConfigException(
+                    "Azure AD tenant could not be determined from the OAuth configuration. "
+                    "The Microsoft key set used to verify id_token signatures serves keys for "
+                    "every tenant, so without a tenant the issuer of the token cannot be "
+                    "checked. Configure the tenant-specific endpoints "
+                    "(https://login.microsoftonline.com/<tenant-id>/...) or set 'tenant_id' "
+                    "in the azure provider's client_kwargs."
+                )
+
+            claims_options = {
+                # The token must have been issued by the configured tenant. Both the v1.0 and
+                # v2.0 issuer forms are accepted because either may be returned depending on
+                # which endpoints the deployment is configured against.
+                "iss": {
+                    "essential": True,
+                    "values": [
+                        f"https://login.microsoftonline.com/{tenant_id}/v2.0",
+                        f"https://sts.windows.net/{tenant_id}/",
+                    ],
+                },
+                # The token must have been minted for this application.
+                "aud": {"essential": True, "value": self.oauth_remotes["azure"].client_id},
+            }
+
             keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())  # type: ignore
-            claims = authlib_jwt.decode(id_token, keyset)
+            claims = authlib_jwt.decode(id_token, keyset, claims_options=claims_options)
             claims.validate()
             return claims
 

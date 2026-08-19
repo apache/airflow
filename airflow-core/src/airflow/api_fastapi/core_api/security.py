@@ -27,6 +27,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt, TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -69,6 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
+from airflow.models.asset import AssetEvent
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -265,12 +267,39 @@ class PermittedDagWarningFilter(PermittedDagFilter):
 
 
 class PermittedEventLogFilter(PermittedDagFilter):
-    """A parameter that filters the permitted even logs for the user."""
+    """A parameter that filters the permitted event logs for the user."""
+
+    def __init__(self, value: set[str] | None = None, *, include_non_dag_logs: bool = False):
+        super().__init__(value)
+        self.include_non_dag_logs = include_non_dag_logs
 
     def to_orm(self, select: Select) -> Select:
-        # Event Logs not related to Dags have dag_id as None and are always returned.
-        # return select.where(Log.dag_id.in_(self.value or set()) or Log.dag_id.is_(None))
-        return select.where(or_(Log.dag_id.in_(self.value or set()), Log.dag_id.is_(None)))
+        permitted_dag_logs = Log.dag_id.in_(self.value or set())
+        if not self.include_non_dag_logs:
+            return select.where(permitted_dag_logs)
+        # Event logs not related to a Dag have dag_id as None. They record Connection,
+        # Variable, Pool, … operations, so they carry no per-Dag key to authorize on and
+        # are gated on ``AccessView.AUDIT_LOGS_ALL`` instead of Dag-level audit access.
+        # Filtering here rather than after the fact keeps unauthorized rows out of the
+        # count and pagination too, so their existence does not leak either.
+        return select.where(or_(permitted_dag_logs, Log.dag_id.is_(None)))
+
+
+class PermittedAssetEventFilter(PermittedDagFilter):
+    """A parameter that filters asset events to those produced by Dags the user may read."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Asset events created through the API, or emitted by a watcher, have no source Dag.
+        # They carry no per-Dag key to authorize on, so they stay visible to any caller who
+        # may read assets; only events produced by a Dag's task are scoped to that Dag's
+        # readability. Filtering here rather than after the fact keeps unauthorized rows out
+        # of the count and pagination too, so their existence does not leak either.
+        return select.where(
+            or_(
+                AssetEvent.source_dag_id.in_(self.value or set()),
+                AssetEvent.source_dag_id.is_(None),
+            )
+        )
 
 
 class PermittedTIFilter(PermittedDagFilter):
@@ -333,15 +362,41 @@ ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filt
 ReadableDagRunsFilterDep = Annotated[
     PermittedDagRunFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagRunFilter))
 ]
+ReadableAssetEventsFilterDep = Annotated[
+    PermittedAssetEventFilter, Depends(permitted_dag_filter_factory("GET", PermittedAssetEventFilter))
+]
 ReadableDagWarningsFilterDep = Annotated[
     PermittedDagWarningFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagWarningFilter))
 ]
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
 ]
-ReadableEventLogsFilterDep = Annotated[
-    PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedEventLogFilter))
-]
+
+
+def readable_event_logs_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedEventLogFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns the event-log filter for the user.
+
+    Event logs need their own factory rather than ``permitted_dag_filter_factory``: besides
+    the readable Dag ids, the filter needs to know whether the user may read audit rows that
+    are not tied to a Dag, which is a separate authorization decision.
+    """
+
+    def depends_readable_event_logs_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedEventLogFilter:
+        return PermittedEventLogFilter(
+            auth_manager.get_authorized_dag_ids(user=user, method="GET"),
+            include_non_dag_logs=auth_manager.authorize_view(
+                access_view=AccessView.AUDIT_LOGS_ALL, user=user
+            ),
+        )
+
+    return depends_readable_event_logs_filter
+
+
+ReadableEventLogsFilterDep = Annotated[PermittedEventLogFilter, Depends(readable_event_logs_filter_factory())]
 ReadableXComFilterDep = Annotated[
     PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
 ]
@@ -355,6 +410,12 @@ ReadableDagVersionsFilterDep = Annotated[
 ReadableBackfillsFilterDep = Annotated[
     PermittedBackfillFilter, Depends(permitted_dag_filter_factory("GET", PermittedBackfillFilter))
 ]
+
+
+# The type the backfill routes declare for the `backfill_id` path parameter. Shared with
+# `requires_access_backfill` so the authorization decision parses the id exactly as the handler
+# does; see the comment there for why any divergence is a cross-Dag authorization bypass.
+_BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
 
 
 def requires_access_backfill(
@@ -372,8 +433,14 @@ def requires_access_backfill(
         # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
-            backfill_id = int(backfill_id_raw) if backfill_id_raw is not None else None
-        except ValueError:
+            # Must parse exactly as the handler does (e.g. pydantic's lax mode coerces "1.0" to 1
+            # where int() raises), or the two can authorize and act on different backfills.
+            backfill_id = (
+                _BACKFILL_ID_ADAPTER.validate_python(backfill_id_raw) if backfill_id_raw is not None else None
+            )
+        except ValidationError:
+            # Rejected by the endpoint's parser too, so the handler cannot run: FastAPI answers
+            # 422 before it is reached. Left as None, preserving that response.
             backfill_id = None
 
         if backfill_id is not None:
@@ -381,6 +448,10 @@ def requires_access_backfill(
             dag_id = backfill.dag_id if backfill else None
 
         # Try to retrieve the dag_id from the request body (POST backfill)
+        # TODO: a backfill_id that parses but matches no row also lands here, so an unknown
+        # backfill is authorized against the body's dag_id and answers 404 where an unauthorized
+        # one answers 403 - disclosing which ids exist. Not exploitable for a cross-Dag action;
+        # tracked at https://github.com/apache/airflow/issues/71080
         if dag_id is None:
             # Not a json body, ignore
             with suppress(JSONDecodeError):
@@ -423,7 +494,22 @@ def requires_access_event_log(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="'event_log_id' must be an integer",
                 )
-            dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
+            # Select the id alongside dag_id: a NULL dag_id and a missing row both come back
+            # as None from a bare ``Log.dag_id`` scalar, and they authorize differently.
+            row = session.execute(select(Log.id, Log.dag_id).where(Log.id == event_log_id)).one_or_none()
+            if row is not None and row.dag_id is None:
+                # The row records an operation that is not tied to a Dag, so there is no
+                # per-Dag key to authorize on: gate it on ``AccessView.AUDIT_LOGS_ALL``,
+                # the same view the list endpoint's filter uses for these rows.
+                _requires_access(
+                    is_authorized_callback=lambda: get_auth_manager().authorize_view(
+                        access_view=AccessView.AUDIT_LOGS_ALL, user=user
+                    ),
+                )
+                return
+            # A missing row keeps the Dag-level check so the route can answer 404 rather
+            # than turning an unknown id into a permission error.
+            dag_id = row.dag_id if row is not None else None
 
         requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
             request,

@@ -1372,9 +1372,17 @@ class TestOpenLineageListenerAirflow3:
                             "run_type": DagRunType.MANUAL,
                             "run_after": timezone.datetime(2023, 1, 3, 13, 1, 1),
                             "consumed_asset_events": [],
-                            **(
-                                {"state": SdkDagRunState.RUNNING} if "state" in SdkDagRun.model_fields else {}
-                            ),
+                            # Nullable-but-required on newer SDKs, absent on older ones.
+                            **{
+                                field: value
+                                for field, value in (
+                                    ("state", SdkDagRunState.RUNNING),
+                                    ("data_interval_start", None),
+                                    ("data_interval_end", None),
+                                    ("partition_key", None),
+                                )
+                                if field in SdkDagRun.model_fields
+                            },
                         }
                     ),
                     task_reschedule_count=0,

@@ -90,9 +90,28 @@ def smart_decode_trigger_kwargs(d):
     """
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    if not isinstance(d, dict) or Encoding.TYPE not in d:
+    d = _normalize_stringified_encoding_keys(d)
+    if not isinstance(d, dict):
         return d
-    return BaseSerialization.deserialize(d)
+    if Encoding.TYPE in d and Encoding.VAR in d:
+        return BaseSerialization.deserialize(d)
+    return {k: smart_decode_trigger_kwargs(v) for k, v in d.items()}
+
+
+def _normalize_stringified_encoding_keys(value):
+    if isinstance(value, list):
+        return [_normalize_stringified_encoding_keys(v) for v in value]
+    if not isinstance(value, dict):
+        return value
+
+    if str(Encoding.TYPE) in value and str(Encoding.VAR) in value:
+        return {
+            Encoding.TYPE if k == str(Encoding.TYPE) else Encoding.VAR if k == str(Encoding.VAR) else k: (
+                _normalize_stringified_encoding_keys(v)
+            )
+            for k, v in value.items()
+        }
+    return {k: _normalize_stringified_encoding_keys(v) for k, v in value.items()}
 
 
 def _decode_asset(var: dict[str, Any]):
@@ -148,7 +167,12 @@ def decode_deadline_reference(reference_data: dict):
     """Decode a previously serialized deadline reference."""
     ref_name = reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
 
-    if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
+    # A custom reference may share a name with a builtin, so ``__class_path`` wins.
+    if "__class_path" in reference_data:
+        reference_class: type[SerializedReferenceModels.SerializedBaseDeadlineReference] = (
+            SerializedReferenceModels.SerializedCustomReference
+        )
+    elif ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
         reference_class = SerializedReferenceModels.get_reference_class(ref_name)
     else:
         reference_class = SerializedReferenceModels.SerializedCustomReference

@@ -69,11 +69,13 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
+    ReadableAssetEventsFilterDep,
     ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
 )
+from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -86,6 +88,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
@@ -339,6 +342,7 @@ def get_asset_events(
     name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     extra_filter: QueryAssetEventExtraFilter,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
+    readable_asset_events_filter: ReadableAssetEventsFilterDep,
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
@@ -362,6 +366,7 @@ def get_asset_events(
             name_prefix_pattern,
             extra_filter,
             timestamp_range,
+            readable_asset_events_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -377,7 +382,7 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select).all()
 
     return AssetEventCollectionResponse(
-        asset_events=assets_events,
+        asset_events=serialize_asset_events(assets_events, session=session),
         total_entries=total_entries,
     )
 
@@ -459,7 +464,10 @@ def materialize_asset(
     if not get_auth_manager().is_authorized_dag(
         method="POST",
         access_entity=DagAccessEntity.RUN,
-        details=DagDetails(id=dag_id),
+        # The Dag is resolved from the asset here rather than named by the caller, so its team has
+        # to be looked up too. A team-aware auth manager distinguishes a team-scoped Dag from a
+        # global one by this field, so leaving it None asks the wrong question.
+        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
         user=user,
     ):
         raise HTTPException(
@@ -502,7 +510,7 @@ def materialize_asset(
             conf=params["conf"],
             run_type=DagRunType.ASSET_MATERIALIZATION,
             triggered_by=DagRunTriggeredByType.REST_API,
-            triggering_user_name=user.get_name(),
+            triggering_user_name=user.get_display_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             partition_date=params["partition_date"],

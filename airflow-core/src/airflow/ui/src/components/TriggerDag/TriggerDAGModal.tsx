@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDag } from "openapi/queries";
@@ -48,14 +48,14 @@ type TriggerDAGModalProps = {
     | undefined;
 };
 
-const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
+const TriggerDAGModal = ({
   dagDisplayName,
   dagId,
   isPaused,
   onClose,
   open,
   prefillConfig,
-}) => {
+}: TriggerDAGModalProps) => {
   const { t: translate } = useTranslation("components");
   const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
   const {

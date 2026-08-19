@@ -20,7 +20,7 @@ import { Field, Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import React from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { useMatches, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
@@ -45,11 +45,7 @@ const formatOptionLabel = (option: DagSearchOption) => (
   </Flex>
 );
 
-export const SearchDags = ({
-  setIsOpen,
-}: {
-  readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}) => {
+export const SearchDags = ({ setIsOpen }: { readonly setIsOpen: Dispatch<SetStateAction<boolean>> }) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
   const matches = useMatches();
