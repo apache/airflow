@@ -622,21 +622,35 @@ class TestOtelMetrics:
             f"exported {exports} times.\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         )
 
-    def test_forked_child_stops_the_pipeline_it_inherited(self, tmp_path):
+    @pytest.mark.parametrize(
+        ("runner", "own_metric"),
+        [
+            ("mock_service_fork_idle_child", None),
+            ("mock_service_fork_reinitializing_child", "child_stat"),
+        ],
+    )
+    def test_forked_child_stops_the_pipeline_it_inherited(self, tmp_path, runner, own_metric):
         """A child must not keep exporting the metrics its parent accumulated.
 
         ``PeriodicExportingMetricReader`` registers its own ``after_in_child`` hook that restarts
         the export thread, so without stopping the inherited provider the child republishes the
-        parent's cumulative totals on every interval for as long as it lives.
+        parent's cumulative totals on every interval for as long as it lives. A child that builds
+        its own pipeline — the case every worker that emits metrics reaches — must go on exporting
+        through that one on the same interval.
         """
         child_output = tmp_path / "child-metrics.json"
-        run_service_helper("mock_service_fork_idle_child", child_output)
+        run_service_helper(runner, child_output)
 
         exported_in_child = child_output.read_text()
         assert '"name": "airflow.parent_stat"' not in exported_in_child, (
             "The forked child kept exporting the parent's metrics from the inherited pipeline.\n"
             f"child output:\n{exported_in_child}"
         )
+        if own_metric:
+            assert f'"name": "airflow.{own_metric}"' in exported_in_child, (
+                "The forked child stopped exporting through the pipeline it built for itself.\n"
+                f"child output:\n{exported_in_child}"
+            )
 
     def test_forked_child_does_not_flush_a_provider_it_did_not_build(self, tmp_path):
         """A provider supplied by the SDK brings its own atexit shutdown; a child must not run it.
@@ -744,12 +758,14 @@ def mock_service_fork_child_with_reinit():
     os.wait()
 
 
-def _fork_idle_child_capturing_its_own_output():
+def _fork_child_capturing_its_own_output(on_start=None):
     """Fork a child that redirects its output to ``CHILD_METRICS_OUT`` and idles, then reap it."""
     if os.fork() == 0:
         fd = os.open(os.environ["CHILD_METRICS_OUT"], os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
         os.dup2(fd, 1)
         os.dup2(fd, 2)
+        if on_start is not None:
+            on_start()
         time.sleep(CHILD_EXPORT_INTERVAL_MS / 1000 * 5)
         os._exit(0)
     os.wait()
@@ -758,7 +774,17 @@ def _fork_idle_child_capturing_its_own_output():
 def mock_service_fork_idle_child():
     """Emit a metric, then fork a child that only idles while the export interval elapses."""
     get_otel_logger(debug=True, conf_interval=CHILD_EXPORT_INTERVAL_MS).incr("parent_stat")
-    _fork_idle_child_capturing_its_own_output()
+    _fork_child_capturing_its_own_output()
+
+
+def mock_service_fork_reinitializing_child():
+    """Emit a metric, then fork a child that builds its own pipeline and idles alongside it."""
+    get_otel_logger(debug=True, conf_interval=CHILD_EXPORT_INTERVAL_MS).incr("parent_stat")
+    _fork_child_capturing_its_own_output(
+        on_start=lambda: get_otel_logger(debug=True, conf_interval=CHILD_EXPORT_INTERVAL_MS).incr(
+            "child_stat"
+        )
+    )
 
 
 def mock_service_fork_idle_child_beside_foreign_provider():
@@ -773,7 +799,7 @@ def mock_service_fork_idle_child_beside_foreign_provider():
     )
     foreign.get_meter("foreign").create_counter("foreign_counter").add(7)
     get_otel_logger(debug=True, conf_interval=CHILD_EXPORT_INTERVAL_MS).incr("parent_stat")
-    _fork_idle_child_capturing_its_own_output()
+    _fork_child_capturing_its_own_output()
 
 
 def mock_service_fork_child_under_foreign_provider():
