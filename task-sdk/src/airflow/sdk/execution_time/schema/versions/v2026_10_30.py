@@ -120,7 +120,7 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
 
 
 class AddDagSkippedIntervalsCallbackRequest(VersionChange):
-    """Introduce ``DagSkippedIntervalsCallbackRequest`` in ``CallbackRequest`` union."""
+    """Introduce ``DagSkippedIntervalsCallbackRequest`` in the ``CallbackRequest`` union."""
 
     description = __doc__
 
