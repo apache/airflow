@@ -535,22 +535,22 @@ class TestGoogleBidManagerCreateQueryOperator:
         context["task_instance"].xcom_push.assert_called_once_with(key="query_id", value=QUERY_ID)
         assert result == {"queryId": QUERY_ID}
 
-    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.json.load")
-    @mock.patch("builtins.open")
-    def test_prepare_template(self, mock_open, mock_json_load):
-        filename = "test_file.json"
-        mock_json_load.return_value = {"key": "value"}
-        op = GoogleBidManagerCreateQueryOperator(
-            body=filename,
-            api_version=API_VERSION,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            task_id="test_task",
-        )
-        op.prepare_template()
-        mock_open.assert_called_once_with(filename)
-        mock_json_load.assert_called_once()
-        assert op.body == {"key": "value"}
+    def test_prepare_template(self):
+        body = {"key": "value"}
+        with NamedTemporaryFile("w+", suffix=".json") as f:
+            f.write(json.dumps(body))
+            f.flush()
+            op = GoogleBidManagerCreateQueryOperator(
+                body=f.name,
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                task_id="test_task",
+            )
+            op.prepare_template()
+
+            assert isinstance(op.body, dict)
+            assert op.body == body
 
 
 class TestGoogleBidManagerGetQueryOperator:
