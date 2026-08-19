@@ -37,7 +37,11 @@ from airflow.hooks import base
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.providers.http.operators.http import IDEMPOTENT_METHODS, HttpOperator
+from airflow.providers.http.operators.http import (
+    _DEFERRABLE_NON_IDEMPOTENT_DOC_URL,
+    IDEMPOTENT_METHODS,
+    HttpOperator,
+)
 from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 
 _DEFER_WARN_FRAGMENT = "may send duplicate requests if the Triggerer restarts"
@@ -167,12 +171,31 @@ class TestHttpOperator:
         records = self._defer_warning_records(caplog)
         if expect_warning:
             assert len(records) == 1
-            assert f"method={method}" in records[0].getMessage()
+            message = records[0].getMessage()
+            assert f"method={method}" in message
+            assert _DEFERRABLE_NON_IDEMPOTENT_DOC_URL in message
+            assert "github.com/apache/airflow/issues/67945" not in message
+            assert "warn_on_non_idempotent_deferrable=False" in message
         else:
             assert len(records) == 0
 
         if deferrable:
             assert isinstance(captured["trigger"], HttpTrigger)
+
+    def test_silences_warning_when_warn_on_non_idempotent_deferrable_false(self, monkeypatch, caplog):
+        captured = self._capture_defer(monkeypatch)
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            method="POST",
+            deferrable=True,
+            warn_on_non_idempotent_deferrable=False,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            operator.execute(context={})
+
+        assert self._defer_warning_records(caplog) == []
+        assert isinstance(captured["trigger"], HttpTrigger)
 
     def test_does_not_warn_on_construction_for_deferrable_post(self, caplog):
         """E10: construction / parse-time must not warn (would flood the Dag processor)."""

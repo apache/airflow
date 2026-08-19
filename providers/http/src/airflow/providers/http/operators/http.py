@@ -36,6 +36,10 @@ if TYPE_CHECKING:
 # Idempotent methods per RFC 9110 §9.2.2 (formerly RFC 7231).
 # PUT and DELETE are idempotent even though they are not safe; PATCH is not idempotent.
 IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"})
+_DEFERRABLE_NON_IDEMPOTENT_DOC_URL = (
+    "https://airflow.apache.org/docs/apache-airflow-providers-http/stable/"
+    "operators.html#deferrable-mode-and-idempotency"
+)
 
 
 class HttpOperator(BaseOperator):
@@ -89,6 +93,10 @@ class HttpOperator(BaseOperator):
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
     :param deferrable: Run operator in the deferrable mode
+    :param warn_on_non_idempotent_deferrable: When ``deferrable=True`` and the HTTP method
+        is not idempotent (RFC 9110 §9.2.2), log a warning that a Triggerer restart
+        may re-send the request. Set to ``False`` to silence that warning on this task.
+        See :ref:`howto/operator:HttpOperator_deferrable_idempotency`.
     :param retry_args: Arguments which define the retry behaviour.
         See Tenacity documentation at https://github.com/jd/tenacity
     """
@@ -123,6 +131,7 @@ class HttpOperator(BaseOperator):
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        warn_on_non_idempotent_deferrable: bool = True,
         retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -143,6 +152,7 @@ class HttpOperator(BaseOperator):
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
+        self.warn_on_non_idempotent_deferrable = warn_on_non_idempotent_deferrable
         self.retry_args = retry_args
         self.request_kwargs = request_kwargs or {}
 
@@ -167,21 +177,28 @@ class HttpOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         if self.deferrable:
-            # One advisory per task attempt (not per page / not on trigger reconstruct).
-            # Deferrable mode runs the HTTP call in the Triggerer; a restart can re-run it.
-            method = (self.method or "").upper()
-            if method not in IDEMPOTENT_METHODS:
-                self.log.warning(
-                    "HttpOperator with deferrable=True and method=%s may send duplicate "
-                    "requests if the Triggerer restarts. Deferrable mode executes the request in "
-                    "the Triggerer, which may be re-run on restart. Use only with idempotent methods "
-                    "or use HttpSensor/EventSensor for polling. "
-                    "See https://github.com/apache/airflow/issues/67945",
-                    self.method,
-                )
+            self._warn_if_deferrable_non_idempotent_method()
             self.execute_async(context=context)
         else:
             return self.execute_sync(context=context)
+
+    def _warn_if_deferrable_non_idempotent_method(self) -> None:
+        """Log once per attempt when a deferrable request may be re-sent on Triggerer restart."""
+        if not self.warn_on_non_idempotent_deferrable:
+            return
+        method = (self.method or "").upper()
+        if method in IDEMPOTENT_METHODS:
+            return
+        self.log.warning(
+            "HttpOperator with deferrable=True and method=%s may send duplicate "
+            "requests if the Triggerer restarts. Deferrable mode executes the request in "
+            "the Triggerer, which may be re-run on restart. Use only with idempotent HTTP "
+            "methods, or use HttpSensor for polling. Set "
+            "warn_on_non_idempotent_deferrable=False to silence this warning. "
+            "See %s",
+            self.method,
+            _DEFERRABLE_NON_IDEMPOTENT_DOC_URL,
+        )
 
     def execute_sync(self, context: Context) -> Any:
         self.log.info("Calling HTTP method")
