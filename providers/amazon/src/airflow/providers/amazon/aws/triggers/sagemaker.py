@@ -24,7 +24,7 @@ from collections.abc import AsyncIterator
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any
 
-from botocore.exceptions import WaiterError
+from botocore.exceptions import NoCredentialsError, WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -118,22 +118,40 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
                 client=conn,
             )
 
-            for _ in range(self.attempts):
+            for attempt in range(self.attempts):
+                if attempt:
+                    await asyncio.sleep(self.waiter_delay)
+
                 try:
                     await waiter.wait(
                         **self.waiter_args,
                         WaiterConfig={"MaxAttempts": 1},
                     )
+
+                except NoCredentialsError as error:
+                    self.log.info(str(error))
+                    continue
+
                 except WaiterError as error:
                     response = error.last_response
                     status = response.get(self._get_response_status_key(self.job_type))
+
+                    if status is None:
+                        yield TriggerEvent(
+                            {
+                                "status": "error",
+                                "message": str(error),
+                                "job_name": self.job_name,
+                            }
+                        )
+                        return
 
                     if status == "Failed":
                         yield TriggerEvent(
                             {
                                 "status": "failed",
                                 "job_name": self.job_name,
-                                "message": response.get("FailureReason"),
+                                "message": response.get("FailureReason") or str(error),
                             }
                         )
                         return
@@ -143,21 +161,22 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
                             {
                                 "status": "stopped",
                                 "job_name": self.job_name,
+                                "message": str(error),
                             }
                         )
                         return
 
                     self._log_job_status(response)
-                    await asyncio.sleep(self.waiter_delay)
                     continue
 
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "job_name": self.job_name,
-                    }
-                )
-                return
+                else:
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "job_name": self.job_name,
+                        }
+                    )
+                    return
 
         yield TriggerEvent(
             {
