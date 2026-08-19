@@ -85,6 +85,7 @@ class DBDagBag:
             0 or None disables TTL. With neither a size limit nor a TTL the cache never evicts.
         :raises ValueError: If ``cache_size`` or ``cache_ttl`` is negative.
         """
+        # Callers should reject negative values with their own context; validate again defensively.
         if cache_size is not None and cache_size < 0:
             raise ValueError("cache_size must be greater than or equal to 0")
         if cache_ttl is not None and cache_ttl < 0:
