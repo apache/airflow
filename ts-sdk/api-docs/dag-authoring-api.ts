@@ -17,23 +17,17 @@
  * under the License.
  */
 
-import js from "@eslint/js";
-import tseslint from "typescript-eslint";
+/** @module Authoring */
 
-export default tseslint.config(
-  {
-    ignores: ["dist/**", "node_modules/**", "coverage/**", "src/generated/**"],
-  },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  {
-    files: ["api-docs/**/*.ts", "src/**/*.ts", "tests/**/*.ts"],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
-    },
-  },
-);
+export { Dag, DagRegistry, serveDags } from "../src/index.js";
+export type {
+  DagSpec,
+  TaskClient,
+  TaskContext,
+  TaskHandler,
+  TaskHandlerArgs,
+  TaskInputs,
+  TaskOptions,
+  TaskRef,
+  TaskSpec,
+} from "../src/index.js";

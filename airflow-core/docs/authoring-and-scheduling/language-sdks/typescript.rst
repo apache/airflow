@@ -22,9 +22,10 @@ TypeScript SDK
 
 |experimental|
 
-The TypeScript SDK lets you implement Airflow task logic in TypeScript (or plain JavaScript), running on
-Node.js. The Dag and its scheduling remain in Python; individual tasks delegate to a Node.js subprocess that
-is spawned by :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
+The TypeScript SDK lets you group task handlers in a ``Dag`` and implement their logic in TypeScript (or
+plain JavaScript), running on Node.js. A matching Python stub Dag still declares the scheduling shape and
+dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
 The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **beta** and its API may change.
 
@@ -36,7 +37,8 @@ The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the 
 
 .. seealso::
 
-  For the full TypeScript API reference (task handlers, ``TaskClient``, and the coordinator runtime),
+  For the full TypeScript API reference (``Dag``, ``DagRegistry``, ``serveDags``, task handlers,
+  ``TaskClient``, supporting types, and exceptions),
   see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
 .. contents:: Contents
