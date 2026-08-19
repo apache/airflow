@@ -129,9 +129,16 @@ function readBundleManifest(bundlePath: string): BundleManifest {
       maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
     });
   } catch (error) {
-    throw new Error(`Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`, {
-      cause: error,
-    });
+    const stderr = (error as { stderr?: string }).stderr ?? "";
+    const reported = stderr
+      .split("\n")
+      .reverse()
+      .find((line) => /^\w*Error: /.test(line.trim()))
+      ?.trim();
+    throw new Error(
+      reported ?? `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`,
+      { cause: error },
+    );
   }
 
   // Import-time logging from user code lands on stdout too; pick the sentinel line.
@@ -143,18 +150,50 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     throw new Error(`Bundle produced no ${AIRFLOW_METADATA_FLAG} output`);
   }
 
-  let manifest: BundleManifest;
+  let parsed: unknown;
   try {
-    manifest = JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length)) as BundleManifest;
+    parsed = JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length));
   } catch (error) {
     throw new Error(`Bundle produced invalid ${AIRFLOW_METADATA_FLAG} output: ${String(error)}`, {
       cause: error,
     });
   }
-  if (!manifest.supervisor_schema_version || !manifest.dags || typeof manifest.dags !== "object") {
+  if (!isBundleManifest(parsed)) {
     throw new Error(`Bundle produced incomplete ${AIRFLOW_METADATA_FLAG} output`);
   }
+  const manifest = parsed;
+  // The line is whatever the bundle printed and nothing downstream re-validates
+  // it, so check each Dag entry down to the task-id element.
+  for (const [dagId, dag] of Object.entries(manifest.dags)) {
+    if (dag == null || !isTaskIdList(dag.tasks)) {
+      throw new Error(
+        `Bundle produced ${AIRFLOW_METADATA_FLAG} output with a malformed entry for Dag "${dagId}"`,
+      );
+    }
+  }
   return manifest;
+}
+
+// The document is checked before anything is read off it: JSON.parse also yields
+// null and primitives, and `null.supervisor_schema_version` would surface as a
+// raw TypeError rather than a report about the bundle.
+function isBundleManifest(value: unknown): value is BundleManifest {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const { supervisor_schema_version: version, dags } = value as Partial<BundleManifest>;
+  return (
+    // Rendered into the manifest verbatim, where the schema requires a non-empty
+    // string, so a truthy number or boolean would travel to Airflow as-is.
+    typeof version === "string" &&
+    version.length > 0 &&
+    typeof dags === "object" &&
+    dags !== null &&
+    // An array would pass the typeof check and yield Dags named "0", "1", ...
+    !Array.isArray(dags)
+  );
+}
+
+function isTaskIdList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 }
 
 // esbuild keeps an entry hashbang as line 1, where the metadata comment must go;
@@ -193,10 +232,16 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     });
 
     const manifest = readBundleManifest(stagingPath);
-    if (Object.keys(manifest.dags).length === 0) {
-      throw new Error(
-        `${args.entry} registered no tasks; call registerTask(...) before startCoordinator()`,
-      );
+    const dagEntries = Object.entries(manifest.dags);
+    if (dagEntries.length === 0) {
+      throw new Error(`${args.entry} served no Dags; pass them to serveDags(new DagRegistry(...))`);
+    }
+    // Warn rather than fail, as airflow-go-pack does: the shared schema allows a
+    // Dag with no tasks.
+    for (const [dagId, dag] of dagEntries) {
+      if (dag.tasks.length === 0) {
+        process.stderr.write(`warning: dag ${JSON.stringify(dagId)} has no tasks\n`);
+      }
     }
 
     const metadataYaml = renderMetadataYaml({
