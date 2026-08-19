@@ -1,0 +1,1 @@
+The collation used for the asset ``name``, ``uri`` and ``group`` columns on MySQL is now configurable through ``[database] sql_engine_collation_for_asset_names``. It still defaults to ``latin1_general_cs``, so existing databases are unaffected. Set it if your MySQL-compatible engine does not provide that collation.

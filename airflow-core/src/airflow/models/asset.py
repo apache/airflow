@@ -30,7 +30,6 @@ from sqlalchemy import (
     Index,
     Integer,
     PrimaryKeyConstraint,
-    String,
     Table,
     delete,
     select,
@@ -39,7 +38,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
-from airflow.models.base import Base, StringID
+from airflow.models.base import ASSET_STR_FIELD, Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -147,15 +146,7 @@ class AssetWatcherModel(Base):
     """A table to store asset watchers."""
 
     name: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         nullable=False,
     )
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
@@ -198,27 +189,11 @@ class AssetAliasModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         nullable=False,
     )
     group: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         default="",
         nullable=False,
     )
@@ -279,39 +254,15 @@ class AssetModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         nullable=False,
     )
     uri: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         nullable=False,
     )
     group: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         default=str,
         nullable=False,
     )
@@ -408,27 +359,11 @@ class AssetActive(Base):
     """
 
     name: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         nullable=False,
     )
     uri: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         nullable=False,
     )
 
@@ -456,15 +391,7 @@ class DagScheduleAssetNameReference(Base):
     """Reference from a DAG to an asset name reference of which it is a consumer."""
 
     name: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         primary_key=True,
         nullable=False,
     )
@@ -502,15 +429,7 @@ class DagScheduleAssetUriReference(Base):
     """Reference from a DAG to an asset URI reference of which it is a consumer."""
 
     uri: Mapped[str] = mapped_column(
-        String(length=1500).with_variant(
-            String(
-                length=1500,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
+        ASSET_STR_FIELD,
         primary_key=True,
         nullable=False,
     )
