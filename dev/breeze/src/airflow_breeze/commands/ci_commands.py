@@ -599,7 +599,8 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     "--update-uv-lock/--no-update-uv-lock",
     default=True,
     show_default=True,
-    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image",
+    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image, "
+    "then regenerate the API datamodels the resolved code generator stamps its version into",
 )
 @click.option(
     "--k8s-schema-sync/--no-k8s-schema-sync",
@@ -795,7 +796,8 @@ def upgrade(
         )
 
     # All upgrade commands run locally with check=False to continue on errors.
-    # The uv lock --upgrade step must run last so it can incorporate changes from the other steps.
+    # The uv lock --upgrade step must run after the steps that change dependencies, so it can
+    # incorporate them -- and before the steps that regenerate code from the resolved versions.
     upgrade_commands: list[tuple[str, str]] = [
         ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
         (
@@ -810,6 +812,14 @@ def upgrade(
             "update-uv-lock",
             "uv lock --upgrade",
         ),
+        (
+            # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
+            # generated files' header. These hooks only watch the API sources, which an upgrade run
+            # never touches, so nothing regenerates them here and CI's --all-files run goes red.
+            "regenerate-datamodels",
+            "prek --all-files --show-diff-on-failure --color always --verbose "
+            "generate-tasksdk-datamodels generate-airflowctl-datamodels",
+        ),
     ]
 
     step_enabled = {
@@ -817,6 +827,7 @@ def upgrade(
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
         "update-uv-lock": update_uv_lock,
+        "regenerate-datamodels": update_uv_lock,
     }
 
     # Execute upgrade commands
