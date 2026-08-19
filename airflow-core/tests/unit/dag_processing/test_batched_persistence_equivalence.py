@@ -39,6 +39,7 @@ from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
     AssetModel,
+    DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
@@ -48,10 +49,11 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG, Asset
+from airflow.sdk import DAG, Asset, AssetAlias
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.db import (
+    clear_db_assets,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
@@ -140,21 +142,36 @@ def _snapshot(session) -> dict[str, list[tuple[str, ...]]]:
         "asset": rows(select(AssetModel.name, AssetModel.uri, AssetModel.group, AssetModel.extra)),
         "asset_alias": rows(select(AssetAliasModel.name, AssetAliasModel.group)),
         "asset_active": rows(select(AssetActive.name, AssetActive.uri)),
-        "schedule_ref": rows(select(DagScheduleAssetReference.dag_id, DagScheduleAssetReference.asset_id)),
+        # Read references through what names an asset: the surrogate ids differ between halves
+        # once the rows are cleared and made again.
+        "schedule_ref": rows(
+            select(DagScheduleAssetReference.dag_id, AssetModel.name, AssetModel.uri).join(
+                AssetModel, AssetModel.id == DagScheduleAssetReference.asset_id
+            )
+        ),
+        "schedule_alias_ref": rows(
+            select(DagScheduleAssetAliasReference.dag_id, AssetAliasModel.name).join(
+                AssetAliasModel, AssetAliasModel.id == DagScheduleAssetAliasReference.alias_id
+            )
+        ),
         "outlet_ref": rows(
-            select(
-                TaskOutletAssetReference.dag_id,
-                TaskOutletAssetReference.task_id,
-                TaskOutletAssetReference.asset_id,
+            select(TaskOutletAssetReference.dag_id, TaskOutletAssetReference.task_id, AssetModel.name).join(
+                AssetModel, AssetModel.id == TaskOutletAssetReference.asset_id
             )
         ),
     }
 
 
 def _reset(session) -> None:
-    """Clear what a sweep writes, leaving the bundles it is written against."""
+    """
+    Clear what a sweep writes, leaving the bundles it is written against.
+
+    Assets included: left behind, the second half finds the first half's rows already there and
+    updates them where it should have created them.
+    """
     session.execute(delete(DagWarning))
     session.commit()
+    clear_db_assets()
     clear_db_serialized_dags()
     clear_db_import_errors()
     clear_db_dags()
@@ -267,6 +284,24 @@ def _an_asset_produced_and_consumed_in_one_sweep(tmp_path):
     ]
 
 
+def _one_alias_scheduled_by_two_files(tmp_path):
+    """The snapshot covers aliases, so something has to make one."""
+    return [
+        _file(
+            tmp_path,
+            "alias_a.py",
+            dags=[("alias_a", "alias_a.py")],
+            assets=[(AssetAlias(name="shared_alias"), None)],
+        ),
+        _file(
+            tmp_path,
+            "alias_b.py",
+            dags=[("alias_b", "alias_b.py")],
+            assets=[(AssetAlias(name="shared_alias"), None)],
+        ),
+    ]
+
+
 def _warning_then_a_clean_parse(tmp_path):
     return [
         _file(
@@ -291,6 +326,7 @@ def _warning_then_a_clean_parse(tmp_path):
         _one_asset_defined_differently_by_two_files,
         _one_asset_across_two_bundles,
         _an_asset_produced_and_consumed_in_one_sweep,
+        _one_alias_scheduled_by_two_files,
     ],
     ids=lambda fn: fn.__name__.strip("_"),
 )
@@ -303,6 +339,9 @@ def test_a_sweep_persisted_together_lands_where_one_file_at_a_time_would(build_s
     _persist(build_sweep(tmp_path / "batched"), batched=True)
     batched = _snapshot(session)
 
+    # A failed write is caught and the file throttled, so two halves that both failed agree on an
+    # empty database and pass for equivalent. Every shape here defines Dags.
+    assert sequential["dag"], "the sequential half wrote nothing to compare against"
     assert batched == sequential
 
 
@@ -312,4 +351,5 @@ def clean_db():
     clear_db_serialized_dags()
     clear_db_import_errors()
     clear_db_dags()
+    clear_db_assets()
     clear_db_dag_bundles()
