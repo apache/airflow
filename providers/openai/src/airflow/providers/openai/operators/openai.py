@@ -87,10 +87,24 @@ class OpenAIResponseOperator(BaseOperator):
     ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
     structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
+    ``max_output_tokens`` and ``max_tool_calls`` are *token*-level ceilings enforced by the OpenAI
+    API itself -- OpenAI exposes no monetary cost limit on the Responses API, so this operator has
+    no cost cap. For a monetary limit, use :doc:`apache-airflow-providers-common-ai:index` instead.
+    When ``max_output_tokens`` is hit, the request does not fail: the response comes back with
+    ``status="incomplete"`` and truncated ``output_text`` -- the ceiling is not a guarantee that no
+    partial output is returned.
+
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
         input items.
     :param model: The OpenAI model to use.
+    :param max_output_tokens: Optional upper bound on the number of tokens generated for the
+        response. Templated, so it renders to a string; accepts an ``int`` or a string containing one.
+        Must be a positive integer -- an invalid value raises instead of silently disabling the
+        ceiling. Mutually exclusive with ``max_output_tokens`` in ``response_kwargs``.
+    :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
+        make while generating the response. Same templating, type, and validation rules as
+        ``max_output_tokens``. Mutually exclusive with ``max_tool_calls`` in ``response_kwargs``.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
 
@@ -101,13 +115,15 @@ class OpenAIResponseOperator(BaseOperator):
         https://platform.openai.com/docs/api-reference/responses/create
     """
 
-    template_fields: Sequence[str] = ("input_text",)
+    template_fields: Sequence[str] = ("input_text", "max_output_tokens", "max_tool_calls")
 
     def __init__(
         self,
         conn_id: str,
         input_text: str | list[Any],
         model: str = "gpt-4o-mini",
+        max_output_tokens: int | str | None = None,
+        max_tool_calls: int | str | None = None,
         response_kwargs: dict | None = None,
         **kwargs: Any,
     ):
@@ -115,6 +131,8 @@ class OpenAIResponseOperator(BaseOperator):
         self.conn_id = conn_id
         self.input_text = input_text
         self.model = model
+        self.max_output_tokens = max_output_tokens
+        self.max_tool_calls = max_tool_calls
         self.response_kwargs = response_kwargs or {}
 
     @cached_property
@@ -122,9 +140,59 @@ class OpenAIResponseOperator(BaseOperator):
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
+    @staticmethod
+    def _coerce_token_ceiling(param_name: str, value: int | str) -> int:
+        """Coerce a templated token-ceiling argument to a positive int, or raise ``ValueError``."""
+        # bool is an int subclass (isinstance(True, int) is True) and must be rejected before the
+        # int check below; float must also be rejected explicitly since int(10.5) == 10 silently
+        # truncates instead of raising -- both can reach here as real Python objects, not just
+        # strings, when a Dag uses render_template_as_native_obj=True.
+        if isinstance(value, (bool, float)):
+            raise ValueError(f"{param_name!r} must be an integer, got {value!r}.")
+        try:
+            coerced = int(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{param_name!r} must be an integer, got {value!r}.")
+        if coerced <= 0:
+            raise ValueError(f"{param_name!r} must be a positive integer, got {coerced}.")
+        return coerced
+
+    def _build_response_kwargs(self) -> dict[str, Any]:
+        """Merge the token-ceiling arguments into ``response_kwargs``, rejecting duplicates."""
+        response_kwargs = dict(self.response_kwargs)
+        for param_name, value in (
+            ("max_output_tokens", self.max_output_tokens),
+            ("max_tool_calls", self.max_tool_calls),
+        ):
+            if value is None:
+                continue
+            if param_name in response_kwargs:
+                raise ValueError(
+                    f"{param_name!r} was set both as an operator argument and in 'response_kwargs'; "
+                    "set it in only one place."
+                )
+            response_kwargs[param_name] = self._coerce_token_ceiling(param_name, value)
+        return response_kwargs
+
     def execute(self, context: Context) -> str:
-        response = self.hook.create_response(input=self.input_text, model=self.model, **self.response_kwargs)
-        if response.status != "completed":
+        response = self.hook.create_response(
+            input=self.input_text, model=self.model, **self._build_response_kwargs()
+        )
+        if response.status == "incomplete":
+            reason = response.incomplete_details.reason if response.incomplete_details else None
+            if reason:
+                self.log.warning(
+                    "Response %s is incomplete (incomplete_details.reason=%s); the returned output "
+                    "text is truncated, not empty.",
+                    response.id,
+                    reason,
+                )
+            else:
+                self.log.warning(
+                    "Response %s is incomplete; the returned output text may be truncated.",
+                    response.id,
+                )
+        elif response.status != "completed":
             self.log.warning(
                 "Response %s ended with status %s; the returned output text may be empty.",
                 response.id,
