@@ -34,6 +34,8 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import timezone
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.deadline import (
+    DAGRUN_CREATED_TIMING,
+    DAGRUN_QUEUED_TIMING,
     AverageRuntimeDeadline,
     BaseDeadlineReference,
     DagRunLogicalDateDeadline,
@@ -769,14 +771,14 @@ class TestCustomDeadlineReference:
         ],
     )
     @pytest.mark.parametrize(
-        "timing",
+        ("timing", "expected_evaluation_timing"),
         [
-            pytest.param(None, id="default_timing"),
-            pytest.param(DeadlineReference.TYPES.DAGRUN_CREATED, id="dagrun_created"),
-            pytest.param(DeadlineReference.TYPES.DAGRUN_QUEUED, id="dagrun_queued"),
+            pytest.param(None, DAGRUN_CREATED_TIMING, id="default_timing"),
+            pytest.param(DeadlineReference.TYPES.DAGRUN_CREATED, DAGRUN_CREATED_TIMING, id="dagrun_created"),
+            pytest.param(DeadlineReference.TYPES.DAGRUN_QUEUED, DAGRUN_QUEUED_TIMING, id="dagrun_queued"),
         ],
     )
-    def test_register_custom_reference(self, timing, reference):
+    def test_register_custom_reference(self, timing, expected_evaluation_timing, reference):
         if timing is None:
             result = DeadlineReference.register_custom_reference(reference)
             expected_timing = DeadlineReference.TYPES.DAGRUN_CREATED
@@ -787,6 +789,7 @@ class TestCustomDeadlineReference:
         assert result is reference
         assert hasattr(DeadlineReference, reference.__name__)
         assert getattr(DeadlineReference, reference.__name__).__class__ is reference
+        assert reference.evaluation_timing == expected_evaluation_timing
 
         assert_correct_timing(reference, expected_timing)
         assert_builtin_types_unchanged(

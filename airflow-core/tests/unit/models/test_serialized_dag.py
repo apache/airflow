@@ -41,7 +41,12 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import (
+    DAGRUN_QUEUED_TIMING,
+    EVALUATION_TIMING_FIELD,
+    DeadlineAlert,
+    DeadlineReference,
+)
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -1264,6 +1269,25 @@ class TestSerializedDagModel:
 
         # Must not raise: the stored UUID-reference form has to satisfy the serialized Dag schema.
         DagSerialization.validate_schema(result.data)
+
+    def test_write_dag_persists_evaluation_timing(self, testing_dag_bundle, session):
+        """The stored alert must record when the reference is anchored, not just its class name."""
+        dag_id = "test_deadline_evaluation_timing"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        serialized_dag = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == serialized_dag.id))
+        assert alert.reference[EVALUATION_TIMING_FIELD] == DAGRUN_QUEUED_TIMING
 
     def test_write_dag_does_not_mutate_caller_deadline_data(self, testing_dag_bundle, session):
         """write_dag must not rewrite the caller's LazyDeserializedDAG deadline in place.
