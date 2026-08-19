@@ -94,7 +94,7 @@ if not keep_env_variables:
         # Keep always these configurations
         "always": {
             "database": {"sql_alchemy_conn"},
-            "core": {"sql_alchemy_conn"},
+            "core": {"sql_alchemy_conn", "fernet_key"},
             "celery": {"result_backend", "broker_url"},
         },
         # Keep per enabled integrations
