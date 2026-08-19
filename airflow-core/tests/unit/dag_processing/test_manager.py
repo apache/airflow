@@ -625,9 +625,7 @@ class TestDagFileProcessorManager:
         processor, _ = self.mock_processor()
         stale_sock, _keep_alive = socketpair()
         stale_sock_fd = stale_sock.fileno()
-        processor.selector.register(
-            stale_sock, selectors.EVENT_READ, (lambda sock: False, lambda sock: None)
-        )
+        processor.selector.register(stale_sock, selectors.EVENT_READ, (lambda sock: False, lambda sock: None))
         processor._open_sockets[stale_sock] = "logs"
 
         manager._processors[versioned_file] = processor
