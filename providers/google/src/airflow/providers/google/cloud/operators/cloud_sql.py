@@ -1178,6 +1178,14 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
        details on how to define ``gcpcloudsql://`` connection.
     :param sql_proxy_binary_path: (optional) Path to the cloud-sql-proxy binary.
           is not specified or the binary is not present, it is automatically downloaded.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     :param ssl_cert: (optional) Path to client certificate to authenticate when SSL is used. Overrides the
         connection field ``sslcert``.
     :param ssl_key: (optional) Path to client private key to authenticate when SSL is used. Overrides the
@@ -1206,6 +1214,7 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         "ssl_client_cert",
         "ssl_client_key",
         "ssl_secret_id",
+        "impersonation_chain",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
@@ -1225,6 +1234,7 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         ssl_client_cert: str | None = None,
         ssl_client_key: str | None = None,
         ssl_secret_id: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1239,6 +1249,7 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         self.ssl_client_cert = ssl_client_cert
         self.ssl_client_key = ssl_client_key
         self.ssl_secret_id = ssl_secret_id
+        self.impersonation_chain = impersonation_chain
 
     @contextmanager
     def cloud_sql_proxy_context(self, hook: CloudSQLDatabaseHook):
@@ -1281,6 +1292,7 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
             ssl_cert=self.ssl_client_cert,
             ssl_key=self.ssl_client_key,
             ssl_secret_id=self.ssl_secret_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
     def get_openlineage_facets_on_complete(self, _) -> OperatorLineage | None:

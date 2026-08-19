@@ -1584,6 +1584,12 @@ class TestCloudSqlDatabaseQueryHook:
         instance_spec = f"{project}:{location}:{instance}"
         assert sqlproxy_runner.instance_specification == instance_spec
 
+    def test_get_sqlproxy_runner_passes_impersonation_chain(self):
+        self.db_hook.impersonation_chain = "impersonated@project.iam.gserviceaccount.com"
+        self.db_hook._generate_connection_uri()
+        sqlproxy_runner = self.db_hook.get_sqlproxy_runner()
+        assert sqlproxy_runner.impersonation_chain == "impersonated@project.iam.gserviceaccount.com"
+
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_hook_with_not_too_long_unix_socket_path(self, get_connection):
         uri = (
@@ -1981,6 +1987,33 @@ class TestCloudSqlProxyRunner:
         assert creds_path.exists()
         # Mask off the file-type bits, keep only the permission bits.
         assert stat.S_IMODE(creds_path.stat().st_mode) == 0o600
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
+    def test_cloud_sql_proxy_runner_uses_impersonated_token(self, get_connection, get_credentials):
+        """When impersonation_chain is set, an impersonated Bearer token is used instead of
+        key-based credentials, since the v1 proxy binary has no impersonation flag of its own.
+        """
+        connection = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        # key_path is present but must be ignored in favor of the impersonated token.
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = json.dumps({"key_path": "/tmp/key.json"})
+        else:
+            connection.set_extra(json.dumps({"key_path": "/tmp/key.json"}))
+        get_connection.return_value = connection
+        mock_credentials = mock.MagicMock()
+        mock_credentials.token = "impersonated-token"
+        get_credentials.return_value = mock_credentials
+
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+            impersonation_chain="impersonated@project.iam.gserviceaccount.com",
+        )
+
+        assert runner._get_credential_parameters() == ["-token", "impersonated-token"]
+        mock_credentials.refresh.assert_called_once()
 
 
 class TestCloudSQLAsyncHook:
