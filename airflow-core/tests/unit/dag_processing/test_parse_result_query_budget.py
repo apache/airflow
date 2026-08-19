@@ -366,8 +366,32 @@ def test_a_batch_override_is_handed_the_sweep_by_the_manager(session, testing_da
 
     db_write = _collect_a_two_file_sweep(manager, tmp_path, sockets, "batch_override", session)
 
-    assert seen == [["file_0.py", "file_1.py"]], "the whole sweep should arrive in one call"
+    assert seen == [["file_0.py", "file_1.py"]], "files that can share a group arrive in one call"
     db_write.assert_not_called()
+
+
+def test_a_batch_override_is_called_once_per_group_not_once_per_sweep(tmp_path):
+    """A sweep spanning bundles cannot be one write, so the seam has to be documented per group."""
+    seen: list[list[str]] = []
+
+    class BatchApiManager(DagFileProcessorManager):
+        def persist_parsing_results(self, results, *, session=None):
+            seen.append([str(item.file.rel_path) for item in results])
+
+    manager = BatchApiManager(max_runs=1)
+    manager._bundle_versions.update({BUNDLE: None, OTHER_BUNDLE: None})
+
+    manager._persist_sweep(
+        [
+            _parse_result(tmp_path, "in_testing_a"),
+            _parse_result(tmp_path, "in_other", bundle_name=OTHER_BUNDLE),
+            _parse_result(tmp_path, "in_testing_b"),
+        ]
+    )
+
+    assert seen == [["in_testing_a.py", "in_testing_b.py"], ["in_other.py"]], (
+        "each bundle is its own group, so the override sees one call per group"
+    )
 
 
 def test_the_default_manager_writes_the_sweep_to_the_database(session, testing_dag_bundle, tmp_path, sockets):

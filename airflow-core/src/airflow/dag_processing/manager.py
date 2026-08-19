@@ -1430,8 +1430,8 @@ class DagFileProcessorManager(LoggingMixin):
             return
         warnings.warn(
             f"{type(self).__name__} overrides {replaced}, which is deprecated and prevents parse "
-            "results being persisted a sweep at a time. Override persist_parsing_results instead, "
-            "which is handed every file that finished together.",
+            "results being persisted several files at a time. Override persist_parsing_results "
+            "instead, which is handed a group of the files that finished together.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -1453,10 +1453,12 @@ class DagFileProcessorManager(LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Persist several files' parse results in one pass.
+        Persist one group of a sweep's parse results in a single pass.
 
         Everything :func:`update_dag_parsing_results_in_db` does besides writing the Dags is paid
-        once per call, so a whole sweep together costs far fewer statements than file by file.
+        once per call, so several files together cost far fewer statements than file by file. A
+        sweep is split by :meth:`build_persistence_groups` first, so a sweep spanning bundles, or
+        carrying more Dags than a group takes, arrives as more than one call.
 
         This is the seam to override for deployments sending results somewhere other than the
         metadata DB (e.g. AIP-92); one that overrides only the per-file
@@ -1584,7 +1586,21 @@ class DagFileProcessorManager(LoggingMixin):
                 finished.append(file)
                 if handles_each_file:
                     self.handle_parsing_result(file, proc)
-                elif (result := self._build_parse_result(file, proc)) is not None:
+                    continue
+                try:
+                    result = self._build_parse_result(file, proc)
+                except Exception:
+                    # Working out what a file leaves to persist can reach the DB, for the team a
+                    # bundle belongs to. Losing that file must not lose the sweep it arrived in.
+                    self.log.exception(
+                        "Failed to handle the parse result for %s in bundle %s; "
+                        "the rest of the sweep is still persisted.",
+                        str(file.rel_path),
+                        file.bundle_name,
+                    )
+                    self._throttle_retry(file, timezone.utcnow(), time.monotonic() - proc.start_time)
+                    continue
+                if result is not None:
                     to_persist.append(result)
 
             if to_persist:
@@ -1651,12 +1667,18 @@ class DagFileProcessorManager(LoggingMixin):
             str(item.file.rel_path),
             item.file.bundle_name,
         )
-        current_stat = self._file_stats[item.file]
-        self._file_stats[item.file] = DagFileStat(
+        self._throttle_retry(item.file, item.stat.last_finish_time, item.stat.last_duration)
+
+    def _throttle_retry(
+        self, file: DagFileInfo, finish_time: datetime | None, run_duration: float | None
+    ) -> None:
+        """Record that a file was handled without claiming results it did not produce."""
+        current_stat = self._file_stats[file]
+        self._file_stats[file] = DagFileStat(
             num_dags=current_stat.num_dags,
             import_errors=current_stat.import_errors,
-            last_finish_time=item.stat.last_finish_time,
-            last_duration=item.stat.last_duration,
+            last_finish_time=finish_time,
+            last_duration=run_duration,
             run_count=current_stat.run_count + 1,
             last_num_of_db_queries=current_stat.last_num_of_db_queries,
         )
