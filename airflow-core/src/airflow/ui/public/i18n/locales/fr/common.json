@@ -92,6 +92,7 @@
   "dagRun_one": "Exécution de Dag",
   "dagRun_other": "Exécutions de Dag",
   "dagRunId": "ID d'exécution du Dag",
+  "dagRunState": "État de l'exécution du Dag",
   "dagWarnings": "Avertissements/erreurs du Dag",
   "defaultToGraphView": "Vue par défaut : graphe",
   "defaultToGridView": "Vue par défaut : grille",
@@ -296,6 +297,10 @@
   },
   "showDetailsPanel": "Afficher le panneau des détails",
   "signedInAs": "Connecté en tant que",
+  "slot": "Slot",
+  "slot_many": "Slots",
+  "slot_one": "Slot",
+  "slot_other": "Slots",
   "source": {
     "hide": "Masquer la source",
     "hotkey": "s",

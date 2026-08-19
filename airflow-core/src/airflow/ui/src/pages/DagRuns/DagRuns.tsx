@@ -368,9 +368,17 @@ export const DagRuns = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <DagRunsFilters dagId={dagId} />
       <DataTable
-        actions={
+        columns={columns}
+        data={dagRuns}
+        errorMessage={<ErrorAlert error={error} />}
+        filterActions={<DagRunsFilters dagId={dagId} />}
+        initialState={tableURLState}
+        isLoading={isLoading}
+        modelName="common:dagRun"
+        nextCursor={nextCursor}
+        onStateChange={setTableURLState}
+        presentationActions={
           dagRuns.length > 0 ? (
             <ExpandCollapseButtons
               collapseLabel={translate("common:collapseAllExtra")}
@@ -381,14 +389,6 @@ export const DagRuns = () => {
             />
           ) : undefined
         }
-        columns={columns}
-        data={dagRuns}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:dagRun"
-        nextCursor={nextCursor}
-        onStateChange={setTableURLState}
         previousCursor={previousCursor}
         total={data?.total_entries ?? 0}
         totalEntriesLimit={data?.total_entries_limit ?? undefined}
