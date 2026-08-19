@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
@@ -246,29 +247,22 @@ class TestDBDagBag:
 class TestDBDagBagCache:
     """Tests for DBDagBag optional caching behavior."""
 
-    def test_no_caching_by_default(self):
-        """Test that DBDagBag uses a simple dict without caching by default."""
-        dag_bag = DBDagBag()
-        assert dag_bag._use_cache is False
-        assert isinstance(dag_bag._dags, dict)
-
-    def test_lru_cache_enabled_with_cache_size(self):
-        """Test that LRU cache is enabled when cache_size is provided."""
-        dag_bag = DBDagBag(cache_size=10)
-        assert dag_bag._use_cache is True
-        assert isinstance(dag_bag._dags, LRUCache)
-
-    def test_ttl_cache_enabled_with_cache_size_and_ttl(self):
-        """Test that TTL cache is enabled when both cache_size and cache_ttl are provided."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
-        assert dag_bag._use_cache is True
-        assert isinstance(dag_bag._dags, TTLCache)
-
-    def test_zero_cache_size_uses_unbounded_dict(self):
-        """Test that cache_size=0 uses unbounded dict (same as no caching)."""
-        dag_bag = DBDagBag(cache_size=0, cache_ttl=60)
-        assert dag_bag._use_cache is False
-        assert isinstance(dag_bag._dags, dict)
+    @pytest.mark.parametrize(
+        ("cache_size", "cache_ttl", "expected_type", "expected_maxsize"),
+        [
+            pytest.param(None, None, dict, None, id="neither_plain_dict"),
+            pytest.param(-1, -1, dict, None, id="negatives_clamped_to_plain_dict"),
+            pytest.param(10, None, LRUCache, 10, id="size_only_lru"),
+            pytest.param(10, 60, TTLCache, 10, id="size_and_ttl_bounded_ttl"),
+            pytest.param(0, 60, TTLCache, math.inf, id="ttl_only_uncapped"),
+        ],
+    )
+    def test_cache_selection(self, cache_size, cache_ttl, expected_type, expected_maxsize):
+        dag_bag = DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
+        assert isinstance(dag_bag._dags, expected_type)
+        assert dag_bag._use_cache is (expected_type is not dict)
+        if expected_maxsize is not None:
+            assert dag_bag._dags.maxsize == expected_maxsize
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
