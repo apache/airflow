@@ -35,13 +35,20 @@ from sqlalchemy import delete, select
 
 from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager, DagFileStat, FileParseResult
 from airflow.dag_processing.processor import DagFileParsingResult
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetModel,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, Asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.db import (
@@ -57,12 +64,18 @@ BUNDLE = "equiv"
 OTHER_BUNDLE = "equiv-other"
 
 
-def _dag(tmp_path: Path, dag_id: str, rel_path: str) -> LazyDeserializedDAG:
+def _dag(
+    tmp_path: Path,
+    dag_id: str,
+    rel_path: str,
+    schedule_on: Asset | None = None,
+    outlet: Asset | None = None,
+) -> LazyDeserializedDAG:
     # DagCode reads the source off disk; without a real file the Dag fails to serialize.
     (tmp_path / rel_path).parent.mkdir(parents=True, exist_ok=True)
     (tmp_path / rel_path).write_text("# equivalence fixture\n")
-    dag = DAG(dag_id=dag_id, schedule="@daily")
-    EmptyOperator(task_id="task", dag=dag)
+    dag = DAG(dag_id=dag_id, schedule=[schedule_on] if schedule_on else "@daily")
+    EmptyOperator(task_id="task", dag=dag, outlets=[outlet] if outlet else [])
     dag.fileloc = str(tmp_path / rel_path)
     dag.relative_fileloc = rel_path
     return LazyDeserializedDAG.from_dag(dag)
@@ -72,6 +85,7 @@ def _file(
     tmp_path: Path,
     rel_path: str,
     dags: list[tuple[str, str]] | None = None,
+    assets: list[tuple[Asset | None, Asset | None]] | None = None,
     errors: dict[str, str] | None = None,
     warnings: list[dict] | None = None,
     bundle: str = BUNDLE,
@@ -84,7 +98,10 @@ def _file(
         file=DagFileInfo(bundle_name=bundle, rel_path=Path(rel_path), bundle_path=tmp_path),
         parsing_result=DagFileParsingResult(
             fileloc=str(tmp_path / rel_path),
-            serialized_dags=[_dag(tmp_path, dag_id, under) for dag_id, under in (dags or [])],
+            serialized_dags=[
+                _dag(tmp_path, dag_id, under, *(assets or [(None, None)] * len(dags or []))[index])
+                for index, (dag_id, under) in enumerate(dags or [])
+            ],
             import_errors=errors,
             warnings=warnings,
         ),
@@ -118,6 +135,19 @@ def _snapshot(session) -> dict[str, list[tuple[str, ...]]]:
             select(ParseImportError.bundle_name, ParseImportError.filename, ParseImportError.stacktrace)
         ),
         "warning": rows(select(DagWarning.dag_id, DagWarning.warning_type, DagWarning.message)),
+        # Assets are shared across files and bundles, so whichever file is written last decides
+        # what they look like.
+        "asset": rows(select(AssetModel.name, AssetModel.uri, AssetModel.group, AssetModel.extra)),
+        "asset_alias": rows(select(AssetAliasModel.name, AssetAliasModel.group)),
+        "asset_active": rows(select(AssetActive.name, AssetActive.uri)),
+        "schedule_ref": rows(select(DagScheduleAssetReference.dag_id, DagScheduleAssetReference.asset_id)),
+        "outlet_ref": rows(
+            select(
+                TaskOutletAssetReference.dag_id,
+                TaskOutletAssetReference.task_id,
+                TaskOutletAssetReference.asset_id,
+            )
+        ),
     }
 
 
@@ -184,6 +214,59 @@ def _two_bundles_interleaved(tmp_path):
     ]
 
 
+def _one_asset_defined_differently_by_two_files(tmp_path):
+    """The case the whole ordering guarantee exists for: last write decides what the asset is."""
+    return [
+        _file(
+            tmp_path,
+            "first.py",
+            dags=[("asset_first", "first.py")],
+            assets=[(Asset(name="shared", uri="s3://shared", extra={"from": "first"}), None)],
+        ),
+        _file(
+            tmp_path,
+            "second.py",
+            dags=[("asset_second", "second.py")],
+            assets=[(Asset(name="shared", uri="s3://shared", extra={"from": "second"}), None)],
+        ),
+    ]
+
+
+def _one_asset_across_two_bundles(tmp_path):
+    """
+    Assets are not scoped to a bundle, so an interleaved sweep can reorder who wins.
+
+    The asset is shared by the middle and last files deliberately. Were the last allowed to join
+    the first file's group to fill it, it would be written before the middle one and lose an asset
+    it should win.
+    """
+    return [
+        _file(tmp_path, "x.py", dags=[("asset_x", "x.py")]),
+        _file(
+            tmp_path,
+            "y.py",
+            dags=[("asset_y", "y.py")],
+            bundle=OTHER_BUNDLE,
+            assets=[(Asset(name="crossing", uri="s3://crossing", extra={"from": "y"}), None)],
+        ),
+        _file(
+            tmp_path,
+            "z.py",
+            dags=[("asset_z", "z.py")],
+            assets=[(Asset(name="crossing", uri="s3://crossing", extra={"from": "z"}), None)],
+        ),
+    ]
+
+
+def _an_asset_produced_and_consumed_in_one_sweep(tmp_path):
+    """One file's outlet is another's schedule, so the rows land in whichever order they are written."""
+    produced = Asset(name="handoff", uri="s3://handoff")
+    return [
+        _file(tmp_path, "producer.py", dags=[("producer", "producer.py")], assets=[(None, produced)]),
+        _file(tmp_path, "consumer.py", dags=[("consumer", "consumer.py")], assets=[(produced, None)]),
+    ]
+
+
 def _warning_then_a_clean_parse(tmp_path):
     return [
         _file(
@@ -205,6 +288,9 @@ def _warning_then_a_clean_parse(tmp_path):
         _file_that_now_defines_nothing,
         _two_bundles_interleaved,
         _warning_then_a_clean_parse,
+        _one_asset_defined_differently_by_two_files,
+        _one_asset_across_two_bundles,
+        _an_asset_produced_and_consumed_in_one_sweep,
     ],
     ids=lambda fn: fn.__name__.strip("_"),
 )
