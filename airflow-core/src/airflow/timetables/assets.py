@@ -128,11 +128,6 @@ class AssetAndTimeSchedule(Timetable):
         else:
             self.asset_condition = ensure_serialized_asset(assets)
 
-        self.description = f"Triggered by assets and {timetable.description}"
-        self.periodic = timetable.periodic
-        self.can_be_scheduled = timetable.can_be_scheduled
-        self.active_runs_limit = timetable.active_runs_limit
-
     @classmethod
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
         from airflow.serialization.decoders import decode_asset_like, decode_timetable
@@ -157,8 +152,24 @@ class AssetAndTimeSchedule(Timetable):
         )
 
     @property
+    def description(self) -> str:  # type: ignore[override]
+        return f"Triggered by assets and {self.timetable.description}"
+
+    @property
     def summary(self) -> str:
         return f"Asset and {self.timetable.summary}"
+
+    @property
+    def periodic(self) -> bool:  # type: ignore[override]
+        return self.timetable.periodic
+
+    @property
+    def can_be_scheduled(self) -> bool:  # type: ignore[override]
+        return self.timetable.can_be_scheduled
+
+    @property
+    def active_runs_limit(self) -> int | None:  # type: ignore[override]
+        return self.timetable.active_runs_limit
 
     def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
         return self.timetable.infer_manual_data_interval(run_after=run_after)
