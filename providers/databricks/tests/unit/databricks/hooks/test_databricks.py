@@ -816,6 +816,33 @@ class TestDatabricksHook:
         # "flaky" latest attempt (start_time 300) succeeded → excluded; "still_bad" latest failed.
         assert failed == ["still_bad"]
 
+    def test_get_run_failed_task_keys_treats_missing_start_time_as_oldest(self):
+        run_tasks = [
+            {
+                "task_key": "never_started",
+                "state": {"life_cycle_state": "PENDING"},
+            },
+            {
+                "task_key": "flaky",
+                "start_time": None,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "flaky",
+                "start_time": 200,
+                "state": {"result_state": "SUCCESS", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "still_bad",
+                "start_time": 100,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+        ]
+        with mock.patch.object(self.hook, "get_run_tasks", return_value=run_tasks):
+            failed = self.hook.get_run_failed_task_keys(RUN_ID)
+
+        assert failed == ["still_bad"]
+
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE

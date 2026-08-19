@@ -582,7 +582,8 @@ class DatabricksHook(BaseDatabricksHook):
         # ``DatabricksTaskBaseOperator._get_current_databricks_task``) before judging its state, so
         # the result never contains duplicate keys — Databricks rejects duplicates in
         # ``rerun_tasks`` — and a task whose latest attempt succeeded is not reported as failed.
-        sorted_tasks = sorted(self.get_run_tasks(run_id), key=lambda task: task["start_time"])
+        # Never-started sub-tasks omit ``start_time`` or send null; treat those as 0.
+        sorted_tasks = sorted(self.get_run_tasks(run_id), key=lambda task: task.get("start_time") or 0)
         latest_by_key = {task["task_key"]: task for task in sorted_tasks}
 
         failed_task_keys = []
