@@ -30,6 +30,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     VERSION_PATCHLEVEL_INDEX,
     Change,
     PrepareReleaseDocsChangesOnlyException,
+    PrepareReleaseDocsNoChangesException,
     TypeOfChange,
     _convert_git_changes_to_table,
     _find_insertion_index_for_version,
@@ -38,12 +39,13 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_git_log_command,
     classification_result,
     classify_change_deterministically,
+    drop_provider_to_doc_only,
     get_most_impactful_change,
     get_version_tag,
     update_release_notes,
 )
 from airflow_breeze.utils.confirm import Answer
-from airflow_breeze.utils.packages import ProviderPackageDetails
+from airflow_breeze.utils.packages import HTTPS_REMOTE, ProviderPackageDetails
 
 PROVIDER_DOCUMENTATION = "airflow_breeze.prepare_providers.provider_documentation"
 
@@ -601,3 +603,65 @@ def test_doc_only_marker_written_when_classification_overrides_user_answer(
         )
 
     assert marker_file.read_text().strip() == change.full_hash
+
+
+def _make_doc_only_change(full_hash: str = "a" * 40) -> Change:
+    return Change(
+        full_hash=full_hash,
+        short_hash=full_hash[:7],
+        date="2026-06-08",
+        version="1.0.0",
+        message="Fix a typo",
+        message_without_backticks="Fix a typo",
+        pr="123",
+    )
+
+
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.run_command")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation._get_all_changes_for_package")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.clear_cache_for_provider_metadata")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_yaml")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_details")
+def test_drop_provider_to_doc_only_restores_the_release_state_and_records_the_marker(
+    mock_details, mock_yaml, mock_clear_cache, mock_changes, mock_run, tmp_path
+):
+    """Correcting the changelog is not enough - the prepared bump would still be released."""
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    changelog = docs / "changelog.rst"
+    changelog.write_text("changelog")
+    provider_yaml = tmp_path / "provider.yaml"
+    provider_yaml.write_text("versions: [1.0.0]")
+    mock_details.return_value = mock.MagicMock(root_provider_path=tmp_path)
+    mock_yaml.return_value = provider_yaml
+    mock_changes.return_value = (True, [[_make_doc_only_change()]], "table")
+
+    with pytest.raises(PrepareReleaseDocsChangesOnlyException):
+        drop_provider_to_doc_only("amazon", base_branch="main")
+
+    restored = mock_run.call_args.args[0]
+    assert restored[:4] == ["git", "checkout", f"{HTTPS_REMOTE}/main", "--"]
+    assert str(provider_yaml) in restored
+    assert str(changelog) in restored
+    assert (docs / ".latest-doc-only-change.txt").read_text() == "a" * 40 + "\n"
+
+
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.run_command")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation._get_all_changes_for_package")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.clear_cache_for_provider_metadata")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_yaml")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_details")
+def test_drop_provider_to_doc_only_writes_no_marker_when_there_is_nothing_to_mark(
+    mock_details, mock_yaml, mock_clear_cache, mock_changes, mock_run, tmp_path
+):
+    """An empty marker would silence the provider's next release entirely."""
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    mock_details.return_value = mock.MagicMock(root_provider_path=tmp_path)
+    mock_yaml.return_value = tmp_path / "provider.yaml"
+    mock_changes.return_value = (True, [], "")
+
+    with pytest.raises(PrepareReleaseDocsNoChangesException):
+        drop_provider_to_doc_only("amazon", base_branch="main")
+
+    assert not (docs / ".latest-doc-only-change.txt").exists()
