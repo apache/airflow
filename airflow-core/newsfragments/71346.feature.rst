@@ -1,1 +1,0 @@
-``BaseEventTrigger`` and ``AsyncCallback`` type triggers now accept an optional ``queue`` parameter, enabling `trigger queue assignment <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html#controlling-triggerer-host-assignment-per-trigger>`__.
