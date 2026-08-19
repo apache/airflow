@@ -1,0 +1,1 @@
+Fixed OTel metrics being exported twice, as two conflicting cumulative streams: a re-initialised pipeline no longer runs alongside the live one, and a forked child no longer exports the pipeline it inherited from its parent.
