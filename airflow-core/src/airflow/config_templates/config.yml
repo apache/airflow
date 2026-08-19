@@ -209,6 +209,18 @@ core:
       type: string
       example: ~
       default: "True"
+    load_testing_dags:
+      description: |
+        Whether to load the testing Dags that ship with Airflow providers. These Dags exist to
+        exercise Airflow itself (integration tests, smoke tests of a deployment) rather than to
+        teach Dag authoring, so they are not loaded by default even when ``load_examples`` is
+        enabled.
+
+        Providers ship them in a ``testing_dags`` folder next to their ``example_dags`` folder.
+      version_added: "3.4.0"
+      type: string
+      example: ~
+      default: "False"
     plugins_folder:
       description: |
         Path to the folder containing Airflow plugins

@@ -336,6 +336,8 @@ The rules are as follows:
           * sensors -> sensors are stored here
           * secrets -> secret backends are stored here
           * transfers -> transfer operators are stored here
+          * example_dags -> example Dags teaching how to use the provider, loaded when ``[core] load_examples`` is enabled
+          * testing_dags -> Dags that exercise Airflow itself rather than teach Dag authoring, loaded when ``[core] load_testing_dags`` is enabled
   * docs
   * tests
     * unit
