@@ -5823,6 +5823,7 @@ class TestSchedulerJob:
         )
         session.add(event)
         session.flush()  # assign event id so the ADRQ row can reference it
+        assert event.id is not None
         session.add(
             AssetDagRunQueue(
                 asset_id=asset1_id,
