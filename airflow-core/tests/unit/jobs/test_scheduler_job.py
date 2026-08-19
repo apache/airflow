@@ -5800,20 +5800,21 @@ class TestSchedulerJob:
             )
         )
 
-        session.add(
-            AssetEvent(
-                asset_id=asset1_id,
-                source_task_id="producer",
-                source_dag_id=producer_run.dag_id,
-                source_run_id=producer_run.run_id,
-                source_map_index=-1,
-                timestamp=reference_created_at + timedelta(seconds=1),
-            )
+        event = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id="producer",
+            source_dag_id=producer_run.dag_id,
+            source_run_id=producer_run.run_id,
+            source_map_index=-1,
+            timestamp=reference_created_at + timedelta(seconds=1),
         )
+        session.add(event)
+        session.flush()  # assign event id so the ADRQ row can reference it
         session.add(
             AssetDagRunQueue(
                 asset_id=asset1_id,
                 target_dag_id=consumer_dag_id,
+                asset_event_id=event.id,
                 created_at=reference_created_at + timedelta(hours=1),
             )
         )
