@@ -143,7 +143,7 @@ The following configuration options are available in the ``[api]`` section:
 - ``worker_refresh_interval``: Seconds between worker refresh cycles (0 = disabled, default)
 - ``worker_refresh_batch_size``: Number of workers to refresh per cycle (default: 1)
 - ``dag_cache_size``: Max cached SerializedDAG versions in the API server (default: 64, 0 = no size limit)
-- ``dag_cache_ttl``: Idle timeout in seconds for cached Dags (default: 3600, 0 = no TTL; both 0 = no eviction)
+- ``dag_cache_ttl``: TTL in seconds for cached Dags (default: 3600, 0 = no TTL; both 0 = no eviction)
 
 When to Use Gunicorn
 ^^^^^^^^^^^^^^^^^^^^
@@ -190,8 +190,10 @@ For example, to trigger a rolling restart of the API server pods:
 
 The API server also evicts cached SerializedDAG objects via ``dag_cache_size`` and
 ``dag_cache_ttl``, which reduces memory growth from Dag version accumulation regardless of
-server type. Note that only ``dag_cache_size`` caps memory outright: each re-check resets a
-cached entry's expiry, so ``dag_cache_ttl`` reclaims only the versions that stop being requested.
+server type. Note that only ``dag_cache_size`` caps memory outright. A cached entry's TTL is
+refreshed when the entry is revalidated after ``[core] min_serialized_dag_update_interval``, not
+on every request. If the TTL is shorter than that interval, even frequently requested entries
+can expire and reload between revalidations.
 
 In many Kubernetes environments, relying solely on Kubernetes OOM kills or
 crash restarts is not recommended, as memory growth may not always trigger an

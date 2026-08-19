@@ -726,13 +726,13 @@ this in the ``[api]`` section:
 
     [api]
     dag_cache_size = 64    ; max cached versions (0 = no size limit)
-    dag_cache_ttl = 3600   ; seconds before an idle cached entry expires (0 = no TTL)
+    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = no TTL)
 
-``dag_cache_size`` is the only hard ceiling on memory. Each re-check resets a cached entry's
-expiry, so ``dag_cache_ttl`` reclaims only the Dag versions that stop being requested for the
-whole interval; versions that keep being requested are kept. It therefore trims the versions
-that accumulate over time, but memory still tracks the set of versions in active use. Setting
-both to 0 uses an unbounded dict with no eviction, matching the behavior before 3.2.2.
+``dag_cache_size`` is the only hard ceiling on memory. An entry's TTL is refreshed only when the
+entry is revalidated after ``[core] min_serialized_dag_update_interval``, not on every request.
+With a shorter TTL, even frequently requested entries can expire and reload between
+revalidations. Setting both options to 0 uses an unbounded dict with no eviction, matching the
+behavior before 3.2.2.
 
 The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
 previous version until the cached entry expires (controlled by ``dag_cache_ttl``).

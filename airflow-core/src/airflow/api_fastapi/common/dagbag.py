@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -30,8 +29,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
 
-log = logging.getLogger(__name__)
-
 
 def create_dag_bag() -> DBDagBag:
     """Create DagBag with configurable LRU+TTL caching for API server usage."""
@@ -39,11 +36,9 @@ def create_dag_bag() -> DBDagBag:
     cache_ttl = conf.getint("api", "dag_cache_ttl", fallback=3600)
 
     if cache_size < 0:
-        log.warning("dag_cache_size must be >= 0, using 0 (no size limit)")
-        cache_size = 0
+        raise ValueError("dag_cache_size must be greater than or equal to 0")
     if cache_ttl < 0:
-        log.warning("dag_cache_ttl must be >= 0, disabling TTL")
-        cache_ttl = 0
+        raise ValueError("dag_cache_ttl must be greater than or equal to 0")
 
     return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
 

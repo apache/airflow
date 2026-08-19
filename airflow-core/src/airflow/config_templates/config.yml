@@ -1734,10 +1734,10 @@ api:
         database on next access. Set to 0 to disable TTL, leaving eviction to the
         ``dag_cache_size`` LRU policy.
 
-        Note that each re-check resets an entry's expiry, so this only reclaims Dag versions
-        that stop being requested for the whole interval. Versions that keep being requested are
-        kept, so memory tracks the set of Dag versions in active use and ``dag_cache_size``
-        remains the only hard ceiling.
+        An entry's TTL is refreshed only when the entry is revalidated after
+        ``[core] min_serialized_dag_update_interval``, not on every request. If the TTL is shorter
+        than that interval, even frequently requested entries can expire and reload between
+        revalidations. ``dag_cache_size`` remains the only hard ceiling on memory.
 
         Note: this does not govern staleness. A Dag update that creates a new version is picked
         up immediately, because the new version is a different cache key. A version rewritten in
