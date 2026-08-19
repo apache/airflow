@@ -206,7 +206,7 @@
     "empty": "Noch keine gespeicherten Filter",
     "info": {
       "default": "Legen Sie einen gespeicherten Filter als Standard fest. Er wird automatisch angewendet, wenn Sie diese Seite ohne Filter öffnen.",
-      "save": "Speichern Sie die aktuellen Filter und die Sortierung als benannten gespeicherten Filter und verwenden Sie ihn jederzeit wieder.",
+      "save": "Speichern Sie die aktuellen Filter und die Sortierung und verwenden Sie ihn jederzeit wieder.",
       "storage": "Gespeicherte Filter werden in diesem Browser gespeichert."
     },
     "namePlaceholder": "Name des gespeicherten Filters",
