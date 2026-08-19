@@ -911,13 +911,18 @@ git diff --name-only <base-branch>..HEAD -- '**/provider.yaml' \
   `Doc-only`, or review reclassified the last remaining non-doc entry as
   documentation, the provider should leave the wave.
 
-  Dropping it back is three edits, not a re-run: revert the `provider.yaml`
-  version bump, remove the new `changelog.rst` section, and write the newest
-  doc-only commit hash (full hash, trailing newline) into
-  `providers/<provider-path>/docs/.latest-doc-only-change.txt`. **Ask the
-  release manager before doing it** — taking a provider out of a wave is their
-  decision, and a `Misc` entry that merely *looks* internal may still be
-  something they want released.
+  Drop it back with the dedicated command rather than editing the files by
+  hand — it restores `provider.yaml` and `changelog.rst` to their released
+  state and writes the marker in one step:
+
+  ```bash
+  breeze release-management prepare-provider-documentation --mark-doc-only <provider-id>
+  ```
+
+  Then commit `providers/<provider-path>/docs/.latest-doc-only-change.txt`.
+  **Ask the release manager before doing it** — taking a provider out of a wave
+  is their decision, and a `Misc` entry that merely *looks* internal may still
+  be something they want released.
 
 Most Bucket B rows are ordinary noise — repo-wide tooling and test commits
 that correctly keep a provider out of the release. A Bucket B provider whose

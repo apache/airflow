@@ -292,6 +292,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--release-date",
                 "--incremental-update",
+                "--mark-doc-only",
                 "--only-min-version-update",
                 "--reapply-templates-only",
                 "--non-interactive",

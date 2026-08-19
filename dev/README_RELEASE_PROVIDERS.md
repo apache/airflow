@@ -369,32 +369,29 @@ gets a PyPI release at all:
 The second case comes up when a provider was already prepared with, say, a `Misc` entry, and review
 then concludes the change is internal or documentation only, so there is nothing for users to install.
 Changing the changelog entry is not enough — the version bump and the changelog stay prepared, and the
-provider would still be built and uploaded. The provider has to be dropped back to doc-only:
+provider would still be built and uploaded. Drop the provider back to doc-only with:
 
-1. Undo the prepared changes for that provider — the version bump in `provider.yaml` and the new
-   changelog section — so the provider is back to its released state:
+```shell script
+breeze release-management prepare-provider-documentation --mark-doc-only PROVIDER [MORE PROVIDERS]
+```
 
-   ```shell script
-   git checkout -- providers/PROVIDER/provider.yaml providers/PROVIDER/docs/changelog.rst
-   ```
+This restores the provider's `provider.yaml` and `changelog.rst` to their released state, then writes
+`providers/PROVIDER/docs/.latest-doc-only-change.txt`. No version bump, no changelog section, no
+distribution. It needs an explicit list of providers — it takes them out of the release, so it will
+not default to every provider.
 
-2. Re-run the documentation preparation for that provider alone:
+Commit the marker file afterwards. It is the only artifact of the whole sequence, and it must be
+committed or the next release will prepare the provider again:
 
-   ```shell script
-   breeze release-management prepare-provider-documentation PROVIDER
-   ```
+```shell script
+git add providers/PROVIDER/docs/.latest-doc-only-change.txt
+```
 
-3. Answer **`N`** to `Does the provider: PROVIDER have any changes apart from 'doc-only'?`.
-
-   This writes `providers/PROVIDER/docs/.latest-doc-only-change.txt` and stops preparing that
-   provider — no version bump, no changelog section, no distribution.
-
-4. Commit the marker file. It is the only artifact of the whole sequence, and it must be committed
-   or the next release will prepare the provider again:
-
-   ```shell script
-   git add providers/PROVIDER/docs/.latest-doc-only-change.txt
-   ```
+Doing it by hand is the same three steps: restore those two files, re-run
+`prepare-provider-documentation PROVIDER`, and answer **`N`** to
+`Does the provider: PROVIDER have any changes apart from 'doc-only'?`. Note that the interactive
+prompt is not reachable during `--incremental-update`, which answers every question with "yes" —
+that is what `--mark-doc-only` is for.
 
 The marker holds the full commit hash of the latest change that was declared doc-only. On the next
 release, the tooling counts commits since that hash rather than since the last release tag, so:
