@@ -1580,6 +1580,31 @@ class TestDagRun:
         } in caplog
         assert "Could not find DagRun" not in caplog.text
 
+    def test_dagrun_deadline_does_not_warn_for_average_runtime_without_history(
+        self, session, deadline_test_dag, caplog
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=5),
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with caplog.at_level("WARNING", logger="airflow.serialization.definitions.dag"):
+            self.create_dag_run(
+                dag=scheduler_dag,
+                logical_date=DEFAULT_DATE,
+                session=session,
+            )
+
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        assert {
+            "event": "skipping deadline alert because the deadline reference evaluated to None",
+            "reference_type": "AverageRuntimeDeadline",
+            "log_level": "warning",
+        } not in caplog
+
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
         mock_err = mock.Mock()
