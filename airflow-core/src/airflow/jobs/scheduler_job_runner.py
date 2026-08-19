@@ -382,7 +382,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = DBDagBag(load_op_links=False, cache_size=SCHEDULER_DAG_CACHE_SIZE)
+        self.scheduler_dag_bag = DBDagBag(
+            load_op_links=False,
+            cache_size=SCHEDULER_DAG_CACHE_SIZE,
+            stats_prefix="scheduler.dag_bag",
+        )
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the

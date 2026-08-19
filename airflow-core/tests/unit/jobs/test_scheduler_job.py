@@ -422,6 +422,8 @@ class TestSchedulerJob:
 
         assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
         assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
+        # Reported separately from the API server's cache, not folded into it.
+        assert job_runner.scheduler_dag_bag._stats_prefix == "scheduler.dag_bag"
 
     @pytest.mark.parametrize(
         "heartrate",

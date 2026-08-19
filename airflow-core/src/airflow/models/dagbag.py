@@ -75,6 +75,8 @@ class DBDagBag:
         load_op_links: bool = True,
         cache_size: int | None = None,
         cache_ttl: int | None = None,
+        *,
+        stats_prefix: str | None = None,
     ) -> None:
         """
         Initialize DBDagBag.
@@ -83,7 +85,11 @@ class DBDagBag:
         :param cache_size: Max cached entries. 0 or None means no size limit.
         :param cache_ttl: Seconds until a cached entry expires, applied with or without a size limit.
             0 or None disables TTL. With neither a size limit nor a TTL the cache never evicts.
-        :raises ValueError: If ``cache_size`` or ``cache_ttl`` is negative.
+        :param stats_prefix: Metric namespace for this component's cache, e.g. ``scheduler.dag_bag``.
+            The ``_stat_*`` hooks append the suffixes, so every component emits the same set of
+            names. Required when a cache is enabled, unused otherwise.
+        :raises ValueError: If ``cache_size`` or ``cache_ttl`` is negative, or if caching is enabled
+            without ``stats_prefix``.
         """
         # Callers should reject negative values with their own context; validate again defensively.
         if cache_size is not None and cache_size < 0:
@@ -113,6 +119,24 @@ class DBDagBag:
         # lock, so it uses nullcontext.
         self._lock: RLock | nullcontext = RLock() if self._use_cache else nullcontext()
 
+        if self._use_cache and not stats_prefix:
+            # Caching without a namespace would emit metrics under a partial name. Fail here, at
+            # wiring time, rather than from the first emission mid-request or mid-scheduling-loop.
+            raise ValueError("a cached DBDagBag needs stats_prefix to namespace its cache metrics")
+        self._stats_prefix = stats_prefix
+
+    def _stat_cache_hit(self) -> None:
+        stats.incr(f"{self._stats_prefix}.cache_hit")
+
+    def _stat_cache_miss(self) -> None:
+        stats.incr(f"{self._stats_prefix}.cache_miss")
+
+    def _stat_cache_clear(self) -> None:
+        stats.incr(f"{self._stats_prefix}.cache_clear")
+
+    def _stat_cache_size(self, size: int, *, rate: float = 1.0) -> None:
+        stats.gauge(f"{self._stats_prefix}.cache_size", size, rate=rate)
+
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
         """Read and cache a SerializedDAG (with its ``dag_hash`` for staleness detection)."""
         serdag.load_op_links = self.load_op_links
@@ -121,9 +145,9 @@ class DBDagBag:
             return None
         with self._lock:
             self._dags[serdag.dag_version_id] = _CacheEntry(dag, serdag.dag_hash, time.monotonic())
-            cache_size = len(self._dags)
+            cache_size = len(self._dags) if self._use_cache else 0
         if self._use_cache:
-            stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
+            self._stat_cache_size(cache_size, rate=0.1)
         return dag
 
     @staticmethod
@@ -146,7 +170,7 @@ class DBDagBag:
             # cannot have gone stale yet -- serve it without touching the DB.
             if now - cached.last_validated < self._revalidation_interval:
                 if self._use_cache:
-                    stats.incr("api_server.dag_bag.cache_hit")
+                    self._stat_cache_hit()
                 return cached.dag
             # Past the window: a version may have been updated in place (same dag_version_id, new
             # content + new dag_hash) by SerializedDagModel.write_dag, so confirm the cached copy
@@ -161,7 +185,7 @@ class DBDagBag:
                     if current is not None and current.dag_hash == cached.dag_hash:
                         self._dags[version_id] = current._replace(last_validated=now)
                 if self._use_cache:
-                    stats.incr("api_server.dag_bag.cache_hit")
+                    self._stat_cache_hit()
                 return cached.dag
             # Stale (updated in place) or the version no longer exists: drop and reload below.
             with self._lock:
@@ -181,9 +205,9 @@ class DBDagBag:
         if self._use_cache:
             with self._lock:
                 if (cached := self._dags.get(version_id)) is not None:
-                    stats.incr("api_server.dag_bag.cache_hit")
+                    self._stat_cache_hit()
                     return cached.dag
-            stats.incr("api_server.dag_bag.cache_miss")
+            self._stat_cache_miss()
         return self._read_dag(serdag)
 
     def get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
@@ -215,8 +239,8 @@ class DBDagBag:
             self._dags.clear()
 
         if self._use_cache:
-            stats.incr("api_server.dag_bag.cache_clear")
-            stats.gauge("api_server.dag_bag.cache_size", 0)
+            self._stat_cache_clear()
+            self._stat_cache_size(0)
         return count
 
     @staticmethod

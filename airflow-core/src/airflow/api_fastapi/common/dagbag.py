@@ -40,7 +40,7 @@ def create_dag_bag() -> DBDagBag:
     if cache_ttl < 0:
         raise ValueError("[api] dag_cache_ttl must be greater than or equal to 0")
 
-    return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
+    return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl, stats_prefix="api_server.dag_bag")
 
 
 def dag_bag_from_app(request: Request) -> DBDagBag:
