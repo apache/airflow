@@ -1041,6 +1041,7 @@ class TestGetAssetEvents(TestAssets):
 
     def test_should_return_created_dag_run_without_start_date(self, test_client, session):
         self.create_assets(num=1, session=session)
+        _ensure_dags(session, "producer_dag")
         asset_event = AssetEvent(
             asset_id=1,
             source_dag_id="producer_dag",
