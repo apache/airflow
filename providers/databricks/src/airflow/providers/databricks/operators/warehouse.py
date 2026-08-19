@@ -120,7 +120,7 @@ class _DatabricksWarehouseBaseOperator(BaseOperator):
                     warehouse_id=self.warehouse_id,
                     target_state=target,
                     databricks_conn_id=self.databricks_conn_id,
-                    timeout=self.timeout,
+                    end_time=time.time() + self.timeout,
                     polling_period_seconds=self.polling_period_seconds,
                     retry_limit=self.databricks_retry_limit,
                     retry_delay=self.databricks_retry_delay,

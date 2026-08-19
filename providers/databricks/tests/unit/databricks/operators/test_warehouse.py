@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
 
 import pytest
+import time_machine
 from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.providers.common.compat.sdk import TaskDeferred
@@ -428,6 +430,7 @@ class TestDatabricksWarehouseOperatorDeferrable:
     )
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
     @mock.patch.object(DatabricksStopWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    @time_machine.travel("2026-08-19 12:00:00", tick=False)
     def test_execute_defers_until_target_state(
         self,
         mock_stop_hook_property,
@@ -451,7 +454,7 @@ class TestDatabricksWarehouseOperatorDeferrable:
         assert exc.value.method_name == "execute_complete"
         assert exc.value.trigger.warehouse_id == WAREHOUSE_ID
         assert exc.value.trigger.target_state == target_state
-        assert exc.value.trigger.timeout == 3600
+        assert exc.value.trigger.end_time == pytest.approx(time.time() + 3600)
         assert exc.value.trigger.caller == operator_class.__name__
 
     @pytest.mark.parametrize(

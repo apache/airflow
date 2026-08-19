@@ -29,11 +29,6 @@ Changelog
 7.18.1
 ......
 
-Features
-~~~~~~~~
-
-* ``Add deferrable mode to Databricks SQL warehouse start and stop operators``
-
 Misc
 ~~~~
 
