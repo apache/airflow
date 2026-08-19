@@ -63,6 +63,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_serialized_dags,
@@ -123,6 +124,8 @@ def clean_db():
     clear_db_serialized_dags()
     clear_db_import_errors()
     clear_db_dags()
+    # Tests here add bundles of their own, and two adding the same one collide without this.
+    clear_db_dag_bundles()
 
 
 @pytest.fixture
@@ -291,7 +294,12 @@ def test_sweep_pays_fixed_cost_once_per_call(
 
 
 def _parse_result(
-    tmp_path: Path, dag_id: str, run_duration: float = 0.5, bundle_name: str = BUNDLE
+    tmp_path: Path,
+    dag_id: str,
+    run_duration: float = 0.5,
+    bundle_name: str = BUNDLE,
+    bundle_version: str | None = None,
+    version_data: dict | None = None,
 ) -> FileParseResult:
     rel_path = f"{dag_id}.py"
     dag_file = tmp_path / rel_path
@@ -302,6 +310,8 @@ def _parse_result(
         ),
         run_duration=run_duration,
         stat=DagFileStat(),
+        bundle_version=bundle_version,
+        version_data=version_data,
     )
 
 
@@ -370,6 +380,42 @@ def test_a_batch_override_is_handed_the_sweep_by_the_manager(session, testing_da
     db_write.assert_not_called()
 
 
+def test_a_group_that_rolls_back_keeps_what_an_earlier_group_committed(session, testing_dag_bundle, tmp_path):
+    """
+    Each group is its own transaction, which is the whole reason a sweep is split into them.
+
+    Mocking the write proves the split; only a real one proves the earlier group survived the
+    later rollback rather than sharing its fate.
+    """
+    session.add(DagBundleModel(name=OTHER_BUNDLE))
+    session.commit()
+
+    manager = DagFileProcessorManager(max_runs=1)
+    manager._bundle_versions.update({BUNDLE: None, OTHER_BUNDLE: None})
+    real_write = update_dag_parsing_results_in_db
+
+    def fail_for_the_second_bundle(*args, **kwargs):
+        if kwargs["bundle_name"] == OTHER_BUNDLE:
+            raise OperationalError("simulated", {}, Exception("write failed"))
+        return real_write(*args, **kwargs)
+
+    with mock.patch(
+        "airflow.dag_processing.manager.update_dag_parsing_results_in_db",
+        side_effect=fail_for_the_second_bundle,
+    ):
+        manager._persist_sweep(
+            [
+                _parse_result(tmp_path, "committed_dag"),
+                _parse_result(tmp_path, "rolled_back_dag", bundle_name=OTHER_BUNDLE),
+            ]
+        )
+
+    assert session.get(DagModel, "committed_dag") is not None, (
+        "the group that succeeded must not be undone by the one that followed it"
+    )
+    assert session.get(DagModel, "rolled_back_dag") is None
+
+
 def test_a_batch_override_is_called_once_per_group_not_once_per_sweep(tmp_path):
     """A sweep spanning bundles cannot be one write, so the seam has to be documented per group."""
     seen: list[list[str]] = []
@@ -389,8 +435,8 @@ def test_a_batch_override_is_called_once_per_group_not_once_per_sweep(tmp_path):
         ]
     )
 
-    assert seen == [["in_testing_a.py", "in_testing_b.py"], ["in_other.py"]], (
-        "each bundle is its own group, so the override sees one call per group"
+    assert seen == [["in_testing_a.py"], ["in_other.py"], ["in_testing_b.py"]], (
+        "groups are contiguous runs, so an interleaved sweep is written in the order it arrived"
     )
 
 
@@ -500,8 +546,14 @@ def test_a_sweep_writes_each_bundles_files_under_its_own_version(session, testin
 
     manager.persist_parsing_results(
         [
-            _parse_result(tmp_path, "in_testing"),
-            _parse_result(tmp_path, "in_other", bundle_name=OTHER_BUNDLE),
+            _parse_result(tmp_path, "in_testing", bundle_version="v-testing", version_data={"sha": "aaa"}),
+            _parse_result(
+                tmp_path,
+                "in_other",
+                bundle_name=OTHER_BUNDLE,
+                bundle_version="v-other",
+                version_data={"sha": "bbb"},
+            ),
         ],
         session=session,
     )
