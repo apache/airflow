@@ -36,10 +36,7 @@ if TYPE_CHECKING:
 # Idempotent methods per RFC 9110 §9.2.2 (formerly RFC 7231).
 # PUT and DELETE are idempotent even though they are not safe; PATCH is not idempotent.
 IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"})
-_DEFERRABLE_NON_IDEMPOTENT_DOC_URL = (
-    "https://airflow.apache.org/docs/apache-airflow-providers-http/stable/"
-    "operators.html#deferrable-mode-and-idempotency"
-)
+HTTP_DEFERRABLE_DOCS = "https://airflow.apache.org/docs/apache-airflow-providers-http/stable/deferrable.html"
 
 
 class HttpOperator(BaseOperator):
@@ -49,6 +46,9 @@ class HttpOperator(BaseOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:HttpOperator`
+
+        For deferrable-mode idempotency caveats, see:
+        :ref:`howto/deferrable:HttpOperator`
 
     :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
         the operator against
@@ -93,10 +93,10 @@ class HttpOperator(BaseOperator):
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
     :param deferrable: Run operator in the deferrable mode
-    :param warn_on_non_idempotent_deferrable: When ``deferrable=True`` and the HTTP method
-        is not idempotent (RFC 9110 §9.2.2), log a warning that a Triggerer restart
-        may re-send the request. Set to ``False`` to silence that warning on this task.
-        See :ref:`howto/operator:HttpOperator_deferrable_idempotency`.
+    :param warn_on_non_idempotent: When True (default), log a warning if deferrable
+        mode is used with a method outside the RFC 9110 §9.2.2 idempotent set.
+        Set False to silence the warning when a duplicate request is acceptable.
+        See :ref:`howto/deferrable:HttpOperator`.
     :param retry_args: Arguments which define the retry behaviour.
         See Tenacity documentation at https://github.com/jd/tenacity
     """
@@ -131,7 +131,7 @@ class HttpOperator(BaseOperator):
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        warn_on_non_idempotent_deferrable: bool = True,
+        warn_on_non_idempotent: bool = True,
         retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -152,7 +152,7 @@ class HttpOperator(BaseOperator):
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
-        self.warn_on_non_idempotent_deferrable = warn_on_non_idempotent_deferrable
+        self.warn_on_non_idempotent = warn_on_non_idempotent
         self.retry_args = retry_args
         self.request_kwargs = request_kwargs or {}
 
@@ -184,7 +184,7 @@ class HttpOperator(BaseOperator):
 
     def _warn_if_deferrable_non_idempotent_method(self) -> None:
         """Log once per attempt when a deferrable request may be re-sent on Triggerer restart."""
-        if not self.warn_on_non_idempotent_deferrable:
+        if not self.warn_on_non_idempotent:
             return
         method = (self.method or "").upper()
         if method in IDEMPOTENT_METHODS:
@@ -192,12 +192,11 @@ class HttpOperator(BaseOperator):
         self.log.warning(
             "HttpOperator with deferrable=True and method=%s may send duplicate "
             "requests if the Triggerer restarts. Deferrable mode executes the request in "
-            "the Triggerer, which may be re-run on restart. Use only with idempotent HTTP "
-            "methods, or use HttpSensor for polling. Set "
-            "warn_on_non_idempotent_deferrable=False to silence this warning. "
-            "See %s",
+            "the Triggerer, which may be re-run on restart. Use only with idempotent methods "
+            "or use HttpSensor/EventSensor for polling. Set warn_on_non_idempotent=False to "
+            "silence this warning. See %s",
             self.method,
-            _DEFERRABLE_NON_IDEMPOTENT_DOC_URL,
+            HTTP_DEFERRABLE_DOCS,
         )
 
     def execute_sync(self, context: Context) -> Any:

@@ -52,6 +52,11 @@ HttpOperator
 Use the :class:`~airflow.providers.http.operators.http.HttpOperator` to call HTTP requests and get
 the response text back.
 
+Deferrable mode runs the request in the Triggerer. A Triggerer restart can replay
+it, so non-idempotent methods (including the default ``POST``) log a warning.
+See :ref:`howto/deferrable:HttpOperator` for the idempotent method set and how
+to silence the warning with ``warn_on_non_idempotent=False``.
+
 .. warning:: Configuring ``https`` via HttpOperator is counter-intuitive
 
    For historical reasons, configuring ``HTTPS`` connectivity via HTTP operator is, well, difficult and
@@ -126,47 +131,6 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
     :language: python
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
-
-.. _howto/operator:HttpOperator_deferrable_idempotency:
-
-Deferrable mode and idempotency
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. warning::
-   When ``deferrable=True``, the HTTP request runs inside ``HttpTrigger`` on the
-   Triggerer. If the Triggerer restarts before the trigger completes, the request
-   may be sent again. That is safe for methods that are idempotent per
-   RFC 9110 §9.2.2 (``GET``, ``HEAD``, ``OPTIONS``, ``PUT``, ``DELETE``,
-   ``TRACE``) but risky for ``POST``, ``PATCH``, and custom methods.
-
-   HTTP-level idempotency is not the same as application-level idempotency. A
-   ``PUT`` or ``DELETE`` retry is spec-safe, but the remote API may still have
-   side effects you do not want repeated.
-
-Deferrable ``HttpOperator`` defers *before* making the HTTP call
-(``execute_async`` hands the request to ``HttpTrigger.run()``). A Triggerer
-restart reconstructs the trigger from serialized kwargs and runs it again, so
-the same request can fire twice.
-
-Ways to avoid a duplicate:
-
-- Use an idempotent method when the API allows it.
-- Keep ``deferrable=False`` so the worker sends the request once.
-- For polling until a condition is true, use :ref:`howto/operator:HttpSensor`
-  instead of a one-shot ``POST``.
-
-If you understand the retry risk and still want a deferrable non-idempotent
-call, silence the per-task warning:
-
-.. code-block:: python
-
-   HttpOperator(
-       task_id="submit_job",
-       method="POST",
-       endpoint="/jobs",
-       deferrable=True,
-       warn_on_non_idempotent_deferrable=False,
-   )
 
 The :class:`~airflow.providers.http.operators.paginated.HttpOperator` also allows to repeatedly call an API
 endpoint, typically to loop over its pages. All API responses are stored in memory by the Operator and returned
