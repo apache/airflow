@@ -28,7 +28,8 @@ import signal
 import textwrap
 import time
 import zipfile
-from collections import OrderedDict, defaultdict, namedtuple
+from collections import Counter, OrderedDict, defaultdict, namedtuple
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
@@ -38,7 +39,7 @@ from unittest.mock import MagicMock
 import msgspec
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
@@ -46,6 +47,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
     BundleState,
@@ -61,6 +63,9 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import DAG as SdkDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -189,6 +194,81 @@ def _create_zip_bundle_with_keywordless_dag(zip_path: Path) -> None:
                 """
             ),
         )
+
+
+def _make_serialized_dags(
+    dag_file: Path, dag_ids: list[str], rel_path: str, *, n_tasks: int = 1
+) -> list[LazyDeserializedDAG]:
+    """
+    Serialized Dags filed under ``rel_path``, backed by a real file.
+
+    DagCode reads the source off disk; without a real file the Dags fail to serialize and the
+    measured statements stop resembling a real parse.
+    """
+    dag_file.parent.mkdir(parents=True, exist_ok=True)
+    dag_file.write_text("# statement budget fixture\n")
+
+    dags = []
+    for dag_id in dag_ids:
+        dag = SdkDAG(dag_id=dag_id, schedule="@daily")
+        for task in range(n_tasks):
+            EmptyOperator(task_id=f"task{task}", dag=dag)
+        dag.fileloc = str(dag_file)
+        dag.relative_fileloc = rel_path
+        dags.append(LazyDeserializedDAG.from_dag(dag))
+    return dags
+
+
+def _classify_statement(statement: str) -> tuple[str, str]:
+    """Reduce a statement to (operation, table) so a budget failure says what changed, not just how much."""
+    collapsed = " ".join(statement.split()).lower()
+    operation = collapsed.split(" ", 1)[0]
+    patterns = {
+        "select": r"\bfrom\s+([a-z_][a-z0-9_]*)",
+        "delete": r"\bfrom\s+([a-z_][a-z0-9_]*)",
+        "insert": r"\binto\s+([a-z_][a-z0-9_]*)",
+        "update": r"\bupdate\s+([a-z_][a-z0-9_]*)",
+    }
+    match = re.search(patterns[operation], collapsed) if operation in patterns else None
+    return operation, (match.group(1) if match else "?")
+
+
+@contextmanager
+def _count_statements(session):
+    """
+    Count emitted statements, grouped by operation and table.
+
+    ``CountQueries`` groups by call site instead; a budget that moves needs to name the table that
+    gained a round trip. Counting on the bind rather than the session catches the sessions the
+    manager opens for itself.
+    """
+    counts: Counter[tuple[str, str]] = Counter()
+
+    def _capture(conn, cursor, statement, parameters, context, executemany):
+        counts[_classify_statement(statement)] += 1
+
+    bind = session.get_bind()
+    event.listen(bind, "before_cursor_execute", _capture)
+    try:
+        yield counts
+    finally:
+        event.remove(bind, "before_cursor_execute", _capture)
+
+
+def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
+    return "\n".join(f"  {n:>3}  {op.upper():<6} {table}" for (op, table), n in sorted(counts.items()))
+
+
+# Per persistence call, and per Dag in the file. A call leaves the serialized Dag alone while the
+# content is unchanged; once the hash has moved and [core] min_serialized_dag_update_interval has
+# lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call.
+FIXED_PER_CALL = 10
+UNCHANGED_PER_DAG = 3
+REWRITE_PER_DAG = 5
+
+SWEEP_FILES = 4
+# Calls the manager takes for that sweep: one per file today, 1 if a sweep is ever batched.
+SWEEP_CALLS = 4
 
 
 class TestDagFileProcessorManager:
@@ -3464,6 +3544,120 @@ class TestDagFileProcessorManager:
 
         assert manager._bundle_versions["mock_bundle"] == "newhash"
         assert manager._bundle_version_data["mock_bundle"] == test_data
+
+    # --- statement budget ---
+    #
+    # A change that adds round trips to persistence has to move a number here and account for it in
+    # review. The per-call counts are calibrated against Postgres and marked for it, since statement
+    # counts differ by dialect; the sweep test measures both of its prices, so it runs anywhere.
+
+    def _ready_processor(self, manager, rel_path: str, dag_dir: Path, dag_ids: list[str]):
+        """Register a finished parse of ``rel_path``, with its Dags backed by a real file."""
+        file = DagFileInfo(bundle_name="testing", rel_path=Path(rel_path), bundle_path=dag_dir)
+        manager._file_stats.setdefault(file, DagFileStat())
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(
+            fileloc=str(dag_dir / rel_path),
+            serialized_dags=_make_serialized_dags(dag_dir / rel_path, dag_ids, rel_path),
+        )
+        manager._processors[file] = processor
+        return file
+
+    @staticmethod
+    def _measure_persistence_call(
+        session, dags: list[LazyDeserializedDAG], counted: list[LazyDeserializedDAG], rel_path: str
+    ) -> Counter[tuple[str, str]]:
+        """Count one steady-state call: the first pass inserts the rows, the counted pass re-persists."""
+        files_parsed = {("testing", rel_path)}
+        errors: dict = {}
+
+        update_dag_parsing_results_in_db(
+            "testing", None, dags, errors, 0.1, set(), session, files_parsed=files_parsed
+        )
+        session.commit()
+        assert not errors, f"fixture Dags must serialize cleanly: {errors}"
+
+        with _count_statements(session) as counts:
+            update_dag_parsing_results_in_db(
+                "testing", None, counted, errors, 0.1, set(), session, files_parsed=files_parsed
+            )
+            session.flush()
+        return counts
+
+    def _measure_sweep(self, session, tmp_path: Path, n_files: int, name: str, dags_per_file: int = 1) -> int:
+        """Count a steady-state sweep through ``_collect_results``."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+        sweep_dir = tmp_path / name
+        sweep_dir.mkdir()
+
+        def register():
+            for i in range(n_files):
+                self._ready_processor(
+                    manager, f"file_{i}.py", sweep_dir, [f"dag_{i}_{d}" for d in range(dags_per_file)]
+                )
+
+        register()
+        manager._collect_results()
+
+        # Collecting consumed the processors, so register a second set for the counted sweep.
+        register()
+        with _count_statements(session) as counts:
+            manager._collect_results()
+        return sum(counts.values())
+
+    @pytest.mark.backend("postgres")
+    @pytest.mark.parametrize("n_dags", [1, 5])
+    @pytest.mark.parametrize(
+        ("rewrite", "per_dag"),
+        [
+            pytest.param(False, UNCHANGED_PER_DAG, id="unchanged"),
+            pytest.param(True, REWRITE_PER_DAG, id="rewrite"),
+        ],
+    )
+    def test_persisting_one_file_stays_within_its_statement_budget(
+        self, rewrite, per_dag, n_dags, session, testing_dag_bundle, tmp_path
+    ):
+        """What one file's parse result costs to persist, unchanged and rewritten."""
+        rel_path = "budget_dags.py"
+        dag_ids = [f"budget_dag_{i}" for i in range(n_dags)]
+        dags = _make_serialized_dags(tmp_path / rel_path, dag_ids, rel_path)
+        # A moved hash is what sends the call down the write path; the update interval only gates how
+        # soon it can get there.
+        counted = (
+            _make_serialized_dags(tmp_path / rel_path, dag_ids, rel_path, n_tasks=2) if rewrite else dags
+        )
+
+        with conf_vars({("core", "min_serialized_dag_update_interval"): "0" if rewrite else "30"}):
+            counts = self._measure_persistence_call(session, dags, counted, rel_path)
+
+        expected = FIXED_PER_CALL + n_dags * per_dag
+        total = sum(counts.values())
+        assert total == expected, (
+            f"a {n_dags}-Dag file costs {total} statements, expected {expected} "
+            f"({FIXED_PER_CALL} per call + {per_dag} per Dag).\n{_statement_breakdown(counts)}"
+        )
+
+    def test_a_sweep_pays_the_fixed_cost_once_per_call(self, session, testing_dag_bundle, tmp_path):
+        """
+        How a sweep scales with the number of persistence calls it takes.
+
+        Batching a sweep into one call moves ``SWEEP_CALLS`` to 1. Both prices are measured here, so
+        the assertion holds on any backend.
+        """
+        one_dag = self._measure_sweep(session, tmp_path, 1, "one")
+        two_dags = self._measure_sweep(session, tmp_path, 1, "two", dags_per_file=2)
+        per_dag = two_dags - one_dag
+        fixed = one_dag - per_dag
+
+        sweep = self._measure_sweep(session, tmp_path, SWEEP_FILES, "sweep")
+
+        expected = SWEEP_CALLS * fixed + SWEEP_FILES * per_dag
+        assert sweep == expected, (
+            f"a {SWEEP_FILES}-file sweep costs {sweep} statements, expected {expected} "
+            f"({SWEEP_CALLS} x {fixed} fixed + {SWEEP_FILES} x {per_dag} per Dag)."
+        )
 
 
 class TestMultiTeamMetrics:
