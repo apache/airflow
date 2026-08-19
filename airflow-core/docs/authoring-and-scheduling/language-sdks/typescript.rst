@@ -26,13 +26,17 @@ The TypeScript SDK lets you implement Airflow task logic in TypeScript (or plain
 Node.js. The Dag and its scheduling remain in Python; individual tasks delegate to a Node.js subprocess that
 is spawned by :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
-The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **alpha** and its API may change.
+The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. Its current version is **1.0.0-beta1**, and its API may change.
 
 .. warning::
 
-  The SDK is not yet published to npm. To try it today, build it from source in the
-  `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository and
-  depend on it locally (see ``ts-sdk/example/`` for a working setup).
+  The SDK is a beta release. Its API may change in incompatible ways between releases.
+
+Install the beta package from npm:
+
+.. code-block:: bash
+
+    npm install apache-airflow-ts-sdk@1.0.0-beta1
 
 .. seealso::
 
@@ -93,7 +97,7 @@ entry point.
 
 .. code-block:: typescript
 
-    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -304,7 +308,7 @@ Limitations
 * **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
   languages, so task names and dependencies are declared in Python with
   :func:`@task.stub <airflow.sdk.task.stub>`.
-* **Alpha status.** The SDK API may change in incompatible ways between releases.
+* **Beta status.** The SDK API may change in incompatible ways between releases.
 * **One bundle per coordinator.** :class:`~airflow.sdk.coordinators.node.NodeCoordinator` launches the first
   usable bundle found in ``bundles_root``; it does not yet route different Dags or tasks to different
   bundles. To serve multiple bundles, register multiple coordinators on separate queues.

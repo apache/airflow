@@ -21,19 +21,21 @@
 
 Public TypeScript interfaces for writing Apache Airflow task handlers.
 
-**Status:** alpha · API will change · Node 22+ · ESM-only
+**Status:** 1.0.0-beta1 · API may change · Node 22+ · ESM-only
 
 This package defines the user-facing task handler contract and the coordinator
 runtime used to execute registered TypeScript handlers from Airflow.
 
-> **Note:** This package is not yet published to a public npm registry. Until an
-> official Apache Airflow release is available, build and use it from source (see
-> [Development](#development)).
+## Installation
+
+```bash
+npm install apache-airflow-ts-sdk@1.0.0-beta1
+```
 
 ## Task Handlers
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
@@ -98,7 +100,7 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
@@ -151,7 +153,7 @@ entrypoint that serves them all:
 ```ts
 import { salesDag } from "./sales/dag";
 import { billingDag } from "./billing/dag";
-import { DagRegistry, serveDags } from "@apache-airflow/ts-sdk";
+import { DagRegistry, serveDags } from "apache-airflow-ts-sdk";
 
 await serveDags(new DagRegistry(salesDag, billingDag));
 ```
