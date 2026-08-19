@@ -343,7 +343,9 @@ def test_per_file_override_still_replaces_the_database(tmp_path):
     manager._bundle_versions[BUNDLE] = None
     batch = [_parse_result(tmp_path, "override_a"), _parse_result(tmp_path, "override_b")]
 
-    with mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db") as db_write:
+    with mock.patch(
+        "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+    ) as db_write:
         manager.persist_parsing_results(batch)
 
     assert calls == ["override_a.py", "override_b.py"]
@@ -358,7 +360,9 @@ def _collect_a_two_file_sweep(manager, tmp_path: Path, sockets, name: str, sessi
     # The manager persists on sessions of its own, so release ours rather than contend with them.
     session.commit()
 
-    with mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db") as db_write:
+    with mock.patch(
+        "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+    ) as db_write:
         manager._collect_results()
     return db_write
 
@@ -570,7 +574,6 @@ def test_a_sweep_writes_each_bundles_files_under_its_own_version(session, testin
 
 
 def test_batched_sweep_records_warnings_from_every_file(session, testing_dag_bundle, tmp_path):
-    """Warnings are merged across the sweep, so each file's must survive the merge."""
     manager = DagFileProcessorManager(max_runs=1)
     manager._bundle_versions[BUNDLE] = None
 
@@ -622,7 +625,7 @@ def test_a_failing_group_does_not_discard_one_that_already_succeeded(tmp_path):
         if bundle == "bundle_b":
             raise OperationalError("simulated contention", None, Exception())
 
-    with mock.patch.object(manager, "persist_parsing_results", side_effect=persist):
+    with mock.patch.object(manager, "persist_parsing_results", autospec=True, side_effect=persist):
         manager._persist_sweep([good, bad])
 
     assert calls == ["bundle_a", "bundle_b"], "each bundle must be persisted by its own call"
