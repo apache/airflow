@@ -159,7 +159,9 @@ with DAG(
         if files := response["files"]:
             file = files[0]
             log.info("Trashing file %s...", file["name"])
-            service.files().update(fileId=file["id"], body={"trashed": True}, supportsAllDrives=True).execute()
+            service.files().update(
+                fileId=file["id"], body={"trashed": True}, supportsAllDrives=True
+            ).execute()
             log.info("Done.")
 
     remove_files_from_drive_task = remove_files_from_drive()
