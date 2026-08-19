@@ -1881,6 +1881,7 @@ class TestDagFileProcessorManager:
         dag_ids: list[str],
         bundle_name: str = "testing",
         filed_under: str | None = None,
+        import_errors: dict[str, str] | None = None,
     ) -> FileParseResult:
         file = DagFileInfo(bundle_name=bundle_name, rel_path=Path(name), bundle_path=TEST_DAGS_FOLDER)
         dags = [self._lazy_dag(dag_id) for dag_id in dag_ids]
@@ -1888,7 +1889,9 @@ class TestDagFileProcessorManager:
             dag.data["dag"]["relative_fileloc"] = filed_under or name
         return FileParseResult(
             file=file,
-            parsing_result=DagFileParsingResult(fileloc=name, serialized_dags=dags),
+            parsing_result=DagFileParsingResult(
+                fileloc=name, serialized_dags=dags, import_errors=import_errors
+            ),
             run_duration=1.0,
             stat=DagFileStat(),
         )
@@ -2215,6 +2218,27 @@ class TestDagFileProcessorManager:
         assert [[str(item.file.rel_path) for item in group] for group in groups] == [
             ["file_a.py"],
             ["file_c.py"],
+        ]
+
+    def test_nothing_is_written_beside_a_file_that_failed_to_parse(self):
+        """
+        Staling the Dags filed under a path is the last thing a write does; what it reads about
+        Dags already registered it reads first. A file at a time put those in the other order, so
+        a file after a failure saw what the failure staled -- which decides whether a Dag moving
+        between files is reported as a duplicate, and whether an asset keeps its watchers.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+
+        groups = manager.build_persistence_groups(
+            [
+                self._item("broke.py", [], import_errors={"broke.py": "boom"}),
+                self._item("moved_here.py", ["moved_dag"]),
+            ]
+        )
+
+        assert [[str(item.file.rel_path) for item in group] for group in groups] == [
+            ["broke.py"],
+            ["moved_here.py"],
         ]
 
     def test_a_dag_is_not_written_alongside_an_error_against_the_file_it_is_filed_under(self):
