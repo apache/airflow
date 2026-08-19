@@ -22,6 +22,8 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, cast
 
+from statsd import StatsClient, UnixSocketStatsClient
+
 from .protocols import Timer
 from .validators import (
     PatternAllowListValidator,
@@ -31,8 +33,6 @@ from .validators import (
 )
 
 if TYPE_CHECKING:
-    from statsd import StatsClient, UnixSocketStatsClient
-
     from .protocols import DeltaType
     from .validators import ListValidator
 
@@ -192,10 +192,7 @@ def get_udp_statsd_logger(
     statsd_influxdb_enabled: bool = False,
 ) -> SafeStatsdLogger:
     """Return a UDP StatsD logger."""
-    # Local import to avoid requiring statsd when other backends are used (e.g. Datadog)
-    from statsd import StatsClient as _StatsClient
-
-    resolved: type[StatsClient] = stats_class if stats_class is not None else _StatsClient
+    resolved: type[StatsClient] = stats_class if stats_class is not None else StatsClient
     statsd_client = resolved(host=host, port=port, prefix=prefix, ipv6=ipv6)
     return _make_safe_statsd_logger(
         statsd_client,
@@ -221,10 +218,7 @@ def get_socket_statsd_logger(
     statsd_influxdb_enabled: bool = False,
 ) -> SafeStatsdLogger:
     """Return a Unix Domain Socket StatsD logger. Note: statsd_ipv6 has no effect in socket mode."""
-    # Local import to avoid requiring statsd when other backends are used (e.g. Datadog)
-    from statsd import UnixSocketStatsClient as _UnixSocketStatsClient
-
-    resolved: type[UnixSocketStatsClient] = stats_class if stats_class is not None else _UnixSocketStatsClient
+    resolved: type[UnixSocketStatsClient] = stats_class if stats_class is not None else UnixSocketStatsClient
     statsd_client = resolved(socket_path=socket_path, prefix=prefix)
     return _make_safe_statsd_logger(
         statsd_client,
