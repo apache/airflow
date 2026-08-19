@@ -22,7 +22,9 @@ import re
 import shlex
 import sys
 import tempfile
+import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -44,7 +46,25 @@ from airflow_breeze.utils.shared_options import get_verbose
 
 console = Console(color_system="standard")
 
+# A constraints file pins ~770 packages and each one costs a PyPI round-trip of a few
+# seconds, which fetched one after another is the entire runtime of the constraints CI
+# jobs (~45 minutes). The fetches are independent, so they run on a small pool; the
+# table is still printed in constraints-file order because the results are consumed in
+# that order afterwards.
+PYPI_FETCH_PARALLELISM = 10
+PYPI_FETCH_TIMEOUT_SECONDS = 30
+
+# Ten requests in flight is polite enough that PyPI's CDN serves them without complaint, but
+# a burst can still come back throttled (429) or fail transiently (5xx) on a bad day. Those
+# are retried a few times rather than failing the package, obeying Retry-After when PyPI
+# sends one so the wait matches what it is actually asking for.
+PYPI_FETCH_MAX_ATTEMPTS = 3
+PYPI_FETCH_BACKOFF_SECONDS = 1.0
+PYPI_RETRIABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from packaging.version import Version
 
 
@@ -434,6 +454,66 @@ def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: 
         )
 
 
+def read_pypi_json(pypi_url: str) -> dict:
+    with urllib.request.urlopen(pypi_url, timeout=PYPI_FETCH_TIMEOUT_SECONDS) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def get_retry_after_seconds(error: HTTPError) -> float | None:
+    """Return the Retry-After delay PyPI asked for, or None if it did not ask in seconds."""
+    retry_after = error.headers.get("Retry-After") if error.headers else None
+    if not retry_after:
+        return None
+    try:
+        return max(0.0, float(retry_after))
+    except ValueError:
+        # The header also has an HTTP-date form; fall back to the backoff schedule for it.
+        return None
+
+
+def compute_backoff_seconds(attempt: int) -> float:
+    return PYPI_FETCH_BACKOFF_SECONDS * 2**attempt
+
+
+def fetch_pypi_data(pkg: str) -> dict:
+    """Fetch one package's PyPI metadata, retrying while PyPI is throttling or erroring.
+
+    The final attempt is made outside the loop so whatever it raises reaches the caller
+    unchanged - a package that is genuinely gone still fails against itself.
+    """
+    pypi_url = f"https://pypi.org/pypi/{pkg}/json"
+    for attempt in range(PYPI_FETCH_MAX_ATTEMPTS - 1):
+        try:
+            return read_pypi_json(pypi_url)
+        except HTTPError as e:
+            if e.code not in PYPI_RETRIABLE_STATUS_CODES:
+                raise
+            time.sleep(get_retry_after_seconds(e) or compute_backoff_seconds(attempt))
+        except (URLError, OSError):
+            time.sleep(compute_backoff_seconds(attempt))
+    return read_pypi_json(pypi_url)
+
+
+def iter_pypi_data(package_names: list[str]) -> Iterator[dict | BaseException]:
+    """Yield each package's PyPI metadata in order, fetching a batch at a time.
+
+    A failed fetch is yielded as its exception rather than raised, so one unreachable
+    package is reported against that package alone, as it was when the fetches ran one
+    at a time. Fetching stays batched instead of prefetching everything because a single
+    project's release history can be tens of megabytes - only one batch is ever alive.
+    """
+
+    def fetch(pkg: str) -> dict | BaseException:
+        try:
+            return fetch_pypi_data(pkg)
+        except (HTTPError, URLError, OSError, json.JSONDecodeError) as e:
+            return e
+
+    with ThreadPoolExecutor(max_workers=PYPI_FETCH_PARALLELISM) as executor:
+        for start in range(0, len(package_names), PYPI_FETCH_PARALLELISM):
+            yield from executor.map(fetch, package_names[start : start + PYPI_FETCH_PARALLELISM])
+
+
 def process_packages(
     packages: list[tuple[str, str]],
     constraints_date: datetime | None,
@@ -446,11 +526,6 @@ def process_packages(
     github_repository: str | None,
     cooldown_days: int = 4,
 ) -> tuple[int, int, list[str], dict[str, int]]:
-    def fetch_pypi_data(pkg: str) -> dict:
-        pypi_url = f"https://pypi.org/pypi/{pkg}/json"
-        with urllib.request.urlopen(pypi_url) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-
     def get_release_dates(releases: dict, version: str) -> str:
         if releases.get(version):
             return (
@@ -468,9 +543,11 @@ def process_packages(
     # them — see resolve_baseline_versions() for why one resolution is enough.
     baseline: tuple[str, dict[str, str]] | None = None
 
-    for pkg, pinned_version in packages:
+    pypi_data = iter_pypi_data([pkg for pkg, _ in packages])
+    for (pkg, pinned_version), data in zip(packages, pypi_data):
         try:
-            data = fetch_pypi_data(pkg)
+            if isinstance(data, BaseException):
+                raise data
             releases = data["releases"]
             latest_version_with_cooldown = get_latest_version_with_cooldown(releases, cooldown_days)
             latest_version = latest_version_with_cooldown or data["info"]["version"]
@@ -523,6 +600,9 @@ def process_packages(
             continue
         except URLError as e:
             console_print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
+            continue
+        except (OSError, json.JSONDecodeError) as e:
+            console_print(f"[bold red]Error fetching {pkg} from PyPI: {e}[/]")
             continue
     return outdated_count, skipped_count, explanations, status_counts
 
