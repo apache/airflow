@@ -154,27 +154,59 @@ async def test_datetime_trigger_mocked(mock_sleep, mock_utcnow):
 
 
 def test_time_of_day_trigger_serialization():
-    trigger = TimeOfDayTrigger(
-        target_time=datetime.time(10, 30, 45),
-        tz="Asia/Singapore",
-        end_from_trigger=True,
-    )
+    as_of = pendulum.datetime(2020, 7, 7, 8, 0, tz="UTC")
+    with mock.patch(
+        "airflow.providers.standard.triggers.temporal.timezone.utcnow",
+        return_value=as_of,
+    ):
+        trigger = TimeOfDayTrigger(
+            target_time=datetime.time(10, 30, 45),
+            tz="Asia/Singapore",
+            end_from_trigger=True,
+        )
     classpath, kwargs = trigger.serialize()
     assert classpath == "airflow.providers.standard.triggers.temporal.TimeOfDayTrigger"
+    expected_moment = pendulum.datetime(2020, 7, 7, 2, 30, 45, tz="UTC")  # 10:30:45 +08
     assert kwargs == {
         "target_time": "10:30:45",
         "tz": "Asia/Singapore",
         "end_from_trigger": True,
+        "moment": expected_moment,
     }
     restored = TimeOfDayTrigger(**kwargs)
     assert restored.serialize() == (classpath, kwargs)
 
 
+def test_time_of_day_trigger_serialize_stable_across_midnight():
+    """Reconstruct from serialize() must keep the original moment after local midnight."""
+    as_of = pendulum.datetime(2020, 7, 7, 23, 0, tz="UTC")
+    with mock.patch(
+        "airflow.providers.standard.triggers.temporal.timezone.utcnow",
+        return_value=as_of,
+    ):
+        trigger = TimeOfDayTrigger(target_time=datetime.time(23, 30), tz="UTC")
+    classpath, kwargs = trigger.serialize()
+    assert classpath.endswith("TimeOfDayTrigger")
+    original_moment = kwargs["moment"]
+    assert original_moment == pendulum.datetime(2020, 7, 7, 23, 30, tz="UTC")
+
+    later = pendulum.datetime(2020, 7, 8, 0, 5, tz="UTC")
+    with mock.patch(
+        "airflow.providers.standard.triggers.temporal.timezone.utcnow",
+        return_value=later,
+    ):
+        restored = TimeOfDayTrigger(**kwargs)
+    assert restored.moment == original_moment
+
+
 def test_time_of_day_trigger_fixed_offset_tz():
     trigger = TimeOfDayTrigger(target_time="07:00:00", tz=19800, end_from_trigger=False)
+    assert trigger.tz == 19800
+    assert trigger.target_time == "07:00:00"
     _, kwargs = trigger.serialize()
     assert kwargs["tz"] == 19800
     assert kwargs["target_time"] == "07:00:00"
+    assert "moment" in kwargs
 
 
 def test_resolve_time_of_day_moment_already_passed():

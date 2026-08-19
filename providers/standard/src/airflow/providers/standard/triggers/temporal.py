@@ -205,15 +205,19 @@ class DateTimeTrigger(BaseTrigger):
             yield TriggerEvent(self.moment)
 
 
-class TimeOfDayTrigger(BaseTrigger):
+class TimeOfDayTrigger(DateTimeTrigger):
     """
     Trigger that fires once the wall-clock reaches ``target_time`` in ``tz``.
 
-    Unlike :class:`DateTimeTrigger`, the concrete moment is resolved when the trigger
-    *starts* (not when the Dag is parsed). That keeps ``start_trigger_args`` parse-stable
-    while preserving ``TimeSensor(start_from_trigger=True)``.
+    The concrete moment is resolved at construction (triggerer start), not at
+    Dag-parse time. That keeps ``start_trigger_args`` parse-stable while
+    preserving ``TimeSensor(start_from_trigger=True)``.
 
-    ``target_time`` is stored as an ISO time string so trigger kwargs remain
+    ``serialize()`` includes the resolved ``moment`` so a reconstruct cannot
+    re-resolve "today" after midnight. ``start_trigger_args`` still omit
+    ``moment`` so Dag serialization stays parse-stable.
+
+    ``target_time`` is accepted as an ISO time string so trigger kwargs remain
     JSON/serde-safe (``datetime.time`` is not accepted by Airflow's trigger serde).
 
     :param target_time: wall-clock time of day (``datetime.time`` or ISO time string)
@@ -222,6 +226,7 @@ class TimeOfDayTrigger(BaseTrigger):
         ``timezone`` module imported from the SDK compat layer.
     :param end_from_trigger: whether the trigger should mark the task successful after
         the time condition is reached
+    :param moment: optional pre-resolved UTC moment; used on serialize reconstruct
     """
 
     def __init__(
@@ -230,12 +235,15 @@ class TimeOfDayTrigger(BaseTrigger):
         *,
         tz: str | int = "UTC",
         end_from_trigger: bool = False,
+        moment: datetime.datetime | None = None,
     ) -> None:
-        super().__init__()
-        self.target_time: str = _coerce_target_time(target_time).isoformat()
+        wall = _coerce_target_time(target_time)
+        super().__init__(
+            moment=moment if moment is not None else resolve_time_of_day_moment(wall, tz=tz),
+            end_from_trigger=end_from_trigger,
+        )
+        self.target_time: str = wall.isoformat()
         self.tz: str | int = tz
-        self.end_from_trigger = end_from_trigger
-        self.moment: pendulum.DateTime | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -244,24 +252,9 @@ class TimeOfDayTrigger(BaseTrigger):
                 "target_time": self.target_time,
                 "tz": self.tz,
                 "end_from_trigger": self.end_from_trigger,
+                "moment": self.moment,
             },
         )
-
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Resolve today's target moment, then reuse DateTimeTrigger's wait loop."""
-        self.moment = resolve_time_of_day_moment(
-            self.target_time,
-            tz=self.tz,
-        )
-        self.log.info(
-            "TimeOfDayTrigger resolved target_time=%s tz=%r -> moment=%s",
-            self.target_time,
-            self.tz,
-            self.moment,
-        )
-        delegate = DateTimeTrigger(moment=self.moment, end_from_trigger=self.end_from_trigger)
-        async for event in delegate.run():
-            yield event
 
 
 class TimeDeltaTrigger(DateTimeTrigger):

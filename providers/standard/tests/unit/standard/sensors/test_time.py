@@ -220,9 +220,12 @@ class TestTimeSensor:
         for op in (op_fixed, op_named):
             kwargs = op.start_trigger_args.trigger_kwargs
             trigger = TimeOfDayTrigger(**kwargs)
+            assert trigger.target_time == kwargs["target_time"]
+            assert trigger.tz == kwargs["tz"]
             classpath, ser = trigger.serialize()
             assert classpath.endswith("TimeOfDayTrigger")
             restored = TimeOfDayTrigger(**ser)
+            assert restored.moment == trigger.moment
             assert restored.target_time == kwargs["target_time"]
             assert restored.tz == kwargs["tz"]
 
@@ -252,11 +255,37 @@ class TestTimeSensor:
 
         return LazyDeserializedDAG.from_dag(dag).data
 
+    @staticmethod
+    def _find_start_trigger_args(obj):
+        """Locate encoded start_trigger_args in a Serialized Dag payload."""
+        if isinstance(obj, dict):
+            if "start_trigger_args" in obj:
+                return obj["start_trigger_args"]
+            if obj.get("__type") == "START_TRIGGER_ARGS":
+                return obj
+            for value in obj.values():
+                found = TestTimeSensor._find_start_trigger_args(value)
+                if found is not None:
+                    return found
+        elif isinstance(obj, list):
+            for item in obj:
+                found = TestTimeSensor._find_start_trigger_args(item)
+                if found is not None:
+                    return found
+        return None
+
+    @staticmethod
+    def _trigger_kwargs_from_encoded(start_trigger_args: dict) -> dict:
+        raw = start_trigger_args["trigger_kwargs"]
+        if isinstance(raw, dict) and "__var" in raw:
+            return raw["__var"]
+        return raw
+
     def test_start_from_trigger_keeps_serialized_dag_hash_stable(self):
         import hashlib
         import json
 
-        def build_hash() -> str:
+        def build_payload_and_hash() -> tuple[dict, str]:
             with DAG(
                 dag_id="test_start_from_trigger_hash_stable",
                 schedule=None,
@@ -269,14 +298,24 @@ class TestTimeSensor:
                     end_from_trigger=True,
                 )
             payload = self._serialized_dag_payload(dag)
-            return hashlib.md5(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+            digest = hashlib.md5(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+            return payload, digest
 
         with time_machine.travel("2025-01-01 00:00:00", tick=False):
-            first_hash = build_hash()
+            first_payload, first_hash = build_payload_and_hash()
         with time_machine.travel("2025-06-15 12:34:56", tick=False):
-            second_hash = build_hash()
+            second_payload, second_hash = build_payload_and_hash()
+
+        first_sta = self._find_start_trigger_args(first_payload)
+        assert first_sta is not None, "serialized payload must include start_trigger_args"
+        first_kwargs = self._trigger_kwargs_from_encoded(first_sta)
+        assert "TimeOfDayTrigger" in first_sta["trigger_cls"]
+        assert first_kwargs["target_time"] == "10:00:00"
+        assert "tz" in first_kwargs
+        assert "moment" not in first_kwargs
 
         assert first_hash == second_hash
+        assert first_payload == second_payload
 
     def test_start_from_trigger_serialized_dict_identical_across_parses(self):
         """SerializedDAG payload must be byte-identical when now() differs (E9)."""
@@ -298,6 +337,13 @@ class TestTimeSensor:
             first = build_data()
         with time_machine.travel("2025-12-31 23:59:59", tick=False):
             second = build_data()
+
+        sta = self._find_start_trigger_args(first)
+        assert sta is not None, "serialized payload must include start_trigger_args"
+        kwargs = self._trigger_kwargs_from_encoded(sta)
+        assert "TimeOfDayTrigger" in sta["trigger_cls"]
+        assert "moment" not in kwargs
+        assert kwargs["target_time"] == "10:00:00"
 
         assert first == second
 
