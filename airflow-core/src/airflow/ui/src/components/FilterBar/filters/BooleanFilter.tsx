@@ -16,27 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
+import { FilterPill } from "../FilterPill";
+import type { FilterPluginProps } from "../types";
 
-import { StateBadge } from "src/components/StateBadge";
-
-type Props = {
-  readonly needsReview: boolean;
-  readonly onToggle: () => void;
-};
-
-export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
-  const { t: translate } = useTranslation("hitl");
-
-  return (
-    <Button
-      data-testid="dags-needs-review-filter"
-      onClick={onToggle}
-      variant={needsReview ? "solid" : "outline"}
-    >
-      <StateBadge state="awaiting_input" />
-      {translate("requiredAction_other")}
-    </Button>
-  );
-};
+// A boolean filter is on whenever its pill exists, so the pill is label-only and
+// has no editor: picking it from the Add Filter menu turns it on, clicking it turns
+// it off. ``renderInput`` is never reached because ``getDefaultFilterValue`` seeds
+// the non-empty string "true", leaving ``FilterPill`` out of edit mode.
+export const BooleanFilter = ({ filter, onRemove }: FilterPluginProps) => (
+  <FilterPill
+    displayValue=""
+    filter={filter}
+    hasValue
+    onClick={onRemove}
+    onRemove={onRemove}
+    renderInput={() => undefined}
+  />
+);
