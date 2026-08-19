@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
@@ -36,6 +37,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
     _build_repair_url,
+    _get_launch_task_id_v3,
     _get_launch_task_key,
     _repair_task,
     get_databricks_task_ids,
@@ -209,28 +211,28 @@ def test_workflow_job_run_link_airflow2():
         ti_key.run_id = "run_id"
         ti_key.try_number = 1
 
-        with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.get_task_instance"
-        ) as mock_get_task_instance:
-            with patch(
+        with (
+            patch(
+                "airflow.providers.databricks.plugins.databricks_workflow.get_task_instance"
+            ) as mock_get_task_instance,
+            patch(
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
-            ) as mock_get_xcom_result:
-                with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow._get_dag"
-                ) as mock_get_dag:
-                    mock_connection = Mock()
-                    mock_connection.extra_dejson = {"host": "mockhost"}
+            ) as mock_get_xcom_result,
+            patch("airflow.providers.databricks.plugins.databricks_workflow._get_dag") as mock_get_dag,
+        ):
+            mock_connection = Mock()
+            mock_connection.extra_dejson = {"host": "mockhost"}
 
-                    with patch(
-                        "airflow.providers.databricks.hooks.databricks.DatabricksHook.get_connection",
-                        return_value=mock_connection,
-                    ):
-                        mock_get_task_instance.return_value = Mock(key=ti_key)
-                        mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1, job_id=1)
-                        mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="task_id"))
+            with patch(
+                "airflow.providers.databricks.hooks.databricks.DatabricksHook.get_connection",
+                return_value=mock_connection,
+            ):
+                mock_get_task_instance.return_value = Mock(key=ti_key)
+                mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1, job_id=1)
+                mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="task_id"))
 
-                        result = link.get_link(operator, ti_key=ti_key)
-                        assert "https://mockhost/#job/1/run/1" in result
+                result = link.get_link(operator, ti_key=ti_key)
+                assert "https://mockhost/#job/1/run/1" in result
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
@@ -255,21 +257,21 @@ def test_workflow_job_repair_single_failed_link_airflow2():
         ti_key.run_id = "run_id"
         ti_key.try_number = 1
 
-        with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.get_task_instance"
-        ) as mock_get_task_instance:
-            with patch(
+        with (
+            patch(
+                "airflow.providers.databricks.plugins.databricks_workflow.get_task_instance"
+            ) as mock_get_task_instance,
+            patch(
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
-            ) as mock_get_xcom_result:
-                with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag"
-                ) as mock_get_dag:
-                    mock_get_task_instance.return_value = Mock(key=ti_key)
-                    mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1)
-                    mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="task_id"))
+            ) as mock_get_xcom_result,
+            patch("airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag") as mock_get_dag,
+        ):
+            mock_get_task_instance.return_value = Mock(key=ti_key)
+            mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1)
+            mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="task_id"))
 
-                    result = link.get_link(operator, ti_key=ti_key)
-                    assert result.startswith("http://localhost/repair_databricks_job")
+            result = link.get_link(operator, ti_key=ti_key)
+            assert result.startswith("http://localhost/repair_databricks_job")
 
 
 @pytest.fixture
@@ -341,7 +343,8 @@ class TestDatabricksWorkflowPluginAirflow3:
     def test_build_repair_url_single_task(self):
         """The URL carries only Airflow identifiers — never the Databricks conn/run/task keys."""
         url = _build_repair_url("my_dag", "run 1", "grp.launch", task_id="grp.nb")
-        assert f"{REPAIR_URL_PREFIX}/my_dag/run%201" in url
+        assert url.startswith(f"{REPAIR_URL_PREFIX}/my_dag/run%201")
+        assert "://" not in url
         assert "launch_task_id=grp.launch" in url
         assert "task_id=grp.nb" in url
         assert "repair_all" not in url
@@ -350,9 +353,60 @@ class TestDatabricksWorkflowPluginAirflow3:
 
     def test_build_repair_url_repair_all(self):
         url = _build_repair_url("my_dag", "run1", "grp.launch", repair_all=True)
+        assert url.startswith(f"{REPAIR_URL_PREFIX}/my_dag/run1")
+        assert "://" not in url
         assert "repair_all=true" in url
         assert "launch_task_id=grp.launch" in url
         assert "&task_id=" not in url
+
+    def test_build_repair_url_uses_base_url_path_only(self):
+        from tests_common.test_utils.config import conf_vars
+
+        with conf_vars({("api", "base_url"): "https://host.example/airflow"}):
+            url = _build_repair_url("my_dag", "run1", "grp.launch", repair_all=True)
+        assert url.startswith("/airflow/databricks/workflow/repair/")
+        assert "https://" not in url
+        assert "host.example" not in url
+
+    def test_repair_links_declare_operators(self):
+        from airflow.providers.databricks.operators.databricks import (
+            DatabricksNotebookOperator,
+            DatabricksTaskOperator,
+        )
+        from airflow.providers.databricks.operators.databricks_workflow import (
+            _CreateDatabricksWorkflowOperator,
+        )
+
+        assert _CreateDatabricksWorkflowOperator in WorkflowJobRepairAllFailedLink().operators
+        assert DatabricksNotebookOperator in WorkflowJobRepairSingleTaskLink().operators
+        assert DatabricksTaskOperator in WorkflowJobRepairSingleTaskLink().operators
+
+    def test_get_launch_task_id_v3_uses_upstream_launch(self):
+        group = SimpleNamespace(parent_group=None, children={}, child_id=lambda label: f"wf.{label}")
+        operator = SimpleNamespace(task_id="wf.nb", upstream_task_ids={"wf.launch"}, task_group=group)
+        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="wf.nb", run_id="run1", try_number=1)
+        assert _get_launch_task_id_v3(operator, ti_key) == "wf.launch"
+
+    def test_get_launch_task_id_v3_walks_group_without_get_child_by_label(self):
+        launch = SimpleNamespace(task_id="wf.launch")
+        group = SimpleNamespace(
+            parent_group=None, children={"wf.launch": launch}, child_id=lambda label: f"wf.{label}"
+        )
+        operator = SimpleNamespace(task_id="wf.nb", upstream_task_ids=set(), task_group=group)
+        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="wf.nb", run_id="run1", try_number=1)
+        assert not hasattr(operator.task_group, "get_child_by_label")
+        assert _get_launch_task_id_v3(operator, ti_key) == "wf.launch"
+
+    def test_get_launch_task_id_v3_returns_none_when_launch_missing(self):
+        group = SimpleNamespace(parent_group=None, children={}, child_id=lambda label: f"wf.{label}")
+        operator = SimpleNamespace(task_id="wf.nb", upstream_task_ids=set(), task_group=group)
+        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="wf.nb", run_id="run1", try_number=1)
+        assert _get_launch_task_id_v3(operator, ti_key) is None
+
+    def test_get_launch_task_id_v3_returns_current_task_when_it_is_launch(self):
+        operator = SimpleNamespace(task_id="wf.launch", upstream_task_ids=set(), task_group=None)
+        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="wf.launch", run_id="run1", try_number=1)
+        assert _get_launch_task_id_v3(operator, ti_key) == "wf.launch"
 
     def test_repair_single_task_link_uses_endpoint_url(self):
         """The single-task repair link points at the FastAPI endpoint, naming Airflow ids only."""
@@ -644,6 +698,118 @@ class TestDatabricksWorkflowPluginAirflow3:
             # Verify no XCom was pushed due to the exception
             ti_mock.xcom_push.assert_not_called()
 
+    def test_post_repair_all_warns_on_unmapped_keys(self, caplog):
+        from fastapi.testclient import TestClient
+
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+
+        m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
+        dag = Mock()
+        task = Mock(task_id="grp.nb")
+        dag.tasks = [task]
+        dag.dag_id = "my_dag"
+        metadata = Mock(conn_id="c", run_id=999, task_key_map={"grp.nb": "KNOWN_KEY"})
+        dag_run = Mock(dag_id="my_dag", run_id="run1")
+        try:
+            with (
+                patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
+                patch("airflow.utils.session.create_session", _patched_create_session(dag_run)),
+                patch.object(m, "_read_launch_metadata", return_value=metadata),
+                patch.object(m, "DatabricksHook") as mock_hook,
+                patch.object(m, "_repair_task") as mock_repair,
+                patch.object(m, "_clear_repaired_and_downstream") as mock_clear,
+            ):
+                mock_hook.return_value.get_run_failed_task_keys.return_value = ["KNOWN_KEY", "LEGACY_KEY"]
+                client = TestClient(m.repair_app)
+                resp = client.post(
+                    "/my_dag/run1",
+                    params={"launch_task_id": "grp.launch", "repair_all": "true"},
+                    follow_redirects=False,
+                )
+            assert resp.status_code == 303
+            assert mock_repair.call_args.kwargs["tasks_to_repair"] == ["KNOWN_KEY", "LEGACY_KEY"]
+            assert mock_clear.call_args.args[2] == ["grp.nb"]
+            assert "Databricks repair returned task keys that could not be mapped to Airflow tasks" in caplog
+        finally:
+            m.repair_app.dependency_overrides.clear()
+
+    def test_post_redirect_includes_api_root_path(self):
+        from fastapi.testclient import TestClient
+
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+
+        from tests_common.test_utils.config import conf_vars
+
+        m.repair_app.dependency_overrides[m._require_dag_run_edit] = lambda: Mock()
+        dag = Mock(dag_id="my_dag", tasks=[], has_task=Mock(return_value=True))
+        dag_run = Mock(dag_id="my_dag", run_id="run1")
+        metadata = Mock(conn_id="c", run_id=1, task_key_map={})
+        try:
+            with (
+                conf_vars({("api", "base_url"): "https://host.example/airflow"}),
+                patch("airflow.models.serialized_dag.SerializedDagModel.get_dag", return_value=dag),
+                patch("airflow.utils.session.create_session", _patched_create_session(dag_run)),
+                patch.object(m, "_read_launch_metadata", return_value=metadata),
+                patch.object(m, "_repair_task"),
+                patch.object(m, "_clear_repaired_and_downstream"),
+            ):
+                client = TestClient(m.repair_app)
+                resp = client.post(
+                    "/my_dag/run1",
+                    params={"launch_task_id": "grp.launch", "task_id": "grp.nb"},
+                    follow_redirects=False,
+                )
+            assert resp.status_code == 303
+            assert resp.headers["location"] == "/airflow/dags/my_dag/runs/run1"
+        finally:
+            m.repair_app.dependency_overrides.clear()
+
+    @pytest.mark.db_test
+    def test_repair_links_survive_serialized_dag_round_trip(self, dag_maker):
+        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.providers.databricks.operators.databricks import DatabricksNotebookOperator
+        from airflow.providers.databricks.operators.databricks_workflow import DatabricksWorkflowTaskGroup
+
+        from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+        plugin = DatabricksWorkflowPlugin()
+        with mock_plugin_manager(plugins=[plugin]), dag_maker("repair_roundtrip", serialized=True):
+            with DatabricksWorkflowTaskGroup(group_id="wf", databricks_conn_id="databricks_default"):
+                DatabricksNotebookOperator(task_id="nb", notebook_path="/path/nb", source="WORKSPACE")
+
+            dag_run = dag_maker.create_dagrun()
+            serialized = SerializedDagModel.get_dag("repair_roundtrip")
+            assert serialized is not None
+
+            member = serialized.get_task("wf.nb")
+            launch = serialized.get_task("wf.launch")
+            member_ti = next(ti for ti in dag_run.task_instances if ti.task_id == "wf.nb")
+            launch_ti = next(ti for ti in dag_run.task_instances if ti.task_id == "wf.launch")
+
+            ti_key = TaskInstanceKey(
+                dag_id=serialized.dag_id, task_id="wf.nb", run_id=dag_run.run_id, try_number=1
+            )
+            assert _get_launch_task_id_v3(member, ti_key) == "wf.launch"
+            assert not hasattr(member.task_group, "get_child_by_label")
+
+            assert any(
+                isinstance(link, WorkflowJobRepairSingleTaskLink) for link in member.operator_extra_links
+            )
+            assert any(
+                isinstance(link, WorkflowJobRepairAllFailedLink) for link in launch.operator_extra_links
+            )
+
+            single_url = member.get_extra_links(member_ti, "Repair a single task")
+            all_url = launch.get_extra_links(launch_ti, "Repair All Failed Tasks")
+            assert single_url
+            assert all_url
+            assert REPAIR_URL_PREFIX in single_url
+            assert "task_id=wf.nb" in single_url
+            assert "launch_task_id=wf.launch" in single_url
+            assert "repair_all=true" in all_url
+            assert "://" not in single_url
+            assert "://" not in all_url
+
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
 class TestDatabricksWorkflowPluginAirflow2:
@@ -695,28 +861,26 @@ class TestDatabricksWorkflowPluginAirflow2:
 
         ti_key = TaskInstanceKey(dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1)
 
-        with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.get_task_instance"
-        ) as mock_get_ti:
-            with patch(
+        with (
+            patch(
+                "airflow.providers.databricks.plugins.databricks_workflow.get_task_instance"
+            ) as mock_get_ti,
+            patch(
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
-            ) as mock_get_xcom:
-                with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow._get_dag"
-                ) as mock_get_dag:
-                    with patch(
-                        "airflow.providers.databricks.plugins.databricks_workflow.DatabricksHook"
-                    ) as mock_hook:
-                        mock_get_ti.return_value = Mock(key=ti_key)
-                        mock_get_xcom.return_value = Mock(conn_id="conn_id", run_id=1, job_id=1)
-                        mock_get_dag.return_value.get_task.return_value = Mock(task_id="test_task")
+            ) as mock_get_xcom,
+            patch("airflow.providers.databricks.plugins.databricks_workflow._get_dag") as mock_get_dag,
+            patch("airflow.providers.databricks.plugins.databricks_workflow.DatabricksHook") as mock_hook,
+        ):
+            mock_get_ti.return_value = Mock(key=ti_key)
+            mock_get_xcom.return_value = Mock(conn_id="conn_id", run_id=1, job_id=1)
+            mock_get_dag.return_value.get_task.return_value = Mock(task_id="test_task")
 
-                        mock_hook_instance = Mock()
-                        mock_hook_instance.host = "test-host"
-                        mock_hook.return_value = mock_hook_instance
+            mock_hook_instance = Mock()
+            mock_hook_instance.host = "test-host"
+            mock_hook.return_value = mock_hook_instance
 
-                        result = link.get_link(operator, ti_key=ti_key)
+            result = link.get_link(operator, ti_key=ti_key)
 
-                        # Verify legacy method was used (should contain databricks host)
-                        assert "test-host" in result
-                        assert "#job/1/run/1" in result
+            # Verify legacy method was used (should contain databricks host)
+            assert "test-host" in result
+            assert "#job/1/run/1" in result
