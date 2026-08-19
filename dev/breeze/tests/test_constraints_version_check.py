@@ -28,10 +28,16 @@ from urllib.error import HTTPError, URLError
 import pytest
 
 from airflow_breeze.utils.constraints_version_check import (
+    BASELINE_SECTION,
+    FREEZE_MARKER,
     PYPI_FETCH_MAX_ATTEMPTS,
     PYPI_FETCH_PARALLELISM,
     PYPI_FETCH_TIMEOUT_SECONDS,
-    explain_package_upgrade,
+    RETURN_CODE_MARKER,
+    SECTION_MARKER,
+    ResolvedSection,
+    UpgradeCandidate,
+    classify_package_upgrade,
     fetch_pypi_data,
     get_table_format,
     iter_pypi_data,
@@ -263,103 +269,203 @@ def test_a_failed_package_does_not_stop_the_others(pypi, monkeypatch, capsys):
     assert "Error fetching pkg-b from PyPI: HTTP 503" in printed
 
 
-@mock.patch(f"{MODULE}.explain_package_upgrade", return_value="explanation")
-@mock.patch(f"{MODULE}.resolve_baseline_versions", return_value=("baseline log", {"pkg-a": "1.0.0"}))
-def test_baseline_is_resolved_once_for_all_outdated_packages(mock_baseline, mock_explain, pypi):
+class FakeContainer:
+    """Stands in for a ``docker compose run`` of a batched script.
+
+    Replays whatever sections the script asks for, so a test that changes the batch does not
+    have to restate the log, and records the scripts and the plan files each run was given.
+    """
+
+    def __init__(self, files_path: Path):
+        self.files_path = files_path
+        self.scripts: list[str] = []
+        self.plans: list[dict[str, str]] = []
+        self.freeze: dict[str, dict[str, str]] = {}
+        self.returncodes: dict[str, int] = {}
+        self.logs: dict[str, str] = {}
+
+    def read_plan(self, script: str) -> dict[str, str]:
+        match = re.search(r"/files/(constraints-explain-\w+)", script)
+        if not match:
+            return {}
+        return {path.name: path.read_text() for path in sorted((self.files_path / match.group(1)).iterdir())}
+
+    def __call__(self, *_args, **kwargs):
+        script = kwargs["command"]
+        self.scripts.append(script)
+        self.plans.append(self.read_plan(script))
+        lines = []
+        for name in re.findall(rf"{re.escape(SECTION_MARKER)} ([\w.\-]+)", script):
+            lines.append(f"{SECTION_MARKER} {name}")
+            lines.append(self.logs.get(name, ""))
+            lines.append(f"{RETURN_CODE_MARKER} {self.returncodes.get(name, 0)}")
+            if name in self.freeze:
+                lines.append(FREEZE_MARKER)
+                lines.extend(f"{pkg}=={version}" for pkg, version in self.freeze[name].items())
+        Path(kwargs["output"].file_name).write_text("\n".join(lines) + "\n")
+        return mock.MagicMock(returncode=0)
+
+
+@pytest.fixture
+def container(monkeypatch, tmp_path):
+    """A throwaway workspace plus a container double, so no real resolution ever runs."""
+    (tmp_path / "pyproject.toml").write_text('[project]\ndependencies = [\n    "already-there",\n]\n')
+    (tmp_path / "uv.lock").write_text("the original lock\n")
+    monkeypatch.setattr(f"{MODULE}.AIRFLOW_ROOT_PATH", tmp_path)
+    monkeypatch.setattr(f"{MODULE}.FILES_PATH", tmp_path / "files")
+    fake = FakeContainer(tmp_path / "files")
+    fake.freeze[BASELINE_SECTION] = {"pkg-a": "1.0.0", "pkg-b": "1.0.0", "pkg-c": "1.0.0"}
+    monkeypatch.setattr(f"{MODULE}.execute_command_in_shell", fake)
+    return fake
+
+
+def test_every_explanation_shares_one_container(container, pypi):
+    """A container costs more than the resolution it wraps, so all of them share one."""
     packages = [("pkg-a", "1.0.0"), ("pkg-b", "1.0.0"), ("pkg-c", "1.0.0")]
+    for index, (pkg, _) in enumerate(packages):
+        container.freeze[f"{index}-{pkg}"] = {**container.freeze[BASELINE_SECTION], pkg: "2.0.0"}
 
     _, _, explanations, _ = _run_process_packages(packages)
 
-    assert mock_explain.call_count == 3
+    assert len(container.scripts) == 1
     assert len(explanations) == 3
-    mock_baseline.assert_called_once_with(
-        python_version="3.11",
-        airflow_constraints_mode="constraints",
-        github_repository="apache/airflow",
-    )
-    for call in mock_explain.call_args_list:
-        assert call.kwargs["baseline_text"] == "baseline log"
-        assert call.kwargs["baseline_versions"] == {"pkg-a": "1.0.0"}
+    for pkg, _ in packages:
+        assert any(f"Package {pkg} can be upgraded from 1.0.0 to 2.0.0" in text for text in explanations)
 
 
-@mock.patch(f"{MODULE}.explain_package_upgrade", return_value="explanation")
-@mock.patch(f"{MODULE}.resolve_baseline_versions")
-def test_baseline_is_not_resolved_when_nothing_needs_explaining(mock_baseline, mock_explain, pypi):
+def test_nothing_runs_when_no_package_needs_explaining(container, pypi):
     # Already at the latest version, so no package triggers an explanation.
     _run_process_packages([("pkg-a", "2.0.0"), ("pkg-b", "2.0.0")])
 
-    mock_explain.assert_not_called()
-    mock_baseline.assert_not_called()
+    assert container.scripts == []
 
 
-@mock.patch(f"{MODULE}.explain_package_upgrade")
-@mock.patch(f"{MODULE}.resolve_baseline_versions")
-def test_baseline_is_not_resolved_without_explain_why(mock_baseline, mock_explain, pypi):
+def test_nothing_runs_without_explain_why(container, pypi):
     _run_process_packages([("pkg-a", "1.0.0")], explain_why=False)
 
-    mock_explain.assert_not_called()
-    mock_baseline.assert_not_called()
+    assert container.scripts == []
 
 
-@mock.patch(f"{MODULE}.update_pyproject_dependency")
-@mock.patch(f"{MODULE}.preserve_files")
-@mock.patch(f"{MODULE}.sync_and_freeze")
-def test_explain_package_upgrade_syncs_only_the_pinned_resolution(
-    mock_sync, mock_preserve, mock_update_pyproject
-):
-    mock_preserve.return_value = contextlib.nullcontext()
-    mock_sync.return_value = (mock.MagicMock(returncode=0), "after log", {"pkg-a": "2.0.0"})
+def test_the_baseline_is_resolved_once_and_is_the_only_refresh(container, pypi):
+    """The baseline refresh re-reads every index page; repeating it per package is wasted."""
+    _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
 
-    explanation = explain_package_upgrade(
-        pkg="pkg-a",
-        pinned_version="1.0.0",
-        latest_version="2.0.0",
-        python_version="3.11",
-        airflow_constraints_mode="constraints",
-        github_repository="apache/airflow",
-        baseline_text="baseline log",
-        baseline_versions={"pkg-a": "1.0.0"},
+    script = container.scripts[0]
+    assert script.index(f"{SECTION_MARKER} {BASELINE_SECTION}") < script.index(f"{SECTION_MARKER} 0-pkg-a")
+    assert script.count("--refresh") == 1
+    baseline, _, rest = script.partition(f"{SECTION_MARKER} 0-pkg-a")
+    assert "--refresh" in baseline
+
+
+def test_each_resolution_starts_from_the_unpinned_workspace(container, pypi):
+    """uv prefers versions it finds locked, so a leftover lock would skew the next package."""
+    _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    script = container.scripts[0]
+    plan = container.plans[0]
+    assert plan["uv.lock"] == "the original lock\n"
+    assert script.count("cp /files/") == 4
+    for index, pkg in enumerate(["pkg-a", "pkg-b"]):
+        assert f"\"{pkg}==2.0.0; python_version=='3.11'\"" in plan[f"pyproject-{index}.toml"]
+        assert "already-there" in plan[f"pyproject-{index}.toml"]
+
+
+def test_a_package_is_classified_from_its_own_section(container, pypi):
+    """One combined log holds every resolution; each verdict must read only its own slice."""
+    container.freeze["0-pkg-a"] = {"pkg-a": "2.0.0", "pkg-b": "1.0.0"}
+    container.freeze["1-pkg-b"] = {"pkg-a": "1.0.0", "pkg-b": "1.0.0"}
+
+    _, _, explanations, _ = _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    assert "Package pkg-a can be upgraded from 1.0.0 to 2.0.0" in explanations[0]
+    assert "pkg-b still resolved to 1.0.0" in explanations[1]
+
+
+def test_a_package_without_a_section_is_reported_as_unexplained(container, pypi):
+    """A container that dies part-way must not hand another package's resolution to this one."""
+    container.freeze["0-pkg-a"] = {"pkg-a": "2.0.0"}
+
+    def truncate_after_first_package(*args, **kwargs):
+        result = container(*args, **kwargs)
+        path = Path(kwargs["output"].file_name)
+        path.write_text(path.read_text().split(f"{SECTION_MARKER} 1-pkg-b")[0])
+        return result
+
+    with mock.patch(f"{MODULE}.execute_command_in_shell", truncate_after_first_package):
+        _, _, explanations, _ = _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    assert "can be upgraded from 1.0.0 to 2.0.0" in explanations[0]
+    assert "produced no output for pkg-b" in explanations[1]
+
+
+def test_every_conflict_probe_shares_one_more_container(container, pypi):
+    """Both packages need uv's narrative; that is one extra container, not one each."""
+    container.freeze["0-pkg-a"] = {"pkg-a": "2.0.0", "other-pkg": "4.0.0"}
+    container.freeze["1-pkg-b"] = {"pkg-b": "2.0.0", "other-pkg": "3.0.0"}
+    container.freeze[BASELINE_SECTION] = {"pkg-a": "1.0.0", "pkg-b": "1.0.0", "other-pkg": "5.0.0"}
+    container.logs = {"0": "No solution found\nBecause pkg-a", "1": "No solution found\nBecause pkg-b"}
+
+    _, _, explanations, _ = _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    assert len(container.scripts) == 2
+    assert "uv pip compile - --python 3.11" in container.scripts[1]
+    assert "other-pkg: 5.0.0 -> 4.0.0" in explanations[0]
+    assert "Because pkg-a" in explanations[0]
+    assert "other-pkg: 5.0.0 -> 3.0.0" in explanations[1]
+    assert "Because pkg-b" in explanations[1]
+
+
+CANDIDATE = UpgradeCandidate(pkg="pkg-a", pinned_version="1.0.0", latest_version="2.0.0")
+
+
+@pytest.mark.parametrize(
+    ("section", "expected", "expected_pins"),
+    [
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=0, versions={"pkg-a": "2.0.0"}),
+            "can be upgraded from 1.0.0 to 2.0.0",
+            [],
+            id="clean-upgrade",
+        ),
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=1, text="No solution found\nBecause pkg-a"),
+            "CANNOT be upgraded to 2.0.0",
+            [],
+            id="hard-conflict",
+        ),
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=0, versions={}),
+            "could not be classified",
+            [],
+            id="unreadable-freeze",
+        ),
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=0, versions={"pkg-a": "2.0.0", "other-pkg": "4.0.0"}),
+            "only by DOWNGRADING",
+            ["pkg-a==2.0.0", "other-pkg==5.0.0"],
+            id="needs-downgrades",
+        ),
+    ],
+)
+def test_a_resolution_is_classified_by_what_it_resolved_to(section, expected, expected_pins):
+    baseline = ResolvedSection(
+        name=BASELINE_SECTION, returncode=0, versions={"pkg-a": "1.0.0", "other-pkg": "5.0.0"}
     )
 
-    mock_sync.assert_called_once()
-    assert mock_sync.call_args.kwargs["title"] == "output_after"
-    assert "can be upgraded from 1.0.0 to 2.0.0" in explanation
+    explanation, pins = classify_package_upgrade(candidate=CANDIDATE, baseline=baseline, section=section)
+
+    assert expected in explanation
+    assert pins == expected_pins
 
 
-@mock.patch(f"{MODULE}.update_pyproject_dependency")
-@mock.patch(f"{MODULE}.preserve_files")
-@mock.patch(f"{MODULE}.execute_command_in_shell")
-@mock.patch(f"{MODULE}.sync_and_freeze")
-def test_explain_package_upgrade_reads_baseline_for_downgrade_detection(
-    mock_sync, mock_conflict_probe, mock_preserve, mock_update_pyproject
-):
-    mock_preserve.return_value = contextlib.nullcontext()
+def test_a_package_the_baseline_already_upgrades_is_reported_as_stale_constraints():
+    baseline = ResolvedSection(name=BASELINE_SECTION, returncode=0, versions={"pkg-a": "2.0.0"})
 
-    def write_conflict_narrative(*_args, **kwargs):
-        # The downgrade branch reruns uv from scratch to capture the resolver narrative.
-        Path(kwargs["output"].file_name).write_text(
-            "No solution found\nBecause pkg-a==2.0.0 depends on other-pkg<5"
-        )
-        return mock.MagicMock(returncode=1)
-
-    mock_conflict_probe.side_effect = write_conflict_narrative
-    # Reaching pkg-a 2.0.0 pushed other-pkg back from 5.0.0 to 4.0.0.
-    mock_sync.return_value = (
-        mock.MagicMock(returncode=0),
-        "after log",
-        {"pkg-a": "2.0.0", "other-pkg": "4.0.0"},
+    explanation, pins = classify_package_upgrade(
+        candidate=CANDIDATE,
+        baseline=baseline,
+        section=ResolvedSection(name="pkg-a", returncode=0, versions={"pkg-a": "2.0.0"}),
     )
 
-    explanation = explain_package_upgrade(
-        pkg="pkg-a",
-        pinned_version="1.0.0",
-        latest_version="2.0.0",
-        python_version="3.11",
-        airflow_constraints_mode="constraints",
-        github_repository="apache/airflow",
-        baseline_text="baseline log",
-        baseline_versions={"pkg-a": "1.0.0", "other-pkg": "5.0.0"},
-    )
-
-    assert "only by DOWNGRADING" in explanation
-    assert "other-pkg: 5.0.0 -> 4.0.0" in explanation
+    assert "constraints file appears to be stale" in explanation
+    assert pins == []
