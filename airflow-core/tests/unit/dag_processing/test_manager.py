@@ -3722,3 +3722,20 @@ class TestMultiTeamMetrics:
         # Two bundles resolved in a single batched query; the repeat call is served from cache.
         mock_get_team_names.assert_called_once()
         assert manager._bundle_name_to_team_name == {"bundle_a": "team_alpha", "bundle_b": "team_alpha"}
+
+
+def test_normalized_file_path_for_stats_does_not_warn(caplog):
+    """
+    rel_path always contains "/" for any nested DAG file, so normalizing it for stats
+    always requires substitution -- this must not log a warning on every DAG file, every
+    processing cycle.
+    """
+    dag_file_info = DagFileInfo(
+        bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path("dags/test/test_dag.py")
+    )
+
+    with caplog.at_level(logging.WARNING, logger="airflow._shared.observability.metrics.stats"):
+        result = dag_file_info.normalized_file_path_for_stats
+
+    assert result == "dags_test_test_dag.py"
+    assert caplog.entries == []
