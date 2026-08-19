@@ -872,7 +872,12 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
-            answer = user_confirm(f"Does the provider: {provider_id} have any changes apart from 'doc-only'?")
+            answer = user_confirm(
+                f"Does the provider: {provider_id} have any changes apart from 'doc-only'? "
+                f"(Answering 'no' marks this as a doc-only change, updating the "
+                f"'.latest-doc-only-change.txt' marker file for you to commit - no new PyPI "
+                f"package version will be prepared for release)"
+            )
             if answer == Answer.NO:
                 _mark_latest_changes_as_documentation_only(provider_id, list_of_list_of_changes)
                 return with_breaking_changes, maybe_with_new_features, False
