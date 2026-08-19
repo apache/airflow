@@ -113,6 +113,13 @@ class AddTeamNameField(VersionChange):
         if isinstance(response.body, dict):
             response.body.pop("team_name", None)
 
+    # The compat previous-run route needs the same treatment, matched by its own path.
+    @convert_response_to_previous_version_for("/dag-runs/{dag_id}/previous", ["GET"])  # type: ignore[arg-type]
+    def remove_team_name_from_compat_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``team_name`` from the compat previous-run response."""
+        if isinstance(response.body, dict):
+            response.body.pop("team_name", None)
+
 
 class AddAssetsByAliasEndpoint(VersionChange):
     """Add endpoint to resolve assets from an AssetAlias."""
@@ -166,5 +173,12 @@ class AddPartitionDateField(VersionChange):
     @convert_response_to_previous_version_for("/dag-runs/previous", ["GET"])  # type: ignore[arg-type]
     def remove_partition_date_from_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``partition_date`` from the previous-run response."""
+        if isinstance(response.body, dict):
+            response.body.pop("partition_date", None)
+
+    # The compat previous-run route needs the same treatment, matched by its own path.
+    @convert_response_to_previous_version_for("/dag-runs/{dag_id}/previous", ["GET"])  # type: ignore[arg-type]
+    def remove_partition_date_from_compat_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_date`` from the compat previous-run response."""
         if isinstance(response.body, dict):
             response.body.pop("partition_date", None)
