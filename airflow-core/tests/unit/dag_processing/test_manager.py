@@ -4985,14 +4985,30 @@ class TestDagFileProcessorManager:
         session.commit()
 
     @staticmethod
-    def _equivalence_persist(sweep: list[FileParseResult], *, batched: bool) -> None:
+    def _equivalence_persist(sweep: list[FileParseResult], *, batched: bool) -> list[int]:
+        """
+        Persist a sweep, and report how many files went into each write.
+
+        A group that fails is written again a file at a time, landing exactly where writing it a
+        file at a time would have. Reporting the writes lets the caller insist the batched half
+        really did merge, rather than agreeing with the other half by falling back to it.
+        """
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_versions.update({EQUIV_BUNDLE: "v1", EQUIV_OTHER_BUNDLE: "v1"})
-        if batched:
-            manager._persist_sweep(sweep)
-        else:
-            for item in sweep:
-                manager._persist_sweep([item])
+        written: list[int] = []
+        group_write = manager._persist_bundle_group
+
+        def record(bundle_name, items, *, session):
+            written.append(len(items))
+            group_write(bundle_name, items, session=session)
+
+        with mock.patch.object(manager, "_persist_bundle_group", side_effect=record):
+            if batched:
+                manager._persist_sweep(sweep)
+            else:
+                for item in sweep:
+                    manager._persist_sweep([item])
+        return written
 
     @pytest.mark.parametrize("shape", list(SWEEP_SHAPES))
     def test_a_sweep_persisted_together_lands_where_one_file_at_a_time_would(self, shape, session, tmp_path):
@@ -5011,12 +5027,20 @@ class TestDagFileProcessorManager:
         sequential = self._equivalence_snapshot(session)
 
         self._equivalence_reset(session)
-        self._equivalence_persist(build("batched"), batched=True)
+        sweep = build("batched")
+        expected = [
+            len(group) for group in DagFileProcessorManager(max_runs=1).build_persistence_groups(sweep)
+        ]
+        written = self._equivalence_persist(sweep, batched=True)
         batched = self._equivalence_snapshot(session)
 
         # A failed write is caught and the file throttled, so two halves that both failed agree on an
         # empty database and pass for equivalent. Every shape here defines Dags.
         assert sequential["dag"], "the sequential half wrote nothing to compare against"
+        # Some shapes exist to be merged and some to be kept apart; comparing the writes against
+        # what grouping asked for holds both, and catches a merged write that failed and was
+        # quietly written again a file at a time, landing exactly where the other half landed.
+        assert written == expected, "the batched half fell back to a file at a time"
         assert batched == sequential
 
 
