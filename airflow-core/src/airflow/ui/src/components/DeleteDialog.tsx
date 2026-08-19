@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Button, Heading, HStack, Text } from "@chakra-ui/react";
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
@@ -34,7 +33,7 @@ type DeleteDialogProps = {
   readonly warningText: string;
 };
 
-const DeleteDialog: React.FC<DeleteDialogProps> = ({
+const DeleteDialog = ({
   deleteButtonText,
   isDeleting,
   onClose,
@@ -43,7 +42,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
   resourceName,
   title,
   warningText,
-}) => {
+}: DeleteDialogProps) => {
   const { t: translate } = useTranslation("common");
 
   return (

@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { Dialog } from "src/components/ui";
@@ -28,7 +27,7 @@ type TimezoneModalProps = {
   readonly onClose: () => void;
 };
 
-const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => {
+const TimezoneModal = ({ isOpen, onClose }: TimezoneModalProps) => {
   const { t: translate } = useTranslation("common");
 
   return (

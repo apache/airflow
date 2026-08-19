@@ -164,7 +164,7 @@ class DagRunAssetReference(StrictBaseModel):
     run_id: str
     dag_id: str
     logical_date: datetime | None
-    start_date: datetime
+    start_date: datetime | None
     end_date: datetime | None
     state: str
     data_interval_start: datetime | None

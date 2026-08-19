@@ -47,6 +47,10 @@
   },
   "events": "الأحداث",
   "extra": "إضافي",
+  "filters": {
+    "groupPlaceholder": "البحث عن مجموعة",
+    "lastEventDateRange": "تاريخ آخر حدث"
+  },
   "group": "المجموعة",
   "lastAssetEvent": "آخر حدث أصل",
   "name": "الاسم",
