@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+23.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* The Vertex AI evaluation feature is now optional. ``RunEvaluationOperator`` and
+  ``GenerativeModelHook.run_evaluation`` / ``GenerativeModelHook.get_eval_task`` now require the
+  ``evaluation`` extra. Previously ``google-cloud-aiplatform[evaluation]`` was installed
+  unconditionally, pulling ``litellm``, ``scikit-learn`` and their transitive dependencies into every
+  Google provider install. To restore the previous behaviour, install
+  ``pip install 'apache-airflow-providers-google[evaluation]'``. Without the extra the provider
+  imports and all non-evaluation features keep working; the evaluation code paths raise
+  ``AirflowOptionalProviderFeatureException`` with this install hint.
+
 22.3.0
 ......
 

@@ -87,7 +87,7 @@ dependencies = [
     # Floor raised to 1.164.0: earlier "evaluation" extras cap litellm below the version that
     # carries the fixes for CVE-2026-35030 and its follow-on advisories on Python 3.14.
     # - https://github.com/googleapis/python-aiplatform/issues/7057
-    "google-cloud-aiplatform[evaluation]>=1.164.0",
+    "google-cloud-aiplatform>=1.164.0",
     "ray[default]>=2.42.0;python_version<'3.13'",
     "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
     "ray[default]>=2.55.0;python_version>='3.14' and python_version <'3.15'",
@@ -159,6 +159,20 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"evaluation" = [
+    # The "evaluation" extra of google-cloud-aiplatform limits litellm to range that has security
+    # vulnerabilities when we want to get 3.14 support. Until this is fixed we need to bump litellm to
+    # higher version and remove the "evaluation" extra from google-cloud-aiplatform.
+    # Tracked in: https://github.com/googleapis/python-aiplatform/issues/7057
+    "tqdm>=4.23.0",
+    "scikit-learn>=1.6.0",
+    "jsonschema>=4.19.1",
+    "ruamel.yaml>=0.19.0",
+    "pyyaml>=6.0.3",
+    "litellm<1.86.0,>=1.83.7;python_version<'3.14'",
+    "litellm>=1.93.0;python_version>='3.14'",
+    # End of evolution extra workaround
+]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
 ]

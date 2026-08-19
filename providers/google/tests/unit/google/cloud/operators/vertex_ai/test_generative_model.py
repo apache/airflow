@@ -25,7 +25,21 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 pytest.importorskip("google.cloud.aiplatform_v1beta1")
 vertexai = pytest.importorskip("vertexai.generative_models")
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
-from vertexai.preview.evaluation import MetricPromptTemplateExamples
+
+try:
+    from vertexai.preview.evaluation import MetricPromptTemplateExamples
+except ImportError:
+    # Only when the optional "evaluation" extra is absent: stand in for the metric constants so the
+    # tests below still run against the real hook/operator. With the extra installed the real values
+    # are used. Built in one expression so a single ignore covers it -- mypy sees a class here.
+    MetricPromptTemplateExamples = mock.MagicMock(  # type: ignore[assignment,misc]
+        Pointwise=mock.MagicMock(
+            SUMMARIZATION_QUALITY="summarization_quality",
+            GROUNDEDNESS="groundedness",
+            VERBOSITY="verbosity",
+            INSTRUCTION_FOLLOWING="instruction_following",
+        )
+    )
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     RunEvaluationOperator,

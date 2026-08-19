@@ -42,6 +42,7 @@ from google.genai.types import (
 )
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.google.cloud.operators.gen_ai import (
     GenAICountTokensOperator,
     GenAICreateCachedContentOperator,
@@ -169,13 +170,14 @@ REGION_GLOBAL = "global"
 
 
 def _get_metrics():
-    """
-    Lazily import and return the metrics list.
-
-    This avoids slow imports during DAG parsing by deferring the import
-    until the operator is actually created.
-    """
-    from vertexai.preview.evaluation import MetricPromptTemplateExamples
+    """Return metrics without importing optional evaluation dependencies during module import."""
+    try:
+        from vertexai.preview.evaluation import MetricPromptTemplateExamples
+    except ImportError as e:
+        raise AirflowOptionalProviderFeatureException(
+            "The 'evaluation' extra is required for Vertex AI evaluation. "
+            "Install with: pip install apache-airflow-providers-google[evaluation]"
+        ) from e
 
     return [
         MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY,

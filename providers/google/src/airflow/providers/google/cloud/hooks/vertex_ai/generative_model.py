@@ -19,16 +19,43 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import vertexai
 from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.preview import generative_models as preview_generative_model
 from vertexai.preview.caching import CachedContent
-from vertexai.preview.evaluation import EvalResult, EvalTask
 
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from vertexai.preview.evaluation import EvalResult, EvalTask
+
+# ``vertexai.preview.evaluation`` pulls in litellm and scikit-learn, so it ships in the optional
+# "evaluation" extra rather than in the base provider. Importing this module must stay safe without
+# it: the failure is remembered here and only re-raised from the evaluation code paths.
+_evaluation_import_error: ImportError | None = None
+
+if not TYPE_CHECKING:
+    # ImportError rather than ModuleNotFoundError: a partially installed evaluation stack should get
+    # the same install hint instead of a raw traceback.
+    try:
+        from vertexai.preview.evaluation import EvalTask
+    except ImportError as e:
+        _evaluation_import_error = e
+
+
+def _raise_if_evaluation_unavailable() -> None:
+    """Raise with an install hint if the optional ``evaluation`` extra is not installed."""
+    if _evaluation_import_error is None:
+        return
+    raise AirflowOptionalProviderFeatureException(
+        "The 'evaluation' extra is required for Vertex AI evaluation. "
+        f"Original error: {_evaluation_import_error}. "
+        "Install with: pip install apache-airflow-providers-google[evaluation]"
+    ) from _evaluation_import_error
 
 
 class GenerativeModelHook(GoogleBaseHook):
@@ -64,6 +91,7 @@ class GenerativeModelHook(GoogleBaseHook):
         experiment: str,
     ) -> EvalTask:
         """Return an EvalTask object."""
+        _raise_if_evaluation_unavailable()
         eval_task = EvalTask(
             dataset=dataset,
             metrics=metrics,
@@ -115,6 +143,7 @@ class GenerativeModelHook(GoogleBaseHook):
         :param system_instruction: Optional. An instruction given to the model to guide its behavior.
         :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
         """
+        _raise_if_evaluation_unavailable()
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
         model = self.get_generative_model(

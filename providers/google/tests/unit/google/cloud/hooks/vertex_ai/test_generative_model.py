@@ -25,7 +25,21 @@ import pytest
 pytest.importorskip("google.cloud.aiplatform_v1")
 
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
-from vertexai.preview.evaluation import MetricPromptTemplateExamples
+
+try:
+    from vertexai.preview.evaluation import MetricPromptTemplateExamples
+except ImportError:
+    # Only when the optional "evaluation" extra is absent: stand in for the metric constants so the
+    # tests below still run against the real hook/operator. With the extra installed the real values
+    # are used. Built in one expression so a single ignore covers it -- mypy sees a class here.
+    MetricPromptTemplateExamples = mock.MagicMock(  # type: ignore[assignment,misc]
+        Pointwise=mock.MagicMock(
+            SUMMARIZATION_QUALITY="summarization_quality",
+            GROUNDEDNESS="groundedness",
+            VERBOSITY="verbosity",
+            INSTRUCTION_FOLLOWING="instruction_following",
+        )
+    )
 
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     GenerativeModelHook,
@@ -143,6 +157,7 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
             self.hook.get_credentials = self.dummy_get_credentials
 
+    @mock.patch(GENERATIVE_MODEL_STRING.format("_evaluation_import_error"), None)
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_eval_task"))
     def test_run_evaluation(self, mock_eval_task, mock_model) -> None:
