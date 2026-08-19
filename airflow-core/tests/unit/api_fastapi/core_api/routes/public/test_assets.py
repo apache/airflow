@@ -1728,6 +1728,73 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.json() == {"queued_events": [], "total_entries": 0}
 
 
+class TestQueuedEventsDagAxisAuthorization:
+    """The Dag axis of the queued-events routes must match what the route does to the Dag.
+
+    Deleting queued events cancels a Dag's pending asset-triggered scheduling, which is a
+    write to that Dag's scheduling state, so those routes require Dag edit. Reading them
+    requires only Dag read.
+    """
+
+    @staticmethod
+    def _dag_axis_methods(route) -> list[str]:
+        """Return the ``method`` captured by each ``requires_access_dag`` on a route."""
+        from airflow.api_fastapi.core_api.security import requires_access_dag
+
+        module = requires_access_dag.__module__
+        methods = []
+        for dependency in route.dependant.dependencies:
+            call = dependency.call
+            # requires_access_dag returns a closure; the ResourceMethod it was built with
+            # is captured in one of that closure's cells.
+            if getattr(call, "__module__", None) != module or not call.__closure__:
+                continue
+            if call.__qualname__.split(".")[0] != "requires_access_dag":
+                continue
+            for cell in call.__closure__:
+                value = cell.cell_contents
+                if isinstance(value, str) and value in {"GET", "POST", "PUT", "DELETE", "MENU"}:
+                    methods.append(value)
+        return methods
+
+    @pytest.fixture
+    def routes_by_path(self, test_client):
+        return {
+            (r.path, tuple(sorted(r.methods))): r for r in test_client.app.routes if hasattr(r, "dependant")
+        }
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/assets/{asset_id}/queuedEvents",
+            "/dags/{dag_id}/assets/queuedEvents",
+            "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+        ],
+    )
+    def test_delete_queued_events_requires_dag_edit(self, routes_by_path, path):
+        matches = [
+            r for (p, methods), r in routes_by_path.items() if p.endswith(path) and "DELETE" in methods
+        ]
+        assert matches, f"no DELETE route registered for {path}"
+        for route in matches:
+            assert self._dag_axis_methods(route) == ["PUT"], (
+                f"DELETE {path} must gate the Dag axis on edit, not read"
+            )
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/dags/{dag_id}/assets/queuedEvents",
+            "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+        ],
+    )
+    def test_get_queued_events_requires_only_dag_read(self, routes_by_path, path):
+        matches = [r for (p, methods), r in routes_by_path.items() if p.endswith(path) and "GET" in methods]
+        assert matches, f"no GET route registered for {path}"
+        for route in matches:
+            assert self._dag_axis_methods(route) == ["GET"]
+
+
 class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_204(self, test_client, session, create_dummy_dag):
