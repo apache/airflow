@@ -102,6 +102,10 @@ class AssetAndTimeSchedule(BaseTimetable):
     asset_condition: BaseAsset = attrs.field(alias="assets", converter=_coerce_assets)
     timetable: BaseTimetable
 
-    def __attrs_post_init__(self) -> None:
-        self.active_runs_limit = self.timetable.active_runs_limit
-        self.can_be_scheduled = self.timetable.can_be_scheduled
+    @property
+    def active_runs_limit(self) -> int | None:  # type: ignore[override]
+        return self.timetable.active_runs_limit
+
+    @property
+    def can_be_scheduled(self) -> bool:  # type: ignore[override]
+        return self.timetable.can_be_scheduled
