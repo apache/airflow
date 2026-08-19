@@ -37,7 +37,16 @@ INSTALL_EXTRA_REGEX = r"apache-airflow-providers-google\[evaluation\]"
 
 # Patching the guard variable (instead of reloading the hook module with the evaluation import
 # blocked) keeps the module and class objects stable for other test files in the same session.
-MISSING_EVALUATION_IMPORT = ImportError("No module named 'vertexai.preview.evaluation'")
+MISSING_EVALUATION_ERRORS = (
+    pytest.param(
+        ImportError("No module named 'vertexai.preview.evaluation'"),
+        id="missing-evaluation-module",
+    ),
+    pytest.param(
+        ImportError("No module named 'sklearn'"),
+        id="missing-sklearn",
+    ),
+)
 
 
 @pytest.fixture
@@ -46,26 +55,30 @@ def hook() -> GenerativeModelHook:
         return GenerativeModelHook()
 
 
-@mock.patch(f"{HOOK_MODULE}._evaluation_import_error", MISSING_EVALUATION_IMPORT)
+@pytest.mark.parametrize("import_error", MISSING_EVALUATION_ERRORS)
 def test_get_eval_task_raises_optional_provider_feature_exception_without_evaluation_extra(
     hook: GenerativeModelHook,
+    import_error: ImportError,
 ):
-    with pytest.raises(AirflowOptionalProviderFeatureException, match=INSTALL_EXTRA_REGEX):
-        hook.get_eval_task(dataset={}, metrics=[], experiment="test-experiment")
+    with mock.patch(f"{HOOK_MODULE}._evaluation_import_error", import_error):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match=INSTALL_EXTRA_REGEX):
+            hook.get_eval_task(dataset={}, metrics=[], experiment="test-experiment")
 
 
-@mock.patch(f"{HOOK_MODULE}._evaluation_import_error", MISSING_EVALUATION_IMPORT)
+@pytest.mark.parametrize("import_error", MISSING_EVALUATION_ERRORS)
 def test_run_evaluation_raises_optional_provider_feature_exception_without_evaluation_extra(
     hook: GenerativeModelHook,
+    import_error: ImportError,
 ):
-    with pytest.raises(AirflowOptionalProviderFeatureException, match=INSTALL_EXTRA_REGEX):
-        hook.run_evaluation(
-            project_id="test-project",
-            location="us-central1",
-            pretrained_model="gemini-pro",
-            eval_dataset={},
-            metrics=[],
-            experiment_name="test-experiment",
-            experiment_run_name="test-run",
-            prompt_template="{prompt}",
-        )
+    with mock.patch(f"{HOOK_MODULE}._evaluation_import_error", import_error):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match=INSTALL_EXTRA_REGEX):
+            hook.run_evaluation(
+                project_id="test-project",
+                location="us-central1",
+                pretrained_model="gemini-pro",
+                eval_dataset={},
+                metrics=[],
+                experiment_name="test-experiment",
+                experiment_run_name="test-run",
+                prompt_template="{prompt}",
+            )
