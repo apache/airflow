@@ -110,10 +110,12 @@ def _make_execution_api() -> InProcessExecutionAPI:
 
 MAX_DAGS_PER_PERSISTENCE_GROUP = 32
 """
-Dags at most per persistence call, bounding what one transaction holds locked.
+How many Dags a group takes on before the next file starts a new one.
 
-Counted in Dags rather than files because that is what grows: a few files generating Dags
-dynamically can be thousands.
+Counted in Dags rather than files because that is what a write costs and what it locks: a few
+files generating Dags dynamically can be thousands. It bounds what grouping adds, not the write
+itself -- a file is never split, so one file defining more than this is still written in one go,
+exactly as it was before sweeps were grouped at all.
 """
 
 
@@ -1466,10 +1468,14 @@ class DagFileProcessorManager(LoggingMixin):
         metadata DB (e.g. AIP-92); one that overrides only the per-file
         :meth:`persist_parsing_result` is still called once per file instead, with batching skipped.
 
+        Whatever is handed over is written on the one session, so a caller passing results that do
+        not form a single group gets them in a single transaction. The manager never does: it splits
+        a sweep with :meth:`build_persistence_groups` and calls this once per group, which is what
+        gives each group a transaction of its own.
+
         Raising from the built-in write discards the whole group, and the caller then persists each
         file on its own, since the group was one transaction and nothing was kept. A replaced write
-        gets no such retry: it may have accepted the group before failing, and its files are left to
-        be parsed again rather than sent twice.
+        gets no such retry -- see :meth:`_persist_sweep`.
 
         The one transaction holds while the metadata DB is the only thing being written. Under the
         FAB auth manager it does not: syncing a Dag's permissions commits on this session partway
@@ -1641,7 +1647,10 @@ class DagFileProcessorManager(LoggingMixin):
                         str(file.rel_path),
                         file.bundle_name,
                     )
-                    self._throttle_retry(file, timezone.utcnow(), time.monotonic() - proc.start_time)
+                    if not (proc.had_callbacks and proc.parsing_result is None):
+                        self._throttle_retry(file, timezone.utcnow(), time.monotonic() - proc.start_time)
+                    # A callback-only run leaves the timestamps alone; failing to handle one must
+                    # too, or it advertises a parse that never happened and its Dags go stale.
                     continue
                 if result is not None:
                     to_persist.append(result)
@@ -1650,9 +1659,11 @@ class DagFileProcessorManager(LoggingMixin):
                 self._persist_sweep(to_persist)
         finally:
             # Leaving these open leaks their sockets and keeps them queued as if still running.
+            # A hook that ran above may have dropped one already, and this must not become the
+            # failure that hides whatever brought us here.
             for file in finished:
-                processor = self._processors.pop(file)
-                processor.close()
+                if (processor := self._processors.pop(file, None)) is not None:
+                    processor.close()
 
     def _persist_sweep(self, to_persist: list[FileParseResult]) -> None:
         """
@@ -1664,8 +1675,7 @@ class DagFileProcessorManager(LoggingMixin):
         manager a group is not quite one transaction -- see :meth:`persist_parsing_results`.
 
         A subclass handling files one at a time gets single-file groups, so the fallback cannot hand
-        it a file it has already accepted. One that replaced the batch write gets no fallback at
-        all, since only the built-in write is known to keep nothing when it raises.
+        it a file it has already accepted.
         """
         if self._overrides_per_file_persist():
             groups = [[item] for item in to_persist]

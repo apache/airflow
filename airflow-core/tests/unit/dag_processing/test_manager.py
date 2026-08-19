@@ -1617,7 +1617,9 @@ class TestDagFileProcessorManager:
             stat=DagFileStat(),
         )
 
-        with mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db") as mock_update:
+        with mock.patch(
+            "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+        ) as mock_update:
             manager.persist_parsing_results([item])
 
         mock_update.assert_called_once()
@@ -1636,7 +1638,9 @@ class TestDagFileProcessorManager:
         processor.had_callbacks = False
         processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
 
-        with mock.patch.object(manager, "persist_parsing_results", side_effect=RuntimeError("boom")):
+        with mock.patch.object(
+            manager, "persist_parsing_results", autospec=True, side_effect=RuntimeError("boom")
+        ):
             result = manager._build_parse_result(file, processor)
             manager._persist_sweep([result])
 
@@ -1745,7 +1749,6 @@ class TestDagFileProcessorManager:
         )
 
     def test_files_with_distinct_dag_ids_are_written_together(self):
-        """The split only applies to conflicts; everything else still batches."""
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_versions["testing"] = "v1"
 
@@ -1870,7 +1873,9 @@ class TestDagFileProcessorManager:
         processor.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
 
         side_effect = RuntimeError("boom") if persist_fails else None
-        with mock.patch.object(manager, "persist_parsing_result", side_effect=side_effect) as persist:
+        with mock.patch.object(
+            manager, "persist_parsing_result", autospec=True, side_effect=side_effect
+        ) as persist:
             manager.handle_parsing_result(file, processor)
 
         assert persist.call_args.kwargs["relative_fileloc"] == "a.py"
@@ -2034,7 +2039,7 @@ class TestDagFileProcessorManager:
             calls.append(len(results))
             raise RuntimeError("accepted, then the connection dropped")
 
-        with mock.patch.object(manager, "persist_parsing_results", side_effect=take_then_fail):
+        with mock.patch.object(manager, "persist_parsing_results", autospec=True, side_effect=take_then_fail):
             manager._persist_sweep(items)
 
         assert calls == [2], "the failed group must not be resent a file at a time"
@@ -2159,6 +2164,48 @@ class TestDagFileProcessorManager:
 
         assert handed == ["file_0.py", "file_1.py"], "no file may be handed over twice"
 
+    def test_failing_to_handle_a_callback_only_run_leaves_its_timestamps_alone(self):
+        """
+        A callback-only run is not a parse, so it never stamps a finish time.
+
+        Stamping one when handling it fails would tell _scan_stale_dags the file had just been
+        parsed, and past the threshold its Dags are deactivated on the strength of it.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = "v1"
+        file = self._ready_processor(manager, "cb.py")
+        manager._processors[file].had_callbacks = True
+        manager._processors[file].parsing_result = None
+        before = DagFileStat(num_dags=3, run_count=7)
+        manager._file_stats[file] = before
+
+        with mock.patch.object(
+            manager, "_build_parse_result", autospec=True, side_effect=RuntimeError("team lookup")
+        ):
+            manager._collect_results()
+
+        assert manager._file_stats[file] is before, "nothing about the file was learned"
+
+    def test_cleanup_survives_a_hook_dropping_a_processor(self):
+        """The cleanup must not become the failure that hides whatever brought us here."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = "v1"
+        dropped = self._ready_processor(manager, "dropped.py", num_dags=1)
+        kept = self._ready_processor(manager, "kept.py", num_dags=1)
+        closed = mock.patch.object(manager._processors[kept], "close")
+
+        def drop_one_and_fail(_):
+            manager._processors.pop(dropped)
+            raise RuntimeError("the sweep failed")
+
+        with closed as close:
+            with mock.patch.object(manager, "_persist_sweep", autospec=True, side_effect=drop_one_and_fail):
+                with pytest.raises(RuntimeError, match="the sweep failed"):
+                    manager._collect_results()
+
+        close.assert_called_once()
+        assert manager._processors == {}
+
     def test_a_file_that_cannot_be_handled_does_not_discard_its_neighbours(self):
         """
         Working out what a file leaves to persist can reach the DB, for the team its bundle is in.
@@ -2198,7 +2245,9 @@ class TestDagFileProcessorManager:
         processor = manager._processors[file]
 
         with mock.patch.object(processor, "close") as close:
-            with mock.patch.object(manager, "_persist_sweep", side_effect=RuntimeError("boom")):
+            with mock.patch.object(
+                manager, "_persist_sweep", autospec=True, side_effect=RuntimeError("boom")
+            ):
                 with pytest.raises(RuntimeError, match="boom"):
                     manager._collect_results()
 
@@ -2224,7 +2273,6 @@ class TestDagFileProcessorManager:
         ], "collecting a bundle's files together must not let them overtake another bundle's"
 
     def test_collect_results_leaves_unfinished_processors_alone(self):
-        """A processor that has not finished must not be persisted or dropped."""
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_versions["testing"] = "v1"
 
@@ -2272,7 +2320,9 @@ class TestDagFileProcessorManager:
                 raise RuntimeError("simulated write failure")
             persisted.extend(item.file for item in group)
 
-        with mock.patch.object(manager, "_persist_bundle_group", side_effect=persist_unless_bad_is_present):
+        with mock.patch.object(
+            manager, "_persist_bundle_group", autospec=True, side_effect=persist_unless_bad_is_present
+        ):
             manager._persist_sweep(items)
 
         assert persisted == [good], "the healthy file must still be written by the per-file retry"
@@ -2317,7 +2367,9 @@ class TestDagFileProcessorManager:
             if any(item.file == file_a for item in group):
                 raise RuntimeError("boom")
 
-        with mock.patch.object(manager, "_persist_bundle_group", side_effect=fail_for_a) as mock_persist:
+        with mock.patch.object(
+            manager, "_persist_bundle_group", autospec=True, side_effect=fail_for_a
+        ) as mock_persist:
             manager._collect_results()
 
         # The grouped attempt, then one retry per file.
@@ -2345,7 +2397,9 @@ class TestDagFileProcessorManager:
         proc.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
         manager._processors = {file: proc}
 
-        with mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db") as db_write:
+        with mock.patch(
+            "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+        ) as db_write:
             with mock.patch.object(manager, "persist_parsing_result", autospec=True) as persist:
                 manager._collect_results()
 
