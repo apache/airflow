@@ -60,6 +60,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddStoppedTaskReport,
     AddTerminalStateRetryReasonField,
     IdentifyRetiredTaskStateUpdates,
+    MakeAssetEventDagRunStartDateNullable,
 )
 
 bundle = VersionBundle(
@@ -73,6 +74,7 @@ bundle = VersionBundle(
         AddMultiTeamToTIRunContext,
         AddStoppedTaskReport,
         IdentifyRetiredTaskStateUpdates,
+        MakeAssetEventDagRunStartDateNullable,
     ),
     Version(
         "2026-06-30",
