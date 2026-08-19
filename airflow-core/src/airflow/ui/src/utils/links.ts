@@ -17,7 +17,6 @@
  * under the License.
  */
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { TabEntity, TabName } from "src/constants/tab";
 import { taskInstanceRoutes } from "src/router";
 
 export const getTaskInstanceLink = (
@@ -54,45 +53,6 @@ export const getRedirectPath = (targetPath: string): string => {
 // (e.g. Gitpod port-based domains, see #46533).
 export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "search">): string =>
   `${location.pathname}${location.search}${location.hash}`;
-
-type RouteMatch = {
-  readonly handle: unknown;
-};
-
-type TabRouteHandle = {
-  readonly entity: TabEntity;
-  readonly tab: TabName;
-};
-
-const tabEntities = new Set<string>(Object.values(TabEntity));
-const tabNames = new Set<string>(Object.values(TabName));
-
-const isTabRouteHandle = (handle: unknown): handle is TabRouteHandle =>
-  typeof handle === "object" &&
-  handle !== null &&
-  "entity" in handle &&
-  "tab" in handle &&
-  typeof handle.entity === "string" &&
-  tabEntities.has(handle.entity) &&
-  typeof handle.tab === "string" &&
-  tabNames.has(handle.tab);
-
-export const getTabPath = (matches: Array<RouteMatch>, entities: Array<TabEntity> | TabEntity): string => {
-  const targetEntities = new Set(Array.isArray(entities) ? entities : [entities]);
-  const tabMatch = [...matches]
-    .reverse()
-    .find((match) => isTabRouteHandle(match.handle) && targetEntities.has(match.handle.entity));
-
-  if (tabMatch?.handle === undefined || !isTabRouteHandle(tabMatch.handle)) {
-    return "";
-  }
-
-  if (tabMatch.handle.tab === TabName.Overview) {
-    return "";
-  }
-
-  return `/${tabMatch.handle.tab}`;
-};
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   const subRoutes = taskInstanceRoutes.flatMap((route) => {

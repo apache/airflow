@@ -20,7 +20,7 @@ import { matchRoutes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import { TabEntity } from "src/constants/tab";
-import { getTabPath } from "src/utils/links";
+import { getTabPath } from "src/utils/tab";
 
 import { routerConfig } from "./router";
 

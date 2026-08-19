@@ -19,57 +19,14 @@
 import { describe, it, expect } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { TabEntity, TabName } from "src/constants/tab";
 
 import {
   buildTaskInstanceUrl,
   getNextHref,
   getSafeExternalUrl,
-  getTabPath,
   getTaskInstanceAdditionalPath,
   getTaskInstanceLink,
 } from "./links";
-
-const getDagMatches = (tab: TabName) => [{ handle: { entity: TabEntity.Dag, tab } }];
-
-describe("getTabPath", () => {
-  it.each(Object.values(TabName))("preserves the %s Dag tab", (tab) => {
-    expect(getTabPath(getDagMatches(tab), TabEntity.Dag)).toBe(tab === TabName.Overview ? "" : `/${tab}`);
-  });
-
-  it("supports more than one compatible entity", () => {
-    expect(
-      getTabPath(
-        [{ handle: { entity: TabEntity.Task, tab: TabName.Events } }],
-        [TabEntity.Task, TabEntity.TaskInstance],
-      ),
-    ).toBe("/events");
-  });
-
-  it.each([
-    { matches: [] },
-    { matches: [{ handle: { entity: "asset", tab: "events" } }] },
-    { matches: [{ handle: { entity: TabEntity.Task, tab: TabName.Details } }] },
-    { matches: [{ handle: { entity: TabEntity.Dag } }] },
-    {
-      matches: [{ handle: { entity: TabEntity.Dag, tab: 42 } }],
-    },
-    {
-      matches: [{ handle: { entity: TabEntity.Dag, tab: "unknown" } }],
-    },
-    {
-      matches: [{ handle: undefined }],
-    },
-    {
-      matches: [{ handle: { entity: 42, tab: TabName.Details } }],
-    },
-    {
-      matches: [{ handle: null }],
-    },
-  ])("does not preserve unmatched or non-Dag routes", (matches) => {
-    expect(getTabPath(matches.matches, TabEntity.Dag)).toBe("");
-  });
-});
 
 describe("getTaskInstanceLink", () => {
   const testCases = [

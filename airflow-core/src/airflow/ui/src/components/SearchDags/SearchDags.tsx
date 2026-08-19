@@ -33,8 +33,8 @@ import type {
 } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { TabEntity } from "src/constants/tab";
-import { getTabPath } from "src/utils/links";
 import type { DagSearchOption } from "src/utils/option";
+import { getTabPath } from "src/utils/tab";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
 
