@@ -194,7 +194,7 @@ function isBundleManifest(value: unknown): value is BundleManifest {
 }
 
 function isTaskIdList(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 }
 
 // esbuild keeps an entry hashbang as line 1, where the metadata comment must go;

@@ -75,13 +75,21 @@ describe("buildBundleManifest", () => {
     },
   );
 
-  it.each(["", "   ", "\t", "my task", "a/b", "task@1", "t".repeat(251)])(
+  // An empty taskId is absent: the bundle schema requires task ids to be
+  // non-empty strings, so airflow-ts-pack rejects it instead of warning.
+  it.each(["   ", "\t", "my task", "a/b", "task@1", "t".repeat(251)])(
     "keeps a taskId the server would reject visible in the manifest: %j",
     (taskId) => {
       const manifest = buildBundleManifest(new DagRegistry(buildDag("example_dag", taskId)));
       expect(manifest.dags["example_dag"]).toEqual({ tasks: [taskId] });
     },
   );
+
+  it("rejects a non-string dagId before object-key coercion hides it", () => {
+    const dag = new Dag(123 as unknown as string);
+    dag.task("t1", async () => undefined);
+    expect(() => buildBundleManifest(new DagRegistry(dag))).toThrowError(/Dag ID must be a string/);
+  });
 });
 
 describe("startCoordinator --airflow-metadata", () => {

@@ -38,6 +38,9 @@ export interface BundleManifest {
 export function buildBundleManifest(registry: DagRegistry): BundleManifest {
   const dags: BundleManifest["dags"] = {};
   for (const { dagId, tasks } of listRegistryDags(registry)) {
+    if (typeof dagId !== "string") {
+      throw new Error("Dag ID must be a string");
+    }
     Object.defineProperty(dags, dagId, {
       configurable: true,
       enumerable: true,

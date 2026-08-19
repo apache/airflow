@@ -263,6 +263,10 @@ describe("runPack", () => {
       '{ supervisor_schema_version: "1", dags: { broken_dag: { tasks: ["ok", 7] } } }',
       "malformed entry",
     ],
+    [
+      '{ supervisor_schema_version: "1", dags: { broken_dag: { tasks: [""] } } }',
+      "malformed entry",
+    ],
     ['{ supervisor_schema_version: "1", dags: [{ tasks: ["a"] }] }', "incomplete"],
     // Was read off before the document itself was checked, so it surfaced as a
     // raw TypeError.
