@@ -450,9 +450,7 @@ class KubernetesExecutor(BaseExecutor):
             ti_id_python_type = TaskInstance.id.type.python_type
         except NotImplementedError:
             ti_id_python_type = str
-        ti_id = (
-            ti_id_python_type(str(workload_ti.id)) if ti_id_python_type is not str else str(workload_ti.id)
-        )
+        ti_id = ti_id_python_type(str(workload_ti.id))
 
         ti = session.execute(
             select(
