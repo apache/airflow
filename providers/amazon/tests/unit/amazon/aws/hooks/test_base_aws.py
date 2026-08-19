@@ -847,6 +847,39 @@ class TestAwsBaseHook:
 
         assert "TOPSECRET" not in str(assertion)
 
+    def test_saml_assertion_parsing_does_not_resolve_internal_entities(self):
+        internal_entity_response = (
+            b'<?xml version="1.0"?>'
+            b'<!DOCTYPE r [<!ENTITY payload "INJECTED">]>'
+            b"<r><assertion>&payload;</assertion></r>"
+        )
+
+        saml_config = {
+            "idp_url": "https://my-idp.local.corp",
+            "idp_auth_method": "http_spegno_auth",
+            "saml_response_xpath": "//assertion/text()",
+        }
+
+        orig_import = __import__
+
+        def import_mock(name, *args, **kwargs):
+            if name == "requests_gssapi":
+                return mock.Mock()
+            return orig_import(name, *args, **kwargs)
+
+        factory = BaseSessionFactory(conn=None)
+        with (
+            mock.patch("builtins.__import__", side_effect=import_mock),
+            mock.patch.object(factory, "_get_idp_response") as mock_idp,
+        ):
+            mock_idp.return_value.content = internal_entity_response
+            try:
+                assertion = factory._fetch_saml_assertion_using_http_spegno_auth(saml_config)
+            except ValueError:
+                assertion = ""
+
+        assert "INJECTED" not in str(assertion)
+
     @mock_aws
     def test_expand_role(self):
         conn = boto3.client("iam", region_name="us-east-1")
