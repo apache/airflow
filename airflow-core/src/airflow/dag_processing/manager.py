@@ -1517,9 +1517,9 @@ class DagFileProcessorManager(LoggingMixin):
         A run ends where the next file cannot join it: a different bundle, since the bundle fixes
         the version the write needs; a dag_id the run already claims, since merging two files
         defining one dag_id would lose the duplicate warning that comes from comparing an incoming
-        Dag against the file already recorded; a file the run and the incoming file speak
-        for in opposite directions, since an error recorded against a file is applied after the
-        Dags filed under it are written and would leave them stale; or
+        Dag against the file already recorded; a file the run and the incoming file both speak
+        for, whichever way round, since an error recorded against a file is applied after the Dags
+        filed under it are written and would leave every one of them stale; or
         ``MAX_DAGS_PER_PERSISTENCE_GROUP``.
         """
         groups: list[list[FileParseResult]] = []
@@ -1545,6 +1545,7 @@ class DagFileProcessorManager(LoggingMixin):
                 and claimed_dag_ids[-1].isdisjoint(dag_ids)
                 and dag_locs_claimed[-1].isdisjoint(file_locs)
                 and file_locs_claimed[-1].isdisjoint(dag_locs)
+                and dag_locs_claimed[-1].isdisjoint(dag_locs)
             )
             if not joins_run:
                 # A new group takes the file whatever its size; a file cannot be split.
