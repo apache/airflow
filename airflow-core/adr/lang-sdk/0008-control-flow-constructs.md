@@ -93,4 +93,4 @@ That operator defaults to skipping every task in its downstream closure and igno
 - **Nothing extra reaches the Dag JSON**, which carries no branch-candidate field at all. A ref is a task_id by the time the decision is sent, so each SDK stores its cases and nothing else.
 - **A group edge needs one base type per SDK** that both a task and a group satisfy, since either can sit at the end of an edge.
   Python already has it: `TaskGroup(TaskGroupMixin, DAGNode)` (`task-sdk/src/airflow/sdk/definitions/taskgroup.py:96`) and every operator inherit `DependencyMixin` (`.../definitions/_internal/mixins.py:35`), where `set_upstream` and `set_downstream` live.
-  The Go shape is `airflow.Node` ([`go-sdk/adr/0007`](../../../go-sdk/adr/0007-native-dag-interface.md)).
+  The Go shape is `airflow.Node` ([`go-sdk/adr/0008`](../../../go-sdk/adr/0008-native-dag-interface.md)).
