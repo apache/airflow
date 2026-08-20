@@ -29,6 +29,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.db.assets import eager_load_asset_reference_teams
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
@@ -211,8 +212,7 @@ def get_assets(
     # The below type annotation is acceptable on SQLA2.1, but not on 2.0
     assets_rows: Result[Unpack[tuple[AssetModel, int, datetime]]] = session.execute(  # type: ignore[type-arg]
         assets_select.options(
-            subqueryload(AssetModel.scheduled_dags),
-            subqueryload(AssetModel.producing_tasks),
+            *eager_load_asset_reference_teams(),
             subqueryload(AssetModel.consuming_tasks),
             subqueryload(AssetModel.aliases),
             subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
@@ -590,8 +590,7 @@ def get_asset(
         select(AssetModel)
         .where(AssetModel.id == asset_id)
         .options(
-            joinedload(AssetModel.scheduled_dags),
-            joinedload(AssetModel.producing_tasks),
+            *eager_load_asset_reference_teams(),
             joinedload(AssetModel.consuming_tasks),
             joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
@@ -698,7 +697,7 @@ def get_dag_asset_queued_event(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )
@@ -732,7 +731,7 @@ def delete_asset_queued_events(
     ),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )
@@ -764,7 +763,7 @@ def delete_dag_asset_queued_events(
     ),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )

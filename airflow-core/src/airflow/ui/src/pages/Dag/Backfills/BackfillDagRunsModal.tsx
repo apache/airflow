@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text } from "@chakra-ui/react";
+import { Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,7 +28,7 @@ import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Dialog, RouterLink } from "src/components/ui";
+import { Modal, RouterLink } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh } from "src/utils";
 
@@ -183,36 +183,31 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
   };
 
   return (
-    <Dialog.Root
+    <Modal
       lazyMount
       onOpenChange={handleOpenChange}
       open={open}
       scrollBehavior="inside"
       size="cover"
+      title={
+        <>
+          {translate("common:backfill_one")} #{backfillId}
+        </>
+      }
       unmountOnExit
     >
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading size="md">
-            {translate("common:backfill_one")} #{backfillId}
-          </Heading>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <ErrorAlert error={backfillError} />
-          <ErrorAlert error={error} />
-          <DataTable
-            columns={getColumns(isPartitioned, translate)}
-            data={data?.backfill_dag_runs ?? []}
-            initialState={tableState}
-            isFetching={isFetching}
-            isLoading={isBackfillLoading || isLoading}
-            modelName="common:slot"
-            onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
-            total={data?.total_entries ?? 0}
-          />
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+      <ErrorAlert error={backfillError} />
+      <ErrorAlert error={error} />
+      <DataTable
+        columns={getColumns(isPartitioned, translate)}
+        data={data?.backfill_dag_runs ?? []}
+        initialState={tableState}
+        isFetching={isFetching}
+        isLoading={isBackfillLoading || isLoading}
+        modelName="common:slot"
+        onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
+        total={data?.total_entries ?? 0}
+      />
+    </Modal>
   );
 };

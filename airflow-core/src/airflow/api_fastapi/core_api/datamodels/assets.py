@@ -50,6 +50,7 @@ class DagScheduleAssetReference(StrictBaseModel):
     dag_id: str
     created_at: datetime
     updated_at: datetime
+    team_name: str | None = None
 
 
 class TaskInletAssetReference(StrictBaseModel):
@@ -68,6 +69,7 @@ class TaskOutletAssetReference(StrictBaseModel):
     task_id: str
     created_at: datetime
     updated_at: datetime
+    team_name: str | None = None
 
 
 class LastAssetEventResponse(BaseModel):

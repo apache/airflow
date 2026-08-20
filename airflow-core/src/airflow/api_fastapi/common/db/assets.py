@@ -23,11 +23,20 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel, association_table
+from airflow.api_fastapi.common.db.dags import eager_load_teams
+from airflow.models.asset import (
+    AssetEvent,
+    AssetModel,
+    AssetWatcherModel,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
+    association_table,
+)
 from airflow.models.dagrun import DagRun
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.strategy_options import _AbstractLoad
     from sqlalchemy.sql import Select
 
 
@@ -48,8 +57,7 @@ def generate_assets_with_last_event_query() -> Select:
         .outerjoin(max_asset_event_id_query, AssetModel.id == max_asset_event_id_query.c.asset_id)
         .outerjoin(AssetEvent, AssetEvent.id == max_asset_event_id_query.c.max_asset_event_id)
         .options(
-            selectinload(AssetModel.scheduled_dags),
-            selectinload(AssetModel.producing_tasks),
+            *eager_load_asset_reference_teams(),
             selectinload(AssetModel.consuming_tasks),
             selectinload(AssetModel.aliases),
             selectinload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
@@ -94,3 +102,17 @@ def resolve_triggering_event_refs(
             )
         )
     }
+
+
+def eager_load_asset_reference_teams() -> tuple[_AbstractLoad, ...]:
+    """
+    Loader options for an ``AssetModel`` query whose response exposes reference ``team_name``.
+
+    Covers the two references that serialize a team: scheduled Dags and producing tasks.
+    The Dag each one points at is only traversed in multi-team mode, so single-team
+    deployments load the references alone -- see :func:`eager_load_teams`.
+    """
+    return (
+        selectinload(AssetModel.scheduled_dags).options(*eager_load_teams(DagScheduleAssetReference.dag)),
+        selectinload(AssetModel.producing_tasks).options(*eager_load_teams(TaskOutletAssetReference.dag)),
+    )
