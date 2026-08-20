@@ -45,7 +45,7 @@ importers:
 
   example:
     dependencies:
-      '@apache-airflow/ts-sdk':
+      apache-airflow-ts-sdk:
         specifier: file:..
         version: file:(esbuild@0.28.2)
     devDependencies:
@@ -61,7 +61,7 @@ importers:
 
 packages:
 
-  '@apache-airflow/ts-sdk@file:':
+  'apache-airflow-ts-sdk@file:':
     resolution: {directory: '', type: directory}
     engines: {node: '>=22'}
     hasBin: true
@@ -1340,7 +1340,7 @@ packages:
 
 snapshots:
 
-  '@apache-airflow/ts-sdk@file:(esbuild@0.28.2)':
+  'apache-airflow-ts-sdk@file:(esbuild@0.28.2)':
     dependencies:
       '@msgpack/msgpack': 3.1.3
     optionalDependencies:

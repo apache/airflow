@@ -40,7 +40,7 @@ the `"return_value"` key by the active runtime, matching Python `@task`
 behavior:
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");

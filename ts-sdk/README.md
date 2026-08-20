@@ -33,7 +33,7 @@ runtime used to execute registered TypeScript handlers from Airflow.
 ## Task Handlers
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
@@ -98,7 +98,7 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
@@ -151,7 +151,7 @@ entrypoint that serves them all:
 ```ts
 import { salesDag } from "./sales/dag";
 import { billingDag } from "./billing/dag";
-import { DagRegistry, serveDags } from "@apache-airflow/ts-sdk";
+import { DagRegistry, serveDags } from "apache-airflow-ts-sdk";
 
 await serveDags(new DagRegistry(salesDag, billingDag));
 ```
@@ -271,3 +271,62 @@ gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
 Use `destination=staging` first to check the output, then `live`. Confirm that
 `https://airflow.apache.org/docs/ts-sdk/stable/` resolves (allow time for cache
 invalidation) and that `/docs/ts-sdk/` redirects to it.
+
+## Publishing
+
+The manually dispatched `Release TypeScript SDK` workflow has separate jobs
+for [npm's staged-publishing flow](https://docs.npmjs.com/staged-publishing/)
+and for direct formal publication. Configure the `apache-airflow-ts-sdk`
+trusted publisher to permit both operations from the workflow's protected
+`ts-sdk-npm` environment:
+
+```bash
+npm trust github apache-airflow-ts-sdk \
+  --repo apache/airflow \
+  --file ts-sdk-release.yml \
+  --environment ts-sdk-npm \
+  --allow-stage-publish \
+  --allow-publish
+```
+
+Create a `ts-sdk/<version>` tag whose version exactly matches `package.json`.
+To submit the package to npm's private staging area for review, run:
+
+```bash
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref main \
+  -f release_type=staged \
+  -f tag=ts-sdk/1.0.0-beta1 \
+  -f npm_tag=beta
+```
+
+The staged job runs the full verification and package build, then calls
+`npm stage publish`. The version is not publicly installable until a maintainer
+reviews and approves it with 2FA. The following commands require npm 11.15 or
+later:
+
+```bash
+npm stage list apache-airflow-ts-sdk
+npm stage view <stage-id>
+npm stage download <stage-id>
+npm stage approve <stage-id>
+```
+
+The approval cannot run through the trusted-publisher workflow because npm
+requires interactive proof of presence. Reject an unsuitable staged version
+with `npm stage reject <stage-id>`. Do not run the formal workflow for a version
+that is already staged; approve or reject that staged version instead.
+
+To publish directly without npm's staging review, trigger the formal job:
+
+```bash
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref main \
+  -f release_type=formal \
+  -f tag=ts-sdk/1.0.0-beta1 \
+  -f npm_tag=beta
+```
+
+Use `latest` for stable releases and a non-`latest` tag such as `alpha`,
+`beta`, or `rc` for prereleases. Both jobs use short-lived npm OIDC credentials
+and automatically publish provenance. After verifying the trusted-publisher
+setup, disable token-based publishing and revoke obsolete npm automation
+tokens.
