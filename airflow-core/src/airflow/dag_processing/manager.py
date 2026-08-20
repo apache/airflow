@@ -1386,7 +1386,7 @@ class DagFileProcessorManager(LoggingMixin):
             files_parsed=files_parsed,
         )
 
-    def _overrides(self, name: str) -> bool:
+    def _has_override_for(self, name: str) -> bool:
         """
         Report whether this manager has its own version of one of the hooks.
 
@@ -1396,7 +1396,7 @@ class DagFileProcessorManager(LoggingMixin):
             return True
         return getattr(type(self), name) is not getattr(DagFileProcessorManager, name)
 
-    def _overrides_per_file_persist(self) -> bool:
+    def _has_per_file_persist_override(self) -> bool:
         """
         Report whether the per-file persistence hook has been replaced.
 
@@ -1404,13 +1404,13 @@ class DagFileProcessorManager(LoggingMixin):
         deployment had arranged to send elsewhere. Replacing the batch hook too says where a whole
         sweep should go, so that one wins and this reports ``False``.
         """
-        if self._overrides("persist_parsing_results"):
+        if self._has_override_for("persist_parsing_results"):
             return False
-        return self._overrides("persist_parsing_result")
+        return self._has_override_for("persist_parsing_result")
 
     def _warn_if_batching_is_disabled(self) -> None:
         """Say once, at startup, what an override is costing this Dag processor."""
-        if self._overrides_per_file_persist():
+        if self._has_per_file_persist_override():
             warnings.warn(
                 f"{type(self).__name__} overrides persist_parsing_result, which is deprecated. "
                 "Override persist_parsing_results instead, which is handed a group of the files "
@@ -1423,7 +1423,7 @@ class DagFileProcessorManager(LoggingMixin):
                 "a time rather than a group at a time.",
                 type(self).__name__,
             )
-        if self._overrides_handle_parsing_result():
+        if self._has_handle_parsing_result_override():
             # Not deprecated: nothing replaces handling a file in full. Reported on its own,
             # since a manager may replace this and the write below it for the same deployment.
             self.log.warning(
@@ -1432,14 +1432,14 @@ class DagFileProcessorManager(LoggingMixin):
                 type(self).__name__,
             )
 
-    def _overrides_handle_parsing_result(self) -> bool:
+    def _has_handle_parsing_result_override(self) -> bool:
         """
         Report whether the per-file result handler has been replaced.
 
         Released in 3.3 for deployments that forward results rather than write them. Such an
         override persists a file itself, leaving a sweep nothing to batch.
         """
-        return self._overrides("handle_parsing_result")
+        return self._has_override_for("handle_parsing_result")
 
     @provide_session
     def persist_parsing_results(
@@ -1468,7 +1468,7 @@ class DagFileProcessorManager(LoggingMixin):
         write did before it commits, so a retry can announce the same thing twice. Both are tracked
         at https://github.com/apache/airflow/issues/71911
         """
-        if self._overrides_per_file_persist():
+        if self._has_per_file_persist_override():
             for item in results:
                 self.persist_parsing_result(
                     bundle_name=item.file.bundle_name,
@@ -1569,9 +1569,9 @@ class DagFileProcessorManager(LoggingMixin):
                 for rel_path, error in (parsing_result.import_errors or {}).items()
             }
             # A file's own parse is the last word on it, so it drops an error another file in the
-            # sweep reported against it. Merging without that keeps an error the file has fixed.
-            # A group therefore records where its files ended up, not how they got there: an error
-            # raised and resolved inside one sweep is never written, so no listener hears of it.
+            # group reported against it. The manager never builds such a group -- a file reporting
+            # import errors ends its run -- but this writes whatever it is handed, so a caller
+            # passing a wider sweep still gets the later word.
             import_errors.pop((bundle_name, relative_fileloc), None)
             import_errors.update(file_errors)
             # Include the parsed file even when it defines no Dags, so its stale import errors
@@ -1608,7 +1608,7 @@ class DagFileProcessorManager(LoggingMixin):
         finished = []
         to_persist: list[FileParseResult] = []
         # Such an override owns persistence too, leaving a sweep nothing to write together.
-        handles_each_file = self._overrides_handle_parsing_result()
+        handles_each_file = self._has_handle_parsing_result_override()
         try:
             for file, proc in list(self._processors.items()):
                 if not proc.is_ready:
@@ -1658,7 +1658,7 @@ class DagFileProcessorManager(LoggingMixin):
         A subclass handling files one at a time gets single-file groups, so the fallback cannot
         hand it a file it has already accepted.
         """
-        if self._overrides_per_file_persist():
+        if self._has_per_file_persist_override():
             groups = [[item] for item in to_persist]
         else:
             try:
@@ -1677,9 +1677,9 @@ class DagFileProcessorManager(LoggingMixin):
                 self._persist_single(group[0])
                 continue
             try:
-                self.persist_parsing_results(group)
+                self._dispatch_persist(group)
             except Exception:
-                if self._overrides("persist_parsing_results"):
+                if self._has_override_for("persist_parsing_results"):
                     # Only the built-in write is known to have kept nothing when it raises. A
                     # replaced one may have accepted the group and failed afterwards, so sending
                     # its files again would write them twice.
@@ -1701,10 +1701,22 @@ class DagFileProcessorManager(LoggingMixin):
                 for item in group:
                     self._file_stats[item.file] = item.stat
 
+    @provide_session
+    def _dispatch_persist(self, results: Sequence[FileParseResult], *, session: Session = NEW_SESSION):
+        """
+        Hand one group to :meth:`persist_parsing_results` on a session of its own.
+
+        ``@provide_session`` decorates the base method, not an override of it, so calling the hook
+        without a session would hand a replacement whatever its own signature defaulted to. Each
+        group is dispatched separately because one session per group is what gives it its own
+        transaction.
+        """
+        self.persist_parsing_results(results, session=session)
+
     def _persist_single(self, item: FileParseResult) -> None:
         """Persist one file, throttling its retries if that fails rather than claiming success."""
         try:
-            self.persist_parsing_results([item])
+            self._dispatch_persist([item])
         except Exception:
             self._throttle_after_failed_persist(item)
         else:

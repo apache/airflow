@@ -18,21 +18,15 @@ group instead of once per file.
 
 **Behaviour changes:**
 
-- ``on_asset_created`` now reports the definition of the last file in the group to define an
-  asset, where writing a file at a time reported the first and quietly updated it afterwards.
-  Assets are shared across files by design, so a group coalesces repeated definitions before
-  creating the row. The row that ends up in the database is unchanged; only the payload the
-  listener is given differs.
-- A group records where its files ended up rather than how they got there, so an import error
-  raised and resolved within one group is never written. ``on_new_dag_import_error`` is not
-  called for it.
+- ``on_asset_created`` now reports the definition that is written. Where two files in one group
+  define the same asset differently, writing a file at a time announced the first file's
+  definition and then silently overwrote it, so the announcement disagreed with the row; a group
+  coalesces the definitions before creating the row and announces what it wrote.
 
 **Migration:**
 
 - Move a ``persist_parsing_result`` override to ``persist_parsing_results``, which receives a
   sequence of results and a session instead of one file's arguments.
-- Listeners that treated ``on_asset_created`` as reporting the first definition of an asset, or
-  that counted on seeing every transient import error, should not rely on either.
 
 * Types of change
 
