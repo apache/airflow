@@ -167,7 +167,8 @@ jobs:
       - name: >
           Restore the commit the CI image stashed for ref ${{ inputs.image-stash-ref }}
           was built from
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           key: "ci-image-commit-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -200,7 +201,8 @@ jobs:
       - name: >
           Restore CI docker image built for ref ${{ inputs.image-stash-ref }}
           ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -215,7 +217,8 @@ jobs:
       - name: >
           Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
@@ -242,7 +245,8 @@ jobs:
           --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
       - name: "Restore CI docker image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
           path: "/mnt/"
@@ -327,7 +331,7 @@ jobs:
         shell: bash
         if: inputs.upload-image-artifact == 'true' && steps.stashed-image.outputs.reusable != 'true'
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           key: ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
@@ -340,7 +344,7 @@ jobs:
       # what a later publish of that same ref reads - hence a retention that outlives the shared
       # one, the same ref being rebuilt three days apart at the very least.
       - name: "Stash CI docker image built for ref ${{ inputs.image-stash-ref }}"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -353,7 +357,7 @@ jobs:
       # Saved last and with the image's retention, so that finding this commit is enough to
       # know the image it describes is there to be restored.
       - name: "Stash the commit the CI image for ref ${{ inputs.image-stash-ref }} was built from"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           key: "ci-image-commit-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -375,7 +379,7 @@ jobs:
       - name: >
           Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"

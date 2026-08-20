@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack } from "@chakra-ui/react";
+import { VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetsUi } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { AliasesPopover, WatchersPopover } from "src/components/Assets/ListPopover";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -44,7 +46,7 @@ const assetsFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 type AssetRow = { row: { original: AssetResponse } };
 
-const createColumns = (translate: (key: string) => string): Array<ColumnDef<AssetResponse>> => [
+const createColumns = (translate: TFunction): Array<ColumnDef<AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
@@ -91,8 +93,32 @@ const createColumns = (translate: (key: string) => string): Array<ColumnDef<Asse
     header: () => translate("producingTasks"),
   },
   {
+    accessorKey: "consuming_tasks",
+    cell: ({ row: { original } }: AssetRow) =>
+      original.consuming_tasks.length ? (
+        <DependencyPopover dependencies={original.consuming_tasks} type="Task" />
+      ) : undefined,
+    enableSorting: false,
+    header: () => translate("consumingTasks"),
+  },
+  {
+    accessorKey: "aliases",
+    cell: ({ row: { original } }: AssetRow) =>
+      original.aliases.length ? <AliasesPopover aliases={original.aliases} /> : undefined,
+    enableSorting: false,
+    header: () => translate("aliases"),
+  },
+  {
+    accessorKey: "watchers",
+    cell: ({ row: { original } }: AssetRow) =>
+      original.watchers.length ? <WatchersPopover watchers={original.watchers} /> : undefined,
+    enableSorting: false,
+    header: () => translate("watchers"),
+  },
+  {
     accessorKey: "trigger",
     cell: ({ row }) => <CreateAssetEvent asset={row.original} />,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -154,36 +180,30 @@ export const AssetsList = () => {
   };
 
   return (
-    <>
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={namePattern}
-          onChange={handleSearchChange}
-          placeholder={translate("searchPlaceholder")}
-        />
-
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-
-        <Heading py={3} size="md">
-          {totalEntries} {translate("common:asset", { count: totalEntries })}
-        </Heading>
-      </VStack>
-      <DataTable
-        columns={columns}
-        data={data?.assets ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:asset"
-        onStateChange={setTableURLState}
-        showRowCountHeading={false}
-        total={totalEntries}
-      />
-    </>
+    <DataTable
+      columns={columns}
+      data={data?.assets ?? []}
+      errorMessage={<ErrorAlert error={error} />}
+      filterActions={
+        <VStack alignItems="flex-start" gap={2} w="100%">
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={namePattern}
+            onChange={handleSearchChange}
+            placeholder={translate("searchPlaceholder")}
+          />
+          <FilterBar
+            configs={filterConfigs}
+            initialValues={initialValues}
+            onFiltersChange={handleFiltersChange}
+          />
+        </VStack>
+      }
+      initialState={tableURLState}
+      isLoading={isLoading}
+      modelName="common:asset"
+      onStateChange={setTableURLState}
+      total={totalEntries}
+    />
   );
 };

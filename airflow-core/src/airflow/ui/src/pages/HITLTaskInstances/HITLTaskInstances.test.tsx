@@ -40,6 +40,7 @@ vi.mock("react-i18next", async (importOriginal) => {
   return {
     ...actual,
     useTranslation: () => ({
+      i18n: { language: "en" },
       // eslint-disable-next-line id-length
       t: (key: string) => key,
     }),

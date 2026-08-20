@@ -833,6 +833,12 @@ paths:
                 - $ref: '#/components/schemas/DAGRunLightResponse'
                 - type: 'null'
                 title: Response Get Latest Run Info
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -916,6 +922,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BaseGraphResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2377,6 +2389,15 @@ components:
         username:
           type: string
           title: Username
+        teams:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Teams
+          description: Teams the user has access to. Null when the environment does
+            not run in multi-team mode.
       type: object
       required:
       - id
@@ -3133,6 +3154,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -4691,6 +4717,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:

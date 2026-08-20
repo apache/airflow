@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Icon, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, Icon, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import {
   FiKey,
@@ -33,7 +33,7 @@ import {
 } from "react-icons/fi";
 
 import { useAuthLinksServiceGetCurrentUserInfo } from "openapi/queries";
-import { Menu } from "src/components/ui";
+import { Menu, Tooltip } from "src/components/ui";
 import { RouterLink } from "src/components/ui/RouterLink";
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import type { NavItemResponse } from "src/utils/types";
@@ -43,6 +43,9 @@ import LogoutModal from "./LogoutModal";
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 import TokenGenerationModal from "./TokenGenerationModal";
+
+// Beyond a handful of teams the list would push the menu items below the fold.
+const MAX_VISIBLE_TEAMS = 5;
 
 const COLOR_MODES = {
   DARK: "dark",
@@ -97,6 +100,44 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
                 <Box fontSize="md" fontWeight="semibold">
                   {`${currentUser.username} (id: ${currentUser.id})`}
                 </Box>
+                {Array.isArray(currentUser.teams) ? (
+                  <>
+                    <Box color="fg.muted" fontSize="sm" mt={2}>
+                      {translate("teams.title")}
+                    </Box>
+                    {currentUser.teams.length ? (
+                      <HStack fontSize="sm" gap={2} wrap="wrap">
+                        {currentUser.teams.slice(0, MAX_VISIBLE_TEAMS).map((team) => (
+                          <Box key={team}>{team}</Box>
+                        ))}
+                        {currentUser.teams.length > MAX_VISIBLE_TEAMS ? (
+                          <Tooltip
+                            closeDelay={0}
+                            content={
+                              <VStack align="start" gap={0}>
+                                {currentUser.teams.slice(MAX_VISIBLE_TEAMS).map((team) => (
+                                  <Box key={team}>{team}</Box>
+                                ))}
+                              </VStack>
+                            }
+                            openDelay={0}
+                            portalled
+                          >
+                            <Box color="fg.muted" textDecoration="underline dotted">
+                              {translate("teams.more", {
+                                count: currentUser.teams.length - MAX_VISIBLE_TEAMS,
+                              })}
+                            </Box>
+                          </Tooltip>
+                        ) : undefined}
+                      </HStack>
+                    ) : (
+                      <Box color="fg.muted" fontSize="sm">
+                        {translate("teams.none")}
+                      </Box>
+                    )}
+                  </>
+                ) : undefined}
               </Box>
               <Menu.Separator />
             </>
