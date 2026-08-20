@@ -153,10 +153,13 @@ class Connection:
         else:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
 
-    def get_uri(self) -> str:
-        """Generate and return connection in URI format."""
-        from urllib.parse import parse_qsl
+    def _build_uri(self, extra_dejson: dict) -> str:
+        """
+        Build the connection URI given a pre-resolved extra_dejson dict.
 
+        Shared by :meth:`get_uri` (sync) and :meth:`aget_uri` (async) so the
+        URI-assembly logic lives in exactly one place.
+        """
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
@@ -202,7 +205,6 @@ class Connection:
 
         if self.extra:
             try:
-                extra_dejson = self.extra_dejson
                 query: str | None = urlencode(extra_dejson)
             except TypeError:
                 query = None
@@ -212,6 +214,20 @@ class Connection:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
+
+    def get_uri(self) -> str:
+        """Generate and return connection in URI format."""
+        return self._build_uri(self.extra_dejson)
+
+    async def aget_uri(self) -> str:
+        """
+        Async version of :meth:`get_uri`, safe for use inside an async task.
+
+        Calls :meth:`aextra_dejson` so that secret masking uses ``asend()``
+        instead of the synchronous ``send()``, preventing
+        ``DeadlockImminentError`` when invoked from within an async context.
+        """
+        return self._build_uri(await self.aextra_dejson())
 
     def get_hook(self, *, hook_params=None):
         """Return hook based on conn_type."""
@@ -304,6 +320,26 @@ class Connection:
             else:
                 mask_secret(extra)
 
+        return extra
+
+    async def aextra_dejson(self) -> dict:
+        """
+        Async version of :attr:`extra_dejson`, safe for use inside an async task.
+
+        Uses :func:`~airflow.sdk.log.amask_secret` instead of the synchronous
+        ``mask_secret``, so calling this from within an async context does not
+        trigger ``DeadlockImminentError``.
+        """
+        from airflow.sdk.log import amask_secret
+
+        extra: dict = {}
+        if self.extra:
+            try:
+                extra = json.loads(self.extra)
+            except JSONDecodeError:
+                log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
+            else:
+                await amask_secret(extra)
         return extra
 
     def get_extra_dejson(self) -> dict:

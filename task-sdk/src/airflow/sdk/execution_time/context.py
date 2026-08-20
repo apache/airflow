@@ -297,7 +297,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
 
             if conn:
-                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                SecretCache.save_connection_uri(conn_id, await conn.aget_uri())
                 await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:

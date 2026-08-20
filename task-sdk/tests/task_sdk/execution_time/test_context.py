@@ -1272,6 +1272,44 @@ class TestAsyncGetConnection:
             mock_supervisor_comms.send.assert_not_called()
             mock_supervisor_comms.asend.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_async_get_connection_uses_aget_uri_not_get_uri(self, mock_supervisor_comms):
+        """_async_get_connection must call aget_uri() when caching, never the sync get_uri().
+
+        get_uri() accesses extra_dejson which calls mask_secret() -> comms.send()
+        from the event-loop thread, triggering DeadlockImminentError in Airflow 3.3.1.
+        aget_uri() uses amask_secret() -> asend() and is safe in async contexts.
+        """
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        sample_connection = Connection(
+            conn_id="test_conn",
+            conn_type="postgres",
+            host="localhost",
+            port=5432,
+            extra='{"sslmode": "require"}',
+        )
+
+        class MockSecretsBackend:
+            def get_connection(self, conn_id: str) -> Connection | None:
+                return sample_connection if conn_id == "test_conn" else None
+
+        with (
+            patch(
+                "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
+            ) as mock_load,
+            mock.patch.object(sample_connection, "aget_uri") as mock_aget_uri,
+            mock.patch.object(sample_connection, "get_uri") as mock_get_uri,
+            mock.patch.object(SecretCache, "save_connection_uri"),
+        ):
+            mock_load.return_value = [MockSecretsBackend()]
+            mock_aget_uri.return_value = "postgres://localhost:5432/?sslmode=require"
+
+            await _async_get_connection("test_conn")
+
+            mock_aget_uri.assert_awaited_once()
+            mock_get_uri.assert_not_called()
+
 
 class TestSecretsBackend:
     """Test that connection resolution uses the backend chain correctly."""
