@@ -60,46 +60,75 @@ The Go SDK analyzes the function signature during bundle registration, then stor
 task wrapper for that bundle process:
 
 ```text
-PROCESS STARTUP                              TASK EXECUTION
+reflect.Type
+     |
+     v
+binding.Analyze
+     |
+     +-- injectable slots: context / TI context / logger / SDK client
+     |
+     `-- data slots
+          +-- multiple or non-struct parameters -> flat positional plan
+          `-- one struct parameter             -> sole-struct plan
+     |
+     v
+stored Plan
+```
 
-reflect.Type                                []binding.Arg
-     |                                             |
-     v                                             v
-binding.Analyze                           +--------+---------+
-     |                                    |                  |
-     +-- injectable by type               | literal          | xcom
-     |   context / TI context             | inline value     | GetXCom(task_id,
-     |   logger / SDK client              |                  |   "return_value")
-     |                                    |                  |
-     +-- data parameters                  +--------+---------+
-         |                                         |
-         +-- many: positional                      v
-         `-- sole struct                  raw values + value_schema
-                                                     |
-                                                     v
-                                           +---------+----------------+
-                                           |                          |
-                                           | flat parameters          | sole struct
-                                           | match by position        +-- claim fields by
-                                           |                          |   `arg:` / folded name
-                                           |                          `-- one whole value
-                                           |                              (untagged fallback)
-                                           +---------+----------------+
-                                                     |
-                                                     v
-                                           schema compatibility check
-                                                     |
-                                                     v
-                                           strict JSON decode to Go types
-                                                     |
-                                                     v
-                                           merge injected reflect.Values
-                                                     |
-                                                     v
-                                                function.Call
-                                                     |
-                                                     v
-                                           result -> return_value XCom
+At execution, literals stay inline while all upstream XCom values are pulled concurrently:
+
+```text
+ORDERED []binding.Arg
+
+[0] literal(value) ---------------------------------------------> raws[0]
+
+[1] xcom(extract) -- goroutine --> GetXCom(extract) --\
+[2] xcom(config)  -- goroutine --> GetXCom(config)  ----+--> wait --> raws[1..3]
+[3] xcom(model)   -- goroutine --> GetXCom(model)   --/
+                                      |
+                                      `-- each request: coordinator IPC
+                                          -> supervisor -> Execution API
+
+Each GetXCom uses the current Dag/run and key "return_value".
+The first failure cancels the shared pull context and its sibling pulls.
+```
+
+The resolved values then follow one of two data-binding plans:
+
+```text
+FLAT POSITIONAL INJECTION                 | SOLE-STRUCT INJECTION
+------------------------------------------+------------------------------------------
+func task(..., country string, cfg Config)| func task(..., input Params)
+                 ^ data[0]  ^ data[1]     |                     ^ one data slot
+                                          |
+ordered bindings / raw values             | named bindings / raw values
+  [0] "uk"    -> country                  | region_code="eu-west-1" -> Region
+  [1] { ... } -> cfg                      | threshold=0.75          -> Threshold
+                                          |
+arity must match data slots               | `arg:` exact name or untagged folded name
+captured defaults may be dropped          |
+                                          | claimed value -> field
+                                          | unmatched field -> zero value
+                                          | unclaimed explicit arg -> error
+                                          | untagged + one explicit arg + no field claim
+                                          |   -> decode whole struct
+
+                         BOTH PATHS
+                             |
+                             v
+                   schema compatibility check
+                             |
+                             v
+                   strict JSON decode to Go types
+                             |
+                             v
+                   merge injectable reflect.Values
+                             |
+                             v
+                        function.Call
+                             |
+                             v
+                   result -> return_value XCom
 ```
 
 - Literal values need no I/O. Only XCom bindings pull the upstream task's `return_value` for the
