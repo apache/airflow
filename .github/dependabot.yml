@@ -99,10 +99,14 @@ updates:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
-      # Pinned to the last shadow-gradle-plugin release that supports Java 11
-      # (see java-sdk/plugin/build.gradle.kts). Ignore minor/patch bumps too,
-      # not just majors, until the SDK's Java 11 support requirement is dropped.
+      # Pinned to the last release that supports Java 11. Ignore minor/patch
+      # bumps too, not just majors, until the SDK's Java 11 support requirement
+      # is dropped. See also: java-sdk/sdk/build.gradle.kts
       - dependency-name: "com.gradleup.shadow:shadow-gradle-plugin"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "org.jsonschema2pojo"
         update-types:
           - version-update:semver-minor
           - version-update:semver-patch
