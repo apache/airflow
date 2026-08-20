@@ -19,7 +19,7 @@
 Change the on-delete behaviour of dag_run.created_dag_version_id foreign key constraint to RESTRICT.
 
 Revision ID: b6d94f271ae3
-Revises: 7a98f1b7dbd3
+Revises: c7f0a5d2e9b4
 Create Date: 2026-07-20 12:00:00.000000
 """
 
