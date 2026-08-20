@@ -97,16 +97,25 @@ def normalize_metric_name(registry_metric_name: str) -> str:
     return re.sub(r"\{[^}]+\}", "*", registry_metric_name)
 
 
-# Sentinel returned when a dynamic metric name is partially matched based on a common prefix.
+# Sentinel returned when a dynamic metric name is partially matched based on its static part.
 # For dynamic metric names that include variables, the check can't find an exact match with a registry
-# entry or its type. So, a partially matched prefix is good enough and type checking is skipped.
+# entry or its type. So, a partial match is good enough and type checking is skipped.
 _PREFIX_MATCHED = "__prefix_matched__"
 
 
 def find_prefix_matched_registry_entries(metric_name: str, metrics_registry: dict[str, dict]) -> list[str]:
-    """Return the registry entry names whose name matches the static prefix of a dynamic metric name."""
+    """Return the registry entry names whose name matches the static part of a dynamic metric name.
+
+    ``{stats_prefix}.cache_hit`` has no static prefix, so it matches on its static suffix, which
+    must start with a dot to only match whole segments.
+    """
     base = metric_name.split("{")[0].rstrip(".")
-    return [name for name in metrics_registry if name == base or name.startswith(base + ".")]
+    if base:
+        return [name for name in metrics_registry if name == base or name.startswith(base + ".")]
+    suffix = metric_name.rsplit("}", 1)[-1]
+    if not suffix.startswith("."):
+        return []
+    return [name for name in metrics_registry if name.endswith(suffix)]
 
 
 def find_registry_match(metric_name: str, metrics_registry: dict[str, dict]) -> str | None:
@@ -127,11 +136,8 @@ def find_registry_match(metric_name: str, metrics_registry: dict[str, dict]) -> 
 
     # Dynamic metric name.
     if "{" in metric_name and find_prefix_matched_registry_entries(metric_name, metrics_registry):
-        # Metric prefix matches the prefix of a dynamic registry entry.
-        # If the static part before the first variable, matches an exact registry entry name,
-        # or a dotted-prefix of one, then the name is considered covered and
-        # _PREFIX_MATCHED is returned. The type check must be skipped because
-        # the resulting metric name with all variables expanded, cannot be determined.
+        # The type check must be skipped because the name with all variables expanded
+        # cannot be determined.
         return _PREFIX_MATCHED
 
     # All checks for matching failed.
