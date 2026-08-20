@@ -23,6 +23,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 )
 
 type (
@@ -129,8 +131,57 @@ func getFnName(fn reflect.Value) string {
 	return name
 }
 
+const maxIDLength = 250
+
+func validateID(kind, id string) {
+	if length := utf8.RuneCountInString(id); length > maxIDLength {
+		panic(
+			fmt.Errorf(
+				"%s %q must be at most %d characters, got %d",
+				kind,
+				id,
+				maxIDLength,
+				length,
+			),
+		)
+	}
+	for _, r := range id {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || r == '_' || r == '-' || r == '.' {
+			continue
+		}
+		panic(
+			fmt.Errorf(
+				"%s %q may contain only letters, numbers, dashes, dots, and underscores",
+				kind,
+				id,
+			),
+		)
+	}
+	if id == "" {
+		panic(fmt.Errorf("%s must not be empty", kind))
+	}
+}
+
+func normalizeDagSpec(dagID string, spec DagSpec) DagSpec {
+	if spec.Schedule != "@continuous" {
+		return spec
+	}
+	if spec.MaxActiveRuns > 1 {
+		panic(fmt.Errorf(
+			"Dag %q uses @continuous and requires MaxActiveRuns <= 1, got %d",
+			dagID,
+			spec.MaxActiveRuns,
+		))
+	}
+	if spec.MaxActiveRuns == 0 {
+		spec.MaxActiveRuns = 1
+	}
+	return spec
+}
+
 func (r *registry) AddDag(dagId string, spec ...DagSpec) Dag {
-	dagSpec := optionalSpec(spec, "AddDag")
+	validateID("Dag ID", dagId)
+	dagSpec := normalizeDagSpec(dagId, optionalSpec(spec, "AddDag"))
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()
 	if _, exists := r.taskFuncMap[dagId]; exists {
@@ -161,7 +212,9 @@ func (r *registry) registerTaskWithName(
 	spec TaskSpec,
 	depends []string,
 ) {
-	task, err := NewTaskFunction(fn)
+	validateID("task ID", taskId)
+	doXComPush := spec.DoXComPush == nil || *spec.DoXComPush
+	task, err := newTaskFunction(fn, doXComPush)
 	if err != nil {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
 	}

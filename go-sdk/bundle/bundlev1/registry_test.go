@@ -21,10 +21,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -35,7 +37,34 @@ func myTaskWithArgs(ctx context.Context, logger *slog.Logger, client sdk.Client)
 	}
 	return nil
 }
-func errorTask() error { return errors.New("fail") }
+func errorTask() error                { return errors.New("fail") }
+func resultTask() (string, error)     { return "result", nil }
+func nilResultTask() (*string, error) { return nil, nil }
+
+type recordingClient struct {
+	sdk.Client
+	values []any
+}
+
+func (c *recordingClient) PushXCom(
+	_ context.Context,
+	_ sdk.TaskInstance,
+	_ string,
+	value any,
+) error {
+	c.values = append(c.values, value)
+	return nil
+}
+
+func taskContext(client sdk.Client) context.Context {
+	ctx := context.WithValue(context.Background(), sdkcontext.SdkClientContextKey, client)
+	ti := sdk.TaskInstance{DagID: "dag1", RunID: "run1", TaskID: "task1"}
+	runtimeContext := sdk.NewTIRunContext(context.Background(), ti, sdk.DagRun{
+		DagID: ti.DagID,
+		RunID: ti.RunID,
+	})
+	return context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
+}
 
 func NotErrorRet() int {
 	return 0
@@ -66,6 +95,18 @@ func (s *RegistrySuite) TestAddDag_DuplicatePanics() {
 	})
 }
 
+func (s *RegistrySuite) TestAddDag_ValidatesID() {
+	for name, id := range map[string]string{
+		"empty":         "",
+		"invalid-char":  "bad/id",
+		"over-max-size": strings.Repeat("a", maxIDLength+1),
+	} {
+		s.Run(name, func() {
+			s.Panics(func() { New().AddDag(id) })
+		})
+	}
+}
+
 func (s *RegistrySuite) TestAddTask_RegistersAndFindsTask() {
 	s.dag.AddTask(myTask, TaskSpec{}, nil)
 	task, exists := s.reg.LookupTask("dag1", "myTask")
@@ -82,6 +123,18 @@ func (s *RegistrySuite) TestAddTaskWithName_RegistersAndFindsTask() {
 	// Lets just make sure it didn't exist under the fn name
 	_, exists = s.reg.LookupTask("dag1", "myTask")
 	s.False(exists)
+}
+
+func (s *RegistrySuite) TestAddTaskWithName_ValidatesID() {
+	for name, id := range map[string]string{
+		"empty":         "",
+		"invalid-char":  "bad/id",
+		"over-max-size": strings.Repeat("a", maxIDLength+1),
+	} {
+		s.Run(name, func() {
+			s.Panics(func() { s.dag.AddTaskWithName(id, myTask, TaskSpec{}, nil) })
+		})
+	}
 }
 
 func (s *RegistrySuite) TestRegisterTaskWithName_DuplicatePanics() {
@@ -175,6 +228,25 @@ func (s *RegistrySuite) TestAddTask_WithSpec() {
 	s.Equal(3, got.Spec.Retries)
 	s.Require().NotNil(got.Spec.DoXComPush)
 	s.False(*got.Spec.DoXComPush)
+}
+
+func (s *RegistrySuite) TestAddTask_HonorsDoXComPush() {
+	s.dag.AddTask(resultTask, TaskSpec{DoXComPush: Bool(false)}, nil)
+	task, exists := s.reg.LookupTask("dag1", "resultTask")
+	s.Require().True(exists)
+	client := &recordingClient{}
+	s.Require().NoError(task.Execute(taskContext(client), slog.Default(), nil))
+	s.Empty(client.values)
+}
+
+func (s *RegistrySuite) TestAddTask_PushesNilResult() {
+	s.dag.AddTask(nilResultTask, TaskSpec{}, nil)
+	task, exists := s.reg.LookupTask("dag1", "nilResultTask")
+	s.Require().True(exists)
+	client := &recordingClient{}
+	s.Require().NoError(task.Execute(taskContext(client), slog.Default(), nil))
+	s.Require().Len(client.values, 1)
+	s.Nil(client.values[0])
 }
 
 func (s *RegistrySuite) TestAddTaskWithName_WithSpec() {
@@ -272,6 +344,22 @@ func (s *RegistrySuite) TestAddDag_WithSpec() {
 	s.Equal("@daily", got.Spec.Schedule)
 	s.Equal([]string{"etl"}, got.Spec.Tags)
 	s.Equal(4, got.Spec.MaxActiveRuns)
+}
+
+func (s *RegistrySuite) TestAddDag_ContinuousDefaultsToOneActiveRun() {
+	s.reg.AddDag("continuous", DagSpec{Schedule: "@continuous"})
+	dags := s.reg.(EnumerableBundle).OrderedDags()
+	s.Equal(1, dags[1].Spec.MaxActiveRuns)
+	s.Equal(1, dags[1].Spec.SchemaFields()["max_active_runs"])
+}
+
+func (s *RegistrySuite) TestAddDag_ContinuousRejectsConcurrentRuns() {
+	s.PanicsWithError(
+		`Dag "continuous" uses @continuous and requires MaxActiveRuns <= 1, got 2`,
+		func() {
+			s.reg.AddDag("continuous", DagSpec{Schedule: "@continuous", MaxActiveRuns: 2})
+		},
+	)
 }
 
 func (s *RegistrySuite) TestAddDag_TooManySpecsPanics() {
