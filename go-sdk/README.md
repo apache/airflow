@@ -312,6 +312,8 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
   the executable *is* the bundle.
 - [ADR 0005](./adr/0005-retire-go-edge-worker.md): retire the standalone Go Edge Worker and make the
   coordinator the only execution path.
+- [ADR 0006](./adr/0006-cross-language-argument-binding.md): cross-language TaskFlow argument binding,
+  from serialized literals and XCom references to typed Go parameters.
 
 Cross-cutting Lang-SDK decisions — the coordinator architecture and how non-Python tasks integrate with
 Airflow core surfaces — are recorded in [`airflow-core/adr/lang-sdk/`](../airflow-core/adr/lang-sdk).
