@@ -200,13 +200,13 @@ convention so authors can forward arbitrary flags to the underlying
    version the bundle was compiled against. The `dags` mapping is
    populated by calling the bundle's `RegisterDags` against an in-memory
    recording registry, then enumerating the recorded dags and their
-   tasks. At the time of this proposal, `--airflow-metadata` printed only the
-   bundle name and version (`server.go`); it is extended to emit this full
-   document, so the shipped `decideMode` switch needs only one metadata mode. The packer
+   tasks. `--airflow-metadata` today prints only `BundleInfo`
+   (`server.go`); it is extended to emit this full document, so the
+   shipped `decideMode` switch needs only one metadata mode. The packer
    derives the default output filename from the bundle's main package
    directory name (what `go build` itself names the binary), resolved
    before the build so a bad `--output` fails fast; it does not come from
-   bundle metadata, and no name field is carried in this output.
+   `BundleInfo.Name`, and no name field is carried in this output.
 
    A `--format yaml|json` flag selects the encoding and is only valid with
    `--airflow-metadata` (misuse is a hard error). The default is YAML,

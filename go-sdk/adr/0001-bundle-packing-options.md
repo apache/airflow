@@ -32,9 +32,9 @@ that prints the bundle's `airflow-metadata.yaml` spec as JSON, which
 `airflow-go-pack` reads to populate the manifest). The shipped runtime
 ([`bundlev1server.Serve`](../bundle/bundlev1/bundlev1server/server.go))
 routes through a `decideMode` switch with three modes —
-`--airflow-metadata`, `--comm`/`--logs` (coordinator mode), and a usage
-error when neither execution flag is supplied. The retired standalone runtime
-is documented in [ADR 0005](0005-retire-go-edge-worker.md).
+`--airflow-metadata`, `--comm`/`--logs` (coordinator mode), and the
+default go-plugin path. The go-plugin path was retired in
+[ADR 0005](0005-retire-go-edge-worker.md).
 
 The container-format assumption running through this ADR — that the
 output is a ZIP archive — is superseded by
@@ -65,16 +65,18 @@ ZIP archive containing:
 3. The compiled native executable, which speaks the coordinator protocol
    (`--comm=<addr>` / `--logs=<addr>`).
 
-At the time this ADR was written, bundle authors produced the executable with
-a plain `go build`. There was no SDK-provided way to produce the conforming
-ZIP, so each author would have needed to hand-roll one.
+Bundle authors today produce the executable with a plain `go build`
+(see [`go-sdk/example/bundle/Justfile`](../example/bundle/Justfile)). There is
+no SDK-provided way to produce the conforming ZIP, so each author would need
+to hand-roll one.
 
-The bundle binary already exposed a `--airflow-metadata` flag (defined in
+The bundle binary already exposes a `--airflow-metadata` flag (defined in
 [`bundle/bundlev1/bundlev1server/server.go`](../bundle/bundlev1/bundlev1server/server.go))
-that printed the name and version returned by the bundle provider. It did
-**not** invoke `RegisterDags`, so it did not enumerate `dag_id` / `task_id` for
-the manifest. This was relevant context: the binary itself was the authoritative
-source of dag/task identity at runtime, and the SDK could extend the
+that prints the `BundleInfo{Name, Version}` returned by the author's
+`BundleProvider.GetBundleVersion()`. It does **not** currently invoke
+`RegisterDags`, so it does not yet enumerate `dag_id` / `task_id` for the
+manifest. This is relevant context: the binary itself is the authoritative
+source of dag/task identity at runtime, and the SDK can extend the
 introspection path cheaply.
 
 The user's initial framing was `go build -toolexec`. `-toolexec` wraps each
