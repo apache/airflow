@@ -55,7 +55,7 @@ SCHEMA = [
 DAG_ID = "bq_value_check_location"
 DATASET = f"ds_{DAG_ID}_{ENV_ID}"
 TABLE = "ds_table"
-INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
+INSERT_DATE = "{{ ds }}"
 INSERT_ROWS_QUERY = (
     f"INSERT {DATASET}.{TABLE} VALUES "
     f"(42, 'monty python', '{INSERT_DATE}'), "

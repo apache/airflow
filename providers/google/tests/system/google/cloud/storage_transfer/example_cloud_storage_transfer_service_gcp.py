@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -63,9 +62,10 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 
 try:
-    from airflow.sdk import TriggerRule
+    from airflow.sdk import TriggerRule, task
 except ImportError:
     # Compatibility for Airflow < 3.1
+    from airflow.decorators import task  # type: ignore[no-redef,attr-defined]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -81,23 +81,6 @@ FILE_URI = f"gs://{BUCKET_NAME_SRC}/{FILE_NAME}"
 CURRENT_FOLDER = Path(__file__).parent
 FILE_LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources" / FILE_NAME)
 
-# [START howto_operator_gcp_transfer_create_job_body_gcp]
-gcs_to_gcs_transfer_body = {
-    DESCRIPTION: "description",
-    STATUS: GcpTransferJobsStatus.ENABLED,
-    PROJECT_ID: PROJECT_ID_TRANSFER,
-    SCHEDULE: {
-        SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
-        SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),
-        START_TIME_OF_DAY: (datetime.now(tz=timezone.utc) + timedelta(seconds=120)).time(),
-    },
-    TRANSFER_SPEC: {
-        GCS_DATA_SOURCE: {BUCKET_NAME: BUCKET_NAME_SRC},
-        GCS_DATA_SINK: {BUCKET_NAME: BUCKET_NAME_DST},
-        TRANSFER_OPTIONS: {ALREADY_EXISTING_IN_SINK: True},
-    },
-}
-# [END howto_operator_gcp_transfer_create_job_body_gcp]
 
 # [START howto_operator_gcp_transfer_update_job_body]
 update_body = {
@@ -114,6 +97,37 @@ with DAG(
     catchup=False,
     tags=["example", "transfer", "gcp"],
 ) as dag:
+    # [START howto_operator_gcp_transfer_create_job_body_gcp]
+    @task
+    def prepare_transfer_payload() -> dict:
+        """Generates the payload dynamically right before job creation."""
+        now_utc = datetime.now(tz=timezone.utc) + timedelta(seconds=120)
+
+        return {
+            DESCRIPTION: "description",
+            STATUS: GcpTransferJobsStatus.ENABLED,
+            PROJECT_ID: PROJECT_ID_TRANSFER,
+            SCHEDULE: {
+                SCHEDULE_START_DATE: {"year": 2015, "month": 1, "day": 1},
+                SCHEDULE_END_DATE: {"year": 2030, "month": 1, "day": 1},
+                START_TIME_OF_DAY: {
+                    "hours": now_utc.hour,
+                    "minutes": now_utc.minute,
+                    "seconds": now_utc.second,
+                    "nanos": 0,
+                },
+            },
+            TRANSFER_SPEC: {
+                GCS_DATA_SOURCE: {BUCKET_NAME: BUCKET_NAME_SRC},
+                GCS_DATA_SINK: {BUCKET_NAME: BUCKET_NAME_DST},
+                TRANSFER_OPTIONS: {ALREADY_EXISTING_IN_SINK: True},
+            },
+        }
+
+    # [END howto_operator_gcp_transfer_create_job_body_gcp]
+
+    transfer_payload = prepare_transfer_payload()
+
     create_bucket_src = GCSCreateBucketOperator(
         task_id="create_bucket_src",
         bucket_name=BUCKET_NAME_SRC,
@@ -135,7 +149,7 @@ with DAG(
 
     create_transfer = CloudDataTransferServiceCreateJobOperator(
         task_id="create_transfer",
-        body=gcs_to_gcs_transfer_body,
+        body=transfer_payload,
     )
 
     # [START howto_operator_gcp_transfer_update_job]
@@ -199,6 +213,7 @@ with DAG(
     (
         [create_bucket_src, create_bucket_dst]
         >> upload_file
+        >> transfer_payload
         >> create_transfer
         >> [wait_for_transfer, wait_for_transfer_defered]
         >> update_transfer

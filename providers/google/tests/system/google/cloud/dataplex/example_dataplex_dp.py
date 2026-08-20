@@ -77,7 +77,7 @@ SCHEMA = [
     {"name": "dt", "type": "STRING", "mode": "NULLABLE"},
 ]
 
-INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
+INSERT_DATE = "{{ ds }}"
 INSERT_ROWS_QUERY = f"INSERT {DATASET}.{TABLE_1} VALUES (1, 'test test2', '{INSERT_DATE}');"
 LOCATION = "us"
 
