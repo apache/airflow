@@ -31,8 +31,11 @@ from airflow.api_fastapi.core_api.datamodels.config import (
 )
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_authenticated
-from airflow.api_fastapi.core_api.services.public.config import _response_based_on_accept
+from airflow.api_fastapi.core_api.security import requires_access_configuration, requires_authenticated
+from airflow.api_fastapi.core_api.services.public.config import (
+    _check_expose_config,
+    _response_based_on_accept,
+)
 from airflow.configuration import conf
 from airflow.settings import DASHBOARD_UIALERTS
 from airflow.utils.log.log_reader import TaskLogReader
@@ -94,11 +97,13 @@ def get_configs() -> ConfigResponse:
         ),
     },
     response_model=Config,
-    dependencies=[Depends(requires_authenticated())],
+    dependencies=[Depends(requires_access_configuration("GET"))],
 )
 def get_backends_order_value(
     accept: HeaderAcceptJsonOrText,
 ):
+    _check_expose_config()
+
     section, option = "secrets", "backends_order"
     if not conf.has_option(section, option):
         raise HTTPException(
