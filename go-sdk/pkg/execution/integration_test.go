@@ -570,14 +570,9 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 // --- End-to-end Serve test against a fake supervisor ---
 
 // fakeProvider implements bundlev1.BundleProvider; it lets a test inject the
-// registration closure and a synthetic version.
+// registration closure.
 type fakeProvider struct {
 	register func(bundlev1.Registry) error
-}
-
-func (f *fakeProvider) GetBundleVersion() bundlev1.BundleInfo {
-	v := "1.0"
-	return bundlev1.BundleInfo{Name: "fake", Version: &v}
 }
 
 func (f *fakeProvider) RegisterDags(reg bundlev1.Registry) error {
