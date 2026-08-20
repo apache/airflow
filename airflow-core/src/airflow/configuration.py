@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import enum
 import logging
 import os
 import pathlib
@@ -28,7 +29,6 @@ import warnings
 from base64 import b64encode
 from collections.abc import Callable
 from configparser import ConfigParser
-from enum import Enum
 from importlib.util import find_spec
 from inspect import ismodule
 from io import StringIO
@@ -44,6 +44,7 @@ from airflow._shared.configuration.parser import (
 )
 from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
 
@@ -713,7 +714,7 @@ def make_group_other_inaccessible(file_path: str):
 
 
 def ensure_secrets_loaded(
-    default_backends: list[str] | None = None,
+    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
 ) -> list[BaseSecretsBackend]:
     """
     Ensure that all secrets backends are loaded.
@@ -722,8 +723,9 @@ def ensure_secrets_loaded(
     """
     # Check if the secrets_backend_list contains only 2 default backends.
 
-    # Check if we are loading the backends for worker too by checking if the default_backends is not None
-    if len(secrets_backend_list) == 2 or default_backends is not None:
+    # Check if we are loading the backends for worker too by checking if the default_backends is equal
+    # to DEFAULT_SECRETS_SEARCH_PATH.
+    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
         return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 
@@ -739,25 +741,57 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
     return conf._get_custom_secret_backend(worker_mode=worker_mode)
 
 
-def get_importable_secret_backend(class_name: str | None) -> BaseSecretsBackend | None:
-    """Get secret backend defined in the given class name."""
-    if class_name is not None:
-        secrets_backend_cls = import_string(class_name)
-        return secrets_backend_cls()
-    return None
-
-
-class Backends(Enum):
-    """Type of the secrets backend."""
+class Backend(enum.Enum):
+    """Known secrets backends."""
 
     ENVIRONMENT_VARIABLE = "environment_variable"
     EXECUTION_API = "execution_api"
     CUSTOM = "custom"
     METASTORE = "metastore"
 
+    @classmethod
+    def from_module(cls, default_backend: str) -> Backend:
+        match default_backend:
+            case "airflow.secrets.environment_variables.EnvironmentVariablesBackend":
+                return cls.ENVIRONMENT_VARIABLE
+            case "airflow.secrets.metastore.MetastoreBackend":
+                return cls.METASTORE
+            case "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend":
+                return cls.EXECUTION_API
+
+        raise ValueError(f"Unknown module provided: {default_backend}")
+
+
+def _get_secrets_backend_order(required_backends: list[Backend], worker_mode: bool) -> list[Backend]:
+    from airflow.configuration import conf
+
+    search_section = "workers" if worker_mode else "secrets"
+    invalid_backends = []
+    backends_order = []
+    for backend in conf.getlist(search_section, "backends_order", delimiter=","):
+        try:
+            backends_order.append(Backend(backend))
+        except ValueError:
+            invalid_backends.append(backend)
+
+    if invalid_backends:
+        raise AirflowConfigException(
+            f"The configuration option [{search_section}]backends_order is misconfigured. "
+            f"The following backend types are unsupported: {invalid_backends}",
+        )
+
+    # backend is in use but its missing from ordering
+    if missing_backends := [b.value for b in required_backends if b not in backends_order]:
+        raise AirflowConfigException(
+            f"The configuration option [{search_section}]backends_order is misconfigured. "
+            f"The following backend types are missing: {missing_backends}",
+        )
+
+    return backends_order
+
 
 def initialize_secrets_backends(
-    default_backends: list[str] | None = None,
+    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
 ) -> list[BaseSecretsBackend]:
     """
     Initialize secrets backend.
@@ -765,79 +799,31 @@ def initialize_secrets_backends(
     * import secrets backend classes
     * instantiate them and return them in a list
     """
-    worker_mode = False
-    search_section = "secrets"
-    environment_variable_args: str | None = (
-        "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
-    )
-    metastore_args: str | None = "airflow.secrets.metastore.MetastoreBackend"
-    execution_args: str | None = None
-
-    if default_backends is not None:
-        worker_mode = True
-        search_section = "workers"
-        environment_variable_args = (
-            environment_variable_args if environment_variable_args in default_backends else None
-        )
-        metastore_args = metastore_args if metastore_args in default_backends else None
-        execution_args = (
-            "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-            if "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-            in default_backends
-            else None
-        )
-
-    backends_map: dict[str, dict[str, Any]] = {
-        "environment_variable": {
-            "callback": get_importable_secret_backend,
-            "args": (environment_variable_args,),
-        },
-        "metastore": {
-            "callback": get_importable_secret_backend,
-            "args": (metastore_args,),
-        },
-        "custom": {
-            "callback": get_custom_secret_backend,
-            "args": (worker_mode,),
-        },
-        "execution_api": {
-            "callback": get_importable_secret_backend,
-            "args": (execution_args,),
-        },
-    }
-
-    backends_order = conf.getlist(search_section, "backends_order", delimiter=",")
-
-    required_backends = (
-        [Backends.ENVIRONMENT_VARIABLE, Backends.EXECUTION_API]
-        if worker_mode
-        else [Backends.METASTORE, Backends.ENVIRONMENT_VARIABLE]
-    )
-
-    if missing_backends := [b.value for b in required_backends if b.value not in backends_order]:
-        raise AirflowConfigException(
-            f"The configuration option [{search_section}]backends_order is misconfigured. "
-            f"The following backend types are missing: {missing_backends}",
-        )
-
-    if unsupported_backends := [b for b in backends_order if b not in backends_map.keys()]:
-        raise AirflowConfigException(
-            f"The configuration option [{search_section}]backends_order is misconfigured. "
-            f"The following backend types are unsupported: {unsupported_backends}",
-        )
-
     backend_list = []
-    for backend_type in backends_order:
-        backend_item = backends_map[backend_type]
-        callback, args = backend_item["callback"], backend_item["args"]
-        backend = callback(*args) if args else callback()
-        if backend:
-            from airflow.models import Connection
+    worker_mode = False
+    if default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+        worker_mode = True
 
-            backend._set_connection_class(Connection)
-            backend_list.append(backend)
+    custom_secret_backend = get_custom_secret_backend(worker_mode)
 
-    return backend_list
+    if custom_secret_backend is not None:
+        from airflow.models import Connection
+
+        custom_secret_backend._set_connection_class(Connection)
+        backend_list.append((Backend.CUSTOM, custom_secret_backend))
+
+    for class_name in default_backends:
+        from airflow.models import Connection
+
+        secrets_backend_cls = import_string(class_name)
+        backend = secrets_backend_cls()
+        backend._set_connection_class(Connection)
+        backend_list.append((Backend.from_module(class_name), backend))
+
+    backends_order = _get_secrets_backend_order([b[0] for b in backend_list], worker_mode)
+    backend_list.sort(key=lambda e: backends_order.index(e[0]))
+
+    return [b[1] for b in backend_list]
 
 
 def initialize_auth_manager() -> BaseAuthManager:

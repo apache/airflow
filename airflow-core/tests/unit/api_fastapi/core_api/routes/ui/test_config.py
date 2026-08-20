@@ -152,7 +152,12 @@ def mock_config_data_css_only():
 
 @pytest.fixture
 def mock_backends_order():
-    with conf_vars({("secrets", "backends_order"): "custom,environment_variable,metastore"}):
+    with conf_vars(
+        {
+            ("api", "expose_config"): "True",
+            ("secrets", "backends_order"): "custom,environment_variable,metastore",
+        }
+    ):
         yield
 
 
@@ -226,7 +231,7 @@ class TestGetBackendsOrder:
         assert response.status_code == 200
         assert response.text == "[secrets]\nbackends_order = custom,environment_variable,metastore\n"
 
-    @conf_vars({("secrets", "backends_order"): None})
+    @conf_vars({("api", "expose_config"): "True", ("secrets", "backends_order"): None})
     def test_should_respond_404(self, test_client):
         response = test_client.get("/backends_order")
         assert response.status_code == 404
@@ -241,7 +246,14 @@ class TestGetBackendsOrder:
         assert response.status_code == 406
         assert response.json() == {"detail": "Only application/json or text/plain is supported"}
 
-    def test_get_backends_order_just_authenticated(self, mock_backends_order, unauthorized_test_client):
-        """Just being authenticated is enough to access the endpoint."""
+    def test_should_respond_403_unauthorized(self, mock_backends_order, unauthorized_test_client):
         response = unauthorized_test_client.get("/backends_order")
-        assert response.status_code == 200
+        assert response.status_code == 403
+
+    @conf_vars({("api", "expose_config"): "False"})
+    def test_should_respond_403_expose_config_disabled(self, test_client):
+        response = test_client.get("/backends_order")
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "Your Airflow administrator chose not to expose the configuration, most likely for security reasons."
+        }

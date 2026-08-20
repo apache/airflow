@@ -20,19 +20,22 @@ import { Box, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuSettings } from "react-icons/lu";
 
-import { BackendsOrderButton } from "./BackendsOrderButton";
+import { StatsCard } from "src/components/StatsCard";
+
 import { BackendsOrderModal } from "./BackendsOrderModal";
 
 export const BackendsOrderCard = () => {
-  const { t: translate } = useTranslation("admin");
+  const { i18n, t: translate } = useTranslation("admin");
+  const isRTL = i18n.dir() === "rtl";
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
     <Box alignItems="center" display="flex">
-      <BackendsOrderButton
+      <StatsCard
         colorScheme="gray"
         icon={<LuSettings />}
         isLoading={false}
+        isRTL={isRTL}
         label={translate("variables.backendsOrder")}
         onClick={onOpen}
       />
