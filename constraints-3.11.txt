@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-19T15:06:50.039784
+# This constraints file was automatically generated on 2026-08-20T06:40:57.657290
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -210,7 +210,7 @@ async-timeout==4.0.3
 asyncpg==0.31.0
 asyncssh==2.24.0
 atlasclient==1.0.0
-atlassian-python-api==5.0.0
+atlassian-python-api==5.0.1
 attrs==26.1.0
 azure-ai-projects==2.4.0
 azure-batch==14.2.0
@@ -242,7 +242,7 @@ azure-synapse-spark==0.7.0
 babel==2.18.0
 backoff==2.2.1
 backports.tarfile==1.2.0
-backports.zstd==1.6.0
+backports.zstd==1.7.0
 bcrypt==5.0.0
 beautifulsoup4==4.15.0
 billiard==4.2.4
@@ -308,7 +308,7 @@ fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
 fastcore==2.2.12
-fastjsonschema==2.22.1
+fastjsonschema==2.22.2
 fastuuid==0.14.0
 filelock==3.32.3
 flask-appbuilder==5.2.2
@@ -688,7 +688,7 @@ traitlets==5.16.1
 trino==0.338.0
 truststore==0.10.4
 typer==0.27.1
-types-protobuf==7.34.1.20260518
+types-protobuf==7.34.1.20260816
 types-requests==2.33.0.20260712
 typing-inspection==0.4.4
 typing_extensions==4.16.0
