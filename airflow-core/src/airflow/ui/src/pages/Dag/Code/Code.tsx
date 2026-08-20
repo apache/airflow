@@ -34,7 +34,7 @@ import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import Time from "src/components/Time";
-import { Dialog, IconButton, ProgressBar } from "src/components/ui";
+import { IconButton, Modal, ProgressBar } from "src/components/ui";
 import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { useMonacoTheme } from "src/context/colorMode";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
@@ -321,32 +321,28 @@ export const Code = () => {
       {codeHeader}
       {codeStatus}
       {codeContent}
-      <Dialog.Root
+      <Modal
+        bodyProps={{ display: "flex", flexDirection: "column", minH: 0 }}
+        // size="full" gives the content only a min-height, which is not a definite
+        // height for flex children — without an explicit height the editor collapses.
+        contentProps={{ height: "100dvh" }}
+        headerProps={{
+          children: (
+            <Box display="flex" flexDirection="column" width="100%">
+              <Heading fontSize="lg">{dagId}</Heading>
+              {codeHeader}
+            </Box>
+          ),
+          width: "100%",
+        }}
         onOpenChange={() => setIsFullscreen(false)}
         open={isFullscreen}
         scrollBehavior="inside"
         size="full"
       >
-        {isFullscreen ? (
-          // size="full" gives the content only a min-height, which is not a definite
-          // height for flex children — without an explicit height the editor collapses.
-          <Dialog.Content backdrop h="100dvh">
-            <Dialog.Header width="100%">
-              <Box display="flex" flexDirection="column" width="100%">
-                <Heading size="xl">{dagId}</Heading>
-                {codeHeader}
-              </Box>
-            </Dialog.Header>
-
-            <Dialog.CloseTrigger />
-
-            <Dialog.Body display="flex" flexDirection="column" minH={0}>
-              {codeStatus}
-              {codeContent}
-            </Dialog.Body>
-          </Dialog.Content>
-        ) : undefined}
-      </Dialog.Root>
+        {codeStatus}
+        {codeContent}
+      </Modal>
     </Box>
   );
 };

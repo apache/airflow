@@ -117,6 +117,7 @@ jobs:
       "bugraoz93",
       "eladkal",
       "ephraimbuddy",
+      "hussein-awala",
       "jedcunningham",
       "jscheffl",
       "kaxil",
@@ -124,7 +125,6 @@ jobs:
       "shahar1",
       "potiuk",
       "uranusjr",
-      "utkarsharma2",
       "vincbeck",
       "vatsrahul1001",
       ]'), github.event.sender.login)
@@ -344,7 +344,8 @@ jobs:
             ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
             secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -375,7 +376,7 @@ jobs:
             breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         if: >-
           steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
           steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'

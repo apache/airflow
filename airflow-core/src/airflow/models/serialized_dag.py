@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import zlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -647,6 +648,11 @@ class SerializedDagModel(Base):
         name_updated = False
         reused_deadline_data: dict[str, dict] | None = None
         if dag.data.get("dag", {}).get("deadline"):
+            # The deadline handling below rewrites data["dag"]["deadline"] from a list of
+            # encoded dicts into a list of UUID references. Work on a copy so we never mutate
+            # the caller's LazyDeserializedDAG in place.
+
+            dag = dag.model_copy(update={"data": copy.deepcopy(dag.data)})
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
             # This preserves the hash and avoids unnecessary SerializedDagModel recreations.
             existing_serialized_dag = session.scalar(
@@ -764,7 +770,10 @@ class SerializedDagModel(Base):
             session.merge(dag_version)
             # Update the latest DagCode
             DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
-            stats.incr("dag.serialization_writes", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
+            stats.incr(
+                "dag.serialization.version_updated",
+                tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},
+            )
             return True
 
         dagv = DagVersion.write_dag(
@@ -787,7 +796,10 @@ class SerializedDagModel(Base):
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
-        stats.incr("dag.serialization_writes", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
+        stats.incr(
+            "dag.serialization.version_created",
+            tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},
+        )
         return True
 
     @classmethod

@@ -1270,13 +1270,6 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
 
-    if [[ ${GO_WORKER=} == "true" ]]; then
-        echo
-        echo "${COLOR_BLUE}Starting go worker${COLOR_RESET}"
-        echo
-        export AIRFLOW__SCHEDULER__GO_WORKER=True
-    fi
-
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
@@ -1753,11 +1746,12 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
 
-ARG AIRFLOW_PYTHON_VERSION="3.13.14"
+ARG AIRFLOW_PYTHON_VERSION="3.13.15"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.26.5"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.26.6"
 ENV TEMURIN_VERSION="11"
 ENV NODEJS_VERSION="22.23.1"
+# keep this in sync with package.json files
 ENV PNPM_VERSION="10.28.1"
 ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/usr/local/cargo"
@@ -1914,10 +1908,10 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.1.2
+ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.29
-ARG AIRFLOW_PREK_VERSION="0.4.10"
+ARG AIRFLOW_UV_VERSION=0.12.5
+ARG AIRFLOW_PREK_VERSION="0.4.13"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
