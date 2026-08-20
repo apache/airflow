@@ -417,22 +417,28 @@ class TestAwsEcsExecutor:
             airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
     def test_task_sdk(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
         from airflow.executors.workloads import ExecuteTask
-        from airflow.executors.workloads.base import WorkloadType
 
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = mock_airflow_key()
-        workload.type = WorkloadType.EXECUTE_TASK
-        workload.key = workload.ti.key
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
         workload.ti.executor_config = {"tags": tags_exec_config}
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
+
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = workload.ti.key
+            task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = mock_executor.queued_tasks
 
         mock_executor.queue_workload(workload, mock.Mock())
 
@@ -448,11 +454,11 @@ class TestAwsEcsExecutor:
             "failures": [],
         }
 
-        assert mock_executor.executor_queues[WorkloadType.EXECUTE_TASK][workload.ti.key] == workload
+        assert task_queue[workload.ti.key] == workload
         assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 0
+        assert len(task_queue) == 0
         assert len(mock_executor.running) == 1
         assert workload.ti.key in mock_executor.running
         assert len(mock_executor.pending_workloads) == 1

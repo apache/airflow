@@ -34,10 +34,14 @@ from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
 from airflow.providers.edge3.models.types import is_callback_execute
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -369,7 +373,10 @@ class EdgeExecutor(BaseExecutor):
         """
         # Remove from executor's internal state
         self.running.discard(ti.key)
-        self.queued_tasks.pop(ti.key, None)
+        if AIRFLOW_V_3_4_PLUS:
+            self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+        else:
+            self.queued_tasks.pop(ti.key, None)
         if ti.key in self.last_reported_state:
             del self.last_reported_state[ti.key]
 
