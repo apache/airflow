@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import time
 from collections.abc import MutableMapping
 from contextlib import nullcontext
@@ -62,9 +63,9 @@ class DBDagBag:
     """
     Internal class for retrieving dags from the database.
 
-    Optionally supports LRU+TTL caching when cache_size is provided.
-    The scheduler uses this without caching, while the API server can
-    enable caching via configuration.
+    Optionally caches deserialized dags: a size limit enables LRU eviction, and a TTL enables
+    age-based eviction with or without a size limit. Callers that pass neither get a plain dict
+    that never evicts.
 
     :meta private:
     """
@@ -79,26 +80,37 @@ class DBDagBag:
         Initialize DBDagBag.
 
         :param load_op_links: Should the extra operator link be loaded when de-serializing the DAG?
-        :param cache_size: Size of LRU cache. If None or 0, uses unbounded dict (no eviction).
-        :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL (LRU only).
+        :param cache_size: Max cached entries. 0 or None means no size limit.
+        :param cache_ttl: Seconds until a cached entry expires, applied with or without a size limit.
+            0 or None disables TTL. With neither a size limit nor a TTL the cache never evicts.
+        :raises ValueError: If ``cache_size`` or ``cache_ttl`` is negative.
         """
+        # Callers should reject negative values with their own context; validate again defensively.
+        if cache_size is not None and cache_size < 0:
+            raise ValueError("cache_size must be greater than or equal to 0")
+        if cache_ttl is not None and cache_ttl < 0:
+            raise ValueError("cache_ttl must be greater than or equal to 0")
+
         self.load_op_links = load_op_links
         self._dags: MutableMapping[UUID | str, _CacheEntry] = {}
         self._use_cache = False
 
         self._revalidation_interval = conf.getint("core", "min_serialized_dag_update_interval")
 
-        # Initialize bounded cache if cache_size is provided and > 0
-        if cache_size and cache_size > 0:
-            if cache_ttl and cache_ttl > 0:
-                self._dags = TTLCache(maxsize=cache_size, ttl=cache_ttl)
-            else:
-                self._dags = LRUCache(maxsize=cache_size)
+        # A TTL applies with or without a size limit: an uncapped TTLCache is what lets
+        # ``dag_cache_size = 0`` mean "no size limit" rather than "no eviction at all".
+        size = cache_size or 0
+        ttl = cache_ttl or 0
+        if ttl > 0:
+            self._dags = TTLCache(maxsize=size or math.inf, ttl=ttl)
+            self._use_cache = True
+        elif size > 0:
+            self._dags = LRUCache(maxsize=size)
             self._use_cache = True
 
         # Lock required for bounded caches: cachetools caches are NOT thread-safe
-        # (LRU reordering and TTL cleanup mutate internal linked lists).
-        # nullcontext for unbounded dict avoids lock overhead in the scheduler path.
+        # (LRU reordering and TTL cleanup mutate internal linked lists). A plain dict needs no
+        # lock, so it uses nullcontext.
         self._lock: RLock | nullcontext = RLock() if self._use_cache else nullcontext()
 
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:

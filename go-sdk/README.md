@@ -105,6 +105,20 @@ A task is an ordinary Go function. The runtime inspects its signature and inject
 `sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
 the task failed.
 
+Any other parameter is a **data parameter**, filled in declaration order from the arguments of the
+Python stub Dag's TaskFlow call. A literal in the Dag file (`transform("uk", ...)`) decodes straight
+into the parameter; an upstream task's output (`transform(..., extract())`) is pulled from that
+task's XCom in the current Dag run. If the argument count doesn't match, or an argument's declared
+type can't fill the Go type, the task fails before its body runs.
+
+Stub parameters the Dag author left at their Python defaults are the exception: they reach the wire
+but need no Go parameter, so adding a defaulted parameter to a stub doesn't break the Go functions
+already bound to it.
+
+> [!NOTE]
+> Argument binding needs the coordinator path. The Edge Worker sends no arguments at all, so a task
+> running there keeps its data parameters at their Go zero values.
+
 ```go
 func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
     conn, err := client.GetConnection(ctx, "test_http")
@@ -112,12 +126,16 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
     return map[string]any{"go_version": runtime.Version()}, nil
 }
 
-func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
+// The stub's literal and XCom arguments bind to country and extracted.
+func transform(
+    ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger,
+    country string, extracted map[string]any,
+) error {
     val, err := client.GetVariable(ctx, "my_variable")
     if err != nil {
         return err
     }
-    log.Info("Obtained variable", "my_variable", val)
+    log.Info("Obtained variable", "my_variable", val, "country", country)
     return nil
 }
 ```
@@ -125,6 +143,39 @@ func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger
 Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` instead of `sdk.Client`) makes
 unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
 source of truth for which `dag_id`s and `task_id`s a bundle can run.
+
+### Name-based struct binding
+
+When a task's **sole data parameter** is a struct, its fields bind **by name** instead of by
+position — keyword arguments rather than positional ones, and a friendlier alternative to a long
+flat parameter list. Being the only data parameter is the opt-in; there is no marker to add.
+
+```go
+type CombineInput struct {
+    Region    string `arg:"region_code"` // renamed
+    Threshold float64
+}
+
+// The stub Dag calls combine(region_code="uk", threshold=0.5).
+func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
+    return nil, nil
+}
+```
+
+An exported field binds the argument matching its own Go name, folding case and underscores — so
+`Threshold` takes `threshold` and `RegionCode` would take `region_code`. Reach for an `arg:"<name>"`
+tag when the names genuinely differ, as `Region` does above. Declaration order is irrelevant on both
+sides, and embedded structs contribute their fields just as they do to `encoding/json`.
+
+A field no argument matches is left at its Go zero value, like an unpassed keyword argument. The
+reverse is an error: every argument the Dag author explicitly passed must land in some field, so a
+typo'd tag fails the task instead of silently dropping the value.
+
+A struct that is **not** the sole data parameter is decoded whole from its one positional argument
+instead, so `arg:` tags only apply to the sole-parameter form; pairing a tagged struct with other
+data parameters is rejected at registration. A sole struct parameter also falls back to whole-value
+decoding when it gets exactly one passed argument no field claims, so a task can still take an
+upstream object as a single argument.
 
 ### Reading the task runtime context
 

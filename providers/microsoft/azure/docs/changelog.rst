@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+15.0.0
+......
+
 .. warning::
   The ``AzureBatchHook`` and ``AzureBatchOperator`` have been migrated to the ``azure-batch`` 15.x
   SDK (track 2). This is a breaking change and requires ``azure-batch>=15.0.0``.
@@ -54,6 +57,29 @@ Changelog
 
     * ``AzureBatchOperator`` no longer accepts the ``os_family`` parameter. A ``vm_publisher`` must now be
       provided to configure the pool's virtual machine image.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate 'AzureBatchHook' and 'AzureBatchOperator' to the azure-batch 15.x SDK (#71071)``
+
+Features
+~~~~~~~~
+
+* ``Support certificate auth for Microsoft Graph filesystem (#71362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph request configuration across paginated pages (#71649)``
+* ``Fix Microsoft Graph filesystem auth by defaulting OAuth2 scope (#70879)``
+* ``Check GCSToAzureBlobStorageOperator match_glob support after template… (#70574)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 
 14.1.0
 ......

@@ -2,7 +2,7 @@
   "$schema": "https://typedoc.org/schema.json",
   "plugin": ["@clean-jsdoc-theme/typedoc"],
   "outputs": [{ "name": "clean-jsdoc-theme", "path": "_build/html" }],
-  "entryPoints": ["../src/index.ts"],
+  "entryPoints": ["../api-docs/*.ts"],
   "tsconfig": "./tsconfig.json",
   "name": "Apache Airflow TypeScript SDK",
   "readme": ".typedoc/readme.md",

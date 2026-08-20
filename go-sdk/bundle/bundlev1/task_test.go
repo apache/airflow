@@ -20,11 +20,11 @@ package bundlev1
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -141,21 +141,6 @@ func (s *TaskSuite) TestClientSubsetInjection() {
 	s.Require().NoError(task.Execute(context.Background(), slog.New(logging.NewTeeLogger())))
 }
 
-// TestNamedClientInterfacesAreInjectable guards against sdk.Client dropping an
-// embedded interface, which would break tasks declaring it.
-func (s *TaskSuite) TestNamedClientInterfacesAreInjectable() {
-	for name, typ := range map[string]reflect.Type{
-		"Client":           reflect.TypeFor[sdk.Client](),
-		"VariableClient":   reflect.TypeFor[sdk.VariableClient](),
-		"ConnectionClient": reflect.TypeFor[sdk.ConnectionClient](),
-		"XComClient":       reflect.TypeFor[sdk.XComClient](),
-	} {
-		s.True(isClient(typ), "sdk.%s must stay injectable", name)
-	}
-}
-
-// TestNonInjectableParamsAreRejected checks registration fails fast on
-// interface parameters Execute cannot inject.
 func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
 	cases := map[string]struct {
 		fn          any
@@ -174,9 +159,9 @@ func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
 			},
 			"method GetVariable is func(context.Context, string) (string, error) on sdk.Client",
 		},
-		"empty-interface": {
-			func(x any) error { return nil },
-			"empty interfaces cannot be injected",
+		"func-param": {
+			func(cb func()) error { return nil },
+			"cannot receive a task argument",
 		},
 		"context-with-extra-methods": {
 			func(x interface {
@@ -198,6 +183,79 @@ func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
 				s.Assert().Contains(err.Error(), tt.errContains)
 			}
 		})
+	}
+}
+
+func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
+	var gotCountry string
+	var gotMeta map[string]any
+	task, err := NewTaskFunction(func(log *slog.Logger, country string, meta map[string]any) error {
+		gotCountry = country
+		gotMeta = meta
+		return nil
+	})
+	s.Require().NoError(err)
+
+	tw, ok := task.(TaskWithArgs)
+	s.Require().True(ok, "taskFunction must implement TaskWithArgs")
+
+	err = tw.ExecuteArgs(context.Background(), slog.New(logging.NewTeeLogger()), []binding.Arg{
+		binding.LiteralArg{Value: "uk"},
+		binding.LiteralArg{Value: map[string]any{"k": "v"}},
+	})
+	s.Require().NoError(err)
+	s.Equal("uk", gotCountry)
+	s.Equal(map[string]any{"k": "v"}, gotMeta)
+}
+
+func (s *TaskSuite) TestExecuteWithoutArgsZeroFillsDataParameters() {
+	type settings struct {
+		Region    string
+		Threshold float64
+	}
+	var gotCountry string
+	var gotSettings settings
+	called := false
+	task, err := NewTaskFunction(func(country string, input settings) error {
+		gotCountry, gotSettings, called = country, input, true
+		return nil
+	})
+	s.Require().NoError(err)
+
+	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()))
+	s.Require().NoError(err)
+	s.True(called, "the task body must run")
+	s.Empty(gotCountry)
+	s.Equal(settings{}, gotSettings)
+}
+
+func (s *TaskSuite) TestExecuteArgsWithoutSpecFailsForDataParameters() {
+	task, err := NewTaskFunction(func(country string) error { return nil })
+	s.Require().NoError(err)
+
+	err = task.(TaskWithArgs).ExecuteArgs(
+		context.Background(), slog.New(logging.NewTeeLogger()), nil,
+	)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "argument count mismatch")
+	}
+}
+
+func (s *TaskSuite) TestExecuteArgsArityMismatch() {
+	task, err := NewTaskFunction(func(country string) error { return nil })
+	s.Require().NoError(err)
+
+	err = task.(TaskWithArgs).ExecuteArgs(
+		context.Background(),
+		slog.New(logging.NewTeeLogger()),
+		[]binding.Arg{
+			binding.LiteralArg{Value: "uk"},
+			binding.LiteralArg{Value: "de"},
+		},
+	)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "argument count mismatch")
+		s.Contains(err.Error(), "passes 2 positional argument(s)")
 	}
 }
 

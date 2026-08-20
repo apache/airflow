@@ -64,7 +64,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -413,6 +413,15 @@ class TestSchedulerJob:
 
         assert scheduler_job.executor == mock_local_executor
         assert scheduler_job.executors == [mock_local_executor]
+
+    def test_scheduler_dag_bag_is_bounded(self):
+        """The scheduler's Dag cache must evict, or it retains every version it has ever seen."""
+        from cachetools import LRUCache
+
+        job_runner = SchedulerJobRunner(Job())
+
+        assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
+        assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
 
     @pytest.mark.parametrize(
         "heartrate",

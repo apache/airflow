@@ -48,7 +48,8 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>((props, ref) => 
     <ChakraTooltip.Root {...rest}>
       <ChakraTooltip.Trigger asChild>{children}</ChakraTooltip.Trigger>
       <Portal container={portalRef} disabled={!portalled}>
-        <ChakraTooltip.Positioner>
+        {/* Unportalled tooltips render inline, so neighbouring controls paint over them. */}
+        <ChakraTooltip.Positioner zIndex="tooltip">
           <ChakraTooltip.Content ref={ref} {...contentProps}>
             {showArrow ? (
               <ChakraTooltip.Arrow>
