@@ -26,8 +26,10 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel, ValidationError
+from structlog.testing import capture_logs
 
+import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
@@ -107,7 +109,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations, _build_query_params
+from airflowctl.api.operations import BaseOperations, _build_query_params, _tolerant_model
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -1171,6 +1173,93 @@ class TestDagOperations:
         response = client.dags.get_details("dag_id")
         assert response == self.dag_details_response
 
+    @pytest.mark.parametrize(
+        ("operation", "path", "payload_attr"),
+        [
+            (lambda dags, patch_body: dags.get("dag_id"), "/api/v2/dags/dag_id", "dag_response"),
+            (
+                lambda dags, patch_body: dags.get_details("dag_id"),
+                "/api/v2/dags/dag_id/details",
+                "dag_details_response",
+            ),
+            (
+                lambda dags, patch_body: dags.update(dag_id="dag_id", dag_body=patch_body),
+                "/api/v2/dags/dag_id",
+                "dag_response",
+            ),
+        ],
+        ids=["get", "get_details", "update"],
+    )
+    @pytest.mark.parametrize(
+        "omitted_field",
+        ["is_backfillable", "timetable_periodic", "owners", "tags"],
+    )
+    def test_single_object_response_tolerates_field_an_older_server_omits(
+        self, operation, path, payload_attr, omitted_field
+    ):
+        """A server on an older Airflow line omits fields the generated models declare as required.
+
+        The omitted field must be left honestly ``None`` rather than filled with a
+        synthesized type default that would be indistinguishable from a real value.
+        """
+        payload = json.loads(getattr(self, payload_attr).model_dump_json())
+        del payload[omitted_field]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == path
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = operation(client.dags, self.dag_patch_body)
+
+        assert response.dag_id == self.dag_id
+        assert getattr(response, omitted_field) is None
+
+    def test_collection_response_tolerates_field_an_older_server_omits_from_an_item(self):
+        payload = json.loads(self.dag_collection_response.model_dump_json())
+        del payload["dags"][0]["owners"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags"
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.list()
+
+        assert response.dags[0].owners is None
+
+    def test_single_object_response_warns_about_the_fields_it_leaves_unset(self):
+        payload = json.loads(self.dag_response.model_dump_json())
+        del payload["is_backfillable"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with capture_logs() as captured:
+            client.dags.get("dag_id")
+
+        assert [
+            (entry["model"], entry["fields"]) for entry in captured if entry["log_level"] == "warning"
+        ] == [("DAGResponse", ["is_backfillable"])]
+
+    def test_single_object_response_raises_when_a_present_field_mismatches(self):
+        payload = json.loads(self.dag_response.model_dump_json())
+        del payload["is_backfillable"]
+        payload["max_active_tasks"] = "not-an-int"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError) as exc_info:
+            client.dags.get("dag_id")
+
+        assert {error["loc"] for error in exc_info.value.errors()} == {
+            ("is_backfillable",),
+            ("max_active_tasks",),
+        }
+
     def test_get_tags(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dagTags"
@@ -1511,6 +1600,245 @@ class TestDagRunOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dag_runs.delete(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
         assert response == self.dag_run_id
+
+
+class TestValidateResponseTolerance:
+    """
+    Cross-cutting coverage for ``validate_response``'s tolerant-twin fallback.
+
+    These target failure modes the old type-defaults implementation could not handle at
+    all: it had no default for a required enum or datetime field, so it produced ``None``
+    for them anyway, and the second (real) ``model_validate`` call then raised because
+    ``None`` is not a valid enum member or datetime -- the very omission the fallback was
+    supposed to tolerate blew up one call later instead.
+    """
+
+    dag_id = "dag_id"
+    dag_run_id = "dag_run_id"
+
+    def _dag_run_payload(self, dag_run_id: str | None = None) -> dict:
+        return json.loads(
+            DAGRunResponse(
+                dag_display_name=dag_run_id or self.dag_run_id,
+                dag_run_id=dag_run_id or self.dag_run_id,
+                dag_id=self.dag_id,
+                logical_date=datetime.datetime(2025, 1, 1),
+                queued_at=datetime.datetime(2025, 1, 1),
+                start_date=datetime.datetime(2025, 1, 1),
+                end_date=datetime.datetime(2025, 1, 1),
+                data_interval_start=datetime.datetime(2025, 1, 1),
+                data_interval_end=datetime.datetime(2025, 1, 1),
+                last_scheduling_decision=datetime.datetime(2025, 1, 1),
+                run_after=datetime.datetime(2025, 1, 1),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.UI,
+                conf={},
+                note=None,
+                dag_versions=[],
+                duration=None,
+                triggering_user_name=None,
+                bundle_version=None,
+                partition_key=None,
+                partition_date=None,
+            ).model_dump_json()
+        )
+
+    def test_missing_required_enum_field_is_left_none(self):
+        """``DAGRunResponse.state`` is a required enum with no default -- the old
+        type-defaults fallback had no entry for it at all and produced ``None``, which the
+        second ``model_validate`` call then rejected as not being a valid enum member."""
+        payload = self._dag_run_payload()
+        del payload["state"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+
+        assert response.state is None
+
+    def test_missing_required_datetime_field_is_left_none(self):
+        """``DAGRunResponse.run_after`` is a required datetime with no default."""
+        payload = self._dag_run_payload()
+        del payload["run_after"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+
+        assert response.run_after is None
+
+    def test_tolerant_twin_instance_is_still_isinstance_of_the_original_model(self):
+        payload = self._dag_run_payload()
+        del payload["state"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+
+        assert isinstance(response, DAGRunResponse)
+
+    def _dag_details_payload(self) -> dict:
+        return json.loads(
+            DAGDetailsResponse(
+                dag_id=self.dag_id,
+                dag_display_name=self.dag_id,
+                is_paused=False,
+                is_stale=False,
+                last_parsed_time=None,
+                last_parse_duration=None,
+                last_expired=None,
+                bundle_name=None,
+                bundle_version=None,
+                relative_fileloc=None,
+                fileloc=None,
+                description=None,
+                timetable_summary=None,
+                timetable_description=None,
+                timetable_partitioned=False,
+                timetable_periodic=True,
+                tags=[],
+                max_active_tasks=1,
+                max_active_runs=None,
+                max_consecutive_failed_dag_runs=1,
+                has_task_concurrency_limits=True,
+                has_import_errors=False,
+                next_dagrun_logical_date=None,
+                next_dagrun_data_interval_start=None,
+                next_dagrun_data_interval_end=None,
+                next_dagrun_run_after=None,
+                allowed_run_types=None,
+                owners=[],
+                catchup=False,
+                dag_run_timeout=None,
+                asset_expression=None,
+                doc_md=None,
+                start_date=None,
+                end_date=None,
+                is_paused_upon_creation=False,
+                params={},
+                render_template_as_native_obj=True,
+                template_search_path=None,
+                timezone=None,
+                last_parsed=None,
+                default_args=None,
+                is_backfillable=True,
+                file_token="file_token",
+                concurrency=1,
+                latest_dag_version=None,
+            ).model_dump_json()
+        )
+
+    def test_polymorphic_union_member_missing_a_required_field_still_raises(self):
+        """
+        Regression test for a real defect a prior version of the tolerant-twin builder had:
+        rewriting every member of a model-valued union (here
+        ``DAGDetailsResponse.asset_expression``) to its all-optional twin let pydantic's
+        smart-union match a payload shaped for one member -- but missing that member's
+        required subfields -- anyway, silently validating to an empty node instead of
+        raising. A polymorphic union (two or more non-``None`` model members) must never be
+        rewritten, so no member can swallow a malformed payload this way; only the field
+        being missing entirely may still fall back to ``None``.
+        """
+        payload = self._dag_details_payload()
+        del payload["timetable_periodic"]  # an unrelated field an older server omits
+        # Shaped like an AssetExpressionAsset leaf but missing its required "uri" and
+        # "group" -- no union member actually matches this payload.
+        payload["asset_expression"] = {"asset": {"name": "n"}}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError):
+            client.dags.get_details(dag_id=self.dag_id)
+
+    def test_execute_list_reassembly_tolerates_a_later_page_missing_a_field(self):
+        """
+        ``BaseOperations.execute_list`` reassembles pages by constructing a fresh
+        ``data_model`` and re-validating it. If a later page's item needed the tolerant
+        fallback for a required, non-Optional field (e.g. a missing ``bool``), that
+        reassembly must not re-raise on the very field it just tolerated.
+        """
+
+        class _StrictItem(BaseModel):
+            name: str
+            is_special: bool
+
+        class _StrictItemCollection(BaseModel):
+            items: list[_StrictItem]
+            total_entries: int
+
+        first_page = {"items": [{"name": "a", "is_special": True}], "total_entries": 2}
+        second_page_item = {"name": "b"}  # is_special omitted, as an older server would.
+
+        pages = [
+            Mock(content=json.dumps(first_page)),
+            Mock(content=json.dumps({"items": [second_page_item], "total_entries": 2})),
+        ]
+        mock_client = Mock()
+        mock_client.get.side_effect = pages
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="items", data_model=_StrictItemCollection, limit=1)
+
+        assert [item.name for item in response.items] == ["a", "b"]
+        assert response.items[0].is_special is True
+        assert response.items[1].is_special is None
+
+
+class TestTolerantModelBuilderCoversAllGeneratedModels:
+    """
+    Structural smoke test for the tolerant-twin builder itself.
+
+    Every non-``RootModel`` model in the generated datamodels must produce a tolerant twin
+    that validates an empty payload, proving the builder neither explodes nor infinitely
+    recurses on any of them -- including the two that are mutually self-referential
+    (``AssetExpressionAll`` <-> ``AssetExpressionAny``), which no longer needs a cycle guard
+    now that a polymorphic union (the only path back into either model) is never rewritten.
+    """
+
+    def test_every_generated_model_builds_a_tolerant_twin_that_validates_an_empty_payload(self):
+        models = [
+            obj
+            for obj in vars(generated_datamodels).values()
+            if isinstance(obj, type)
+            and issubclass(obj, BaseModel)
+            and not issubclass(obj, RootModel)
+            and obj.__module__ == generated_datamodels.__name__
+        ]
+        # A generous floor, not the exact count: guards against a filter bug (e.g. the
+        # RootModel exclusion swallowing everything) making this loop -- and the assertion
+        # below -- vacuously pass over zero models.
+        assert len(models) > 150
+
+        failures: dict[str, str] = {}
+        for model in models:
+            try:
+                twin = _tolerant_model(model)
+                twin.model_validate({})
+            except Exception as exc:
+                failures[model.__name__] = repr(exc)
+
+        assert failures == {}
+
+    def test_tolerant_twin_preserves_the_original_field_alias(self):
+        """
+        ``FieldInfo.merge_field_infos`` is a semi-public pydantic API; if a future pydantic
+        release changes how it copies metadata, this must fail loudly here rather than
+        silently drop the alias and only surface when a real server payload keyed by the
+        alias (``ConnectionsOperations`` reads/writes ``schema`` on the wire, see
+        ``ConnectionResponse.schema_``) fails to bind to the tolerant twin.
+        """
+        twin = _tolerant_model(ConnectionResponse)
+
+        assert twin.model_fields["schema_"].alias == "schema"
 
 
 class TestJobsOperations:
