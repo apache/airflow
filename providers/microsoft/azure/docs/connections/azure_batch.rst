@@ -71,7 +71,7 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_AZURE_BATCH_DEFAULT='azure-batch://batch%20acount:batch%20key@?account_url=mybatchaccount.com'
+   export AIRFLOW_CONN_AZURE_BATCH_DEFAULT='azure-batch://batch%20account:batch%20key@?account_url=mybatchaccount.com'
 
 
 .. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential

@@ -103,6 +103,18 @@ def _create_orm_dags(
         yield orm_dag
 
 
+def _build_latest_run_load_options() -> Any:
+    return load_only(
+        DagRun.dag_id,
+        DagRun.logical_date,
+        DagRun.run_after,
+        DagRun.data_interval_start,
+        DagRun.data_interval_end,
+        DagRun.partition_key,
+        DagRun.partition_date,
+    )
+
+
 def _get_latest_runs_stmt(dag_id: str) -> Select:
     """Build a select statement to retrieve the last automated run for each dag."""
     max_logical_date = (
@@ -124,17 +136,7 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
             DagRun.dag_id == dag_id,
             DagRun.logical_date == max_logical_date,
         )
-        .options(
-            load_only(
-                DagRun.dag_id,
-                DagRun.logical_date,
-                DagRun.run_after,
-                DagRun.data_interval_start,
-                DagRun.data_interval_end,
-                DagRun.partition_key,
-                DagRun.partition_date,
-            )
-        )
+        .options(_build_latest_run_load_options())
     )
 
 
@@ -160,21 +162,7 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
         .limit(1)
         .scalar_subquery()
     )
-    return (
-        select(DagRun)
-        .where(DagRun.id == latest_run_id)
-        .options(
-            load_only(
-                DagRun.dag_id,
-                DagRun.logical_date,
-                DagRun.run_after,
-                DagRun.data_interval_start,
-                DagRun.data_interval_end,
-                DagRun.partition_key,
-                DagRun.partition_date,
-            )
-        )
-    )
+    return select(DagRun).where(DagRun.id == latest_run_id).options(_build_latest_run_load_options())
 
 
 class _RunInfo(NamedTuple):
@@ -1186,6 +1174,7 @@ class AssetModelOperation(NamedTuple):
                         classpath=triggers[trigger_hash]["classpath"],
                         kwargs=triggers[trigger_hash]["kwargs"],
                         team_name=team_name,
+                        queue=triggers[trigger_hash].get("queue"),
                     )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers

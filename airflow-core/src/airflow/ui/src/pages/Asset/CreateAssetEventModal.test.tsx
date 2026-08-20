@@ -43,23 +43,27 @@ const materializeSubmitParams = vi.hoisted<DagRunTriggerParams>(() => ({
 
 vi.mock("src/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
-  // Must stay inside the factory: vitest hoists vi.mock above module scope, so an outer-scope
-  // component cannot be referenced here.
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const DialogPart = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>;
 
   return {
     ...actual,
-    Dialog: {
-      ...actual.Dialog,
-      Body: DialogPart,
-      CloseTrigger: () => undefined,
-      Content: DialogPart,
-      Footer: DialogPart,
-      Header: DialogPart,
-      Root: ({ children, open }: { readonly children?: ReactNode; readonly open?: boolean }) =>
-        open ? <div>{children}</div> : undefined,
-    },
+    Modal: ({
+      children,
+      footerActions,
+      open,
+      title,
+    }: {
+      readonly children?: ReactNode;
+      readonly footerActions?: ReactNode;
+      readonly open?: boolean;
+      readonly title?: ReactNode;
+    }) =>
+      open ? (
+        <div>
+          {title}
+          {children}
+          {footerActions}
+        </div>
+      ) : undefined,
   };
 });
 

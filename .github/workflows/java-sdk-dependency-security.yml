@@ -88,10 +88,10 @@ jobs:
         with:
           build-root-directory: java-sdk/example
           dependency-graph: generate-and-submit
-          gradle-version: "8.14.4"
+          gradle-version: "8.14.5"
       - name: Submit Scala Spark example dependency graph
         uses: gradle/actions/dependency-submission@9c971963bec38e04b3d30dcc455b5382be2fdbfb  # v6.3.0
         with:
           build-root-directory: java-sdk/scala_spark_example
           dependency-graph: generate-and-submit
-          gradle-version: "8.14.4"
+          gradle-version: "8.14.5"
