@@ -65,6 +65,7 @@
     "lastDagRun_other": "Letzte {{count}} Dag Läufe",
     "lastTaskInstance_one": "Letzte Task Instanz",
     "lastTaskInstance_other": "Letzte {{count}} Task Instanzen",
+    "medianTotalDuration": "Gesamt: {{duration}}",
     "queuedDuration": "Zeit in der Warteschlange",
     "runAfter": "Lauf ab",
     "runDuration": "Laufzeit"
@@ -112,6 +113,10 @@
     "file": "Datei",
     "location": "Zeile {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Wert ausblenden",
+    "show": "Wert anzeigen"
+  },
   "reparseDag": "Dag neu parsen",
   "sortedAscending": "aufsteigend sortiert",
   "sortedDescending": "absteigend sortiert",
@@ -137,6 +142,7 @@
     "loading": "Lade Dag Information...",
     "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
     "manualRunDenied": "Manuelles Auslösen dieses Dags ist nicht erlaubt.",
+    "partitionKeyHelp": "Optional – gilt nur für partitionierte Dags",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
     "selectDescription": "Einen einzelnen Lauf dieses Dags auslösen",
     "selectLabel": "Einzelner Lauf",
