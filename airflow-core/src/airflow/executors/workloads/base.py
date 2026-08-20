@@ -134,7 +134,7 @@ class BaseWorkloadSchema(BaseModel):
         The default of ``0`` gives FIFO behaviour (Python's stable sort preserves
         insertion order among equal keys).  Override in subclasses that need
         priority ordering within their priority group — for example, ``ExecuteTask`` returns
-        ``self.ti.priority_weight`` so that lower-weight tasks are scheduled first.
+        ``-self.ti.priority_weight`` so that higher-weight tasks are scheduled first.
         """
         return 0
 

@@ -364,11 +364,11 @@ def test_trigger_running_tasks(dag_maker):
 
 
 @pytest.mark.db_test
-def test_trigger_tasks_schedules_highest_priority_first(dag_maker):
+def test_trigger_workloads_schedules_highest_priority_first(dag_maker):
     """When there are fewer open slots than queued tasks, the lowest priority ones wait."""
     date = timezone.utcnow()
 
-    with dag_maker("test_trigger_tasks_priority_order"):
+    with dag_maker("test_trigger_workloads_priority_order"):
         BaseOperator(task_id="low", priority_weight=1)
         BaseOperator(task_id="medium", priority_weight=5)
         BaseOperator(task_id="high", priority_weight=10)
@@ -378,9 +378,10 @@ def test_trigger_tasks_schedules_highest_priority_first(dag_maker):
     executor = BaseExecutor()
     executor._process_workloads = mock.Mock(spec=lambda workloads: None)
     for task_instance in dagrun.task_instances:
-        executor.queued_tasks[task_instance.key] = workloads.ExecuteTask.make(task_instance)
+        task_queue = executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        task_queue[task_instance.key] = workloads.ExecuteTask.make(task_instance)
 
-    executor.trigger_tasks(open_slots=2)
+    executor.trigger_workloads(open_slots=2)
 
     scheduled = [workload.ti.task_id for workload in executor._process_workloads.call_args[0][0]]
     assert scheduled == ["high", "medium"]
