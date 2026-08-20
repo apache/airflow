@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Spacer, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -111,11 +111,11 @@ const getColumns = ({
     },
     ...(multiTeam
       ? [
-        {
-          accessorKey: "team_name",
-          header: translate("columns.team"),
-        },
-      ]
+          {
+            accessorKey: "team_name",
+            header: translate("columns.team"),
+          },
+        ]
       : []),
     {
       accessorKey: "actions",
@@ -201,7 +201,6 @@ export const Variables = () => {
       selectedRows={selectedRows}
     >
       <BackendsOrderCard />
-      <Spacer />
       <DataTable
         columns={columns}
         data={variables}

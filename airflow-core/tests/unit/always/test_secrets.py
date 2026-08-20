@@ -198,7 +198,6 @@ class TestConnectionsFromSecrets:
         ):
             backends = ensure_secrets_loaded(
                 default_backends=[
-                    "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
                     "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
                     "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
                 ]
@@ -249,9 +248,8 @@ class TestConnectionsFromSecrets:
             with pytest.raises(AirflowConfigException) as exc_info:
                 ensure_secrets_loaded(
                     default_backends=[
-                        "test_worker_backend_1",
-                        "test_worker_backend_2",
-                        "test_worker_backend_3",
+                        "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+                        "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
                     ]
                 )
             assert exc_info.value.args[0] == exc_msg

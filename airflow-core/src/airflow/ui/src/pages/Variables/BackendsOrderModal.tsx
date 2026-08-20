@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Heading, Text, HStack } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuSettings } from "react-icons/lu";
 
@@ -26,22 +25,20 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { Dialog } from "src/components/ui";
 
 type BackendsOrderModalProps = {
-  onClose: () => void;
-  open: boolean;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
-export const BackendsOrderModal: React.FC<BackendsOrderModalProps> = ({ onClose, open }) => {
+export const BackendsOrderModal = ({ onClose, open }: BackendsOrderModalProps) => {
   const { t: translate } = useTranslation("admin");
-  const [backendsOrder, setBackendsOrder] = useState<Array<string> | string>();
-  const { data, error } = useConfigServiceGetBackendsOrderValue();
+  const { data, error, isLoading } = useConfigServiceGetBackendsOrderValue(undefined, undefined, {
+    enabled: open,
+  });
+  const backendsOrder = data?.sections[0]?.options[0]?.value ?? "";
 
   const onOpenChange = () => {
     onClose();
   };
-
-  useEffect(() => {
-    setBackendsOrder(data?.sections[0]?.options[0]?.value ?? "");
-  }, [data, open]);
 
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="md">
@@ -51,14 +48,12 @@ export const BackendsOrderModal: React.FC<BackendsOrderModalProps> = ({ onClose,
             <LuSettings />
             <Heading size="md">{translate("variables.backendsOrder")}</Heading>
           </HStack>
+          <Dialog.CloseTrigger />
         </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
         <Dialog.Body>
           {Boolean(error) ? <ErrorAlert error={error} /> : null}
           <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
-            {backendsOrder}
+            {isLoading ? translate("variables.loading") : backendsOrder}
           </Text>
         </Dialog.Body>
       </Dialog.Content>
