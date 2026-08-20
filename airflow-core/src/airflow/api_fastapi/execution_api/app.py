@@ -44,9 +44,11 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.process_context import override_process_context
 
 if TYPE_CHECKING:
     import httpx
+    from starlette.types import Receive, Scope, Send
 
 import structlog
 from structlog.contextvars import bind_contextvars
@@ -372,6 +374,17 @@ def _shutdown_loop(
     thread.join(timeout=5)
 
 
+class _RequestScopedServerContextApp:
+    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        with override_process_context("server"):
+            await self.app(scope, receive, send)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -379,6 +392,10 @@ class InProcessExecutionAPI:
 
     The sync version of this makes use of a2wsgi which runs the async loop in a separate thread. This is
     needed so that we can use the sync httpx client
+
+    Requests are always dispatched in a server process context, with no way to opt out: this app *is*
+    the server side of the Execution API, and in a single process its route handlers would otherwise
+    read the caller's ``SUPERVISOR_COMMS`` and re-enter the API through the Task SDK.
     """
 
     _app: FastAPI | None = None
@@ -433,7 +450,8 @@ class InProcessExecutionAPI:
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
         thread.start()
 
-        middleware = ASGIMiddleware(self.app, loop=loop)
+        app = self.app
+        middleware = ASGIMiddleware(cast("Any", _RequestScopedServerContextApp(app)), loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -443,7 +461,7 @@ class InProcessExecutionAPI:
 
         # Wait for lifespan startup to complete so callers see a ready app and so the finalizer can
         # safely aclose() a context whose __aenter__ has actually run.
-        asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
+        asyncio.run_coroutine_threadsafe(start_lifespan(cm, app), loop).result()
 
         transport = httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
@@ -460,4 +478,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx.ASGITransport(app=_RequestScopedServerContextApp(self.app))

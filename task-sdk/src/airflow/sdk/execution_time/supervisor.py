@@ -35,6 +35,7 @@ import weakref
 from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
@@ -2014,26 +2015,38 @@ def in_process_api_server():
     return api
 
 
+_IN_PROCESS_RESPONSE_SINK: ContextVar[deque[BaseModel | None] | None] = ContextVar(
+    "in_process_response_sink", default=None
+)
+"""Where :meth:`InProcessTestSupervisor.send_msg` must deliver the response it is about to send.
+
+Only :meth:`InProcessSupervisorComms.send` sets it, and it gets a fresh sink per call, so a response
+can never reach a caller other than the one that is waiting for it. The socket is read by the raw
+thread started in ``_setup_subprocess_socket``, which never has a sink set: requests from a child
+process are answered on the socket instead.
+"""
+
+
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
     """In-process communication handler that uses deques instead of sockets."""
 
     log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor
-    messages: deque[BaseModel | None] = attrs.field(factory=deque)
 
-    def _get_response(self) -> BaseModel | None:
-        """Get a message from the supervisor. Blocks until a message is available."""
-        return self.messages.popleft()
-
-    def send(self, msg: BaseModel):
-        """Send a request to the supervisor."""
+    def send(self, msg: BaseModel) -> BaseModel | None:
+        """Send a request to the supervisor and return its response."""
         self.log.debug("Sending request", msg=msg)
 
-        with set_supervisor_comms(None):
-            self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        responses: deque[BaseModel | None] = deque()
+        token = _IN_PROCESS_RESPONSE_SINK.set(responses)
+        try:
+            with set_supervisor_comms(None):
+                self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        finally:
+            _IN_PROCESS_RESPONSE_SINK.reset(token)
 
-        return self._get_response()
+        return responses.popleft() if responses else None
 
 
 @attrs.define
@@ -2196,8 +2209,15 @@ class InProcessTestSupervisor(ActivitySubprocess):
     def send_msg(
         self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
-        """Override to use in-process comms."""
-        self.comms.messages.append(msg)
+        """Deliver the response in-process, or over the socket when the request came from there."""
+        sink = _IN_PROCESS_RESPONSE_SINK.get()
+        if sink is None:
+            # A real child process (a virtualenv operator's, say) sent this request over the socket
+            # set up by `_setup_subprocess_socket`. It is blocked reading a response frame, so
+            # anything queued in-process would never reach it.
+            super().send_msg(msg, request_id, error=error, **dump_opts)
+            return
+        sink.append(msg)
 
     @classmethod
     def run_trigger_in_process(cls, *, trigger, ti):
