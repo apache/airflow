@@ -1,7 +1,7 @@
 {
   "name": "apache-airflow-ts-sdk-example",
   "private": true,
-  "version": "1.0.0-beta1",
+  "version": "0.1.0-beta1",
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {

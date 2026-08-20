@@ -1,6 +1,6 @@
 {
   "name": "apache-airflow-ts-sdk",
-  "version": "1.0.0-beta1",
+  "version": "0.1.0-beta1",
   "packageManager": "pnpm@10.28.1",
   "description": "TypeScript Task SDK for Apache Airflow task handlers",
   "license": "Apache-2.0",

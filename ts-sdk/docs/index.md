@@ -24,7 +24,7 @@ writing Apache Airflow task handlers and the coordinator runtime that executes
 registered TypeScript handlers from an Airflow worker.
 
 > **Note**
-> This package is **1.0.0-beta1**: the API may change, it requires **Node 22+**, and
+> This package is **0.1.0-beta1**: the API may change, it requires **Node 22+**, and
 > it is **ESM-only**.
 
 ## Getting Started
@@ -32,7 +32,7 @@ registered TypeScript handlers from an Airflow worker.
 Install the beta package from npm:
 
 ```bash
-npm install apache-airflow-ts-sdk@1.0.0-beta1
+npm install apache-airflow-ts-sdk@0.1.0-beta1
 ```
 
 Define a Dag and register its task handlers. Handlers receive a `TaskContext`

@@ -21,7 +21,7 @@
 
 Public TypeScript interfaces for writing Apache Airflow task handlers.
 
-**Status:** 1.0.0-beta1 · API may change · Node 22+ · ESM-only
+**Status:** 0.1.0-beta1 · API may change · Node 22+ · ESM-only
 
 This package defines the user-facing task handler contract and the coordinator
 runtime used to execute registered TypeScript handlers from Airflow.
@@ -29,7 +29,7 @@ runtime used to execute registered TypeScript handlers from Airflow.
 ## Installation
 
 ```bash
-npm install apache-airflow-ts-sdk@1.0.0-beta1
+npm install apache-airflow-ts-sdk@0.1.0-beta1
 ```
 
 ## Task Handlers
