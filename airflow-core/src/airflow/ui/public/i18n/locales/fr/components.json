@@ -16,7 +16,7 @@
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
     "scheduleNotBackfillable": "La planification de ce Dag ne prend pas en charge les rattrapages",
-    "schedulerPriorityHint": "Les exécutions de Dag de rattrapage sont ordonnées après les exécutions de Dag hors rattrapage à chaque cycle du planificateur. Les exécutions de rattrapage peuvent rester en file plus longtemps si d'autres exécutions hors rattrapage sont présentes.",
+    "schedulerPriorityHint": "Les exécutions de Dag de rattrapage sont ordonnées après les exécutions de Dag hors rattrapage à chaque cycle du scheduler. Les exécutions de rattrapage peuvent rester en file plus longtemps si d'autres exécutions hors rattrapage sont présentes.",
     "selectDescription": "Exécuter ce Dag pour une plage de dates",
     "selectLabel": "Rattrapage",
     "title": "Lancer un rattrapage",
