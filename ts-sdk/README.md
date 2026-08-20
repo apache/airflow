@@ -212,6 +212,58 @@ current task context when omitted.
 accepts an abort signal so tasks can clean up cooperatively when Airflow
 terminates the task subprocess with SIGTERM or SIGINT.
 
+## Compatibility matrix
+
+Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
+[`capabilities.yaml`](capabilities.yaml); the conformance dimensions are defined in the
+[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
+Do not edit the table by hand — update the manifest and run the
+`update-ts-sdk-readme-matrix` prek hook.
+
+<!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
+*Min. Airflow version: 3.3 · supervisor schema: 2026-10-30*
+
+| Dimension | Tier | Supported | Since | Notes |
+|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.3 |  |
+| state: `failed` | MUST | ✓ | 3.3 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
+| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
+| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.3 |  |
+| **Runtime capabilities** |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
+| capability: `task-logging` | MUST | ✓ | 3.3 | structured records over the log socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.3 | getXCom / setXCom |
+| capability: `connection-read` | MUST | ✓ | 3.3 | getConnection |
+| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the bundle |
+| capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
+| **Native-Dag authoring** |  |  |  |  |
+| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
+| capability: `task-args` | MUST † | n/a | – |  |
+| capability: `dag-params` | MUST † | n/a | – |  |
+| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
+| capability: `branching` | SHOULD † | n/a | – |  |
+| capability: `dag-test` | SHOULD † | n/a | – |  |
+| capability: `task-group` | MAY † | n/a | – |  |
+| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
+| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
+| capability: `asset-scheduling` | MAY † | n/a | – |  |
+| capability: `object-store` | MAY † | n/a | – | no object-storage API yet |
+
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
+
+<!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
 ## Development
 
 ```bash

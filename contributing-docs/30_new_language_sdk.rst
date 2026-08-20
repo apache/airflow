@@ -433,6 +433,11 @@ authored in the target language. An SDK declares each one independently.
     trailer (see `Native Executable Bundle Format`_), a JVM artifact embeds it in the jar,
     a Node bundle embeds it in the package.
 
+``retry-policy`` (MAY)
+    The SDK lets task code inspect a failure and override whether the task retries or fails,
+    optionally with a custom retry delay. This is distinct from reporting ``up_for_retry``:
+    an SDK can support ordinary retries without exposing a task-facing retry-policy API.
+
 ``task-state-store`` (MAY)
     The task can read and write the per-task state store.
 
@@ -493,6 +498,30 @@ native Dags they are *not applicable* (``n/a``) rather than unsupported.
 ``object-store`` (MAY †)
     The SDK exposes an object-storage API (an ``ObjectStoragePath`` equivalent) usable from
     native Dag code.
+
+Compatibility matrix
+~~~~~~~~~~~~~~~~~~~~
+
+The dimensions above are prose; each SDK also declares them *machine-readably* in one
+hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its published tables:
+
+.. code-block:: text
+
+    java-sdk/capabilities.yaml          <- the only file you edit
+      |
+      |  hook: update-java-sdk-readme-matrix
+      |
+      +--> java-sdk/README.md            (contributor-facing)
+      +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
+
+The hook rewrites its targets and exits non-zero when either was stale, so a drifted table fails
+the build. Keep the manifest out of whatever the SDK publishes — it describes the SDK rather than
+being part of it; for Java that means sitting above every subproject in ``settings.gradle.kts``.
+
+To add an SDK, register it in ``LANG_SDKS`` in ``scripts/ci/prek/lang_sdk_compat_matrix.py``, write
+a ``capabilities.yaml`` in the same schema, and add the equivalent hook. Adding or renaming a
+dimension means editing ``STATE_DIMENSIONS`` / ``CAPABILITY_DIMENSIONS`` there **and** the prose
+above in the same PR — the renderer validates every manifest against that list.
 
 
 Testing
