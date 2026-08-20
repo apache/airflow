@@ -22,6 +22,7 @@ import subprocess
 import sys
 import threading
 import time
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -44,6 +45,7 @@ from airflow_shared.observability.metrics.otel_logger import (
     SafeOtelLogger,
     _generate_key_name,
     _is_up_down_counter,
+    _stop_inherited_pipeline,
     full_name,
     get_otel_logger,
 )
@@ -651,6 +653,32 @@ class TestOtelMetrics:
                 "The forked child stopped exporting through the pipeline it built for itself.\n"
                 f"child output:\n{exported_in_child}"
             )
+
+    @pytest.mark.parametrize(
+        "readers_attribute",
+        ["_metric_readers", "_sdk_config.metric_readers"],
+    )
+    def test_inherited_readers_are_found_across_sdk_versions(self, readers_attribute):
+        """Test that a provider's own readers are found wherever the installed SDK keeps them.
+
+        ``_metric_readers`` exists from opentelemetry-sdk 1.44; before that the same list lives on
+        ``_sdk_config.metric_readers``. Airflow accepts ``opentelemetry-api>=1.27.0`` with no upper
+        bound, so reading only the newer attribute leaves this inert on a supported install -- and
+        inert silently, since a pipeline nobody stops just goes on exporting.
+        """
+        reader = SimpleNamespace(
+            _collect=lambda *args, **kwargs: "the parent's measurements",
+            _shutdown_event=threading.Event(),
+        )
+        if readers_attribute == "_metric_readers":
+            provider = SimpleNamespace(_metric_readers=[reader])
+        else:
+            provider = SimpleNamespace(_sdk_config=SimpleNamespace(metric_readers=[reader]))
+
+        _stop_inherited_pipeline(provider)
+
+        assert reader._shutdown_event.is_set()
+        assert reader._collect(reader) is None
 
     def test_forked_child_does_not_flush_a_provider_it_did_not_build(self, tmp_path):
         """A provider supplied by the SDK brings its own atexit shutdown; a child must not run it.
