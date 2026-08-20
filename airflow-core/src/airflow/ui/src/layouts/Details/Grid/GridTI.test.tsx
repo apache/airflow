@@ -36,6 +36,7 @@ vi.mock("src/context/colorMode", () => ({
 
 const taskInstance: LightGridTaskInstanceSummary = {
   child_states: null,
+  dag_version_number: 1,
   max_end_date: null,
   min_start_date: null,
   state: "success",
@@ -45,7 +46,16 @@ const taskInstance: LightGridTaskInstanceSummary = {
 
 const SELECTED_RUN_ID = "manual__2026-04-21T00:00:00+00:00";
 
-const renderGridTI = (route: string, taskId = "selected_task", runId = SELECTED_RUN_ID) =>
+type RenderGridTIOptions = {
+  readonly instance?: LightGridTaskInstanceSummary;
+  readonly runId?: string;
+  readonly taskId?: string;
+};
+
+const renderGridTI = (
+  route: string,
+  { instance = taskInstance, runId = SELECTED_RUN_ID, taskId = "selected_task" }: RenderGridTIOptions = {},
+) =>
   render(
     <BaseWrapper>
       <TimezoneProvider>
@@ -55,7 +65,7 @@ const renderGridTI = (route: string, taskId = "selected_task", runId = SELECTED_
               element={
                 <GridTI
                   dagId="example_dag"
-                  instance={{ ...taskInstance, task_id: taskId }}
+                  instance={{ ...instance, task_id: taskId }}
                   label={taskId}
                   runId={runId}
                   taskId={taskId}
@@ -89,7 +99,9 @@ describe("GridTI", () => {
   });
 
   it("does not mark another task square as selected", () => {
-    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, "other_task");
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      taskId: "other_task",
+    });
 
     expect(screen.getByTestId("task-state-badge")).not.toHaveAttribute("data-selected");
     expect(screen.getByTestId("task-state-badge").closest("[data-task-id='other_task']")).toHaveAttribute(
@@ -99,16 +111,24 @@ describe("GridTI", () => {
   });
 
   it("keeps the task row selected without marking the same task square in another Dag run as selected", () => {
-    renderGridTI(
-      `/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`,
-      "selected_task",
-      "other_run",
-    );
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, { runId: "other_run" });
 
     expect(screen.getByTestId("task-state-badge")).not.toHaveAttribute("data-selected");
     expect(screen.getByTestId("task-state-badge").closest("[data-task-id='selected_task']")).toHaveAttribute(
       "data-selected",
       "true",
+    );
+  });
+
+  it("links to the task overview when the run has no task instance", () => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      instance: { ...taskInstance, dag_version_number: null },
+      taskId: "missing_task",
+    });
+
+    expect(screen.getByTestId(`grid-${SELECTED_RUN_ID}-missing_task`)).toHaveAttribute(
+      "href",
+      "/dags/example_dag/tasks/missing_task",
     );
   });
 });

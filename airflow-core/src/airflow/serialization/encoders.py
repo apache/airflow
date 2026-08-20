@@ -183,6 +183,7 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
     if isinstance(trigger, dict):
         classpath = trigger["classpath"]
         kwargs = trigger["kwargs"]
+        queue = trigger.get("queue")
         # unwrap any kwargs that are themselves serialized objects, to avoid double-serialization in the trigger's own serialize() method.
         unwrapped = {}
         for k, v in kwargs.items():
@@ -193,10 +194,14 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
         kwargs = unwrapped
     else:
         classpath, kwargs = trigger.serialize()
-    return {
+        queue = getattr(trigger, "queue", None)
+    encoded = {
         "classpath": classpath,
         "kwargs": {k: _ensure_serialized(v) for k, v in kwargs.items()},
     }
+    if queue is not None:
+        encoded["queue"] = queue
+    return encoded
 
 
 def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:

@@ -34,7 +34,10 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    TaskOutletAssetReference,
 )
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.temporal import StartOfHourMapper
@@ -44,12 +47,15 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_apdr,
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_pakl,
     clear_db_serialized_dags,
+    clear_db_teams,
 )
 
 pytestmark = pytest.mark.db_test
@@ -61,6 +67,8 @@ def cleanup():
     clear_db_serialized_dags()
     clear_db_apdr()
     clear_db_pakl()
+    clear_db_teams()
+    clear_db_dag_bundles()
 
 
 class TestNextRunAssets:
@@ -778,3 +786,36 @@ class TestGetAssetsUi:
 
         with assert_queries_count(8):
             assert test_client.get("/assets").status_code == 200
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        bundle = DagBundleModel(name="team-bundle")
+        bundle.teams.append(Team(name="owning-team"))
+        session.add(bundle)
+        session.flush()
+
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(5)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.flush()
+
+        for i, asset in enumerate(assets):
+            session.add(DagModel(dag_id=f"scheduled_dag{i}", bundle_name="team-bundle"))
+            session.add(DagModel(dag_id=f"producing_dag{i}", bundle_name="team-bundle"))
+            session.add(DagScheduleAssetReference(dag_id=f"scheduled_dag{i}", asset=asset))
+            session.add(TaskOutletAssetReference(dag_id=f"producing_dag{i}", task_id="task", asset=asset))
+        session.commit()
+
+        with assert_queries_count(12):
+            response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        assets_by_name = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets_by_name["asset0"]["scheduled_dags"][0]["team_name"] == "owning-team"
+        assert assets_by_name["asset0"]["producing_tasks"][0]["team_name"] == "owning-team"

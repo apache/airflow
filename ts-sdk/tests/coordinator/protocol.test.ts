@@ -20,6 +20,7 @@
 import { describe, expect, it } from "vitest";
 import { asMsgFromSupervisor } from "../../src/coordinator/protocol.js";
 import { parseArgs, startCoordinator } from "../../src/coordinator/runtime.js";
+import { DagRegistry } from "../../src/sdk/registry.js";
 
 describe("protocol decode", () => {
   it("accepts StartupDetails", () => {
@@ -85,14 +86,14 @@ describe("runtime arg parser", () => {
 
   it("requires commAddr and logsAddr overrides to be supplied together", async () => {
     await expect(
-      startCoordinator({
+      startCoordinator(new DagRegistry(), {
         commAddr: "127.0.0.1:5001",
         argv: ["node", "bundle.mjs", "--logs=127.0.0.1:5002"],
       }),
     ).rejects.toThrow(/Missing --comm/);
 
     await expect(
-      startCoordinator({
+      startCoordinator(new DagRegistry(), {
         logsAddr: "127.0.0.1:5002",
         argv: ["node", "bundle.mjs", "--comm=127.0.0.1:5001"],
       }),

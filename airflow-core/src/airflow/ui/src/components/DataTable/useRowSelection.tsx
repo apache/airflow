@@ -82,6 +82,8 @@ export const SelectionRowCheckbox = ({ colorPalette, rowKey }: SelectionRowCheck
       checked={selectedRows.has(rowKey)}
       colorPalette={colorPalette}
       onCheckedChange={(event) => onRowSelect(rowKey, Boolean(event.checked))}
+      size="xs"
+      verticalAlign="middle"
     />
   );
 };
@@ -99,6 +101,8 @@ export const SelectionHeaderCheckbox = ({ colorPalette }: SelectionHeaderCheckbo
       checked={allRowsSelected}
       colorPalette={colorPalette}
       onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      size="xs"
+      verticalAlign="middle"
     />
   );
 };

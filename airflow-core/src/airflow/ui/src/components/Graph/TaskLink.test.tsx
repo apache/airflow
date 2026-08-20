@@ -46,4 +46,23 @@ describe("TaskLink", () => {
       "/dags/test_dag/runs/test_run/tasks/one_try?log_level=error",
     );
   });
+
+  it("links to the task overview when the run has no task instance", () => {
+    render(
+      <MemoryRouter initialEntries={["/dags/test_dag/runs/test_run/tasks/other_task"]}>
+        <Routes>
+          <Route
+            element={<TaskLink hasTaskInstance={false} id="missing_task" label="missing_task" />}
+            path="/dags/:dagId/runs/:runId/tasks/:taskId"
+          />
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: BaseWrapper },
+    );
+
+    expect(screen.getByRole("link", { name: "missing_task" })).toHaveAttribute(
+      "href",
+      "/dags/test_dag/tasks/missing_task",
+    );
+  });
 });

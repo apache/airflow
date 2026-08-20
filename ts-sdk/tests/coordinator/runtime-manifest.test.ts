@@ -22,22 +22,73 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AIRFLOW_METADATA_SENTINEL, buildBundleManifest } from "../../src/coordinator/manifest.js";
 import { startCoordinator } from "../../src/coordinator/runtime.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
+import { Dag } from "../../src/sdk/dag.js";
+import { DagRegistry } from "../../src/sdk/registry.js";
+
+function buildDag(dagId: string, ...taskIds: string[]): Dag {
+  const dag = new Dag(dagId);
+  for (const taskId of taskIds) {
+    dag.task(taskId, async () => undefined);
+  }
+  return dag;
+}
 
 describe("buildBundleManifest", () => {
-  it("groups registrations by Dag ID under the SDK's schema version", () => {
-    expect(
-      buildBundleManifest([
-        { dagId: "dag_a", taskId: "t1" },
-        { dagId: "dag_b", taskId: "t2" },
-        { dagId: "dag_a", taskId: "t3" },
-      ]),
-    ).toEqual({
+  it("maps a registry's Dags to their tasks under the SDK's schema version", () => {
+    const registry = new DagRegistry(buildDag("dag_a", "t1", "t3"), buildDag("dag_b", "t2"));
+    expect(buildBundleManifest(registry)).toEqual({
       supervisor_schema_version: SUPERVISOR_API_VERSION,
       dags: {
         dag_a: { tasks: ["t1", "t3"] },
         dag_b: { tasks: ["t2"] },
       },
     });
+  });
+
+  it("keeps a registered Dag without tasks visible in the manifest", () => {
+    expect(buildBundleManifest(new DagRegistry(buildDag("empty_dag"))).dags).toEqual({
+      empty_dag: { tasks: [] },
+    });
+  });
+
+  it("keeps a Dag named __proto__ visible in serialized metadata", () => {
+    const manifest = buildBundleManifest(new DagRegistry(buildDag("__proto__", "task")));
+    const serializedDags = JSON.parse(JSON.stringify(manifest)).dags;
+
+    expect(Object.keys(serializedDags)).toEqual(["__proto__"]);
+    expect(serializedDags["__proto__"]).toEqual({ tasks: ["task"] });
+  });
+
+  it("reports only the Dags the registry was given", () => {
+    const registry = new DagRegistry(buildDag("dag_a", "t1"));
+    buildDag("dag_b", "t2");
+    expect(Object.keys(buildBundleManifest(registry).dags)).toEqual(["dag_a"]);
+  });
+
+  // The server would reject these ids. The manifest keeps them and
+  // airflow-ts-pack warns at build time instead of failing the pack.
+  it.each(["", "   ", "\t", "my dag", "a/b", "task@1", "d".repeat(251)])(
+    "keeps a dagId the server would reject visible in the manifest: %j",
+    (dagId) => {
+      const manifest = buildBundleManifest(new DagRegistry(buildDag(dagId, "t1")));
+      expect(manifest.dags[dagId]).toEqual({ tasks: ["t1"] });
+    },
+  );
+
+  // An empty taskId is absent: the bundle schema requires task ids to be
+  // non-empty strings, so airflow-ts-pack rejects it instead of warning.
+  it.each(["   ", "\t", "my task", "a/b", "task@1", "t".repeat(251)])(
+    "keeps a taskId the server would reject visible in the manifest: %j",
+    (taskId) => {
+      const manifest = buildBundleManifest(new DagRegistry(buildDag("example_dag", taskId)));
+      expect(manifest.dags["example_dag"]).toEqual({ tasks: [taskId] });
+    },
+  );
+
+  it("rejects a non-string dagId before object-key coercion hides it", () => {
+    const dag = new Dag(123 as unknown as string);
+    dag.task("t1", async () => undefined);
+    expect(() => buildBundleManifest(new DagRegistry(dag))).toThrowError(/Dag ID must be a string/);
   });
 });
 
@@ -49,13 +100,15 @@ describe("startCoordinator --airflow-metadata", () => {
   it("dumps the manifest to stdout and returns without connecting", async () => {
     const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
 
-    await startCoordinator({ argv: ["node", "bundle.mjs", "--airflow-metadata"] });
+    await startCoordinator(new DagRegistry(buildDag("metadata_dag", "only")), {
+      argv: ["node", "bundle.mjs", "--airflow-metadata"],
+    });
 
     expect(write).toHaveBeenCalledTimes(1);
     const written = String(write.mock.calls[0]![0]);
     expect(written.startsWith(AIRFLOW_METADATA_SENTINEL)).toBe(true);
     const payload = JSON.parse(written.slice(AIRFLOW_METADATA_SENTINEL.length));
     expect(payload.supervisor_schema_version).toBe(SUPERVISOR_API_VERSION);
-    expect(payload.dags).toEqual({});
+    expect(payload.dags).toEqual({ metadata_dag: { tasks: ["only"] } });
   });
 });

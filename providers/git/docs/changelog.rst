@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+0.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix malformed GitDagBundle error message for missing repository path (#70622)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document commit SHA support for GitDagBundle tracking_ref (#69735)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 0.4.2
 .....
 

@@ -18,8 +18,8 @@
  */
 import { chakra, Code, Link } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
-import type { JSX } from "react";
-import * as React from "react";
+import type { JSX, ReactNode } from "react";
+import { Fragment } from "react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/requests/types.gen";
@@ -63,7 +63,7 @@ const addAnsiWithLinks = (line: string) => {
   }
 
   let currentIndex = 0;
-  const elements: Array<React.ReactNode> = [];
+  const elements: Array<ReactNode> = [];
 
   urlMatches.forEach((match) => {
     const { index: startIndex } = match;
@@ -130,12 +130,12 @@ export const renderTIContextPreamble = (
     <chakra.span lineHeight={1.5} opacity={0.7}>
       {label === undefined ? undefined : <chakra.span fontWeight="medium">{label}</chakra.span>}
       {fields.map((field) => (
-        <React.Fragment key={field}>
+        <Fragment key={field}>
           {" "}
           <span>
             <chakra.span color="fg.info">{field}</chakra.span>={String(context[field])}
           </span>
-        </React.Fragment>
+        </Fragment>
       ))}
     </chakra.span>
   );
@@ -325,7 +325,7 @@ const renderStructuredLogImpl = ({
         elements.push(` ${key === "logger" ? "source" : key}=${stringifiedValue} `);
       } else {
         elements.push(
-          <React.Fragment key={`space_${key}`}> </React.Fragment>,
+          <Fragment key={`space_${key}`}> </Fragment>,
           <span data-key={key} key={`struct_${key}`}>
             <chakra.span color="fg.info">{key === "logger" ? "source" : key}</chakra.span>=
             <span data-value>{stringifiedValue}</span>

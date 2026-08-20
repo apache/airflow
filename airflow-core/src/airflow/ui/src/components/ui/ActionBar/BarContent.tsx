@@ -17,11 +17,11 @@
  * under the License.
  */
 import { ActionBar, Portal } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { forwardRef, type RefObject } from "react";
 
 type ActionBarContentProps = {
   readonly portalled?: boolean;
-  readonly portalRef?: React.RefObject<HTMLElement>;
+  readonly portalRef?: RefObject<HTMLElement>;
 } & ActionBar.ContentProps;
 
 export const Content = forwardRef<HTMLDivElement, ActionBarContentProps>((props, ref) => {

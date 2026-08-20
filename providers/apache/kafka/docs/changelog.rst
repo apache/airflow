@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+1.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'return_apply_function_results' to ConsumeFromTopicOperator to return apply_function results (#69740)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 1.15.1
 ......
 

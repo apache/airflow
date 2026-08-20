@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, HStack } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { Button, HStack } from "@chakra-ui/react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MdAdd, MdClear } from "react-icons/md";
+import { IoFilter } from "react-icons/io5";
+import { MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
 import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
 import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
+import { BooleanFilter } from "./filters/BooleanFilter";
 import { DateFilter } from "./filters/DateFilter";
 import { DateRangeFilter } from "./filters/DateRangeFilter";
+import { MultiSelectFilter } from "./filters/MultiSelectFilter";
 import { NumberFilter } from "./filters/NumberFilter";
 import { SelectFilter } from "./filters/SelectFilter";
 import { TextSearchFilter } from "./filters/TextSearchFilter";
@@ -36,8 +39,7 @@ import { getDefaultFilterValue, isValidFilterValue } from "./utils";
 
 const defaultInitialValues: Record<string, FilterValue> = {};
 
-const getFilterIcon = (config: FilterConfig): React.ReactNode =>
-  config.icon ?? getDefaultFilterIcon(config.type);
+const getFilterIcon = (config: FilterConfig): ReactNode => config.icon ?? getDefaultFilterIcon(config.type);
 
 export const FilterBar = ({
   configs,
@@ -161,18 +163,34 @@ export const FilterBar = ({
     (config) => !filters.some((filter) => filter.config.key === config.key),
   );
 
-  const renderFilter = (filter: FilterState) => {
+  const renderFilter = (filterState: FilterState) => {
+    // Pills snapshot their config when created, which for URL-seeded filters can happen
+    // before the i18n namespaces resolve — leaving raw keys as labels. Re-read the live
+    // config each render so labels and option lists stay current.
+    const liveConfig = configs.find((config) => config.key === filterState.config.key);
+    const filter = liveConfig === undefined ? filterState : { ...filterState, config: liveConfig };
+
     const props = {
       filter,
       onChange: (value: FilterValue) => updateFilter(filter.id, value),
       onRemove: () => removeFilter(filter.id),
     };
 
+    const { EditorComponent } = filter.config;
+
+    if (EditorComponent !== undefined) {
+      return <EditorComponent key={filter.id} {...props} />;
+    }
+
     switch (filter.config.type) {
+      case "boolean":
+        return <BooleanFilter key={filter.id} {...props} />;
       case "date":
         return <DateFilter key={filter.id} {...props} />;
       case "daterange":
         return <DateRangeFilter key={filter.id} {...props} />;
+      case "multiselect":
+        return <MultiSelectFilter key={filter.id} {...props} />;
       case "number":
         return <NumberFilter key={filter.id} {...props} />;
       case "select":
@@ -185,43 +203,47 @@ export const FilterBar = ({
   };
 
   return (
-    <Flex align="flex-start" gap={2} justify="space-between" width="100%">
-      <HStack flex="1" gap={2} minW={0} wrap="wrap">
-        {filters.slice(0, maxVisibleFilters).map(renderFilter)}
-        {availableConfigs.length > 0 && (
-          <Menu.Root>
-            <Menu.Trigger asChild>
-              <Button
-                _hover={{ bg: "colorPalette.subtle" }}
-                bg="gray.muted"
-                borderRadius="full"
-                data-testid="add-filter-button"
-                variant="outline"
+    <HStack display="inline-flex" flex="1" gapX={1} gapY={2} minW={0} w="100%" wrap="wrap">
+      {availableConfigs.length > 0 && (
+        <Menu.Root>
+          <Menu.Trigger asChild>
+            <Button
+              _hover={{ bg: "colorPalette.subtle" }}
+              bg="gray.muted"
+              borderRadius="full"
+              data-testid="add-filter-button"
+              variant="outline"
+            >
+              <IoFilter />
+              {translate("common:filters.addFilter")}
+            </Button>
+          </Menu.Trigger>
+          <Menu.Content>
+            {availableConfigs.map((config) => (
+              <Menu.Item
+                data-testid={`add-filter-${config.key}`}
+                key={config.key}
+                onClick={() => addFilter(config)}
+                value={config.key}
               >
-                <MdAdd />
-                {translate("common:filter")}
-              </Button>
-            </Menu.Trigger>
-            <Menu.Content>
-              {availableConfigs.map((config) => (
-                <Menu.Item key={config.key} onClick={() => addFilter(config)} value={config.key}>
-                  <HStack gap={2}>
-                    {getFilterIcon(config)}
-                    {config.label}
-                  </HStack>
-                </Menu.Item>
-              ))}
-            </Menu.Content>
-          </Menu.Root>
-        )}
-        {filters.length > 0 && (
-          <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
-            <MdClear />
-            {translate("common:reset")}
-          </Button>
-        )}
-      </HStack>
+                <HStack gap={2}>
+                  {getFilterIcon(config)}
+                  {config.label}
+                </HStack>
+              </Menu.Item>
+            ))}
+          </Menu.Content>
+        </Menu.Root>
+      )}
+      {filters.slice(0, maxVisibleFilters).map(renderFilter)}
+
+      {filters.length > 0 && (
+        <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
+          <MdClear />
+          {translate("common:reset")}
+        </Button>
+      )}
       {showPresetFilters ? <PresetFiltersMenu /> : undefined}
-    </Flex>
+    </HStack>
   );
 };

@@ -241,7 +241,8 @@ class TestIBMMQMessageQueueProvider:
 
         trigger = MessageQueueTrigger(queue="ibmmq://mq_default/MY.QUEUE.NAME", open_options=32)
         assert trigger.scheme is None
-        assert trigger.queue == "ibmmq://mq_default/MY.QUEUE.NAME"
+        assert trigger.queue_uri == "ibmmq://mq_default/MY.QUEUE.NAME"
+        assert trigger.queue is None
         assert isinstance(trigger.trigger, AwaitMessageTrigger)
         assert trigger.trigger.mq_conn_id == "mq_default"
         assert trigger.trigger.queue_name == "MY.QUEUE.NAME"

@@ -205,24 +205,29 @@ def classification_result(provider_id, changed_files):
     def is_doc(f):
         return re.match(r"^providers/.+/docs/", f) and f.endswith(".rst")
 
-    def is_test_or_example(f):
-        return re.match(r"^providers/.+/tests/", f) or re.match(
-            r"^providers/.+/src/airflow/providers/.+/example_dags/", f
+    def is_not_shipped(f):
+        # tests, example DAGs and dev/ (local-only tooling such as simulators, generators, etc.) are
+        # never part of the sdist (see the provider's `[tool.flit.sdist] include` list), so changes
+        # confined to these paths have no PyPI-facing impact.
+        return (
+            re.match(r"^providers/.+/tests/", f)
+            or re.match(r"^providers/.+/src/airflow/providers/.+/example_dags/", f)
+            or re.match(r"^providers/.+/dev/", f)
         )
 
     all_docs = all(is_doc(f) for f in changed_files)
-    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+    all_not_shipped = all(is_not_shipped(f) for f in changed_files)
 
     has_docs = any(is_doc(f) for f in changed_files)
-    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+    has_not_shipped = any(is_not_shipped(f) for f in changed_files)
 
-    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+    has_real_code = any(not (is_doc(f) or is_not_shipped(f)) for f in changed_files)
 
     if all_docs:
         return "documentation"
-    if all_test_or_example:
+    if all_not_shipped:
         return "test_or_example_only"
-    if not has_real_code and (has_docs or has_test_or_example):
+    if not has_real_code and (has_docs or has_not_shipped):
         return "documentation"
     return "other"
 
@@ -232,7 +237,7 @@ def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
     Classify a provider commit based on changed files.
 
     - Returns 'documentation' if any provider doc files are present.
-    - Returns 'test_or_example_only' if only test/example DAGs changed.
+    - Returns 'test_or_example_only' if only test/example DAGs/dev-only tooling changed.
     - Returns 'other' otherwise.
     """
     try:
@@ -268,6 +273,7 @@ _DETERMINISTIC_CLASSIFICATION_NAMES = {
 }
 
 _BUMP_SUBJECT_RE = re.compile(r"^\s*bump\b", re.IGNORECASE)
+_RELEASE_PREP_SUBJECT_RE = re.compile(r"^\s*Prepare providers release \d{4}-\d{2}-\d{2}\b", re.IGNORECASE)
 
 
 def classify_change_deterministically(provider_id: str, change: Change) -> tuple[str, str]:
@@ -277,9 +283,10 @@ def classify_change_deterministically(provider_id: str, change: Change) -> tuple
     ``documentation``, ``skip``, ``misc`` (decided here) or ``needs_llm`` (no
     high-confidence rule matched - an LLM/agent must assess the type of change).
 
-    Intentionally conservative: only changed-files heuristics and a ``Bump``
-    dependency-bump subject are trusted. ``Fix``/``Add`` subjects are NOT
-    auto-classified as bugfix/feature, since they are wrong too often to be safe.
+    Intentionally conservative: only changed-files heuristics, a ``Prepare providers
+    release YYYY-MM-DD`` subject, and a ``Bump`` dependency-bump subject are trusted.
+    ``Fix``/``Add`` subjects are NOT auto-classified as bugfix/feature, since they are
+    wrong too often to be safe.
     """
     files_class = classify_provider_pr_files(provider_id, change.full_hash)
     if files_class == "documentation":
@@ -287,7 +294,13 @@ def classify_change_deterministically(provider_id: str, change: Change) -> tuple
             "only provider documentation (*.rst) files changed"
         )
     if files_class == "test_or_example_only":
-        return _DETERMINISTIC_CLASSIFICATION_NAMES[TypeOfChange.SKIP], ("only tests / example DAGs changed")
+        return _DETERMINISTIC_CLASSIFICATION_NAMES[TypeOfChange.SKIP], (
+            "only tests / example DAGs / dev-only tooling changed"
+        )
+    if _RELEASE_PREP_SUBJECT_RE.match(change.message):
+        return _DETERMINISTIC_CLASSIFICATION_NAMES[TypeOfChange.SKIP], (
+            "release-preparation commit (subject matches 'Prepare providers release YYYY-MM-DD')"
+        )
     if _BUMP_SUBJECT_RE.match(change.message):
         return _DETERMINISTIC_CLASSIFICATION_NAMES[TypeOfChange.MISC], (
             "dependency bump (subject starts with 'Bump')"
@@ -872,7 +885,12 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
-            answer = user_confirm(f"Does the provider: {provider_id} have any changes apart from 'doc-only'?")
+            answer = user_confirm(
+                f"Does the provider: {provider_id} have any changes apart from 'doc-only'? "
+                f"(Answering 'no' marks this as a doc-only change, updating the "
+                f"'.latest-doc-only-change.txt' marker file for you to commit - no new PyPI "
+                f"package version will be prepared for release)"
+            )
             if answer == Answer.NO:
                 _mark_latest_changes_as_documentation_only(provider_id, list_of_list_of_changes)
                 return with_breaking_changes, maybe_with_new_features, False
@@ -895,7 +913,15 @@ def update_release_notes(
                     type_of_change = TypeOfChange.DOCUMENTATION
                 elif classification == "test_or_example_only":
                     console_print(
-                        f"[green]Automatically classifying change as SKIPPED since it only contains test/example changes:[/]\n"
+                        f"[green]Automatically classifying change as SKIPPED since it only contains "
+                        f"test/example/dev-only tooling changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.SKIP
+                elif _RELEASE_PREP_SUBJECT_RE.match(change.message):
+                    console_print(
+                        f"[green]Automatically classifying change as SKIPPED since it is a "
+                        f"release-preparation commit:[/]\n"
                         f"[blue]{formatted_message}[/]"
                     )
                     type_of_change = TypeOfChange.SKIP

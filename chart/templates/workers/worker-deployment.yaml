@@ -403,6 +403,15 @@ spec:
           {{- end }}
           args: ["kerberos"]
           resources: {{- toYaml .Values.workers.celery.kerberosSidecar.resources | nindent 12 }}
+          {{- if .Values.workers.celery.kerberosSidecar.startupProbe.enabled }}
+          startupProbe:
+            exec:
+              command: ["klist", "-s"]
+            timeoutSeconds: {{ .Values.workers.celery.kerberosSidecar.startupProbe.timeoutSeconds }}
+            initialDelaySeconds: {{ .Values.workers.celery.kerberosSidecar.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.workers.celery.kerberosSidecar.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.workers.celery.kerberosSidecar.startupProbe.failureThreshold }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}

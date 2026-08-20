@@ -28,13 +28,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // TestCoordinatorClientGetVariableEnvOverride verifies that an
 // AIRFLOW_VAR_<UPPER(key)> environment override short-circuits the comm
-// socket, matching the HTTP-backed sdk.client behaviour.
+// socket.
 func TestCoordinatorClientGetVariableEnvOverride(t *testing.T) {
 	t.Setenv("AIRFLOW_VAR_MY_KEY", "env_value")
 
@@ -75,8 +74,7 @@ func TestCoordinatorClientGetVariableNoEnvOverride(t *testing.T) {
 
 // TestCoordinatorClientErrorTranslation verifies that GetVariable,
 // GetConnection, and GetXCom translate the supervisor's *_NOT_FOUND error
-// codes into the SDK sentinel errors so call-site `errors.Is` checks behave
-// the same in coordinator and HTTP mode.
+// codes into the SDK sentinel errors used by task code.
 func TestCoordinatorClientErrorTranslation(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -255,10 +253,10 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 			client := NewCoordinatorClient(comm)
 
-			ti := api.TaskInstance{
-				DagId:    "d",
-				RunId:    "r",
-				TaskId:   "t",
+			ti := sdk.TaskInstance{
+				DagID:    "d",
+				RunID:    "r",
+				TaskID:   "t",
 				MapIndex: tc.mapIndex,
 			}
 			require.NoError(t, client.PushXCom(context.Background(), ti, "k", "v"))

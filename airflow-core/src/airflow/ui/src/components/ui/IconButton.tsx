@@ -27,12 +27,14 @@ type Props = {
 } & IconButtonProps;
 
 // variant="ghost" is set here since IconButton shares the button recipe with Button.
+// The tooltip is portalled so it escapes surrounding stacking contexts — a z-index alone cannot
+// lift it above a sibling that creates its own.
 export const IconButton = forwardRef<HTMLButtonElement, Props>(
   ({ label, variant = "ghost", ...props }, ref) =>
     label === undefined ? (
       <ChakraIconButton ref={ref} variant={variant} {...props} />
     ) : (
-      <Tooltip content={label}>
+      <Tooltip content={label} portalled>
         <ChakraIconButton aria-label={label} ref={ref} variant={variant} {...props} />
       </Tooltip>
     ),

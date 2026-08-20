@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 CONF_SECTION_NAME = "keycloak_auth_manager"
+CONF_CACHE_TTL_SECONDS_KEY = "cache_ttl_seconds"
+CONF_CACHE_TIMEOUT_SECONDS_KEY = "cache_timeout_seconds"
 CONF_CLIENT_ID_KEY = "client_id"
 CONF_CLIENT_SECRET_KEY = "client_secret"
 CONF_REALM_KEY = "realm"

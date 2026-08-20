@@ -23,12 +23,12 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { ReactAppResponse } from "openapi/requests/types.gen";
 import { DurationChart } from "src/components/DurationChart";
 import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
 import { ReactPlugin } from "src/pages/ReactPlugin";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -74,10 +74,8 @@ export const Overview = () => {
     },
   );
   const { data: pluginData } = usePluginServiceGetPlugins();
-  const taskOverviewReactPlugins =
-    pluginData?.plugins
-      .flatMap((plugin) => plugin.react_apps)
-      .filter((plugin: ReactAppResponse) => plugin.destination === "task_overview") ?? [];
+  const reactApps = pluginData?.plugins.flatMap((plugin) => plugin.react_apps) ?? [];
+  const taskOverviewReactPlugins = useScopedPluginViews(reactApps, "task_overview");
 
   return (
     <VStack alignItems="stretch" gap={4} m={4}>

@@ -1150,12 +1150,16 @@ export type DagRunAssetReference = {
     run_id: string;
     dag_id: string;
     logical_date: string | null;
-    start_date: string;
+    start_date: string | null;
     end_date: string | null;
     state: string;
     data_interval_start: string | null;
     data_interval_end: string | null;
     partition_key: string | null;
+    /**
+     * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
+     */
+    triggering: boolean;
 };
 
 /**
@@ -1189,6 +1193,7 @@ export type DagScheduleAssetReference = {
     dag_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**
@@ -1309,6 +1314,7 @@ export type ExternalViewResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -1536,6 +1542,17 @@ export type PatchTaskInstanceBody = {
 };
 
 /**
+ * Serializer for the optional Dag/task scoping criteria of a UI plugin.
+ */
+export type PluginAppliesToResponse = {
+    dag_tags?: Array<(string)> | null;
+    dag_ids?: Array<(string)> | null;
+    task_ids?: Array<(string)> | null;
+    operators?: Array<(string)> | null;
+    operator_names?: Array<(string)> | null;
+};
+
+/**
  * Plugin Collection serializer.
  */
 export type PluginCollectionResponse = {
@@ -1685,6 +1702,7 @@ export type ReactAppResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
@@ -1921,6 +1939,7 @@ export type TaskOutletAssetReference = {
     task_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**
@@ -2190,6 +2209,10 @@ export type XComUpdateBody = {
 export type AuthenticatedMeResponse = {
     id: string;
     username: string;
+    /**
+     * Teams the user has access to. Null when the environment does not run in multi-team mode.
+     */
+    teams?: Array<(string)> | null;
 };
 
 /**
@@ -5419,6 +5442,10 @@ export type $OpenApiTs = {
                  */
                 200: DryRunBackfillCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -5771,6 +5798,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5835,6 +5866,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6376,6 +6411,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
@@ -6532,6 +6571,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunLightResponse | null;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -7057,6 +7100,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7273,6 +7320,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -8521,6 +8572,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BaseGraphResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

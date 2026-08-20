@@ -76,7 +76,7 @@ apache-airflow-providers-samba package
 `Samba <https://www.samba.org/>`__
 
 
-Release: 4.12.6
+Release: 4.13.0
 
 Provider package
 ----------------
@@ -147,5 +147,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-samba 4.12.6 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.12.6.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.12.6.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.12.6.tar.gz.sha512>`__)
-* `The apache-airflow-providers-samba 4.12.6 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.12.6-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.12.6-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.12.6-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-samba 4.13.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.13.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.13.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.13.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-samba 4.13.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.13.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.13.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_samba-4.13.0-py3-none-any.whl.sha512>`__)

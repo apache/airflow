@@ -51,6 +51,7 @@ alibaba
 alibabacloud
 allAuthenticatedUsers
 allowlist
+allowlists
 allUsers
 alphanumerics
 amazonaws
@@ -175,7 +176,9 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
+BatchNodeState
 BatchServiceClient
 bc
 bcc
@@ -319,6 +322,7 @@ contrib
 convertToIri
 cooldown
 copyable
+coreutils
 CoreV
 coroutine
 cosmosdb
@@ -461,6 +465,7 @@ deliverability
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations
@@ -1069,9 +1074,12 @@ metastore
 metavar
 mget
 mgmt
+MiB
 microservice
 microservices
 microsoft
+microVM
+microVMs
 middleware
 middlewares
 midnights
@@ -1486,6 +1494,7 @@ sanitization
 sas
 Sasl
 sasl
+sbx
 scala
 scalability
 scalable

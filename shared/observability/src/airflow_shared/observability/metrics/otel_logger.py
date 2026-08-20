@@ -19,6 +19,7 @@ from __future__ import annotations
 import atexit
 import datetime
 import logging
+import os
 import random
 import warnings
 from collections.abc import Callable
@@ -75,6 +76,11 @@ UP_DOWN_COUNTERS = {"airflow.dag_processing.processes"}
 DEFAULT_METRIC_NAME_PREFIX = "airflow"
 # Delimiter is placed between the universal metric prefix and the unique metric name.
 DEFAULT_METRIC_NAME_DELIMITER = "."
+
+# Not imported from ``opentelemetry.sdk.environment_variables``: the constant postdates the
+# ``opentelemetry-api>=1.27.0`` floor this distribution declares, while the name is spec-fixed.
+# https://opentelemetry.io/docs/specs/otel/configuration/sdk/#declarative-configuration
+OTEL_CONFIG_FILE = "OTEL_CONFIG_FILE"
 
 
 def full_name(name: str, *, prefix: str = DEFAULT_METRIC_NAME_PREFIX) -> str:
@@ -457,11 +463,24 @@ def get_otel_logger(
     so that bucket boundaries adapt automatically to the observed data range.  This avoids
     the need to hand-tune explicit bucket boundaries for metrics that span very different
     scales (milliseconds to hours).
+
+    A ``MeterProvider`` already built from ``OTEL_CONFIG_FILE`` is used as-is: the declarative
+    configuration spec makes that file the sole source of SDK construction.
     """
+    effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
+    validator = get_validator(metrics_allow_list, metrics_block_list)
+
+    configured_provider = metrics.get_meter_provider()
+    if os.environ.get(OTEL_CONFIG_FILE) and isinstance(configured_provider, MeterProvider):
+        log.info("%s is set; using the MeterProvider it built.", OTEL_CONFIG_FILE)
+        atexit_register_metrics_flush()
+        return SafeOtelLogger(
+            configured_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
+        )
+
     otel_env_config = load_metrics_env_config()
 
     effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
-    effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
 
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
@@ -523,8 +542,6 @@ def get_otel_logger(
 
     # Register a hook that flushes any in-memory metrics at shutdown.
     atexit_register_metrics_flush()
-
-    validator = get_validator(metrics_allow_list, metrics_block_list)
 
     return SafeOtelLogger(
         metrics.get_meter_provider(), effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled

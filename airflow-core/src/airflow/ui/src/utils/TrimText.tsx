@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Box, useDisclosure, Heading, Stack } from "@chakra-ui/react";
+import { Text, Box, useDisclosure, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Dialog, Tooltip } from "src/components/ui";
+import { Modal, Tooltip } from "src/components/ui";
 
 import { capitalize } from "./capitalize";
 import { trimText } from "./trimTextFn";
@@ -69,52 +69,46 @@ export const TrimText = ({
         </Box>
       </Tooltip>
 
-      <Dialog.Root onOpenChange={onClose} open={isClickable ? open : undefined}>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <Heading size="xl">{translate("trimText.details")}</Heading>
-          </Dialog.Header>
+      <Modal
+        onOpenChange={onClose}
+        open={isClickable ? open : undefined}
+        title={translate("trimText.details")}
+      >
+        <Stack gap={4}>
+          {onClickContent ? (
+            Object.entries(onClickContent).map(([key, value]) => {
+              const formattedKey = formatKey(key);
+              const isEmpty = value === "" || value === null;
 
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body>
-            <Stack gap={4}>
-              {onClickContent ? (
-                Object.entries(onClickContent).map(([key, value]) => {
-                  const formattedKey = formatKey(key);
-                  const isEmpty = value === "" || value === null;
-
-                  return (
-                    <Box key={key}>
-                      <Text fontWeight="bold" mb={2}>
-                        {formattedKey}
-                      </Text>
-                      <Box
-                        bg="bg.subtle"
-                        borderRadius="md"
-                        maxHeight={200}
-                        overflow="auto"
-                        overflowWrap="break-word"
-                        p={4}
-                        whiteSpace="pre-wrap"
-                      >
-                        <Text
-                          color={isEmpty ? "gray.emphasized" : undefined}
-                          fontWeight={isEmpty ? "bold" : "normal"}
-                        >
-                          {isEmpty ? translate("trimText.empty") : String(value)}
-                        </Text>
-                      </Box>
-                    </Box>
-                  );
-                })
-              ) : (
-                <Text>{translate("trimText.noContent")}</Text>
-              )}
-            </Stack>
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+              return (
+                <Box key={key}>
+                  <Text fontWeight="bold" mb={2}>
+                    {formattedKey}
+                  </Text>
+                  <Box
+                    bg="bg.subtle"
+                    borderRadius="md"
+                    maxHeight={200}
+                    overflow="auto"
+                    overflowWrap="break-word"
+                    p={4}
+                    whiteSpace="pre-wrap"
+                  >
+                    <Text
+                      color={isEmpty ? "gray.emphasized" : undefined}
+                      fontWeight={isEmpty ? "bold" : "normal"}
+                    >
+                      {isEmpty ? translate("trimText.empty") : String(value)}
+                    </Text>
+                  </Box>
+                </Box>
+              );
+            })
+          ) : (
+            <Text>{translate("trimText.noContent")}</Text>
+          )}
+        </Stack>
+      </Modal>
     </>
   );
 };

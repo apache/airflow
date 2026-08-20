@@ -25,18 +25,18 @@
 Changelog
 ---------
 
+0.9.0
+.....
+
 .. note::
     Upgrading the provider does not update existing Keycloak permissions. For each existing team,
-    run ``airflow keycloak-auth-manager create-team <team>`` again to update the team ReadOnly
-    permission. For non-team installations, run
-    ``airflow keycloak-auth-manager create-permissions`` again without ``--teams`` to update the
-    global Admin permission.
+    run ``airflow keycloak-auth-manager create-team <team>`` again to update the team-specific
+    permissions and repair the global ``ReadOnly`` and ``Admin`` permissions. For non-team
+    installations, run ``airflow keycloak-auth-manager create-permissions`` again without
+    ``--teams`` to update the global ``ReadOnly`` and ``Admin`` permissions.
 
     Manually added policies attached to these permissions will also be evaluated under the
     ``AFFIRMATIVE`` strategy after the update.
-
-0.9.0
-.....
 
 .. note::
     For Airflow v3.3.0+ Keycloak's access and refresh tokens are now stored in dedicated
@@ -49,13 +49,30 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Grant team Op role access to team Dags in Keycloak auth manager (#71572)``
+* ``Make KeycloakAuthManager '_CACHE_TTL_SECONDS' configurable (#70839)``
+* ``Add KeycloakJWTMiddleware to KeycloakAuthManager (#70800, #71077, #71506)``
 * ``Implement bulk authorization methods in KeycloakAuthManager (#70647)``
-* ``Move keycloak JWT tokens to separate cookies (#70550)``
-* ``Add KeycloakJWTMiddleware to KeycloakAuthManager (#70800)``
 * ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Keycloak multi-team permission repair (#71614)``
+* ``Make Keycloak permission creation quietly idempotent like its sibling helpers (#71505)``
+* ``Fix Keycloak access for individual roles (#70906)``
+* ``Move keycloak JWT tokens to separate cookies (#70550, #70981)``
+
+Misc
+~~~~
+
+* ``Remove groups claim from access tokens in the Keycloak client created by the KeycloakAuthManager CLI (#71093)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Correct the uv.lock versions and keycloak changelog after the 2026-08-01 wave (#70952)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
    * ``Add tests for Keycloak token models (#70689)``
 
 0.8.2

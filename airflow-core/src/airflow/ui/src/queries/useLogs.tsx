@@ -44,6 +44,7 @@ export type ParsedLogEntry = {
   getPlainText?: () => string;
   group?: { id: number; level: number; parentId?: number; type: "header" | "line" };
   lineNumber?: number;
+  timestamp?: string;
 };
 
 type GetLogLineTextOptions = {
@@ -208,6 +209,7 @@ const parseLogs = ({
       }
 
       const currentGroup = groupStack[groupStack.length - 1];
+      const timestamp = typeof logMessage === "string" ? undefined : logMessage.timestamp;
 
       if (groupStack.length > 0 && currentGroup) {
         result.push({
@@ -215,9 +217,10 @@ const parseLogs = ({
           getPlainText,
           group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
           lineNumber,
+          timestamp,
         });
       } else {
-        result.push({ element, getPlainText, lineNumber });
+        result.push({ element, getPlainText, lineNumber, timestamp });
       }
     });
 

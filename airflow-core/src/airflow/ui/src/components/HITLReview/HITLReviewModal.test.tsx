@@ -27,6 +27,7 @@ import { HITLReviewModal } from "./HITLReviewModal";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string) => key,
   }),

@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Menu as ChakraMenu, Portal } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { forwardRef, type RefObject } from "react";
 
 type MenuContentProps = {
   readonly portalled?: boolean;
-  readonly portalRef?: React.RefObject<HTMLElement>;
+  readonly portalRef?: RefObject<HTMLElement>;
 } & ChakraMenu.ContentProps;
 
 export const Content = forwardRef<HTMLDivElement, MenuContentProps>((props, ref) => {

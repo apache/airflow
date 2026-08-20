@@ -37,5 +37,16 @@ class AnthropicAgentSessionError(AnthropicError):
     """Raised when a Managed Agents session terminates or fails."""
 
 
+class AnthropicSessionBudgetExceeded(AnthropicAgentSessionError):
+    """
+    Raised when a Managed Agents session stops against its configured budget.
+
+    A subclass of :class:`AnthropicAgentSessionError` so existing handlers keep working,
+    but it can be caught on its own: a budget stop is a spend decision, not a fault, and
+    usually wants different handling (alert, raise the ceiling, route to review) than a
+    failed run.
+    """
+
+
 class AnthropicAgentSessionTimeout(AnthropicError):
     """Raised when a Managed Agents session does not reach a terminal status in time."""

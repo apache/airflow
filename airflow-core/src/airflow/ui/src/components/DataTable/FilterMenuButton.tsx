@@ -27,7 +27,7 @@ type Props<TData> = {
   readonly table: Table<TData>;
 };
 
-const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
+export const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
 
   const { t: translate } = useTranslation("common");
@@ -35,7 +35,7 @@ const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
   return (
     <Menu.Root closeOnSelect={false} tooltipLabel={translate("table.filterColumns")}>
       <Menu.Trigger asChild>
-        <IconButton aria-label={translate("table.filterColumns")}>
+        <IconButton aria-label={translate("table.filterColumns")} variant="outline">
           <LuColumns3 />
         </IconButton>
       </Menu.Trigger>
@@ -69,5 +69,3 @@ const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
     </Menu.Root>
   );
 };
-
-export default FilterMenuButton;

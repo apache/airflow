@@ -85,6 +85,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    alias_association_table,
     association_table,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
@@ -154,6 +155,18 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
+
+SCHEDULER_DAG_CACHE_SIZE = 512
+"""
+Max deserialized Dag versions the scheduler keeps in memory.
+
+The scheduler reaches its DagBag through the Dag version of each active Dag run, so an
+unbounded cache retains every version the process has ever seen and grows for the life of
+the process. Sized to sit above the versions-with-runs-in-flight working set of a typical
+deployment, so eviction costs a re-fetch only where that working set is genuinely larger.
+
+:meta private:
+"""
 
 # Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
 # Bounds the per-tick transaction so executor heartbeats and regular scheduling
@@ -370,7 +383,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = DBDagBag(load_op_links=False)
+        self.scheduler_dag_bag = DBDagBag(load_op_links=False, cache_size=SCHEDULER_DAG_CACHE_SIZE)
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
@@ -3831,8 +3844,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Check assets orphanization and update their active entry.
 
         An orphaned asset is no longer referenced in any DAG schedule parameters,
-        task outlets, or task inlets. Active assets (non-orphaned) have entries in
-        AssetActive and must have unique names and URIs.
+        task outlets, task inlets, or alias associations. Active assets (non-orphaned)
+        have entries in AssetActive and must have unique names and URIs.
 
         :seealso: :meth:`AssetModelOperation.activate_assets_if_possible`.
         """
@@ -3842,6 +3855,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 func.count(DagScheduleAssetReference.dag_id)
                 + func.count(TaskOutletAssetReference.dag_id)
                 + func.count(TaskInletAssetReference.dag_id)
+                # An asset materialized from an ``AssetAlias`` outlet is referenced only through
+                # the alias association, not the schedule/outlet/inlet tables. Count it so it is
+                # activated (and shown in the UI) instead of being treated as orphaned. See #58058.
+                + func.count(alias_association_table.c.alias_id)
             )
             == 0
         ).label("orphaned")
@@ -3850,6 +3867,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
             .outerjoin(TaskInletAssetReference)
+            .outerjoin(alias_association_table, alias_association_table.c.asset_id == AssetModel.id)
             .group_by(AssetModel.id)
         )
 

@@ -88,6 +88,8 @@ export const SearchBar = ({
   return (
     <InputGroup
       colorPalette="brand"
+      maxW={{ base: "100%", md: "300px" }}
+      w="100%"
       {...props}
       endElement={
         Boolean(value) || advancedSearch ? (
@@ -112,8 +114,11 @@ export const SearchBar = ({
       <Input
         data-testid="search-dags"
         onChange={onSearchChange}
-        placeholder={`${placeholder}${hotkeyDisabled ? undefined : ` (${metaKey}${translate("search.hotkey")})`}`}
+        placeholder={
+          hotkeyDisabled ? placeholder : `${placeholder} (${metaKey}${translate("search.hotkey")})`
+        }
         ref={searchRef}
+        size="sm"
         value={value}
       />
     </InputGroup>

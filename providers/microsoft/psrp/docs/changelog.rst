@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.2.7
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PsrpOperator option checks (#70347)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 3.2.6
 .....
 

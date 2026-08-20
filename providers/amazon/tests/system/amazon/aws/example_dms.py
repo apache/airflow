@@ -68,7 +68,19 @@ from system.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_dms"
 
-sys_test_context_task = SystemTestContextBuilder().build()
+# Optional externally fetched variables. When provided, the RDS instance and the DMS
+# replication instance are placed in the given subnet groups / security group.
+SUBNET_GROUP_KEY = "SUBNET_GROUP"
+SECURITY_GROUP_KEY = "SECURITY_GROUP"
+REPLICATION_SUBNET_GROUP_KEY = "REPLICATION_SUBNET_GROUP"
+
+sys_test_context_task = (
+    SystemTestContextBuilder()
+    .add_variable(SUBNET_GROUP_KEY, optional=True)
+    .add_variable(SECURITY_GROUP_KEY, optional=True)
+    .add_variable(REPLICATION_SUBNET_GROUP_KEY, optional=True)
+    .build()
+)
 
 # Config values for setting up the RDS databases.
 RDS_ENGINE = "postgres"
@@ -84,11 +96,6 @@ SAMPLE_DATA = [
     ("Subversion", "2000"),
     ("NiFi", "2006"),
 ]
-SG_IP_PERMISSION = {
-    "FromPort": 5432,
-    "IpProtocol": "All",
-    "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
-}
 
 
 def _get_rds_instance_endpoint(instance_name: str):
@@ -101,8 +108,12 @@ def _get_rds_instance_endpoint(instance_name: str):
 
 
 @task
-def create_security_group(security_group_name: str, vpc_id: str):
+def create_security_group(security_group_name: str, vpc_id: str, existing_security_group: str | None = None):
+    if existing_security_group:
+        print("Using the provided security group, skipping creation.")
+        return existing_security_group
     client = boto3.client("ec2")
+    vpc_cidr = client.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]["CidrBlock"]
     security_group = client.create_security_group(
         GroupName=security_group_name,
         Description="Created for DMS system test",
@@ -113,10 +124,46 @@ def create_security_group(security_group_name: str, vpc_id: str):
     )
     client.authorize_security_group_ingress(
         GroupId=security_group["GroupId"],
-        IpPermissions=[SG_IP_PERMISSION],
+        IpPermissions=[
+            {
+                "FromPort": 5432,
+                "ToPort": 5432,
+                "IpProtocol": "tcp",
+                "IpRanges": [{"CidrIp": vpc_cidr}],
+            }
+        ],
     )
 
     return security_group["GroupId"]
+
+
+@task
+def build_rds_kwargs(
+    db_name: str,
+    engine_version: str,
+    parameter_group_name: str,
+    security_group_id: str,
+    subnet_group: str | None = None,
+) -> dict:
+    """
+    Assemble the kwargs for RdsCreateDbInstanceOperator at runtime.
+
+    When a DB subnet group is provided via the test context, the instance is placed in it (e.g. private subnets
+    reachable by the test runner), otherwise it lands in the default VPC.
+    """
+    rds_kwargs = {
+        "DBName": db_name,
+        "AllocatedStorage": 20,
+        "MasterUsername": RDS_USERNAME,
+        "MasterUserPassword": RDS_PASSWORD,
+        "PubliclyAccessible": False,
+        "EngineVersion": engine_version,
+        "DBParameterGroupName": parameter_group_name,
+        "VpcSecurityGroupIds": [security_group_id],
+    }
+    if subnet_group:
+        rds_kwargs["DBSubnetGroupName"] = subnet_group
+    return rds_kwargs
 
 
 @task(multiple_outputs=True)
@@ -210,16 +257,24 @@ def create_dms_assets(
     replication_instance_name: str,
     source_endpoint_identifier: str,
     target_endpoint_identifier: str,
+    replication_subnet_group: str | None = None,
 ):
     print("Creating DMS assets.")
     dms_client = boto3.client("dms")
     rds_instance_endpoint = _get_rds_instance_endpoint(instance_name)
 
     print("Creating replication instance.")
-    instance_arn = dms_client.create_replication_instance(
-        ReplicationInstanceIdentifier=replication_instance_name,
-        ReplicationInstanceClass="dms.t3.small",
-    )["ReplicationInstance"]["ReplicationInstanceArn"]
+    replication_instance_kwargs = {
+        "ReplicationInstanceIdentifier": replication_instance_name,
+        "ReplicationInstanceClass": "dms.t3.small",
+    }
+    if replication_subnet_group:
+        # Place the replication instance in the same subnets as the (non publicly
+        # accessible) source database so it can reach its private endpoint.
+        replication_instance_kwargs["ReplicationSubnetGroupIdentifier"] = replication_subnet_group
+    instance_arn = dms_client.create_replication_instance(**replication_instance_kwargs)[
+        "ReplicationInstance"
+    ]["ReplicationInstanceArn"]
 
     print("Creating DMS source endpoint.")
     source_endpoint_arn = dms_client.create_endpoint(
@@ -290,7 +345,12 @@ def delete_dms_assets(
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_security_group(security_group_id: str, security_group_name: str):
+def delete_security_group(
+    security_group_id: str, security_group_name: str, existing_security_group: str | None = None
+):
+    if existing_security_group:
+        print("Security group was provided externally, skipping deletion.")
+        return
     boto3.client("ec2").delete_security_group(GroupId=security_group_id, GroupName=security_group_name)
 
 
@@ -311,6 +371,9 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
+    subnet_group = test_context[SUBNET_GROUP_KEY]
+    security_group = test_context[SECURITY_GROUP_KEY]
+    replication_subnet_group = test_context[REPLICATION_SUBNET_GROUP_KEY]
 
     rds_instance_name = f"{env_id}-instance"
     rds_source_db_name = f"{env_id}_source_database"  # dashes are not allowed in db name
@@ -345,25 +408,20 @@ with DAG(
 
     get_vpc_id = get_default_vpc_id()
 
-    create_sg = create_security_group(security_group_name, get_vpc_id)
+    create_sg = create_security_group(security_group_name, get_vpc_id, security_group)
 
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id="create_db_instance",
         db_instance_identifier=rds_instance_name,
         db_instance_class="db.t3.micro",
         engine=RDS_ENGINE,
-        rds_kwargs={
-            "DBName": rds_source_db_name,
-            "AllocatedStorage": 20,
-            "MasterUsername": RDS_USERNAME,
-            "MasterUserPassword": RDS_PASSWORD,
-            "PubliclyAccessible": True,
-            "EngineVersion": db_parameter_group["engine_version"],
-            "DBParameterGroupName": db_parameter_group["name"],
-            "VpcSecurityGroupIds": [
-                create_sg,
-            ],
-        },
+        rds_kwargs=build_rds_kwargs(
+            rds_source_db_name,
+            db_parameter_group["engine_version"],
+            db_parameter_group["name"],
+            create_sg,
+            subnet_group,
+        ),
     )
 
     create_target_db = create_target_database(
@@ -379,6 +437,7 @@ with DAG(
         replication_instance_name=dms_replication_instance_name,
         source_endpoint_identifier=source_endpoint_identifier,
         target_endpoint_identifier=target_endpoint_identifier,
+        replication_subnet_group=replication_subnet_group,
     )
 
     # [START howto_operator_dms_create_task]
@@ -538,7 +597,7 @@ with DAG(
         delete_assets,
         delete_db_instance,
         delete_parameter_group,
-        delete_security_group(create_sg, security_group_name),
+        delete_security_group(create_sg, security_group_name, security_group),
     )
 
     from tests_common.test_utils.watcher import watcher

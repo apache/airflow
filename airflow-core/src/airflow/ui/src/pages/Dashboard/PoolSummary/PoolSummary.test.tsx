@@ -47,6 +47,7 @@ vi.mock("src/utils", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: (namespace: string) => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) => {
       if (namespace === "dashboard" && key === "deferredSlotsNotCounted") {

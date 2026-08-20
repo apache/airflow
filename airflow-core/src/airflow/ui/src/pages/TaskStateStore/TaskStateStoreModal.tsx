@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
 import { useEffect, useMemo, useState } from "react";
@@ -30,7 +30,7 @@ import {
 } from "openapi/queries";
 import { DateTimeInput } from "src/components/DateTimeInput";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Dialog, ProgressBar } from "src/components/ui";
+import { Modal, ProgressBar } from "src/components/ui";
 import { useTimezone } from "src/context/timezone";
 import { useStoreMutation } from "src/queries/useStoreMutation";
 
@@ -143,109 +143,104 @@ export const TaskStateStoreModal = ({
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} unmountOnExit>
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading size="lg">{translate(`dag:taskStateStore.${mode}`)}</Heading>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          {isFetchingExisting ? (
-            <ProgressBar size="xs" />
-          ) : (
-            <VStack gap={4}>
-              <Box width="100%">
-                <Text fontWeight="bold" mb={2}>
-                  {translate("common:key")}
-                </Text>
-                {isEditMode ? (
-                  <Text>{storeKey}</Text>
-                ) : (
-                  <Input onChange={(event) => setKey(event.target.value)} value={key} />
-                )}
-              </Box>
+    <Modal
+      footerActions={
+        <Button
+          disabled={
+            isFetchingExisting ||
+            !isValueValid ||
+            (!isEditMode && key === "") ||
+            (expiresAt === "custom" && !customExpiresAt)
+          }
+          loading={isPending}
+          onClick={onSave}
+        >
+          {translate("common:modal.save")}
+        </Button>
+      }
+      lazyMount
+      onOpenChange={onClose}
+      open={isOpen}
+      title={translate(`dag:taskStateStore.${mode}`)}
+      unmountOnExit
+    >
+      {isFetchingExisting ? (
+        <ProgressBar size="xs" />
+      ) : (
+        <VStack gap={4}>
+          <Box width="100%">
+            <Text fontWeight="bold" mb={2}>
+              {translate("common:key")}
+            </Text>
+            {isEditMode ? (
+              <Text>{storeKey}</Text>
+            ) : (
+              <Input onChange={(event) => setKey(event.target.value)} value={key} />
+            )}
+          </Box>
 
-              <Box width="100%">
-                <Text fontWeight="bold" mb={2}>
-                  {translate("common:value")}
-                </Text>
-                <JsonEditor onChange={setValue} value={value} />
-              </Box>
+          <Box width="100%">
+            <Text fontWeight="bold" mb={2}>
+              {translate("common:value")}
+            </Text>
+            <JsonEditor onChange={setValue} value={value} />
+          </Box>
 
-              <Box width="100%">
-                <Text fontWeight="bold" mb={2}>
-                  {translate("dag:taskStateStore.expiresAt.label")}
-                </Text>
-                <RadioCard.Root
-                  onValueChange={(ev) => setExpiresAt(ev.value as "custom" | "default" | "never")}
-                  value={expiresAt}
-                >
-                  <Flex gap={2}>
-                    <RadioCard.Item flex={1} value="default">
-                      <RadioCard.ItemHiddenInput />
-                      <RadioCard.ItemControl>
-                        <RadioCard.ItemContent>
-                          <RadioCard.ItemText>
-                            {translate("dag:taskStateStore.expiresAt.default", { interval: "30 days" })}
-                          </RadioCard.ItemText>
-                        </RadioCard.ItemContent>
-                        <RadioCard.ItemIndicator />
-                      </RadioCard.ItemControl>
-                    </RadioCard.Item>
-                    <RadioCard.Item flex={1} value="never">
-                      <RadioCard.ItemHiddenInput />
-                      <RadioCard.ItemControl>
-                        <RadioCard.ItemContent>
-                          <RadioCard.ItemText>
-                            {translate("dag:taskStateStore.expiresAt.never")}
-                          </RadioCard.ItemText>
-                        </RadioCard.ItemContent>
-                        <RadioCard.ItemIndicator />
-                      </RadioCard.ItemControl>
-                    </RadioCard.Item>
-                    <RadioCard.Item flex={1} value="custom">
-                      <RadioCard.ItemHiddenInput />
-                      <RadioCard.ItemControl>
-                        <RadioCard.ItemContent>
-                          <RadioCard.ItemText>
-                            {translate("dag:taskStateStore.expiresAt.custom")}
-                          </RadioCard.ItemText>
-                        </RadioCard.ItemContent>
-                        <RadioCard.ItemIndicator />
-                      </RadioCard.ItemControl>
-                    </RadioCard.Item>
-                  </Flex>
-                </RadioCard.Root>
-                {expiresAt === "custom" && (
-                  <DateTimeInput
-                    min={minDateTime}
-                    mt={2}
-                    onChange={(ev) => setCustomExpiresAt(ev.target.value)}
-                    value={customExpiresAt}
-                  />
-                )}
-              </Box>
-            </VStack>
-          )}
-        </Dialog.Body>
-        <Dialog.Footer>
-          <Button onClick={onClose} variant="outline">
-            {translate("common:modal.cancel")}
-          </Button>
-          <Button
-            disabled={
-              isFetchingExisting ||
-              !isValueValid ||
-              (!isEditMode && key === "") ||
-              (expiresAt === "custom" && !customExpiresAt)
-            }
-            loading={isPending}
-            onClick={onSave}
-          >
-            {translate("common:modal.save")}
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
-    </Dialog.Root>
+          <Box width="100%">
+            <Text fontWeight="bold" mb={2}>
+              {translate("dag:taskStateStore.expiresAt.label")}
+            </Text>
+            <RadioCard.Root
+              onValueChange={(ev) => setExpiresAt(ev.value as "custom" | "default" | "never")}
+              value={expiresAt}
+            >
+              <Flex gap={2}>
+                <RadioCard.Item flex={1} value="default">
+                  <RadioCard.ItemHiddenInput />
+                  <RadioCard.ItemControl>
+                    <RadioCard.ItemContent>
+                      <RadioCard.ItemText>
+                        {translate("dag:taskStateStore.expiresAt.default", { interval: "30 days" })}
+                      </RadioCard.ItemText>
+                    </RadioCard.ItemContent>
+                    <RadioCard.ItemIndicator />
+                  </RadioCard.ItemControl>
+                </RadioCard.Item>
+                <RadioCard.Item flex={1} value="never">
+                  <RadioCard.ItemHiddenInput />
+                  <RadioCard.ItemControl>
+                    <RadioCard.ItemContent>
+                      <RadioCard.ItemText>
+                        {translate("dag:taskStateStore.expiresAt.never")}
+                      </RadioCard.ItemText>
+                    </RadioCard.ItemContent>
+                    <RadioCard.ItemIndicator />
+                  </RadioCard.ItemControl>
+                </RadioCard.Item>
+                <RadioCard.Item flex={1} value="custom">
+                  <RadioCard.ItemHiddenInput />
+                  <RadioCard.ItemControl>
+                    <RadioCard.ItemContent>
+                      <RadioCard.ItemText>
+                        {translate("dag:taskStateStore.expiresAt.custom")}
+                      </RadioCard.ItemText>
+                    </RadioCard.ItemContent>
+                    <RadioCard.ItemIndicator />
+                  </RadioCard.ItemControl>
+                </RadioCard.Item>
+              </Flex>
+            </RadioCard.Root>
+            {expiresAt === "custom" && (
+              <DateTimeInput
+                min={minDateTime}
+                mt={2}
+                onChange={(ev) => setCustomExpiresAt(ev.target.value)}
+                value={customExpiresAt}
+              />
+            )}
+          </Box>
+        </VStack>
+      )}
+    </Modal>
   );
 };

@@ -839,6 +839,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
+      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      startupProbe:
+        enabled: true
+        timeoutSeconds: 5
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        failureThreshold: 6
+
     # Kerberos init container configuration for Airflow Celery workers
     # If not set, the values from `workers.kerberosInitContainer` section will be used.
     kerberosInitContainer:
@@ -1085,6 +1094,15 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
+      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      startupProbe:
+        enabled: true
+        timeoutSeconds: 5
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        failureThreshold: 6
 
     # Kerberos init container configuration for pods created with pod-template-file
     # If not set, the values from `workers.kerberosInitContainer` section will be used.
@@ -2917,6 +2935,12 @@ pgbouncer:
       exec:
         # Allow existing queries clients to complete within 120 seconds
         command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+
+  # Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.
+  # Matches the default preStop hook above, which needs up to 120 seconds to
+  # drain client connections; with a shorter grace period the pod is killed
+  # mid-drain and in-flight connections are cut.
+  terminationGracePeriodSeconds: 120
 
   metricsExporterSidecar:
     resources: {}

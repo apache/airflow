@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, Text } from "@chakra-ui/react";
+import { Button, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -154,11 +154,8 @@ export const Backfills = () => {
   const columns = getColumns(onSelectBackfill, translate);
 
   return (
-    <Box>
+    <>
       <ErrorAlert error={error} />
-      <Heading my={1} size="md">
-        {translate("backfill", { count: data ? data.total_entries : 0 })}
-      </Heading>
       <DataTable
         columns={columns}
         data={data ? data.backfills : []}
@@ -174,6 +171,6 @@ export const Backfills = () => {
         onClose={onClose}
         open={hasSelectedBackfill}
       />
-    </Box>
+    </>
   );
 };

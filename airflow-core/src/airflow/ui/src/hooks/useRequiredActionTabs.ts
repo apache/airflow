@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -30,7 +30,7 @@ export type HITLQueryParams = {
 };
 
 export type TabItem = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 };

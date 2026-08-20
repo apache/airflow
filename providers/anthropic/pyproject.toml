@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-anthropic"
-version = "0.2.1"
+version = "0.3.0"
 description = "Provider package apache-airflow-providers-anthropic for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -61,17 +61,20 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    # 0.101.0 is the first release that ships AnthropicAWS, the newest of the platform
-    # client classes the hook imports at module top.
-    "anthropic>=0.101.0",
+    # 0.121.0 is the first release whose ``sessions.create`` accepts ``budget``, which is
+    # how the guide tells users to set a session ceiling. Reading a ``budget_reached`` stop
+    # reason happens to work further back -- older clients mis-build the discriminated
+    # union into the wrong variant class while preserving ``.type`` -- but only with
+    # response validation left non-strict, so it is not something to depend on.
+    "anthropic>=0.121.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"bedrock" = ["anthropic[bedrock]>=0.101.0"]
-"vertex" = ["anthropic[vertex]>=0.101.0"]
-"aws" = ["anthropic[aws]>=0.101.0"]
+"bedrock" = ["anthropic[bedrock]>=0.121.0"]
+"vertex" = ["anthropic[vertex]>=0.121.0"]
+"aws" = ["anthropic[aws]>=0.121.0"]
 
 [dependency-groups]
 dev = [
@@ -108,8 +111,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.2.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.2.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.3.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.3.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

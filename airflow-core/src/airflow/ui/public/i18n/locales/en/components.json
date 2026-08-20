@@ -119,6 +119,10 @@
     "file": "File",
     "location": "line {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Hide value",
+    "show": "Show value"
+  },
   "reparseDag": "Reparse Dag",
   "slowestTaskInstances": {
     "empty": "No completed task instances in this range",

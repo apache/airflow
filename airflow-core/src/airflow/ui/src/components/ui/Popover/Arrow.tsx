@@ -17,9 +17,9 @@
  * under the License.
  */
 import { Popover as ChakraPopover } from "@chakra-ui/react";
-import * as React from "react";
+import { forwardRef } from "react";
 
-export const Arrow = React.forwardRef<HTMLDivElement, ChakraPopover.ArrowProps>((props, ref) => (
+export const Arrow = forwardRef<HTMLDivElement, ChakraPopover.ArrowProps>((props, ref) => (
   <ChakraPopover.Arrow {...props} ref={ref}>
     <ChakraPopover.ArrowTip />
   </ChakraPopover.Arrow>

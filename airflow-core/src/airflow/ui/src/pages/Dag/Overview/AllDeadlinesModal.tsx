@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
+import { HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 import { useDeadlines } from "src/queries/useDeadlines";
 
@@ -61,45 +61,46 @@ export const AllDeadlinesModal = ({ alertMap, dagId, onClose, open }: AllDeadlin
   };
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
-      <Dialog.Content backdrop p={4}>
-        <Dialog.Header>
-          <Heading size="sm">{translate("overview.deadlines.title")}</Heading>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body pb={2}>
-          <ErrorAlert error={error} />
-          {isLoading ? (
-            <VStack>
-              {Array.from({ length: PAGE_LIMIT }).map((_, idx) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <Skeleton height="36px" key={idx} width="100%" />
-              ))}
-            </VStack>
-          ) : (
-            <VStack gap={0} separator={<Separator />}>
-              {deadlines.map((deadline) => (
-                <DeadlineRow alert={getAlert(deadline.alert_id)} deadline={deadline} key={deadline.id} />
-              ))}
-            </VStack>
-          )}
-        </Dialog.Body>
-        {totalEntries > PAGE_LIMIT ? (
-          <Pagination.Root
-            count={totalEntries}
-            onPageChange={(event) => setPage(event.page)}
-            p={3}
-            page={page}
-            pageSize={PAGE_LIMIT}
-          >
-            <HStack justify="center">
-              <Pagination.PrevTrigger />
-              <Pagination.Items />
-              <Pagination.NextTrigger />
-            </HStack>
-          </Pagination.Root>
-        ) : undefined}
-      </Dialog.Content>
-    </Dialog.Root>
+    <Modal
+      footerProps={{
+        children:
+          totalEntries > PAGE_LIMIT ? (
+            <Pagination.Root
+              count={totalEntries}
+              onPageChange={(event) => setPage(event.page)}
+              padding={3}
+              page={page}
+              pageSize={PAGE_LIMIT}
+            >
+              <HStack justify="center">
+                <Pagination.PrevTrigger />
+                <Pagination.Items />
+                <Pagination.NextTrigger />
+              </HStack>
+            </Pagination.Root>
+          ) : undefined,
+        padding: 0,
+      }}
+      onOpenChange={onOpenChange}
+      open={open}
+      scrollBehavior="inside"
+      title={translate("overview.deadlines.title")}
+    >
+      <ErrorAlert error={error} />
+      {isLoading ? (
+        <VStack>
+          {Array.from({ length: PAGE_LIMIT }).map((_, idx) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <Skeleton height="36px" key={idx} width="100%" />
+          ))}
+        </VStack>
+      ) : (
+        <VStack gap={0} separator={<Separator />}>
+          {deadlines.map((deadline) => (
+            <DeadlineRow alert={getAlert(deadline.alert_id)} deadline={deadline} key={deadline.id} />
+          ))}
+        </VStack>
+      )}
+    </Modal>
   );
 };

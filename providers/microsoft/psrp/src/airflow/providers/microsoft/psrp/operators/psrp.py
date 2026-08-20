@@ -106,12 +106,11 @@ class PsrpOperator(BaseOperator):
         psrp_session_init: Command | None = None,
         **kwargs,
     ) -> None:
-        args = {command, powershell, cmdlet}
-        if not exactly_one(*args):
+        if not exactly_one(command is not None, powershell is not None, cmdlet is not None):
             raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
-        if arguments and not (powershell or cmdlet):
+        if arguments is not None and powershell is None and cmdlet is None:
             raise ValueError("Arguments only allowed with 'powershell' or 'cmdlet'")
-        if parameters and not (powershell or cmdlet):
+        if parameters is not None and powershell is None and cmdlet is None:
             raise ValueError("Parameters only allowed with 'powershell' or 'cmdlet'")
         if cmdlet:
             kwargs.setdefault("task_id", cmdlet)
@@ -140,10 +139,10 @@ class PsrpOperator(BaseOperator):
         ):
             if self.psrp_session_init is not None:
                 ps.add_command(self.psrp_session_init)
-            if self.command:
+            if self.command is not None:
                 ps.add_script(f"cmd.exe /c @'\n{self.command}\n'@")
             else:
-                if self.cmdlet:
+                if self.cmdlet is not None:
                     ps.add_cmdlet(self.cmdlet)
                 else:
                     ps.add_script(self.powershell)

@@ -1,0 +1,1 @@
+Fix ``import airflow`` failing with a ``RuntimeError`` demanding ``mysqlclient`` when a MySQL connection string was configured and only ``PyMySQL`` was installed. Each driver is now configured independently, and the error is raised only when neither is available.

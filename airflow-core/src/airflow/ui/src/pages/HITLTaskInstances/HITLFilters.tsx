@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { FilterBar } from "src/components/FilterBar";
@@ -50,15 +49,13 @@ export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: (
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
-    <VStack align="start" pt={2}>
-      <FilterBar
-        configs={filterConfigs}
-        initialValues={initialValues}
-        onFiltersChange={(filters) => {
-          onResponseChange();
-          handleFiltersChange(filters);
-        }}
-      />
-    </VStack>
+    <FilterBar
+      configs={filterConfigs}
+      initialValues={initialValues}
+      onFiltersChange={(filters) => {
+        onResponseChange();
+        handleFiltersChange(filters);
+      }}
+    />
   );
 };

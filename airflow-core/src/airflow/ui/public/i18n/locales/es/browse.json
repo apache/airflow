@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Tipo de evento"
-    },
-    "title": "Auditar Log"
+    }
   },
   "deadlines": {
     "columns": {

@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack } from "@chakra-ui/react";
 import { useSearchParams, useParams } from "react-router-dom";
 
 import { FilterBar, type FilterValue } from "src/components/FilterBar";
@@ -95,13 +94,11 @@ export const TaskInstancesFilter = () => {
   });
 
   return (
-    <VStack align="start" gap={4} paddingY="4px">
-      <FilterBar
-        configs={filterConfigs}
-        initialValues={initialValues}
-        onFiltersChange={handleFiltersChange}
-        showPresetFilters={runId === undefined}
-      />
-    </VStack>
+    <FilterBar
+      configs={filterConfigs}
+      initialValues={initialValues}
+      onFiltersChange={handleFiltersChange}
+      showPresetFilters={runId === undefined}
+    />
   );
 };

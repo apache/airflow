@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-ai``
 
-Release: ``0.7.0``
+Release: ``0.8.0``
 
 
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.7.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.8.0/>`_.
 
 Installation
 ------------
@@ -85,11 +85,11 @@ Optional dependencies
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]``
-``bedrock``     ``pydantic-ai-slim[bedrock]``
-``google``      ``pydantic-ai-slim[google]``
-``openai``      ``pydantic-ai-slim[openai]``
-``mcp``         ``pydantic-ai-slim[mcp]``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.0.0``
+``bedrock``     ``pydantic-ai-slim[bedrock]>=2.0.0``
+``google``      ``pydantic-ai-slim[google]>=2.0.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.0.0``
+``mcp``         ``pydantic-ai-slim[mcp]>=2.0.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
@@ -105,4 +105,4 @@ Extra           Dependencies
 ==============  =======================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.7.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.8.0/changelog.html>`_.

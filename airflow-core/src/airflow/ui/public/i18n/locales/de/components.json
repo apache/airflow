@@ -7,9 +7,15 @@
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
     "dateRange": "Datumsbereich",
     "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
+    "exceptionReason": {
+      "alreadyExists": "Existiert bereits",
+      "inFlight": "In Bearbeitung",
+      "unknown": "Unbekannt"
+    },
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "notCreatedReason": "Grund für die Nichterstellung",
     "overrideExistingParams": "Parameter bei bestehenden Läufen überschreiben",
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
@@ -29,7 +35,8 @@
     "validation": {
       "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
       "startBeforeEnd": "Das Startdatum muss vor oder auf dem Enddatum liegen."
-    }
+    },
+    "viewSlots": "Slots für Auffüllung Nr. {{id}} anzeigen"
   },
   "banner": {
     "backfillInProgress": "Auffüllung läuft",
@@ -65,6 +72,7 @@
     "lastDagRun_other": "Letzte {{count}} Dag Läufe",
     "lastTaskInstance_one": "Letzte Task Instanz",
     "lastTaskInstance_other": "Letzte {{count}} Task Instanzen",
+    "medianTotalDuration": "Gesamt: {{duration}}",
     "queuedDuration": "Zeit in der Warteschlange",
     "runAfter": "Lauf ab",
     "runDuration": "Laufzeit"
@@ -112,7 +120,15 @@
     "file": "Datei",
     "location": "Zeile {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Wert ausblenden",
+    "show": "Wert anzeigen"
+  },
   "reparseDag": "Dag neu parsen",
+  "slowestTaskInstances": {
+    "empty": "Keine abgeschlossenen Task Instanzen in diesem Bereich",
+    "title": "Langsamste Task Instanzen"
+  },
   "sortedAscending": "aufsteigend sortiert",
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
@@ -137,6 +153,7 @@
     "loading": "Lade Dag Information...",
     "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
     "manualRunDenied": "Manuelles Auslösen dieses Dags ist nicht erlaubt.",
+    "partitionKeyHelp": "Optional – gilt nur für partitionierte Dags",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
     "selectDescription": "Einen einzelnen Lauf dieses Dags auslösen",
     "selectLabel": "Einzelner Lauf",

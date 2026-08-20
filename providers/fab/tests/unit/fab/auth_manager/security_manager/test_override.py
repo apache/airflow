@@ -475,8 +475,15 @@ class TestFabAirflowSecurityManagerOverride:
     def test_decode_and_validate_azure_jwt_verifies_signature_by_default(self):
         """Azure AD id_token signatures are verified by default (verify_signature defaults to True)."""
         sm = EmptySecurityManager()
-        # client_kwargs does not set verify_signature -> it must default to verifying
-        sm.oauth_remotes = {"azure": Mock(client_kwargs={})}
+        # client_kwargs does not set verify_signature -> it must default to verifying.
+        # A resolvable tenant is required before the key set is fetched, so the mock
+        # carries the tenant-specific endpoint the documented configuration uses.
+        sm.oauth_remotes = {
+            "azure": Mock(
+                client_kwargs={},
+                api_base_url="https://login.microsoftonline.com/tenant-abc/oauth2/v2.0/",
+            )
+        }
 
         with mock.patch.object(
             EmptySecurityManager, "_get_microsoft_jwks", side_effect=RuntimeError("verify-branch-reached")
@@ -503,6 +510,88 @@ class TestFabAirflowSecurityManagerOverride:
 
         mock_jwks.assert_not_called()
         assert result == {"oid": "user-1"}
+
+    @pytest.mark.parametrize(
+        ("remote_kwargs", "expected"),
+        [
+            pytest.param(
+                {"client_kwargs": {"tenant_id": "explicit-tenant"}}, "explicit-tenant", id="explicit"
+            ),
+            pytest.param(
+                {
+                    "client_kwargs": {},
+                    "api_base_url": "https://login.microsoftonline.com/tenant-from-url/oauth2/v2.0/",
+                },
+                "tenant-from-url",
+                id="from-api-base-url",
+            ),
+            pytest.param(
+                {
+                    "client_kwargs": {},
+                    "api_base_url": None,
+                    "access_token_url": "https://login.microsoftonline.com/tenant-from-token-url/oauth2/v2.0/token",
+                },
+                "tenant-from-token-url",
+                id="from-access-token-url",
+            ),
+        ],
+    )
+    def test_get_azure_tenant_id_resolves_configured_tenant(self, remote_kwargs, expected):
+        """The tenant is taken from client_kwargs when set, otherwise from the configured endpoints."""
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {"azure": Mock(**remote_kwargs)}
+
+        assert sm._get_azure_tenant_id() == expected
+
+    @pytest.mark.parametrize("multi_tenant_segment", ["common", "organizations", "consumers"])
+    def test_get_azure_tenant_id_returns_none_for_tenant_agnostic_endpoints(self, multi_tenant_segment):
+        """The shared endpoints identify no single tenant, so no issuer can be pinned."""
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": Mock(
+                client_kwargs={},
+                api_base_url=f"https://login.microsoftonline.com/{multi_tenant_segment}/oauth2/v2.0/",
+                access_token_url=None,
+                authorize_url=None,
+            )
+        }
+
+        assert sm._get_azure_tenant_id() is None
+
+    def test_decode_and_validate_azure_jwt_requires_a_resolvable_tenant(self):
+        """Without a tenant there is no issuer to check, so the token is not accepted."""
+        from airflow.exceptions import AirflowConfigException
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": Mock(
+                client_kwargs={},
+                api_base_url="https://login.microsoftonline.com/common/oauth2/v2.0/",
+                access_token_url=None,
+                authorize_url=None,
+            )
+        }
+
+        with pytest.raises(AirflowConfigException, match="tenant could not be determined"):
+            sm._decode_and_validate_azure_jwt("header.payload.signature")
+
+    def test_decode_and_validate_azure_jwt_pins_issuer_and_audience(self):
+        """The decode call constrains both the issuer and the audience of the token."""
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {"azure": Mock(client_kwargs={"tenant_id": "tenant-abc"}, client_id="app-xyz")}
+
+        with mock.patch.object(EmptySecurityManager, "_get_microsoft_jwks", return_value={"keys": []}):
+            with mock.patch("authlib.jose.JsonWebKey.import_key_set"):
+                with mock.patch("authlib.jose.jwt.decode") as mock_decode:
+                    sm._decode_and_validate_azure_jwt("header.payload.signature")
+
+        claims_options = mock_decode.call_args.kwargs["claims_options"]
+        assert claims_options["aud"] == {"essential": True, "value": "app-xyz"}
+        assert claims_options["iss"]["essential"] is True
+        assert claims_options["iss"]["values"] == [
+            "https://login.microsoftonline.com/tenant-abc/v2.0",
+            "https://sts.windows.net/tenant-abc/",
+        ]
 
 
 def test_ldap_search_escapes_username_and_validates_filter():

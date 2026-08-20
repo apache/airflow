@@ -17,7 +17,7 @@
  * under the License.
  */
 import type { ButtonProps } from "@chakra-ui/react";
-import * as React from "react";
+import { forwardRef, useState } from "react";
 import { LuCheck, LuClipboard } from "react-icons/lu";
 
 import { IconButton } from ".";
@@ -28,9 +28,9 @@ type LazyClipboardProps = {
 } & ButtonProps;
 
 /** Clipboard button that lazily computes the value only when clicked */
-export const LazyClipboard = React.forwardRef<HTMLButtonElement, LazyClipboardProps>(
+export const LazyClipboard = forwardRef<HTMLButtonElement, LazyClipboardProps>(
   ({ getValue, label, ...props }, ref) => {
-    const [copied, setCopied] = React.useState(false);
+    const [copied, setCopied] = useState(false);
 
     const handleClick = () => {
       const value = getValue();

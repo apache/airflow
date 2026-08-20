@@ -56,9 +56,9 @@ const TasksTable = ({
       columns={columns}
       data={tasks}
       displayMode="table"
+      hideRowCountHeading
       modelName="common:taskInstance"
       noRowsMessage={noRowsMessage}
-      showRowCountHeading={false}
       total={tasks.length}
     />
   );

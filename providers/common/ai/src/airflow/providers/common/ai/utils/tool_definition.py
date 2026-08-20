@@ -45,6 +45,32 @@ def return_schema_kwargs(schema: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+_SUPPORTS_METADATA = any(f.name == "metadata" for f in dataclasses.fields(ToolDefinition))
+
+
+def code_arg_kwargs(arg_name: str, language: str) -> dict[str, Any]:
+    """
+    Mark a tool as a code-execution surface whose ``arg_name`` argument holds code.
+
+    Two consumers read this metadata. Instrumentation renders the argument as
+    code in traces, tagged with ``language``. More importantly, CodeMode uses it
+    to decide which tools stay native: a tool that itself executes code must not
+    be folded into ``run_code``, because the model would then have to write a
+    script whose argument is a second script quoted as a string. Without the
+    marker, a sandbox tool is folded in and the generated orchestration runs
+    in-process on the worker -- the opposite of what a sandbox tool is for.
+
+    Returns ``{}`` when the installed pydantic-ai predates
+    ``ToolDefinition.metadata``, matching :func:`return_schema_kwargs`.
+
+    :param arg_name: The tool argument that carries the code or command.
+    :param language: Language tag for the argument, e.g. ``"shell"``.
+    """
+    if _SUPPORTS_METADATA:
+        return {"metadata": {"code_arg_name": arg_name, "code_arg_language": language}}
+    return {}
+
+
 def _fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.CoreSchema:
     any_of = fragment.get("anyOf")
     if isinstance(any_of, list):

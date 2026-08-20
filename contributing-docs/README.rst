@@ -160,3 +160,11 @@ Maintainer Tools
 * `CLI Implementation Guide <27_cli_implementation_guide.rst>`__ describes where to implement new
   CLI features following AIP-94: remote commands go to ``airflowctl``, admin/deployment commands
   stay in the ``airflow`` CLI.
+
+
+Task Execution Lifecycle
+........................
+
+* `Task execution architecture <31_task_execution_architecture.rst>`__ explains what happens inside a
+  worker when a task runs: the Python Supervisor and task runner, the Coordinator layer shared by the Java
+  and Go SDKs.

@@ -39,7 +39,6 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
         { label: <FiGrid />, title: translate("toggleCardView"), value: "card" },
         { label: <FiAlignJustify />, title: translate("toggleTableView"), value: "table" },
       ]}
-      pb={2}
       value={display}
     />
   );

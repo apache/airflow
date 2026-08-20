@@ -331,10 +331,18 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         else:
             len_bytes = self.socket.recv(4)
 
-        if len_bytes == b"":
+        if not len_bytes:
             raise EOFError("Request socket closed before length")
 
-        length = int.from_bytes(len_bytes, byteorder="big")
+        # Stream sockets may return fewer bytes than requested; accumulate the header.
+        len_buf = bytearray(len_bytes)
+        while len(len_buf) < 4:
+            chunk = self.socket.recv(4 - len(len_buf))
+            if not chunk:
+                raise EOFError(f"Request socket closed mid-length after {len(len_buf)} of 4 bytes")
+            len_buf.extend(chunk)
+
+        length = int.from_bytes(len_buf, byteorder="big")
 
         buffer = bytearray(length)
         mv = memoryview(buffer)

@@ -18,6 +18,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export class DagRunsTabPage extends BasePage {
   public readonly markRunAsButton: Locator;
@@ -29,7 +30,7 @@ export class DagRunsTabPage extends BasePage {
     super(page);
     this.markRunAsButton = page.getByTestId("mark-run-as-button").first();
     this.runsTable = page.getByTestId("table-list");
-    this.tableRows = this.runsTable.locator("tbody").getByRole("row");
+    this.tableRows = this.runsTable.locator(DATA_ROWS);
     this.triggerButton = page.getByTestId("trigger-dag-button");
   }
 

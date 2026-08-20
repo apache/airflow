@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Select as ChakraSelect, Portal } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { forwardRef, type RefObject } from "react";
 
 type ContentProps = {
   readonly portalled?: boolean;
-  readonly portalRef?: React.RefObject<HTMLElement | null>;
+  readonly portalRef?: RefObject<HTMLElement | null>;
 } & ChakraSelect.ContentProps;
 
 export const Content = forwardRef<HTMLDivElement, ContentProps>((props, ref) => {

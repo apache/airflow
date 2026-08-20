@@ -18,6 +18,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export class TaskInstancesPage extends BasePage {
   public static get taskInstancesUrl(): string {
@@ -66,10 +67,7 @@ export class TaskInstancesPage extends BasePage {
     await expect(dataLink).toBeVisible({ timeout: 30_000 });
     await expect(this.taskInstancesTable).toBeVisible();
 
-    // getByRole("row") returns all rows including the header; filter to data rows only.
-    const rowsAfterFilter = this.taskInstancesTable
-      .getByRole("row")
-      .filter({ hasNot: this.taskInstancesTable.getByRole("columnheader") });
+    const rowsAfterFilter = this.taskInstancesTable.locator(DATA_ROWS);
     const noDataMessage = this.page.getByText(/no .* found|no .* results/i);
     const stateBadges = this.taskInstancesTable.locator('[class*="badge"], [class*="Badge"]');
 
@@ -98,7 +96,7 @@ export class TaskInstancesPage extends BasePage {
    * Verify that task instance details are displayed correctly
    */
   public async verifyTaskDetailsDisplay(): Promise<void> {
-    const firstRow = this.taskInstancesTable.getByRole("row").nth(1);
+    const firstRow = this.taskInstancesTable.locator(DATA_ROWS).first();
 
     const dagIdLink = firstRow.getByRole("link").first();
 
@@ -147,10 +145,7 @@ export class TaskInstancesPage extends BasePage {
    * Verify that task instances exist in the table
    */
   public async verifyTaskInstancesExist(): Promise<void> {
-    // Skip the header row (index 0); all subsequent rows are data rows.
-    const rows = this.taskInstancesTable
-      .getByRole("row")
-      .filter({ hasNot: this.taskInstancesTable.getByRole("columnheader") });
+    const rows = this.taskInstancesTable.locator(DATA_ROWS);
 
     expect(await rows.count()).toBeGreaterThan(0);
   }

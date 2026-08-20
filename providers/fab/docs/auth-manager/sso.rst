@@ -54,7 +54,7 @@ Configuration Steps
 
    .. code-block:: ini
 
-      [webserver]
+      [core]
       auth_manager = airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
    This replaces the default ``SimpleAuthManager``.
@@ -99,48 +99,27 @@ Configuration Steps
 
 4. **Configure OAuth2 Provider**
 
-   FAB Auth Manager reads provider configuration from the ``[fab]`` section
-   of ``airflow.cfg`` or from environment variables.
+   Define ``OAUTH_PROVIDERS`` in the same ``webserver_config.py`` file as ``AUTH_TYPE``.
+   This is a Flask AppBuilder setting read from that file, not an Airflow configuration
+   option, so it cannot be set in ``airflow.cfg`` or through an ``AIRFLOW__FAB__``
+   environment variable.
 
-   **Option A: Environment Variables (Recommended)**
+   .. code-block:: python
 
-   .. code-block:: bash
-
-      export AIRFLOW__FAB__OAUTH_PROVIDERS='[{
-         "name": "generic",
-         "icon": "fa-circle",
-         "token_key": "access_token",
-         "remote_app": {
-           "client_id": "your-client-id",
-           "client_secret": "your-client-secret",
-           "api_base_url": "https://provider.com/oauth/",
-           "request_token_url": null,
-           "access_token_url": "https://provider.com/oauth/token",
-           "authorize_url": "https://provider.com/oauth/authorize"
-         }
-      }]'
-
-   **Option B: Configuration File**
-
-   Add to your ``airflow.cfg``:
-
-   .. code-block:: ini
-
-      [fab]
-      oauth_providers = [
-        {
-          "name": "generic",
-          "icon": "fa-circle",
-          "token_key": "access_token",
-          "remote_app": {
-            "client_id": "your-client-id",
-            "client_secret": "your-client-secret",
-            "api_base_url": "https://provider.com/oauth/",
-            "request_token_url": null,
-            "access_token_url": "https://provider.com/oauth/token",
-            "authorize_url": "https://provider.com/oauth/authorize"
+      OAUTH_PROVIDERS = [
+          {
+              "name": "generic",
+              "icon": "fa-circle",
+              "token_key": "access_token",
+              "remote_app": {
+                  "client_id": "your-client-id",
+                  "client_secret": "your-client-secret",
+                  "api_base_url": "https://provider.com/oauth/",
+                  "request_token_url": None,
+                  "access_token_url": "https://provider.com/oauth/token",
+                  "authorize_url": "https://provider.com/oauth/authorize",
+              },
           }
-        }
       ]
 
    Adjust these values according to your provider's documentation.
@@ -160,45 +139,47 @@ Provider Examples
 
 **Okta**
 
-.. code-block:: bash
+.. code-block:: python
 
-   export AIRFLOW__FAB__OAUTH_PROVIDERS='[{
-      "name": "okta",
-      "icon": "fa-circle",
-      "token_key": "access_token",
-      "remote_app": {
-        "client_id": "your-client-id",
-        "client_secret": "your-client-secret",
-        "api_base_url": "https://your-org.okta.com/oauth2/default",
-        "request_token_url": null,
-        "access_token_url": "https://your-org.okta.com/oauth2/default/v1/token",
-        "authorize_url": "https://your-org.okta.com/oauth2/default/v1/authorize"
-      }
-   }]'
+   OAUTH_PROVIDERS = [
+       {
+           "name": "okta",
+           "icon": "fa-circle",
+           "token_key": "access_token",
+           "remote_app": {
+               "client_id": "your-client-id",
+               "client_secret": "your-client-secret",
+               "api_base_url": "https://your-org.okta.com/oauth2/default",
+               "request_token_url": None,
+               "access_token_url": "https://your-org.okta.com/oauth2/default/v1/token",
+               "authorize_url": "https://your-org.okta.com/oauth2/default/v1/authorize",
+           },
+       }
+   ]
 
 .. seealso::
    For detailed Okta setup instructions, see the `Okta OAuth2 documentation <https://developer.okta.com/docs/guides/implement-oauth/>`_.
 
 **Azure Entra ID (Azure AD)**
 
-.. code-block:: bash
+.. code-block:: python
 
-   export AIRFLOW__FAB__OAUTH_PROVIDERS='[{
-      "name": "azure",
-      "icon": "fa-circle",
-      "token_key": "access_token",
-      "remote_app": {
-        "client_id": "your-client-id",
-        "client_secret": "your-client-secret",
-        "api_base_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/",
-        "request_token_url": null,
-        "access_token_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token",
-        "authorize_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize",
-        "client_kwargs": {
-          "scope": "openid email profile"
-        }
-      }
-   }]'
+   OAUTH_PROVIDERS = [
+       {
+           "name": "azure",
+           "icon": "fa-circle",
+           "token_key": "access_token",
+           "remote_app": {
+               "client_id": "your-client-id",
+               "client_secret": "your-client-secret",
+               "api_base_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/",
+               "request_token_url": None,
+               "access_token_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token",
+               "authorize_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize",
+               "client_kwargs": {"scope": "openid email profile"},
+           },
+       }
+   ]
 
 .. seealso::
    For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
@@ -265,24 +246,24 @@ Provider Examples
 
 **Google OAuth2**
 
-.. code-block:: bash
+.. code-block:: python
 
-   export AIRFLOW__FAB__OAUTH_PROVIDERS='[{
-      "name": "google",
-      "icon": "fa-google",
-      "token_key": "access_token",
-      "remote_app": {
-        "client_id": "your-client-id.googleusercontent.com",
-        "client_secret": "your-client-secret",
-        "api_base_url": "https://www.googleapis.com/oauth2/v2/",
-        "request_token_url": null,
-        "access_token_url": "https://oauth2.googleapis.com/token",
-        "authorize_url": "https://accounts.google.com/o/oauth2/auth",
-        "client_kwargs": {
-          "scope": "openid email profile"
-        }
-      }
-   }]'
+   OAUTH_PROVIDERS = [
+       {
+           "name": "google",
+           "icon": "fa-google",
+           "token_key": "access_token",
+           "remote_app": {
+               "client_id": "your-client-id.googleusercontent.com",
+               "client_secret": "your-client-secret",
+               "api_base_url": "https://www.googleapis.com/oauth2/v2/",
+               "request_token_url": None,
+               "access_token_url": "https://oauth2.googleapis.com/token",
+               "authorize_url": "https://accounts.google.com/o/oauth2/auth",
+               "client_kwargs": {"scope": "openid email profile"},
+           },
+       }
+   ]
 
 .. seealso::
    For Google OAuth setup and credential configuration, see :doc:`apache-airflow-providers-google:connections/gcp`
@@ -297,12 +278,14 @@ Troubleshooting
 
   - Check Airflow and webserver logs for detailed error messages
   - Ensure all environment variables are set and exported correctly
-  - Verify callback URLs in your SSO provider match your Airflow webserver URL (typically ``http://your-airflow-domain/oauth-authorized``)
+  - Verify callback URLs in your SSO provider match your Airflow webserver URL (typically ``http://your-airflow-domain/auth/oauth-authorized/<provider>``)
 
 - **Redirect URI mismatch**:
 
-  - In your OAuth provider, set the redirect URI to: ``http://your-airflow-domain/oauth-authorized``
-  - For development, this might be: ``http://localhost:8080/oauth-authorized``
+  - In your OAuth provider, set the redirect URI to: ``http://your-airflow-domain/auth/oauth-authorized/<provider>``,
+    where ``<provider>`` is the ``name`` you gave it in ``OAUTH_PROVIDERS``
+  - For development, this might be: ``http://localhost:8080/auth/oauth-authorized/google``
+  - On Airflow 2 the path had no ``/auth`` prefix: ``http://your-airflow-domain/oauth-authorized/<provider>``
 
 - **Scope-related errors**:
 

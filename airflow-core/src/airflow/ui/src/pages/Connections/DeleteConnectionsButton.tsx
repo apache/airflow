@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Code, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
+import { Button, Code, Text, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 import { useBulkDeleteConnections } from "src/queries/useBulkDeleteConnections";
 
 type Props = {
@@ -52,44 +52,34 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
         <FiTrash2 /> {translate("deleteActions.button")}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open}>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">
-                {translate("connections.delete.deleteConnection", { count: connectionIds.length })}
-              </Heading>
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body width="full">
-            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
-              {translate("connections.delete.firstConfirmMessage", { count: connectionIds.length })}
-              <br />
-              <Code mb={2} mt={2} p={4}>
-                {connectionIds.join(", ")}
-              </Code>
-              <br />
-              {translate("deleteActions.modal.secondConfirmMessage")}
-              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
-            </Text>
-            <ErrorAlert error={error} />
-            <Flex justifyContent="end" mt={3}>
-              <Button
-                colorPalette="red"
-                loading={isPending}
-                onClick={() => {
-                  mutate({ requestBody: { actions: [{ action: "delete", entities: connectionIds }] } });
-                }}
-              >
-                <FiTrash2 /> <Text as="span">{translate("deleteActions.modal.confirmButton")}</Text>
-              </Button>
-            </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+      <Modal
+        footerActions={
+          <Button
+            colorPalette="red"
+            loading={isPending}
+            onClick={() => {
+              mutate({ requestBody: { actions: [{ action: "delete", entities: connectionIds }] } });
+            }}
+          >
+            <FiTrash2 /> <Text as="span">{translate("deleteActions.modal.confirmButton")}</Text>
+          </Button>
+        }
+        onOpenChange={onClose}
+        open={open}
+        title={translate("connections.delete.deleteConnection", { count: connectionIds.length })}
+      >
+        <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
+          {translate("connections.delete.firstConfirmMessage", { count: connectionIds.length })}
+          <br />
+          <Code mb={2} mt={2} p={4}>
+            {connectionIds.join(", ")}
+          </Code>
+          <br />
+          {translate("deleteActions.modal.secondConfirmMessage")}
+          <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
+        </Text>
+        <ErrorAlert error={error} />
+      </Modal>
     </>
   );
 };

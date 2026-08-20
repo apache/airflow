@@ -314,6 +314,8 @@ class VaultHook(BaseHook):
 
         :return: connection used.
         """
+        if not self.vault_client.client.is_authenticated():
+            self.vault_client._invalidate_client()
         return self.vault_client.client
 
     def get_secret(self, secret_path: str, secret_version: int | None = None) -> dict | None:
@@ -436,7 +438,9 @@ class VaultHook(BaseHook):
     def test_connection(self) -> tuple[bool, str]:
         """Test Vault connectivity from UI."""
         try:
-            self.get_conn()
+            # get_conn() rebuilds a dead client but does not itself fail, so check explicitly for authentication.
+            if not self.get_conn().is_authenticated():
+                return False, "Vault Authentication Error!"
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)

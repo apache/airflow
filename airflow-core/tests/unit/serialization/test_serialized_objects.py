@@ -835,6 +835,36 @@ def test_decode_asset_with_consumer_teams():
     }
 
 
+@pytest.mark.parametrize("q_val", [None, "my_q"])
+def test_decode_asset_preserves_watcher_trigger_queue(q_val: str | None):
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [
+                {
+                    "name": "watcher",
+                    "trigger": {
+                        "classpath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "kwargs": {"filepath": "/tmp"},
+                        **({"queue": q_val} if q_val else {}),
+                    },
+                }
+            ],
+        }
+    )
+    assert isinstance(decoded, SerializedAsset)
+    if q_val:
+        assert decoded.watchers[0].trigger["queue"] == q_val
+    else:
+        assert "queue" not in decoded.watchers[0].trigger
+
+
 def test_decode_asset_defaults_access_control_to_empty_dict():
     from airflow.serialization.decoders import decode_asset_like
 

@@ -18,6 +18,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 import { waitForStableRowCount } from "tests/e2e/utils/ui/waits";
 
 type ConnectionDetails = {
@@ -259,7 +260,7 @@ export class ConnectionsPage extends BasePage {
   }
 
   public async getConnectionIds(): Promise<Array<string>> {
-    const rowLocator = this.page.locator("tbody tr");
+    const rowLocator = this.page.locator(DATA_ROWS);
     const stableRowCount = await waitForStableRowCount(rowLocator).catch(() => 0);
 
     if (stableRowCount === 0) {
@@ -273,7 +274,7 @@ export class ConnectionsPage extends BasePage {
       throw new Error(`"Connection ID" column not found in headers: ${JSON.stringify(headerTexts)}`);
     }
 
-    const rows = this.page.locator("tbody tr");
+    const rows = this.page.locator(DATA_ROWS);
     const connectionIds: Array<string> = [];
 
     for (let i = 0; i < stableRowCount; i++) {
@@ -379,7 +380,7 @@ export class ConnectionsPage extends BasePage {
       return undefined;
     }
 
-    const row = this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
+    const row = this.page.locator(DATA_ROWS).filter({ hasText: connectionId }).first();
 
     const rowExists = await row.isVisible({ timeout: 3000 }).catch(() => false);
 
@@ -401,7 +402,7 @@ export class ConnectionsPage extends BasePage {
     const isTableVisible = await table.isVisible();
 
     if (isTableVisible) {
-      const firstRow = this.page.locator("tbody tr").first();
+      const firstRow = this.page.locator(DATA_ROWS).first();
 
       await expect(firstRow.or(this.emptyState)).toBeVisible({ timeout: 15_000 });
     }

@@ -43,6 +43,9 @@ from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
 CLOUD_RUN_SERVICE_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceHook"
 GCP_LOGGING_PATH = "airflow.providers.google.cloud.operators.cloud_run.gcp_logging"
+CLOUD_RUN_EXECUTION_DETAILS_LINK_PATH = (
+    "airflow.providers.google.cloud.operators.cloud_run.CloudRunJobExecutionDetailsLink"
+)
 TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
@@ -218,6 +221,31 @@ class TestCloudRunExecuteJobOperator:
 
         with pytest.raises(TaskDeferred):
             operator.execute(mock.MagicMock())
+
+    @mock.patch(f"{CLOUD_RUN_EXECUTION_DETAILS_LINK_PATH}.persist")
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_persists_job_execution_details_link(self, hook_mock, persist_mock):
+        operation = mock.MagicMock()
+        operation.metadata.log_uri = None
+        hook_mock.return_value.execute_job.return_value = operation
+        context = mock.MagicMock()
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred):
+            operator.execute(context)
+
+        persist_mock.assert_called_once_with(
+            context=context,
+            region=REGION,
+            job_name=JOB_NAME,
+            project_id=PROJECT_ID,
+        )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_timeout(self, hook_mock):

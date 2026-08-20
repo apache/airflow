@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "نوع الأصل"
-    },
-    "title": "سجل المراجعة"
+    }
   },
   "deadlines": {
     "columns": {

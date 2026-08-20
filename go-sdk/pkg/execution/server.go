@@ -16,9 +16,9 @@
 // under the License.
 
 // Package execution implements the SDK coordinator-protocol runtime
-// (msgpack-over-IPC). It is the second mode of bundlev1server.Serve: when
-// the bundle binary is launched with --comm/--logs by the Airflow supervisor
-// (Python ExecutableCoordinator), bundlev1server.Serve dispatches here.
+// (msgpack-over-IPC). When the bundle binary is launched with --comm/--logs by
+// the Airflow supervisor (Python ExecutableCoordinator), bundlev1server.Serve
+// dispatches here.
 //
 // The first inbound frame on the comm socket is a StartupDetails message
 // that drives multi-round task execution.

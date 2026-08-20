@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Heading, useDisclosure } from "@chakra-ui/react";
+import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdAdd } from "react-icons/md";
 
-import { Dialog, Toaster } from "src/components/ui";
+import { Modal, Toaster } from "src/components/ui";
 import { useAddVariable } from "src/queries/useAddVariable";
 
 import VariableForm, { type VariableBody } from "./VariableForm";
@@ -55,25 +55,15 @@ const AddVariableButton = ({ disabled }: Props) => {
         <MdAdd /> {translate("variables.add")}
       </Button>
 
-      <Dialog.Root onOpenChange={handleClose} open={open}>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <Heading size="xl">{translate("variables.add")}</Heading>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body>
-            <VariableForm
-              error={error}
-              initialVariable={initialVariableValue}
-              isPending={isPending}
-              manageMutate={addVariable}
-              setError={setError}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+      <Modal onOpenChange={handleClose} open={open} title={translate("variables.add")}>
+        <VariableForm
+          error={error}
+          initialVariable={initialVariableValue}
+          isPending={isPending}
+          manageMutate={addVariable}
+          setError={setError}
+        />
+      </Modal>
     </>
   );
 };

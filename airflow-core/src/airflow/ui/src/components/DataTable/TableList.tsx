@@ -16,68 +16,74 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Table } from "@chakra-ui/react";
-import { flexRender, type Row, type Table as TanStackTable } from "@tanstack/react-table";
-import React, { Fragment } from "react";
+import { Button, Icon, Table } from "@chakra-ui/react";
+import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
 
-import FilterMenuButton from "./FilterMenuButton";
-
-type DataTableProps<TData> = {
-  readonly allowFiltering: boolean;
-  readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
+type TableListProps<TData> = {
+  readonly noRowsMessage?: ReactNode;
   readonly table: TanStackTable<TData>;
 };
 
-export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }: DataTableProps<TData>) => {
+export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
+  const { rows } = table.getRowModel();
 
   return (
-    <Table.Root data-testid="table-list" striped>
+    <Table.Root data-testid="table-list" size="sm" striped>
       <Table.Header bg="chakra-body-bg" position="sticky" top={0} zIndex={1}>
         {table.getHeaderGroups().map((headerGroup) => (
           <Table.Row key={headerGroup.id}>
-            {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }, index) => {
+            {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }) => {
               const sort = column.getIsSorted();
               const canSort = column.getCanSort();
               const text = flexRender(column.columnDef.header, getContext());
               let rightIcon;
 
-              const showFilters = allowFiltering && index === headerGroup.headers.length - 1;
-
               if (canSort) {
                 if (sort === "desc") {
-                  rightIcon = <TiArrowSortedDown aria-label={translate("sortedDescending")} />;
+                  rightIcon = (
+                    <Icon aria-label={translate("sortedDescending")} as={TiArrowSortedDown} boxSize={3} />
+                  );
                 } else if (sort === "asc") {
-                  rightIcon = <TiArrowSortedUp aria-label={translate("sortedAscending")} />;
+                  rightIcon = (
+                    <Icon aria-label={translate("sortedAscending")} as={TiArrowSortedUp} boxSize={3} />
+                  );
                 } else {
-                  rightIcon = <TiArrowUnsorted aria-label={translate("sortedUnsorted")} />;
+                  rightIcon = (
+                    <Icon aria-label={translate("sortedUnsorted")} as={TiArrowUnsorted} boxSize={3} />
+                  );
                 }
 
                 return (
-                  <Table.ColumnHeader colSpan={colSpan} key={id} whiteSpace="nowrap">
+                  <Table.ColumnHeader colSpan={colSpan} key={id} paddingBlock={1} whiteSpace="nowrap">
                     {isPlaceholder ? undefined : (
                       <Button
+                        _focus={{ color: "brand.500" }}
+                        _hover={{ color: "brand.500" }}
                         aria-label={translate("sort")}
+                        border={0}
+                        color={sort === false ? undefined : "brand.500"}
                         disabled={!canSort}
+                        gap={1}
                         onClick={column.getToggleSortingHandler()}
+                        p={0}
                         variant="plain"
                       >
                         {text}
                         {rightIcon}
                       </Button>
                     )}
-                    {showFilters ? <FilterMenuButton table={table} /> : undefined}
                   </Table.ColumnHeader>
                 );
               }
 
               return (
-                <Table.ColumnHeader colSpan={colSpan} key={id} whiteSpace="nowrap">
+                <Table.ColumnHeader colSpan={colSpan} key={id} paddingBlock={1} whiteSpace="nowrap">
                   {isPlaceholder ? undefined : text}
-                  {showFilters ? <FilterMenuButton table={table} /> : undefined}
                 </Table.ColumnHeader>
               );
             })}
@@ -85,26 +91,21 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
         ))}
       </Table.Header>
       <Table.Body>
-        {table.getRowModel().rows.map((row) => (
-          <Fragment key={row.id}>
-            <Table.Row>
-              {/* first row is a normal row */}
+        {rows.length === 0 ? (
+          <Table.Row data-testid="table-no-rows">
+            <Table.Cell colSpan={table.getVisibleLeafColumns().length}>{noRowsMessage}</Table.Cell>
+          </Table.Row>
+        ) : (
+          rows.map((row) => (
+            <Table.Row key={row.id}>
               {row.getVisibleCells().map((cell) => (
                 <Table.Cell data-testid={`table-cell-${cell.column.id}`} key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </Table.Cell>
               ))}
             </Table.Row>
-            {row.getIsExpanded() && (
-              <Table.Row>
-                {/* 2nd row is a custom 1 cell row */}
-                <Table.Cell colSpan={row.getVisibleCells().length}>
-                  {renderSubComponent?.({ row })}
-                </Table.Cell>
-              </Table.Row>
-            )}
-          </Fragment>
-        ))}
+          ))
+        )}
       </Table.Body>
     </Table.Root>
   );

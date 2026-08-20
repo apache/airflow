@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdAdd } from "react-icons/md";
 
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 import { useAddConnection } from "src/queries/useAddConnection";
 
 import ConnectionForm from "./ConnectionForm";
@@ -49,26 +49,14 @@ const AddConnectionButton = () => {
         <MdAdd /> {translate("connections.add")}
       </Button>
 
-      <Dialog.Root lazyMount onOpenChange={onClose} open={open} unmountOnExit>
-        <Dialog.Content backdrop>
-          <Dialog.Header paddingBottom={0}>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">{translate("connections.add")}</Heading>
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body>
-            <ConnectionForm
-              error={error}
-              initialConnection={initialConnection}
-              isPending={isPending}
-              mutateConnection={addConnection}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+      <Modal lazyMount onOpenChange={onClose} open={open} title={translate("connections.add")} unmountOnExit>
+        <ConnectionForm
+          error={error}
+          initialConnection={initialConnection}
+          isPending={isPending}
+          mutateConnection={addConnection}
+        />
+      </Modal>
     </>
   );
 };

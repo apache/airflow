@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, Heading, VStack, useDisclosure } from "@chakra-ui/react";
+import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
@@ -24,7 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
 import { useBulkClearDagRunsDryRun } from "src/queries/useBulkClearDagRunsDryRun";
@@ -64,55 +64,47 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
         {translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_other") })}
       </Button>
 
-      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">
-                {translate("dags:runAndTaskActions.clear.title", { type: translate("dagRun_other") })}
-              </Heading>
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-          <Dialog.Body width="full">
-            <Flex justifyContent="center" mb={4}>
-              <SegmentedControl
-                defaultValues={["existingTasks"]}
-                onChange={setSelectedOptions}
-                options={[
-                  {
-                    label: translate("dags:runAndTaskActions.options.existingTasks"),
-                    value: "existingTasks",
-                  },
-                  {
-                    label: translate("dags:runAndTaskActions.options.onlyFailed"),
-                    value: "onlyFailed",
-                  },
-                  {
-                    label: translate("dags:runAndTaskActions.options.queueNew"),
-                    value: "newTasks",
-                  },
-                ]}
-              />
-            </Flex>
-            <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
-            <ActionErrors error={error} />
-            <Flex justifyContent="end" mt={3}>
-              <Button
-                disabled={affectedTasks.total_entries === 0}
-                loading={isPending || isFetching}
-                onClick={() => {
-                  bulkClear(selectedDagRuns, { note, onlyFailed, onlyNew });
-                }}
-              >
-                <CgRedo />
-                {translate("modal.confirm")}
-              </Button>
-            </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+      <Modal
+        footerActions={
+          <Button
+            disabled={affectedTasks.total_entries === 0}
+            loading={isPending || isFetching}
+            onClick={() => {
+              bulkClear(selectedDagRuns, { note, onlyFailed, onlyNew });
+            }}
+          >
+            <CgRedo />
+            {translate("modal.confirm")}
+          </Button>
+        }
+        onOpenChange={handleClose}
+        open={open}
+        size="xl"
+        title={translate("dags:runAndTaskActions.clear.title", { type: translate("dagRun_other") })}
+      >
+        <Flex justifyContent="center" mb={4}>
+          <SegmentedControl
+            defaultValues={["existingTasks"]}
+            onChange={setSelectedOptions}
+            options={[
+              {
+                label: translate("dags:runAndTaskActions.options.existingTasks"),
+                value: "existingTasks",
+              },
+              {
+                label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                value: "onlyFailed",
+              },
+              {
+                label: translate("dags:runAndTaskActions.options.queueNew"),
+                value: "newTasks",
+              },
+            ]}
+          />
+        </Flex>
+        <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
+        <ActionErrors error={error} />
+      </Modal>
     </>
   );
 };

@@ -89,8 +89,9 @@ This file contains:
 * description of the distribution that is available in the documentation
 * list of versions of distribution that have been released so far
 * list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
-* list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
-  register them as they are needed by Airflow and to include them in documentation automatically).
+* list of connection types, extra-links, secret backends, auth backends, email backends, and logging
+  handlers (useful to both register them as they are needed by Airflow and to include them in
+  documentation automatically).
 
 Note that the ``provider.yaml`` file is regenerated automatically when the provider is released so you should
 not modify it - except updating dependencies, as your changes will be lost.

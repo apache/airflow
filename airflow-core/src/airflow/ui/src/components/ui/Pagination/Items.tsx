@@ -17,11 +17,12 @@
  * under the License.
  */
 import { Pagination as ChakraPagination } from "@chakra-ui/react";
+import type { HTMLAttributes } from "react";
 
 import { Ellipsis } from "./Ellipsis";
 import { Item } from "./Item";
 
-export const Items = (props: React.HTMLAttributes<HTMLElement>) => (
+export const Items = (props: HTMLAttributes<HTMLElement>) => (
   <ChakraPagination.Context>
     {({ pages }) =>
       pages.map((page, index) =>

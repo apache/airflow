@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Τύπος Συμβάντος"
-    },
-    "title": "Καταγραφή Ελέγχου"
+    }
   },
   "deadlines": {
     "columns": {

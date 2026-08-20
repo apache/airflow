@@ -17,14 +17,14 @@
  * under the License.
  */
 import { Popover as ChakraPopover, Portal } from "@chakra-ui/react";
-import * as React from "react";
+import { type RefObject, forwardRef } from "react";
 
 type PopoverContentProps = {
   readonly portalled?: boolean;
-  readonly portalRef?: React.RefObject<HTMLElement>;
+  readonly portalRef?: RefObject<HTMLElement>;
 } & ChakraPopover.ContentProps;
 
-export const Content = React.forwardRef<HTMLDivElement, PopoverContentProps>((props, ref) => {
+export const Content = forwardRef<HTMLDivElement, PopoverContentProps>((props, ref) => {
   const { portalled = true, portalRef, ...rest } = props;
 
   return (

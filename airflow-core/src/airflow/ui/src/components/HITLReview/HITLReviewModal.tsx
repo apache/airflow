@@ -24,7 +24,7 @@ import { FiInfo } from "react-icons/fi";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 import { HITLReviewDetail } from "src/components/HITLReview/HITLReviewDetail.tsx";
-import { Tooltip } from "src/components/ui";
+import { Modal, Tooltip } from "src/components/ui";
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Dialog } from "src/components/ui/Dialog";
 
@@ -78,19 +78,10 @@ export const HITLReviewModal = ({
   };
 
   return (
-    <Dialog.Root
-      lazyMount
-      onOpenChange={(event) => {
-        if (!event.open) {
-          handleClose();
-        }
-      }}
-      open={open}
-      scrollBehavior="inside"
-      unmountOnExit
-    >
-      <Dialog.Content maxW="1440px" p={4}>
-        <Dialog.Header>
+    <Modal
+      contentProps={{ maxW: "1440px", padding: 4 }}
+      headerProps={{
+        children: (
           <HStack justifyContent="space-between" overflowX="auto" width="100%">
             <HStack flexShrink={0} gap={1}>
               <Dialog.Title>{translate("requiredAction_other")}</Dialog.Title>
@@ -114,42 +105,49 @@ export const HITLReviewModal = ({
               ) : undefined}
             </HStack>
           </HStack>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <HStack alignItems="stretch" flexDirection={{ base: "column", lg: "row" }} gap={6}>
-            <Box flex="2">
-              <VStack alignItems="stretch" gap={4}>
-                <HITLReviewListSection
-                  details={pendingHitl.data}
-                  heading={translate("review.list.pendingRequiredActions", {
-                    count: pendingHitl.total ?? pendingHitl.data.length,
-                  })}
-                  isError={pendingHitl.isError}
-                  isLoading={pendingHitl.isLoading}
-                  onSelect={onSelect}
-                  selectedDetail={selectedDetail}
-                />
-                {shouldShowCompletedHitl && selectedFilter === HITLReviewFilterMode.ALL ? (
-                  <HITLReviewListSection
-                    details={completedHitl.data}
-                    heading={translate("review.list.completedRequiredActions", {
-                      count: completedHitl.total ?? completedHitl.data.length,
-                    })}
-                    isError={completedHitl.isError}
-                    isLoading={completedHitl.isLoading}
-                    onSelect={onSelect}
-                    selectedDetail={selectedDetail}
-                  />
-                ) : null}
-              </VStack>
-            </Box>
-            <Box borderRadius="md" borderWidth={1} flex="1" mt={8} p={3}>
-              <HITLReviewDetail detail={selectedDetail} onOpenTask={handleClose} onResponded={onNext} />
-            </Box>
-          </HStack>
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+        ),
+      }}
+      lazyMount
+      onOpenChange={(event) => {
+        if (!event.open) {
+          handleClose();
+        }
+      }}
+      open={open}
+      scrollBehavior="inside"
+      unmountOnExit
+    >
+      <HStack alignItems="stretch" flexDirection={{ base: "column", lg: "row" }} gap={6}>
+        <Box flex="2">
+          <VStack alignItems="stretch" gap={4}>
+            <HITLReviewListSection
+              details={pendingHitl.data}
+              heading={translate("review.list.pendingRequiredActions", {
+                count: pendingHitl.total ?? pendingHitl.data.length,
+              })}
+              isError={pendingHitl.isError}
+              isLoading={pendingHitl.isLoading}
+              onSelect={onSelect}
+              selectedDetail={selectedDetail}
+            />
+            {shouldShowCompletedHitl && selectedFilter === HITLReviewFilterMode.ALL ? (
+              <HITLReviewListSection
+                details={completedHitl.data}
+                heading={translate("review.list.completedRequiredActions", {
+                  count: completedHitl.total ?? completedHitl.data.length,
+                })}
+                isError={completedHitl.isError}
+                isLoading={completedHitl.isLoading}
+                onSelect={onSelect}
+                selectedDetail={selectedDetail}
+              />
+            ) : null}
+          </VStack>
+        </Box>
+        <Box borderRadius="md" borderWidth={1} flex="1" mt={8} p={3}>
+          <HITLReviewDetail detail={selectedDetail} onOpenTask={handleClose} onResponded={onNext} />
+        </Box>
+      </HStack>
+    </Modal>
   );
 };

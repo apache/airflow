@@ -26,4 +26,5 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-sendgrid",
         "name": "Sendgrid",
         "description": "`Sendgrid <https://sendgrid.com/>`__\n",
+        "email-backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
     }

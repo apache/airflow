@@ -25,8 +25,18 @@ type Props = {
 
 export const CloseTrigger = forwardRef<HTMLButtonElement, Props>(
   ({ children, closeButtonProps, ...rest }, ref) => (
-    <ChakraDialog.CloseTrigger insetEnd="2" position="absolute" top="2" {...rest} asChild>
-      <CloseButton ref={ref} size="sm" {...closeButtonProps}>
+    <ChakraDialog.CloseTrigger {...rest} asChild>
+      <CloseButton
+        _hover={{ bg: "brand.emphasized", color: "fg" }}
+        borderRadius="md"
+        color="fg.muted"
+        colorPalette="brand"
+        ref={ref}
+        size="sm"
+        transition="background-color 0.2s ease, color 0.2s ease"
+        variant="plain"
+        {...closeButtonProps}
+      >
         {children}
       </CloseButton>
     </ChakraDialog.CloseTrigger>

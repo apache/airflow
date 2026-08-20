@@ -40,7 +40,7 @@ Accepted
 ## Context
 
 We communicate with the user via messages printed in get_console() And we should
-make sure we communicate the msssages in a consistent way so that the users would
+make sure we communicate the messages in a consistent way so that the users would
 understand:
 
 * whether verification of a condition succeeded

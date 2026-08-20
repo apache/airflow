@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+4.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add auth_protocol support to SambaHook for Kerberos authentication (#64643)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 4.12.6
 ......
 

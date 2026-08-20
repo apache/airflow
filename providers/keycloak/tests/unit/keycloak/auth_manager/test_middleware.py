@@ -340,6 +340,40 @@ class TestKeycloakJWTMiddleware:
             )
         auth_manager.generate_jwt.assert_not_called()
 
+    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
+    async def test_dispatch_does_not_clear_fresh_token_set_by_endpoint(
+        self,
+        mock_get_auth_manager,
+        auth_manager,
+        call_next,
+        middleware,
+        mock_request,
+        mock_user,
+    ):
+        """
+        An expired token on the request must not clear the cookie when the endpoint
+        set a fresh one on the response (e.g. the login callback exchanging the
+        authorization code while an expired token is still in the cookie jar).
+        """
+        mock_get_auth_manager.return_value = auth_manager
+        mock_request.cookies = {
+            COOKIE_NAME_JWT_TOKEN: "expired",
+            COOKIE_NAME_ACCESS_TOKEN: "expired_token",
+            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+        }
+        auth_manager.get_user_from_token = AsyncMock(side_effect=InvalidTokenError())
+
+        async def call_endpoint(request):
+            # The endpoint (login callback) mints a fresh JWT and signals it
+            request.state.jwt_token_issued = True
+            return Mock(name="response")
+
+        call_next.side_effect = call_endpoint
+
+        response = await middleware.dispatch(mock_request, call_next)
+
+        response.set_cookie.assert_not_called()
+
     @patch("airflow.providers.keycloak.auth_manager.middleware.get_cookie_path")
     @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
     @pytest.mark.asyncio

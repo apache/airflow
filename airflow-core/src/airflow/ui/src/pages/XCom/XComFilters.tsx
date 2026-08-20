@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { FilterBar } from "src/components/FilterBar";
@@ -51,12 +50,6 @@ export const XComFilters = () => {
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
-    <VStack align="start" gap={4} paddingY="4px">
-      <FilterBar
-        configs={filterConfigs}
-        initialValues={initialValues}
-        onFiltersChange={handleFiltersChange}
-      />
-    </VStack>
+    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
   );
 };

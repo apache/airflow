@@ -22,7 +22,13 @@ from unittest.mock import call
 
 import pytest
 
-from airflow_breeze.global_constants import ALLOWED_POSTGRES_VERSIONS, CURRENT_POSTGRES_VERSIONS
+from airflow_breeze.global_constants import (
+    ALLOWED_POSTGRES_VERSIONS,
+    CI_IMAGE_SOURCES_HASH_LABEL,
+    CURRENT_POSTGRES_VERSIONS,
+)
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
     bring_all_compose_projects_down,
@@ -32,6 +38,7 @@ from airflow_breeze.utils.docker_command_utils import (
     enter_shell,
     get_images_to_pull,
     is_known_breeze_compose_project,
+    prepare_docker_build_command,
     pull_images_with_retries,
 )
 
@@ -553,3 +560,24 @@ def test_pull_images_with_retries_does_not_pull_when_all_images_are_present(mock
     assert pull_images_with_retries("breeze-test", env={}, skip_images={CI_IMAGE}) is True
     assert not any(c.args[0][:2] == ["docker", "pull"] for c in mock_run_command.call_args_list)
     mock_sleep.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.calculate_ci_sources_hash")
+@mock.patch("airflow_breeze.utils.docker_command_utils.check_if_buildx_plugin_installed")
+def test_prepare_docker_build_command_labels_ci_image_with_sources_hash(
+    mock_check_if_buildx_plugin_installed, mock_calculate_ci_sources_hash
+):
+    mock_check_if_buildx_plugin_installed.return_value = False
+    mock_calculate_ci_sources_hash.return_value = "hash-of-sources"
+    command = prepare_docker_build_command(BuildCiParams())
+    label_index = command.index("--label")
+    assert command[label_index + 1] == f"{CI_IMAGE_SOURCES_HASH_LABEL}=hash-of-sources"
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.check_if_buildx_plugin_installed")
+def test_prepare_docker_build_command_does_not_add_sources_hash_label_to_prod_image(
+    mock_check_if_buildx_plugin_installed,
+):
+    mock_check_if_buildx_plugin_installed.return_value = False
+    command = prepare_docker_build_command(BuildProdParams())
+    assert not any(flag.startswith(CI_IMAGE_SOURCES_HASH_LABEL) for flag in command)

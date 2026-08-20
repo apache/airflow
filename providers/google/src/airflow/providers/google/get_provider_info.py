@@ -1604,6 +1604,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink",
             "airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink",
             "airflow.providers.google.cloud.links.cloud_run.CloudRunJobLoggingLink",
+            "airflow.providers.google.cloud.links.cloud_run.CloudRunJobExecutionDetailsLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocLink",

@@ -49,6 +49,16 @@ repos:
         additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: false
         require_serial: true
+      - id: check-ts-sdk-docs-package-version-in-sync
+        name: Check ts-sdk/docs package.json versions match ts-sdk/package.json
+        entry: ../scripts/ci/prek/check_ts_sdk_docs_package_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^package\.json$|
+          ^docs/package\.json$
+        pass_filenames: false
+        require_serial: true
       - id: compile-ts-sdk
         name: Compile TypeScript SDK
         entry: ./scripts/ci/prek/compile_ts_sdk.py

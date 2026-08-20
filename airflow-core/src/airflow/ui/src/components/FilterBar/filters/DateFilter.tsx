@@ -17,6 +17,7 @@
  * under the License.
  */
 import dayjs from "dayjs";
+import type { ChangeEvent } from "react";
 
 import { DateTimeInput } from "src/components/DateTimeInput";
 
@@ -29,7 +30,7 @@ export const DateFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
   const displayValue =
     hasValue && typeof filter.value === "string" ? dayjs(filter.value).format("MMM DD, YYYY, hh:mm A") : "";
 
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDateChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { value } = event.target;
 
     onChange(value || undefined);

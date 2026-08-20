@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { MdError } from "react-icons/md";
 
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
@@ -33,7 +33,7 @@ const FlatSection = ({
   hasError,
   title,
 }: {
-  readonly children: React.ReactNode;
+  readonly children: ReactNode;
   readonly hasError: boolean;
   readonly title: string;
 }) => (

@@ -17,15 +17,15 @@
  * under the License.
  */
 import { Checkbox as ChakraCheckbox } from "@chakra-ui/react";
-import * as React from "react";
+import { type ReactNode, type InputHTMLAttributes, type Ref, forwardRef } from "react";
 
 export type CheckboxProps = {
-  readonly icon?: React.ReactNode;
-  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
-  readonly rootRef?: React.Ref<HTMLLabelElement>;
+  readonly icon?: ReactNode;
+  readonly inputProps?: InputHTMLAttributes<HTMLInputElement>;
+  readonly rootRef?: Ref<HTMLLabelElement>;
 } & ChakraCheckbox.RootProps;
 
-export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
+export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
   const { children, icon, inputProps, rootRef, ...rest } = props;
 
   return (

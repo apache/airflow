@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
@@ -53,19 +53,15 @@ export const Plugins = () => {
   ];
 
   return (
-    <Box p={2}>
-      <HStack>
-        <Heading>{translate("common:admin.Plugins")}</Heading>
-        <PluginImportErrors iconOnly />
-      </HStack>
+    <Box px={2}>
+      <PluginImportErrors iconOnly />
       <DataTable
         columns={columns}
         data={data?.plugins ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        modelName="common:admin.Plugins"
+        modelName="admin:plugins.plugin"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+0.8.0
+.....
+
 .. note::
     The ``query`` tool of ``SQLToolset`` and ``DataFusionToolset`` returns a different
     shape. Rows were a dict per row alongside a ``count`` of every matching row:
@@ -36,6 +39,39 @@ Changelog
     total. The tool's own description states the new shape, so agents adapt without
     changes; update any system prompt that describes the old shape, and any code
     calling ``toolset.call_tool("query", ...)`` directly.
+
+Features
+~~~~~~~~
+
+* ``Add SandboxToolset for sandboxed agent shell and file access (#68847)``
+* ``Support require_approval in LLMSchemaCompareOperator (#71051)``
+* ``Bound SQL toolset query results by size, not just row count (#71317)``
+* ``Support custom redaction and message length cap in LLMRetryPolicy (#70830)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Let the agent retry on a rejected DataFusion query instead of failing the task (#71445)``
+
+Misc
+~~~~
+
+* ``Show which LLM providers each Common AI connection type reaches (#70497)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the dedicated pydantic-ai vendor connection types (#71774)``
+* ``Document the common-ai MCPHook (#71817)``
+* ``Document the common-ai LangChain and LlamaIndex connection types (#71818)``
+* ``Fix and expand the common-ai provider's When to use guidance (#71820)``
+* ``Add LLMSchemaCompareOperator to the common-ai operator index table (#71738)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``Require a lower bound on every dependency in pyproject.toml (#71378)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
 
 0.7.0
 .....

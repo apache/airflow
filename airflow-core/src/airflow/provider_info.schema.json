@@ -324,6 +324,13 @@
                 "type": "string"
             }
         },
+        "email-backends": {
+            "type": "array",
+            "description": "Email backend function names",
+            "items": {
+                "type": "string"
+            }
+        },
         "logging": {
             "type": "array",
             "description": "Logging Task Handlers class names",

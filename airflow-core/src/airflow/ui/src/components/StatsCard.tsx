@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, HStack, Skeleton, Text } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 import { FiChevronRight, FiChevronLeft } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -36,7 +37,7 @@ export const StatsCard = ({
 }: {
   readonly colorScheme: string;
   readonly count: number;
-  readonly icon?: React.ReactNode;
+  readonly icon?: ReactNode;
   readonly isLoading?: boolean;
   readonly isRTL: boolean;
   readonly label: string;
