@@ -276,6 +276,138 @@ class TestPluginsManager:
             ),
         ]
 
+    @pytest.mark.parametrize(
+        ("applies_to", "error"),
+        [
+            pytest.param(
+                ["ml"],
+                "expected a dictionary, got list",
+                id="not-a-dict",
+            ),
+            pytest.param(
+                {"dag_tag": ["ml"]},
+                "unknown criteria ['dag_tag'], expected any of "
+                "['dag_ids', 'dag_tags', 'operator_names', 'operators', 'task_ids']",
+                id="unknown-key",
+            ),
+            pytest.param(
+                {1: ["ml"], "dag_tag": ["ml"]},
+                "criterion names must be strings, got [1]",
+                id="non-string-and-unknown-keys",
+            ),
+            pytest.param(
+                {"dag_ids": "my_dag"},
+                "'dag_ids' must be a list of strings, got 'my_dag'",
+                id="scalar-instead-of-list",
+            ),
+            pytest.param(
+                {"dag_ids": ["my_dag", 3]},
+                "'dag_ids' must be a list of strings, got ['my_dag', 3]",
+                id="list-with-non-string",
+            ),
+        ],
+    )
+    def test_strips_and_warns_about_malformed_applies_to(self, applies_to, error, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {"name": "Scoped", "url_route": "/scoped", "destination": "dag", "applies_to": applies_to}
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert external_views == [{"name": "Scoped", "url_route": "/scoped", "destination": "dag"}]
+
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                f"Plugin 'test_plugin' has an external view 'Scoped' with an invalid 'applies_to': {error}. "
+                "The scoping will be ignored.",
+            ),
+        ]
+
+    def test_warns_about_criteria_a_destination_cannot_evaluate(self, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            react_apps = [
+                {
+                    "name": "Scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag_run",
+                    "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            _, react_apps = plugins_manager._get_ui_plugins()
+
+            # The block is only warned about, never stripped: task criteria are ignored on a
+            # Dag-level page by design so one block can be shared across destinations.
+            assert react_apps == [
+                {
+                    "name": "Scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag_run",
+                    "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
+                }
+            ]
+
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_plugin' has a React App 'Scoped' with destination 'dag_run', which cannot "
+                "evaluate ['operators', 'task_ids']. Those criteria will be ignored.",
+            ),
+        ]
+
+    def test_does_not_warn_about_valid_applies_to(self, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Scoped",
+                    "url_route": "/scoped",
+                    "destination": "task",
+                    "applies_to": {
+                        "dag_tags": ["ml"],
+                        "task_ids": ["train"],
+                        "operator_names": ["@task.bash"],
+                    },
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert external_views[0]["applies_to"] == {
+                "dag_tags": ["ml"],
+                "task_ids": ["train"],
+                "operator_names": ["@task.bash"],
+            }
+
+        assert caplog.record_tuples == []
+
     def test_should_not_warning_about_fab_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"

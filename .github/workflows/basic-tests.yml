@@ -203,7 +203,8 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           # yamllint disable-line rule:line-length
@@ -214,7 +215,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
@@ -222,7 +223,8 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
       - name: "Restore eslint cache (simple auth manager UI)"
-        uses: apache/infrastructure-actions/stash/restore@b69225a81154602226df0f441cf23b95a55cf4f8
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
@@ -234,7 +236,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@b69225a81154602226df0f441cf23b95a55cf4f8
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >

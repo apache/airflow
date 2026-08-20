@@ -16,25 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-
-import { ButtonGroupToggle } from "src/components/ui";
-
-type PausedValue = "all" | "false" | "true";
-
-type Props = {
-  readonly onChange: (value: PausedValue) => void;
-  readonly value: PausedValue;
-};
-
-export const PausedFilter = ({ onChange, value }: Props) => {
-  const { t: translate } = useTranslation("dags");
-
-  const options = [
-    { label: translate("filters.paused.all"), value: "all" as const },
-    { label: translate("filters.paused.active"), value: "false" as const },
-    { label: translate("filters.paused.paused"), value: "true" as const },
-  ];
-
-  return <ButtonGroupToggle<PausedValue> onChange={onChange} options={options} value={value} />;
-};
+export * from "./Modal";

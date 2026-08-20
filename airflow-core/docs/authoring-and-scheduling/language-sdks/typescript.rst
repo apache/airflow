@@ -86,13 +86,14 @@ value routes the task to the Node.js coordinator.
 TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Register it with the
-``dag_id`` and ``task_id`` it implements, then start the coordinator runtime; the registrations and the
-top-level ``await startCoordinator()`` make the module a runnable bundle entry point.
+A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
+the ``dag_id`` it implements, attach each handler with ``dag.task``, collect the Dags in a ``DagRegistry``,
+then serve them to Airflow with ``serveDags``; that top-level ``await`` makes the module a runnable bundle
+entry point.
 
 .. code-block:: typescript
 
-    import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -103,12 +104,22 @@ top-level ``await startCoordinator()`` make the module a runnable bundle entry p
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
 
-    registerTask({ dagId: "typescript_example", taskId: "build_message" }, buildMessage);
+    const dag = new Dag("typescript_example");
+    dag.task("build_message", buildMessage);
 
-    await startCoordinator();
+    await serveDags(new DagRegistry(dag));
 
-The ``dagId`` passed to ``registerTask`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-must match a ``@task.stub`` function in that Dag.
+The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
+passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. The registry passed to
+``serveDags`` is the bundle's complete set of Dags; a second ``serveDags`` call is rejected. A Dag left out
+of the registry is not part of the packed bundle, and its tasks are marked removed at runtime.
+
+``DagRegistry`` holds no sockets and starts nothing, so a unit test can build one and dispatch a handler
+through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
+its Dags across several modules can add them incrementally with ``registry.register(...)``.
+
+``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
+These are not used yet; do not set them. Any other key is rejected.
 
 .. note::
 

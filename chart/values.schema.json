@@ -2111,6 +2111,42 @@
                                     "type": "boolean",
                                     "default": false
                                 },
+                                "startupProbe": {
+                                    "description": "Startup probe for the Kerberos worker sidecar (runs `klist -s`).",
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "enabled": {
+                                            "description": "Enable the Kerberos sidecar startup probe. Disable for custom images without `klist`.",
+                                            "type": "boolean",
+                                            "default": true
+                                        },
+                                        "timeoutSeconds": {
+                                            "description": "Number of seconds after which the probe times out.",
+                                            "type": "integer",
+                                            "default": 5,
+                                            "minimum": 1
+                                        },
+                                        "initialDelaySeconds": {
+                                            "description": "Number of seconds after the container has started before the startup probe is initiated.",
+                                            "type": "integer",
+                                            "default": 0,
+                                            "minimum": 0
+                                        },
+                                        "periodSeconds": {
+                                            "description": "How often (in seconds) to perform the probe.",
+                                            "type": "integer",
+                                            "default": 10,
+                                            "minimum": 1
+                                        },
+                                        "failureThreshold": {
+                                            "description": "Number of consecutive failures required for the startup probe to fail.",
+                                            "type": "integer",
+                                            "default": 6,
+                                            "minimum": 1
+                                        }
+                                    }
+                                },
                                 "resources": {
                                     "description": "Resources on kerberos sidecar.",
                                     "type": "object",
@@ -2858,6 +2894,42 @@
                                     "description": "Enable Kerberos sidecar.",
                                     "type": "boolean",
                                     "default": false
+                                },
+                                "startupProbe": {
+                                    "description": "Startup probe for the Kerberos worker sidecar (runs `klist -s`).",
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "enabled": {
+                                            "description": "Enable the Kerberos sidecar startup probe. Disable for custom images without `klist`.",
+                                            "type": "boolean",
+                                            "default": true
+                                        },
+                                        "timeoutSeconds": {
+                                            "description": "Number of seconds after which the probe times out.",
+                                            "type": "integer",
+                                            "default": 5,
+                                            "minimum": 1
+                                        },
+                                        "initialDelaySeconds": {
+                                            "description": "Number of seconds after the container has started before the startup probe is initiated.",
+                                            "type": "integer",
+                                            "default": 0,
+                                            "minimum": 0
+                                        },
+                                        "periodSeconds": {
+                                            "description": "How often (in seconds) to perform the probe.",
+                                            "type": "integer",
+                                            "default": 10,
+                                            "minimum": 1
+                                        },
+                                        "failureThreshold": {
+                                            "description": "Number of consecutive failures required for the startup probe to fail.",
+                                            "type": "integer",
+                                            "default": 6,
+                                            "minimum": 1
+                                        }
+                                    }
                                 },
                                 "resources": {
                                     "description": "Resources on kerberos sidecar.",
@@ -7800,6 +7872,13 @@
                             }
                         }
                     ]
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 120,
+                    "minimum": 0,
+                    "x-docsSection": "Kubernetes"
                 },
                 "securityContexts": {
                     "description": "Security context definition for the PgBouncer.",

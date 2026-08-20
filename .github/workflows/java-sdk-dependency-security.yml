@@ -1,0 +1,97 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+name: Java SDK dependency security
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    paths:
+      - "java-sdk/**"
+      - ".github/workflows/java-sdk-dependency-security.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "java-sdk/**"
+      - ".github/workflows/java-sdk-dependency-security.yml"
+  schedule:
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: java-sdk-dependency-security-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dependency-review:
+    name: Reject vulnerable dependency changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime, development, unknown
+          show-openssf-scorecard: true
+          show-patched-versions: true
+
+  dependency-submission:
+    name: Submit resolved Gradle dependencies
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # 11: toolchain for the main build and example/
+      # 17: toolchain for scala_spark_example/
+      # 21: runs Gradle itself — the last entry listed is the one that sets JAVA_HOME
+      - name: Install JDK toolchains
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
+        with:
+          distribution: temurin
+          java-version: |
+            11
+            17
+            21
+      - name: Publish the SDK for standalone example resolution
+        working-directory: java-sdk
+        run: ./gradlew --no-daemon publishToMavenLocal -PskipSigning=true
+      - name: Submit main build dependency graph
+        uses: gradle/actions/dependency-submission@9c971963bec38e04b3d30dcc455b5382be2fdbfb  # v6.3.0
+        with:
+          build-root-directory: java-sdk
+          dependency-graph: generate-and-submit
+          validate-wrappers: true
+      - name: Submit Java example dependency graph
+        uses: gradle/actions/dependency-submission@9c971963bec38e04b3d30dcc455b5382be2fdbfb  # v6.3.0
+        with:
+          build-root-directory: java-sdk/example
+          dependency-graph: generate-and-submit
+          gradle-version: "8.14.5"
+      - name: Submit Scala Spark example dependency graph
+        uses: gradle/actions/dependency-submission@9c971963bec38e04b3d30dcc455b5382be2fdbfb  # v6.3.0
+        with:
+          build-root-directory: java-sdk/scala_spark_example
+          dependency-graph: generate-and-submit
+          gradle-version: "8.14.5"
