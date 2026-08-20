@@ -88,6 +88,13 @@ repos:
         pass_filenames: false
         files: ^values\.schema\.json$
         require_serial: true
+      - id: update-helm-values-schema-schema-file-type-field-match
+        name: Update Helm Values Schema Schema File (type field match)
+        entry: ../scripts/ci/prek/update_helm_schema_schema_type_fields_match.py
+        language: python
+        pass_filenames: false
+        files: ^values\.schema\.json$|^values\.schema\.schema\.json$
+        require_serial: true
       - id: lint-json-schema
         name: Lint chart/values.schema.json
         entry: ../scripts/ci/prek/lint_json_schema.py
