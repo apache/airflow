@@ -17,7 +17,7 @@
 ---
 sdk: go
 
-min_airflow_version: "3.3"
+min_airflow_version: "3.4"
 
 # Keep in sync with SupervisorSchemaVersion in pkg/execution/messages.go, which is embedded in
 # bundle metadata. The render hook fails if the two disagree.

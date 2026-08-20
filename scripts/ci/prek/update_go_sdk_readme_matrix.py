@@ -46,15 +46,15 @@ from lang_sdk_compat_matrix import (
 
 SDK_ID = "go"
 GO_MESSAGES = AIRFLOW_ROOT_PATH / "go-sdk" / "pkg" / "execution" / "messages.go"
-SCHEMA_VERSION_DECLARATION = "const SupervisorSchemaVersion = "
+SCHEMA_VERSION_DECLARATION = "SupervisorSchemaVersion = "
 
 
 def read_go_schema_version() -> str | None:
     """Read ``SupervisorSchemaVersion`` from the Go runtime source."""
     for line in GO_MESSAGES.read_text().splitlines():
         before, separator, after = line.partition(SCHEMA_VERSION_DECLARATION)
-        if separator and not before.strip():
-            return after.strip().strip('"')
+        if separator and before.strip() in ("", "const"):
+            return after.partition("//")[0].strip().strip('"')
     return None
 
 
