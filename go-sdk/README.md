@@ -269,6 +269,8 @@ the full range of task states, and alternate XCom backends without implementing 
 Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
 [`capabilities.yaml`](capabilities.yaml); the conformance dimensions are defined in the
 [Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
+The minimum version applies to the current SDK source, while "Since" records when each capability
+first became available and can therefore be earlier than the current minimum.
 Do not edit the table by hand — edit `capabilities.yaml` and let the `update-go-sdk-readme-matrix`
 prek hook regenerate it.
 

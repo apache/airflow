@@ -72,11 +72,24 @@ class TestMain:
         doc = matrix.load_capabilities(sdk["capabilities_yaml"], expected_sdk=hook.SDK_ID)
         assert doc["supervisor_schema_version"] == hook.read_go_schema_version()
 
-    def test_reads_schema_version_from_const_block(self, tmp_path, monkeypatch):
+    @pytest.mark.parametrize(
+        "declaration",
+        [
+            f'const (\n\tSupervisorSchemaVersion = "{SCHEMA_VERSION}"\n)',
+            f'const SupervisorSchemaVersion string = "{SCHEMA_VERSION}"',
+            f'const SupervisorSchemaVersion = "{SCHEMA_VERSION}" // current schema',
+            f'const SupervisorSchemaVersion="{SCHEMA_VERSION}"',
+        ],
+    )
+    def test_reads_supported_schema_version_declarations(self, declaration, tmp_path, monkeypatch):
         go_messages = tmp_path / "messages.go"
-        go_messages.write_text(
-            f'package execution\n\nconst (\n\tSupervisorSchemaVersion = "{SCHEMA_VERSION}"\n)\n'
-        )
+        go_messages.write_text(f"package execution\n\n{declaration}\n")
         monkeypatch.setattr(hook, "GO_MESSAGES", go_messages)
 
         assert hook.read_go_schema_version() == SCHEMA_VERSION
+
+    def test_missing_go_source_fails_without_writing(self, wired):
+        hook.GO_MESSAGES.unlink()
+
+        assert hook.main() == 1
+        assert matrix.README_MATRIX_HEADER + "\n" + matrix.README_MATRIX_FOOTER in wired.read_text()

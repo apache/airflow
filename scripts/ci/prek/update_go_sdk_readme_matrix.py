@@ -28,6 +28,7 @@ the manifest's supervisor schema version matches the Go runtime constant embedde
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -46,21 +47,26 @@ from lang_sdk_compat_matrix import (
 
 SDK_ID = "go"
 GO_MESSAGES = AIRFLOW_ROOT_PATH / "go-sdk" / "pkg" / "execution" / "messages.go"
-SCHEMA_VERSION_DECLARATION = "SupervisorSchemaVersion = "
+SCHEMA_VERSION_PATTERN = re.compile(
+    r'^\s*(?:const\s+)?SupervisorSchemaVersion(?:\s+[A-Za-z_]\w*(?:\.\w+)*)?\s*=\s*"(?P<version>[^"]+)"'
+)
 
 
 def read_go_schema_version() -> str | None:
     """Read ``SupervisorSchemaVersion`` from the Go runtime source."""
     for line in GO_MESSAGES.read_text().splitlines():
-        before, separator, after = line.partition(SCHEMA_VERSION_DECLARATION)
-        if separator and before.strip() in ("", "const"):
-            return after.partition("//")[0].strip().strip('"')
+        if match := SCHEMA_VERSION_PATTERN.match(line):
+            return match.group("version")
     return None
 
 
 def check_schema_version(doc: CapabilitiesDoc) -> bool:
     """Whether the manifest agrees with the schema version embedded in Go bundle metadata."""
-    go_version = read_go_schema_version()
+    try:
+        go_version = read_go_schema_version()
+    except OSError as error:
+        console.print(f"[red]Could not read {GO_MESSAGES}: {error}[/]")
+        return False
     declared = doc["supervisor_schema_version"]
     if go_version == declared:
         return True
