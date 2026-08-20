@@ -42,7 +42,7 @@ class Db2Dialect(Dialect):
 
         :param table: Table name (may include schema prefix as ``schema.table``)
         :param schema: Optional schema name; takes precedence over a schema prefix in *table*
-        :return: Column names with identity (autoincrement) columns removed
+        :return: Column names with identity (``autoincrement``) columns removed
         """
         return super().get_column_names(
             table,
