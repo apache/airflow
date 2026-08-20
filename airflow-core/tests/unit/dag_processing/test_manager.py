@@ -2180,15 +2180,25 @@ class TestDagFileProcessorManager:
                 [["broken.py"], ["other.py"]],
                 id="a-file-that-blames-itself",
             ),
+            pytest.param(
+                [
+                    ("clean.py", ["dag_clean"], None),
+                    ("broken.py", [], {"unrelated.py": "boom"}),
+                    ("after.py", ["dag_after"], None),
+                ],
+                [["clean.py", "broken.py"], ["after.py"]],
+                id="a-clean-file-collected-before-it",
+            ),
         ],
     )
     def test_a_file_reporting_import_errors_ends_its_run(self, sweep, expected):
         """
-        Nothing may be written beside a file that failed to parse.
+        Nothing may be written after a file that failed to parse.
 
         A write stales the Dags filed under a path last but reads what is already registered
-        first, so a file grouped after a failure would read what the failure had staled. This is
-        also why a group cannot both raise and resolve an error: the two never share one.
+        first, so a file grouped after a failure would read what the failure had staled. Files
+        collected before it are unaffected and still share its group. This is also why a group
+        cannot both raise and resolve an error: the resolving file always follows.
         """
         manager = DagFileProcessorManager(max_runs=1)
 
@@ -2222,9 +2232,7 @@ class TestDagFileProcessorManager:
         ) as write:
             manager._persist_bundle_group("testing", [blamer, blamed], session=mock.MagicMock(spec=Session))
 
-        assert ("testing", "blamed.py") not in write.call_args.kwargs["import_errors"], (
-            "the file's own parse is the last word on it"
-        )
+        assert write.call_args.kwargs["import_errors"] == {}, "the file's own parse is the last word on it"
 
     def test_a_files_own_parse_clears_a_warning_carried_for_its_dag(self):
         """A later result saying nothing about a Dag it defines has to retract what was said."""
@@ -2351,31 +2359,6 @@ class TestDagFileProcessorManager:
             ["a.py"],
             ["b.py"],
         ], "the Dag filed under a.py must be written after the error against it"
-
-    def test_an_error_raised_and_resolved_inside_one_sweep_is_never_written(self):
-        """A group records where its files ended up, not how they got there. Deliberate."""
-        manager = DagFileProcessorManager(max_runs=1)
-        blamer = FileParseResult(
-            file=DagFileInfo(bundle_name="testing", rel_path=Path("blamer.py"), bundle_path=TEST_DAGS_FOLDER),
-            parsing_result=DagFileParsingResult(
-                fileloc="blamer.py", serialized_dags=[], import_errors={"blamed.py": "transient"}
-            ),
-            run_duration=1.0,
-            stat=DagFileStat(),
-        )
-
-        with mock.patch(
-            "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
-        ) as write:
-            manager._persist_bundle_group(
-                "testing",
-                [blamer, self._item("blamed.py", ["blamed_dag"])],
-                session=mock.MagicMock(spec=Session),
-            )
-
-        assert write.call_args.kwargs["import_errors"] == {}, (
-            "nothing is written for it, so no listener hears of an error the sweep resolved"
-        )
 
     def test_a_batch_override_is_given_the_bundle_version_the_file_was_collected_under(self):
         """The payload has to carry the version context, since DagFileInfo does not."""
@@ -4987,6 +4970,58 @@ class TestDagFileProcessorManager:
             f"a {n_files}-file sweep of {total_dags} Dags costs {sweep} statements, expected {expected} "
             f"({calls} x {fixed} fixed + {total_dags} x {per_dag} per Dag)."
         )
+
+    def test_a_coalesced_asset_is_announced_as_it_was_written(
+        self, session, testing_dag_bundle, tmp_path, listener_manager
+    ):
+        """
+        The listener hears the definition that was written, not the one that was overtaken.
+
+        Two files in one group defining the same asset are coalesced before the row is created, so
+        the row and the announcement have to agree. Comparing the database alone cannot show this:
+        it converges on the last definition whichever one was announced.
+        """
+        from unit.listeners import asset_listener
+
+        listener_manager(asset_listener)
+        asset_listener.clear()
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        def result(dag_id: str, extra: dict) -> FileParseResult:
+            rel_path = f"{dag_id}.py"
+            dag_file = tmp_path / rel_path
+            return FileParseResult(
+                file=DagFileInfo(bundle_name="testing", rel_path=Path(rel_path), bundle_path=tmp_path),
+                parsing_result=DagFileParsingResult(
+                    fileloc=str(dag_file),
+                    serialized_dags=_make_serialized_dags(
+                        dag_file,
+                        [dag_id],
+                        rel_path,
+                        schedule_on=Asset(name="shared", uri="s3://shared", extra=extra),
+                    ),
+                ),
+                run_duration=0.5,
+                stat=DagFileStat(),
+            )
+
+        try:
+            manager.persist_parsing_results(
+                [result("first", {"from": "first"}), result("second", {"from": "second"})],
+                session=session,
+            )
+            session.commit()
+
+            written = session.scalars(select(AssetModel).where(AssetModel.name == "shared")).one()
+            assert written.extra == {"from": "second"}, "the last definition in the group is written"
+
+            assert len(asset_listener.created) == 1, asset_listener.created
+            assert asset_listener.created[0].extra == written.extra, (
+                "the asset was announced as one definition and written as another"
+            )
+        finally:
+            asset_listener.clear()
 
     # --- equivalence with writing a sweep a file at a time ---
 
