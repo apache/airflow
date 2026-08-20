@@ -206,7 +206,7 @@ Deferrable version of the :class:`~airflow.providers.databricks.operators.databr
 
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
 
-.. _howto/operator:DatabricksSubmitRunDeferrableOperator:retry-args:
+.. _howto/operator:DatabricksSubmitRunOperator:retry-args:
 
 Retry args in deferrable mode
 -----------------------------
@@ -223,9 +223,9 @@ these dedicated parameters are ignored for the hook retry policy.
 
 Serialization validation only verifies that values can cross the trigger boundary; it does
 not verify that the supplied keys and values are valid or meaningful ``tenacity.Retrying``
-keyword arguments. Custom tenacity strategy objects (``stop``, ``wait``, ``retry``,
-``before``, ``after``, etc.) require callable objects, which are not serialization-safe in
-deferrable mode.
+keyword arguments. Custom tenacity strategy objects (``stop``, ``wait``, ``before``, etc.)
+require callable objects, which are not serialization-safe in deferrable mode. The hook always
+replaces supplied ``retry`` and ``after`` values, so setting them has no effect in either mode.
 
 **Not supported** in deferrable mode (will raise ``ValueError`` when the task defers; the
 Databricks run has already been submitted at that point):
@@ -238,8 +238,9 @@ Databricks run has already been submitted at that point):
     databricks_retry_args = {"stop": stop_after_attempt(3)}
     databricks_retry_args = {"wait": wait_incrementing(start=30, increment=30)}
 
-    # Arbitrary callables — NOT serializable
-    databricks_retry_args = {"retry": my_custom_retry_callable}
-
-If you need a custom callable retry strategy, use the non-deferrable
+If you need custom ``stop`` or ``wait`` strategies, use the non-deferrable
 :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` (``deferrable=False``).
+Setting non-empty ``databricks_retry_args`` replaces the hook's default retry policy rather
+than merging with it, so supply both ``stop`` and ``wait``. Otherwise, Tenacity defaults to
+``stop_never`` and ``wait_none()``, which retries persistently retryable API errors forever
+without backoff.
