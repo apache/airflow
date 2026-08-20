@@ -1720,7 +1720,7 @@ class TestDagFileProcessorManager:
         mock_update.assert_called_once()
         assert mock_update.call_args.kwargs["session"] is not None
 
-    def test_a_failed_write_throttles_the_retry_without_claiming_success(self, session):
+    def test_a_failed_write_throttles_the_retry_without_claiming_success(self):
         """Persist errors should throttle retries without claiming persistence succeeded."""
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
@@ -1747,7 +1747,7 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].last_duration is not None
         assert manager.processed_recently(timezone.utcnow(), file) is True
 
-    def test_a_written_file_records_the_stat_its_parse_produced(self, session):
+    def test_a_written_file_records_the_stat_its_parse_produced(self):
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
         original_stat = DagFileStat(
@@ -1882,6 +1882,8 @@ class TestDagFileProcessorManager:
         bundle_name: str = "testing",
         filed_under: str | None = None,
         import_errors: dict[str, str] | None = None,
+        bundle_version: str | None = None,
+        version_data: dict | None = None,
     ) -> FileParseResult:
         file = DagFileInfo(bundle_name=bundle_name, rel_path=Path(name), bundle_path=TEST_DAGS_FOLDER)
         dags = [self._lazy_dag(dag_id) for dag_id in dag_ids]
@@ -1894,7 +1896,48 @@ class TestDagFileProcessorManager:
             ),
             run_duration=1.0,
             stat=DagFileStat(),
+            bundle_version=bundle_version,
+            version_data=version_data,
         )
+
+    @pytest.mark.parametrize(
+        ("second_version", "second_data"),
+        [
+            pytest.param("v2", {"sha": "aaa"}, id="version-moved"),
+            pytest.param("v1", {"sha": "bbb"}, id="version-data-moved"),
+        ],
+    )
+    def test_one_bundle_at_two_versions_is_written_a_version_at_a_time(self, second_version, second_data):
+        """
+        A group carries one version for every file in it, taken from the first.
+
+        Merging two versions of a bundle would file the later one's Dags under the earlier one's
+        version, leaving a DagVersion pointing at code it was not built from.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+
+        items = [
+            self._item("a.py", ["dag_a"], bundle_version="v1", version_data={"sha": "aaa"}),
+            self._item("b.py", ["dag_b"], bundle_version=second_version, version_data=second_data),
+        ]
+
+        groups = manager._build_persistence_groups(items)
+
+        assert [len(group) for group in groups] == [1, 1]
+        assert [group[0].bundle_version for group in groups] == ["v1", second_version]
+
+    def test_one_bundle_at_one_version_is_written_together(self):
+        """The version only splits a run when it actually differs; matching files still merge."""
+        manager = DagFileProcessorManager(max_runs=1)
+
+        groups = manager._build_persistence_groups(
+            [
+                self._item(f"{name}.py", [f"dag_{name}"], bundle_version="v1", version_data={"sha": "aaa"})
+                for name in ("a", "b")
+            ]
+        )
+
+        assert [len(group) for group in groups] == [2]
 
     def test_one_duplicate_dag_id_does_not_split_the_rest_of_the_sweep(self):
         """Only the conflicting file is held back; the others keep their place in the group."""
@@ -1906,7 +1949,7 @@ class TestDagFileProcessorManager:
             *(self._item(f"other_{i}.py", [f"dag_{i}"]) for i in range(3)),
         ]
 
-        groups = manager.build_persistence_groups(items)
+        groups = manager._build_persistence_groups(items)
 
         assert [len(group) for group in groups] == [1, 4]
         assert [str(item.file.rel_path) for item in groups[0]] == ["first.py"]
@@ -1922,7 +1965,7 @@ class TestDagFileProcessorManager:
             self._item(f"file_{i}.py", [f"dag_{i}_{d}" for d in range(per_file)]) for i in range(fits + 1)
         ]
 
-        groups = manager.build_persistence_groups(items)
+        groups = manager._build_persistence_groups(items)
 
         assert [len(group) for group in groups] == [fits, 1]
         assert [item for group in groups for item in group] == items, "no file may be lost or reordered"
@@ -1932,7 +1975,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         oversized = [f"huge_dag_{i}" for i in range(MAX_DAGS_PER_PERSISTENCE_GROUP + 5)]
 
-        groups = manager.build_persistence_groups(
+        groups = manager._build_persistence_groups(
             [self._item("small.py", ["small_dag"]), self._item("huge.py", oversized)]
         )
 
@@ -1963,7 +2006,7 @@ class TestDagFileProcessorManager:
         """
         manager = DagFileProcessorManager(max_runs=1)
 
-        groups = manager.build_persistence_groups([self._item(name, dag_ids) for name, dag_ids in items])
+        groups = manager._build_persistence_groups([self._item(name, dag_ids) for name, dag_ids in items])
 
         assert [[str(item.file.rel_path) for item in group] for group in groups] == expected
 
@@ -2105,7 +2148,7 @@ class TestDagFileProcessorManager:
         """
         manager = DagFileProcessorManager(max_runs=1)
 
-        groups = manager.build_persistence_groups(
+        groups = manager._build_persistence_groups(
             [
                 self._item("a.py", ["dag_a"]),
                 self._item("b.py", ["dag_b"], bundle_name="other"),
@@ -2190,7 +2233,7 @@ class TestDagFileProcessorManager:
         """
         manager = DagFileProcessorManager(max_runs=1)
 
-        groups = manager.build_persistence_groups(
+        groups = manager._build_persistence_groups(
             [self._item("a.py", ["dag_a"], filed_under="b.py"), self._item("b.py", ["dag_b"])]
         )
 
@@ -2208,7 +2251,7 @@ class TestDagFileProcessorManager:
         """
         manager = DagFileProcessorManager(max_runs=1)
 
-        groups = manager.build_persistence_groups(
+        groups = manager._build_persistence_groups(
             [
                 self._item("file_a.py", ["dag_a"], filed_under="shared.py"),
                 self._item("file_c.py", ["dag_c"], filed_under="shared.py"),
@@ -2229,7 +2272,7 @@ class TestDagFileProcessorManager:
         """
         manager = DagFileProcessorManager(max_runs=1)
 
-        groups = manager.build_persistence_groups(
+        groups = manager._build_persistence_groups(
             [
                 self._item("broke.py", [], import_errors={"broke.py": "boom"}),
                 self._item("moved_here.py", ["moved_dag"]),
@@ -2258,7 +2301,9 @@ class TestDagFileProcessorManager:
             stat=DagFileStat(),
         )
 
-        groups = manager.build_persistence_groups([blamer, self._item("b.py", ["dag_b"], filed_under="a.py")])
+        groups = manager._build_persistence_groups(
+            [blamer, self._item("b.py", ["dag_b"], filed_under="a.py")]
+        )
 
         assert [[str(item.file.rel_path) for item in group] for group in groups] == [
             ["a.py"],
@@ -2478,7 +2523,7 @@ class TestDagFileProcessorManager:
             self._item("z.py", ["shared"], bundle_name="b"),
         ]
 
-        groups = manager.build_persistence_groups(items)
+        groups = manager._build_persistence_groups(items)
 
         assert [[str(item.file.rel_path) for item in group] for group in groups] == [
             ["x.py"],
@@ -5029,7 +5074,7 @@ class TestDagFileProcessorManager:
         self._equivalence_reset(session)
         sweep = build("batched")
         expected = [
-            len(group) for group in DagFileProcessorManager(max_runs=1).build_persistence_groups(sweep)
+            len(group) for group in DagFileProcessorManager(max_runs=1)._build_persistence_groups(sweep)
         ]
         written = self._equivalence_persist(sweep, batched=True)
         batched = self._equivalence_snapshot(session)
