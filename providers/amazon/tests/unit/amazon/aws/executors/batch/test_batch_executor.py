@@ -22,6 +22,7 @@ import logging
 import os
 from unittest import mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 import yaml
@@ -144,6 +145,21 @@ class TestBatchJobCollection:
         self.collection.pop_by_id(self.first_job_id)
         assert len(self.collection) == 1
         assert self.collection.get_all_jobs() == [self.second_job_id]
+
+    def test_remove_job(self):
+        """Test remove_job() clears every mapping and returns the workload key"""
+        assert self.collection.remove_job(self.first_job_id) is self.first_airflow_key
+        assert self.collection.get_all_jobs() == [self.second_job_id]
+        assert self.first_job_id not in self.collection.id_to_failure_counts
+        assert self.first_job_id not in self.collection.id_to_job_info
+        assert self.first_airflow_key not in self.collection.key_to_id
+
+    def test_remove_job_tolerates_partially_cleaned_state(self):
+        """remove_job() must not raise where pop_by_id() would"""
+        del self.collection.key_to_id[self.first_airflow_key]
+        assert self.collection.remove_job(self.first_job_id) is self.first_airflow_key
+        assert self.first_job_id not in self.collection.id_to_key
+        assert self.collection.remove_job("untracked-job-id") is None
 
 
 class TestBatchJob:
@@ -643,6 +659,159 @@ class TestAwsBatchExecutor:
         fail_mock.assert_called_once()
         assert success_mock.call_count == 0
 
+    @staticmethod
+    def _describe_jobs_response(*job_id_status_pairs: tuple[str, str]) -> dict:
+        return {
+            "jobs": [
+                {
+                    "jobName": "some-job-name",
+                    "jobId": job_id,
+                    "jobQueue": "some-job-queue",
+                    "status": status,
+                    "statusReason": "",
+                    "createdAt": dt.datetime.now().timestamp(),
+                    "jobDefinition": "some-job-def",
+                }
+                for job_id, status in job_id_status_pairs
+            ]
+        }
+
+    @mock.patch.object(BaseExecutor, "fail")
+    @mock.patch.object(BaseExecutor, "success")
+    def test_sync_evicts_job_that_cannot_be_synced(self, success_mock, fail_mock, mock_executor):
+        """
+        An error while handling one job must evict that job and fail its workload,
+        without blocking the handling of the remaining jobs in the same cycle.
+        """
+        poisoned_key = mock.Mock(spec=TaskInstanceKey)
+        healthy_key = mock.Mock(spec=TaskInstanceKey)
+        for job_id, key in (("001", poisoned_key), ("002", healthy_key)):
+            mock_executor.active_workers.add_job(
+                job_id=job_id,
+                airflow_workload_key=key,
+                airflow_cmd="airflow_cmd",
+                queue="queue",
+                exec_config={},
+                attempt_number=1,
+            )
+        # Partially cleaned bookkeeping (e.g. left behind by a duplicate submission for
+        # the same workload key) makes pop_by_id raise KeyError for this job forever.
+        del mock_executor.active_workers.key_to_id[poisoned_key]
+        mock_executor.batch.describe_jobs.return_value = self._describe_jobs_response(
+            ("001", "SUCCEEDED"), ("002", "SUCCEEDED")
+        )
+
+        mock_executor.sync_running_jobs()
+
+        fail_mock.assert_called_once_with(poisoned_key)
+        success_mock.assert_called_once_with(healthy_key)
+        assert len(mock_executor.active_workers) == 0
+        assert mock_executor.active_workers.get_all_jobs() == []
+
+    @mock.patch.object(BaseExecutor, "fail")
+    def test_sync_eviction_survives_fail_raising(self, fail_mock, mock_executor, mock_airflow_key):
+        """Even fail() blowing up during eviction must not leave the job tracked."""
+        airflow_key = mock_airflow_key()
+        mock_executor.active_workers.add_job(
+            job_id="001",
+            airflow_workload_key=airflow_key,
+            airflow_cmd="airflow_cmd",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        del mock_executor.active_workers.key_to_id[airflow_key]
+        mock_executor.batch.describe_jobs.return_value = self._describe_jobs_response(("001", "SUCCEEDED"))
+        fail_mock.side_effect = RuntimeError("fail() also broken")
+
+        mock_executor.sync_running_jobs()
+
+        assert mock_executor.active_workers.get_all_jobs() == []
+        assert "001" not in mock_executor.active_workers.id_to_key
+
+    @mock.patch.object(BaseExecutor, "fail")
+    @mock.patch.object(BaseExecutor, "success")
+    def test_sync_eviction_fails_workload_already_removed_from_collection(
+        self, success_mock, fail_mock, mock_executor, mock_airflow_key
+    ):
+        """
+        When the error strikes after pop_by_id() already removed the job (here success()
+        itself raising), the collection can no longer resolve the workload key, so the
+        key snapshotted before handling must be used to fail the workload instead of
+        leaving it with no terminal state.
+        """
+        airflow_key = mock_airflow_key()
+        mock_executor.active_workers.add_job(
+            job_id="001",
+            airflow_workload_key=airflow_key,
+            airflow_cmd="airflow_cmd",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        mock_executor.batch.describe_jobs.return_value = self._describe_jobs_response(("001", "SUCCEEDED"))
+        success_mock.side_effect = RuntimeError("state change failed")
+
+        mock_executor.sync_running_jobs()
+
+        fail_mock.assert_called_once_with(airflow_key)
+        assert mock_executor.active_workers.get_all_jobs() == []
+        assert airflow_key not in mock_executor.active_workers.key_to_id
+
+    @mock.patch.object(BaseExecutor, "fail")
+    @mock.patch.object(BaseExecutor, "success")
+    def test_sync_reraises_credential_errors_instead_of_evicting(
+        self, success_mock, fail_mock, mock_executor, mock_airflow_key
+    ):
+        """
+        Credential problems are executor-wide, not job-specific: they must propagate to
+        sync()'s connection handling rather than evict the job they happened to surface on.
+        """
+        airflow_key = mock_airflow_key()
+        mock_executor.active_workers.add_job(
+            job_id="001",
+            airflow_workload_key=airflow_key,
+            airflow_cmd="airflow_cmd",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        mock_executor.batch.describe_jobs.return_value = self._describe_jobs_response(("001", "SUCCEEDED"))
+        success_mock.side_effect = ClientError(
+            {"Error": {"Code": "ExpiredTokenException", "Message": "token expired"}}, "SomeBotoOperation"
+        )
+
+        with pytest.raises(ClientError):
+            mock_executor.sync_running_jobs()
+
+        fail_mock.assert_not_called()
+
+    @mock.patch.object(AwsBatchExecutor, "attempt_submit_jobs")
+    @mock.patch.object(BaseExecutor, "fail")
+    def test_sync_submits_pending_jobs_despite_poisoned_job(
+        self, fail_mock, attempt_submit_jobs_mock, mock_executor, mock_airflow_key
+    ):
+        """
+        The reported production impact: a job that deterministically errors during sync
+        used to abort sync() before attempt_submit_jobs(), halting all task submission
+        until a scheduler restart.
+        """
+        airflow_key = mock_airflow_key()
+        mock_executor.active_workers.add_job(
+            job_id="001",
+            airflow_workload_key=airflow_key,
+            airflow_cmd="airflow_cmd",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        del mock_executor.active_workers.key_to_id[airflow_key]
+        mock_executor.batch.describe_jobs.return_value = self._describe_jobs_response(("001", "SUCCEEDED"))
+
+        mock_executor.sync()
+
+        attempt_submit_jobs_mock.assert_called_once()
+
     def test_start_failure_with_invalid_permissions(self, set_env_vars):
         executor = AwsBatchExecutor()
 
@@ -776,7 +945,6 @@ class TestAwsBatchExecutor:
         }
         executor.batch.describe_jobs.return_value = {"jobs": [after_batch_job]}
 
-    @pytest.mark.skip(reason="Adopting task instances hasn't been ported over to Airflow 3 yet")
     def test_try_adopt_task_instances(self, mock_executor):
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
         mock_executor.batch.describe_jobs.return_value = {
@@ -794,8 +962,42 @@ class TestAwsBatchExecutor:
         orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
         orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
         orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
-        for task in orphaned_tasks:
+
+        for idx, task in enumerate(orphaned_tasks):
             task.try_number = 1
+            task.key = mock.Mock(spec=TaskInstanceKey)
+            task.queue = "default"
+            task.executor_config = {}
+            task.id = uuid4()
+            task.dag_version_id = uuid4()
+            task.task_id = f"task_{idx}"
+            task.dag_id = "test_dag"
+            task.run_id = "test_run"
+            task.hostname = "host"
+            task.map_index = -1
+            task.pool_slots = 1
+            task.priority_weight = 1
+            task.context_carrier = {}
+            task.queued_dttm = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)
+            task.dag_model = mock.Mock()
+            task.dag_model.bundle_name = "test_bundle"
+            task.dag_model.relative_fileloc = "test_dag.py"
+            task.dag_version = mock.Mock(version_data=None)
+            task.dag_run = mock.Mock()
+            task.dag_run.bundle_version = "1.0.0"
+            # ExecuteTask.make() sources version_data from the run's pinned version.
+            task.dag_run.created_dag_version = mock.Mock(version_data=None)
+            task.dag_run.context_carrier = {}
+
+            if not AIRFLOW_V_3_0_PLUS:
+                task.command_as_list.return_value = [
+                    "airflow",
+                    "tasks",
+                    "run",
+                    "dag",
+                    f"task_{idx}",
+                    "2024-01-01",
+                ]
 
         not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
@@ -804,6 +1006,59 @@ class TestAwsBatchExecutor:
         assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    def test_serialize_workload_to_command(self, mock_executor):
+        """Test that _serialize_workload_to_command properly serializes a Task SDK workload."""
+        from airflow.executors.workloads import ExecuteTask
+
+        workload = mock.Mock(spec=ExecuteTask)
+        ser_workload = json.dumps({"test_key": "test_value"})
+        workload.model_dump_json.return_value = ser_workload
+
+        command = mock_executor._serialize_workload_to_command(workload)
+
+        assert command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            ser_workload,
+        ]
+        workload.model_dump_json.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @mock.patch("airflow.executors.workloads.ExecuteTask")
+    def test_build_task_command_airflow3(self, mock_execute_task_class, mock_executor):
+        """Test _build_task_command for Airflow 3.x+ using Task SDK."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_workload = mock.Mock()
+        ser_workload = json.dumps({"task": "data"})
+        mock_workload.model_dump_json.return_value = ser_workload
+        mock_execute_task_class.make.return_value = mock_workload
+
+        command = mock_executor._build_task_command(mock_ti)
+
+        mock_execute_task_class.make.assert_called_once_with(mock_ti)
+        assert command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            ser_workload,
+        ]
+
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 2.x")
+    def test_build_task_command_airflow2(self, mock_executor):
+        """Test _build_task_command for Airflow 2.x using command_as_list."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        expected_command = ["airflow", "tasks", "run", "dag_id", "task_id", "execution_date"]
+        mock_ti.command_as_list.return_value = expected_command
+
+        command = mock_executor._build_task_command(mock_ti)
+
+        mock_ti.command_as_list.assert_called_once()
+        assert command == expected_command
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
     def test_team_config(self):
@@ -845,6 +1100,31 @@ class TestAwsBatchExecutor:
             assert submit_kwargs["jobQueue"] == "some-job-queue"
             assert submit_kwargs["jobDefinition"] == "some-job-def"
             assert submit_kwargs["jobName"] == "some-job-name"
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(None, {}, id="without_team"),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+"
+                ),
+            ),
+        ],
+    )
+    @mock.patch.object(batch_executor.Stats, "timer")
+    def test_try_adopt_task_instances_emits_team_name_tag(
+        self, mock_timer, mock_executor, team_name, expected_tags
+    ):
+        """Test that the adopt task instances duration metric is tagged with the team name."""
+        mock_executor.team_name = team_name
+
+        mock_executor.try_adopt_task_instances([])
+
+        mock_timer.assert_called_once_with("batch_executor.adopt_task_instances.duration", tags=expected_tags)
 
 
 class TestBatchExecutorConfig:

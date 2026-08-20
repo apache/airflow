@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 // dialTimeout bounds how long execution.Serve waits to reach the supervisor's
@@ -147,19 +148,12 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 		return fmt.Errorf("reading initial message: %w", err)
 	}
 
-	if frame.Err != nil {
-		errResp := decodeErrorResponse(frame.Err)
-		if errResp != nil {
-			logger.Error("Supervisor reported an error on the initial frame",
-				"error", errResp.Error,
-				"detail", errResp.Detail,
-			)
-			return fmt.Errorf(
-				"received error from supervisor: [%s] %v",
-				errResp.Error,
-				errResp.Detail,
-			)
-		}
+	if apiErr := apiErrorFromFrame(frame); apiErr != nil {
+		logger.Error("Supervisor reported an error on the initial frame",
+			"error", apiErr.Err,
+			"detail", apiErr.Detail,
+		)
+		return fmt.Errorf("received error from supervisor: %w", apiErr)
 	}
 
 	body, err := decodeIncomingBody(frame.Body)
@@ -169,7 +163,7 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	}
 
 	switch msg := body.(type) {
-	case *StartupDetails:
+	case *genmodels.StartupDetails:
 		logger.Debug("Task execution mode",
 			"dag_id", msg.TI.DagID,
 			"task_id", msg.TI.TaskID,

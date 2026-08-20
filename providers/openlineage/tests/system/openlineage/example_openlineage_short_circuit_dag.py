@@ -29,6 +29,7 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -40,6 +41,7 @@ def do_nothing():
 DAG_ID = "openlineage_short_circuit_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,

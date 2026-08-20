@@ -62,8 +62,8 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [build-system]
 requires = [
-    "hatchling==1.30.1",
-    "packaging==26.2",
+    "hatchling==1.31.0",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",

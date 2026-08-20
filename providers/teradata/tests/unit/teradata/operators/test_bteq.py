@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import tempfile
-import unittest
 from unittest import mock
 
 import pytest
@@ -145,8 +144,7 @@ class TestBteqOperator:
 
     def test_template_fields(self):
         # Verify template fields are defined correctly
-        print(BteqOperator.template_fields)
-        assert BteqOperator.template_fields == "sql"
+        assert BteqOperator.template_fields == ("sql",)
 
     def test_execute_raises_if_no_sql_or_file(self):
         op = BteqOperator(task_id="fail_case", teradata_conn_id="td_conn")
@@ -288,7 +286,3 @@ class TestBteqOperator:
         )
         result = op.execute({})
         assert result == 42  # still returns, but caller can fail on RC if desired
-
-
-if __name__ == "__main__":
-    unittest.main()

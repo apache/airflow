@@ -27,7 +27,7 @@ from sqlalchemy import delete, func, insert, select, update
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
-from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
+from airflow.api_fastapi.common.db.dags import eager_load_teams, generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -228,7 +228,7 @@ def get_dag_details(
     """Get details of Dag."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    dag_model = session.get(DagModel, dag_id)
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).options(*eager_load_teams()))
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
@@ -250,7 +250,7 @@ def get_dag_details(
         session.scalar(
             select(func.count())
             .select_from(DagRun)
-            .where(DagRun.dag_id == dag_id, DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
+            .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.RUNNING)
         )
         or 0
     )
@@ -449,6 +449,7 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
             HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),

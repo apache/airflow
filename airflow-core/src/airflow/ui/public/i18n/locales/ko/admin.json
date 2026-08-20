@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "섹션"
-    },
-    "title": "Airflow 구성"
+    }
   },
   "connections": {
     "add": "커넥션 추가",
@@ -177,6 +176,7 @@
           "title": "건너뛰기"
         }
       },
+      "parsingFile": "파일 구문 분석 중...",
       "title": "변수 가져오기",
       "upload": "JSON 파일 업로드",
       "uploadPlaceholder": "변수를 포함한 JSON 파일 업로드 (e.g., {\"key\": \"value\", ...})"

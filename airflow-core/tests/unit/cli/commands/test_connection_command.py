@@ -172,6 +172,40 @@ class TestUriMasking:
         assert result == expected
 
 
+class TestConnectionDisplayMapper:
+    """Regression tests for ``ConnectionDisplayMapper`` attribute mapping."""
+
+    @pytest.mark.parametrize(
+        "mapper_fn",
+        [
+            pytest.param(
+                connection_command.ConnectionDisplayMapper.full_details,
+                id="full_details",
+            ),
+            pytest.param(
+                connection_command.ConnectionDisplayMapper.masked_sensitive,
+                id="masked_sensitive",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("is_encrypted", "is_extra_encrypted"),
+        [
+            pytest.param(True, False, id="password-only-encrypted"),
+            pytest.param(False, True, id="extra-only-encrypted"),
+        ],
+    )
+    def test_maps_encryption_flags_to_correct_keys(self, mapper_fn, is_encrypted, is_extra_encrypted):
+        conn = Connection(conn_id="test_mapper", conn_type="http")
+        conn.is_encrypted = is_encrypted
+        conn.is_extra_encrypted = is_extra_encrypted
+
+        result = mapper_fn(conn)
+
+        assert result["is_encrypted"] == is_encrypted
+        assert result["is_extra_encrypted"] == is_extra_encrypted
+
+
 class TestCliExportConnections:
     parser = cli_parser.get_parser()
 
@@ -447,7 +481,7 @@ class TestCliAddConnections:
                     "new0-json",
                     f"--conn-json={TEST_JSON}",
                 ],
-                "Successfully added `conn_id`=new0-json : postgres://airflow:******@host:5432/airflow",
+                "Successfully added `conn_id`=new0-json",
                 {
                     "conn_type": "postgres",
                     "description": "new0-json description",
@@ -469,7 +503,7 @@ class TestCliAddConnections:
                     f"--conn-uri={TEST_URL}",
                     "--conn-description=new0 description",
                 ],
-                "Successfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new0",
                 {
                     "conn_type": "postgres",
                     "description": "new0 description",
@@ -491,7 +525,7 @@ class TestCliAddConnections:
                     f"--conn-uri={TEST_URL}",
                     "--conn-description=new1 description",
                 ],
-                "Successfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new1",
                 {
                     "conn_type": "postgres",
                     "description": "new1 description",
@@ -514,7 +548,7 @@ class TestCliAddConnections:
                     "--conn-extra",
                     '{"extra": "yes"}',
                 ],
-                "Successfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new2",
                 {
                     "conn_type": "postgres",
                     "description": None,
@@ -539,7 +573,7 @@ class TestCliAddConnections:
                     "--conn-description",
                     "new3 description",
                 ],
-                "Successfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new3",
                 {
                     "conn_type": "postgres",
                     "description": "new3 description",
@@ -566,7 +600,7 @@ class TestCliAddConnections:
                     "--conn-schema=airflow",
                     "--conn-description=  new4 description  ",
                 ],
-                "Successfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
+                "Successfully added `conn_id`=new4",
                 {
                     "conn_type": "hive_metastore",
                     "description": "  new4 description  ",
@@ -592,7 +626,7 @@ class TestCliAddConnections:
                     '{"extra": "yes"}',
                     "--conn-description=new5 description",
                 ],
-                "Successfully added `conn_id`=new5 : google_cloud_platform://:@:",
+                "Successfully added `conn_id`=new5",
                 {
                     "conn_type": "google_cloud_platform",
                     "description": "new5 description",
@@ -608,7 +642,7 @@ class TestCliAddConnections:
             ),
             pytest.param(
                 ["connections", "add", "new6", "--conn-uri", "aws://?region_name=foo-bar-1"],
-                "Successfully added `conn_id`=new6 : aws://?region_name=foo-bar-1",
+                "Successfully added `conn_id`=new6",
                 {
                     "conn_type": "aws",
                     "description": None,
@@ -624,7 +658,7 @@ class TestCliAddConnections:
             ),
             pytest.param(
                 ["connections", "add", "new7", "--conn-uri", "aws://@/?region_name=foo-bar-1"],
-                "Successfully added `conn_id`=new7 : aws://@/?region_name=foo-bar-1",
+                "Successfully added `conn_id`=new7",
                 {
                     "conn_type": "aws",
                     "description": None,

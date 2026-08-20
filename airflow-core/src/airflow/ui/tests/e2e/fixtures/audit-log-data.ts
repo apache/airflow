@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Audit log data fixture — triggers Dag runs to generate audit log entries.
  */

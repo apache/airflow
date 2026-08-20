@@ -39,7 +39,7 @@ Then, you can run the tests using the following command:
 
 .. code-block:: bash
 
-   breeze testing airflow-ctl-integration-test
+   breeze testing airflow-ctl-integration-tests
 
 .. note::
 

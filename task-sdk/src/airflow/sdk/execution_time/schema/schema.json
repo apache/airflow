@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-06-16",
+  "api_version": "2026-10-30",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -34,7 +34,14 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "type": "object"
             },
@@ -187,34 +194,6 @@
       "title": "AssetProfile",
       "type": "object"
     },
-    "AssetReferenceAssetEventDagRun": {
-      "additionalProperties": false,
-      "description": "Schema for AssetModel used in AssetEventDagRunReference.",
-      "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "uri": {
-          "title": "Uri",
-          "type": "string"
-        },
-        "extra": {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "title": "Extra",
-          "type": "object"
-        }
-      },
-      "required": [
-        "name",
-        "uri",
-        "extra"
-      ],
-      "title": "AssetReferenceAssetEventDagRun",
-      "type": "object"
-    },
     "AssetResponse": {
       "description": "Asset schema for responses with fields that are needed for Runtime.",
       "properties": {
@@ -234,7 +213,14 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "type": "object"
             },
@@ -273,7 +259,14 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "type": "object"
             },
@@ -304,7 +297,14 @@
       "description": "Response to GetAssetStateStore; wraps the generated API response for supervisor to worker comms.",
       "properties": {
         "value": {
-          "$ref": "#/$defs/JsonValue"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "type": {
           "const": "AssetStateStoreResult",
@@ -347,17 +347,10 @@
       "description": "Park a task instance awaiting human input (Human-in-the-loop), without a trigger.",
       "properties": {
         "state": {
-          "anyOf": [
-            {
-              "const": "awaiting_input",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
+          "const": "awaiting_input",
           "default": "awaiting_input",
-          "title": "State"
+          "title": "State",
+          "type": "string"
         },
         "timeout": {
           "anyOf": [
@@ -380,7 +373,14 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "type": "object"
             },
@@ -434,6 +434,19 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         }
       },
       "required": [
@@ -487,11 +500,6 @@
           "title": "Ti Id",
           "type": "string"
         },
-        "all_map_indices": {
-          "default": false,
-          "title": "All Map Indices",
-          "type": "boolean"
-        },
         "type": {
           "const": "ClearTaskStateStore",
           "default": "ClearTaskStateStore",
@@ -503,6 +511,97 @@
         "ti_id"
       ],
       "title": "ClearTaskStateStore",
+      "type": "object"
+    },
+    "ConnectionResponse": {
+      "description": "Connection schema for responses with fields that are needed for Runtime.",
+      "properties": {
+        "conn_id": {
+          "title": "Conn Id",
+          "type": "string"
+        },
+        "conn_type": {
+          "title": "Conn Type",
+          "type": "string"
+        },
+        "host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Host"
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema"
+        },
+        "login": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Login"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Password"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Port"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Extra"
+        }
+      },
+      "required": [
+        "conn_id",
+        "conn_type",
+        "host",
+        "schema",
+        "login",
+        "password",
+        "port",
+        "extra"
+      ],
+      "title": "ConnectionResponse",
       "type": "object"
     },
     "ConnectionResult": {
@@ -524,7 +623,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Host"
         },
         "schema": {
@@ -536,7 +634,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Schema"
         },
         "login": {
@@ -548,7 +645,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Login"
         },
         "password": {
@@ -560,7 +656,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Password"
         },
         "port": {
@@ -572,7 +667,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Port"
         },
         "extra": {
@@ -584,7 +678,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Extra"
         },
         "type": {
@@ -596,7 +689,13 @@
       },
       "required": [
         "conn_id",
-        "conn_type"
+        "conn_type",
+        "host",
+        "schema",
+        "login",
+        "password",
+        "port",
+        "extra"
       ],
       "title": "ConnectionResult",
       "type": "object"
@@ -744,6 +843,19 @@
             }
           ],
           "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         },
         "msg": {
           "anyOf": [
@@ -936,7 +1048,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Bundle Name"
         },
         "bundle_version": {
@@ -948,7 +1059,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Bundle Version"
         },
         "relative_fileloc": {
@@ -960,7 +1070,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Relative Fileloc"
         },
         "owners": {
@@ -972,7 +1081,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Owners"
         },
         "tags": {
@@ -992,7 +1100,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Next Dagrun"
         },
         "type": {
@@ -1005,7 +1112,12 @@
       "required": [
         "dag_id",
         "is_paused",
-        "tags"
+        "bundle_name",
+        "bundle_version",
+        "relative_fileloc",
+        "owners",
+        "tags",
+        "next_dagrun"
       ],
       "title": "DagResult",
       "type": "object"
@@ -1032,13 +1144,19 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Logical Date"
         },
         "start_date": {
-          "format": "date-time",
-          "title": "Start Date",
-          "type": "string"
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Date"
         },
         "end_date": {
           "anyOf": [
@@ -1050,7 +1168,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "End Date"
         },
         "state": {
@@ -1067,7 +1184,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Data Interval Start"
         },
         "data_interval_end": {
@@ -1080,7 +1196,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Data Interval End"
         },
         "partition_key": {
@@ -1092,15 +1207,19 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Partition Key"
         }
       },
       "required": [
         "run_id",
         "dag_id",
+        "logical_date",
         "start_date",
-        "state"
+        "end_date",
+        "state",
+        "data_interval_start",
+        "data_interval_end",
+        "partition_key"
       ],
       "title": "DagRunAssetReference",
       "type": "object"
@@ -1155,7 +1274,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Logical Date"
         },
         "data_interval_start": {
@@ -1168,7 +1286,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Data Interval Start"
         },
         "data_interval_end": {
@@ -1181,7 +1298,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Data Interval End"
         },
         "run_after": {
@@ -1199,7 +1315,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Start Date"
         },
         "end_date": {
@@ -1212,7 +1327,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "End Date"
         },
         "clear_number": {
@@ -1274,8 +1388,20 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
         },
         "note": {
           "anyOf": [
@@ -1311,10 +1437,16 @@
       "required": [
         "dag_id",
         "run_id",
+        "logical_date",
+        "data_interval_start",
+        "data_interval_end",
         "run_after",
+        "start_date",
+        "end_date",
         "run_type",
         "state",
-        "consumed_asset_events"
+        "consumed_asset_events",
+        "partition_key"
       ],
       "title": "DagRunResult",
       "type": "object"
@@ -1366,17 +1498,10 @@
       "description": "Update a task instance state to deferred.",
       "properties": {
         "state": {
-          "anyOf": [
-            {
-              "const": "deferred",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
+          "const": "deferred",
           "default": "deferred",
-          "title": "State"
+          "title": "State",
+          "type": "string"
         },
         "classpath": {
           "title": "Classpath",
@@ -1386,7 +1511,14 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "type": "object"
             },
@@ -1433,7 +1565,14 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "$ref": "#/$defs/JsonValue"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "type": "object"
             },
@@ -1630,6 +1769,19 @@
           ],
           "title": "Bundle Version"
         },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
         "msg": {
           "anyOf": [
             {
@@ -1825,6 +1977,45 @@
           "title": "Ascending",
           "type": "boolean"
         },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
+        "partition_key_regexp_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key Regexp Pattern"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
         "type": {
           "const": "GetAssetEventByAsset",
           "default": "GetAssetEventByAsset",
@@ -1887,6 +2078,45 @@
           "default": true,
           "title": "Ascending",
           "type": "boolean"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
+        "partition_key_regexp_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key Regexp Pattern"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
         },
         "type": {
           "const": "GetAssetEventByAssetAlias",
@@ -3263,17 +3493,10 @@
       "description": "Update a task instance state to reschedule/up_for_reschedule.",
       "properties": {
         "state": {
-          "anyOf": [
-            {
-              "const": "up_for_reschedule",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
+          "const": "up_for_reschedule",
           "default": "up_for_reschedule",
-          "title": "State"
+          "title": "State",
+          "type": "string"
         },
         "reschedule_date": {
           "format": "date-time",
@@ -3316,17 +3539,10 @@
       "description": "Update a task instance state to up_for_retry.",
       "properties": {
         "state": {
-          "anyOf": [
-            {
-              "const": "up_for_retry",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
+          "const": "up_for_retry",
           "default": "up_for_retry",
-          "title": "State"
+          "title": "State",
+          "type": "string"
         },
         "end_date": {
           "format": "date-time",
@@ -3700,17 +3916,10 @@
       "description": "Update a task's state to success. Includes task_outlets and outlet_events for registering asset events.",
       "properties": {
         "state": {
-          "anyOf": [
-            {
-              "const": "success",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
+          "const": "success",
           "default": "success",
-          "title": "State"
+          "title": "State",
+          "type": "string"
         },
         "end_date": {
           "format": "date-time",
@@ -3837,6 +4046,19 @@
             }
           ],
           "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         },
         "msg": {
           "anyOf": [
@@ -3994,7 +4216,14 @@
       "description": "Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms.",
       "properties": {
         "value": {
-          "$ref": "#/$defs/JsonValue"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "type": {
           "const": "TaskStateStoreResult",
@@ -4219,6 +4448,33 @@
       "title": "VariableKeysResult",
       "type": "object"
     },
+    "VariableResponse": {
+      "additionalProperties": false,
+      "description": "Variable schema for responses with fields that are needed for Runtime.",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "title": "VariableResponse",
+      "type": "object"
+    },
     "VariableResult": {
       "additionalProperties": false,
       "properties": {
@@ -4235,7 +4491,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Value"
         },
         "type": {
@@ -4246,7 +4501,8 @@
         }
       },
       "required": [
-        "key"
+        "key",
+        "value"
       ],
       "title": "VariableResult",
       "type": "object"
@@ -4278,7 +4534,14 @@
           "type": "string"
         },
         "value": {
-          "$ref": "#/$defs/JsonValue"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "type": {
           "const": "XComResult",
@@ -4334,95 +4597,112 @@
       "title": "XComSequenceSliceResult",
       "type": "object"
     },
-    "ConnectionResponse": {
-      "description": "Connection schema for responses with fields that are needed for Runtime.",
+    "ArgValueSchema": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "ArgValueSchema",
+      "type": "object"
+    },
+    "LiteralArgBinding": {
+      "description": "One positional stub-task argument carrying an inline literal from the Dag file.",
       "properties": {
-        "conn_id": {
-          "title": "Conn Id",
+        "name": {
+          "title": "Name",
           "type": "string"
         },
-        "conn_type": {
-          "title": "Conn Type",
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "literal",
+          "title": "Kind",
           "type": "string"
         },
-        "host": {
+        "value": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/JsonValue"
             },
             {
               "type": "null"
             }
           ],
-          "title": "Host"
+          "default": null
         },
-        "schema": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Schema"
-        },
-        "login": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Login"
-        },
-        "password": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Password"
-        },
-        "port": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Port"
-        },
-        "extra": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Extra"
+        "from_default": {
+          "default": false,
+          "title": "From Default",
+          "type": "boolean"
         }
       },
       "required": [
-        "conn_id",
-        "conn_type",
-        "host",
-        "schema",
-        "login",
-        "password",
-        "port",
-        "extra"
+        "name",
+        "kind"
       ],
-      "title": "ConnectionResponse",
+      "title": "LiteralArgBinding",
+      "type": "object"
+    },
+    "TaskArgBinding": {
+      "discriminator": {
+        "mapping": {
+          "literal": "#/$defs/LiteralArgBinding",
+          "xcom": "#/$defs/XComArgBinding"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/XComArgBinding"
+        },
+        {
+          "$ref": "#/$defs/LiteralArgBinding"
+        }
+      ],
+      "title": "TaskArgBinding"
+    },
+    "XComArgBinding": {
+      "description": "One positional stub-task argument pulled from an upstream task's XCom.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "xcom",
+          "title": "Kind",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "task_id"
+      ],
+      "title": "XComArgBinding",
       "type": "object"
     },
     "AssetEventDagRunReference": {
@@ -4494,6 +4774,18 @@
           "format": "date-time",
           "title": "Timestamp",
           "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
         }
       },
       "required": [
@@ -4507,6 +4799,34 @@
         "timestamp"
       ],
       "title": "AssetEventDagRunReference",
+      "type": "object"
+    },
+    "AssetReferenceAssetEventDagRun": {
+      "additionalProperties": false,
+      "description": "Schema for AssetModel used in AssetEventDagRunReference.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "extra": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "uri",
+        "extra"
+      ],
+      "title": "AssetReferenceAssetEventDagRun",
       "type": "object"
     },
     "DagRun": {
@@ -4640,6 +4960,19 @@
           ],
           "title": "Partition Key"
         },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
         "note": {
           "anyOf": [
             {
@@ -4763,6 +5096,21 @@
           ],
           "default": null,
           "title": "Start Date"
+        },
+        "arg_bindings": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TaskArgBinding"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arg Bindings"
         }
       },
       "required": [
@@ -4846,33 +5194,6 @@
         "dag_version_id"
       ],
       "title": "TaskInstance",
-      "type": "object"
-    },
-    "VariableResponse": {
-      "additionalProperties": false,
-      "description": "Variable schema for responses with fields that are needed for Runtime.",
-      "properties": {
-        "key": {
-          "title": "Key",
-          "type": "string"
-        },
-        "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
-        }
-      },
-      "required": [
-        "key",
-        "value"
-      ],
-      "title": "VariableResponse",
       "type": "object"
     }
   }

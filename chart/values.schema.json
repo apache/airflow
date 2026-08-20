@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Default values for airflow. Declare variables to be passed into your templates.",
     "type": "object",
     "x-docsSectionOrder": [
@@ -78,14 +78,14 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.2.2",
+            "default": "3.3.1",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
             "description": "Default airflow digest to deploy. Overrides tag.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "default": null,
             "x-docsSection": "Common"
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 3.1.0 and above is supported.",
             "type": "string",
-            "default": "3.2.2",
+            "default": "3.3.1",
             "x-docsSection": "Common"
         },
         "securityContexts": {
@@ -197,8 +197,8 @@
         "schedulerName": {
             "description": "Specify kube scheduler name for Pods.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "default": null,
             "x-docsSection": "Common"
@@ -221,8 +221,8 @@
         "ipFamilyPolicy": {
             "description": "Specify the ip family policy to configure dual-stack networking for all Services. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "enum": [
                 "SingleStack",
@@ -645,106 +645,6 @@
                 }
             }
         },
-        "httpRoute": {
-            "description": "Kubernetes Gateway API (HTTPRoute) configuration.",
-            "type": "object",
-            "x-docsSection": "Ingress",
-            "additionalProperties": false,
-            "properties": {
-                "apiServer": {
-                    "description": "Configuration for the HTTPRoute of the API server.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable API server HTTPRoute resource.",
-                            "type": "boolean",
-                            "default": false
-                        },
-                        "labels": {
-                            "description": "Extra labels for the API server HTTPRoute.",
-                            "type": "object",
-                            "default": {},
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        },
-                        "annotations": {
-                            "description": "Annotations for the API server HTTPRoute.",
-                            "type": "object",
-                            "default": {},
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        },
-                        "parentRefs": {
-                            "description": "List of parent Gateway references this HTTPRoute attaches to. Required when enabled.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "description": "Name of the referenced Gateway.",
-                                        "type": "string"
-                                    },
-                                    "namespace": {
-                                        "description": "Namespace of the referenced Gateway. Defaults to the local namespace.",
-                                        "type": "string"
-                                    },
-                                    "sectionName": {
-                                        "description": "Name of the Gateway listener section this route attaches to.",
-                                        "type": "string"
-                                    },
-                                    "port": {
-                                        "description": "Port of the Gateway listener this route attaches to.",
-                                        "type": "integer"
-                                    },
-                                    "kind": {
-                                        "description": "Kind of the referenced resource. Defaults to `Gateway`.",
-                                        "type": "string"
-                                    },
-                                    "group": {
-                                        "description": "API group of the referenced resource. Defaults to `gateway.networking.k8s.io`.",
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name"
-                                ]
-                            }
-                        },
-                        "hostnames": {
-                            "description": "Hostnames this HTTPRoute should match (templated). Empty matches all.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        "path": {
-                            "description": "Default routing rule path (used only when `httpRoute.apiServer.rules` is empty).",
-                            "type": "string",
-                            "default": "/"
-                        },
-                        "pathType": {
-                            "description": "The pathType for the default path: PathPrefix, Exact, or RegularExpression.",
-                            "type": "string",
-                            "default": "PathPrefix"
-                        },
-                        "rules": {
-                            "description": "Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`. Each entry follows the upstream Gateway API `HTTPRouteRule` schema.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": {}
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "networkPolicies": {
             "description": "Network policy configuration.",
             "type": "object",
@@ -779,8 +679,8 @@
         "airflowLocalSettings": {
             "description": "`airflow_local_settings` file as a string (templated). You can bake an `airflow_local_settings.py` into your image instead. In that case, set this value to null.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": "See values.yaml"
@@ -835,24 +735,24 @@
                         "repository": {
                             "description": "The airflow image repository.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "tag": {
                             "description": "The airflow image tag.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "digest": {
                             "description": "The airflow image digest. If set, it will override the tag.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -888,16 +788,24 @@
                         "repository": {
                             "description": "The pod_template image repository. If ``config.kubernetes.worker_container_repository`` is set, k8s executor will use config value instead.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "tag": {
                             "description": "The pod_template image tag. If ``config.kubernetes.worker_container_tag`` is set, k8s executor will use config value instead.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
+                            ],
+                            "default": null
+                        },
+                        "digest": {
+                            "description": "The pod_template image digest. If set, it will override the tag. If ``config.kubernetes_executor.worker_container_repository`` and ``config.kubernetes_executor.worker_container_tag`` are set, the k8s executor will use those instead.",
+                            "type": [
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -921,16 +829,16 @@
                         "repository": {
                             "description": "The flower image repository.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "tag": {
                             "description": "The flower image tag.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -1410,24 +1318,49 @@
                 "metadataSecretName": {
                     "description": "Metadata connection string secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
+                    ],
+                    "default": null
+                },
+                "metadataSecretKey": {
+                    "description": "Key in the metadata connection secret containing the connection string. Only used when `metadataSecretName` is set.",
+                    "type": [
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "resultBackendSecretName": {
                     "description": "Result backend connection string secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
+                    ],
+                    "default": null
+                },
+                "resultBackendSecretKey": {
+                    "description": "Key in the result backend connection secret containing the connection string. Only used when `resultBackendSecretName` is set.",
+                    "type": [
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "brokerUrlSecretName": {
                     "description": "Redis broker URL secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
+                    ],
+                    "x-docsSection": "Redis",
+                    "default": null
+                },
+                "brokerUrlSecretKey": {
+                    "description": "Key in the broker URL secret containing the broker URL. Only used when `brokerUrlSecretName` is set.",
+                    "type": [
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Redis",
                     "default": null
@@ -1455,8 +1388,8 @@
                         "host": {
                             "description": "The database host.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -1488,8 +1421,8 @@
                 "resultBackendConnection": {
                     "description": "Result backend connection configuration.",
                     "type": [
-                        "object",
-                        "null"
+                        "null",
+                        "object"
                     ],
                     "default": null,
                     "additionalProperties": false,
@@ -1512,8 +1445,8 @@
                         "host": {
                             "description": "The database host.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -1554,8 +1487,8 @@
                 "brokerUrl": {
                     "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Redis",
                     "default": null
@@ -1573,8 +1506,8 @@
         "fernetKey": {
             "description": "The Fernet key used to encrypt passwords (can only be set during install, not upgrade).",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": null
@@ -1582,8 +1515,8 @@
         "fernetKeySecretName": {
             "description": "The Fernet key secret name.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null
@@ -1600,8 +1533,8 @@
         "apiSecretKey": {
             "description": "The Flask secret key for Airflow Api to encrypt browser session.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": null
@@ -1618,8 +1551,8 @@
         "apiSecretKeySecretName": {
             "description": "The Secret name containing Flask secret_key for the Api.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null
@@ -1627,8 +1560,8 @@
         "jwtSecret": {
             "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs. Note: It is not recommended to use in production as during helm upgrade it will be changed which can cause dag failures during component rollover.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": null
@@ -1636,8 +1569,8 @@
         "jwtSecretName": {
             "description": "The JWT secret name.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null
@@ -1679,8 +1612,8 @@
                 "keytabBase64Content": {
                     "description": "Kerberos keytab base64 encoded content.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -1969,8 +1902,8 @@
                                 "name": {
                                     "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
@@ -2124,8 +2057,8 @@
                                 "storageClassName": {
                                     "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
@@ -2177,6 +2110,42 @@
                                     "description": "Enable Kerberos sidecar.",
                                     "type": "boolean",
                                     "default": false
+                                },
+                                "startupProbe": {
+                                    "description": "Startup probe for the Kerberos worker sidecar (runs `klist -s`).",
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "enabled": {
+                                            "description": "Enable the Kerberos sidecar startup probe. Disable for custom images without `klist`.",
+                                            "type": "boolean",
+                                            "default": true
+                                        },
+                                        "timeoutSeconds": {
+                                            "description": "Number of seconds after which the probe times out.",
+                                            "type": "integer",
+                                            "default": 5,
+                                            "minimum": 1
+                                        },
+                                        "initialDelaySeconds": {
+                                            "description": "Number of seconds after the container has started before the startup probe is initiated.",
+                                            "type": "integer",
+                                            "default": 0,
+                                            "minimum": 0
+                                        },
+                                        "periodSeconds": {
+                                            "description": "How often (in seconds) to perform the probe.",
+                                            "type": "integer",
+                                            "default": 10,
+                                            "minimum": 1
+                                        },
+                                        "failureThreshold": {
+                                            "description": "Number of consecutive failures required for the startup probe to fail.",
+                                            "type": "integer",
+                                            "default": 6,
+                                            "minimum": 1
+                                        }
+                                    }
                                 },
                                 "resources": {
                                     "description": "Resources on kerberos sidecar.",
@@ -2413,16 +2382,16 @@
                         "runtimeClassName": {
                             "description": "Specify runtime for Airflow Celery worker pods.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "priorityClassName": {
                             "description": "Specify priority for Airflow Celery worker pods.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -2795,8 +2764,8 @@
                         "schedulerName": {
                             "description": "Specify kube scheduler name for Airflow Celery worker pods.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null,
                             "x-docsSection": "Common"
@@ -2901,8 +2870,8 @@
                                 "name": {
                                     "description": "The name of the ServiceAccount to use. If not set and ``create`` is 'true', a name is generated using the release name with kubernetes dedicated name.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
@@ -2925,6 +2894,42 @@
                                     "description": "Enable Kerberos sidecar.",
                                     "type": "boolean",
                                     "default": false
+                                },
+                                "startupProbe": {
+                                    "description": "Startup probe for the Kerberos worker sidecar (runs `klist -s`).",
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "enabled": {
+                                            "description": "Enable the Kerberos sidecar startup probe. Disable for custom images without `klist`.",
+                                            "type": "boolean",
+                                            "default": true
+                                        },
+                                        "timeoutSeconds": {
+                                            "description": "Number of seconds after which the probe times out.",
+                                            "type": "integer",
+                                            "default": 5,
+                                            "minimum": 1
+                                        },
+                                        "initialDelaySeconds": {
+                                            "description": "Number of seconds after the container has started before the startup probe is initiated.",
+                                            "type": "integer",
+                                            "default": 0,
+                                            "minimum": 0
+                                        },
+                                        "periodSeconds": {
+                                            "description": "How often (in seconds) to perform the probe.",
+                                            "type": "integer",
+                                            "default": 10,
+                                            "minimum": 1
+                                        },
+                                        "failureThreshold": {
+                                            "description": "Number of consecutive failures required for the startup probe to fail.",
+                                            "type": "integer",
+                                            "default": 6,
+                                            "minimum": 1
+                                        }
+                                    }
                                 },
                                 "resources": {
                                     "description": "Resources on kerberos sidecar.",
@@ -3153,16 +3158,16 @@
                         "runtimeClassName": {
                             "description": "Specify runtime for pods created with pod-template-file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "priorityClassName": {
                             "description": "Specify priority for pods created with pod-template-file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -3288,8 +3293,8 @@
                         "schedulerName": {
                             "description": "Specify kube scheduler name for pods created with pod-template-file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null,
                             "x-docsSection": "Common"
@@ -3365,8 +3370,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -3406,8 +3411,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -3513,8 +3518,8 @@
                                 "audience": {
                                     "description": "Intended audience of the token. Optional - defaults to the identifier of the Kubernetes API server.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 }
@@ -3528,8 +3533,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -3644,8 +3649,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for scheduler pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -3951,8 +3956,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -4037,8 +4042,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -4074,8 +4079,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -4195,8 +4200,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for triggerer pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -4558,10 +4563,10 @@
                                 "default": {},
                                 "additionalProperties": {
                                     "type": [
-                                        "string",
-                                        "number",
                                         "boolean",
-                                        "null"
+                                        "null",
+                                        "number",
+                                        "string"
                                     ]
                                 }
                             }
@@ -4602,8 +4607,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -4680,8 +4685,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -4796,8 +4801,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for dag processor pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -5185,8 +5190,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -5352,8 +5357,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for the create user job pod.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -5521,8 +5526,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -5688,8 +5693,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for the migrate database job pod.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -5733,6 +5738,10 @@
                     "description": "Enable Airflow API server deployment.",
                     "type": "boolean",
                     "default": true
+                },
+                "httpRoute": {
+                    "$ref": "#/definitions/httpRoute",
+                    "description": "Kubernetes Gateway API (HTTPRoute) configuration for the API server."
                 },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the API server configmap.",
@@ -5987,8 +5996,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -6164,8 +6173,8 @@
                 "apiServerConfig": {
                     "description": "This string (templated) will be mounted into the Airflow API Server as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Common",
                     "default": null,
@@ -6176,8 +6185,8 @@
                 "apiServerConfigConfigMapName": {
                     "description": "The configmap name containing the webserver_config.py.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Common",
                     "default": null,
@@ -6247,20 +6256,20 @@
                                     },
                                     "port": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "targetPort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "nodePort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "protocol": {
@@ -6290,8 +6299,8 @@
                         "loadBalancerIP": {
                             "description": "API server Service loadBalancerIP.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -6319,8 +6328,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for API server pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -6508,6 +6517,10 @@
                     "type": "boolean",
                     "default": false
                 },
+                "httpRoute": {
+                    "$ref": "#/definitions/httpRoute",
+                    "description": "Kubernetes Gateway API (HTTPRoute) configuration for Flower."
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration.",
                     "type": "object",
@@ -6693,8 +6706,8 @@
                 "secretName": {
                     "description": "A secret containing the user and password pair.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -6709,16 +6722,16 @@
                 "username": {
                     "description": "Username use to access Flower.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "password": {
                     "description": "Password use to access Flower.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -6752,14 +6765,14 @@
                                     },
                                     "port": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "targetPort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "protocol": {
@@ -6784,8 +6797,8 @@
                         "loadBalancerIP": {
                             "description": "Flower Service loadBalancerIP.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -6819,8 +6832,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -6869,8 +6882,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for Flower pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -7162,8 +7175,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -7193,8 +7206,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for StatsD pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -7384,8 +7397,8 @@
                 "config": {
                     "description": "Override the OTel Collector `config.yml`. When set (non-empty), this string replaces the chart's default collector config. The value is rendered with `tpl`, so values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or `{{ include \"airflow.fullname\" . }}` can be referenced from inside the string. Leave empty to use the chart default.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -7531,8 +7544,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for OTel Collector pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -7599,8 +7612,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -7747,8 +7760,8 @@
                 "configSecretName": {
                     "description": "The PgBouncer config Secret name (templated).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -7860,6 +7873,13 @@
                         }
                     ]
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 120,
+                    "minimum": 0,
+                    "x-docsSection": "Kubernetes"
+                },
                 "securityContexts": {
                     "description": "Security context definition for the PgBouncer.",
                     "type": "object",
@@ -7914,8 +7934,8 @@
                         "clusterIp": {
                             "description": "Specific ClusterIP for the PgBouncer Service.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -7971,24 +7991,24 @@
                         "ca": {
                             "description": "Certificate Authority for server side",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "cert": {
                             "description": "Server Certificate for server side",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "key": {
                             "description": "Private key used to authenticate with the server",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -7997,24 +8017,24 @@
                 "extraIniMetadata": {
                     "description": "Add extra metadata database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "extraIniResultBackend": {
                     "description": "Add extra result backend database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "extraIni": {
                     "description": "Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8059,8 +8079,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8085,8 +8105,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for PgBouncer pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8146,16 +8166,16 @@
                         "statsSecretName": {
                             "description": "Name of an existing Secrets object containing PgBouncer Metrics secrets.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "statsSecretKey": {
                             "description": "Key referencing the PGBouncer Metrics connection URI within an existing Secrets object. Defaults to `connection` if left null.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8321,8 +8341,8 @@
                         "clusterIP": {
                             "description": "If using `ClusterIP` service type, custom IP address can be specified.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8354,8 +8374,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8370,8 +8390,8 @@
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8408,16 +8428,16 @@
                 "passwordSecretName": {
                     "description": "Redis password secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "password": {
                     "description": "If password is set, create secret with it, else generate a new one on install (can only be set during install, not upgrade).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8469,8 +8489,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for redis pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8491,8 +8511,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8613,8 +8633,8 @@
                 "secretName": {
                     "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets) (Deprecated - renamed to `registry.secretNames`).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8670,8 +8690,8 @@
                 "secretName": {
                     "description": "A secret containing the connection string.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8741,8 +8761,8 @@
                 "secretName": {
                     "description": "A secret containing the connection string.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8967,8 +8987,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for cleanup pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9046,8 +9066,8 @@
                                 "audience": {
                                     "description": "Intended audience of the token. Optional - defaults to the identifier of the Kubernetes API server.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 }
@@ -9061,8 +9081,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -9343,8 +9363,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for database cleanup pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9400,8 +9420,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -9591,24 +9611,24 @@
                         "postgresPassword": {
                             "description": "Password for the 'postgres' admin user.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": "postgres"
                         },
                         "username": {
                             "description": "Name for a custom user to create",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": ""
                         },
                         "password": {
                             "description": "Password for the custom user to create.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": ""
                         }
@@ -9659,8 +9679,8 @@
         "podTemplate": {
             "description": "The content of ``pod_template_file.yaml`` used for KubernetesExecutor workers (templated). The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null,
@@ -9677,8 +9697,8 @@
                 "mountPath": {
                     "description": "Where dags volume will be mounted. Works for both `persistence` and `gitSync`. If not specified, dags mount path will be set to `$AIRFLOW_HOME/dags`",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9700,8 +9720,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -9718,8 +9738,8 @@
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -9734,8 +9754,8 @@
                         "subPath": {
                             "description": "Subpath within the PVC where dags are located.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -9958,32 +9978,32 @@
                         "credentialsSecret": {
                             "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "sshKey": {
                             "description": "SSH private key",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "sshKeySecret": {
                             "description": "Name of a Secret containing the repo `sshKeySecret`.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "knownHosts": {
                             "description": "When using a ssh private key, the contents of your `known_hosts` file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null,
                             "examples": [
@@ -10072,8 +10092,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -10088,16 +10108,16 @@
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "subPath": {
                             "description": "The subpath of the existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -10113,6 +10133,101 @@
         }
     },
     "definitions": {
+        "httpRoute": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable the HTTPRoute resource.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "labels": {
+                    "description": "Extra labels for the HTTPRoute.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "annotations": {
+                    "description": "Annotations for the HTTPRoute.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "parentRefs": {
+                    "description": "List of parent Gateway references this HTTPRoute attaches to. Required when enabled.",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "default": null,
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "description": "Name of the referenced Gateway.",
+                                "type": "string"
+                            },
+                            "namespace": {
+                                "description": "Namespace of the referenced Gateway. Defaults to the local namespace.",
+                                "type": "string"
+                            },
+                            "sectionName": {
+                                "description": "Name of the Gateway listener section this route attaches to.",
+                                "type": "string"
+                            },
+                            "port": {
+                                "description": "Port of the Gateway listener this route attaches to.",
+                                "type": "integer"
+                            },
+                            "kind": {
+                                "description": "Kind of the referenced resource. Defaults to `Gateway`.",
+                                "type": "string"
+                            },
+                            "group": {
+                                "description": "API group of the referenced resource. Defaults to `gateway.networking.k8s.io`.",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ]
+                    }
+                },
+                "hostnames": {
+                    "description": "Hostnames this HTTPRoute should match (templated). Empty matches all.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "path": {
+                    "description": "Default routing rule path (used only when `rules` is empty).",
+                    "type": "string",
+                    "default": "/"
+                },
+                "pathType": {
+                    "description": "The pathType for the default path: PathPrefix, Exact, or RegularExpression.",
+                    "type": "string",
+                    "default": "PathPrefix"
+                },
+                "rules": {
+                    "description": "Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`. Each entry follows the upstream Gateway API `HTTPRouteRule` schema.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                }
+            }
+        },
         "io.k8s.api.apps.v1.DeploymentStrategy": {
             "description": "DeploymentStrategy describes how to replace existing pods with new ones.",
             "properties": {
@@ -13531,8 +13646,8 @@
         "persistentVolumeClaimRetentionPolicy": {
             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
             "type": [
-                "object",
-                "null"
+                "null",
+                "object"
             ],
             "default": null,
             "additionalProperties": false,

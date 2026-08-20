@@ -143,15 +143,15 @@ class CronMixin:
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
 
-    def resolve_day_bound(self, day: datetime.date) -> DateTime:
+    def localize_partition_datetime(self, dt: datetime.datetime) -> DateTime:
         """
-        Return the UTC instant of *day*'s local midnight in this timetable's timezone.
+        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
 
-        Overrides the base default (midnight UTC) so day-bound comparisons are
+        Overrides the base (UTC pass-through) so partition-date filter bounds are
         evaluated in the timetable's local timezone rather than at the raw UTC
-        instant.
+        instant, while preserving sub-day precision.
         """
-        return convert_to_utc(make_aware(datetime.datetime(day.year, day.month, day.day), self._timezone))
+        return convert_to_utc(make_aware(dt.replace(tzinfo=None), self._timezone))
 
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
@@ -166,14 +166,21 @@ class CronMixin:
         return convert_to_utc(current.in_timezone(self._timezone) + delta)
 
     def _get_prev(self, current: DateTime) -> DateTime:
-        """Get the first schedule before specified time, with DST fixed."""
+        """Get the first schedule strictly before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
         if TYPE_CHECKING:
             assert isinstance(scheduled, datetime.datetime)
         if not _covers_every_hour(cron):
-            return convert_to_utc(make_aware(scheduled, self._timezone))
+            prev = convert_to_utc(make_aware(scheduled, self._timezone))
+            # croniter steps back on naive wall clock, but make_aware can map a tick inside
+            # a DST transition forward onto current or later. Keep stepping until strictly
+            # earlier; get_prev is strictly decreasing, so this terminates.
+            while prev >= current:
+                scheduled = cron.get_prev(datetime.datetime)
+                prev = convert_to_utc(make_aware(scheduled, self._timezone))
+            return prev
         delta = naive - scheduled
         return convert_to_utc(current.in_timezone(self._timezone) - delta)
 

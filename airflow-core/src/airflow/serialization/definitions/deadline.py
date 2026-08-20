@@ -207,6 +207,7 @@ class SerializedReferenceModels:
             from sqlalchemy import func, select, text
 
             from airflow.models import DagRun
+            from airflow.utils.state import DagRunState
 
             dag_id = kwargs["dag_id"]
 
@@ -222,9 +223,17 @@ class SerializedReferenceModels:
             else:
                 raise ValueError(f"Unsupported database dialect: {dialect}")
 
+            # Only SUCCESSFUL runs represent a "normal" runtime. A run that failed fast or hung
+            # before failing would otherwise skew the average and produce a misleading deadline
+            # (too short -> spurious misses, or too long -> real slowness never trips it).
             query = (
                 select(duration_expr)
-                .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+                .filter(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == DagRunState.SUCCESS,
+                    DagRun.start_date.isnot(None),
+                    DagRun.end_date.isnot(None),
+                )
                 .order_by(DagRun.logical_date.desc())
                 .limit(self.max_runs)
             )
@@ -311,7 +320,15 @@ class SerializedReferenceModels:
         def deserialize_reference(cls, reference_data: dict):
             from airflow.serialization.helpers import find_registered_custom_deadline_reference
 
-            custom_class = find_registered_custom_deadline_reference(reference_data["__class_path"])
+            class_path = reference_data.get("__class_path")
+            if not class_path:
+                raise ValueError(
+                    "Cannot deserialize deadline reference: unrecognized reference_type "
+                    f"{reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)!r} with no "
+                    "'__class_path' to import. The stored reference is corrupt, from a newer "
+                    "Airflow version, or references a custom class whose plugin is no longer installed."
+                )
+            custom_class = find_registered_custom_deadline_reference(class_path)
             inner_ref = custom_class.deserialize_reference(reference_data)
             return cls(inner_ref)
 

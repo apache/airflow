@@ -54,3 +54,10 @@ It enables you to manage users, roles, groups, and permissions entirely within K
     :maxdepth: 2
 
     manage/login
+
+**Note on Multi Team Clients**
+When using the Keycloak auth manager with a multi-team deployment, you will need to keep the keycloak client up to date by creating the required policies and resources for each new team that is added.
+
+If a team has dags added to Airflow but they are not setup in the keycloak client, keycloak will return a 400 error on the ``/dags`` screen:
+``{"error":"invalid_resource", "error_description": "Resource with id [Dag:team-a] does not exist."}``
+The keycloak auth manager will handle this error by registering it as a 'deny' response to preserve access to the ``/dags`` screen for other teams.

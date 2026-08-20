@@ -76,6 +76,37 @@ core:
       type: string
       example: ~
       default: "LocalExecutor"
+    mp_start_method:
+      description: |
+        The ``multiprocessing`` start method used by long-lived components that spawn worker
+        processes (the scheduler's ``LocalExecutor`` and the triggerer). Must be
+        one of the values returned by `multiprocessing.get_all_start_methods()
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__
+        on your platform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the
+        default) the platform default is used.
+
+        Python 3.14 changed the Unix default from ``fork`` to ``forkserver``. ``forkserver`` and
+        ``spawn`` children re-import Airflow instead of sharing it copy-on-write, which can sharply
+        increase the resident memory of the scheduler and triggerer. Set this to ``fork`` to restore
+        the pre-3.14 behaviour (note: forking a multi-threaded process is not always safe), or keep
+        ``forkserver`` and set ``[core] mp_forkserver_preload`` to recover most of the sharing.
+
+        This can be overridden per component by setting ``mp_start_method`` in the ``[scheduler]``,
+        ``[triggerer]`` or ``[dag_processor]`` section.
+      version_added: 3.3.0
+      type: string
+      example: "fork"
+      default: ~
+    mp_forkserver_preload:
+      description: |
+        Comma-separated list of modules the ``forkserver`` process should import up front, so that
+        forked workers inherit them copy-on-write instead of re-importing them. Only used when the
+        effective ``mp_start_method`` is ``forkserver``. See `multiprocessing.set_forkserver_preload
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_forkserver_preload>`__.
+      version_added: 3.3.0
+      type: string
+      example: "airflow,airflow.executors.local_executor"
+      default: ~
     auth_manager:
       description: |
         The auth manager class that airflow should use. Full import path to the auth manager class.
@@ -289,7 +320,18 @@ core:
       default: "True"
     dag_discovery_safe_mode:
       description: |
-        If enabled, Airflow will only scan files containing both ``DAG`` and ``airflow`` (case-insensitive).
+        If enabled, Airflow only scans files containing both ``DAG`` and ``airflow`` (case-insensitive)
+        when looking for Dags. Set this to ``False`` to scan every Python file instead -- required when
+        your Dags are defined through a wrapper or abstraction whose source does not contain those strings.
+
+        This setting is read by the Dag file processor, so it must be configured for that component. In a
+        separate-process deployment (for example the Helm chart) set it on the ``dag-processor`` as well as
+        on anything that runs ``airflow dags reserialize``, and restart the component for a change to take
+        effect. If only some components see ``False``, Dags can appear after a manual reserialize and then
+        be deactivated again on the next processor scan.
+
+        As an alternative to scanning every file, set ``[core] might_contain_dag_callable`` to a custom
+        heuristic that recognizes your wrapper.
       version_added: 1.10.3
       type: string
       example: ~
@@ -652,7 +694,7 @@ database:
         Check connection at the start of each connection pool checkout.
         Typically, this is a simple statement like "SELECT 1".
         See `SQLAlchemy Pooling: Disconnect Handling - Pessimistic
-        <https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic>`__
+        <https://docs.sqlalchemy.org/en/20/core/pooling.html#disconnect-handling-pessimistic>`__
         for more details.
       version_added: 2.3.0
       type: boolean
@@ -890,9 +932,12 @@ logging:
       default: "INFO"
     logging_config_class:
       description: |
-        Logging class
-        Specify the class that will specify the logging configuration
-        This class has to be on the python classpath
+        Dotted import path to a ``logging.config.dictConfig`` dict. The
+        ``_class`` suffix is historical — the target is a dict, not a class.
+
+        Airflow also reads two optional module-level attributes from the
+        enclosing module: ``REMOTE_TASK_LOG`` and ``DEFAULT_REMOTE_CONN_ID``,
+        used to drive remote task-log read-back. See :ref:`write-logs-advanced`.
       version_added: 2.0.0
       type: string
       example: "my.path.default_local_settings.LOGGING_CONFIG"
@@ -1246,6 +1291,17 @@ metrics:
       description: |
         To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
       version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
+    dag_tags_in_metrics:
+      description: |
+        Set to ``True`` to include Dag tags as metric tags on all Dag-run and task-instance metrics.
+        Tags that contain a colon (e.g. ``env:prod``) are split into a key/value pair. Plain tags
+        (e.g. ``production``) are emitted as standalone DogStatsd tags, or as ``tag=true`` in InfluxDB
+        line-protocol format. Disabled by default to avoid unexpected cardinality increases, since Dag
+        tags are free-form, user-defined strings.
+      version_added: 3.4.0
       type: boolean
       example: ~
       default: "False"
@@ -1604,6 +1660,29 @@ api:
       type: boolean
       example: ~
       default: "True"
+    regexp_query_timeout:
+      description: |
+        Timeout, in seconds, for regular-expression based query filters in the API. Fractional
+        values are allowed (e.g. ``0.5``). This single value both enables the feature and bounds its
+        runtime: a value of ``0`` (the default) disables regexp filtering entirely, and any positive
+        value enables it while capping how long such a query may run.
+
+        When enabled, it allows additional filtering features that require database-side regexp
+        matching, such as the ``partition_key_regexp_pattern`` filter on ``GET /assets/events``
+        and on the Execution API asset-event endpoints. It is disabled by default for security
+        reasons: a user-supplied regular expression is passed to the database's own regex engine,
+        which is a Regular expression Denial of Service (ReDoS) vector: a crafted pattern can
+        force the engine into pathological backtracking and consume database backend CPU.
+
+        The timeout is the primary runtime mitigation for that risk: it is enforced as a
+        transaction-local ``statement_timeout`` on PostgreSQL and as the session ``max_execution_time``
+        on MySQL, so a pathological pattern is aborted instead of pinning a database backend. Keep it
+        as low as your legitimate queries allow. Coupling the on/off switch with the timeout
+        intentionally makes it impossible to enable regexp filtering without a runtime bound in place.
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: "0"
     secret_key:
       description: |
         Secret key used to run your api server. It should be as random as possible. However, when running
@@ -1635,26 +1714,37 @@ api:
       default: "False"
     dag_cache_size:
       description: |
-        Size of the LRU cache for SerializedDAG objects in the API server.
-        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        Max number of deserialized SerializedDAG objects the API server keeps in memory.
+        Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``. Set both this and
+        ``dag_cache_ttl`` to 0 to use an unbounded dict with no eviction, matching the behavior
+        before 3.2.2.
+
         The cache is keyed by Dag version ID, so lookups by Dag ID
         (e.g., viewing a Dag's details) always query the database for the latest
         version, but the deserialized result is cached for subsequent
         version-specific lookups.
-      version_added: 3.3.0
+      version_added: 3.2.2
       type: integer
       example: ~
       default: "64"
     dag_cache_ttl:
       description: |
-        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
-        After this time, cached DAGs will be re-fetched from the database on next access.
-        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+        Seconds a deserialized SerializedDAG stays in the API server's cache, applied whether or
+        not ``dag_cache_size`` sets a size limit. After this time the Dag is re-fetched from the
+        database on next access. Set to 0 to disable TTL, leaving eviction to the
+        ``dag_cache_size`` LRU policy.
 
-        Note: After a DAG is updated, the API server may serve the previous version
-        until the cached entry expires. Lower values reduce staleness but increase
-        database load.
-      version_added: 3.3.0
+        An entry's TTL is refreshed only when the entry is checked against the database after
+        ``[core] min_serialized_dag_update_interval``, not on every request. If the TTL is shorter
+        than that interval, even frequently requested entries can expire and reload between
+        checks. ``dag_cache_size`` remains the only hard ceiling on memory.
+
+        Note: this does not govern staleness. A Dag update that creates a new version is picked
+        up immediately, because the new version is a different cache key. A version rewritten in
+        place is re-checked against its current ``dag_hash`` once
+        ``[core] min_serialized_dag_update_interval`` has elapsed since the entry was last
+        validated, so that option bounds how long a rewritten version can be served stale.
+      version_added: 3.2.2
       type: integer
       example: ~
       default: "3600"
@@ -2045,13 +2135,36 @@ sdk:
         multiple times under different names with different ``kwargs`` (for
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
+
+        An entry may also carry an optional ``extra`` object for additional
+        information associated with the coordinator that the coordinator itself
+        does not receive; other components read it as needed. For example,
+        KubernetesExecutor reads ``extra.pod_template_file`` to launch a queue's
+        worker pod from a specific pod template, and
+        ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to
+        override the worker base image for that queue (both are required).
       version_added: 3.3.0
       type: string
       example: |
         {
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-            "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java", "jvm_args": ["-Xmx1024m"]}
+            "kwargs": {
+              "jars_root": ["/opt/airflow/java-bundles"],
+              "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
+              "jvm_args": ["-Xmx1024m"]
+            },
+            "extra": {
+              "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
+              "worker_container_repository": "apache/airflow",
+              "worker_container_tag": "3.3.0"
+            }
+          },
+          "go-sdk": {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {
+              "executables_root": ["/opt/airflow/executable-bundles"]
+            }
           }
         }
       default: ~
@@ -2931,6 +3044,19 @@ triggerer:
       type: float
       example: ~
       default: "300.0"
+    shared_stream_cohort_grace_period:
+      description: |
+        Seconds to delay the start of polling after a shared-stream group is created, giving triggers
+        that share the same key a window to subscribe before any event is broadcast. The default of 0
+        starts polling immediately (no delay). Set to a small positive value (e.g. 2.0–5.0) to reduce
+        the chance of triggers missing events on triggerer restart, when multiple triggers sharing a key
+        re-subscribe concurrently and the first to arrive would otherwise start the poll before the
+        others have joined. This is a best-effort window: triggers that take longer than the grace period
+        to re-subscribe can still miss events committed after polling starts.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "0.0"
 kerberos:
   description: ~
   options:
@@ -2980,6 +3106,15 @@ kerberos:
       description: |
         Allow to remove source IP from token, useful when using token behind NATted Docker host.
       version_added: 2.2.0
+      type: boolean
+      example: ~
+      default: "True"
+    include_renewal_lifetime:
+      description: |
+        Whether to include the renewable lifetime option (`-r`) in the `kinit` command.
+        This is enabled by default for MIT Kerberos, but can be disabled (set to False)
+        if using a Kerberos implementation that doesn't support this flag, such as `Heimdal`.
+      version_added: 3.4.0
       type: boolean
       example: ~
       default: "True"
@@ -3214,11 +3349,11 @@ state_store:
     backend:
       description: |
         Full dotted path to the class that implements state storage for tasks and assets.
-        The class must be a subclass of ``BaseStateBackend``.
+        The class must be a subclass of ``BaseStoreBackend``.
         The default implementation persists state in the Airflow metadata database.
       version_added: 3.3.0
       type: string
-      example: "mypackage.state.CustomStateBackend"
+      example: "mypackage.state.CustomStoreBackend"
       default: "airflow.state.metastore.MetastoreBackend"
     clear_on_success:
       description: |

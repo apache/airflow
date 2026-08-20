@@ -20,7 +20,7 @@ import { Box, Flex } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -31,7 +31,6 @@ import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
-import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -53,6 +52,7 @@ type Props = {
   readonly onJumpToLatest: () => void;
   readonly runAfterGte?: string;
   readonly runAfterLte?: string;
+  readonly runIdPattern?: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly setOffset: (value: number) => void;
   readonly sharedScrollContainerRef?: RefObject<HTMLDivElement | null>;
@@ -62,6 +62,7 @@ type Props = {
 };
 
 const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
+const ScrollbarSpacer = () => <Box aria-hidden flexShrink={0} minWidth="16px" width="16px" />;
 
 export const Grid = ({
   dagRunState,
@@ -70,6 +71,7 @@ export const Grid = ({
   onJumpToLatest,
   runAfterGte,
   runAfterLte,
+  runIdPattern,
   runType,
   setOffset,
   sharedScrollContainerRef,
@@ -99,6 +101,7 @@ export const Grid = ({
     offset,
     runAfterGte,
     runAfterLte,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -116,11 +119,11 @@ export const Grid = ({
   const { data: dagStructure } = useGridStructure({
     dagRunState,
     depth,
-    hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
     includeDownstream,
     includeUpstream,
     limit,
     root: filterRoot,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -141,7 +144,12 @@ export const Grid = ({
     showVersionIndicatorMode,
   });
 
-  const { flatNodes } = flattenNodes(dagStructure, openGroupIds);
+  // React Compiler skips optimizing this whole component: `useVirtualizer` (@tanstack/react-virtual) is
+  // on the compiler's known-incompatible list — its return value exposes functions that can't be
+  // memoized safely — so it declines to memoize anything in Grid. Without the manual memoization here
+  // and on the click handlers below, `flatNodes` and the handlers get fresh references every render, so
+  // each TI-summaries stream line re-renders every column instead of only the run whose summary changed.
+  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   const taskNameColumnWidthPx = showGantt ? estimateTaskNameColumnWidthPx(flatNodes) : undefined;
 
@@ -166,9 +174,9 @@ export const Grid = ({
     tasks: flatNodes,
   });
 
-  const handleRowClick = () => setMode(NavigationModes.TASK);
-  const handleCellClick = () => setMode(NavigationModes.TI);
-  const handleColumnClick = () => setMode(NavigationModes.RUN);
+  const handleRowClick = useCallback(() => setMode(NavigationModes.TASK), [setMode]);
+  const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
+  const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
@@ -184,9 +192,25 @@ export const Grid = ({
 
   const gridHeaderAndBody = (
     <>
-      {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
-      <Flex bg="bg" display="flex" position="sticky" pt={`${GRID_HEADER_PADDING_PX}px`} top={0} zIndex={2}>
-        <Box bg="bg" left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
+      {/* Grid header. minWidth stretches the header past the scrollport so its bg covers every run
+        column during horizontal scroll; the padding sits on the children so the sticky task name
+        column's bg spans the full header height and hides bars scrolled behind it. */}
+      <Flex
+        bg="bg"
+        display="flex"
+        minWidth={usesSharedScroll ? undefined : "max-content"}
+        position="sticky"
+        top={0}
+        zIndex={2}
+      >
+        <Box
+          bg="bg"
+          left={0}
+          position="sticky"
+          pt={`${GRID_HEADER_PADDING_PX}px`}
+          zIndex={1}
+          {...taskNameColumnStyles}
+        >
           <Flex flexDirection="column-reverse" height={`${GRID_HEADER_HEIGHT_PX}px`} position="relative">
             {Boolean(gridRuns?.length) && (
               <>
@@ -197,12 +221,13 @@ export const Grid = ({
           </Flex>
         </Box>
         {/* Duration bars */}
-        <Flex flexDirection="row-reverse" flexShrink={0}>
+        <Flex flexDirection="row-reverse" flexShrink={0} pt={`${GRID_HEADER_PADDING_PX}px`}>
           <Flex flexShrink={0} position="relative">
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
             <DurationAxis top="4px" />
             <Flex flexDirection="row-reverse">
+              {!showGantt && <ScrollbarSpacer />}
               {runsWithVersionFlags?.map((dr) => (
                 <Bar
                   key={dr.run_id}
@@ -232,6 +257,7 @@ export const Grid = ({
           <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
         </Box>
         <Flex flexDirection="row-reverse" flexShrink={0}>
+          {!showGantt && <ScrollbarSpacer />}
           {gridRuns?.map((dr: GridRunsResponse) => (
             <TaskInstancesColumn
               key={dr.run_id}
@@ -268,7 +294,6 @@ export const Grid = ({
           marginRight={showGantt ? 0 : 1}
           minH={0}
           overflow="auto"
-          paddingRight={showGantt ? 0 : 6}
           position="relative"
           ref={scrollContainerRef}
         >

@@ -126,6 +126,27 @@ existing job on retry instead of submitting a new one.
 
 For more details and a working example, see :class:`~airflow.sdk.ResumableJobMixin`.
 
+**Clearing a task is treated the same as a retry**
+
+Clearing a task instance does not delete its ``task_state_store`` rows -- they are only removed
+when the ``dag_run`` itself is deleted, or by :ref:`airflow state-store clean
+<task-and-asset-state-store-cleanup>`. For a checkpointed task this is usually what you want:
+clearing resumes from the last checkpoint rather than starting over.
+
+For an operator with durable execution, it means clearing a task whose external job already
+succeeded reads that stored result back and returns immediately, without resubmitting the job. If
+you want clearing to always resubmit regardless of a prior success, set
+``[state_store] clear_on_success = True``, which deletes a task's state store rows automatically
+when it moves to ``SUCCESS`` (see :doc:`/administration-and-deployment/task-and-asset-state-store`).
+
+This does not guarantee the external job is still there to reconnect to, though. Clearing a task
+that is actively running (``deferrable=False``) stops the worker process, which runs the
+operator's ``on_kill``. Most operators with durable execution cancel the external job there by
+default, so the next attempt finds it already stopped instead of still running -- an operator that
+leaves the job running by default on kill is the exception, check its own docs. Deferred tasks
+(``deferrable=True``) don't have this problem: there is no actively polling worker process for the
+clear to interrupt.
+
 .. _concepts-resumable-tasks-async:
 
 Asynchronous Tasks
@@ -143,8 +164,9 @@ operations (HTTP requests, database queries, file reads) within a single task ex
 blocking the event loop while waiting for each one.
 
 The worker slot is held for the full duration of the task. Async tasks are not designed for
-long external waits or crash recovery; they are designed for high-throughput I/O work that
-completes within a single execution.
+long external waits; they are designed for high-throughput I/O work that completes within a
+single execution. To survive a worker crash, an async task can checkpoint its progress to
+:doc:`task state store <task-state-store>` with ``aget``/``aset`` and resume from the checkpoint on retry.
 
 For guidance on when to use async tasks versus deferrable operators, see
 :doc:`task-sdk:deferred-vs-async-operators`.

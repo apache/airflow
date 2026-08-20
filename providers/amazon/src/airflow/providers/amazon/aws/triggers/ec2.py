@@ -37,6 +37,8 @@ class EC2StateSensorTrigger(BaseTrigger):
         maintained on each worker node).
     :param region_name: (optional) aws region name associated with the client
     :param poll_interval: number of seconds to wait before attempting the next poll
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     """
 
     def __init__(
@@ -46,12 +48,16 @@ class EC2StateSensorTrigger(BaseTrigger):
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 60,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         self.instance_id = instance_id
         self.target_state = target_state
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.poll_interval = poll_interval
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -62,12 +68,20 @@ class EC2StateSensorTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
                 "poll_interval": self.poll_interval,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     @cached_property
     def hook(self):
-        return EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        return EC2Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+            api_type="client_type",
+        )
 
     async def run(self):
         while True:

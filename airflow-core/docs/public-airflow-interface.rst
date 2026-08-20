@@ -116,10 +116,11 @@ API Server, etc.), providing a version-agnostic, stable interface for writing an
 
 * :func:`airflow.sdk.asset`
 * :func:`airflow.sdk.dag`
-* :func:`airflow.sdk.setup`
 * :func:`airflow.sdk.task`
 * :func:`airflow.sdk.task_group`
+* :func:`airflow.sdk.setup`
 * :func:`airflow.sdk.teardown`
+* :func:`airflow.sdk.result`
 * :func:`airflow.sdk.chain`
 * :func:`airflow.sdk.chain_linear`
 * :func:`airflow.sdk.cross_downstream`

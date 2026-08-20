@@ -104,12 +104,16 @@ export const useLogGroups = ({
   // Build visible items list with index mapping
   const visibleItems: Array<VisibleItem> = [];
   const originalToVisibleIndex = new Map<number, number>();
+  const lineNumberToVisibleIndex = new Map<number, number>();
 
   for (let idx = 0; idx < parsedLogs.length; idx += 1) {
     const entry = parsedLogs[idx];
 
     if (entry && isEntryVisible(entry)) {
       originalToVisibleIndex.set(idx, visibleItems.length);
+      if (entry.lineNumber !== undefined) {
+        lineNumberToVisibleIndex.set(entry.lineNumber, visibleItems.length);
+      }
       visibleItems.push({ entry, originalIndex: idx });
     }
   }
@@ -162,7 +166,7 @@ export const useLogGroups = ({
 
   return {
     expandedGroups,
-    originalToVisibleIndex,
+    lineNumberToVisibleIndex,
     toggleGroup,
     visibleCurrentMatchIndex,
     visibleItems,

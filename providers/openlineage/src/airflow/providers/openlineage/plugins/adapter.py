@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import traceback
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import yaml
 from openlineage.client import OpenLineageClient, set_producer
@@ -50,12 +50,14 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_job_dependency_facet,
     get_processing_engine_facet,
 )
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.providers.openlineage.extractors import OperatorLineage
+    from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowRunFacet
     from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
     from airflow.utils.state import DagRunState
 else:
@@ -172,10 +174,33 @@ class OpenLineageAdapter(LoggingMixin):
         event_type = event.eventType.value.lower() if event.eventType else ""
         transport_type = f"{self._client.transport.kind}".lower()
 
+        team_name = None
+
+        facets = event.run.facets or {}
+        airflow_facet = cast("AirflowRunFacet | None", facets.get("airflow"))
+
+        if airflow_facet:
+            team_name = airflow_facet.dagRun.get("dag_team_name")
+        else:
+            airflow_dagrun_facet = cast("AirflowDagRunFacet | None", facets.get("airflowDagRun"))
+            if airflow_dagrun_facet:
+                dag_run = airflow_dagrun_facet.dagRun
+                team_name = (
+                    dag_run.get("dag_team_name")
+                    if isinstance(dag_run, dict)
+                    else getattr(dag_run, "dag_team_name", None)
+                )
+
         try:
             with Stats.timer(
                 "ol.emit.attempts",
-                tags={"event_type": event_type, "transport_type": transport_type},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "transport_type": transport_type,
+                        "team_name": team_name,
+                    }
+                ),
             ):
                 self._client.emit(redacted_event)
                 self.log.info(
@@ -184,7 +209,11 @@ class OpenLineageAdapter(LoggingMixin):
                     event.run.runId,
                 )
         except Exception as e:
-            Stats.incr("ol.emit.failed")
+            Stats.incr(
+                "ol.emit.failed",
+                tags=prune_dict({"team_name": team_name}),
+            )
+
             self.log.warning(
                 "Failed to emit OpenLineage `%s` event of id `%s` with the following exception: `%s`",
                 event_type.upper(),

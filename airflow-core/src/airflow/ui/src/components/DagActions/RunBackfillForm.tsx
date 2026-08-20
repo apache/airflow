@@ -46,7 +46,6 @@ type RunBackfillFormProps = {
   readonly onClose: () => void;
 };
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
-const today = new Date().toISOString().slice(0, 16);
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
@@ -167,7 +166,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("common:table.from")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput {...field} onBlur={resetDateError} />
                   <Field.ErrorText>{translate("backfill.errorStartDateBeforeEndDate")}</Field.ErrorText>
                 </Field.Root>
               )}
@@ -178,7 +177,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("common:table.to")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput {...field} endOfDay onBlur={resetDateError} />
                 </Field.Root>
               )}
             />

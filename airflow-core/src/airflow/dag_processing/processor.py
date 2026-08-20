@@ -40,6 +40,7 @@ from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
+from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
@@ -92,6 +93,7 @@ from airflow.serialization.serialized_objects import DagSerialization, LazyDeser
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.helpers import prune_dict
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -327,23 +329,33 @@ def _execute_callbacks(
 ) -> None:
     for request in callback_requests:
         if isinstance(request, (TaskCallbackRequest, EmailRequest)):
-            log.debug(
-                "Processing Callback Request",
-                request=request.to_json(),
-                ti_id=str(request.ti.id),
-            )
+            log_extra = {
+                "dag_id": request.ti.dag_id,
+                "run_id": request.ti.run_id,
+                "ti_id": str(request.ti.id),
+            }
         else:
-            log.debug("Processing Callback Request", request=request.to_json())
-        with BundleVersionLock(
-            bundle_name=request.bundle_name,
-            bundle_version=request.bundle_version,
-        ):
-            if isinstance(request, TaskCallbackRequest):
-                _execute_task_callbacks(dagbag, request, log)
-            elif isinstance(request, DagCallbackRequest):
-                _execute_dag_callbacks(dagbag, request, log)
-            elif isinstance(request, EmailRequest):
-                _execute_email_callbacks(dagbag, request, log)
+            log_extra = {"dag_id": request.dag_id, "run_id": request.run_id}
+        # context_from_server can carry user-supplied run conf, and the masker cannot
+        # redact inside an already-serialized string, so keep it out of log payloads.
+        request_json = request.to_json(exclude={"context_from_server"})
+        log.debug("Processing Callback Request", request=request_json, **log_extra)
+        # A failed request (e.g. the Dag or task was removed since the callback
+        # was scheduled) must not abort the remaining requests in this batch --
+        # they were already popped from the manager's queue and would be lost.
+        try:
+            with BundleVersionLock(
+                bundle_name=request.bundle_name,
+                bundle_version=request.bundle_version,
+            ):
+                if isinstance(request, TaskCallbackRequest):
+                    _execute_task_callbacks(dagbag, request, log)
+                elif isinstance(request, DagCallbackRequest):
+                    _execute_dag_callbacks(dagbag, request, log)
+                elif isinstance(request, EmailRequest):
+                    _execute_email_callbacks(dagbag, request, log)
+        except Exception:
+            log.exception("Failed to execute callback request", request=request_json, **log_extra)
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -358,25 +370,34 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
     ctx_from_server = request.context_from_server
 
+    context: Context = {
+        "dag": dag,
+        "run_id": request.run_id,
+        "reason": request.msg,
+    }
     if ctx_from_server is not None and ctx_from_server.last_ti is not None:
-        task = dag.get_task(ctx_from_server.last_ti.task_id)
-
-        runtime_ti = RuntimeTaskInstance.model_construct(
-            **ctx_from_server.last_ti.model_dump(exclude_unset=True),
-            task=task,
-            _ti_context_from_server=TIRunContext.model_construct(
-                dag_run=ctx_from_server.dag_run,
-                max_tries=task.retries,
-            ),
-        )
-        context = runtime_ti.get_template_context()
-        context["reason"] = request.msg
-    else:
-        context: Context = {  # type: ignore[no-redef]
-            "dag": dag,
-            "run_id": request.run_id,
-            "reason": request.msg,
-        }
+        try:
+            task = dag.get_task(ctx_from_server.last_ti.task_id)
+        except TaskNotFound:
+            # The task only enriches the callback context; a task removed since the
+            # run must not cost the user the callback itself (produce_dag_callback
+            # makes the same call for an unrepresentable last_ti).
+            log.warning(
+                "Task from callback context no longer exists in the Dag; running callback with minimal context",
+                dag_id=request.dag_id,
+                task_id=ctx_from_server.last_ti.task_id,
+            )
+        else:
+            runtime_ti = RuntimeTaskInstance.model_construct(
+                **ctx_from_server.last_ti.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=TIRunContext.model_construct(
+                    dag_run=ctx_from_server.dag_run,
+                    max_tries=task.retries,
+                ),
+            )
+            context = runtime_ti.get_template_context()
+            context["reason"] = request.msg
 
     for callback in callbacks:
         log.info(
@@ -549,7 +570,7 @@ def in_process_api_server() -> InProcessExecutionAPI:
 
 
 @attrs.define(kw_only=True)
-class DagFileProcessorProcess(WatchedSubprocess):
+class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
     Parses dags with Task SDK API.
 
@@ -586,13 +607,24 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         logger = kwargs["logger"]
 
-        _pre_import_airflow_modules(os.fspath(path), logger)
+        # Parsing DAG files runs user code that can trigger macOS-unsafe ObjC
+        # initialization (secret backends, connection/variable lookups, HTTP
+        # clients). Fork+exec a clean interpreter there. Tests override `target`
+        # with a stub to exercise the base infrastructure; keep bare fork for those.
+        use_exec = target is _parse_file_entrypoint and supervisor._should_use_exec()
+
+        # Pre-importing only helps the bare-fork child (it inherits the imports via
+        # copy-on-write). An exec'd child re-imports from scratch, so skip it there
+        # to avoid leaking user modules into the long-lived processor manager.
+        if not use_exec:
+            _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(
             target=target,
             client=client,
             bundle_name=bundle_name,
             dag_file_rel_path=dag_file_rel_path,
+            use_exec=use_exec,
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
@@ -718,3 +750,13 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
+
+    def close(self):
+        try:
+            self.logger_filehandle.close()
+        except OSError:
+            self.log.warning(
+                "Failed to close log file handle for %s",
+                self.dag_file_rel_path,
+                exc_info=True,
+            )

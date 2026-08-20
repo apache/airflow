@@ -17,9 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import create_autospec
+
 import pytest
 
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, StartTriggerArgs, TriggerEvent
 
 
@@ -251,6 +254,28 @@ async def test_subclass_filter_shared_stream_applies_per_instance_match():
 
     payloads = [event.payload async for event in us.filter_shared_stream(stream())]
     assert [p["region"] for p in payloads] == ["us", "us"]
+
+
+def test_base_event_trigger_asset_state_store_initialized_to_none():
+    """asset_state_store is None before it is set."""
+    trigger = _PlainEventTrigger()
+    assert trigger.asset_state_store is None
+
+
+def test_base_event_trigger_asset_state_store_can_be_set():
+    """asset_state_store can be set once the Trigger is initialized."""
+    trigger = _PlainEventTrigger()
+    mock_store = create_autospec(AssetStateStoreAccessors, instance=True)
+    trigger.asset_state_store = mock_store
+    assert trigger.asset_state_store is mock_store
+
+
+def test_base_event_trigger_asset_state_store_independent_across_instances():
+    """a.asset_state_store does not impact b.asset_state_store."""
+    a = _PlainEventTrigger(name="a")
+    b = _PlainEventTrigger(name="b")
+    a.asset_state_store = create_autospec(AssetStateStoreAccessors, instance=True)
+    assert b.asset_state_store is None
 
 
 def test_create_shared_stream_producer_raises_by_default():

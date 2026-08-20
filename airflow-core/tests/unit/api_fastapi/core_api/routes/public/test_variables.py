@@ -141,7 +141,6 @@ class TestVariableEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self):
         clear_db_variables()
-        clear_db_teams()
         with conf_vars({("core", "multi_team"): "True"}):
             yield
 
@@ -547,6 +546,29 @@ class TestPatchVariable(TestVariableEndpoint):
         }
         check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            ["a", "b"],
+            {"name": "test", "id": 123, "active": True},
+            42,
+            4.2,
+            True,
+            None,
+        ],
+        ids=["list", "dict", "int", "float", "bool", "none"],
+    )
+    def test_patch_non_string_json_value_round_trips(self, test_client, value):
+        """Non-string JSON values must be stored as valid JSON, not raise a 500 (issue #71010)."""
+        self.create_variables()
+        body = {"key": TEST_VARIABLE_KEY, "value": value, "description": TEST_VARIABLE_DESCRIPTION}
+
+        response = test_client.patch(f"/variables/{TEST_VARIABLE_KEY}", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(response.json()["value"]) == value
+        assert Variable.get(TEST_VARIABLE_KEY, deserialize_json=True) == value
+
     def test_patch_should_respond_400(self, test_client):
         response = test_client.patch(
             f"/variables/{TEST_VARIABLE_KEY}",
@@ -681,6 +703,30 @@ class TestPostVariable(TestVariableEndpoint):
         assert response.status_code == 201
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            ["a", "b"],
+            {"name": "test", "id": 123, "active": True},
+            42,
+            4.2,
+            True,
+            None,
+        ],
+        ids=["list", "dict", "int", "float", "bool", "none"],
+    )
+    def test_post_non_string_json_value_round_trips(self, test_client, value):
+        """Non-string JSON values must be stored as valid JSON, not a Python repr (issue #71010)."""
+        body = {"key": "non_string_value", "value": value, "description": "non-string JSON value"}
+
+        response = test_client.post("/variables", json=body)
+
+        assert response.status_code == 201
+        assert json.loads(response.json()["value"]) == value
+        stored_raw = Variable.get("non_string_value")
+        assert json.loads(stored_raw) == value
+        assert Variable.get("non_string_value", deserialize_json=True) == value
 
     def test_post_with_team_should_respond_201(self, test_client, testing_team, session):
         self.create_variables()
@@ -1396,11 +1442,15 @@ class TestBulkVariables(TestVariableEndpoint):
             ),
             ("my_list_var_param", ["alpha", 42, False, {"nested": "item param"}], "A list value (param)"),
             ("my_string_var_param", "plain string param", "A plain string (param)"),
+            ("my_bool_var_param", True, "A bool value (param)"),
+            ("my_none_var_param", None, "A null value (param)"),
         ],
         ids=[
             "dict_variable",
             "list_variable",
             "string_variable",
+            "bool_variable",
+            "none_variable",
         ],
     )
     def test_bulk_create_entity_serialization(
@@ -1421,19 +1471,45 @@ class TestBulkVariables(TestVariableEndpoint):
         response = test_client.patch("/variables", json=actions)
         assert response.status_code == 200
 
-        if isinstance(entity_value, (dict, list)):
+        if isinstance(entity_value, str):
+            # Strings are stored verbatim; a plain non-JSON string is not deserializable.
+            retrieved_value_raw = Variable.get(entity_key, deserialize_json=False)
+            assert retrieved_value_raw == entity_value
+
+            with pytest.raises(json.JSONDecodeError):
+                Variable.get(entity_key, deserialize_json=True)
+        else:
             retrieved_value_deserialized = Variable.get(entity_key, deserialize_json=True)
             assert retrieved_value_deserialized == entity_value
             retrieved_value_raw_string = Variable.get(entity_key, deserialize_json=False)
             assert retrieved_value_raw_string == json.dumps(entity_value, indent=2)
-        else:
-            retrieved_value_raw = Variable.get(entity_key, deserialize_json=False)
-            assert retrieved_value_raw == str(entity_value)
-
-            with pytest.raises(json.JSONDecodeError):
-                Variable.get(entity_key, deserialize_json=True)
 
         check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
+
+    def test_bulk_update_non_string_json_value_round_trips(self, test_client):
+        """A non-string value in bulk update must not 500 the whole request (issue #71010)."""
+        self.create_variables()
+        actions = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {
+                            "key": TEST_VARIABLE_KEY,
+                            "value": {"nested": [1, 2, True, None]},
+                            "description": TEST_VARIABLE_DESCRIPTION,
+                        }
+                    ],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        response = test_client.patch("/variables", json=actions)
+
+        assert response.status_code == 200
+        assert response.json()["update"] == {"success": [TEST_VARIABLE_KEY], "errors": []}
+        assert Variable.get(TEST_VARIABLE_KEY, deserialize_json=True) == {"nested": [1, 2, True, None]}
 
     def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/variables", json={})

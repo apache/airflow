@@ -17,12 +17,13 @@
  * under the License.
  */
 import { HStack } from "@chakra-ui/react";
-import { useRef } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useRef, type ChangeEvent } from "react";
 import { LuRegex } from "react-icons/lu";
 
 import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import { InputWithAddon } from "../../ui";
 import { FilterPill } from "../FilterPill";
@@ -36,21 +37,21 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
 
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
 
     onChange(newValue || undefined);
   };
 
-  useHotkeys(
-    "mod+k",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.search.focusFilterSearch,
+    callback: () => {
       if (!filter.config.hotkeyDisabled) {
         hotkeyInputRef.current?.focus();
       }
     },
-    { enabled: !filter.config.hotkeyDisabled, preventDefault: true },
-  );
+    options: { enabled: !filter.config.hotkeyDisabled, preventDefault: true },
+  });
 
   const isAdvanced = showAdvancedToggle && advanced.enabled;
   const stringValue = hasValue && typeof filter.value === "string" ? filter.value : "";

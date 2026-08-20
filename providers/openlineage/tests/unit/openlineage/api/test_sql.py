@@ -310,3 +310,26 @@ def test_raises_on_context_resolution_failure_when_flag_set(patched_emit):
         )
 
     patched_emit.assert_not_called()
+
+
+def test_noop_when_emission_policy_blocks_emit(patched_emit):
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    ti = _make_task_instance()
+    with mock.patch(
+        f"{_MODULE}.resolve_task_emission_policy",
+        return_value=EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        ),
+    ):
+        emit_query_lineage(
+            query_id="qid-1",
+            query_source_namespace="snowflake://ACCT",
+            task_instance=ti,
+        )
+
+    patched_emit.assert_not_called()

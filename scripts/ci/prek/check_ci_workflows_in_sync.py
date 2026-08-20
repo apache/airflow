@@ -36,9 +36,11 @@ Documented divergences:
 4. ``concurrency.group`` prefix — ``ci-arm-`` vs ``ci-amd-``
 5. ``build-info`` outputs ``platform`` and ``runner-type`` — hardcoded per
    architecture (and the surrounding comment naming the "ARM/AMD copy")
-6. ``print-platform`` job — ``name:`` and the architecture echoed to
+6. ``PLATFORM`` env on the ``selective-checks`` step — the platform this
+   workflow's tests run on.
+7. ``print-platform`` job — ``name:`` and the architecture echoed to
    GITHUB_STEP_SUMMARY
-7. ``notify-slack`` Slack-state artifact name — ``slack-state-tests-…-arm``
+8. ``notify-slack`` Slack-state artifact name — ``slack-state-tests-…-arm``
    vs ``slack-state-tests-…-amd``, so the de-dup tracker in
    ``slack_notification_state.py`` keeps independent state for each
    platform on the same branch
@@ -85,6 +87,7 @@ LINE_RULES: list[tuple[str, str]] = [
     (r"^  group: ci-(?:arm|amd)-", "  group: ci-PLACEHOLDER-"),
     (r'^      platform: "linux/(?:arm64|amd64)"$', '      platform: "linux/PLACEHOLDER"'),
     (r"^      runner-type: '\[\"ubuntu-22\.04(?:-arm)?\"\]'$", "      runner-type: 'PLACEHOLDER'"),
+    (r'^          PLATFORM: "linux/(?:arm64|amd64)"$', '          PLATFORM: "linux/PLACEHOLDER"'),
     (
         r"^      # (?:ARM|AMD) copy\)\. The matching (?:AMD|ARM) copy lives in ci-(?:amd|arm)\.yml\.$",
         "      # PLACEHOLDER copy). The matching PLACEHOLDER copy lives in ci-PLACEHOLDER.yml.",
@@ -107,20 +110,29 @@ LINE_RULES: list[tuple[str, str]] = [
 # file and must NOT appear in the other. The blocks are stripped before
 # diffing so they don't show up as drift.
 ARM_ONLY_BLOCK = """  schedule:
-    - cron: '28 1,3,7,9,13,15,19,21 * * *'
+    # ARM canary runs 2x/day (07:28, 19:28), interleaved with AMD's 2x/day (01:58, 13:58)
+    # in `ci-amd.yml` so a full-matrix canary still runs roughly every ~6h (alternating
+    # architecture). The `:28` vs AMD's `:58` offset keeps the two from competing for
+    # runners at exactly the same minute.
+    - cron: '28 7,19 * * *'
 """
 
 AMD_ONLY_BLOCK = """  schedule:
-    # Mirror of the previous AMD canary cron from before the AMD/ARM split (PR #66348),
-    # offset by 30 min from ARM's `:28` slot in `ci-arm.yml` so the two scheduled
-    # canaries don't compete for runners at exactly the same minute.
-    - cron: '58 1,7,13,19 * * *'
+    # AMD canary runs 2x/day (01:58, 13:58), interleaved with ARM's 2x/day (07:28, 19:28)
+    # in `ci-arm.yml` so a full-matrix canary still runs roughly every ~6h (alternating
+    # architecture) while halving the scheduled AMD compute. The `:58` vs ARM's `:28`
+    # offset keeps the two from competing for runners at exactly the same minute.
+    - cron: '58 1,13 * * *'
   pull_request:
     branches:
       - main
       - v[0-9]+-[0-9]+-test
       - v[0-9]+-[0-9]+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
     types: [opened, reopened, synchronize, ready_for_review]
 """
 

@@ -48,6 +48,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConfigOption,
     ConfigSection,
@@ -85,12 +86,18 @@ from airflowctl.api.datamodels.generated import (
     PluginResponse,
     PoolBody,
     PoolCollectionResponse,
+    PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
     ProviderResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskDependencyCollectionResponse,
+    TaskDependencyResponse,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+    TaskInstanceState,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -100,7 +107,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations
+from airflowctl.api.operations import BaseOperations, _build_query_params
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -127,6 +134,20 @@ class HelloCollectionResponse(BaseModel):
 
 
 class TestBaseOperations:
+    def test_build_query_params_skips_none_and_serializes_datetime(self):
+        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.timezone.utc)
+
+        assert _build_query_params(
+            logical_date=logical_date,
+            state=None,
+            limit=10,
+            order_by="-id",
+        ) == {
+            "logical_date": logical_date.isoformat(),
+            "limit": 10,
+            "order_by": "-id",
+        }
+
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
         with pytest.raises(
@@ -230,6 +251,29 @@ class TestBaseOperations:
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
 
+    def test_execute_list_sends_offset_to_server(self):
+        """``offset`` must reach the server on the first request, not only on subsequent pages."""
+        rows = [{"name": name} for name in "abcdef"]
+
+        def paged(path, params):
+            # An absent ``offset`` is what the server would see as its own default of 0.
+            start = params.get("offset", 0)
+            return Mock(
+                content=json.dumps(
+                    {"hellos": rows[start : start + params["limit"]], "total_entries": len(rows)}
+                )
+            )
+
+        mock_client = Mock()
+        mock_client.get.side_effect = paged
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(
+            path="hello", data_model=HelloCollectionResponse, offset=2, limit=2
+        )
+
+        assert [hello.name for hello in response.hellos] == ["c", "d", "e", "f"]
+
     @pytest.mark.parametrize("limit", [0, -1])
     def test_execute_list_rejects_non_positive_limit(self, limit):
         mock_client = Mock()
@@ -243,6 +287,7 @@ class TestBaseOperations:
 
 class TestAssetsOperations:
     asset_id: int = 1
+    asset_alias_id: int = 2
     dag_id: str = "dag_id"
     before: str = "2024-12-31T23:59:59+00:00"
     asset_response = AssetResponse(
@@ -260,7 +305,7 @@ class TestAssetsOperations:
         group="group",
     )
     asset_alias_response = AssetAliasResponse(
-        id=asset_id,
+        id=asset_alias_id,
         name="asset",
         group="group",
     )
@@ -303,8 +348,14 @@ class TestAssetsOperations:
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
                 dag_display_name=dag_id,
+                bundle_url=None,
             )
         ],
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
     )
 
     asset_create_event_body = CreateAssetEventsBody(asset_id=asset_id, extra=None)
@@ -319,6 +370,7 @@ class TestAssetsOperations:
         data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         partition_key=None,
+        triggering=True,
     )
 
     asset_event_response = AssetEventResponse(
@@ -345,13 +397,13 @@ class TestAssetsOperations:
         response = client.assets.get(self.asset_id)
         assert response == self.asset_response
 
-    def test_get_by_alias(self):
+    def test_get_alias(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/assets/aliases/{self.asset_id}"
+            assert request.url.path == f"/api/v2/assets/aliases/{self.asset_alias_id}"
             return httpx.Response(200, json=json.loads(self.asset_alias_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.assets.get_by_alias(self.asset_id)
+        response = client.assets.get_alias(self.asset_alias_id)
         assert response == self.asset_alias_response
 
     def test_list(self):
@@ -368,7 +420,7 @@ class TestAssetsOperations:
         response = client.assets.list()
         assert response == assets_collection_response
 
-    def test_list_by_alias(self):
+    def test_list_aliases(self):
         assets_collection_response = AssetAliasCollectionResponse(
             asset_aliases=[self.asset_alias_response],
             total_entries=1,
@@ -379,17 +431,33 @@ class TestAssetsOperations:
             return httpx.Response(200, json=json.loads(assets_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.assets.list_by_alias()
+        response = client.assets.list_aliases()
         assert response == assets_collection_response
 
-    def test_create_event(self):
+    @pytest.mark.parametrize(
+        "created_dagrun",
+        [
+            pytest.param(assets_dag_reference, id="running"),
+            pytest.param(
+                assets_dag_reference.model_copy(
+                    update={"start_date": None, "end_date": None, "state": "queued"}
+                ),
+                id="queued-without-start-date",
+            ),
+        ],
+    )
+    def test_create_event(self, created_dagrun):
+        asset_event_response = self.asset_event_response.model_copy(
+            update={"created_dagruns": [created_dagrun]}
+        )
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/assets/events"
-            return httpx.Response(200, json=json.loads(self.asset_event_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(asset_event_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
-        assert response == self.asset_event_response
+        assert response == asset_event_response
 
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -430,6 +498,37 @@ class TestAssetsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.get_dag_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
         assert response == self.asset_queued_event_response
+
+    def test_delete_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_queued_events(asset_id=self.asset_id)
+        assert response == self.asset_id
+
+    def test_delete_dag_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/queuedEvents"
+            assert request.url.params["before"] == self.before
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_dag_queued_events(dag_id=self.dag_id, before=self.before)
+        assert response == self.dag_id
+
+    def test_delete_queued_event(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
+        assert response == self.asset_id
 
 
 class TestBackfillOperations:
@@ -627,12 +726,14 @@ class TestConnectionsOperations:
         connection_id=connection_id,
         conn_type=conn_type,
         host=host,
-        schema_=schema_,
+        schema=schema_,
         login=login,
         password=password,
         port=port,
         extra=extra,
-    )
+        description=None,
+        team_name=None,
+    )  # type: ignore[call-arg]
 
     connections_response = ConnectionCollectionResponse(
         connections=[connection_response],
@@ -658,7 +759,9 @@ class TestConnectionsOperations:
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.get(self.connection_id)
@@ -667,7 +770,9 @@ class TestConnectionsOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connections_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connections_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.list()
@@ -676,7 +781,9 @@ class TestConnectionsOperations:
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=self.connection)
@@ -698,7 +805,9 @@ class TestConnectionsOperations:
                 "schema": self.schema_,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=connection)
@@ -741,10 +850,22 @@ class TestConnectionsOperations:
         response = client.connections.bulk(connections=connection_bulk_body)
         assert response == self.connection_bulk_response
 
+    def test_create_defaults(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/connections/defaults"
+            assert request.method == "POST"
+            return httpx.Response(200, json={})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.connections.create_defaults()
+        assert response is None
+
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.delete(self.connection_id)
@@ -753,7 +874,9 @@ class TestConnectionsOperations:
     def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=self.connection)
@@ -782,7 +905,9 @@ class TestConnectionsOperations:
                 "team_name": None,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=connection)
@@ -867,6 +992,9 @@ class TestDagOperations:
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
     )
 
     dag_details_response = DAGDetailsResponse(
@@ -910,6 +1038,11 @@ class TestDagOperations:
         concurrency=1,
         bundle_name="bundle_name",
         is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
+        default_args=None,
+        latest_dag_version=None,
     )
 
     dag_tag_collection_response = DAGTagCollectionResponse(
@@ -954,6 +1087,7 @@ class TestDagOperations:
         bundle_version="1",
         created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
         dag_display_name=dag_id,
+        bundle_url=None,
     )
 
     dag_version_collection_response = DAGVersionCollectionResponse(
@@ -979,10 +1113,7 @@ class TestDagOperations:
     )
 
     # DagRun related
-    trigger_dag_run = TriggerDAGRunPostBody(
-        conf=None,
-        note=None,
-    )
+    trigger_dag_run = TriggerDAGRunPostBody(conf=None, note=None, logical_date=None)
 
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
@@ -1012,8 +1143,14 @@ class TestDagOperations:
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
                 dag_display_name=dag_id,
+                bundle_url=None,
             )
         ],
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
     )
 
     def test_get(self):
@@ -1169,8 +1306,14 @@ class TestDagRunOperations:
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
                 dag_display_name=dag_id,
+                bundle_url=None,
             )
         ],
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
     )
 
     dag_run_collection_response = DAGRunCollectionResponse(
@@ -1187,6 +1330,20 @@ class TestDagRunOperations:
         response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
         assert response == self.dag_run_response
 
+    @pytest.mark.parametrize("suppress_error_log", [False, True])
+    def test_get_passes_error_log_suppression_extension(self, suppress_error_log):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.extensions["airflowctl_suppress_error_log"] is suppress_error_log
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            suppress_error_log=suppress_error_log,
+        )
+        assert response == self.dag_run_response
+
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
@@ -1200,6 +1357,79 @@ class TestDagRunOperations:
             state=DagRunState.RUNNING,
             limit=1,
         )
+        assert response == self.dag_run_collection_response
+
+    @pytest.mark.parametrize("suppress_error_log", [False, True])
+    def test_list_passes_error_log_suppression_extension(self, suppress_error_log):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.extensions["airflowctl_suppress_error_log"] is suppress_error_log
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            dag_id=self.dag_id,
+            limit=1,
+            suppress_error_log=suppress_error_log,
+        )
+        assert response == self.dag_run_collection_response
+
+    def test_list_with_logical_date_filters_and_order(self):
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert dict(request.url.params) == {
+                "limit": "1",
+                "logical_date_gte": logical_date.isoformat(),
+                "logical_date_lte": logical_date.isoformat(),
+                "order_by": "-id",
+            }
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            dag_id=self.dag_id,
+            logical_date_gte=logical_date,
+            logical_date_lte=logical_date,
+            order_by="-id",
+            limit=1,
+        )
+        assert response == self.dag_run_collection_response
+
+    def test_list_with_clear_filters(self):
+        logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.timezone.utc)
+        partition_day_start = datetime.date(2025, 2, 1)
+        partition_day_end = datetime.date(2025, 2, 4)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            # Asserted exactly: a name the endpoint does not declare is silently ignored by
+            # FastAPI, so an unfiltered list would come back and the caller would act on it.
+            assert dict(request.url.params) == {
+                "limit": "50",
+                "offset": "100",
+                "logical_date_gte": logical_date_start.isoformat(),
+                "logical_date_lte": logical_date_end.isoformat(),
+                "partition_date_gte": partition_day_start.isoformat(),
+                "partition_date_lte": partition_day_end.isoformat(),
+                "order_by": "logical_date",
+                "partition_key_pattern": "2025-01-01",
+            }
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            dag_id=self.dag_id,
+            limit=50,
+            offset=100,
+            logical_date_gte=logical_date_start,
+            logical_date_lte=logical_date_end,
+            partition_date_gte=partition_day_start,
+            partition_date_lte=partition_day_end,
+            order_by="logical_date",
+            partition_key_pattern="2025-01-01",
+        )
+
         assert response == self.dag_run_collection_response
 
     @pytest.mark.parametrize(
@@ -1273,6 +1503,15 @@ class TestDagRunOperations:
         assert "state" not in captured_params
         assert captured_params["limit"] == "5"
 
+    def test_delete(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.delete(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+        assert response == self.dag_run_id
+
 
 class TestJobsOperations:
     job_response = JobResponse(
@@ -1300,6 +1539,9 @@ class TestJobsOperations:
             assert params["job_type"] == "job_type"
             assert params["hostname"] == "hostname"
             assert params["is_alive"] == "true"
+            assert params["dag_id"] == "dag_id"
+            assert params["job_state"] == "success"
+            assert params["order_by"] == "-start_date"
             assert params["limit"] == "50"
             return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
 
@@ -1308,33 +1550,84 @@ class TestJobsOperations:
             job_type="job_type",
             hostname="hostname",
             is_alive=True,
+            dag_id="dag_id",
+            state="success",
+            order_by="-start_date",
         )
         assert response == self.job_collection_response
 
+    def test_list_with_limit_returns_single_page(self):
+        requests = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["limit"] == "1"
+            assert params["order_by"] == "-start_date"
+            return httpx.Response(
+                200,
+                json={
+                    **json.loads(self.job_collection_response.model_dump_json()),
+                    "total_entries": 2,
+                },
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.jobs.list(limit=1)
+
+        assert response.jobs == self.job_collection_response.jobs
+        assert response.total_entries == 2
+        assert len(requests) == 1
+
+    def test_list_with_limit_preserves_explicit_order_by(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["limit"] == "1"
+            assert params["order_by"] == "id"
+            return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.jobs.list(limit=1, order_by="id")
+
+        assert response == self.job_collection_response
+
     @pytest.mark.parametrize(
-        ("job_type", "hostname", "is_alive", "expected_subset"),
+        ("job_type", "hostname", "is_alive", "dag_id", "state", "expected_subset"),
         [
-            (None, None, None, {}),
-            ("scheduler", None, None, {"job_type": "scheduler"}),
-            (None, "host-a", None, {"hostname": "host-a"}),
-            (None, None, False, {"is_alive": "false"}),
+            (None, None, None, None, None, {}),
+            ("scheduler", None, None, None, None, {"job_type": "scheduler"}),
+            (None, "host-a", None, None, None, {"hostname": "host-a"}),
+            (None, None, False, None, None, {"is_alive": "false"}),
+            (None, None, None, "dag_a", None, {"dag_id": "dag_a"}),
+            (None, None, None, None, "running", {"job_state": "running"}),
         ],
     )
-    def test_list_omits_empty_filters(self, job_type, hostname, is_alive, expected_subset):
+    def test_list_omits_empty_filters(self, job_type, hostname, is_alive, dag_id, state, expected_subset):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/jobs"
             params = dict(request.url.params)
             assert params["limit"] == "50"
+            assert params["order_by"] == "-start_date"
             for key, value in expected_subset.items():
                 assert params[key] == value
 
             assert ("job_type" in params) is ("job_type" in expected_subset)
             assert ("hostname" in params) is ("hostname" in expected_subset)
             assert ("is_alive" in params) is ("is_alive" in expected_subset)
+            assert ("dag_id" in params) is ("dag_id" in expected_subset)
+            assert ("job_state" in params) is ("job_state" in expected_subset)
             return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.jobs.list(job_type=job_type, hostname=hostname, is_alive=is_alive)
+        response = client.jobs.list(
+            job_type=job_type,
+            hostname=hostname,
+            is_alive=is_alive,
+            dag_id=dag_id,
+            state=state,
+        )
         assert response == self.job_collection_response
 
 
@@ -1366,11 +1659,13 @@ class TestPoolsOperations:
         scheduled_slots=1,
         open_slots=1,
         deferred_slots=1,
+        team_name=None,
     )
     pool_response_collection = PoolCollectionResponse(
         pools=[pool_response],
         total_entries=1,
     )
+    pool_patch_body = PoolPatchBody(pool=pool_name, description="description")
     pool_bulk_response = BulkResponse(
         create=BulkActionResponse(success=[pool_name], errors=[]),
         update=None,
@@ -1422,12 +1717,20 @@ class TestPoolsOperations:
         response = client.pools.delete(self.pool_name)
         assert response == self.pool_name
 
+    def test_update(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            assert request.method == "PATCH"
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(pool_body=self.pool_patch_body)
+        assert response == self.pool_response
+
 
 class TestProvidersOperations:
     provider_response = ProviderResponse(
-        package_name="package_name",
-        version="version",
-        description="description",
+        package_name="package_name", version="version", description="description", documentation_url=None
     )
     provider_collection_response = ProviderCollectionResponse(
         providers=[provider_response],
@@ -1444,6 +1747,168 @@ class TestProvidersOperations:
         assert response == self.provider_collection_response
 
 
+class TestTaskInstancesOperations:
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+        task_id="task_id",
+        dag_id="dag_id",
+        dag_run_id="dag_run_id",
+        map_index=-1,
+        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+        state=TaskInstanceState.SUCCESS,
+        try_number=1,
+        max_tries=0,
+        task_display_name="task_id",
+        dag_display_name="dag_id",
+        pool="default_pool",
+        pool_slots=1,
+        executor_config="{}",
+        logical_date=None,
+        start_date=None,
+        end_date=None,
+        duration=None,
+        hostname=None,
+        unixname=None,
+        queue=None,
+        priority_weight=None,
+        operator=None,
+        operator_name=None,
+        queued_when=None,
+        scheduled_when=None,
+        pid=None,
+        executor=None,
+        note=None,
+        rendered_map_index=None,
+        trigger=None,
+        triggerer_job=None,
+        dag_version=None,
+    )
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[task_instance_response],
+        total_entries=1,
+    )
+    task_dependency_collection_response = TaskDependencyCollectionResponse(
+        dependencies=[TaskDependencyResponse(name="Trigger Rule", reason="upstream tasks not done")],
+    )
+
+    def _make_client_asserting_path(self, expected_path: str, response_model) -> Client:
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == expected_path
+            return httpx.Response(200, json=json.loads(response_model.model_dump_json()))
+
+        return make_api_client(transport=httpx.MockTransport(handle_request))
+
+    @pytest.mark.parametrize("map_index", [None, -1])
+    def test_get(self, map_index):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id", self.task_instance_response
+        )
+        response = client.task_instances.get(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=map_index
+        )
+        assert response == self.task_instance_response
+
+    def test_get_with_map_index(self):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/3", self.task_instance_response
+        )
+        response = client.task_instances.get(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=3
+        )
+        assert response == self.task_instance_response
+
+    @pytest.mark.parametrize("map_index", [None, -1])
+    def test_get_dependencies(self, map_index):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/dependencies",
+            self.task_dependency_collection_response,
+        )
+        response = client.task_instances.get_dependencies(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=map_index
+        )
+        assert response == self.task_dependency_collection_response
+
+    def test_get_dependencies_with_map_index(self):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/3/dependencies",
+            self.task_dependency_collection_response,
+        )
+        response = client.task_instances.get_dependencies(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=3
+        )
+        assert response == self.task_dependency_collection_response
+
+    def test_list(self):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances", self.task_instance_collection_response
+        )
+        response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
+        assert response == self.task_instance_collection_response
+
+
+class TestTasksOperations:
+    dag_id = "dag_id"
+    clear_task_instances = ClearTaskInstancesBody(
+        dry_run=True,
+        task_ids=["task_1"],
+        dag_run_id="dag_run_id",
+    )
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.UUID("0195c8b0-8bb5-7fc1-9ac9-04c286c47b7f"),
+        task_id="task_1",
+        dag_id=dag_id,
+        dag_run_id="dag_run_id",
+        map_index=-1,
+        run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        try_number=1,
+        max_tries=2,
+        task_display_name="task_1",
+        dag_display_name="dag_display_name",
+        pool="default_pool",
+        pool_slots=1,
+        executor_config="{}",
+        logical_date=None,
+        start_date=None,
+        end_date=None,
+        duration=None,
+        state=None,
+        hostname=None,
+        unixname=None,
+        queue=None,
+        priority_weight=None,
+        operator=None,
+        operator_name=None,
+        queued_when=None,
+        scheduled_when=None,
+        pid=None,
+        executor=None,
+        note=None,
+        rendered_map_index=None,
+        trigger=None,
+        triggerer_job=None,
+        dag_version=None,
+    )
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[task_instance_response],
+        total_entries=1,
+    )
+
+    def test_clear(self):
+        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_none=True)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            assert request.headers.get("content-type", "").startswith("application/json")
+            assert json.loads(request.content.decode()) == expected_body
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.clear(self.dag_id, self.clear_task_instances)
+        assert response == self.task_instance_collection_response
+
+
 class TestVariablesOperations:
     key = "key"
     value = "val"
@@ -1456,10 +1921,7 @@ class TestVariablesOperations:
         }
     )
     variable_response = VariableResponse(
-        key=key,
-        value=value,
-        description=description,
-        is_encrypted=False,
+        key=key, value=value, description=description, is_encrypted=False, team_name=None
     )
     variable_collection_response = VariableCollectionResponse(
         variables=[variable_response],

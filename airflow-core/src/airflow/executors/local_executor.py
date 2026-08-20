@@ -25,6 +25,7 @@ LocalExecutor.
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import multiprocessing
 import multiprocessing.sharedctypes
@@ -121,7 +122,7 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
-    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
+    is_mp_using_fork: bool
 
     supports_multi_team: bool = True
     serve_logs: bool = True
@@ -135,6 +136,10 @@ class LocalExecutor(BaseExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Resolve the start method at instantiation, not at import: the component CLI entry may have
+        # set it via [<component>]/[core] mp_start_method before the executor is created.
+        self.is_mp_using_fork = multiprocessing.get_start_method() == "fork"
 
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of
@@ -239,10 +244,12 @@ class LocalExecutor(BaseExecutor):
         self._check_workers()
 
     def _read_results(self):
-        while not self.result_queue.empty():
-            key, state, exc = self.result_queue.get()
-
-            self.change_state(key, state)
+        try:
+            while not self.result_queue.empty():
+                key, state, exc = self.result_queue.get()
+                self.change_state(key, state)
+        except (OSError, EOFError):
+            self.log.exception("Error reading from result queue")
 
     def end(self) -> None:
         """End the executor."""
@@ -259,19 +266,47 @@ class LocalExecutor(BaseExecutor):
             if proc.is_alive():
                 self.activity_queue.put(None)
 
-        for proc in self.workers.values():
-            if proc.is_alive():
-                proc.join()
-            proc.close()
+        # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
+        # Otherwise, a worker blocked on putting results into a full result_queue pipe will never exit,
+        # and an unbounded proc.join() will hang the scheduler indefinitely.
+        try:
+            for proc in self.workers.values():
+                while proc.is_alive():
+                    self._read_results()
+                    proc.join(timeout=0.05)
+        except (KeyboardInterrupt, SystemExit):
+            self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
+            for proc in self.workers.values():
+                self._terminate_worker_process(proc)
+            raise
+        finally:
+            # Process any extra results before closing
+            self._read_results()
 
-        # Process any extra results before closing
-        self._read_results()
+            for proc in self.workers.values():
+                with contextlib.suppress(ValueError):
+                    proc.close()
 
-        self.activity_queue.close()
-        self.result_queue.close()
+            self.activity_queue.close()
+            self.result_queue.close()
 
     def terminate(self):
-        """Terminate the executor is not doing anything."""
+        """Terminate all worker processes under control of the executor forcefully."""
+        self.log.info("Terminating all LocalExecutor worker processes.")
+        for proc in self.workers.values():
+            self._terminate_worker_process(proc)
+
+    def _terminate_worker_process(self, proc: multiprocessing.Process) -> None:
+        """Terminate a worker process, escalating to kill if it stays alive."""
+        if not proc.is_alive():
+            return
+
+        proc.terminate()
+        proc.join(timeout=0.2)
+        if proc.is_alive():
+            self.log.warning("Worker process %s did not stop after SIGTERM. Sending SIGKILL.", proc.pid)
+            proc.kill()
+            proc.join(timeout=0.2)
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:

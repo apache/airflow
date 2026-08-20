@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.sdk.bases.decorator import TaskDecorator
+from airflow.sdk.bases.decorator import TaskDecorator, is_decorated_task
 from airflow.sdk.definitions.dag import dag
 from airflow.sdk.definitions.decorators.condition import run_if, skip_if
 from airflow.sdk.definitions.decorators.setup_teardown import setup_task, teardown_task
@@ -27,12 +27,16 @@ from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import TypeVar
+
+    C = TypeVar("C", bound=Callable)
 
 # Please keep this in sync with the .pyi's __all__.
 __all__ = [
     "TaskDecorator",
     "TaskDecoratorCollection",
     "dag",
+    "result",
     "task",
     "task_group",
     "setup",
@@ -63,3 +67,23 @@ class TaskDecoratorCollection:
 task = TaskDecoratorCollection()
 setup: Callable = setup_task
 teardown: Callable = teardown_task
+
+
+def result(t: C) -> C:
+    """
+    Mark a task as returning the dag's result.
+
+    This must be used *on top of* a ``@task`` decorator like this::
+
+        @result
+        @task
+        def emit_values():
+            something = ...
+            return something
+
+    This causes :func:`DAG.add_result` to later be called internally.
+    """
+    if not is_decorated_task(t):
+        raise TypeError("@result must be used on top of a @task-decorated function")
+    t.returns_dag_result = True
+    return t

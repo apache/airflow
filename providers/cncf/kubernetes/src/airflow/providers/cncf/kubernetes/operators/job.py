@@ -28,7 +28,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
-from kubernetes.client import BatchV1Api, models as k8s
+from kubernetes.client import BatchV1Api, Configuration, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
@@ -378,7 +378,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             job = None
             log.warning("Template file %s does not exist", path)
 
-        api_client = ApiClient()
+        api_client = ApiClient(configuration=Configuration())
         return api_client._ApiClient__deserialize_model(job, k8s.V1Job)
 
     def on_kill(self) -> None:

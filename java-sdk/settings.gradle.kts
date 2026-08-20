@@ -17,9 +17,23 @@
  * under the License.
  */
 
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention").version("0.10.0")
 }
 
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
 rootProject.name = "airflow-java-sdk"
-include("bom", "plugin", "processor", "sdk")
+include("bom", "jpl", "jul", "log4j2", "plugin", "processor", "sdk", "slf4j")

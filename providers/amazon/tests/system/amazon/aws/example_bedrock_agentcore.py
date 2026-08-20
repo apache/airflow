@@ -16,12 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import io
+import zipfile
 from datetime import datetime
+
+import boto3
 
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateAgentRuntimeOperator,
     BedrockDeleteAgentRuntimeOperator,
     BedrockInvokeAgentRuntimeOperator,
+)
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
 )
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -41,13 +49,34 @@ from system.amazon.aws.utils import SystemTestContextBuilder
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
-CONTAINER_URI_KEY = "CONTAINER_URI"
 
-sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(CONTAINER_URI_KEY).build()
-)
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 DAG_ID = "example_bedrock_agentcore"
+
+CODE_CONTENT = """\
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import json
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length) if content_length else b"{}"
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"output": {"text": "Hello from Airflow"}}).encode())
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+
+if __name__ == "__main__":
+    HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+"""
 
 with DAG(
     dag_id=DAG_ID,
@@ -58,20 +87,47 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
-    runtime_name = f"airflow-agentcore-{env_id}"
+    runtime_name = f"airflow_agentcore_{env_id}"
+    bucket_name = f"airflow-agentcore-code-{env_id}"
+    s3_key = "code.zip"
+
+    # [START howto_setup_bedrock_agentcore]
+    create_bucket = S3CreateBucketOperator(
+        task_id="create_bucket",
+        bucket_name=bucket_name,
+    )
+
+    @dag.task
+    def upload_code(bucket: str, key: str):
+        """Create a zip with the agent code and upload it to S3."""
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("main.py", CODE_CONTENT)
+        buf.seek(0)
+
+        boto3.client("s3").upload_fileobj(buf, bucket, key)
+
+    upload_code_task = upload_code(bucket_name, s3_key)
+    # [END howto_setup_bedrock_agentcore]
 
     # [START howto_operator_bedrock_create_agent_runtime]
     create_agent_runtime = BedrockCreateAgentRuntimeOperator(
         task_id="create_agent_runtime",
         agent_runtime_name=runtime_name,
         agent_runtime_artifact={
-            "containerConfiguration": {
-                "containerUri": test_context[CONTAINER_URI_KEY],
+            "codeConfiguration": {
+                "code": {
+                    "s3": {
+                        "bucket": bucket_name,
+                        "prefix": s3_key,
+                    },
+                },
+                "runtime": "PYTHON_3_12",
+                "entryPoint": ["main.py"],
             },
         },
         role_arn=test_context[ROLE_ARN_KEY],
         network_configuration={"networkMode": "PUBLIC"},
-        deferrable=True,
     )
     # [END howto_operator_bedrock_create_agent_runtime]
 
@@ -92,14 +148,24 @@ with DAG(
     )
     # [END howto_operator_bedrock_delete_agent_runtime]
 
+    delete_bucket = S3DeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=bucket_name,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     chain(
         # TEST SETUP
         test_context,
+        create_bucket,
+        upload_code_task,
         # TEST BODY
         create_agent_runtime,
         invoke_agent_runtime,
         # TEST TEARDOWN
         delete_agent_runtime,
+        delete_bucket,
     )
 
     from tests_common.test_utils.watcher import watcher

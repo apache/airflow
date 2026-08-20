@@ -50,20 +50,24 @@ class TestDocumentLoaderInit:
         assert "source_bytes" not in op.template_fields
 
     def test_both_sources_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
         with pytest.raises(ValueError, match="not both"):
-            DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
+            op.execute(context={})
 
     def test_neither_source_raises(self):
+        op = DocumentLoaderOperator(task_id="test")
         with pytest.raises(ValueError, match="Provide exactly one"):
-            DocumentLoaderOperator(task_id="test")
+            op.execute(context={})
 
     def test_source_bytes_without_file_type_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
         with pytest.raises(ValueError, match="file_type"):
-            DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
+            op.execute(context={})
 
     def test_empty_bytes_without_file_type_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_bytes=b"")
         with pytest.raises(ValueError, match="file_type"):
-            DocumentLoaderOperator(task_id="test", source_bytes=b"")
+            op.execute(context={})
 
 
 class TestTextParser:
@@ -410,6 +414,11 @@ class TestFileDiscovery:
         with pytest.raises(ValueError, match="No parser registered"):
             op.execute(context=MagicMock())
 
+    def test_unknown_parser_on_source_bytes_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_bytes=b"a,b\n1,2", file_type=".csv", parser="cvs")
+        with pytest.raises(ValueError, match="No parser found"):
+            op.execute(context=MagicMock())
+
     def test_nonexistent_glob_raises_file_not_found(self, tmp_path):
         op = DocumentLoaderOperator(task_id="test", source_path=str(tmp_path / "*.nope"))
         with pytest.raises(FileNotFoundError, match="No files found"):
@@ -488,6 +497,39 @@ class TestCloudUriDispatch:
         op = DocumentLoaderOperator(task_id="test", source_path="s3://bucket/missing")
         with pytest.raises(FileNotFoundError, match="neither a file nor a directory"):
             op.execute(context=MagicMock())
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    def test_glob_uri_matches_across_directories(self, mock_osp_cls):
+        def _mock_match(name: str, content: bytes):
+            match = MagicMock()
+            match.is_file.return_value = True
+            match.name = name
+            match.suffix = "." + name.rsplit(".", 1)[-1]
+            match.read_bytes.return_value = content
+            return match
+
+        root = MagicMock()
+        root.glob.return_value = [_mock_match("a.txt", b"alpha"), _mock_match("b.txt", b"beta")]
+        mock_osp_cls.return_value = root
+
+        op = DocumentLoaderOperator(
+            task_id="test",
+            source_path="s3://bucket/logs/**/*.txt",
+            source_conn_id="aws_default",
+        )
+        result = op.execute(context=MagicMock())
+
+        mock_osp_cls.assert_called_once_with("s3://bucket/logs", conn_id="aws_default")
+        root.glob.assert_called_once_with("**/*.txt")
+        assert {doc["text"] for doc in result} == {"alpha", "beta"}
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    def test_glob_in_bucket_segment_raises(self, mock_osp_cls):
+        op = DocumentLoaderOperator(task_id="test", source_path="s3://bucket-*/dir/a.txt")
+        with pytest.raises(ValueError, match="scheme or bucket segment"):
+            op.execute(context=MagicMock())
+
+        mock_osp_cls.assert_not_called()
 
 
 class TestEncoding:

@@ -95,6 +95,7 @@ BASIC_SPHINX_EXTENSIONS = [
     "sphinx_design",
     "pagefind_search",
     "metrics_tables_from_registry",
+    "suggest_change_button",
 ]
 
 # Properties for Swagger OpenAPI generation:

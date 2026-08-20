@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import httpx
 import pytest
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
@@ -86,7 +87,7 @@ class TestAirbyteHook:
 
     def return_value_get_job(self, status):
         response = mock.Mock()
-        response.job_response = JobResponse(
+        response.job_response = JobResponse.model_construct(
             connection_id="connection-mock",
             job_id=self.job_id,
             start_time="today",
@@ -146,7 +147,7 @@ class TestAirbyteHook:
     def test_wait_for_job_succeeded(self, mock_get_job):
         mock_get_job.side_effect = [self.return_value_get_job(JobStatusEnum.SUCCEEDED)]
         self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
-        mock_get_job.assert_called_once_with(request=GetJobRequest(self.job_id))
+        mock_get_job.assert_called_once_with(request=GetJobRequest(job_id=self.job_id))
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_wait_for_job_error(self, mock_get_job):
@@ -157,7 +158,10 @@ class TestAirbyteHook:
         with pytest.raises(AirflowException, match="Job failed"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
@@ -168,7 +172,10 @@ class TestAirbyteHook:
         ]
         self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
@@ -182,9 +189,9 @@ class TestAirbyteHook:
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=2, timeout=1)
 
         get_calls = [
-            mock.call(request=GetJobRequest(self.job_id)),
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
         ]
-        cancel_calls = [mock.call(request=CancelJobRequest(self.job_id))]
+        cancel_calls = [mock.call(request=CancelJobRequest(job_id=self.job_id))]
         mock_get_job.assert_has_calls(get_calls)
         mock_cancel_job.assert_has_calls(cancel_calls)
         assert mock_get_job.mock_calls == get_calls
@@ -199,7 +206,10 @@ class TestAirbyteHook:
         with pytest.raises(AirflowException, match="unexpected state"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
@@ -211,7 +221,10 @@ class TestAirbyteHook:
         with pytest.raises(AirflowException, match="Job was cancelled"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+            mock.call(request=GetJobRequest(job_id=self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.health.Health.get_health_check")
@@ -236,15 +249,18 @@ class TestAirbyteHook:
         assert msg == '{"message": "internal server error"}'
 
     def test_create_api_session_with_proxy(self):
-        """
-        Test the creation of the API session with proxy settings.
-        """
-        # Create a new AirbyteHook instance
+        """Test that proxy settings produce an httpx.Client with per-scheme transport mounts."""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id_with_proxy)
 
-        # Check if the session is created correctly
         assert hook.airbyte_api is not None
-        assert hook.airbyte_api.sdk_configuration.client.proxies == self._mock_proxy["proxies"]
+        client = hook.airbyte_api.sdk_configuration.client
+        assert isinstance(client, httpx.Client)
+
+        default_transport = client._transport
+        for scheme in self._mock_proxy["proxies"]:
+            url = httpx.URL(f"{scheme}://example.com")
+            transport = client._transport_for_url(url)
+            assert transport is not default_transport, f"Expected proxy transport for {scheme}"
 
     def test_create_api_session_without_credentials(self):
         """Test that a session without OAuth credentials creates an unauthenticated client."""

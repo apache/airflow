@@ -409,5 +409,14 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
 
             for root_task in roots:
                 root_task.set_upstream(create_databricks_workflow_task)
+
+            # When ``>>`` is called before the ``with`` block, the dependency is
+            # recorded on the task group but the launch/leaf tasks don't exist yet.
+            # Transfer those task-group-level dependencies now that the tasks are created.
+            for upstream_id in self.upstream_task_ids:
+                create_databricks_workflow_task.set_upstream(self.dag.get_task(upstream_id))
+            for downstream_id in self.downstream_task_ids:
+                for leaf_task in self.get_leaves():
+                    leaf_task.set_downstream(self.dag.get_task(downstream_id))
         finally:
             super().__exit__(_type, _value, _tb)

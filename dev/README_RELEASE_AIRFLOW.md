@@ -588,6 +588,18 @@ still works but is no longer recommended.
         --sync-branch ${SYNC_BRANCH}
    ```
 
+   Note: when it reaches the constraints step, `start-rc-process` triggers the `Release
+   constraints` workflow and waits. The candidate resolves constraints of its own rather than
+   tagging the `constraints-X-Y` branch tip, and it resolves them **allowing pre-releases for the
+   providers** — the providers of the wave being voted on exist on PyPI only as `rcN` versions, so
+   constraints that refused them could not describe what a tester is asked to install. The
+   allowance is scoped to `apache-airflow-providers-*`; no other package can resolve to a
+   pre-release, so a beta of some third-party library cannot slip into what the candidate ships.
+
+   The result lands on a branch of its own (`constraints-${VERSION_RC}`) and is tagged
+   `constraints-${VERSION_RC}`. The shared `constraints-X-Y` branch is left where it was — only
+   the final release moves it.
+
    **Testing the start-rc-process command:**
    Before running the actual release command, you can safely test it using:
 
@@ -1372,6 +1384,45 @@ breeze release-management start-release \
 
 Note: The `--task-sdk-version` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
+Note: When it reaches the constraints step, `start-release` resolves the constraints again rather
+than promoting the ones the RC was cut with. The RC constraints deliberately pin pre-releases -
+that wave's providers exist on PyPI only as `rcN` versions at candidate time - so they can never
+become the released constraints by retagging. The regeneration runs without pre-releases against
+the same providers now published as finals, commits the result onto the `constraints-X-Y` branch,
+pushes it, and tags it `constraints-${VERSION}`. That commit is what makes the released
+constraints the new baseline, so refreshing the branch beforehand (see
+[MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md](MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md))
+is no longer necessary.
+
+The resolution runs on CI runners through the `Release constraints` workflow, so the release
+manager's machine does not need a CI image for every supported Python. `start-release` triggers it
+and waits. You can also run it on its own - to redo a candidate's constraints, or to produce them
+for a release cut before this existed:
+
+```shell script
+breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable
+```
+
+The workflow derives the stage from `--version` alone, so there is no separate switch that could
+disagree with the version:
+
+| `--version` | Provider pins | Lands on | Tagged |
+|---|---|---|---|
+| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3.3.1rc1`, branched off `constraints-3-3` | `constraints-3.3.1rc1` |
+| `3.3.1` | newest final in PyPI | `constraints-3-3` (commit) | `constraints-3.3.1` |
+
+The providers are pinned rather than resolved: every `apache-airflow-providers-*` is named with
+`==` at the newest version PyPI can install, so the constraints record what is actually published
+instead of whatever the resolver settles on. A candidate takes the wave's `rcN` versions along with
+it - a pre-release only wins by sorting above every final release, so a provider without a
+candidate in the wave keeps its release. A final ignores candidates entirely, which is what makes
+it impossible for a released constraints file to carry an `rc` pin. Nothing else in the dependency
+graph can resolve to a pre-release, since no other requirement mentions one.
+
+Re-running the workflow for the same candidate deletes and re-creates that candidate's branch and
+tag, so redoing a candidate's constraints just works. A final is never treated this way - it commits
+onto the shared `constraints-X-Y` branch, whose history everything downstream reads.
+
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
@@ -1621,9 +1672,12 @@ Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in t
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
 
-Add or adjust significant `chart/newsfragments` to express that the default version of Airflow has changed.
+Add or adjust already existing significant `chart/newsfragments` to express that the default version of Airflow
+has changed.
 
 In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
+
+Add `backport-to-chart/v1-2x-test` for automatic backport PR creation for Helm Chart 1.2x release line. Manual backport is required when automatic one will fail.
 
 ## Update airflow/config_templates/config.yml file
 

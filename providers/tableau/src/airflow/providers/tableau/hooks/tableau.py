@@ -21,12 +21,15 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
-
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.helpers import exactly_one
 
+# tableauserverclient is imported lazily inside the methods that use it rather than at module level:
+# importing it is expensive (it self-instruments via beartype's import hook on first import), and that
+# cost would otherwise be paid whenever the ProvidersManager imports this hook module just to discover
+# provider metadata -- which never instantiates the hook.
 if TYPE_CHECKING:
+    from tableauserverclient import Pager
     from tableauserverclient.server import Auth
 
 
@@ -87,6 +90,8 @@ class TableauHook(BaseHook):
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get("site_id", "")
         server_address = f"{self.conn.schema}://{self.conn.host}" if self.conn.schema else self.conn.host
+        from tableauserverclient import Server
+
         self.server = Server(server_address)
         verify: Any = self.conn.extra_dejson.get("verify", True)
         if isinstance(verify, str):
@@ -141,6 +146,8 @@ class TableauHook(BaseHook):
         raise NotImplementedError("No Authentication method found for given Credentials!")
 
     def _auth_via_password(self) -> Auth.contextmgr:
+        from tableauserverclient import TableauAuth
+
         tableau_auth = TableauAuth(
             username=cast("str", self.conn.login),
             password=cast("str", self.conn.password),
@@ -149,6 +156,8 @@ class TableauHook(BaseHook):
         return self.server.auth.sign_in(tableau_auth)
 
     def _auth_via_jwt(self) -> Auth.contextmgr:
+        from tableauserverclient import JWTAuth
+
         jwt_auth = JWTAuth(jwt=self.jwt_token, site_id=self.site_id)
         return self.server.auth.sign_in(jwt_auth)
 
@@ -162,6 +171,8 @@ class TableauHook(BaseHook):
             For example: jobs or workbooks.
         :return: all items by returning a Pager.
         """
+        from tableauserverclient import Pager
+
         try:
             resource = getattr(self.server, resource_name)
         except AttributeError:
@@ -179,7 +190,15 @@ class TableauHook(BaseHook):
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
-    def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
+    def wait_for_state(
+        self,
+        job_id: str,
+        target_state: TableauJobFinishCode,
+        check_interval: float,
+        timeout: float | None = None,
+        exponential_backoff: bool = False,
+        max_check_interval: float | None = None,
+    ) -> bool:
         """
         Wait until the current state of a defined Tableau Job is target_state or different from PENDING.
 
@@ -187,12 +206,30 @@ class TableauHook(BaseHook):
         :param target_state: Enum that describe the Tableau job's target state
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
+        :param timeout: maximum total time in seconds to keep polling the job before giving up.
+            ``None`` (the default) waits indefinitely until the job leaves the PENDING state.
+            This is a soft bound: an in-flight wait between checks is not interrupted, so a large
+            ``check_interval`` may overshoot ``timeout`` by up to one interval.
+        :param exponential_backoff: when ``True`` the wait between checks grows by 50% each time,
+            starting from ``check_interval``, instead of staying fixed.
+        :param max_check_interval: maximum interval in seconds between two consecutive checks
+            when ``exponential_backoff`` is enabled. ``None`` leaves the growth uncapped.
         :return: return True if the job is equal to the target_status, False otherwise.
+        :raises TimeoutError: if ``timeout`` elapses while the job is still PENDING.
         """
-        finish_code = self.get_job_status(job_id=job_id)
-        while finish_code == TableauJobFinishCode.PENDING and finish_code != target_state:
-            self.log.info("job state: %s", finish_code)
-            time.sleep(check_interval)
+        start = time.monotonic()
+        current_interval = check_interval
+        while True:
             finish_code = self.get_job_status(job_id=job_id)
+            if finish_code != TableauJobFinishCode.PENDING or finish_code == target_state:
+                break
+            if timeout is not None and time.monotonic() - start >= timeout:
+                raise TimeoutError(f"Tableau job {job_id} is still PENDING after {timeout} seconds.")
+            self.log.info("job state: %s; checking again in %s seconds", finish_code, current_interval)
+            time.sleep(current_interval)
+            if exponential_backoff:
+                current_interval *= 1.5
+                if max_check_interval is not None:
+                    current_interval = min(current_interval, max_check_interval)
 
         return finish_code == target_state

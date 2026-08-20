@@ -1082,6 +1082,33 @@ class TestAwsLambdaExecutor:
 
         assert len(not_adopted) == 0
 
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(None, {}, id="without_team"),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+"
+                ),
+            ),
+        ],
+    )
+    @mock.patch.object(lambda_executor.Stats, "timer")
+    def test_try_adopt_task_instances_emits_team_name_tag(
+        self, mock_timer, mock_executor, team_name, expected_tags
+    ):
+        """Test that the adopt task instances duration metric is tagged with the team name."""
+        mock_executor.team_name = team_name
+
+        mock_executor.try_adopt_task_instances([])
+
+        mock_timer.assert_called_once_with(
+            "lambda_executor.adopt_task_instances.duration", tags=expected_tags
+        )
+
     @mock.patch("airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.timezone")
     def test_end_timeout(self, mock_timezone, mock_executor, mock_airflow_key):
         """Test that executor can end successfully; waiting for all workloads to naturally exit."""

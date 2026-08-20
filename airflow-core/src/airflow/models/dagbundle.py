@@ -30,6 +30,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from sqlalchemy.orm import Session
 
 
@@ -56,6 +58,12 @@ class DagBundleModel(Base, LoggingMixin):
     signed_url_template: Mapped[str | None] = mapped_column(Text, nullable=True)
     template_params: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this bundle, if any."""
+        # unique index on dag_bundle_team.dag_bundle_name -> at most one team
+        return self.teams[0].name if self.teams else None
 
     def __init__(self, *, name: str, version: str | None = None):
         super().__init__()
@@ -121,3 +129,18 @@ class DagBundleModel(Base, LoggingMixin):
         return session.scalar(
             select(Team.name).join(DagBundleModel.teams).where(DagBundleModel.name == bundle_name)
         )
+
+    @staticmethod
+    @provide_session
+    def get_team_names(
+        bundle_names: Collection[str], *, session: Session = NEW_SESSION
+    ) -> dict[str, str | None]:
+        """Return a mapping of bundle name to team name (None for bundles not mapped to a team)."""
+        if not bundle_names:
+            return {}
+        rows = session.execute(
+            select(DagBundleModel.name, Team.name)
+            .join(DagBundleModel.teams)
+            .where(DagBundleModel.name.in_(bundle_names))
+        ).all()
+        return {name: team_name for name, team_name in rows}

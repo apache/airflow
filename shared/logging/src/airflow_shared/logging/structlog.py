@@ -24,9 +24,8 @@ import logging
 import os
 import re
 import sys
-import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from functools import cache, cached_property, partial
+from functools import cache, cached_property
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
@@ -184,6 +183,56 @@ PER_LOGGER_LEVELS.update(
 )
 
 
+_NAMESPACE_LEVEL_SEPARATORS = re.compile(r"[\s,]+")
+
+
+def parse_namespace_log_levels(value: str | Mapping[str, str] | None) -> dict[str, int]:
+    """
+    Parse the namespace logging levels configuration into per-logger levels.
+
+    Real callers always pass a string with a series of ``<logger>=<level>``
+    pairs separated by whitespaces and/or commas, or *None* if the configuration
+    is not set. See documentation on configuration for details.
+
+    Parsing is best-effort. Invalid entries are skipped with an ERROR level log
+    message.
+
+    An already-split ``Mapping`` of logger name to level name is also accepted
+    as a convenience for programmatic (test) callers; it is trusted and merely
+    resolved to numeric levels without validation.
+
+    :meta private:
+    """
+    if value is None:
+        return {}
+    if not isinstance(value, str):
+        return {name: NAME_TO_LEVEL[level.lower()] for name, level in value.items()}
+
+    levels: dict[str, int] = {}
+    errors: list[str] = []
+    for entry in _NAMESPACE_LEVEL_SEPARATORS.split(value.strip()):
+        if not entry:
+            continue
+        logger_name, sep, level_name = entry.partition("=")
+        if not sep:
+            errors.append(f"malformed entry {entry!r}, expected '<logger>=<level>'")
+            continue
+        if not (logger_name := logger_name.strip()):
+            errors.append(f"malformed entry {entry!r}, logger name is empty")
+            continue
+        try:
+            levels[logger_name] = NAME_TO_LEVEL[(level_name := level_name.strip()).lower()]
+        except KeyError:
+            errors.append(
+                f"invalid level {level_name!r} for logger {logger_name!r}, "
+                f"expected one of: {', '.join(sorted(NAME_TO_LEVEL))}"
+            )
+
+    for error in errors:
+        log.error("Ignoring invalid namespace_levels entry: %s", error)
+    return levels
+
+
 def make_filtering_logger() -> Callable[..., BindableLogger]:
     def maker(logger: WrappedLogger, *args, **kwargs):
         # If the logger is a NamedBytesLogger/NamedWriteLogger (an Airflow specific subclass) then
@@ -204,25 +253,19 @@ def make_filtering_logger() -> Callable[..., BindableLogger]:
     return maker
 
 
-# structlog >= 26.1.0 added a `name` slot + kwarg to BytesLogger
-# (hynek/structlog#786). Detect it once so we can avoid a redundant slot and
-# forward `name` through the parent init. The same detection is applied to
-# WriteLogger so the analogous upstream change lands without a regression.
-_BYTES_LOGGER_HAS_NAME = "name" in getattr(structlog.BytesLogger, "__slots__", ())
+# structlog >= 26.1.0 (our floor) gave BytesLogger a `name` slot + kwarg
+# (hynek/structlog#786), but WriteLogger has not received the analogous change
+# yet. Detect it so the upstream addition lands without a regression.
 _WRITE_LOGGER_HAS_NAME = "name" in getattr(structlog.WriteLogger, "__slots__", ())
 
 
 class NamedBytesLogger(structlog.BytesLogger):
-    __slots__ = () if _BYTES_LOGGER_HAS_NAME else ("name",)
+    __slots__ = ()
 
     def __init__(self, name: str | None = None, file: BinaryIO | None = None):
         if file is not None:
             file = make_file_io_non_caching(file)
-        if _BYTES_LOGGER_HAS_NAME:
-            super().__init__(file, name=name)  # type: ignore[call-arg]
-        else:
-            super().__init__(file)
-            self.name = name
+        super().__init__(file, name=name)
 
 
 class NamedWriteLogger(structlog.WriteLogger):
@@ -555,21 +598,7 @@ def configure_logging(
     extra_processors = extra_processors or ()
 
     PER_LOGGER_LEVELS[""] = NAME_TO_LEVEL[log_level.lower()]
-
-    # Extract per-logger-tree levels and set them
-    if isinstance(namespace_log_levels, str):
-        log_from_level = partial(re.compile(r"\s*=\s*").split, maxsplit=2)
-        namespace_log_levels = {
-            log: level for log, level in map(log_from_level, re.split(r"[\s,]+", namespace_log_levels))
-        }
-    if namespace_log_levels:
-        for log, level in namespace_log_levels.items():
-            try:
-                loglevel = NAME_TO_LEVEL[level.lower()]
-            except KeyError:
-                raise ValueError(f"Invalid log level for logger {log!r}: {level!r}") from None
-            else:
-                PER_LOGGER_LEVELS[log] = loglevel
+    PER_LOGGER_LEVELS.update(parse_namespace_log_levels(namespace_log_levels))
 
     shared_pre_chain, for_stdlib, for_structlog = structlog_processors(
         json_output,
@@ -607,17 +636,6 @@ def configure_logging(
         elif output is not None:
             text_output = cast("TextIO", output)
         logger_factory = LoggerFactory(NamedWriteLogger, io=text_output)
-
-    # Replace structlog's WRITE_LOCKS dict with a WeakKeyDictionary so entries
-    # for closed file descriptors are garbage-collected instead of leaking.
-    # TODO: drop once structlog ships the upstream fix (tracked for 26.1.0).
-    try:
-        from structlog import _output as _structlog_output
-
-        if isinstance(_structlog_output.WRITE_LOCKS, dict):
-            _structlog_output.WRITE_LOCKS = weakref.WeakKeyDictionary()  # type: ignore[assignment]
-    except Exception:
-        pass
 
     structlog.configure(
         processors=shared_pre_chain + [for_structlog],
@@ -673,6 +691,7 @@ def configure_logging(
             # These ones are too chatty even at info
             "httpx": {"level": "WARN"},
             "sqlalchemy.engine": {"level": "WARN"},
+            "alembic.runtime.plugins": {"level": "WARN"},
         }
     )
     config["root"] = {

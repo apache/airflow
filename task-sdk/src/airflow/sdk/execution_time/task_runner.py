@@ -45,6 +45,7 @@ from structlog.contextvars import bind_contextvars
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
@@ -72,9 +73,12 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
     AirflowException,
+    AirflowFailException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowRuntimeError,
+    AirflowSensorTimeout,
+    AirflowTaskTerminated,
     AirflowTaskTimeout,
     ErrorType,
     TaskAwaitingInput,
@@ -130,10 +134,16 @@ from airflow.sdk.execution_time.context import (
     TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
+    _get_worker_state_store_backend,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
+)
+from airflow.sdk.execution_time.email_backend import (
+    _DEFAULT_EMAIL_BACKEND,
+    _ErrorEmailNotifier,
+    _LegacyEmailBackendNotifier,
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
@@ -231,6 +241,9 @@ class RuntimeTaskInstance(TaskInstance):
     _terminal_state_send_failed: bool = False
     """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
 
+    _failure_metrics_emitted: bool = False
+    """True once the failure counters have been recorded, so a second pass through the failure path (one attempt raised part-way through) does not count the same failure twice."""
+
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -253,10 +266,20 @@ class RuntimeTaskInstance(TaskInstance):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        """Metric tags for this task instance, including team_name when available."""
-        tags: dict[str, str] = {"dag_id": self.dag_id, "task_id": self.task_id}
-        if self._ti_context_from_server and self._ti_context_from_server.dag_run.team_name:
-            tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+        """Metric tags for this task instance, including dag tags and team_name when available."""
+        tags: dict[str, str] = {}
+        if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+            tags.update(build_dag_metric_tags(self.task.dag.tags))
+        # Built-in keys always win on collision.
+        tags.update(dag_id=self.dag_id, task_id=self.task_id)
+        if self._ti_context_from_server:
+            # run_type keeps the tag set consistent with the scheduler-side TaskInstance.stats_tags.
+            # Coerce the DagRunType enum to its bare value so it serializes as e.g. "scheduled" rather
+            # than "dagruntype.scheduled" (matching the scheduler, which emits the plain string).
+            run_type = self._ti_context_from_server.dag_run.run_type
+            tags["run_type"] = getattr(run_type, "value", run_type)
+            if self._ti_context_from_server.dag_run.team_name:
+                tags["team_name"] = self._ti_context_from_server.dag_run.team_name
         return tags
 
     def __rich_repr__(self):
@@ -334,6 +357,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
                 "partition_key": dag_run.partition_key,
+                "partition_date": coerce_datetime(dag_run.partition_date),
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
@@ -999,6 +1023,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
+        version_data=bundle_info.version_data,
     )
     bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
@@ -1505,22 +1530,17 @@ def _await_input_task(
     return msg, state
 
 
-@Sentry.enrich_errors
-@detail_span("run")
-def run(
+def _run_task_and_map_outcome(
     ti: RuntimeTaskInstance,
     context: Context,
     log: Logger,
 ) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
-    """Run the task in this process."""
+    """Execute the task and map its outcome -- success or a handled exception -- to a message and state."""
     import signal
 
     from airflow.sdk.exceptions import (
-        AirflowFailException,
         AirflowRescheduleException,
-        AirflowSensorTimeout,
         AirflowSkipException,
-        AirflowTaskTerminated,
         DagRunTriggerException,
         DownstreamTasksSkipped,
         TaskAwaitingInput,
@@ -1545,9 +1565,6 @@ def run(
     msg: ToSupervisor | None = None
     state: TaskInstanceState | None = None
     error: BaseException | None = None
-
-    stats_tags = ti.stats_tags
-    stats.incr("ti.start", tags=stats_tags)
 
     try:
         # First, clear the xcom data sent from server
@@ -1672,6 +1689,32 @@ def run(
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
+
+    return state, msg, error
+
+
+@Sentry.enrich_errors
+@detail_span("run")
+def run(
+    ti: RuntimeTaskInstance,
+    context: Context,
+    log: Logger,
+) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
+    """Run the task in this process."""
+    msg: ToSupervisor | None = None
+    state: TaskInstanceState | None = None
+    error: BaseException | None = None
+
+    stats_tags = ti.stats_tags
+    stats.incr("ti.start", tags=stats_tags)
+
+    try:
+        state, msg, error = _run_task_and_map_outcome(ti, context, log)
+    except Exception as e:
+        # Python does not offer an exception raised inside an ``except`` clause to that
+        # clause's siblings, so a handler that fails would otherwise escape entirely --
+        # skipping the retry decision and every callback in ``finalize()``.
+        msg, state, error = _handle_handler_failure(ti, e, log, context)
     finally:
         # `state` may still be unset if an exception handler above raised before
         # binding it
@@ -1733,7 +1776,7 @@ def _handle_current_task_success(
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
 
-    if conf.getboolean("state_store", "clear_on_success"):
+    if conf.getboolean("state_store", "clear_on_success") and _get_worker_state_store_backend() is not None:
         log.info(
             "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
         )
@@ -1777,6 +1820,46 @@ def _evaluate_retry_policy(
     except Exception:
         log.exception("Retry policy evaluation failed, falling back to default behaviour")
         return None
+
+
+def _handle_handler_failure(
+    ti: RuntimeTaskInstance, exception: Exception, log: Logger, context: Context
+) -> tuple[RetryTask | TaskState, TaskInstanceState, Exception]:
+    """
+    Decide the outcome for an exception raised by one of the outcome handlers themselves.
+
+    Handlers reach this by talking to the API server -- a missing Dag makes
+    ``_handle_trigger_dag_run`` raise ``AirflowRuntimeError`` -- or by serializing
+    user-supplied values, since ``_defer_task`` and ``_await_input_task`` run
+    ``serde_serialize`` over kwargs and it raises ``TypeError`` for anything it has no
+    serializer for.
+
+    The handler chain's own classifications are preserved rather than routing everything
+    through the retry-count check, so an exception that means "do not retry" still means
+    that when it surfaces from a handler.
+    """
+    log.exception("Task failed with exception")
+    if isinstance(exception, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)):
+        return _terminal_failure(ti), TaskInstanceState.FAILED, exception
+    try:
+        msg, state = _handle_current_task_failed(ti, exception, log, context)
+    except Exception:
+        # The failure path itself failed. Re-entering it would just fail again and
+        # escape, losing the callbacks this whole function exists to preserve, so fail
+        # closed on a plain FAILED state instead.
+        log.exception("Could not determine terminal state, failing closed")
+        return _terminal_failure(ti), TaskInstanceState.FAILED, exception
+    return msg, state, exception
+
+
+def _terminal_failure(ti: RuntimeTaskInstance) -> TaskState:
+    """Build a plain FAILED terminal message, bypassing any retry decision."""
+    ti.end_date = datetime.now(tz=timezone.utc)
+    return TaskState(
+        state=TaskInstanceState.FAILED,
+        end_date=ti.end_date,
+        rendered_map_index=ti.rendered_map_index,
+    )
 
 
 def _handle_current_task_failed(
@@ -1830,12 +1913,16 @@ def _finalize_task_failure(
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
 
-    # Record operator and task instance failed metrics
-    operator = ti.task.__class__.__name__
-    stats_tags = ti.stats_tags
+    # Record operator and task instance failed metrics. One failure is one increment even
+    # if this runs twice, which happens when a first pass raised after counting -- see
+    # `_handle_handler_failure`.
+    if not ti._failure_metrics_emitted:
+        operator = ti.task.__class__.__name__
+        stats_tags = ti.stats_tags
 
-    stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
-    stats.incr("ti_failures", tags=stats_tags)
+        stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
+        stats.incr("ti_failures", tags=stats_tags)
+        ti._failure_metrics_emitted = True
 
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         retry_kwargs: dict[str, Any] = {"end_date": end_date}
@@ -1995,19 +2082,38 @@ def _send_error_email_notification(
     error: BaseException | str | None,
     log: Logger,
 ) -> None:
-    """Send email notification for task errors using SmtpNotifier."""
-    try:
-        from airflow.providers.smtp.notifications.smtp import SmtpNotifier
-    except ImportError:
-        log.error(
-            "Failed to send task failure or retry email notification: "
-            "`apache-airflow-providers-smtp` is not installed. "
-            "Install this provider to enable email notifications."
-        )
-        return
+    """
+    Send email notification for task errors through the configured email backend.
 
+    A non-default ``[email] email_backend`` (an SES, SendGrid or org-internal callable with the
+    ``airflow.utils.email.send_email`` signature) is wrapped in
+    :class:`~airflow.sdk.execution_time.email_backend._LegacyEmailBackendNotifier`; otherwise the
+    default :class:`~airflow.providers.smtp.notifications.smtp.SmtpNotifier` is used.
+
+    Both the worker task-runner path (:func:`finalize`) and the DAG-processor callback path
+    (``_execute_email_callbacks``) funnel through this function, so the resolved backend is used
+    consistently regardless of how the task failed.
+    """
     if not task.email:
         return
+
+    email_backend = conf.get("email", "email_backend", fallback=_DEFAULT_EMAIL_BACKEND)
+    notifier_description = "SmtpNotifier"
+
+    if email_backend and email_backend != _DEFAULT_EMAIL_BACKEND:
+        notifier_class: _ErrorEmailNotifier = _LegacyEmailBackendNotifier
+        notifier_description = f"configured email_backend {email_backend!r}"
+    else:
+        try:
+            from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+        except ImportError:
+            log.error(
+                "Failed to send task failure or retry email notification: "
+                "`apache-airflow-providers-smtp` is not installed. "
+                "Install this provider to enable email notifications."
+            )
+            return
+        notifier_class = SmtpNotifier
 
     subject_template_file = conf.get("email", "subject_template", fallback=None)
 
@@ -2051,7 +2157,7 @@ def _send_error_email_notification(
         return
 
     try:
-        notifier = SmtpNotifier(
+        notifier = notifier_class(
             to=to_emails,
             subject=subject,
             html_content=html_content,
@@ -2059,7 +2165,44 @@ def _send_error_email_notification(
         )
         notifier(email_context)
     except Exception:
-        log.exception("Failed to send email notification")
+        log.exception("Failed to send email notification via %s", notifier_description)
+
+
+@detail_span("task.execute")
+def _run_execute_callable(
+    context: Context,
+    execute: Callable[..., Any] | functools.partial[Any],
+    task: BaseOperator,
+) -> Any:
+    """
+    Run the task's execute callable, applying the execution timeout if one is set.
+
+    The contextvars snapshot is taken here, after the ``task.execute`` span is
+    current, so spans the operator emits during ``execute`` nest under it rather
+    than under the caller. ``ExecutorSafeguard``'s tracker is set into that copy
+    so the operator's ``execute`` passes the safeguard check, while the copy keeps
+    the change from leaking into the surrounding context.
+    """
+    ctx = contextvars.copy_context()
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+    if task.execution_timeout:
+        from airflow.sdk.execution_time.timeout import timeout
+
+        # TODO: handle timeout in case of deferral
+        timeout_seconds = task.execution_timeout.total_seconds()
+        try:
+            # It's possible we're already timed out, so fast-fail if true
+            if timeout_seconds <= 0:
+                raise AirflowTaskTimeout()
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = ctx.run(execute, context=context)
+        except AirflowTaskTimeout:
+            task.on_kill()
+            raise
+    else:
+        result = ctx.run(execute, context=context)
+    return result
 
 
 @detail_span("_execute_task")
@@ -2085,10 +2228,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    ctx = contextvars.copy_context()
-    # Populate the context var so ExecutorSafeguard doesn't complain
-    ctx.run(ExecutorSafeguard.tracker.set, task)
-
     # Export context in os.environ to make it available for operators to use.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
     os.environ.update(airflow_context_vars)
@@ -2104,23 +2243,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
-
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+    result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
@@ -2301,13 +2424,6 @@ def main():
                 log.info("::group::Pre Execute")
                 startup_details = get_startup_details()
 
-                # On macOS fork+exec path, the structured log channel wasn't
-                # inherited (exec replaces the address space). Request it from
-                # the supervisor using the existing ResendLoggingFD mechanism.
-                # Must happen after get_startup_details() so we don't read the
-                # startup message as a ResendLoggingFD response.
-                if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
-                    reinit_supervisor_comms()
                 span_ctx_mgr = _make_task_span(msg=startup_details)
                 span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)
@@ -2330,6 +2446,15 @@ def main():
             ):
                 state, _, error = run(ti, context, log)
                 context["exception"] = error
+                # run() funnels every failure path into `error` rather than
+                # re-raising, so the worker span never sees the exception via
+                # propagation. Mark it here, where the worker span is in scope
+                # regardless of trace detail level.
+                if error is not None:
+                    span.record_exception(error)
+                    span.set_status(
+                        Status(StatusCode.ERROR, description=f"Exception: {type(error).__name__}")
+                    )
                 finalize(ti, state, context, log, error)
                 # If run() couldn't deliver a FAILED / UP_FOR_RETRY terminal
                 # state to the supervisor, fail closed now — finalize() has

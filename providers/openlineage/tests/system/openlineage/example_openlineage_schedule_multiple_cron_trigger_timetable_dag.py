@@ -31,12 +31,14 @@ from airflow import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.timetables.trigger import MultipleCronTriggerTimetable
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_schedule_multiple_cron_trigger_timetable_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=MultipleCronTriggerTimetable("21 13 29 2 4", "9 27 29 2 4", timezone="UTC"),

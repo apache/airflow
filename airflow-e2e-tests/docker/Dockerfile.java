@@ -17,11 +17,14 @@
 
 # Extends the standard Airflow image with a headless JRE so JavaCoordinator
 # can spawn JVM subprocesses for @task.stub tasks.
+#
+# Pin Java 17 (rather than default-jre-headless): the Scala Spark example runs
+# Apache Spark 3.5.x, which supports Java 8/11/17 but not Java 21.
 ARG DOCKER_IMAGE
 FROM ${DOCKER_IMAGE}
 
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends default-jre-headless \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 USER airflow

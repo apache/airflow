@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 
-COMPUTE_BASE_LINK = "https://console.cloud.google.com/compute"
+COMPUTE_BASE_LINK = BASE_LINK + "/compute"
 COMPUTE_LINK = (
     COMPUTE_BASE_LINK + "/instancesDetail/zones/{location_id}/instances/{resource_id}?project={project_id}"
 )

@@ -190,9 +190,9 @@ independently on the cluster. If the Airflow worker dies while the Spark job is 
 Airflow loses track of it and the behaviour to submit a brand new job would be wasting
 the compute already done or even cause conflicts if the Spark job itself is not designed to be idempotent.
 
-Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to ``task_state_store`` immediately after
-submission. On retry, it reads the ID back and reconnects to the already-running driver instead of
-resubmitting.
+Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>` immediately after submission. On retry, it reads
+the ID back and reconnects to the already-running driver instead of resubmitting.
 
 This is the **synchronous path** — the worker holds a slot for the duration of polling. This is
 a crash-safety net for teams running sync operators for log observability, org constraints, or
@@ -212,8 +212,22 @@ The reconnection polling calls the Spark standalone REST API
 See :doc:`connections/spark-submit` for how to configure these fields.
 
 .. note::
-    Crash recovery in cluster mode requires Airflow 3.3+ (``task_state_store`` support). On earlier
-    versions the operator falls back to the previous behavior of always submitting fresh.
+    Crash recovery in cluster mode requires Airflow 3.3+ (``task_state_store`` support). Below
+    3.3, ``durable`` has no effect: setting it explicitly only emits a warning, and the operator
+    always submits fresh, exactly as before this feature existed. The deprecated
+    ``reconnect_on_retry`` parameter (the original name for this same feature, superseded almost
+    immediately) still emits a deprecation warning on every Airflow version and maps onto
+    ``durable``.
+
+Clearing a task is treated the same as a retry, which matters specifically for a task whose driver
+already succeeded: clearing does not delete the stored driver ID, so the next attempt reads it
+back and returns immediately without resubmitting. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the driver via ``on_kill`` before the next attempt gets a chance
+to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
 
 Tracking driver status via Kubernetes API
 """"""""""""""""""""""""""""""""""""""""""
@@ -236,7 +250,7 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
        conn_id="spark_k8s",
        deploy_mode="cluster",
        track_driver_via_k8s_api=True,
-       reconnect_on_retry=True,
+       durable=True,
    )
 
 **Requirements**
@@ -246,9 +260,9 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
   conflicts with the flag and a ``ValueError`` will be raised at task start.
 * The Airflow worker must be able to reach the Kubernetes API server and have permission to
   read and delete pods in the driver's namespace; otherwise pod tracking and cleanup will fail.
-* Set ``reconnect_on_retry=True`` (the default) to enable crash recovery: the driver pod name is
+* Set ``durable=True`` (the default) to enable crash recovery: the driver pod name is
   persisted to task state before polling begins, so a worker crash and retry reconnects to the
-  existing pod instead of submitting a fresh one. Set ``reconnect_on_retry=False`` to always
+  existing pod instead of submitting a fresh one. Set ``durable=False`` to always
   submit a fresh driver on retry.
 * Pod completion is detected from ``pod.status.phase``. If your driver pods have sidecar
   containers (e.g. Istio injection enabled for the driver namespace), the pod phase may not
@@ -291,6 +305,13 @@ the application is submitted:
         deploy_mode="cluster",
         yarn_track_via_rm_api=True,
     )
+
+On Airflow 3.3+, YARN cluster mode with ``durable=True`` (the default) requires
+``yarn_track_via_rm_api=True`` -- the ResourceManager REST API is what makes checking application
+status on retry possible. Without it, the operator raises a ``ValueError`` at task start rather
+than silently falling back to a fire-and-forget submission. Below 3.3, ``durable`` has no effect
+at all, so this requirement doesn't apply there either: durable execution isn't active to have a
+prerequisite for.
 
 For Kerberized clusters, install ``requests-kerberos`` in the Airflow environment. When the
 Spark connection has both ``keytab`` and ``principal`` configured, Airflow automatically uses

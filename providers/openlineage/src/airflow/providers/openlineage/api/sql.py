@@ -26,11 +26,13 @@ from openlineage.client.facet_v2 import error_message_run, external_query_run, s
 from airflow.providers.openlineage.api.core import emit, is_openlineage_active
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER
 from airflow.providers.openlineage.plugins.macros import lineage_job_name
+from airflow.providers.openlineage.utils.emission_policy import resolve_task_emission_policy
 from airflow.providers.openlineage.utils.sql_hook_lineage import (
     _create_ol_event_pair,
     _parse_query_into_datasets,
 )
 from airflow.providers.openlineage.utils.utils import (
+    get_dag_run_dag_and_task_from_ti,
     get_task_instance_from_context,
     next_query_counter_from_context,
 )
@@ -129,6 +131,21 @@ def emit_query_lineage(
             log.debug("TaskInstance not provided, retrieving it from context.")
             task_instance = get_task_instance_from_context()
 
+        _, _, task = get_dag_run_dag_and_task_from_ti(task_instance)
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+        )
+        if not controls.emit:
+            log.info(
+                "Skipping OpenLineage QUERY event emission for task `%s` in dag `%s` "
+                "due to emission policy. emit_query_lineage will have no effect.",
+                task_instance.task_id,
+                task_instance.dag_id,
+            )
+            return
+
         # Copy caller-supplied lists so we never mutate user inputs.
         all_inputs = list(inputs) if inputs else []
         all_outputs = list(outputs) if outputs else []
@@ -174,7 +191,9 @@ def emit_query_lineage(
             end_event_time=end_time,
         )
 
-        log.info("emit_query_lineage will emit 2 OpenLineage events for job `%s`.", start_event.job.name)
+        log.info(
+            "emit_query_lineage will emit 2 OpenLineage QUERY events for job `%s`.", start_event.job.name
+        )
         emit(start_event)
         emit(end_event)
     except Exception as err:

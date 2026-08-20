@@ -23,20 +23,96 @@ import json
 import logging
 import re
 import ssl
-from typing import Any
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
+if TYPE_CHECKING:
+    from typing import Any
+
+    from airflow.sdk.configuration import AirflowSDKConfigParser
+
 log = logging.getLogger(__name__)
+
+_USE_PSYCOPG3: bool
+try:
+    from importlib.metadata import version
+    from importlib.util import find_spec
+
+    from packaging.version import Version
+
+    _is_sqla2 = Version(version("sqlalchemy")) >= Version("2.0.0")
+    _USE_PSYCOPG3 = _is_sqla2 and find_spec("psycopg") is not None
+except (ImportError, ModuleNotFoundError):
+    _USE_PSYCOPG3 = False
+
+
+# broker_transport_options accessed as dict
+# e.g. https://github.com/celery/kombu/blob/4281680ef3a275a7d87433a703790251d9805803/kombu/transport/confluentkafka.py#L338
+_BROKER_TRANSPORT_DICT_OPTIONS = [
+    "client-config",
+    "fetch_message_attributes",
+    "kafka_admin_config",
+    "kafka_common_config",
+    "kafka_consumer_config",
+    "kafka_producer_config",
+    "predefined_exchanges",
+    "predefined_queues",
+    "queue_tags",
+    "sentinel_kwargs",
+    "sqs-creation-attributes",
+]
 
 
 def _broker_supports_visibility_timeout(url):
     return url.startswith(("redis://", "rediss://", "sqs://", "sentinel://"))
 
 
-def get_default_celery_config(team_conf) -> dict[str, Any]:
+def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
+    """
+    Parse broker_transport_options including dict options.
+
+    :param broker_url: Celery broker url
+    :param conf: ExecutorConf object
+    :return: broker_transport_options dict
+    """
+    broker_transport_options: dict[str, str | int | float | Any] = (
+        conf.getsection("celery_broker_transport_options") or {}
+    )
+    if "visibility_timeout" not in broker_transport_options:
+        if _broker_supports_visibility_timeout(broker_url):
+            broker_transport_options["visibility_timeout"] = 86400
+            log.warning(
+                "No visibility_timeout configured in [celery_broker_transport_options]. "
+                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
+                "will be redelivered by the broker, which terminates the original task. "
+                "If you have long-running tasks, increase this value in your Airflow configuration: "
+                "[celery_broker_transport_options] visibility_timeout = <seconds>"
+            )
+
+    # Parse dict options
+    for option in _BROKER_TRANSPORT_DICT_OPTIONS:
+        if option in broker_transport_options:
+            try:
+                option_value = broker_transport_options[option]
+                if not isinstance(option_value, str):
+                    raise ValueError(f"broker_transport_option {option} is not string: {option_value}")
+                option_json = json.loads(option_value)
+                if not isinstance(option_json, dict):
+                    raise ValueError(
+                        f"broker_transport_option {option} value is not dictionary: {option_json}"
+                    )
+                broker_transport_options[option] = option_json
+            except Exception as exc:
+                raise ValueError(
+                    f"Broker transport option {option} value should be written in the correct JSON format."
+                ) from exc
+    return broker_transport_options
+
+
+def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
     """
     Build Celery configuration using team-aware config.
 
@@ -53,35 +129,19 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 
     broker_url = team_conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 
-    broker_transport_options: dict = team_conf.getsection("celery_broker_transport_options") or {}
-    if "visibility_timeout" not in broker_transport_options:
-        if _broker_supports_visibility_timeout(broker_url):
-            broker_transport_options["visibility_timeout"] = 86400
-            log.warning(
-                "No visibility_timeout configured in [celery_broker_transport_options]. "
-                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
-                "will be redelivered by the broker, which terminates the original task. "
-                "If you have long-running tasks, increase this value in your Airflow configuration: "
-                "[celery_broker_transport_options] visibility_timeout = <seconds>"
-            )
-
-    if "sentinel_kwargs" in broker_transport_options:
-        try:
-            sentinel_kwargs = json.loads(broker_transport_options["sentinel_kwargs"])
-            if not isinstance(sentinel_kwargs, dict):
-                raise ValueError
-            broker_transport_options["sentinel_kwargs"] = sentinel_kwargs
-        except Exception:
-            raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
+    broker_transport_options = _broker_transport_options(broker_url, team_conf)
 
     if team_conf.has_option("celery", "RESULT_BACKEND"):
         result_backend = team_conf.get_mandatory_value("celery", "RESULT_BACKEND")
     else:
         log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
         sql_alchemy_conn = team_conf.get("database", "SQL_ALCHEMY_CONN")
-        # In SQLAlchemy 2.1 the default PostgreSQL driver changed from psycopg2 to psycopg (v3).
-        # To maintain existing behavior, we explicitly specify psycopg2 for driverless PostgreSQL URLs.
-        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", "postgresql+psycopg2://", 1)
+        # Airflow's sync metadata-database driver default is psycopg (v3); mirror that explicitly
+        # for driverless PostgreSQL URLs instead of relying on SQLAlchemy's own default. Fall back to
+        # psycopg2 when psycopg/SQLAlchemy 2.0 aren't both available, matching PostgresHook's own
+        # USE_PSYCOPG3 gating so this doesn't break environments still on the older combination.
+        target_scheme = "postgresql+psycopg://" if _USE_PSYCOPG3 else "postgresql+psycopg2://"
+        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", target_scheme, 1)
         result_backend = f"db+{sql_alchemy_conn}"
 
     # Handle result backend transport options (for Redis Sentinel support)
@@ -162,15 +222,17 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
                     "Set SSL_MUTUAL_TLS=True if you intend to use mutual TLS."
                 )
 
+            broker_use_ssl: dict[str, str | int] = {}
+
             if broker_url and re.search(r"amqps?://", broker_url):
-                broker_use_ssl = {"cert_reqs": ssl.CERT_REQUIRED}
+                broker_use_ssl["cert_reqs"] = ssl.CERT_REQUIRED
                 if ssl_cacert:
                     broker_use_ssl["ca_certs"] = ssl_cacert
                 if ssl_mutual_tls:
                     broker_use_ssl["keyfile"] = ssl_key
                     broker_use_ssl["certfile"] = ssl_cert
             elif broker_url and re.search("rediss?://|sentinel://", broker_url):
-                broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+                broker_use_ssl["ssl_cert_reqs"] = ssl.CERT_REQUIRED
                 if ssl_cacert:
                     broker_use_ssl["ssl_ca_certs"] = ssl_cacert
                 if ssl_mutual_tls:

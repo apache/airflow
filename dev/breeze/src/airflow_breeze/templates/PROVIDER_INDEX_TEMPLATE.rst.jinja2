@@ -73,8 +73,8 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 
 {%- if CROSS_PROVIDERS_DEPENDENCIES %}
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -87,6 +87,23 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 
 {{ CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST | safe }}
+{%- endif %}
+
+{%- if OPTIONAL_DEPENDENCIES %}
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install {{ PACKAGE_PIP_NAME }}[{{ (OPTIONAL_DEPENDENCIES | list)[0] }}]
+
+
+{{ OPTIONAL_DEPENDENCIES_TABLE_RST | safe }}
+{%- endif %}
 
 Downloading official packages
 -----------------------------
@@ -96,7 +113,3 @@ You can download officially released packages and verify their checksums and sig
 
 * `The {{ PACKAGE_PIP_NAME }} {{ RELEASE }}{{ VERSION_SUFFIX }} sdist package <https://downloads.apache.org/airflow/providers/{{ PACKAGE_DIST_PREFIX }}-{{ RELEASE }}{{ VERSION_SUFFIX }}.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/{{ PACKAGE_DIST_PREFIX }}-{{ RELEASE }}{{ VERSION_SUFFIX }}.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/{{ PACKAGE_DIST_PREFIX }}-{{ RELEASE }}{{ VERSION_SUFFIX }}.tar.gz.sha512>`__)
 * `The {{ PACKAGE_PIP_NAME }} {{ RELEASE }}{{ VERSION_SUFFIX }} wheel package <https://downloads.apache.org/airflow/providers/{{ PACKAGE_DIST_PREFIX }}-{{ RELEASE }}{{ VERSION_SUFFIX }}-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/{{ PACKAGE_DIST_PREFIX }}-{{ RELEASE }}{{ VERSION_SUFFIX }}-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/{{ PACKAGE_DIST_PREFIX }}-{{ RELEASE }}{{ VERSION_SUFFIX }}-py3-none-any.whl.sha512>`__)
-
-
-
-{%- endif %}

@@ -206,6 +206,35 @@ class TestNoneExternalId:
         assert task_state._store == {}
 
 
+class TestResumeOnRetryDisabled:
+    def test_submits_and_polls_without_task_store_interaction(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        task_store = FakeTaskState()
+        op.execute_resumable(make_context(task_store))
+
+        assert op.submitted_ids == ["job-001"]
+        assert op.polled_ids == ["job-001"]
+        assert task_store._store == {}, "task_store must not be written when durable=False"
+
+    def test_does_not_reconnect_when_prior_id_exists(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        op._status_map["job-001"] = "RUNNING"
+        task_store = FakeTaskState({"test_job_id": "job-001"})
+
+        op.execute_resumable(make_context(task_store))
+
+        assert op.submitted_ids == ["job-001"], "should submit fresh even with a prior ID stored"
+
+    def test_returns_result(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        result = op.execute_resumable(make_context(FakeTaskState()))
+        assert result == "result-of-job-001"
+
+    def test_default_is_true(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        assert op.durable is True
+
+
 class TestExternalIdKey:
     def test_custom_key_used_for_storage_and_retrieval(self):
         class CustomKeyOp(ConcreteResumableOperator):
@@ -373,3 +402,155 @@ class TestLogging:
         assert entry["external_id"] == "job-001"
         for key, val in extra_fields.items():
             assert entry[key] == val
+
+
+class _MissingSubmitJob(ResumableJobMixin, BaseOperator):
+    def get_job_status(self, external_id, context) -> str:
+        return "RUNNING"
+
+    def is_job_active(self, status: str) -> bool:
+        return True
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return False
+
+    def poll_until_complete(self, external_id, context) -> None:
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class _MissingGetJobStatus(ResumableJobMixin, BaseOperator):
+    def submit_job(self, context):
+        return "id"
+
+    def is_job_active(self, status: str) -> bool:
+        return True
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return False
+
+    def poll_until_complete(self, external_id, context) -> None:
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class _MissingIsJobActive(ResumableJobMixin, BaseOperator):
+    def submit_job(self, context):
+        return "id"
+
+    def get_job_status(self, external_id, context) -> str:
+        return "RUNNING"
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return False
+
+    def poll_until_complete(self, external_id, context) -> None:
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class _MissingIsJobSucceeded(ResumableJobMixin, BaseOperator):
+    def submit_job(self, context):
+        return "id"
+
+    def get_job_status(self, external_id, context) -> str:
+        return "RUNNING"
+
+    def is_job_active(self, status: str) -> bool:
+        return True
+
+    def poll_until_complete(self, external_id, context) -> None:
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class _MissingPollUntilComplete(ResumableJobMixin, BaseOperator):
+    def submit_job(self, context):
+        return "id"
+
+    def get_job_status(self, external_id, context) -> str:
+        return "RUNNING"
+
+    def is_job_active(self, status: str) -> bool:
+        return True
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return False
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class _MissingGetJobResult(ResumableJobMixin, BaseOperator):
+    def submit_job(self, context):
+        return "id"
+
+    def get_job_status(self, external_id, context) -> str:
+        return "RUNNING"
+
+    def is_job_active(self, status: str) -> bool:
+        return True
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return False
+
+    def poll_until_complete(self, external_id, context) -> None:
+        return None
+
+
+class _MissingEverything(ResumableJobMixin, BaseOperator):
+    pass
+
+
+class TestAbstractMethodEnforcement:
+    def test_mixin_itself_cannot_be_instantiated(self):
+        with pytest.raises(TypeError, match="Can't instantiate abstract class ResumableJobMixin"):
+            ResumableJobMixin()
+
+    def test_fully_implemented_subclass_has_no_abstract_methods(self):
+        assert ConcreteResumableOperator.__abstractmethods__ == frozenset()
+
+    def test_fully_implemented_subclass_instantiates_and_behaves_normally(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        assert isinstance(op, ResumableJobMixin)
+
+        op.execute_resumable(make_context(FakeTaskState()))
+        assert op.submitted_ids == ["job-001"]
+
+    def test_missing_all_methods_reports_every_one(self):
+        assert _MissingEverything.__abstractmethods__ == frozenset(
+            {
+                "submit_job",
+                "get_job_status",
+                "is_job_active",
+                "is_job_succeeded",
+                "poll_until_complete",
+                "get_job_result",
+            }
+        )
+        with pytest.raises(TypeError, match="Can't instantiate abstract class _MissingEverything"):
+            _MissingEverything(task_id="test_task")
+
+    @pytest.mark.parametrize(
+        ("partial_cls", "missing_method"),
+        [
+            pytest.param(_MissingSubmitJob, "submit_job", id="submit_job"),
+            pytest.param(_MissingGetJobStatus, "get_job_status", id="get_job_status"),
+            pytest.param(_MissingIsJobActive, "is_job_active", id="is_job_active"),
+            pytest.param(_MissingIsJobSucceeded, "is_job_succeeded", id="is_job_succeeded"),
+            pytest.param(_MissingPollUntilComplete, "poll_until_complete", id="poll_until_complete"),
+            pytest.param(_MissingGetJobResult, "get_job_result", id="get_job_result"),
+        ],
+    )
+    def test_missing_single_method_fails_at_construction(self, partial_cls, missing_method):
+        assert partial_cls.__abstractmethods__ == frozenset({missing_method})
+        with pytest.raises(TypeError):
+            partial_cls(task_id="test_task")

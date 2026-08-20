@@ -83,7 +83,7 @@ Communication
 --------------
 
 Airflow executes tasks of a Dag on different servers in case you are using :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>` or :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
-Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
+Therefore, you should not store any file or config in the local filesystem as the downstream task is likely to run on a different server without access to it — for example, a task that downloads the data file that the downstream task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in Dag.
 
@@ -319,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.16"
+      pip install "ruff>=0.16.2"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -733,6 +733,8 @@ the example_python_operator.py above so the actual parsing time is about ~ 0.62 
 
 You can look into :ref:`Testing a Dag <testing>` for details on how to test individual operators.
 
+.. _best_practices:unit_tests:
+
 Unit tests
 -----------
 
@@ -786,36 +788,69 @@ This is an example test want to verify the structure of a code-generated Dag aga
 
 **Unit test for custom operator:**
 
+To unit test an operator or a sensor, call it directly. You do not need a Dag run, a Dag, or a
+metadata database — instantiate the operator and call ``execute()`` with the context keys your
+code actually reads:
+
 .. code-block:: python
 
-    import pendulum
+    def test_my_custom_operator_execute():
+        op = MyCustomOperator(task_id="my_custom_operator_task", prefix="s3://bucket/some/prefix")
 
-    from airflow.sdk import DAG, TaskInstanceState
+        assert op.execute(context={}) == "expected return value"
+
+For a sensor, call ``poke()`` and assert on the returned boolean:
+
+.. code-block:: python
+
+    def test_my_custom_sensor_poke():
+        sensor = MyCustomSensor(task_id="my_custom_sensor_task", key="some-key")
+
+        assert sensor.poke(context={}) is True
+
+If your operator renders templated fields, render them before asserting:
+
+.. code-block:: python
+
+    op.render_template_fields(context={"ds": "2021-09-13"})
+    assert op.prefix == "s3://bucket/2021-09-13"
+
+For a deferrable operator, assert that it defers with the trigger you expect, then drive the
+resume path directly:
+
+.. code-block:: python
+
+    from airflow.sdk.exceptions import TaskDeferred
 
 
-    def test_my_custom_operator_execute_no_trigger(dag):
-        TEST_TASK_ID = "my_custom_operator_task"
-        with DAG(
-            dag_id="my_custom_operator_dag",
-            schedule="@daily",
-            start_date=pendulum.datetime(2021, 9, 13, tz="UTC"),
-        ) as dag:
-            MyCustomOperator(
-                task_id=TEST_TASK_ID,
-                prefix="s3://bucket/some/prefix",
-            )
+    def test_my_custom_operator_defers():
+        op = MyCustomOperator(task_id="my_custom_operator_task", deferrable=True)
 
-        dagrun = dag.test()
-        ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
-        assert ti.state == TaskInstanceState.SUCCESS
-        # Assert something related to tasks results: ti.xcom_pull()
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context={})
+        assert isinstance(exc.value.trigger, MyCustomTrigger)
+
+        # Drive the method the trigger resumes into.
+        getattr(op, exc.value.method_name)(context={}, event={"status": "success"})
+
+.. note::
+
+    ``TaskInstance.run()`` and ``TaskInstance.render_templates()`` were removed in Airflow 3.2 —
+    ``TaskInstance`` has been an internal class since Airflow 3.0. Replace ``ti.run()`` with
+    ``op.execute(context)`` and ``ti.render_templates(context)`` with
+    ``op.render_template_fields(context)`` as shown above.
+
+To exercise a whole Dag run rather than a single operator, see
+:ref:`Testing Dags with dag.test() <concepts:debugging>`. That is an integration test: it needs a
+metadata database and a Dag that Airflow can serialize, so it is not a substitute for the unit
+tests above.
 
 
 Self-Checks
 ------------
 
 You can also implement checks in a Dag to make sure the tasks are producing the results as expected.
-As an example, if you have a task that pushes data to S3, you can implement a check in the next task. For example, the check could
+As an example, if you have a task that pushes data to S3, you can implement a check in the downstream task. For example, the check could
 make sure that the partition is created in S3 and perform some simple checks to determine if the data is correct.
 
 
@@ -852,7 +887,7 @@ You can use environment variables to parameterize the Dag.
 Mocking variables and connections
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When you write tests for code that uses variables or a connection, you must ensure that they exist when you run the tests. The obvious solution is to save these objects to the database so they can be read while your code is executing. However, reading and writing objects to the database are burdened with additional time overhead. In order to speed up the test execution, it is worth simulating the existence of these objects without saving them to the database. For this, you can create environment variables with mocking :any:`os.environ` using :meth:`unittest.mock.patch.dict`.
+When you write tests for code that uses variables or a connection, you must ensure that they exist when you run the tests. The obvious solution is to save these objects to the database so they can be read while your code is executing. However, reading and writing objects to the database are burdened with additional time overhead. In order to speed up the test execution, it is worth simulating the existence of these objects without saving them to the database. For this, you can create environment variables with mocking :data:`os.environ` using :meth:`unittest.mock.patch.dict`.
 
 For variable, use :envvar:`AIRFLOW_VAR_{KEY}`.
 

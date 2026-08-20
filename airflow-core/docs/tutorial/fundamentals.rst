@@ -153,9 +153,14 @@ For more information on the variables and macros that can be referenced in templ
 
 Adding Dag and Tasks documentation
 ----------------------------------
-You can add documentation to your Dag or individual tasks. While Dag documentation currently supports markdown, task
-documentation can be in plain text, markdown reStructuredText, JSON, or YAML. It's a good practice to include
-documentation at the start of your Dag file.
+You can add documentation to your Dag or individual tasks. Dag documentation is rendered as Markdown in the UI.
+Task documentation can be in plain text, markdown, reStructuredText, JSON, or YAML. When you use ``doc_md`` for
+task documentation, Airflow renders common Markdown features such as inline code, fenced code blocks, fenced code blocks
+in ``math`` that render with KaTeX, and Mermaid diagrams in ``mermaid`` fences.
+
+In the tutorial Dag, the ``print_date`` task uses ``doc_md`` to explain the bash command it runs, describe the
+downstream ``sleep`` and ``templated`` tasks, and show the Markdown features available in the Task Instance Details
+page. It's a good practice to keep this documentation close to the task it describes.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -165,11 +170,7 @@ documentation at the start of your Dag file.
 
 |
 
-.. image:: ../img/ui-light/task_doc.png
-
-|
-
-.. image:: ../img/ui-light/dag_doc.png
+.. image:: ../img/ui-light/task_doc_md.png
 
 Setting up Dependencies
 -----------------------
@@ -292,8 +293,10 @@ This command will provide detailed logs and execute your bash command.
 Keep in mind that the ``airflow tasks test`` command runs task instances locally, outputs their logs to stdout, and
 doesn't track state in the database. This is a handy way to test individual task instances.
 
-Similarly, ``airflow dags test`` runs a single Dag run without registering any state in the database, which is useful
-for testing your entire Dag locally.
+Similarly, ``airflow dags test`` runs a single Dag run locally, which is useful for testing your entire Dag. Unlike
+``airflow tasks test``, it creates a real Dag run and records task state in the metadata database, so it needs an
+initialized database and a Dag that Airflow can serialize from your Dags folder. See
+:ref:`Testing Dags with dag.test() <concepts:debugging>`.
 
 What's Next?
 -------------

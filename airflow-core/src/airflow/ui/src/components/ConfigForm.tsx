@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Field } from "@chakra-ui/react";
+import type { ReactNode, Dispatch, SetStateAction } from "react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -28,15 +29,15 @@ import { JsonEditor } from "./JsonEditor";
 import { Accordion } from "./ui";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
-  readonly children?: React.ReactNode;
+  readonly children?: ReactNode;
   readonly control: Control<T>;
   readonly errors: {
     conf?: string;
     date?: unknown;
   };
   readonly initialParamsDict: { paramsDict: ParamsSpec };
-  readonly setErrors: React.Dispatch<
-    React.SetStateAction<{
+  readonly setErrors: Dispatch<
+    SetStateAction<{
       conf?: string;
       date?: unknown;
     }>

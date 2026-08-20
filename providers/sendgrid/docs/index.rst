@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Email backend <email-backend>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/sendgrid/index>
@@ -88,25 +95,6 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``sendgrid``                                ``>=6.12.5``
 ==========================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-sendgrid[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------

@@ -55,6 +55,12 @@ class _LazyLogRecordDict(collections.abc.Mapping):
         # https://github.com/python/cpython/blob/d3c888b4ec15dbd7d6b6ef4f15b558af77c228af/Lib/logging/__init__.py#L1652C34-L1652C48
         if key == "lineno":
             return self.event.get("lineno") or 0
+        # process and thread are numeric callsite params formatted with %d, so fall back to a
+        # number (like lineno above) rather than the "(unknown)" string used for text params;
+        # otherwise "%(process)d"/"%(thread)d" raises TypeError when the callsite info is absent
+        # (e.g. warnings routed through the logging bridge).
+        if key == "process" or key == "thread":
+            return self.event.get(key) or 0
         if key == "filename":
             return self.event.get("filename", "(unknown file)")
         if key == "funcName":

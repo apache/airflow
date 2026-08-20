@@ -20,6 +20,8 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
+import type { UIAlert } from "openapi/requests/types.gen";
+
 /**
  * Home/Dashboard Page Object
  */
@@ -29,10 +31,13 @@ export class HomePage extends BasePage {
   }
 
   public readonly activeDagsCard: Locator;
+  public readonly alertSeeLessButton: Locator;
+  public readonly alertSeeMoreButton: Locator;
   public readonly dagImportErrorsCard: Locator;
   public readonly dagProcessorHealth: Locator;
   public readonly dagRunMetrics: Locator;
   public readonly failedDagsCard: Locator;
+  public readonly firstAlertContent: Locator;
 
   public readonly healthSection: Locator;
   public readonly historicalMetricsSection: Locator;
@@ -74,6 +79,12 @@ export class HomePage extends BasePage {
     this.historicalMetricsSection = page.getByRole("heading", { name: "History" }).locator("..");
     this.dagRunMetrics = page.getByRole("heading", { name: /dag run/i }).first();
     this.taskInstanceMetrics = page.getByRole("heading", { name: /task instance/i }).first();
+
+    const alertsContainer = page.getByTestId("dashboard-alerts");
+
+    this.firstAlertContent = alertsContainer.getByTestId("dashboard-alert-content").first();
+    this.alertSeeMoreButton = page.getByRole("button", { exact: true, name: "See more" });
+    this.alertSeeLessButton = page.getByRole("button", { exact: true, name: "See less" });
   }
 
   /**
@@ -106,6 +117,22 @@ export class HomePage extends BasePage {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Stub the /ui/config response so the dashboard renders the given alerts.
+   */
+  public async mockDashboardAlerts(alerts: Array<UIAlert>): Promise<void> {
+    await this.page.route("**/ui/config", async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+
+      await route.fulfill({
+        body: JSON.stringify({ ...body, dashboard_alert: alerts }),
+        contentType: "application/json",
+        status: response.status(),
+      });
+    });
   }
 
   /**

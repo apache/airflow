@@ -23,6 +23,7 @@ import shlex
 import shutil
 import sys
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from signal import SIGTERM
 from time import sleep
@@ -98,15 +99,21 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
+    ALLOWED_SDKS,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     EDGE_EXECUTOR,
     FAB_AUTH_MANAGER,
     GITHUB_REPO_BRANCH_PATTERN,
+    JAVA_SDK,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
+    TYPESCRIPT_SDK,
+    TYPESCRIPT_SDK_NODE_VERSION,
+    get_java_sdk_version,
+    get_ts_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
@@ -753,13 +760,23 @@ def start_airflow(
     sys.exit(result.returncode)
 
 
-def _get_java_sdk_version() -> str:
-    """Read the Java SDK version from 'java-sdk/gradle.properties'."""
-    props_path = AIRFLOW_ROOT_PATH / "java-sdk" / "gradle.properties"
-    for line in props_path.read_text().splitlines():
-        if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
-            return match.group(1)
-    raise RuntimeError(f"Java SDK version not found in {props_path}")
+def _stage_sdk_docs(*, generated_path: Path, package_name: str, src: Path, version: str) -> None:
+    """Stage a natively-built SDK doc tree for the publish pipeline.
+
+    The destination is replaced rather than merged: the SDK doc generators name pages
+    after the symbols they document, so a renamed or deleted export would otherwise
+    leave an orphaned page behind from an earlier build and publish it.
+
+    The ``stable.txt`` written alongside makes ``breeze release-management publish-docs``
+    treat the package as versioned and place it at ``docs-archive/{package_name}/{version}/``.
+    """
+    package_dir = generated_path / "_build" / "docs" / package_name
+    dst = package_dir / "stable"
+    console_print(f"[info]Staging {package_name} docs: {src} -> {dst}")
+    shutil.rmtree(dst, ignore_errors=True)
+    shutil.copytree(src, dst)
+    (package_dir / "stable.txt").write_text(version + "\n")
+    console_print(f"[success]{package_name} docs staged at {dst}  (version: {version})")
 
 
 def _build_java_sdk_docs(generated_path: Path) -> int:
@@ -803,19 +820,74 @@ def _build_java_sdk_docs(generated_path: Path) -> int:
         console_print("[error]Dokka build failed.")
         return result.returncode
 
-    src = java_sdk_root / "sdk" / "build" / "dokka" / "html"
-    dst = generated_path / "_build" / "docs" / "java-sdk" / "stable"
-    console_print(f"[info]Staging Dokka output: {src} -> {dst}")
-    dst.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src, dst, dirs_exist_ok=True)
-
-    # Write stable.txt so breeze release-management publish-docs treats this as a
-    # versioned package and places it at docs-archive/java-sdk/{version}/.
-    sdk_version = _get_java_sdk_version()
-    stable_txt = generated_path / "_build" / "docs" / "java-sdk" / "stable.txt"
-    stable_txt.write_text(sdk_version + "\n")
-    console_print(f"[success]Java SDK docs staged at {dst}  (version: {sdk_version})")
+    _stage_sdk_docs(
+        generated_path=generated_path,
+        package_name="java-sdk",
+        src=java_sdk_root / "sdk" / "build" / "dokka" / "html",
+        version=get_java_sdk_version(),
+    )
     return 0
+
+
+def _build_ts_sdk_docs(generated_path: Path) -> int:
+    """Run TypeDoc for the TypeScript SDK and stage its output for the publish pipeline.
+
+    Runs the docs toolchain pinned in ``ts-sdk/docs/package.json`` inside a
+    ``node:{TYPESCRIPT_SDK_NODE_VERSION}`` container so no local Node installation is
+    required. The resulting HTML tree is placed at::
+
+        generated/_build/docs/ts-sdk/stable/
+
+    and a ``stable.txt`` file (containing the version from ``ts-sdk/package.json``) is
+    written alongside it so that ``breeze release-management publish-docs`` places the
+    docs at ``docs-archive/ts-sdk/{version}/``.
+    """
+    ts_sdk_docs_root = AIRFLOW_ROOT_PATH / "ts-sdk" / "docs"
+    console_print(
+        f"[info]Building TypeScript SDK API reference with TypeDoc (node:{TYPESCRIPT_SDK_NODE_VERSION})..."
+    )
+    result = run_command(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            # npm needs a writable HOME for its cache; /repo is bind-mounted and writable.
+            "-e",
+            "HOME=/repo/ts-sdk/docs/.npm-home",
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/ts-sdk/docs",
+            f"node:{TYPESCRIPT_SDK_NODE_VERSION}-bookworm-slim",
+            "sh",
+            "-c",
+            # `npm ci` keeps the lock file authoritative; `npm run build` strips the ASF
+            # header from the landing page and then runs TypeDoc.
+            "npm ci --no-audit --no-fund && npm run build",
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print("[error]TypeDoc build failed.")
+        return result.returncode
+
+    _stage_sdk_docs(
+        generated_path=generated_path,
+        package_name="ts-sdk",
+        src=ts_sdk_docs_root / "_build" / "html",
+        version=get_ts_sdk_version(),
+    )
+    return 0
+
+
+# Language SDKs whose API reference is produced by the language's own toolchain rather
+# than Sphinx. Keep in sync with ALLOWED_SDKS.
+SDK_DOCS_BUILDERS: dict[str, Callable[..., int]] = {
+    JAVA_SDK: _build_java_sdk_docs,
+    TYPESCRIPT_SDK: _build_ts_sdk_docs,
+}
 
 
 def _build_python_docs(
@@ -837,6 +909,11 @@ def _build_python_docs(
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
+    # Docs are always built on the default Python. The Sphinx configuration mocks third-party
+    # modules, and what that mocking does depends on the interpreter - on 3.12 functools copies
+    # __type_params__, for which a mock returns another mock rather than a tuple, so providers
+    # decorating methods with functools.wraps over a mocked callable fail to import. Letting a
+    # caller pick the interpreter here silently changes what the docs build can document.
     build_params = BuildCiParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1019,8 +1096,12 @@ def build_docs(
             spellcheck_only=spellcheck_only,
             doc_packages=doc_packages,
         )
-    if "java" in sdk:
-        returncode = returncode or _build_java_sdk_docs(generated_path=generated_path)
+    # Every requested SDK is built even if an earlier one failed, so a single run reports
+    # all the broken toolchains rather than only the first.
+    for sdk_name in ALLOWED_SDKS:
+        if sdk_name in sdk:
+            sdk_returncode = SDK_DOCS_BUILDERS[sdk_name](generated_path=generated_path)
+            returncode = returncode or sdk_returncode
 
     sys.exit(returncode)
 

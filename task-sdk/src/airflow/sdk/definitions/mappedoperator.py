@@ -258,6 +258,7 @@ class OperatorPartial:
             is_empty=issubclass(self.operator_class, EmptyOperator),
             is_sensor=issubclass(self.operator_class, BaseSensorOperator),
             can_skip_downstream=issubclass(self.operator_class, SkipMixin),
+            is_stub=self.operator_class.is_stub,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,
@@ -309,12 +310,14 @@ class MappedOperator(AbstractOperator):
     _is_empty: bool = attrs.field(alias="is_empty")
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
+    is_stub: bool = False
     _task_module: str
     task_type: str
     _operator_name: str
     start_trigger_args: StartTriggerArgs | None
     start_from_trigger: bool
     _needs_expansion: bool = True
+    returns_dag_result: bool = False
 
     dag: DAG | None
     task_group: TaskGroup | None
@@ -361,7 +364,7 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return (frozenset(attrs.fields_dict(MappedOperator))) - {
+        return frozenset(attrs.fields_dict(MappedOperator)) - {
             "_is_empty",
             "_can_skip_downstream",
             "dag",
@@ -376,6 +379,8 @@ class MappedOperator(AbstractOperator):
             "_needs_expansion",
             "partial_kwargs",
             "operator_extra_links",
+            "returns_dag_result",
+            "is_stub",
         }
 
     @property
@@ -792,6 +797,7 @@ class MappedOperator(AbstractOperator):
         op.is_setup = is_setup
         op.is_teardown = is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        op.returns_dag_result = self.returns_dag_result
         op.downstream_task_ids = self.downstream_task_ids
         op.upstream_task_ids = self.upstream_task_ids
         return op

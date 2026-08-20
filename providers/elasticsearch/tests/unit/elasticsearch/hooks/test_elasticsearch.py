@@ -276,6 +276,31 @@ class TestElasticsearchSQLHook:
             max_rows=10,
         )
 
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.read_sql_to_polars_by_chunks")
+    def test_get_df_polars_df_by_chunks(self, mock_reader):
+
+        self.conn.es = MagicMock()
+
+        generator = iter(["df"])
+        mock_reader.return_value = generator
+
+        result = self.db_hook.get_df_by_chunks(
+            sql="SELECT 1",
+            df_type="polars",
+            fetch_size=100,
+            chunksize=100,
+        )
+
+        assert list(result) == ["df"]
+
+        mock_reader.assert_called_once_with(
+            client=self.conn.es,
+            query="SELECT 1",
+            params=None,
+            fetch_size=100,
+            chunksize=100,
+        )
+
     def test_run(self):
         statement = "SELECT * FROM hollywood.actors"
 

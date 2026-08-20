@@ -18,12 +18,12 @@
  */
 import { Field, VStack, Box, Text } from "@chakra-ui/react";
 import { Select, type SingleValue } from "chakra-react-select";
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { supportedLanguages } from "src/i18n/config";
 
-const LanguageSelector: React.FC = () => {
+const LanguageSelector = () => {
   const { i18n, t: translate } = useTranslation();
   const [selectedLang, setSelectedLang] = useState(i18n.resolvedLanguage ?? i18n.language);
 

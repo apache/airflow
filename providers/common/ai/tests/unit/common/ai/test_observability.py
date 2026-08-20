@@ -56,7 +56,7 @@ class TestGenaiInstrumentationSettings:
             settings = observability.genai_instrumentation_settings()
 
         assert settings is not None
-        assert settings.version == observability._SEMCONV_VERSION == 4
+        assert settings.version == observability._SEMCONV_VERSION == 5
         # Content is never emitted unless explicitly opted in.
         assert settings.include_content is False
         assert settings.include_binary_content is False
@@ -123,8 +123,13 @@ class TestEndToEndSpanEmission:
         genai, parent_trace_id, attrs_blob = self._run(capture=False)
 
         assert genai, "expected gen_ai spans to be emitted"
-        # Token usage is captured even with content off.
+        # Token usage is captured even with content off. In pydantic-ai 2.x the
+        # model-request span keeps ``gen_ai.usage.*`` while the agent-run span
+        # reports ``gen_ai.aggregated_usage.*`` (avoids double-counting when a
+        # backend sums parent and child spans); assert both so a change in that
+        # split is caught here rather than silently shifting users' telemetry.
         assert any("gen_ai.usage.input_tokens" in (s.attributes or {}) for s in genai)
+        assert any("gen_ai.aggregated_usage.input_tokens" in (s.attributes or {}) for s in genai)
         # Parenting is implicit: agent spans share the task span's trace_id.
         assert all(s.context.trace_id == parent_trace_id for s in genai)
         # The prompt text must not leak when content capture is off.

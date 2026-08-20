@@ -24,7 +24,7 @@ import logging
 import math
 import warnings
 from collections import defaultdict
-from collections.abc import Collection, Iterable
+from collections.abc import Callable, Collection, Iterable, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import quote
@@ -100,13 +100,11 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -201,6 +199,27 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
+
+
+def _add_and_prime_mapped_ti(
+    ti: TaskInstance,
+    task: Operator,
+    dag_run: DagRun,
+    *,
+    session: Session,
+    context_carrier: dict | None = None,
+) -> None:
+    """
+    Attach a newly-created mapped TI to the session and prime its ``dag_run`` cache.
+
+    :meta private:
+    """
+    task_instance_mutation_hook(ti, dag_run=dag_run)
+    session.add(ti)
+    if context_carrier is not None:
+        ti.context_carrier = context_carrier
+    ti.refresh_from_task(task, dag_run=dag_run)
+    set_committed_value(ti, "dag_run", dag_run)
 
 
 def _recalculate_dagrun_queued_at_deadlines(
@@ -333,6 +352,27 @@ def _update_dagrun_to_latest_version(
     session.flush()
 
 
+def _pin_versionless_tis_to_run_version(dag_run: DagRun, dag_version_id: UUID, session: Session) -> None:
+    """
+    Give the run's unfinished task instances a dag version if they have none.
+
+    Once the run is pinned the scheduler stops backfilling versions onto them, and one
+    without a version is never enqueued.
+    """
+    session.execute(
+        update(TaskInstance)
+        .where(
+            TaskInstance.dag_id == dag_run.dag_id,
+            TaskInstance.run_id == dag_run.run_id,
+            TaskInstance.dag_version_id.is_(None),
+            # State.unfinished holds None, which SQL IN never matches.
+            or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
+        )
+        .values(dag_version_id=dag_version_id)
+        .execution_options(synchronize_session="evaluate")
+    )
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -353,7 +393,9 @@ def clear_task_instances(
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
-    :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
+    :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version.
+        A run with no version of its own uses the latest either way, since there is nothing
+        else for it to run on; a task instance with no version joins its run's.
 
     :meta private:
     """
@@ -377,7 +419,10 @@ def clear_task_instances(
         # the task is terminated and becomes eligible for retry.
         else:
             dr = ti.dag_run
-            if run_on_latest_version:
+            # A run with no version of its own has nothing to re-run on but the latest, and the
+            # run loop below moves it there.
+            use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
+            if use_latest_version:
                 ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
             else:
                 ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
@@ -399,15 +444,24 @@ def clear_task_instances(
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
-            # Match DagVersion to latest serialized DAG when run_on_latest_version.
-            if run_on_latest_version:
+            # Match DagVersion to latest serialized DAG when running on the latest version.
+            if use_latest_version:
                 latest_dag_version = DagVersion.get_latest_version(ti.dag_id, session=session)
                 if latest_dag_version is not None:
                     ti.dag_version_id = latest_dag_version.id
+            elif ti.dag_version_id is None:
+                # One without a version is never enqueued, and the run keeps its own, so it can
+                # only go there.
+                ti.dag_version_id = dr.created_dag_version_id
             session.merge(ti)
 
     if dag_run_state is not False and tis:
-        from airflow.models.dagrun import DagRun  # Avoid circular import
+        from airflow.models.dagrun import (  # Avoid circular import
+            DagRun,
+            dagrun_trace_attributes,
+            parent_trace_context,
+            trace_sampled_override,
+        )
 
         run_ids_by_dag_id = defaultdict(set)
         for instance in tis:
@@ -429,15 +483,22 @@ def clear_task_instances(
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
             dr.context_carrier = new_dagrun_trace_carrier(
-                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None
+                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None,
+                attributes=dagrun_trace_attributes(dr),
+                force_sampled=trace_sampled_override(dr.conf),
+                parent_context=parent_trace_context(dr.conf),
             )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
+            # A run with no version of its own has nothing to preserve, so the latest is all
+            # it can be re-run on. Runs migrated from Airflow 2 are like this, as are runs
+            # whose version `airflow db clean` has since deleted.
+            use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
-                if run_on_latest_version:
+                if use_latest_version:
                     dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
                     dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
                     if dag_version:
@@ -451,14 +512,14 @@ def clear_task_instances(
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
                     log.warning("No serialized dag found for dag '%s'", dr.dag_id)
-                if dr_dag and not dr_dag.disable_bundle_versioning and run_on_latest_version:
+                if dr_dag and not dr_dag.disable_bundle_versioning and use_latest_version:
                     bundle_version = dr.dag_model.bundle_version
-                    if bundle_version is not None and run_on_latest_version:
+                    if bundle_version is not None:
                         dr.bundle_version = bundle_version
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
-            elif run_on_latest_version:
+            elif use_latest_version:
                 # Queued/running DagRun: update DR to latest version/bundle for workloads that use it.
                 dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
                 if dag_version and dr.created_dag_version_id != dag_version.id:
@@ -472,6 +533,9 @@ def clear_task_instances(
                             bundle_version = dr.dag_model.bundle_version
                             if bundle_version is not None:
                                 dr.bundle_version = bundle_version
+
+            if dr.created_dag_version_id:
+                _pin_versionless_tis_to_run_version(dr, dr.created_dag_version_id, session)
     for ti in tis:
         ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
@@ -593,9 +657,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     )
     _rendered_map_index: Mapped[str | None] = mapped_column("rendered_map_index", String(250), nullable=True)
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
@@ -671,6 +732,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
+    team_name = association_proxy("dag_run", "team_name")
     task_instance_note = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",
@@ -732,9 +794,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict(
-            {"dag_id": self.dag_id, "task_id": self.task_id, "team_name": getattr(self, "_team_name", None)}
-        )
+        # Reuse the dag run's tags and add the task-level ones.
+        return {**self.dag_run.stats_tags, "task_id": self.task_id}
 
     @staticmethod
     def insert_mapping(
@@ -1523,14 +1584,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         outlet_events: list[dict[str, Any]],
         *,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> Sequence[Callable[[], None]]:
         # Fast path: a task with no outlets and no outlet events has nothing to
         # register. Returning early avoids the AssetModel lookup below (which
         # would run with empty IN () clauses) and all downstream work. This is
         # the common case -- most tasks declare no outlets -- and it sits on the
         # task-success path that gates scheduling the next task.
         if not task_outlets and not outlet_events:
-            return
+            return ()
 
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
@@ -1554,7 +1615,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 OutletEventPayload(extra=outlet_event["extra"], partition_key=partition_key)
             )
         dag_run_partition_key = ti.dag_run.partition_key
+        dag_run_partition_date = ti.dag_run.partition_date
 
+        callback_sink: list[Callable[[], None]] = []
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
             for o in task_outlets
@@ -1589,6 +1652,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     asset=am,
                     extra=None,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
+                    callback_sink=callback_sink,
                     session=session,
                 )
                 return
@@ -1596,11 +1661,27 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 effective_pk = (
                     payload.partition_key if payload.partition_key is not None else dag_run_partition_key
                 )
+                # Carry partition_date only when the effective key matches the
+                # DagRun's — the run-level date refers to the run-level key and
+                # would mis-label an event emitted for a different partition.
+                if effective_pk == dag_run_partition_key:
+                    payload_partition_date = dag_run_partition_date
+                else:
+                    payload_partition_date = None
+                    if dag_run_partition_date is not None:
+                        ti.log.debug(
+                            "Task-emitted partition_key %r differs from DagRun partition_key %r; "
+                            "consumer partition_date will be None.",
+                            payload.partition_key,
+                            dag_run_partition_key,
+                        )
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
                     extra=payload.extra,
                     partition_key=effective_pk,
+                    partition_date=payload_partition_date,
+                    callback_sink=callback_sink,
                     session=session,
                 )
 
@@ -1684,6 +1765,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
+                    callback_sink=callback_sink,
                     session=session,
                 )
                 if event is None:
@@ -1696,8 +1779,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
                         partition_key=dag_run_partition_key,
+                        partition_date=dag_run_partition_date,
+                        callback_sink=callback_sink,
                         session=session,
                     )
+
+        return callback_sink
 
     @provide_session
     def update_rtif(self, rendered_fields, *, session: Session = NEW_SESSION):
@@ -2261,9 +2348,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return query.values(
                 {
                     "end_date": end_date,
-                    "duration": (
-                        (func.strftime("%s", end_date) - func.strftime("%s", cls.start_date))
-                        + func.round((func.strftime("%f", end_date) - func.strftime("%f", cls.start_date)), 3)
+                    "duration": func.round(
+                        (func.julianday(end_date) - func.julianday(cls.start_date)) * 86400, 3
                     ),
                 }
             )

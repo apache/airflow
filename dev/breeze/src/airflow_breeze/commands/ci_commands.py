@@ -41,6 +41,8 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.global_constants import (
+    CI_AMD_PLATFORM,
+    CI_PLATFORMS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MILESTONE_BUG_LABELS,
     MILESTONE_SKIP_LABELS,
@@ -58,7 +60,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github import retrieve_github_token
+from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
@@ -237,6 +239,16 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     default="",
 )
 @click.option(
+    "--platform",
+    "ci_platform",
+    type=BetterChoice(CI_PLATFORMS),
+    default=CI_AMD_PLATFORM,
+    help="Platform the tests of this run execute on. "
+    "It decides which integrations and providers are testable.",
+    envvar="PLATFORM",
+    show_default=True,
+)
+@click.option(
     "--github-context",
     help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
@@ -262,6 +274,7 @@ def selective_check(
     github_actor: str,
     github_context: str,
     github_context_input: StringIO | None,
+    ci_platform: str,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -287,6 +300,7 @@ def selective_check(
             github_repository=github_repository,
             github_actor=github_actor,
             github_context_dict=github_context_dict,
+            platform=ci_platform,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
@@ -599,7 +613,8 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     "--update-uv-lock/--no-update-uv-lock",
     default=True,
     show_default=True,
-    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image",
+    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image, "
+    "then regenerate the API datamodels the resolved code generator stamps its version into",
 )
 @click.option(
     "--k8s-schema-sync/--no-k8s-schema-sync",
@@ -780,7 +795,7 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    github_token = retrieve_github_token(github_token)
+    github_token = retrieve_github_token(github_token, description="airflow-ci-upgrade", scopes="public_repo")
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
@@ -791,11 +806,13 @@ def upgrade(
     else:
         console_print(
             "[warning]Could not retrieve GitHub token from --github-token, gh CLI, or token env. "
-            "Commands may fail if they require authentication.[/]"
+            "Commands may fail if they require authentication. "
+            f"{format_github_token_scope_guidance(description='airflow-ci-upgrade', scopes='public_repo')}[/]"
         )
 
     # All upgrade commands run locally with check=False to continue on errors.
-    # The uv lock --upgrade step must run last so it can incorporate changes from the other steps.
+    # The uv lock --upgrade step must run after the steps that change dependencies, so it can
+    # incorporate them -- and before the steps that regenerate code from the resolved versions.
     upgrade_commands: list[tuple[str, str]] = [
         ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
         (
@@ -810,6 +827,14 @@ def upgrade(
             "update-uv-lock",
             "uv lock --upgrade",
         ),
+        (
+            # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
+            # generated files' header. These hooks only watch the API sources, which an upgrade run
+            # never touches, so nothing regenerates them here and CI's --all-files run goes red.
+            "regenerate-datamodels",
+            "prek --all-files --show-diff-on-failure --color always --verbose "
+            "generate-tasksdk-datamodels generate-airflowctl-datamodels",
+        ),
     ]
 
     step_enabled = {
@@ -817,6 +842,7 @@ def upgrade(
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
         "update-uv-lock": update_uv_lock,
+        "regenerate-datamodels": update_uv_lock,
     }
 
     # Execute upgrade commands
@@ -906,7 +932,9 @@ def upgrade(
         pr_title = f"[{target_branch}] Upgrade important CI environment"
         pr_body = "This PR upgrades important dependencies of the CI environment."
 
-        # Check if there's already an open PR for this branch
+        # Check if there's already an open PR for this branch.
+        # gh pr list / gh pr ready filter by the bare head-branch name, not the
+        # "owner:branch" label that gh pr create needs for cross-fork PRs.
         existing_pr_result = run_command(
             [
                 "gh",
@@ -915,7 +943,7 @@ def upgrade(
                 "--repo",
                 "apache/airflow",
                 "--head",
-                head_ref,
+                branch_name,
                 "--base",
                 target_branch,
                 "--state",
@@ -945,7 +973,7 @@ def upgrade(
                         "--repo",
                         "apache/airflow",
                         "--undo",
-                        head_ref,
+                        branch_name,
                     ],
                     capture_output=True,
                     text=True,
@@ -981,10 +1009,15 @@ def upgrade(
                 env=command_env,
             )
             if pr_result.returncode != 0:
-                console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
-                sys.exit(1)
-            pr_url = pr_result.stdout.strip() if pr_result.returncode == 0 else ""
-            console_print(f"[success]PR created successfully: {pr_url}.[/]")
+                # The branch was already force-pushed, so an existing PR is already
+                # up to date — treat a duplicate as success rather than failing the run.
+                if "already exists" in pr_result.stderr:
+                    console_print(f"[success]PR already exists for {head_ref}, updated with force push.[/]")
+                else:
+                    console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
+                    sys.exit(1)
+            else:
+                console_print(f"[success]PR created successfully: {pr_result.stdout.strip()}.[/]")
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")

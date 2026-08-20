@@ -50,11 +50,16 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, DagRunMutableStates
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
+    ClearPartitionsBody,
+    DagRunMutableStates,
+)
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
@@ -155,6 +160,31 @@ def perform_clear_dag_run(
     return dag_run_cleared
 
 
+def clear_partition_fields(
+    *,
+    dag: SerializedDAG,
+    body: ClearPartitionsBody,
+    dag_id: str,
+    session: Session,
+) -> tuple[int, int]:
+    """
+    Reset partition_key and partition_date to None on matching runs.
+
+    Returns (dag_runs_cleared, task_instances_cleared).
+    """
+    return clear_partition_runs(
+        dag=dag,
+        dag_id=dag_id,
+        run_id=body.run_id,
+        partition_key=body.partition_key,
+        partition_date_start=body.partition_date_start,
+        partition_date_end=body.partition_date_end,
+        clear_tis=body.clear_task_instances,
+        dry_run=body.dry_run,
+        session=session,
+    )
+
+
 def patch_dag_run_state(
     *,
     dag: SerializedDAG,
@@ -164,9 +194,17 @@ def patch_dag_run_state(
 ) -> None:
     """Set a Dag Run's state (success/queued/failed), firing the matching listener hooks."""
     if state == DagRunMutableStates.SUCCESS:
-        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        _, killed_tis = set_dag_run_state_to_success(
+            dag=dag, run_id=dag_run.run_id, commit=True, session=session
+        )
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.SUCCESS)
         try:
-            get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+            if dag_run.dag is None:
+                dag_run.dag = dag
+            get_listener_manager().hook.on_dag_run_success(
+                dag_run=dag_run,
+                msg=f"Dag Run's state was manually set to `{DagRunMutableStates.SUCCESS.value}`.",
+            )
         except Exception:
             log.exception("error calling listener")
     elif state == DagRunMutableStates.QUEUED:
@@ -175,16 +213,26 @@ def patch_dag_run_state(
         # Not notifying on queued - only notifying on RUNNING, which happens in the scheduler.
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
     elif state == DagRunMutableStates.FAILED:
-        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        _, killed_tis = set_dag_run_state_to_failed(
+            dag=dag, run_id=dag_run.run_id, commit=True, session=session
+        )
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.FAILED)
         try:
-            get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+            if dag_run.dag is None:
+                dag_run.dag = dag
+            get_listener_manager().hook.on_dag_run_failed(
+                dag_run=dag_run,
+                msg=f"Dag Run's state was manually set to `{DagRunMutableStates.FAILED.value}`.",
+            )
         except Exception:
             log.exception("error calling listener")
 
 
 def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
-    """Set or update a Dag Run's note."""
-    if dag_run.dag_run_note is None:
+    """Set, update, or clear a Dag Run's note. An empty note removes it so the run is left without a note."""
+    if note == "":
+        dag_run.dag_run_note = None
+    elif dag_run.dag_run_note is None:
         dag_run.note = (note, user.get_id())
     else:
         dag_run.dag_run_note.content = note
@@ -219,10 +267,11 @@ class DagRunWaiter:
                 task_ids=self.result_task_ids,
                 dag_ids=self.dag_id,
             )
+        # XComModel.get_many() orders XCom by timestamp. Reset this to make
+        # mapped task results stable since execution order is not guaranteed.
+        xcom_query = xcom_query.order_by(None).order_by(XComModel.task_id, XComModel.map_index)
         async with create_session_async() as session:
-            xcom_results = (
-                await session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
-            ).all()
+            xcom_results = (await session.scalars(xcom_query)).all()
 
         def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
             entries = [row[0] if isinstance(row, tuple) else row for row in g]

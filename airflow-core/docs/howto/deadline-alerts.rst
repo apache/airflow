@@ -110,14 +110,14 @@ Airflow provides several built-in reference points that you can use with Deadlin
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
 ``DeadlineReference.AVERAGE_RUNTIME``
-    Calculates deadlines based on the average runtime of previous Dag runs. This reference
+    Calculates deadlines based on the average runtime of previous successful Dag runs. This reference
     analyzes historical execution data to predict when the current run should complete.
     The deadline is set to the current time plus the calculated average runtime plus the interval.
     If insufficient historical data exists, no deadline is created.
 
     Parameters:
-        * ``max_runs`` (int, optional): Maximum number of recent Dag runs to analyze. Defaults to 10.
-        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
+        * ``max_runs`` (int, optional): Maximum number of successful recent Dag runs to analyze. Defaults to 10.
+        * ``min_runs`` (int, optional): Minimum number of successful recent Dag runs required to calculate average. Defaults to same value as ``max_runs``.
 
     Example usage:
 
@@ -420,15 +420,29 @@ references for specific integrations like calendars or other data sources. To do
 a class that inherits from BaseDeadlineReference, add the ``@deadline_reference`` decorator, and
 implement an ``_evaluate_with()`` method.
 
+The decorator may be used with or without parentheses. Used bare, or with empty parentheses, the
+reference is evaluated when a new Dag run is created; pass a ``DeadlineReference.TYPES`` value to
+choose a different time.
 
-**Creating a Custom Reference**
+The class must also be registered as part of a :doc:`plugin </administration-and-deployment/plugins>`
+by adding it to the plugin's ``deadline_references`` list, the same way custom timetables are
+registered.  The decorator makes the reference available to your Dag file as
+``DeadlineReference.<ClassName>``; the plugin registration is what lets the scheduler resolve the
+class again when it deserializes the Dag.  A custom reference that is not registered in a plugin
+raises ``DeadlineReferenceNotRegistered`` at deserialization time.
+
+
+**Creating and Registering a Custom Reference**
+
+Place the reference classes and the plugin that registers them in your plugins folder (e.g.
+``$AIRFLOW_HOME/plugins/deadline_references.py``):
 
 .. code-block:: python
 
     from sqlalchemy.orm import Session
 
-    from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import BaseDeadlineReference, deadline_reference
+    from airflow.plugins_manager import AirflowPlugin
+    from airflow.sdk import BaseDeadlineReference, DeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 
@@ -447,17 +461,26 @@ implement an ``_evaluate_with()`` method.
     class MyQueuedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are queued."""
 
-        required_kwargs = {"custom_param"}
+        # Ask for the Dag run context values supplied by Airflow; see notes below.
+        required_kwargs = {"dag_id", "run_id"}
 
         def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            custom_value = kwargs["custom_param"]
-            # Use custom_value in your calculation
+            dag_id = kwargs["dag_id"]
+            run_id = kwargs["run_id"]
+            # Use dag_id and run_id in your calculation
             return your_datetime
+
+
+    # Register the classes so the scheduler can resolve them when it deserializes the Dag.
+    class MyDeadlineReferencePlugin(AirflowPlugin):
+        name = "my_deadline_reference_plugin"
+        deadline_references = [MyCustomDecoratedReference, MyQueuedReference]
 
 
 **Using a Custom Reference in a Dag**
 
-Once registered [see notes below], use your custom references in Dag definitions like any other reference:
+Once the classes are decorated and registered in a plugin, use them in Dag definitions like any
+other reference:
 
 .. code-block:: python
 
@@ -467,7 +490,7 @@ Once registered [see notes below], use your custom references in Dag definitions
     with DAG(
         dag_id="custom_reference_example",
         deadline=DeadlineAlert(
-            reference=DeadlineReference.MyCustomDecoratedReference(),
+            reference=DeadlineReference.MyCustomDecoratedReference,
             interval=timedelta(hours=2),
             callback=AsyncCallback(my_callback),
         ),
@@ -520,7 +543,14 @@ followed by a more urgent escalation if the Dag is still running.
 **Important Notes:**
 
 * **Timezone Awareness**: Always return timezone-aware datetime objects.
-* **Plugin Placement**: One convenient place for custom references is in the plugins directory.
+* **No-argument Construction**: Custom references are instantiated during registration, so they must be
+  constructible with no arguments. If your reference takes parameters, decorate it with ``@dataclass``
+  and give every field a default value.
+* **Plugin Registration**: Custom references must be listed in the ``deadline_references`` attribute
+  of an ``AirflowPlugin``, so the plugins directory is the natural home for them.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
-* **Required Parameters**: Use ``required_kwargs`` to specify parameters your reference needs.
+* **Required Parameters**: ``required_kwargs`` declares which Dag run context values Airflow should
+  forward to ``_evaluate_with()``. Only ``dag_id`` and ``run_id`` are available; declaring anything
+  else raises a ``ValueError`` when the deadline is evaluated. To configure a reference itself, give
+  it constructor fields or read from an Airflow Variable.
 * **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.

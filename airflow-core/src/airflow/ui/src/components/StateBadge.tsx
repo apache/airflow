@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Badge, type BadgeProps } from "@chakra-ui/react";
-import * as React from "react";
+import { forwardRef } from "react";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
@@ -27,7 +27,7 @@ export type Props = {
   readonly state?: TaskInstanceState | null;
 } & BadgeProps;
 
-export const StateBadge = React.forwardRef<HTMLDivElement, Props>(({ children, state, ...rest }, ref) => (
+export const StateBadge = forwardRef<HTMLDivElement, Props>(({ children, state, ...rest }, ref) => (
   <Badge
     borderRadius="full"
     color={`${state === null ? undefined : state}.contrast`}

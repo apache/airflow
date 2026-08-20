@@ -1,0 +1,1 @@
+Add ``[triggerer] shared_stream_cohort_grace_period`` to delay the start of polling after a shared-stream group is created

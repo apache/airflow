@@ -964,6 +964,7 @@ class TestKubernetesPodOperatorSystem:
         hook_mock.return_value.is_in_cluster = False
         hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
         hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+        hook_mock.return_value.get_xcom_sidecar_container_security_context.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
         k = KubernetesPodOperator(
@@ -1037,7 +1038,7 @@ class TestKubernetesPodOperatorSystem:
                     },
                     {
                         "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
-                        "image": "alpine:3.24.0",
+                        "image": "alpine:3.24.1",
                         "name": "airflow-xcom-sidecar",
                         "resources": {
                             "requests": {"cpu": "1m", "memory": "10Mi"},

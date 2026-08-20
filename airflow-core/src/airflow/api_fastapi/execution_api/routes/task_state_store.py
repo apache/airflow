@@ -21,7 +21,7 @@ from typing import Annotated
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Path, Query, Security, status
+from fastapi import HTTPException, Path, Security, status
 from sqlalchemy.orm import Session
 
 from airflow._shared.state import TaskScope
@@ -58,7 +58,7 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
     return TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
 
 
-@router.get("/{task_instance_id}/{key}")
+@router.get("/{task_instance_id}/{key:path}")
 def get_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
@@ -78,7 +78,7 @@ def get_task_state_store(
     return TaskStateStoreResponse(value=json.loads(value))
 
 
-@router.put("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/{task_instance_id}/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
 def set_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
@@ -90,7 +90,7 @@ def set_task_state_store(
     get_state_backend().set(scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session)
 
 
-@router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{task_instance_id}/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
@@ -105,25 +105,7 @@ def delete_task_state_store(
 def clear_task_state_store(
     task_instance_id: UUID,
     session: SessionDep,
-    all_map_indices: Annotated[bool, Query()] = False,
 ) -> None:
-    """
-    Delete all task state store keys for this task instance.
-
-    By default, only keys for the requesting TI's exact ``map_index`` are
-    cleared — same isolation as DELETE endpoint above.
-
-    Pass ``?all_map_indices=true`` to wipe state store for every mapped sibling of
-    the task in the same DAG run.  This is intentionally fleet-wide: the
-    ``ti:self`` JWT authentication scope authenticates that the caller is
-    a legitimate member of the mapped task group, and grants it authority
-    to reset shared task state store on behalf of the whole group.
-    The SDK only forwards this flag when the user calls ``task_state_store.clear(all_map_indices=True)``
-    explicitly, so the expanded scope is always an explicit opt-in by the task author.
-
-    For non-mapped tasks (``map_index=-1``), there is only ever one index, so
-    ``?all_map_indices=true`` is functionally identical to the default and is
-    accepted without error.
-    """
+    """Delete all task state store keys for this task instance."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().clear(scope, all_map_indices=all_map_indices, session=session)
+    get_state_backend().clear(scope, session=session)

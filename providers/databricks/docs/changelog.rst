@@ -26,6 +26,105 @@
 Changelog
 ---------
 
+7.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Databricks SQL warehouse lifecycle operators (#70088)``
+* ``Add performance_target parameter to DatabricksSubmitRunOperator (#71374)``
+* ``Add Databricks-native retry settings to task operators (#69182)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
+7.18.1
+......
+
+Misc
+~~~~
+
+* ``Review and update constraint dependencies (#70652)``
+* ``Validate DatabricksSQLStatementsSensor statement fields after rendering (#70340)``
+* ``Validate DatabricksCopyIntoOperator template fields after rendering (#70339)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+* ``Clarify Databricks retry_delay uses exponential backoff (#68622)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore Dag-parse-time validation for Databricks Repos operator arguments (#70551)``
+   * ``Validate Databricks Repos operators' template fields after rendering (#70341)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
+7.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Databricks OIDC token federation for AWS IAM (#69509)``
+* ``Add supplied-token OIDC federation to the Databricks provider (#69272)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DatabricksSqlHook sqlalchemy_url missing http_path from connection extra (#69747)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+7.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add durable execution to 'DatabricksRunNowOperator' (#69174)``
+* ``Accept BLOCKED and WAITING_FOR_RETRY Databricks run states (#69193)``
+* ``Add durable execution to DatabricksSubmitRunOperator (#68974)``
+* ``Add proxy support to Databricks connections (#68527)``
+* ``Surface databricks API errors as a separate exception (#69019)``
+* ``Add query tags to 'DatabricksSqlSensor' and 'DatabricksPartitionSensor' (#68704)``
+* ``Add OpenLineage Spark conf injection to DatabricksSubmitRunOperator (#67894)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Include last error cause in Databricks API when retry is exhausted (#69238)``
+* ``Align hook run() annotations with None-able handler results (#69230)``
+* ``Reconnect to blocked Databricks runs in SubmitRunOperator durable retries (#69195)``
+* ``Fix DatabricksWorkflowTaskGroup ignoring upstream/downstream set before with block (#68924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 7.16.1
 ......
 
@@ -633,7 +732,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 7.1.0
 .....
