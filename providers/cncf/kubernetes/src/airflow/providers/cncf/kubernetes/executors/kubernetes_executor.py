@@ -410,7 +410,7 @@ class KubernetesExecutor(BaseExecutor):
         if self.running:
             self.log.debug("self.running: %s", self.running)
         if AIRFLOW_V_3_4_PLUS:
-            if self.executor_queues:
+            if any(self.executor_queues.values()):
                 self.log.debug("self.queued: %s", self.executor_queues)
         elif self.queued_tasks:
             self.log.debug("self.queued: %s", self.queued_tasks)
