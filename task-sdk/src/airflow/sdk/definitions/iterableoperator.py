@@ -25,12 +25,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from itertools import repeat
 from typing import TYPE_CHECKING, Any
 
-try:
-    # Python 3.11+
-    BaseExceptionGroup
-except NameError:
-    from exceptiongroup import BaseExceptionGroup
-
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
@@ -345,17 +339,7 @@ class IterableOperator(BaseOperator):
 
             if not failed_tasks:
                 if exceptions:
-                    # If this IterableOperator is backed by a batched expand input
-                    # (created from a MappedIterableOperator), the parent mapped
-                    # task should never be retried; retries are handled by the
-                    # individual indexed runtime tasks. In that case raise
-                    # AirflowFailException to mark failure without retrying the
-                    # parent TaskInstance. For regular (non-batched) IterableOperator
-                    # behavior, preserve the previous behavior and raise the
-                    # BaseExceptionGroup so callers/tests that expect it keep working.
-                    if isinstance(self.expand_input, BatchedExpandInput):
-                        raise AirflowFailException(f"Multiple sub-task failures: {exceptions}")
-                    raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
+                    raise self.expand_input.wrap_exceptions(exceptions)
                 if do_xcom_push:
                     from airflow.sdk.execution_time.lazy_sequence import XComIterable
 
