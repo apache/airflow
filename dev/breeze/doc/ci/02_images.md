@@ -151,6 +151,14 @@ steps are executed to rebuild parts of the image (for example, PIP
 dependencies) and will give you an image consistent with the one used
 during Continuous Integration.
 
+Locally built CI images are labelled with the aggregated hash of the
+files that trigger image rebuild when changed
+(`org.apache.airflow.ci.sources-hash` label). When another checkout of
+the same sources - for example a git worktree - shares the same Docker
+daemon, Breeze recognizes via that label that the image present in the
+daemon was built from identical sources and reuses it instead of
+rebuilding it, even though that checkout never built the image itself.
+
 The command that builds the production image is optimised for size of
 the image.
 

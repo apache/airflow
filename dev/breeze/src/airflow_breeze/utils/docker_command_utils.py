@@ -53,6 +53,7 @@ except ImportError:
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_DEBIAN_VERSIONS,
+    CI_IMAGE_SOURCES_HASH_LABEL,
     CURRENT_POSTGRES_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
@@ -63,6 +64,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.environment_check import check_uv_version
+from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -472,6 +474,8 @@ def prepare_docker_build_command(
         ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
     )
     final_command.extend(["--platform", image_params.platform])
+    if not isinstance(image_params, BuildProdParams):
+        final_command.extend(["--label", f"{CI_IMAGE_SOURCES_HASH_LABEL}={calculate_ci_sources_hash()}"])
     return final_command
 
 
