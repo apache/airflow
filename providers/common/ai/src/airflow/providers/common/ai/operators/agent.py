@@ -31,6 +31,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.usage import resolve_usage_limits
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -48,6 +49,8 @@ except ImportError:  # pragma: no cover - cores before the worker-side registrat
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from pydantic_ai import Agent
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.toolsets.abstract import AbstractToolset
@@ -148,6 +151,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         ``UsageLimits(request_limit=..., total_tokens_limit=..., tool_calls_limit=..., ...)``
         to fail the task when the agent exceeds the configured token, request,
         or tool budget. ``None`` (default) means no enforcement.
+    :param max_cost: Convenience per-run USD cost cap, as a templated alternative
+        to ``usage_limits.cost_limit`` (``usage_limits`` itself cannot be
+        templated). When set, overrides ``cost_limit`` on ``usage_limits``
+        (building one if ``usage_limits`` is ``None``); every other field on
+        ``usage_limits`` is left untouched. ``None`` (default) leaves
+        ``usage_limits`` unchanged. See :ref:`howto/operator:llm` for general
+        ``cost_limit`` caveats, and :ref:`howto/operator:agent` for the
+        ``durable=True`` replay double-counting warning.
     :param durable: When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
         steps are replayed instead of re-executing.  Each cached step is
@@ -232,6 +243,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "system_prompt",
         "agent_params",
         "message_history",
+        "max_cost",
     )
 
     operator_extra_links = (HITLReviewLink(),)
@@ -248,6 +260,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | None = None,
+        max_cost: Decimal | float | str | None = None,
         durable: bool = False,
         code_mode: bool = False,
         message_history: list[ModelMessage] | str | bytes | None = None,
@@ -274,6 +287,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
+        self.max_cost = max_cost
         self.message_history = message_history
 
         self.durable = durable
@@ -446,7 +460,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         agent = self._build_agent()
 
-        run_kwargs: dict[str, Any] = {"usage_limits": self.usage_limits}
+        run_kwargs: dict[str, Any] = {"usage_limits": resolve_usage_limits(self.usage_limits, self.max_cost)}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history
@@ -553,7 +567,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Re-run the agent with *feedback* appended to the conversation history."""
         agent = self._build_agent()
         messages = message_history or []
-        result = agent.run_sync(feedback, message_history=messages, usage_limits=self.usage_limits)
+        result = agent.run_sync(
+            feedback,
+            message_history=messages,
+            usage_limits=resolve_usage_limits(self.usage_limits, self.max_cost),
+        )
         log_run_summary(self.log, result)
 
         output = result.output

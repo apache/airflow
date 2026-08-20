@@ -17,12 +17,17 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel
-from pydantic_ai.usage import UsageLimits
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
+from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.usage import RequestUsage, UsageLimits
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -69,15 +74,27 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
+    mock_result.usage = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0, cost=None
+    )
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
 
 
+PRICED_COST = Decimal("0.10")
+
+
+def _build_priced_response(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    return ModelResponse(
+        parts=[TextPart(content="the answer")],
+        usage=RequestUsage(input_tokens=100, output_tokens=50, cost=PRICED_COST),
+    )
+
+
 class TestLLMOperator:
     def test_template_fields(self):
-        expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params"}
+        expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params", "max_cost"}
         assert set(LLMOperator.template_fields) == expected
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -114,6 +131,67 @@ class TestLLMOperator:
         op.execute(context=MagicMock())
 
         mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_max_cost_as_cost_limit(self, mock_hook_cls):
+        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            max_cost=0.5,
+        )
+        op.execute(context=MagicMock())
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
+
+    @pytest.mark.parametrize(
+        "cap_kwargs",
+        [
+            pytest.param({"max_cost": 0.05}, id="max_cost"),
+            pytest.param(
+                {"usage_limits": UsageLimits(cost_limit=Decimal("0.05"))}, id="usage_limits_cost_limit"
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_raises_when_cost_cap_exceeded(self, mock_hook_cls, cap_kwargs):
+        """A real run whose cost exceeds the configured cap raises ``UsageLimitExceeded``."""
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(_build_priced_response), **kw
+        )
+
+        op = LLMOperator(task_id="test", prompt="Summarize", llm_conn_id="my_llm", **cap_kwargs)
+        with pytest.raises(UsageLimitExceeded, match=r"cost_limit.*0\.05"):
+            op.execute(context=MagicMock())
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_completes_when_cost_stays_under_max_cost(self, mock_hook_cls):
+        """A real run costing less than ``max_cost`` completes and returns the model output."""
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(_build_priced_response), **kw
+        )
+
+        op = LLMOperator(task_id="test", prompt="Summarize", llm_conn_id="my_llm", max_cost=PRICED_COST * 2)
+
+        assert op.execute(context=MagicMock()) == "the answer"
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_raises_valueerror_for_unparsable_max_cost(self, mock_hook_cls):
+        """An unparsable templated ``max_cost`` surfaces as ``ValueError`` before any model call."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="test", prompt="Summarize", llm_conn_id="my_llm", max_cost="")
+
+        with pytest.raises(ValueError, match="max_cost must be a number"):
+            op.execute(context=MagicMock())
+        mock_agent.run_sync.assert_not_called()
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
