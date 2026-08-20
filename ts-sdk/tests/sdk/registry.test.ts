@@ -123,7 +123,7 @@ describe("DagRegistry", () => {
     const foreign = { dagId: "foreign_dag" };
     Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Dag"), { value: true });
     expect(() => new DagRegistry(foreign as unknown as Dag)).toThrowError(
-      /different copy of @apache-airflow\/ts-sdk/,
+      /different copy of apache-airflow-ts-sdk/,
     );
   });
 

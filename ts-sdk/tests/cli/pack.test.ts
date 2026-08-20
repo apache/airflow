@@ -211,38 +211,34 @@ describe("runPack", () => {
       dagId: "bad id!",
       taskId: "valid_task",
       expected:
-        'Error: Dag "bad id!" must be made of alphanumeric characters, dashes, dots, and underscores',
+        'warning: dag id "bad id!" must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it\n',
     },
     {
       label: "task",
       dagId: "valid_dag",
       taskId: "bad id!",
       expected:
-        'Error: Task "bad id!" of Dag "valid_dag" must be made of alphanumeric characters, dashes, dots, and underscores',
+        'warning: task id "bad id!" in dag "valid_dag" must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it\n',
     },
-  ])(
-    "reports an invalid $label ID without a staging-bundle stack",
-    async ({ dagId, taskId, expected }) => {
-      outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
-      const entry = path.join(outdir, "invalid-id-entry.ts");
-      writeFileSync(
-        entry,
-        [
-          `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
-          `const invalidDag = new Dag(${JSON.stringify(dagId)});`,
-          `invalidDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
-          "await serveDags(new DagRegistry(invalidDag));",
-        ].join("\n"),
-      );
+  ])("warns on a suspicious $label ID but still packs", async ({ dagId, taskId, expected }) => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "suspicious-id-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `const suspiciousDag = new Dag(${JSON.stringify(dagId)});`,
+        `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
+        "await serveDags(new DagRegistry(suspiciousDag));",
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
 
-      await expect(runPack([entry, "--outdir", outdir])).rejects.toHaveProperty(
-        "message",
-        expected,
-      );
-      expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
-      expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
-    },
-  );
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(stderr()).toContain(expected);
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(true);
+  });
 
   it("reports the last error from a failed bundle", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));

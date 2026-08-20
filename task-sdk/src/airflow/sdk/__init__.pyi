@@ -128,6 +128,7 @@ from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
 from airflow.sdk.execution_time import macros as macros
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
+from airflow.sdk.execution_time.context import NEVER_EXPIRE
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
 
 conf: AirflowSDKConfigParser
@@ -174,6 +175,7 @@ __all__ = [
     "MinimumCount",
     "MonthWindow",
     "MultipleCronTriggerTimetable",
+    "NEVER_EXPIRE",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",

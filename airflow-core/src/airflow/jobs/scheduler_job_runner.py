@@ -85,6 +85,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    alias_association_table,
     association_table,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
@@ -3843,8 +3844,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Check assets orphanization and update their active entry.
 
         An orphaned asset is no longer referenced in any DAG schedule parameters,
-        task outlets, or task inlets. Active assets (non-orphaned) have entries in
-        AssetActive and must have unique names and URIs.
+        task outlets, task inlets, or alias associations. Active assets (non-orphaned)
+        have entries in AssetActive and must have unique names and URIs.
 
         :seealso: :meth:`AssetModelOperation.activate_assets_if_possible`.
         """
@@ -3854,6 +3855,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 func.count(DagScheduleAssetReference.dag_id)
                 + func.count(TaskOutletAssetReference.dag_id)
                 + func.count(TaskInletAssetReference.dag_id)
+                # An asset materialized from an ``AssetAlias`` outlet is referenced only through
+                # the alias association, not the schedule/outlet/inlet tables. Count it so it is
+                # activated (and shown in the UI) instead of being treated as orphaned. See #58058.
+                + func.count(alias_association_table.c.alias_id)
             )
             == 0
         ).label("orphaned")
@@ -3862,6 +3867,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
             .outerjoin(TaskInletAssetReference)
+            .outerjoin(alias_association_table, alias_association_table.c.asset_id == AssetModel.id)
             .group_by(AssetModel.id)
         )
 

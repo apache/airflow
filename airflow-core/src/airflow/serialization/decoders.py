@@ -128,6 +128,7 @@ def _decode_asset(var: dict[str, Any]):
                 trigger={
                     "classpath": watcher["trigger"]["classpath"],
                     "kwargs": smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
+                    **({"queue": watcher["trigger"]["queue"]} if "queue" in watcher["trigger"] else {}),
                 },
             )
             for watcher in watchers

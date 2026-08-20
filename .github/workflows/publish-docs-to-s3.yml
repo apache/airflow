@@ -125,7 +125,6 @@ jobs:
       "shahar1",
       "potiuk",
       "uranusjr",
-      "utkarsharma2",
       "vincbeck",
       "vatsrahul1001",
       ]'), github.event.sender.login)
