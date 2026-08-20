@@ -37,6 +37,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_deadline,
@@ -44,6 +45,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
+from tests_common.test_utils.team import attach_dag_to_team
 
 pytestmark = pytest.mark.db_test
 
@@ -455,6 +457,47 @@ class TestGetDeadlines:
         # Unlinked deadlines must have null alert_id
         unlinked = [dl for dl in deadlines if dl["alert_name"] is None]
         assert all(dl["alert_id"] is None for dl in unlinked)
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_team_name", "expected_queries"),
+        [
+            pytest.param("True", "team-deadlines", 4, id="multi_team_enabled"),
+            pytest.param("False", None, 3, id="multi_team_disabled"),
+        ],
+    )
+    def test_team_name_only_exposed_in_multi_team_mode(
+        self, test_client, session, multi_team, expected_team_name, expected_queries
+    ):
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            attach_dag_to_team(
+                session, DAG_ID, bundle_name="team-bundle-deadlines", team_name="team-deadlines"
+            ),
+        ):
+            with assert_queries_count(expected_queries):
+                response = test_client.get("/dags/~/dagRuns/~/deadlines")
+            assert response.status_code == 200
+            teams_by_dag = {dl["dag_id"]: dl["team_name"] for dl in response.json()["deadlines"]}
+            assert teams_by_dag == {DAG_ID: expected_team_name, DAG_ID_2: None}
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_filter_by_team(self, test_client, session):
+        with attach_dag_to_team(
+            session, DAG_ID, bundle_name="team-bundle-deadline-filter", team_name="team-deadline-filter"
+        ):
+            with assert_queries_count(4):
+                response = test_client.get(
+                    "/dags/~/dagRuns/~/deadlines", params={"teams": ["team-deadline-filter"]}
+                )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total_entries"] == 7
+            assert {dl["dag_id"] for dl in data["deadlines"]} == {DAG_ID}
+
+            # A team with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"teams": ["unknown-team"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
 
     def test_filter_nonexistent_dag_returns_empty(self, test_client):
         """Filtering by a dag_id that doesn't exist returns an empty list."""

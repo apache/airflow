@@ -2500,6 +2500,7 @@ export type DeadlineResponse = {
     dag_run_id: string;
     alert_id?: string | null;
     alert_name?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -4693,6 +4694,7 @@ export type GetDeadlinesData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
      */
     orderBy?: Array<(string)>;
+    teams?: Array<(string)>;
 };
 
 export type GetDeadlinesResponse = DeadlineCollectionResponse;
