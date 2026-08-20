@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
-    from airflow.executors.workloads.types import QueueableWorkload, WorkloadKey, WorkloadState
+    from airflow.executors.workloads.types import WorkloadKey, WorkloadState
     from airflow.models.connection_test import ConnectionTestKey
     from airflow.models.taskinstance import TaskInstance
 
@@ -92,6 +92,11 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
+
+def _warn_deprecated_executor_usage(message: str) -> None:
+    warnings.warn(message, RemovedInAirflow4Warning, stacklevel=3)
+    log.warning(message)
 
 
 @dataclass
@@ -214,18 +219,33 @@ class BaseExecutor(LoggingMixin):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         cls._legacy_warned = set()
-        legacy_flag = cls.__dict__.get("supports_callbacks")
-        if legacy_flag is True:
-            warnings.warn(
+        legacy_workload_types: set[WorkloadType] = set()
+        if cls.__dict__.get("supports_callbacks") is True:
+            _warn_deprecated_executor_usage(
                 f"{cls.__name__}: setting `supports_callbacks = True` as a class attribute is "
-                f"deprecated. Declare `supported_workload_types = frozenset({{"
-                f"WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}})` instead.",
-                RemovedInAirflow4Warning,
-                stacklevel=2,
+                f"deprecated. Add `WorkloadType.EXECUTE_CALLBACK` to `supported_workload_types` "
+                f"instead.",
             )
-            if "supported_workload_types" not in cls.__dict__:
-                cls.supported_workload_types = frozenset(
-                    {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+            legacy_workload_types.add(WorkloadType.EXECUTE_CALLBACK)
+        if cls.__dict__.get("supports_connection_test") is True:
+            _warn_deprecated_executor_usage(
+                f"{cls.__name__}: setting `supports_connection_test = True` as a class attribute is "
+                f"deprecated. Add `WorkloadType.TEST_CONNECTION` to `supported_workload_types` "
+                f"instead.",
+            )
+            legacy_workload_types.add(WorkloadType.TEST_CONNECTION)
+        if legacy_workload_types and "supported_workload_types" not in cls.__dict__:
+            cls.supported_workload_types = cls.supported_workload_types | legacy_workload_types
+        legacy_override_replacements = {
+            "trigger_tasks": "trigger_workloads",
+            "order_queued_tasks_by_priority": "_get_workloads_to_schedule",
+        }
+        for legacy_method, replacement in legacy_override_replacements.items():
+            if legacy_method in cls.__dict__:
+                _warn_deprecated_executor_usage(
+                    f"{cls.__name__} overrides `{legacy_method}`, which BaseExecutor no longer "
+                    f"calls: the override will not be invoked during scheduling. Override "
+                    f"`{replacement}` instead.",
                 )
 
     def _warn_legacy_property(self, prop_name: str, message: str) -> None:
@@ -234,6 +254,7 @@ class BaseExecutor(LoggingMixin):
             return
         cls._legacy_warned.add(prop_name)
         warnings.warn(message, RemovedInAirflow4Warning, stacklevel=3)
+        log.warning(message)
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
         stats.initialize(
@@ -248,9 +269,14 @@ class BaseExecutor(LoggingMixin):
 
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
-        # TODO(airflow 4.0): flatten to dict[WorkloadKey, QueueableWorkload] once the deprecated
+        # TODO(airflow 4.0): flatten to dict[WorkloadKey, ExecutorWorkload] once the deprecated
         # queued_tasks / queued_callbacks compat properties are removed.
-        self.executor_queues: dict[WorkloadType, dict[WorkloadKey, QueueableWorkload]] = defaultdict(dict)
+        # The defaultdict is load-bearing: queue_workload, fail_connection_test and the compat
+        # properties rely on auto-vivification of per-type queues, so do not replace it with a
+        # plain dict.
+        self.executor_queues: defaultdict[WorkloadType, dict[WorkloadKey, ExecutorWorkload]] = defaultdict(
+            dict
+        )
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -323,6 +349,16 @@ class BaseExecutor(LoggingMixin):
         )
         return WorkloadType.EXECUTE_CALLBACK in self.supported_workload_types
 
+    @property
+    def supports_connection_test(self) -> bool:
+        """Backward-compat property: True if TEST_CONNECTION is in supported_workload_types."""
+        self._warn_legacy_property(
+            "supports_connection_test",
+            "supports_connection_test is deprecated. "
+            "Use WorkloadType.TEST_CONNECTION in supported_workload_types instead.",
+        )
+        return WorkloadType.TEST_CONNECTION in self.supported_workload_types
+
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
@@ -333,7 +369,7 @@ class BaseExecutor(LoggingMixin):
             return
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
-    def queue_workload(self, workload: QueueableWorkload, session: Session) -> None:
+    def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
         if workload.type not in self.supported_workload_types:
             raise NotImplementedError(
                 f"{type(self).__name__} does not support {workload.type!r} workloads. "
@@ -342,7 +378,7 @@ class BaseExecutor(LoggingMixin):
             )
         self.executor_queues[workload.type][workload.key] = workload
 
-    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, QueueableWorkload]]:
+    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, ExecutorWorkload]]:
         """
         Select and return the next batch of workloads to schedule, respecting priority policy.
 
@@ -352,7 +388,7 @@ class BaseExecutor(LoggingMixin):
 
         :param open_slots: Number of available execution slots
         """
-        all_workloads: list[tuple[WorkloadKey, QueueableWorkload]] = [
+        all_workloads: list[tuple[WorkloadKey, ExecutorWorkload]] = [
             (key, workload) for queue in self.executor_queues.values() for key, workload in queue.items()
         ]
         all_workloads.sort(
@@ -363,7 +399,7 @@ class BaseExecutor(LoggingMixin):
         )
         return all_workloads[: max(0, open_slots)]
 
-    def _process_workloads(self, workloads: Sequence[QueueableWorkload]) -> None:
+    def _process_workloads(self, workloads: Sequence[ExecutorWorkload]) -> None:
         """
         Process the given workloads.
 
@@ -664,7 +700,8 @@ class BaseExecutor(LoggingMixin):
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""
-        for workload_type, queue in self.executor_queues.items():
+        for workload_type in WorkloadType:
+            queue = self.executor_queues.get(workload_type, {})
             self.log.info(
                 "executor.queued[%s] (%d)\n\t%s",
                 workload_type,

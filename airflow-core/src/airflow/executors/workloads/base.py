@@ -43,15 +43,21 @@ class WorkloadType(str, Enum):
 
 # Central executor priority registry: tuple is ordered from highest priority to lowest.
 #
-# Adding a new workload type is a three-place change that must stay in sync:
+# Connection tests are short-lived and user-interactive, so they sort ahead of tasks:
+# otherwise a sustained task backlog would starve them until the reaper times them out.
+#
+# Adding a new workload type is a four-place change that must stay in sync:
 #   1. ``WorkloadType`` — declare the enum member.
 #   2. ``_workload_type_priority_order`` — insert it at the right priority slot.
-#   3. ``airflow.executors.workloads.QueueableWorkload`` — extend the discriminated union
-#      so ``queue_workload`` can accept the new schema.
+#   3. ``All`` and ``ExecutorWorkload`` in ``airflow.executors.workloads`` — extend the
+#      discriminated unions (``Field(discriminator="type")``) that gate (de)serialization,
+#      e.g. Celery's ``TypeAdapter`` decodes dequeued workloads with ``ExecutorWorkload``.
+#   4. ``sort_key`` — the ``BaseWorkloadSchema`` default of ``0`` gives FIFO ordering;
+#      override it on the new schema if it needs ordering within its priority group.
 _workload_type_priority_order = (
     WorkloadType.EXECUTE_CALLBACK,
-    WorkloadType.EXECUTE_TASK,
     WorkloadType.TEST_CONNECTION,
+    WorkloadType.EXECUTE_TASK,
 )
 
 WORKLOAD_TYPE_PRIORITY: dict[WorkloadType, int] = {
@@ -119,6 +125,18 @@ class BaseWorkloadSchema(BaseModel):
             extras={"sub": sub_id, "scope": "workload"},
             valid_for=valid_for,
         )
+
+    @property
+    def sort_key(self) -> int:
+        """
+        Return the sort key for ordering workloads within the same priority.
+
+        The default of ``0`` gives FIFO behaviour (Python's stable sort preserves
+        insertion order among equal keys).  Override in subclasses that need
+        priority ordering within their priority group — for example, ``ExecuteTask`` returns
+        ``self.ti.priority_weight`` so that lower-weight tasks are scheduled first.
+        """
+        return 0
 
 
 class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
@@ -195,15 +213,3 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
         no intermediate state is emitted.
         """
         return None
-
-    @property
-    def sort_key(self) -> int:
-        """
-        Return the sort key for ordering workloads within the same priority.
-
-        The default of ``0`` gives FIFO behaviour (Python's stable sort preserves
-        insertion order among equal keys).  Override in subclasses that need
-        priority ordering within their priority group — for example, ``ExecuteTask`` returns
-        ``self.ti.priority_weight`` so that lower-weight tasks are scheduled first.
-        """
-        return 0
