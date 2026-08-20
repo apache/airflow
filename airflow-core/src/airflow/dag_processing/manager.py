@@ -1451,10 +1451,16 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Persist one group of a sweep's parse results in a single pass.
 
-        Override this to send results somewhere other than the metadata DB (e.g. AIP-92). It is
-        handed one group, not a whole sweep, and only files that produced Dags. Everything written
-        here goes on the one session, so a caller handing over more than one group gets them in one
+        Override this to send results somewhere other than the metadata DB. It is handed one
+        group, not a whole sweep, and a file that parsed and defined no Dags is in it like any
+        other, since its import errors still have to be cleared. Everything written here goes on
+        the one session, so a caller handing over more than one group gets them in one
         transaction; the manager splits first so each group gets its own.
+
+        Two things an override does not get. It is not reached without touching the metadata DB:
+        the team a bundle belongs to is looked up while working out what a file leaves to persist,
+        and a file whose lookup fails never arrives here. Nor does it see callback-only
+        completions or failed parses; :meth:`handle_parsing_result` sees every file.
 
         The built-in write keeps nothing when it raises, so the caller retries the group a file at
         a time. A replaced one may have kept it, so it does not. Two caveats to "nothing was kept":
@@ -1474,27 +1480,18 @@ class DagFileProcessorManager(LoggingMixin):
                 )
             return
 
-        for group in self.build_persistence_groups(results):
+        for group in self._build_persistence_groups(results):
             self._persist_bundle_group(group[0].file.bundle_name, group, session=session)
 
-    def build_persistence_groups(self, results: Sequence[FileParseResult]) -> list[list[FileParseResult]]:
+    def _build_persistence_groups(self, results: Sequence[FileParseResult]) -> list[list[FileParseResult]]:
         """
         Split a sweep into units that can each be written in a single call.
 
-        Groups are contiguous runs, so writing them in turn writes every file in the order it
-        arrived. Assets, aliases and triggers are shared across bundles and the last write wins, so
-        a file that overtook another would change which definition survives.
-
-        A run ends where the next file cannot join it: a different bundle version, a dag_id the run
-        claims, a file either speaks for (an error against a file stales the Dags filed under it,
-        and that is applied after they are written), or ``MAX_DAGS_PER_PERSISTENCE_GROUP``. Files
-        are not counted -- ``[dag_processor] parsing_processes`` already bounds how many arrive.
-
-        A file reporting import errors also ends the run, whatever it reports on. Staling the Dags
-        filed under a path is the last thing a write does, while what a write reads about existing
-        Dags -- whether one is registered elsewhere, whether an asset still has a live Dag
-        scheduling it -- it reads first. Writing a file at a time put those in the other order, so
-        a later file saw what an earlier one staled.
+        Groups are contiguous runs, so files are written in the order they arrived: assets,
+        aliases and triggers are shared across bundles and the last write wins. A file reporting
+        import errors ends its run, since a write stales the Dags filed under a path last but
+        reads what is already registered first. Files are not counted -- ``[dag_processor]
+        parsing_processes`` already bounds how many arrive.
         """
         groups: list[list[FileParseResult]] = []
         bundles: list[tuple[str, str | None, dict | None]] = []
@@ -1660,7 +1657,7 @@ class DagFileProcessorManager(LoggingMixin):
             groups = [[item] for item in to_persist]
         else:
             try:
-                groups = self.build_persistence_groups(to_persist)
+                groups = self._build_persistence_groups(to_persist)
             except Exception:
                 # Grouping reads the Dags the parser sent, so a malformed one lands here. A file at
                 # a time hits the same failure inside _persist_single, which contains it.
