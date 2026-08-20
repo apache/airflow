@@ -222,13 +222,6 @@ def event_loop() -> Generator[AbstractEventLoop]:
                 asyncio.set_event_loop(None)
 
 
-# TODO: Once AIP-88 is implemented, multiple events could be returned
-async def run_trigger(trigger: BaseTrigger) -> Any | None:
-    async for event in trigger.run():
-        return event
-    return None
-
-
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
