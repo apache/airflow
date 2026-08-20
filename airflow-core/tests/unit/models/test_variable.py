@@ -369,6 +369,14 @@ class TestVariable:
         finally:
             session.rollback()
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_variable_set_does_not_change_team_name_on_update(self, testing_team, session):
+        Variable.set(key="k", value="v1", session=session)
+
+        Variable.set(key="k", value="v2", team_name=testing_team.name, session=session)
+
+        assert Variable.get("k") == "v2"
+
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
     def test_caching_caches(self, mock_ensure_secrets: mock.Mock):
         mock_backend = mock.Mock()

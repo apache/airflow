@@ -287,7 +287,6 @@ class Variable(Base, LoggingMixin):
                 val=val,
                 description=description,
                 is_encrypted=is_encrypted,
-                team_name=team_name,
             )
             stmt = build_upsert_stmt(
                 get_dialect_name(session), Variable, ["key"], upsert_values, update_fields
