@@ -27,7 +27,7 @@ from cachetools import LRUCache, TTLCache
 
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DBDagBag, _CacheEntry
+from airflow.models.dagbag import CachedDBDagBag, DBDagBag, _CacheEntry
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -43,16 +43,20 @@ STATS_PATH = "airflow.models.dagbag.stats"
 
 CACHE_METRIC_SUFFIXES = ("cache_hit", "cache_miss", "cache_clear", "cache_size")
 
-# Every namespace a component can report under. The hooks live on the base and build their names
-# from the prefix each component passes in, so the shared plumbing is exercised once per component.
+# Every namespace a component can report under. CachedDBDagBag builds names from the prefix each
+# component passes in, so the shared plumbing is exercised once per component.
 METRIC_PREFIXES = ["api_server.dag_bag", "scheduler.dag_bag"]
 
 STUB_PREFIX = "test.dag_bag"
 
 
-def _stub_dag_bag(**kwargs) -> DBDagBag:
-    """Drive the base's caching directly, standing in for a component's own prefix."""
-    return DBDagBag(stats_prefix=STUB_PREFIX, **kwargs)
+def _stub_dag_bag(*, cache_size: int, cache_ttl: int = 0) -> CachedDBDagBag:
+    """Build a configured cache with a test-only metric prefix."""
+    return CachedDBDagBag(
+        cache_size=cache_size,
+        cache_ttl=cache_ttl,
+        stats_prefix=STUB_PREFIX,
+    )
 
 
 # This file previously contained tests for DagBag functionality, but those tests
@@ -261,13 +265,12 @@ class TestDBDagBag:
 
 
 class TestDBDagBagCache:
-    """Tests for DBDagBag optional caching behavior."""
+    """Tests for plain and configured DBDagBag caching behavior."""
 
     @pytest.mark.parametrize(
         ("cache_size", "cache_ttl", "expected_type", "expected_maxsize"),
         [
-            pytest.param(None, None, dict, None, id="neither_plain_dict"),
-            pytest.param(10, None, LRUCache, 10, id="size_only_lru"),
+            pytest.param(10, 0, LRUCache, 10, id="size_only_lru"),
             pytest.param(10, 60, TTLCache, 10, id="size_and_ttl_bounded_ttl"),
             pytest.param(0, 60, TTLCache, math.inf, id="ttl_only_uncapped"),
         ],
@@ -275,21 +278,19 @@ class TestDBDagBagCache:
     def test_cache_selection(self, cache_size, cache_ttl, expected_type, expected_maxsize):
         dag_bag = _stub_dag_bag(cache_size=cache_size, cache_ttl=cache_ttl)
         assert isinstance(dag_bag._dags, expected_type)
-        assert dag_bag._use_cache is (expected_type is not dict)
-        if expected_maxsize is not None:
-            assert dag_bag._dags.maxsize == expected_maxsize
+        assert dag_bag._dags.maxsize == expected_maxsize
 
     @pytest.mark.parametrize(
         ("cache_size", "cache_ttl", "expected_message"),
         [
             pytest.param(
                 -1,
-                None,
+                60,
                 "cache_size must be greater than or equal to 0",
                 id="negative_size",
             ),
             pytest.param(
-                None,
+                10,
                 -1,
                 "cache_ttl must be greater than or equal to 0",
                 id="negative_ttl",
@@ -298,7 +299,15 @@ class TestDBDagBagCache:
     )
     def test_rejects_negative_cache_configuration(self, cache_size, cache_ttl, expected_message):
         with pytest.raises(ValueError, match=expected_message):
-            DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
+            CachedDBDagBag(
+                cache_size=cache_size,
+                cache_ttl=cache_ttl,
+                stats_prefix=STUB_PREFIX,
+            )
+
+    def test_rejects_disabled_cache_configuration(self):
+        with pytest.raises(ValueError, match="requires a positive cache_size or cache_ttl"):
+            _stub_dag_bag(cache_size=0, cache_ttl=0)
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
@@ -334,20 +343,13 @@ class TestDBDagBagCache:
 
         assert create_dag_bag()._stats_prefix == "api_server.dag_bag"
 
-    @pytest.mark.parametrize(
-        ("cache_size", "cache_ttl"),
-        [
-            pytest.param(10, 60, id="ttl_cache"),
-            pytest.param(10, 0, id="lru_cache"),
-        ],
-    )
-    def test_caching_without_a_stats_prefix_is_rejected_at_construction(self, cache_size, cache_ttl):
+    def test_cached_bag_requires_non_empty_stats_prefix(self):
         """A cache with no namespace to report under must fail at wiring time, not mid-request."""
-        with pytest.raises(ValueError, match="needs stats_prefix"):
-            DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
+        with pytest.raises(ValueError, match="requires a stats_prefix"):
+            CachedDBDagBag(cache_size=10, cache_ttl=60, stats_prefix="")
 
-    def test_uncached_bag_emits_no_metrics_without_a_stats_prefix(self):
-        """Without a cache there is nothing to report, so no namespace is needed."""
+    def test_plain_bag_emits_no_metrics(self):
+        """The unbounded base implementation does not report component cache metrics."""
         dag_bag = DBDagBag()
         mock_serdag = MagicMock()
         mock_serdag.dag_version_id = "test_version_1"
