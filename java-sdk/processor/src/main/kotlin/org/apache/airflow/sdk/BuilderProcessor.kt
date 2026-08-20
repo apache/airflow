@@ -34,6 +34,7 @@ import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.Element
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
@@ -92,6 +93,8 @@ class BuilderProcessor : AbstractProcessor() {
 
   private fun buildDag(el: TypeElement): TypeSpec {
     val ann = el.getAnnotation(Builder.Dag::class.java)!!
+    val dagId = ann.id.ifBlank { el.simpleName.toString() }
+    processingEnv.warnOnSuspiciousId(el, "Dag id \"$dagId\"", dagId)
 
     val builderClass =
       TypeSpec
@@ -103,13 +106,15 @@ class BuilderProcessor : AbstractProcessor() {
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .returns(ClassName.get(Dag::class.java))
-        .addStatement($$"var dag = new $T($S)", ClassName.get(Dag::class.java), ann.id.ifBlank { el.simpleName })
+        .addStatement($$"var dag = new $T($S)", ClassName.get(Dag::class.java), dagId)
 
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
 
-      val ann = inner.getAnnotation(Builder.Task::class.java) ?: continue
+      val taskAnn = inner.getAnnotation(Builder.Task::class.java) ?: continue
+      val taskId = taskAnn.id.ifBlank { inner.simpleName.toString() }
+      processingEnv.warnOnSuspiciousId(inner, "Task id \"$taskId\" in dag \"$dagId\"", taskId)
       val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
 
       val task = buildTask(innerName, inner, el)
@@ -117,7 +122,7 @@ class BuilderProcessor : AbstractProcessor() {
 
       buildMethod.addStatement(
         $$"dag.addTask($S, $L.class)",
-        ann.id.ifBlank { inner.simpleName },
+        taskId,
         innerName,
       )
     }
@@ -193,6 +198,37 @@ private fun ProcessingEnvironment.isType(
   t: TypeMirror,
   c: ClassName,
 ): Boolean = typeUtils.isSameType(t, elementUtils.getTypeElement(c.canonicalName()).asType())
+
+private const val MAX_ID_LENGTH = 250
+private val ID_REGEX = Regex("""^[\p{L}\p{N}_.-]+$""")
+
+private fun ProcessingEnvironment.warnOnSuspiciousId(
+  element: Element,
+  label: String,
+  id: String,
+) {
+  val length = id.codePointCount(0, id.length)
+  if (length > MAX_ID_LENGTH) {
+    messager.printMessage(
+      Diagnostic.Kind.WARNING,
+      "$label is longer than $MAX_ID_LENGTH characters ($length); the Airflow server will reject it",
+      element,
+    )
+  }
+  if (!ID_REGEX.matches(id)) {
+    messager.printMessage(
+      Diagnostic.Kind.WARNING,
+      "$label must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it",
+      element,
+    )
+  } else if (id.contains("..")) {
+    messager.printMessage(
+      Diagnostic.Kind.WARNING,
+      "$label contains '..'; the Airflow server will reject it unless [core] allow_double_dot_in_ids is enabled",
+      element,
+    )
+  }
+}
 
 private data class RequiredXCom(
   val paramType: TypeMirror,
