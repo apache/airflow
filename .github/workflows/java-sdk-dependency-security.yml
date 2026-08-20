@@ -52,6 +52,29 @@ jobs:
           show-openssf-scorecard: true
           show-patched-versions: true
 
+  verification-metadata:
+    name: Trust list has no stale entries
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # 11: toolchain for the main build
+      # 21: runs Gradle itself — the last entry listed is the one that sets JAVA_HOME
+      - name: Install JDK toolchains
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
+        with:
+          distribution: temurin
+          java-version: |
+            11
+            21
+      - name: Use an isolated Gradle home
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/gradle-home" >> "$GITHUB_ENV"
+      - name: Compare the committed metadata with a clean regeneration
+        run: java-sdk/scripts/ci/regenerate-verification-metadata.sh --check
+
   dependency-submission:
     name: Submit resolved Gradle dependencies
     if: github.event_name != 'pull_request'

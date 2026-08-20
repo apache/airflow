@@ -44,17 +44,15 @@ development tools may have further requirements (see the toolchain in
 
 Repositories are centralized in `settings.gradle.kts`, and dynamic and changing versions are rejected for project dependency configurations (not for plugin markers or detached configurations — pin those by hand). `buildSrc/` declares its own repositories, but its dependencies *are* covered by this metadata.
 
-To update a dependency or plugin, regenerate from a trusted network. The task list must cover everything CI runs, since only what the invoked tasks resolve gets recorded:
+To update a dependency or plugin, regenerate from a trusted network:
 
 ```bash
-./gradlew --write-verification-metadata sha256 --refresh-dependencies \
-  build \
-  :sdk:dokkaGeneratePublicationHtml :sdk:dokkaGeneratePublicationJavadoc \
-  sourceTarball checksumSourceTarball \
-  publishToMavenLocal -PskipSigning=true
+./scripts/ci/regenerate-verification-metadata.sh
 ```
 
-Without `-PskipSigning=true` the signing tasks fail and Gradle still writes metadata from the partial run. Regeneration only appends, so delete superseded entries by hand after a version bump.
+Gradle only ever appends to the file, so the script empties the component list before regenerating — otherwise every version bump leaves its superseded entries behind, trusted forever. The script also owns the task list, which has to cover everything CI builds since only what the invoked tasks resolve gets recorded.
+
+The `verification-metadata` job in `.github/workflows/java-sdk-dependency-security.yml` runs the same script with `--check`, and fails when the committed file is not what a clean regeneration produces.
 
 Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
 
