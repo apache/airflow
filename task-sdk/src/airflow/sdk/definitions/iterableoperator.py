@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import os
+import warnings
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from itertools import repeat
@@ -31,7 +32,7 @@ except NameError:
     from exceptiongroup import BaseExceptionGroup
 
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
-from airflow.sdk.bases.operator import BaseOperator, event_loop
+from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -108,6 +109,16 @@ class IterableOperator(BaseOperator):
         Reschedule-mode sensors (those that raise :class:`~airflow.sdk.exceptions.AirflowRescheduleException`)
         are also not supported. A reschedule raised by an indexed task instance will fail the whole
         IterableOperator immediately with a clear error rather than being silently mishandled.
+
+    .. warning::
+        **``execution_timeout`` is only enforced for async sub-tasks.**
+
+        Async sub-tasks (instances of :class:`~airflow.sdk.bases.operator.BaseAsyncOperator`) respect
+        ``execution_timeout`` via ``asyncio.wait_for``. Sync sub-tasks run in worker threads and rely on
+        :class:`~airflow.sdk.execution_time.timeout.TimeoutPosix`, which requires ``signal.SIGALRM`` and
+        only works in the main thread. Because sync sub-tasks execute in a thread pool, ``SIGALRM`` cannot
+        be delivered to them, so their ``execution_timeout`` is silently ignored. Use
+        :class:`~airflow.sdk.bases.operator.BaseAsyncOperator` if per-sub-task time limits are required.
     """
 
     _operator: MappedOperator
@@ -188,6 +199,15 @@ class IterableOperator(BaseOperator):
         # reservation while max_workers connections can be active simultaneously. A proper fix requires the
         # scheduler to reserve pool_slots * max_workers slots, which needs scheduler-side changes.
         self.max_workers = task_concurrency if task_concurrency is not None else (os.cpu_count() or 1)
+        if operator.execution_timeout and not issubclass(operator.operator_class, BaseAsyncOperator):
+            warnings.warn(
+                f"Operator {operator.task_id!r} has execution_timeout set, but sync operators run in "
+                "worker threads where TimeoutPosix (SIGALRM) cannot be delivered. "
+                "The execution_timeout will not be enforced for sync sub-tasks inside IterableOperator. "
+                "Use BaseAsyncOperator if per-sub-task time limits are required.",
+                UserWarning,
+                stacklevel=2,
+            )
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
     @property
