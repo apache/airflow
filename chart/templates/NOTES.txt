@@ -83,7 +83,7 @@ WARNING:
 {{- end }}
 {{- end }}
 
-{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret (not .Values.dags.gitSync.knownHosts)}}
+{{- if and .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) (not .Values.dags.gitSync.knownHosts)}}
 
 #####################################################
 #  WARNING: You should set dags.gitSync.knownHosts  #
