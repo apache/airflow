@@ -31,20 +31,10 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// Set by `-ldflags` at build time
-var (
-	bundleName    = "example_dags"
-	bundleVersion = "0.0"
-)
-
 type myBundle struct{}
 
 // myBundle must implement v1.BundleProvider
 var _ v1.BundleProvider = (*myBundle)(nil)
-
-func (m *myBundle) GetBundleVersion() v1.BundleInfo {
-	return v1.BundleInfo{Name: bundleName, Version: &bundleVersion}
-}
 
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	simpleDag := dagbag.AddDag("simple_dag")

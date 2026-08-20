@@ -34,6 +34,14 @@ type TaskSuite struct {
 	suite.Suite
 }
 
+type taskTestClient struct {
+	sdk.Client
+}
+
+func withTaskClient(ctx context.Context) context.Context {
+	return context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(&taskTestClient{}))
+}
+
 func TestTaskSuite(t *testing.T) {
 	suite.Run(t, &TaskSuite{})
 }
@@ -120,9 +128,9 @@ func (s *TaskSuite) TestArgumentBinding() {
 			task, err := NewTaskFunction(tt.fn)
 			s.Require().NoError(err)
 
-			ctx := context.WithValue(context.Background(), "abc", "def")
+			ctx := context.WithValue(withTaskClient(context.Background()), "abc", "def")
 			logger := slog.New(logging.NewTeeLogger())
-			task.Execute(ctx, logger)
+			task.Execute(ctx, logger, nil)
 		})
 	}
 }
@@ -138,7 +146,8 @@ func (s *TaskSuite) TestClientSubsetInjection() {
 		return nil
 	})
 	s.Require().NoError(err)
-	s.Require().NoError(task.Execute(context.Background(), slog.New(logging.NewTeeLogger())))
+	s.Require().
+		NoError(task.Execute(withTaskClient(context.Background()), slog.New(logging.NewTeeLogger()), nil))
 }
 
 func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
@@ -186,7 +195,7 @@ func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
 	}
 }
 
-func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
+func (s *TaskSuite) TestExecuteBindsDataParameters() {
 	var gotCountry string
 	var gotMeta map[string]any
 	task, err := NewTaskFunction(func(log *slog.Logger, country string, meta map[string]any) error {
@@ -196,57 +205,37 @@ func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
 	})
 	s.Require().NoError(err)
 
-	tw, ok := task.(TaskWithArgs)
-	s.Require().True(ok, "taskFunction must implement TaskWithArgs")
-
-	err = tw.ExecuteArgs(context.Background(), slog.New(logging.NewTeeLogger()), []binding.Arg{
-		binding.LiteralArg{Value: "uk"},
-		binding.LiteralArg{Value: map[string]any{"k": "v"}},
-	})
+	err = task.Execute(
+		withTaskClient(context.Background()),
+		slog.New(logging.NewTeeLogger()),
+		[]binding.Arg{
+			binding.LiteralArg{Value: "uk"},
+			binding.LiteralArg{Value: map[string]any{"k": "v"}},
+		},
+	)
 	s.Require().NoError(err)
 	s.Equal("uk", gotCountry)
 	s.Equal(map[string]any{"k": "v"}, gotMeta)
 }
 
-func (s *TaskSuite) TestExecuteWithoutArgsZeroFillsDataParameters() {
-	type settings struct {
-		Region    string
-		Threshold float64
-	}
-	var gotCountry string
-	var gotSettings settings
-	called := false
-	task, err := NewTaskFunction(func(country string, input settings) error {
-		gotCountry, gotSettings, called = country, input, true
-		return nil
-	})
-	s.Require().NoError(err)
-
-	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()))
-	s.Require().NoError(err)
-	s.True(called, "the task body must run")
-	s.Empty(gotCountry)
-	s.Equal(settings{}, gotSettings)
-}
-
-func (s *TaskSuite) TestExecuteArgsWithoutSpecFailsForDataParameters() {
+func (s *TaskSuite) TestExecuteWithoutSpecFailsForDataParameters() {
 	task, err := NewTaskFunction(func(country string) error { return nil })
 	s.Require().NoError(err)
 
-	err = task.(TaskWithArgs).ExecuteArgs(
-		context.Background(), slog.New(logging.NewTeeLogger()), nil,
+	err = task.Execute(
+		withTaskClient(context.Background()), slog.New(logging.NewTeeLogger()), nil,
 	)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "argument count mismatch")
 	}
 }
 
-func (s *TaskSuite) TestExecuteArgsArityMismatch() {
+func (s *TaskSuite) TestExecuteArityMismatch() {
 	task, err := NewTaskFunction(func(country string) error { return nil })
 	s.Require().NoError(err)
 
-	err = task.(TaskWithArgs).ExecuteArgs(
-		context.Background(),
+	err = task.Execute(
+		withTaskClient(context.Background()),
 		slog.New(logging.NewTeeLogger()),
 		[]binding.Arg{
 			binding.LiteralArg{Value: "uk"},
@@ -288,9 +277,13 @@ func (s *TaskSuite) TestTIRunContextInjection() {
 	})
 	s.Require().NoError(err)
 
-	ctx := context.WithValue(context.Background(), sdkcontext.RuntimeContextKey, stored)
+	ctx := context.WithValue(
+		withTaskClient(context.Background()),
+		sdkcontext.RuntimeContextKey,
+		stored,
+	)
 	ctx = context.WithValue(ctx, probeKey, "probe-value")
-	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger())))
+	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger()), nil))
 
 	s.Require().NotNil(got, "the task must receive a non-nil TIRunContext")
 	s.Equal(ti, got.TaskInstance())
@@ -302,35 +295,12 @@ func (s *TaskSuite) TestTIRunContextInjection() {
 	)
 }
 
-// TestTIRunContextInjectionWithoutRuntimeContext covers the Edge Worker path:
-// the runtime does not populate RuntimeContextKey, so a task declaring
-// sdk.TIRunContext gets zero TaskInstance/DagRun but is still backed by the
-// live task context, leaving it usable as a context.Context.
-func (s *TaskSuite) TestTIRunContextInjectionWithoutRuntimeContext() {
-	var got sdk.TIRunContext
-	task, err := NewTaskFunction(func(ctx sdk.TIRunContext) error {
-		got = ctx
-		return nil
-	})
+func (s *TaskSuite) TestExecuteRequiresCoordinatorClient() {
+	task, err := NewTaskFunction(func() error { return nil })
 	s.Require().NoError(err)
 
-	ctx := context.WithValue(context.Background(), probeKey, "probe-value")
-	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger())))
-
-	s.Require().NotNil(got, "the task must receive a non-nil TIRunContext")
-	s.Equal(
-		sdk.TaskInstance{},
-		got.TaskInstance(),
-		"TaskInstance must be zero when no runtime context is present",
-	)
-	s.Equal(
-		sdk.DagRun{},
-		got.DagRun(),
-		"DagRun must be zero when no runtime context is present",
-	)
-	s.Equal(
-		"probe-value",
-		got.Value(probeKey),
-		"the injected context must be backed by the one passed to Execute",
-	)
+	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()), nil)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "coordinator SDK client is missing")
+	}
 }

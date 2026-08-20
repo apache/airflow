@@ -15,30 +15,32 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package commands
+package bundlev1server
 
 import (
-	"github.com/spf13/cobra"
+	"testing"
 
-	"github.com/apache/airflow/go-sdk/pkg/config"
+	"github.com/stretchr/testify/assert"
 )
 
-// Root represents the base command when called without any subcommands
-var Root = &cobra.Command{
-	Use:   "airflow-go-edge",
-	Short: "Airflow worker for running Go workloads sent via Edge Worker API.",
-	Long: `Airflow worker for running Go workloads sent via Edge Worker API.
+func TestDecideMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		metadata bool
+		comm     string
+		logs     string
+		want     serveMode
+	}{
+		{name: "metadata", metadata: true, want: modeAirflowMetadata},
+		{name: "coordinator", comm: "127.0.0.1:1", logs: "127.0.0.1:2", want: modeCoordinator},
+		{name: "no flags", want: modeCoordinatorUsageError},
+		{name: "comm only", comm: "127.0.0.1:1", want: modeCoordinatorUsageError},
+		{name: "logs only", logs: "127.0.0.1:2", want: modeCoordinatorUsageError},
+	}
 
-All options (other than ` + "`--config`" + `) can be specified in the config file using
-the same name as the CLI argument but without the ` + "`--`" + ` prefix.`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return config.Configure(cmd)
-	},
-	SilenceUsage: true,
-}
-
-func init() {
-	Root.PersistentFlags().
-		String("config", "", "config file (default is $HOME/airflow/go-sdk.yaml)")
-	Root.AddCommand(runCmd)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, decideMode(tt.metadata, tt.comm, tt.logs))
+		})
+	}
 }
