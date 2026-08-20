@@ -1,0 +1,1 @@
+Stop ``airflow db downgrade`` from Airflow 3.3 corrupting deadline alerts whose interval is not a timedelta; it now refuses up front and names the affected alerts

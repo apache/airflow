@@ -57,6 +57,60 @@ _TABLE = "_test_deadline_interval_dg"
 _WRAPPED_TIMEDELTA = '{"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 300.0}'
 
 
+_GUARD_TABLE = "_test_deadline_interval_guard"
+_WRAPPED_VARIABLE_INTERVAL = (
+    '{"__classname__": "airflow.sdk.definitions.deadline.VariableInterval",'
+    ' "__version__": 0, "__data__": {"key": "deadline_secs"}}'
+)
+
+
+class TestMigration0117DowngradeGuard:
+    """The downgrade must refuse rows that cannot become a float again, and only those."""
+
+    @pytest.fixture
+    def guard_table(self):
+        preparer = settings.engine.dialect.identifier_preparer
+        interval_col = preparer.quote("interval")
+        with settings.engine.begin() as conn:
+            conn.execute(sa.text(f"DROP TABLE IF EXISTS {_GUARD_TABLE}"))
+            conn.execute(
+                sa.text(f"CREATE TABLE {_GUARD_TABLE} (id INT PRIMARY KEY, {interval_col} TEXT NOT NULL)")
+            )
+        yield interval_col
+        with settings.engine.begin() as conn:
+            conn.execute(sa.text(f"DROP TABLE IF EXISTS {_GUARD_TABLE}"))
+
+    def test_guard_flags_only_intervals_without_float_form(self, guard_table):
+        interval_col = guard_table
+        rows = [
+            (1, _WRAPPED_TIMEDELTA),
+            (2, "60.0"),
+            (3, _WRAPPED_VARIABLE_INTERVAL),
+        ]
+        with settings.engine.begin() as conn:
+            for row_id, value in rows:
+                conn.execute(
+                    sa.text(f"INSERT INTO {_GUARD_TABLE} (id, {interval_col}) VALUES (:i, :v)"),
+                    {"i": row_id, "v": value},
+                )
+            offenders = _migration._find_non_timedelta_intervals(conn, table_name=_GUARD_TABLE)
+
+        assert [(row_id, classname) for row_id, classname in offenders] == [
+            (3, "airflow.sdk.definitions.deadline.VariableInterval")
+        ]
+
+    def test_guard_accepts_clean_table(self, guard_table):
+        interval_col = guard_table
+        with settings.engine.begin() as conn:
+            conn.execute(
+                sa.text(f"INSERT INTO {_GUARD_TABLE} (id, {interval_col}) VALUES (1, :v)"),
+                {"v": _WRAPPED_TIMEDELTA},
+            )
+            offenders = _migration._find_non_timedelta_intervals(conn, table_name=_GUARD_TABLE)
+
+        assert offenders == []
+
+
 class TestMigration0117Downgrade:
     @pytest.mark.backend("mysql")
     def test_mysql_downgrade_interval_value_update_does_not_reject_on_json_column(self):
