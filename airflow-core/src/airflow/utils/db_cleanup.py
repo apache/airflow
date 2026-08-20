@@ -115,6 +115,11 @@ class _TableConfig:
     extra_filters: list[Any] | None = None
     skip_if_referenced: list[tuple[str, str]] | None = None
     referenced_pk_column: str = "id"
+    # When this table is deleted, ON DELETE CASCADE propagates to cascade_table, but
+    # cascade_table rows are still referenced by restrict_table via ON DELETE RESTRICT.
+    # Each item: (cascade_table, cascade_table_fk_to_self, cascade_table_pk,
+    #            restrict_table, restrict_table_fk_to_cascade)
+    skip_if_cascade_blocked: list[tuple[str, str, str, str, str]] | None = None
 
     # Calculated from table_name and populated in __post_init__.
     schema_name: str = dataclasses.field(init=False)
@@ -141,14 +146,15 @@ class _TableConfig:
                 schema=self.schema_name,
             )
 
-        # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
-        # (added via extra_columns). Fail fast with a clear message instead of a cryptic KeyError
-        # raised later when _build_query evaluates base_table.c[referenced_pk_column].
-        if self.skip_if_referenced and self.referenced_pk_column not in self.orm_model.c.keys():
+        # skip_if_referenced / skip_if_cascade_blocked filters on referenced_pk_column, which must be
+        # a column of orm_model (added via extra_columns or dag_id_column_name). Fail fast with a
+        # clear message instead of a cryptic KeyError raised later when _build_query evaluates
+        # base_table.c[referenced_pk_column].
+        if (self.skip_if_referenced or self.skip_if_cascade_blocked) and self.referenced_pk_column not in self.orm_model.c.keys():
             raise ValueError(
-                f"_TableConfig for table {self.table_name!r} sets skip_if_referenced but its "
-                f"referenced_pk_column {self.referenced_pk_column!r} is not one of its columns; "
-                f"add {self.referenced_pk_column!r} to extra_columns."
+                f"_TableConfig for table {self.table_name!r} sets skip_if_referenced or "
+                f"skip_if_cascade_blocked but its referenced_pk_column {self.referenced_pk_column!r} "
+                f"is not one of its columns; add {self.referenced_pk_column!r} to extra_columns."
             )
 
     def __lt__(self, other):
@@ -173,6 +179,11 @@ config_list: list[_TableConfig] = [
         recency_column_name="last_parsed_time",
         dependent_tables=["dag_version", "deadline"],
         dag_id_column_name="dag_id",
+        referenced_pk_column="dag_id",
+        # Deleting a dag cascades to dag_version (ON DELETE CASCADE), but
+        # task_instance.dag_version_id is ON DELETE RESTRICT. Skip dags whose
+        # dag_version rows are still referenced by any task instance.
+        skip_if_cascade_blocked=[("dag_version", "dag_id", "id", "task_instance", "dag_version_id")],
     ),
     _TableConfig(
         table_name="dag_run",
@@ -470,6 +481,22 @@ def _build_query(
                 .exists()
             )
 
+    if skip_if_cascade_blocked:
+        # When this table is deleted, ON DELETE CASCADE propagates to cascade_table, but
+        # cascade_table rows are still referenced by restrict_table via ON DELETE RESTRICT.
+        # Exclude rows whose cascade would fail.
+        base_table_pk_col = base_table.c[referenced_pk_column]
+        for cascade_table_name, cascade_fk_to_self, cascade_pk, restrict_table_name, restrict_fk in skip_if_cascade_blocked:
+            cascade_tbl = table(cascade_table_name, column(cascade_fk_to_self), column(cascade_pk))
+            restrict_tbl = table(restrict_table_name, column(restrict_fk))
+            conditions.append(
+                ~select(literal(1))
+                .select_from(cascade_tbl.join(restrict_tbl, cascade_tbl.c[cascade_pk] == restrict_tbl.c[restrict_fk]))
+                .where(cascade_tbl.c[cascade_fk_to_self] == base_table_pk_col)
+                .correlate(base_table)
+                .exists()
+            )
+
     if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
         base_table_dag_id_col = base_table.c[dag_id_column.name]
 
@@ -517,6 +544,7 @@ def _cleanup_table(
     batch_size: int | None = None,
     extra_filters: list[Any] | None = None,
     skip_if_referenced: list[tuple[str, str]] | None = None,
+    skip_if_cascade_blocked: list[tuple[str, str, str, str, str]] | None = None,
     referenced_pk_column: str = "id",
     **kwargs,
 ) -> None:
@@ -535,6 +563,7 @@ def _cleanup_table(
         clean_before_timestamp=clean_before_timestamp,
         extra_filters=extra_filters,
         skip_if_referenced=skip_if_referenced,
+        skip_if_cascade_blocked=skip_if_cascade_blocked,
         referenced_pk_column=referenced_pk_column,
         session=session,
     )
