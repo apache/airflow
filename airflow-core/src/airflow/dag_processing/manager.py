@@ -1465,7 +1465,8 @@ class DagFileProcessorManager(LoggingMixin):
         The built-in write keeps nothing when it raises, so the caller retries the group a file at
         a time. A replaced one may have kept it, so it does not. Two caveats to "nothing was kept":
         the FAB auth manager commits Dag permissions part way through, and listeners are told what a
-        write did before it commits, so a retry can announce the same thing twice.
+        write did before it commits, so a retry can announce the same thing twice. Both are tracked
+        at https://github.com/apache/airflow/issues/71911
         """
         if self._overrides_per_file_persist():
             for item in results:
@@ -1492,6 +1493,10 @@ class DagFileProcessorManager(LoggingMixin):
         import errors ends its run, since a write stales the Dags filed under a path last but
         reads what is already registered first. Files are not counted -- ``[dag_processor]
         parsing_processes`` already bounds how many arrive.
+
+        A Dag that fails to serialize rather than to parse is not covered: those errors are only
+        known once the write is under way, so a run cannot be ended on them. Tracked at
+        https://github.com/apache/airflow/issues/71911
         """
         groups: list[list[FileParseResult]] = []
         bundles: list[tuple[str, str | None, dict | None]] = []
