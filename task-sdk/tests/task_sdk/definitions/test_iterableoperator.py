@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import copy
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -29,7 +30,7 @@ except NameError:
 
 import pytest
 
-from airflow.sdk import DAG, BaseOperator, BaseXCom, get_current_context
+from airflow.sdk import DAG, BaseAsyncOperator, BaseOperator, BaseXCom, get_current_context
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
@@ -101,6 +102,16 @@ class MockRescheduleSensor(BaseOperator):
         from airflow.sdk import timezone
 
         raise AirflowRescheduleException(timezone.utcnow() + timedelta(seconds=60))
+
+
+class MockSlowAsyncOperator(BaseAsyncOperator):
+    """Async operator that sleeps longer than any reasonable execution_timeout."""
+
+    template_fields = ()
+
+    async def aexecute(self, context):
+        await asyncio.sleep(60)
+        return "should_not_reach"
 
 
 @pytest.fixture
@@ -554,7 +565,9 @@ class TestIterableOperator:
     @pytest.mark.db_test
     def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self, dag_maker, session):
         """IterableOperator.execution_timeout is None (not propagated to the outer TI);
-        the wrapped operator retains its own execution_timeout for per-task enforcement."""
+        the wrapped operator retains its own execution_timeout for per-task enforcement.
+        A UserWarning is emitted when the wrapped operator is sync, since TimeoutPosix won't fire
+        in worker threads."""
         with dag_maker(session=session) as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             execution_timeout = timedelta(seconds=7)
@@ -562,7 +575,8 @@ class TestIterableOperator:
                 dag, expand_input, task_id="timeout_task", execution_timeout=execution_timeout
             )
 
-            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+            with pytest.warns(UserWarning, match="execution_timeout"):
+                iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
 
             assert iterable_op._operator.execution_timeout == execution_timeout
             assert iterable_op.execution_timeout is None
@@ -682,3 +696,33 @@ class TestIterableOperatorContextIsolation:
             # Each sub-task must have seen its own IndexedTaskInstance, not the parent TI.
             assert sub_ti is not parent_ti, f"Sub-task {idx} observed the parent context"
             assert sub_ti.index == idx, f"Sub-task {idx} observed wrong index {sub_ti.index}"
+
+    @pytest.mark.db_test
+    def test_async_subtask_execution_timeout_is_enforced(self, dag_maker, session):
+        """execution_timeout is enforced for async sub-tasks via asyncio.wait_for."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            mapped_op = MockSlowAsyncOperator.partial(
+                task_id="slow_async_task",
+                dag=dag,
+                execution_timeout=timedelta(milliseconds=50),
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        context = mock_context(task=iterable_op)
+        with pytest.raises(BaseExceptionGroup, match="Multiple sub-task failures"):
+            iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    def test_sync_subtask_with_execution_timeout_emits_warning(self, dag_maker, session):
+        """A sync operator with execution_timeout warns that the timeout won't be enforced."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            mapped_op = self.create_mapped_operator(
+                dag, expand_input, task_id="sync_timeout_task", execution_timeout=timedelta(seconds=5)
+            )
+            with pytest.warns(UserWarning, match="TimeoutPosix") as warning_list:
+                IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        assert len(warning_list) == 1
+        assert "sync" in str(warning_list[0].message).lower()
