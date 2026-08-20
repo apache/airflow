@@ -26,13 +26,18 @@ The TypeScript SDK lets you implement Airflow task logic in TypeScript (or plain
 Node.js. The Dag and its scheduling remain in Python; individual tasks delegate to a Node.js subprocess that
 is spawned by :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
-The SDK is the ``@apache-airflow/ts-sdk`` package (ESM-only). It is currently in **alpha** and its API may change.
+The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **alpha** and its API may change.
 
 .. warning::
 
   The SDK is not yet published to npm. To try it today, build it from source in the
   `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository and
   depend on it locally (see ``ts-sdk/example/`` for a working setup).
+
+.. seealso::
+
+  For the full TypeScript API reference (task handlers, ``TaskClient``, and the coordinator runtime),
+  see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
 .. contents:: Contents
    :local:
@@ -81,13 +86,14 @@ value routes the task to the Node.js coordinator.
 TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Register it with the
-``dag_id`` and ``task_id`` it implements, then start the coordinator runtime; the registrations and the
-top-level ``await startCoordinator()`` make the module a runnable bundle entry point.
+A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
+the ``dag_id`` it implements, attach each handler with ``dag.task``, collect the Dags in a ``DagRegistry``,
+then serve them to Airflow with ``serveDags``; that top-level ``await`` makes the module a runnable bundle
+entry point.
 
 .. code-block:: typescript
 
-    import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -98,12 +104,22 @@ top-level ``await startCoordinator()`` make the module a runnable bundle entry p
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
 
-    registerTask({ dagId: "typescript_example", taskId: "build_message" }, buildMessage);
+    const dag = new Dag("typescript_example");
+    dag.task("build_message", buildMessage);
 
-    await startCoordinator();
+    await serveDags(new DagRegistry(dag));
 
-The ``dagId`` passed to ``registerTask`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-must match a ``@task.stub`` function in that Dag.
+The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
+passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. The registry passed to
+``serveDags`` is the bundle's complete set of Dags; a second ``serveDags`` call is rejected. A Dag left out
+of the registry is not part of the packed bundle, and its tasks are marked removed at runtime.
+
+``DagRegistry`` holds no sockets and starts nothing, so a unit test can build one and dispatch a handler
+through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
+its Dags across several modules can add them incrementally with ``registry.register(...)``.
+
+``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
+These are not used yet; do not set them. Any other key is rejected.
 
 .. note::
 
@@ -174,7 +190,9 @@ The ``TaskClient`` surface
   with no default.
 * ``getConnection(connId)`` — returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
-  missing or ``null``), or ``null`` when the connection does not exist.
+  missing or ``null``), or ``null`` when the connection does not exist;
+  ``getConnectionOrThrow(connId)`` throws ``ConnectionNotFoundError`` instead, matching Python
+  ``BaseHook.get_connection``.
 * ``getXCom<T>({key, ...})`` — reads an XCom value, or ``null`` when it is missing. The locator fields
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.

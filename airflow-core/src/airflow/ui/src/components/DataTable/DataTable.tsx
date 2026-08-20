@@ -16,65 +16,102 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack, Text } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, VStack } from "@chakra-ui/react";
 import {
   getCoreRowModel,
-  getExpandedRowModel,
   getPaginationRowModel,
-  useReactTable,
-  type VisibilityState,
   type OnChangeFn,
   type TableState as ReactTableState,
-  type Row,
   type Table as TanStackTable,
   type Updater,
+  useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
-import React, { type ReactNode, useRef, useCallback } from "react";
+import { type ReactNode, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
 import { useLocalStorage } from "usehooks-ts";
 
 import { CardList } from "src/components/DataTable/CardList";
+import { FilterMenuButton } from "src/components/DataTable/FilterMenuButton";
 import { TableList } from "src/components/DataTable/TableList";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
-import { IconButton, ProgressBar, Pagination, Toaster } from "src/components/ui";
+import { IconButton, Pagination, ProgressBar, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
-  readonly allowFiltering?: boolean;
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
   readonly errorMessage?: ReactNode | string;
-  readonly getRowCanExpand?: (row: Row<TData>) => boolean;
+  /**
+   * Controls that change *which* rows the table returns — a `SearchBar`, a `FilterBar`, or both
+   * stacked in a `VStack`. Rendered on the left of the header row under the row count heading,
+   * wrapping onto further lines as filters accumulate.
+   *
+   * Anything that changes how already-returned rows are drawn belongs in `presentationActions`.
+   */
+  readonly filterActions?: ReactNode;
+  /** Rendered next to the row count heading, and on its own when the heading is hidden. */
+  readonly headingExtra?: ReactNode;
+  readonly hideRowCountHeading?: boolean;
   readonly initialState?: TableState;
   readonly isFetching?: boolean;
   readonly isLoading?: boolean;
+  /**
+   * i18n key naming the model this table lists — namespaced (`common:dagRun`) or bare for `common`.
+   *
+   * Pass the base key, never a plural variant: the heading resolves it as `t(modelName, { count })`,
+   * so i18next appends `_one`/`_other` itself and `common:event_one` would render "Event" at every
+   * count. Both variants must exist, and `_other` is also read on its own for tables with no `total`
+   * — `modelName.test.ts` checks this for every call site.
+   *
+   * It also keys the persisted column visibility, so tables sharing a `modelName` share hidden
+   * columns, and changing it resets that state for existing users.
+   */
   readonly modelName: string;
   readonly nextCursor?: string | null;
   readonly noRowsMessage?: ReactNode;
   readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
+  /**
+   * Controls that change how the returned rows are presented rather than which rows they are —
+   * sort selects, expand/collapse toggles. Rendered on the right of the header row immediately
+   * before the columns menu and the display toggle, which do the same kind of job.
+   *
+   * Pass `undefined` rather than an empty fragment when there is nothing to show; an empty
+   * fragment still counts as present and reserves space in the row.
+   */
+  readonly presentationActions?: ReactNode;
   readonly previousCursor?: string | null;
-  readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
+  /**
+   * The page's calls to action, which create or import records — "Add Variable", "Add Pool".
+   * Rendered on the right of the header row level with the heading, above `presentationActions`,
+   * so the primary action stays the most prominent control.
+   *
+   * Only for actions on the collection as a whole: per-row actions belong in a column, and
+   * actions over a selection belong in the `ActionBar` below the table.
+   */
+  readonly primaryActions?: ReactNode;
+  /** Defaults to showing the column visibility menu only when there are many columns. */
+  readonly showColumnsMenu?: boolean;
   readonly showDisplayToggle?: boolean;
-  readonly showRowCountHeading?: boolean;
   readonly skeletonCount?: number;
   readonly total?: number;
+  readonly totalEntriesLimit?: number;
 };
 
-const defaultGetRowCanExpand = () => false;
-
 export const DataTable = <TData,>({
-  allowFiltering,
   cardDef,
   columns,
   data,
   displayMode = "table",
   errorMessage,
-  getRowCanExpand = defaultGetRowCanExpand,
+  filterActions,
+  headingExtra,
+  hideRowCountHeading,
   initialState,
   isFetching,
   isLoading,
@@ -83,15 +120,18 @@ export const DataTable = <TData,>({
   noRowsMessage,
   onDisplayToggleChange,
   onStateChange,
+  presentationActions,
   previousCursor,
+  primaryActions,
+  showColumnsMenu,
   showDisplayToggle,
-  showRowCountHeading = true,
   skeletonCount = 10,
-  total = 0,
+  total,
+  totalEntriesLimit,
 }: DataTableProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
 
-  const { t: translate } = useTranslation(["common"]);
+  const { i18n, t: translate } = useTranslation(["common"]);
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
     tableRef: undefined,
   });
@@ -120,21 +160,25 @@ export const DataTable = <TData,>({
     initialState?.columnVisibility ?? {},
   );
 
-  const rest = Boolean(isLoading) ? createSkeletonMock(displayMode, skeletonCount, columns) : {};
+  // An absent total means the endpoint gives no count (e.g. cursor pagination), which the heading
+  // reflects by naming the model without a number. Everything else still needs a real number.
+  const rowTotal = total ?? 0;
+
+  // Card mode is only reachable with a cardDef; without one the table renders and needs table skeletons
+  const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
+  const rest = Boolean(isLoading) ? createSkeletonMock(display, skeletonCount, columns) : {};
 
   const table = useReactTable({
     columns,
     data,
     enableHiding: true,
     getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getRowCanExpand,
     manualPagination: true,
     manualSorting: true,
     onColumnVisibilityChange: setColumnVisibility,
     onStateChange: handleStateChange,
-    rowCount: total,
+    rowCount: rowTotal,
     // We need to manually set the sort toggle buttons for undefined values
     sortDescFirst: false,
     state: { ...initialState, columnVisibility },
@@ -151,54 +195,94 @@ export const DataTable = <TData,>({
   const { pagination } = table.getState();
   const { pageIndex, pageSize } = pagination;
 
-  const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
-  const hasRows = rows.length > 0;
   const hasNext = nextCursor !== undefined && nextCursor !== null;
   const hasPrevious = previousCursor !== undefined && previousCursor !== null;
   const hasCursorPagination = hasNext || hasPrevious;
+  // Page count is derived from the total, so without one there is nothing to paginate over
   const hasOffsetPagination =
     !hasCursorPagination &&
+    total !== undefined &&
     initialState?.pagination !== undefined &&
-    (pageIndex !== 0 || rows.length !== total);
+    (pageIndex !== 0 || rows.length !== rowTotal);
 
-  // Default to show columns filter only if there are actually many columns displayed
-  const showColumnsFilter = allowFiltering ?? columns.length > 5;
+  const translateModelName = (count: number) => translate(modelName, { count });
+  // During the initial load there is nothing to count yet
+  const showRowCount = !Boolean(hideRowCountHeading) && !Boolean(isLoading);
+  const noRowsNode = noRowsMessage ?? translate("noItemsFound", { modelName: translateModelName(0) });
+  // i18next derives the plural form from the count, but in some languages (Russian) no integer count
+  // ever selects `_other`, so read the count-free plural key directly instead of passing a stand-in.
+  const pluralModelName = translate(`${modelName}_other`);
+  // Cursor pagination reports the total capped at totalEntriesLimit, so a total that reaches the
+  // cap means "at least this many" and is rendered as "N+".
+  const isCapped = total !== undefined && totalEntriesLimit !== undefined && total >= totalEntriesLimit;
 
-  const translateModelName = useCallback(
-    (count: number) => translate(modelName, { count }),
-    [modelName, translate],
-  );
-  const showRowCount = Boolean(
-    showRowCountHeading && !hasCursorPagination && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
-  );
-  const noRowsModelName = translateModelName(0);
-
-  const rowCountHeading = showRowCount ? (
-    <Heading py={3} size="md">
-      {`${total} ${translateModelName(total)}`}
+  // Default to showing the columns menu only if there are actually many columns displayed
+  const renderColumnsMenu =
+    display === "table" &&
+    (showColumnsMenu ?? columns.length > 5) &&
+    table.getAllLeafColumns().some((column) => column.getCanHide());
+  const headingNode = showRowCount ? (
+    <Heading py={1} size="md">
+      {total === undefined
+        ? pluralModelName
+        : `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`}
     </Heading>
   ) : undefined;
+  // Every slot has to be listed here, or its content disappears whenever nothing else occupies
+  // the row — including every render where the row count is hidden while loading.
+  const renderHeaderRow =
+    headingNode !== undefined ||
+    headingExtra !== undefined ||
+    presentationActions !== undefined ||
+    filterActions !== undefined ||
+    primaryActions !== undefined ||
+    renderColumnsMenu ||
+    (Boolean(showDisplayToggle) && onDisplayToggleChange !== undefined);
 
   return (
-    <Box display="flex" flex={1} flexDirection="column" minH={0}>
-      <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
-      {showDisplayToggle && onDisplayToggleChange ? (
-        <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
-      ) : undefined}
+    <Box display="flex" flex={1} flexDirection="column" minH={0} w="100%">
       <Toaster />
+      {renderHeaderRow ? (
+        <Flex
+          alignItems="flex-end"
+          data-testid="data-table-header"
+          gap={2}
+          justifyContent="space-between"
+          minH={10}
+          mt={2} // This offsets the spacing below created by the ProgressBar
+        >
+          <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">
+            {headingNode === undefined && headingExtra === undefined ? undefined : (
+              <HStack gap={2}>
+                {headingNode}
+                {headingExtra}
+              </HStack>
+            )}
+            {filterActions === undefined ? undefined : (
+              <HStack gap={2} minW={0} w="100%" wrap="wrap">
+                {filterActions}
+              </HStack>
+            )}
+          </VStack>
+          <VStack alignItems="flex-end" gap={2}>
+            {primaryActions === undefined ? undefined : <HStack gap={2}>{primaryActions}</HStack>}
+            <HStack gap={2}>
+              {presentationActions}
+              {renderColumnsMenu ? <FilterMenuButton table={table} /> : undefined}
+              {showDisplayToggle && onDisplayToggleChange ? (
+                <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
+              ) : undefined}
+            </HStack>
+          </VStack>
+        </Flex>
+      ) : undefined}
       {errorMessage}
-      {rowCountHeading}
+      <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0} overflow="auto">
-        {hasRows && display === "table" ? (
-          <TableList allowFiltering={showColumnsFilter} table={table} />
-        ) : undefined}
-        {hasRows && display === "card" && cardDef !== undefined ? (
-          <CardList cardDef={cardDef} isLoading={isLoading} rows={rows} />
-        ) : undefined}
-        {!hasRows && !Boolean(isLoading) && (
-          <Text as="div" pl={4} pt={1}>
-            {noRowsMessage ?? translate("noItemsFound", { modelName: noRowsModelName })}
-          </Text>
+        {display === "card" && cardDef !== undefined ? (
+          <CardList cardDef={cardDef} isLoading={isLoading} noRowsMessage={noRowsNode} rows={rows} />
+        ) : (
+          <TableList noRowsMessage={noRowsNode} table={table} />
         )}
       </Box>
       {hasOffsetPagination ? (

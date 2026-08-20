@@ -22,13 +22,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import type { BoxProps, InputElementProps } from "@chakra-ui/react";
 import { Group, InputElement } from "@chakra-ui/react";
-import { cloneElement, forwardRef } from "react";
+import { cloneElement, forwardRef, type ReactElement, type ReactNode } from "react";
 
 export type InputGroupProps = {
-  readonly children: React.ReactElement;
-  readonly endElement?: React.ReactNode;
+  readonly children: ReactElement;
+  readonly endElement?: ReactNode;
   readonly endElementProps?: InputElementProps;
-  readonly startElement?: React.ReactNode;
+  readonly startElement?: ReactNode;
   readonly startElementProps?: InputElementProps;
 } & BoxProps;
 

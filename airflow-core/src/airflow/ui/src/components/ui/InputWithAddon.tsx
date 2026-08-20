@@ -18,15 +18,15 @@
  */
 import type { InputProps } from "@chakra-ui/react";
 import { Box, Input, Text } from "@chakra-ui/react";
-import * as React from "react";
+import { type ReactNode, forwardRef } from "react";
 
 export type InputWithAddonProps = {
-  readonly endAddon?: React.ReactNode;
+  readonly endAddon?: ReactNode;
   readonly label: string;
   readonly width?: string;
 } & InputProps;
 
-export const InputWithAddon = React.forwardRef<HTMLInputElement, InputWithAddonProps>((props, ref) => {
+export const InputWithAddon = forwardRef<HTMLInputElement, InputWithAddonProps>((props, ref) => {
   const { endAddon, label, width = "220px", ...inputProps } = props;
 
   return (

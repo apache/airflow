@@ -487,6 +487,30 @@ def test_get_most_impactful_change(changes, expected):
         ),
         pytest.param("slack", ["airflow/utils/db.py"], "other", id="non_provider_file"),
         pytest.param("slack", [], "other", id="empty_commit"),
+        pytest.param(
+            "informatica",
+            ["providers/informatica/dev/informatica_simulator/requirements.txt"],
+            "test_or_example_only",
+            id="only_dev_tooling",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/dev/some_tool.py",
+            ],
+            "test_or_example_only",
+            id="tests_and_dev_tooling",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/src/airflow/providers/slack/hooks/slack.py",
+                "providers/slack/dev/some_tool.py",
+            ],
+            "other",
+            id="dev_tooling_and_real_code",
+        ),
     ],
 )
 def test_classify_provider_pr_files_logic(provider_id, changed_files, expected):
@@ -513,6 +537,13 @@ def _make_change(subject: str) -> Change:
         pytest.param("documentation", "Fix typo in docs", "documentation", id="doc_only"),
         pytest.param("documentation", "Bump aiohttp", "documentation", id="doc_only_beats_bump"),
         pytest.param("test_or_example_only", "Add a flaky test", "skip", id="test_only"),
+        # subject-based deterministic rule: release-preparation commits
+        pytest.param(
+            "other", "Prepare providers release 2026-07-22 (#70256)", "skip", id="release_prep_skip"
+        ),
+        pytest.param(
+            "other", "prepare providers release 2026-01-01", "skip", id="release_prep_lowercase_skip"
+        ),
         # subject-based deterministic rule: dependency bumps
         pytest.param("other", "Bump aiohttp regarding dependabot warning", "misc", id="bump_misc"),
         pytest.param("other", "bump the deps group across 1 directory", "misc", id="lowercase_bump_misc"),

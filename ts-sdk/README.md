@@ -33,14 +33,17 @@ runtime used to execute registered TypeScript handlers from Airflow.
 ## Task Handlers
 
 ```ts
-import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
   return { message: `Hello from ${ctx.taskId}: ${greeting}` };
 }
 
-registerTask({ dagId: "example_dag", taskId: "say_hello" }, sayHello);
+const dag = new Dag("example_dag");
+dag.task("say_hello", sayHello);
+
+await serveDags(new DagRegistry(dag));
 ```
 
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
@@ -95,7 +98,7 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
@@ -118,33 +121,49 @@ export async function transform({ client }: TaskHandlerArgs) {
   };
 }
 
-registerTask({ dagId: "sales_pipeline", taskId: "extract" }, extract);
-registerTask({ dagId: "sales_pipeline", taskId: "transform" }, transform);
+const salesPipeline = new Dag("sales_pipeline");
+salesPipeline.task("extract", extract);
+salesPipeline.task("transform", transform);
 
-await startCoordinator();
+await serveDags(new DagRegistry(salesPipeline));
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
-the work and uses `TaskClient` for task-time Airflow data access. Register each
-handler with the Python Dag's `dag_id` and the stub task's `task_id`. The
-handler function is the reusable task implementation; `registerTask` binds that
-handler to a Python stub Dag/task identity for coordinator mode.
+the work and uses `TaskClient` for task-time Airflow data access. Create a
+`Dag` with the Python Dag's `dag_id` and attach each handler with the stub
+task's `task_id`. The handler function is the reusable task implementation;
+`dag.task` binds that handler to a Python stub task identity, a `DagRegistry`
+collects the Dags this bundle can execute, and `serveDags` serves them to
+Airflow.
 
-For larger projects, keep one Airflow entrypoint that imports every module that
-registers tasks, then starts the coordinator:
+`serveDags` is the entrypoint, and the registry it is given is the whole bundle:
+a Dag left out of the registry is not part of the bundle, and its tasks are
+marked removed at runtime. The registry itself holds no sockets and starts
+nothing, so a unit test can build one and dispatch through
+`registry.getTaskHandler(dagId, taskId)` without any runtime involved.
+
+`new Dag` and `dag.task` take a trailing options object — `spec` on both, plus
+`inputs` on a task. These are not used yet; do not set them.
+
+For larger projects, declare each Dag in its own module and keep one Airflow
+entrypoint that serves them all:
 
 ```ts
-import "./sales/tasks";
-import "./billing/tasks";
-import { startCoordinator } from "@apache-airflow/ts-sdk";
+import { salesDag } from "./sales/dag";
+import { billingDag } from "./billing/dag";
+import { DagRegistry, serveDags } from "@apache-airflow/ts-sdk";
 
-await startCoordinator();
+await serveDags(new DagRegistry(salesDag, billingDag));
 ```
 
+A bundle that collects its Dags across several modules can add them
+incrementally with `registry.register(...)` instead of passing them all to the
+constructor.
+
 Airflow launches the bundled entrypoint with `--comm=host:port` and
-`--logs=host:port`. `startCoordinator()` connects to those sockets, receives
-the task startup message, finds the registered handler for the Dag/task pair,
-and reports the terminal task state back to Airflow.
+`--logs=host:port`. `serveDags()` connects to those sockets, receives the task
+startup message, finds the registered handler for the Dag/task pair, and
+reports the terminal task state back to Airflow.
 
 See [`example/`](example/) for a coordinator-runtime example that packs a
 bundle with `airflow-ts-pack` and uses a Python stub Dag.
@@ -177,11 +196,11 @@ Options:
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:
 
-| Method                                    | Description         |
-| ----------------------------------------- | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow` | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`         | XCom read/write     |
-| `getConnection(connId)`                   | Airflow Connections |
+| Method                                           | Description         |
+| ------------------------------------------------ | ------------------- |
+| `getVariable(key)` / `getVariableOrThrow`        | Airflow Variables   |
+| `getXCom(opts)` / `setXCom(opts)`                | XCom read/write     |
+| `getConnection(connId)` / `getConnectionOrThrow` | Airflow Connections |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
@@ -189,8 +208,9 @@ current task context when omitted.
 ## Cancellation
 
 `ctx.signal` is an `AbortSignal` controlled by the active runtime. Pass it to
-`fetch()`, timers, database clients, child processes, or other abortable APIs
-so tasks can clean up cooperatively when Airflow terminates the task attempt.
+`fetch()`, timers, database clients, child processes, or any other API that
+accepts an abort signal so tasks can clean up cooperatively when Airflow
+terminates the task subprocess with SIGTERM or SIGINT.
 
 ## Development
 
@@ -201,9 +221,53 @@ pnpm run typecheck
 pnpm run build
 ```
 
+The committed lockfile and `pnpm-workspace.yaml` define the dependency security
+policy. Newly released dependency versions must age for 14 days before they
+can enter the lockfile, transitive dependencies cannot use Git or arbitrary
+tarball sources, and only explicitly approved dependencies can run lifecycle
+build scripts. Review changes to both files together when updating dependencies.
+
 Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
 with its own managed node + pnpm toolchain:
 
 ```bash
 prek run compile-ts-sdk
 ```
+
+## API reference
+
+The public API reference is generated from the TypeScript sources with
+[TypeDoc](https://typedoc.org/) and published to
+<https://airflow.apache.org/docs/ts-sdk/stable/>.
+
+Build it locally (runs the pinned toolchain in a Node container, so no local
+Node install is needed):
+
+```bash
+breeze build-docs --sdk-docs-only --sdk=typescript
+```
+
+The rendered site is staged at `generated/_build/docs/ts-sdk/stable/`, alongside
+a `stable.txt` holding the version from `ts-sdk/package.json`. To iterate on the
+docs directly instead, `npm ci && npm run build` inside `ts-sdk/docs/` writes to
+`ts-sdk/docs/_build/html/`, and `npm start` rebuilds on change.
+
+CI builds the reference on every change under `ts-sdk/src/` or `ts-sdk/docs/`,
+so a broken docs build fails the PR rather than the release.
+
+### Publishing the API docs
+
+Publishing is a separate, deliberate step — a providers-only publish wave will
+not refresh the SDK docs as a side effect. Trigger the *Publish Docs to S3*
+workflow for the release ref:
+
+```bash
+gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
+  -f ref=<RELEASE_REF> \
+  -f include-docs=ts-sdk \
+  -f destination=live
+```
+
+Use `destination=staging` first to check the output, then `live`. Confirm that
+`https://airflow.apache.org/docs/ts-sdk/stable/` resolves (allow time for cache
+invalidation) and that `/docs/ts-sdk/` redirects to it.

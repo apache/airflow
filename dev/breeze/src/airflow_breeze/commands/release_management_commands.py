@@ -105,6 +105,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_airflowctl_version,
     get_task_sdk_version,
+    get_ts_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -285,12 +286,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.29"
+AIRFLOW_PIP_VERSION = "26.2.1"
+AIRFLOW_UV_VERSION = "0.12.3"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.52"
+GITPYTHON_VERSION = "3.1.58"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.10"
+PREK_VERSION = "0.4.12"
 HATCH_VERSION = "1.17.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -1253,6 +1254,14 @@ def _build_provider_distributions(
     help="Skip checking if the tag already exists in the remote repository",
 )
 @click.option(
+    "--skip-git-fetch",
+    default=False,
+    is_flag=True,
+    help="Skip recreating and fetching the 'apache-https-for-providers' remote, and check tags against "
+    "the state already in the local repository. Useful when building several batches in a row - the "
+    "fetch pulls the full history and all tags, which is slow and flaky on an unreliable network.",
+)
+@click.option(
     "--skip-deleting-generated-files",
     default=False,
     is_flag=True,
@@ -1290,6 +1299,7 @@ def prepare_provider_distributions(
     distributions_list_file: IO | None,
     provider_distributions: tuple[str, ...],
     skip_deleting_generated_files: bool,
+    skip_git_fetch: bool,
     skip_tag_check: bool,
     version_suffix: str,
 ):
@@ -1324,7 +1334,7 @@ def prepare_provider_distributions(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    if not skip_tag_check and not is_local_package_version(version_suffix):
+    if not skip_tag_check and not is_local_package_version(version_suffix) and not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
@@ -2036,6 +2046,9 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
 
     if package_name == "task-sdk":
         return get_task_sdk_version()
+
+    if package_name == "ts-sdk":
+        return get_ts_sdk_version()
 
     if package_name == "helm-chart":
         return chart_version()
