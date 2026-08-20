@@ -22,6 +22,7 @@ from __future__ import annotations
 import os.path
 import time
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from google.genai.errors import ClientError
@@ -66,14 +67,14 @@ def _results_file_path(results_folder: str | None, job) -> str:
     is not, so a ``..`` in it would place the file outside ``results_folder`` (CWE-22).
     """
     file_name = job.display_name or job.name.replace("/", "-")
-    path_to_file = os.path.abspath(f"{results_folder}/{file_name}.jsonl")
-    base = os.path.abspath(f"{results_folder}")
-    if base != path_to_file and os.path.commonpath([base, path_to_file]) != base:
+    base = Path(f"{results_folder}").resolve()
+    path_to_file = (base / f"{file_name}.jsonl").resolve()
+    if not path_to_file.is_relative_to(base):
         raise ValueError(
             f"Refusing to write batch-job results outside results_folder {results_folder!r}: "
             f"file name {file_name!r} resolves to {path_to_file!r}."
         )
-    return path_to_file
+    return str(path_to_file)
 
 
 class GenAIGenerateEmbeddingsOperator(GoogleCloudBaseOperator):
