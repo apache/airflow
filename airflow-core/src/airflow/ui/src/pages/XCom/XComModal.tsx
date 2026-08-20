@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Box, Heading, Input, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Input, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,7 +30,7 @@ import {
 } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Dialog, ProgressBar, toaster } from "src/components/ui";
+import { Modal, ProgressBar, toaster } from "src/components/ui";
 
 type XComModalProps = {
   readonly dagId: string;
@@ -167,46 +167,41 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
   const title = isEditMode ? translate("browse:xcom.edit.title") : translate("browse:xcom.add.title");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="lg">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading size="lg">{title}</Heading>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          {isLoading ? (
-            <ProgressBar size="xs" />
-          ) : (
-            <VStack gap={4}>
-              <Box width="100%">
-                <Text fontWeight="bold" mb={2}>
-                  {translate("browse:xcom.key")}
-                </Text>
-                {isEditMode ? (
-                  <Text>{xcomKey}</Text>
-                ) : (
-                  <Input onChange={(event) => setKey(event.target.value)} value={key} />
-                )}
-              </Box>
-              <Box width="100%">
-                <Text fontWeight="bold" mb={2}>
-                  {translate("browse:xcom.value")}
-                </Text>
-                <JsonEditor onChange={(val) => setValue(val)} value={value} />
-              </Box>
-            </VStack>
-          )}
-        </Dialog.Body>
-        <Dialog.Footer>
-          <Button onClick={onClose} variant="outline">
-            {translate("common:modal.cancel")}
-          </Button>
-          <Button disabled={isLoading || (!isEditMode && !key)} loading={isPending} onClick={onSave}>
-            {translate("common:modal.save")}
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
-    </Dialog.Root>
+    <Modal
+      footerActions={
+        <Button disabled={isLoading || (!isEditMode && !key)} loading={isPending} onClick={onSave}>
+          {translate("common:modal.save")}
+        </Button>
+      }
+      lazyMount
+      onOpenChange={onClose}
+      open={isOpen}
+      size="lg"
+      title={title}
+    >
+      {isLoading ? (
+        <ProgressBar size="xs" />
+      ) : (
+        <VStack gap={4}>
+          <Box width="100%">
+            <Text fontWeight="bold" mb={2}>
+              {translate("browse:xcom.key")}
+            </Text>
+            {isEditMode ? (
+              <Text>{xcomKey}</Text>
+            ) : (
+              <Input onChange={(event) => setKey(event.target.value)} value={key} />
+            )}
+          </Box>
+          <Box width="100%">
+            <Text fontWeight="bold" mb={2}>
+              {translate("browse:xcom.value")}
+            </Text>
+            <JsonEditor onChange={(val) => setValue(val)} value={value} />
+          </Box>
+        </VStack>
+      )}
+    </Modal>
   );
 };
 

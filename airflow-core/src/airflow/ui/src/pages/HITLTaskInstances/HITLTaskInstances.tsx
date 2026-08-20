@@ -321,11 +321,11 @@ export const HITLTaskInstances = ({
 
   return (
     <VStack align="start">
-      <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
         columns={columns}
         data={data?.hitl_details ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={<HITLFilters onResponseChange={handleResponseChange} />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="hitl:requiredAction"
