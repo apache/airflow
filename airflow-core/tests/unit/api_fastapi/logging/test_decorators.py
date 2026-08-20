@@ -303,3 +303,24 @@ class TestActionLoggingUserFields:
         (logged,) = session.add.call_args.args
         assert logged.owner == "jdoe"
         assert logged.owner_display_name == "Jane Doe"
+
+
+class TestActionLoggingTeamName:
+    """A team-scoped resource that owns no Dag records its team on the Log row itself, since
+    there is no ``dag_id`` to resolve one through."""
+
+    @pytest.mark.parametrize(
+        ("query_string", "expected_team_name"),
+        [
+            pytest.param(b"team_name=payments", "payments", id="team-scoped"),
+            pytest.param(b"", None, id="not-team-scoped"),
+        ],
+    )
+    def test_team_name_is_taken_from_the_request(self, query_string, expected_team_name):
+        request = Request({"type": "http", "method": "POST", "headers": [], "query_string": query_string})
+        session = MagicMock(spec=Session)
+
+        asyncio.run(action_logging(event="post_pool")(request=request, session=session, user=None))
+
+        (logged,) = session.add.call_args.args
+        assert logged.team_name == expected_team_name
