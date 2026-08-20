@@ -65,6 +65,16 @@
                             "type": {
                                 "const": [
                                     "boolean",
+                                    "null"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "boolean",
                                     "null",
                                     "number",
                                     "string"
@@ -85,6 +95,17 @@
                                 "const": [
                                     "integer",
                                     "null"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "integer",
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
