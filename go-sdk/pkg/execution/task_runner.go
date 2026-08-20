@@ -28,6 +28,7 @@ import (
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -124,7 +125,109 @@ func RunTask(
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 
-	return executeTask(ctx, task, details.TIContext.ShouldRetry, logger)
+	args, err := convertArgBindings(details.TIContext.ArgBindings)
+	if err != nil {
+		logger.Error("Invalid arg_bindings spec from supervisor",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"error", err,
+		)
+		if details.TIContext.ShouldRetry {
+			return genmodels.RetryTask{
+				EndDate:     time.Now().UTC(),
+				RetryReason: err.Error(),
+			}
+		}
+		return genmodels.TaskState{
+			State:   genmodels.TaskStateStateFailed,
+			EndDate: time.Now().UTC(),
+		}
+	}
+
+	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
+}
+
+func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {
+	if specsPtr == nil || len(*specsPtr) == 0 {
+		return nil, nil
+	}
+	specs := *specsPtr
+	args := make([]binding.Arg, len(specs))
+	for i, raw := range specs {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("arg_bindings[%d]: unexpected wire shape %T", i, raw)
+		}
+		name, ok := m["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
+		}
+		valueSchema, err := argValueSchema(m["value_schema"])
+		if err != nil {
+			return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
+		}
+		switch kind, _ := m["kind"].(string); kind {
+		case "xcom":
+			taskID, ok := m["task_id"].(string)
+			if !ok || taskID == "" {
+				return nil, fmt.Errorf(
+					"arg_bindings[%d] (%q): missing or empty task_id for xcom kind",
+					i,
+					name,
+				)
+			}
+			args[i] = binding.XComArg{
+				Kind:        kind,
+				Name:        name,
+				TaskID:      taskID,
+				ValueSchema: valueSchema,
+			}
+		case "literal":
+			fromDefault, err := optionalBool(m["from_default"])
+			if err != nil {
+				return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
+			}
+			args[i] = binding.LiteralArg{
+				Kind:        kind,
+				Name:        name,
+				Value:       m["value"],
+				ValueSchema: valueSchema,
+				FromDefault: fromDefault,
+			}
+		default:
+			return nil, fmt.Errorf("arg_bindings[%d]: unknown kind %q", i, kind)
+		}
+	}
+	return args, nil
+}
+
+func argValueSchema(raw any) (*genmodels.ArgValueSchema, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("value_schema has unexpected wire shape %T", raw)
+	}
+	if len(m) == 0 {
+		return nil, nil
+	}
+	schema := make(genmodels.ArgValueSchema, len(m))
+	for k, v := range m {
+		schema[k] = v
+	}
+	return &schema, nil
+}
+
+func optionalBool(raw any) (bool, error) {
+	if raw == nil {
+		return false, nil
+	}
+	b, ok := raw.(bool)
+	if !ok {
+		return false, fmt.Errorf("from_default has unexpected wire shape %T", raw)
+	}
+	return b, nil
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form
@@ -145,6 +248,7 @@ func mapIndexPtr(mapIndex *int) *int {
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,
+	args []binding.Arg,
 	shouldRetry bool,
 	logger *slog.Logger,
 ) (result any) {
@@ -168,7 +272,19 @@ func executeTask(
 		}
 	}()
 
-	if err := task.Execute(ctx, logger); err != nil {
+	var err error
+	if tw, ok := task.(bundlev1.TaskWithArgs); ok {
+		err = tw.ExecuteArgs(ctx, logger, args)
+	} else if len(args) > 0 {
+		err = fmt.Errorf(
+			"task received %d positional argument(s) from the Dag but its implementation "+
+				"does not support argument binding (does not implement TaskWithArgs)",
+			len(args),
+		)
+	} else {
+		err = task.Execute(ctx, logger)
+	}
+	if err != nil {
 		logger.ErrorContext(ctx, "Task failed", "error", err)
 		// A task that fails when ti_context.should_retry is set is reported as
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
