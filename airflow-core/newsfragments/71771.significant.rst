@@ -1,0 +1,50 @@
+Persist Dag parse results a group at a time
+
+The Dag processor now writes the files that finished parsing together in a single pass, rather
+than one call per file. Everything a write does besides the Dags themselves is paid once per
+group instead of once per file.
+
+**What changed:**
+
+- ``DagFileProcessorManager.persist_parsing_results`` is the seam for replacing the write.
+  It is handed one group of ``FileParseResult`` at a time, together with the session to write on.
+  A file that parsed and defined no Dags is in the group like any other, since its import errors
+  still have to be cleared.
+- ``DagFileProcessorManager.persist_parsing_result``, which took one file at a time, is
+  deprecated and will be removed in Airflow 4.0. Overriding it still works until then, but parse
+  results are persisted one file at a time and batching is skipped for the whole Dag processor.
+- Overriding ``handle_parsing_result`` is still supported and also skips batching. It remains the
+  only hook that sees every completion, including callback-only runs and failed parses.
+
+**Behaviour changes:**
+
+- ``on_asset_created`` now reports the definition of the last file in the group to define an
+  asset, where writing a file at a time reported the first and quietly updated it afterwards.
+  Assets are shared across files by design, so a group coalesces repeated definitions before
+  creating the row. The row that ends up in the database is unchanged; only the payload the
+  listener is given differs.
+- A group records where its files ended up rather than how they got there, so an import error
+  raised and resolved within one group is never written. ``on_new_dag_import_error`` is not
+  called for it.
+
+**Migration:**
+
+- Move a ``persist_parsing_result`` override to ``persist_parsing_results``, which receives a
+  sequence of results and a session instead of one file's arguments.
+- Listeners that treated ``on_asset_created`` as reporting the first definition of an asset, or
+  that counted on seeing every transient import error, should not rely on either.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * Replace ``DagFileProcessorManager.persist_parsing_result`` overrides with
+    ``DagFileProcessorManager.persist_parsing_results``, which is handed a group of parse results.
