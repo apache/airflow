@@ -273,12 +273,14 @@ class TestDBDagBagCache:
             pytest.param(10, 0, LRUCache, 10, id="size_only_lru"),
             pytest.param(10, 60, TTLCache, 10, id="size_and_ttl_bounded_ttl"),
             pytest.param(0, 60, TTLCache, math.inf, id="ttl_only_uncapped"),
+            pytest.param(0, 0, dict, None, id="no_eviction"),
         ],
     )
     def test_cache_selection(self, cache_size, cache_ttl, expected_type, expected_maxsize):
         dag_bag = _stub_dag_bag(cache_size=cache_size, cache_ttl=cache_ttl)
         assert isinstance(dag_bag._dags, expected_type)
-        assert dag_bag._dags.maxsize == expected_maxsize
+        if expected_maxsize is not None:
+            assert dag_bag._dags.maxsize == expected_maxsize
 
     @pytest.mark.parametrize(
         ("cache_size", "cache_ttl", "expected_message"),
@@ -304,10 +306,6 @@ class TestDBDagBagCache:
                 cache_ttl=cache_ttl,
                 stats_prefix=STUB_PREFIX,
             )
-
-    def test_rejects_disabled_cache_configuration(self):
-        with pytest.raises(ValueError, match="requires a positive cache_size or cache_ttl"):
-            _stub_dag_bag(cache_size=0, cache_ttl=0)
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""

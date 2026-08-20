@@ -247,18 +247,15 @@ class CachedDBDagBag(DBDagBag):
         Initialize CachedDBDagBag.
 
         :param load_op_links: Should the extra operator link be loaded when de-serializing the DAG?
-        :param cache_size: Maximum cached entries. Zero means no size limit when TTL is enabled.
+        :param cache_size: Maximum cached entries. Zero means no size limit.
         :param cache_ttl: Seconds until a cached entry expires. Zero disables TTL.
         :param stats_prefix: Metric namespace for this component's cache.
-        :raises ValueError: If either cache option is negative, both are zero, or the metrics
-            namespace is empty.
+        :raises ValueError: If either cache option is negative or the metrics namespace is empty.
         """
         if cache_size < 0:
             raise ValueError("cache_size must be greater than or equal to 0")
         if cache_ttl < 0:
             raise ValueError("cache_ttl must be greater than or equal to 0")
-        if cache_size == 0 and cache_ttl == 0:
-            raise ValueError("CachedDBDagBag requires a positive cache_size or cache_ttl")
         if not stats_prefix:
             raise ValueError("CachedDBDagBag requires a stats_prefix")
 
@@ -266,11 +263,11 @@ class CachedDBDagBag(DBDagBag):
 
         if cache_ttl > 0:
             self._dags = TTLCache(maxsize=cache_size or math.inf, ttl=cache_ttl)
-        else:
+        elif cache_size > 0:
             self._dags = LRUCache(maxsize=cache_size)
 
-        # cachetools caches are not thread-safe: LRU reordering and TTL cleanup mutate internal
-        # linked lists even during reads.
+        # Configured caches are shared across component threads. cachetools caches need this for
+        # linked-list mutations, and the unbounded dict needs it for the double-checked load path.
         self._lock = RLock()
         self._stats_prefix = stats_prefix
 

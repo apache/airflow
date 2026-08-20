@@ -25,7 +25,7 @@ from cachetools import LRUCache, TTLCache
 
 from airflow.api_fastapi.app import purge_cached_app
 from airflow.api_fastapi.common.dagbag import create_dag_bag
-from airflow.models.dagbag import CachedDBDagBag, DBDagBag
+from airflow.models.dagbag import CachedDBDagBag
 from airflow.sdk import BaseOperator
 
 from tests_common.test_utils.config import conf_vars
@@ -99,7 +99,7 @@ class TestCreateDagBag:
             pytest.param("64", "3600", CachedDBDagBag, TTLCache, 64, id="default_ttl_cache"),
             pytest.param("0", "3600", CachedDBDagBag, TTLCache, math.inf, id="size_zero_ttl_only"),
             pytest.param("64", "0", CachedDBDagBag, LRUCache, 64, id="ttl_zero_lru_only"),
-            pytest.param("0", "0", DBDagBag, dict, None, id="both_zero_no_eviction"),
+            pytest.param("0", "0", CachedDBDagBag, dict, None, id="both_zero_no_eviction"),
         ],
     )
     def test_create_dag_bag_cache_modes(
