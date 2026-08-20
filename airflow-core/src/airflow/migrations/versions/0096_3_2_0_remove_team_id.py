@@ -36,6 +36,27 @@ depends_on = None
 airflow_version = "3.2.0"
 
 
+def _convert_team_ids_to_names(
+    conn,
+    tables: tuple[str, ...] = ("connection", "variable", "slot_pool", "dag_bundle_team"),
+    team_table: str = "team",
+) -> None:
+    """
+    Rewrite team references from team ids to team names, one team at a time.
+
+    Runs while both the id and the name still exist on the team table. The Python loop
+    keeps the comparison a plain string equality on every backend, matching how the
+    downgrade converts in the opposite direction.
+    """
+    teams = conn.execute(sa.text(f"SELECT id, name FROM {team_table}")).fetchall()
+    for team in teams:
+        for table in tables:
+            conn.execute(
+                sa.text(f"UPDATE {table} SET team_name = :name WHERE team_name = :old_id"),
+                {"name": team.name, "old_id": str(team.id)},
+            )
+
+
 def upgrade():
     # Drop team id references
     for table in ("connection", "variable", "slot_pool"):
@@ -63,6 +84,12 @@ def upgrade():
             type_=sa.String(50),
             nullable=False,
         )
+
+    # Convert the UUID values the renamed columns still hold into team names, while
+    # team.id — the only mapping — still exists. Without this the foreign keys created
+    # below fail validation on any populated deployment, mirroring the name-to-UUID
+    # conversion the downgrade performs in the opposite direction.
+    _convert_team_ids_to_names(op.get_bind())
 
     # Team table
     with op.batch_alter_table("team") as batch_op:
