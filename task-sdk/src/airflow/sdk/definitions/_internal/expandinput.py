@@ -23,8 +23,15 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
 
+try:
+    # Python 3.11+
+    BaseExceptionGroup
+except NameError:
+    from exceptiongroup import BaseExceptionGroup
+
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions.xcom_arg import XComArg
+from airflow.sdk.exceptions import AirflowFailException
 
 if TYPE_CHECKING:
     from typing import TypeGuard
@@ -113,6 +120,10 @@ class ExpandInput(ABC, ResolveMixin):
             raise RuntimeError(f"Length of {type(self).__name__} is not yet known")
         return self._length
 
+    def wrap_exceptions(self, exceptions: list[Exception]) -> BaseException:
+        """Wrap collected sub-task failures into an appropriate exception to raise."""
+        return BaseExceptionGroup("Multiple sub-task failures", exceptions)
+
 
 class DecoratedExpandInput(ExpandInput):
     EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
@@ -165,6 +176,12 @@ class BatchedExpandInput(DecoratedExpandInput):
                 if index % self.size == map_index
             ),
         )
+
+    def wrap_exceptions(self, exceptions: list[Exception]) -> BaseException:
+        # The parent mapped task should never be retried; retries are handled by the
+        # individual indexed runtime tasks. Raise AirflowFailException to mark failure
+        # without retrying the parent TaskInstance.
+        return AirflowFailException(f"Multiple sub-task failures: {exceptions}")
 
 
 @attrs.define(kw_only=True)
