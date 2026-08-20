@@ -381,6 +381,39 @@ func (s *BindingSuite) TestResolveNestedTemporalReportsTheBadElement() {
 	}
 }
 
+func (s *BindingSuite) TestResolveNestedUUIDContainers() {
+	a := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+	b := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	fn := func(ids []uuid.UUID, byName map[string]uuid.UUID) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Value:       []any{a.String(), b.String()},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "uuid"}),
+		},
+		LiteralArg{
+			Value:       map[string]any{"primary": a.String()},
+			ValueSchema: objectSchema(map[string]any{"type": "string", "format": "uuid"}),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal([]uuid.UUID{a, b}, got[0].Interface())
+	s.Equal(map[string]uuid.UUID{"primary": a}, got[1].Interface())
+}
+
+func (s *BindingSuite) TestResolveNestedUUIDRejectsFormatMismatch() {
+	fn := func(ids []uuid.UUID) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Value:       []any{"550e8400-e29b-41d4-a716-446655440000"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "date-time"}),
+		},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "cannot bind")
+	}
+}
+
 func (s *BindingSuite) TestResolveNullableTemporalLiteral() {
 	nullable := anyOfSchema(
 		map[string]any{"type": "string", "format": "date-time"},
@@ -578,6 +611,13 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 				map[string]any{"type": "null"},
 			),
 			reflect.TypeFor[*time.Time](), "",
+		},
+		"anyof-nullable-string-ptr-ok": {
+			anyOfSchema(
+				map[string]any{"type": "string"},
+				map[string]any{"type": "null"},
+			),
+			reflect.TypeFor[*string](), "",
 		},
 		"anyof-nullable-needs-pointer": {
 			anyOfSchema(
@@ -1240,6 +1280,7 @@ func (s *BindingSuite) TestResolveEmptyInterfaceDataParam() {
 	s.Require().NoError(err)
 	s.Equal(map[string]any{"k": "v"}, got[0].Interface())
 }
+
 func (s *BindingSuite) TestParseISO8601DurationRejectsOverflow() {
 	_, err := parseISO8601Duration("P200000D")
 	if s.Assert().Error(err) {

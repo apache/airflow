@@ -938,6 +938,11 @@ func normalizeNative(raw any, target reflect.Type, shape schemaShape) (any, erro
 		return ts.Format(time.RFC3339Nano), nil
 	}
 
+	// Native types handled above or self-decoding (e.g. uuid.UUID via TextUnmarshaler).
+	if _, isNative := nativeFormats[target]; isNative {
+		return raw, nil
+	}
+
 	if !containsNative(target) {
 		return raw, nil
 	}
@@ -1006,9 +1011,15 @@ func normalizeNative(raw any, target reflect.Type, shape schemaShape) (any, erro
 	return raw, nil
 }
 
+var nativeStructFieldsCache sync.Map // reflect.Type → map[string]reflect.Type
+
 func nativeStructFields(structType reflect.Type) map[string]reflect.Type {
+	if v, ok := nativeStructFieldsCache.Load(structType); ok {
+		return v.(map[string]reflect.Type)
+	}
 	fields := make(map[string]reflect.Type)
 	collectNativeFields(structType, fields, map[string]bool{}, map[reflect.Type]bool{})
+	nativeStructFieldsCache.Store(structType, fields)
 	return fields
 }
 
@@ -1076,15 +1087,22 @@ func lookupNativeField(
 	return nil, false
 }
 
+var containsNativeCache sync.Map // reflect.Type → bool
+
 func containsNative(t reflect.Type) bool {
-	return containsNativeSeen(t, map[reflect.Type]bool{})
+	if v, ok := containsNativeCache.Load(t); ok {
+		return v.(bool)
+	}
+	result := containsNativeSeen(t, map[reflect.Type]bool{})
+	containsNativeCache.Store(t, result)
+	return result
 }
 
 func containsNativeSeen(t reflect.Type, seen map[reflect.Type]bool) bool {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	if t == timeType || t == durationType {
+	if t == timeType || t == durationType || t == uuidType {
 		return true
 	}
 	if implementsUnmarshaler(t) {
