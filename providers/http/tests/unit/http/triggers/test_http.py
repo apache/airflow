@@ -193,6 +193,12 @@ class TestHttpTrigger:
 
 
 class TestHttpSensorTrigger:
+    @staticmethod
+    def _mock_run_result(result_to_mock):
+        f = Future()
+        f.set_result(result_to_mock)
+        return f
+
     def test_serialization(self, sensor_trigger):
         """
         Asserts that the HttpSensorTrigger correctly serializes its arguments
@@ -208,7 +214,37 @@ class TestHttpSensorTrigger:
             "data": TEST_DATA,
             "extra_options": TEST_EXTRA_OPTIONS,
             "poke_interval": 5.0,
+            "initial_delay": 0.0,
         }
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_yields_serialized_response_on_success(self, mock_hook, sensor_trigger, client_response):
+        """The event carries the response so the sensor can evaluate response_check on the worker."""
+        mock_hook.return_value.run.return_value = self._mock_run_result(client_response)
+        response = await HttpTrigger._convert_response(client_response)
+
+        generator = sensor_trigger.run()
+        actual = await generator.asend(None)
+        assert actual == TriggerEvent(
+            {"status": "success", "response": HttpResponseSerializer.serialize(response)}
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"))
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_initial_delay_sleeps_before_first_request(self, mock_hook, mock_sleep, client_response):
+        mock_hook.return_value.run.return_value = self._mock_run_result(client_response)
+        trigger = HttpSensorTrigger(
+            http_conn_id=TEST_CONN_ID,
+            endpoint=TEST_ENDPOINT,
+            method=TEST_METHOD,
+            initial_delay=42.0,
+        )
+
+        generator = trigger.run()
+        await generator.asend(None)
+        mock_sleep.assert_awaited_once_with(42.0)
 
 
 class TestHttpEventTrigger:
