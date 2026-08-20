@@ -19,6 +19,7 @@ package execution
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -64,7 +65,104 @@ func TestSocketLogHandlerLevelFiltering(t *testing.T) {
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal([]byte(lines[0]), &entry))
 	assert.Equal(t, "should appear", entry["event"])
-	assert.Equal(t, "warn", entry["level"])
+	assert.Equal(t, "warning", entry["level"])
+}
+
+func TestParseLogLevel(t *testing.T) {
+	tests := map[string]slog.Level{
+		"notset":   notsetLogLevel,
+		"DEBUG":    slog.LevelDebug,
+		" info ":   slog.LevelInfo,
+		"WARN":     slog.LevelWarn,
+		"warning":  slog.LevelWarn,
+		"ERROR":    slog.LevelError,
+		"critical": criticalLogLevel,
+		"FATAL":    criticalLogLevel,
+	}
+	for value, expected := range tests {
+		level, ok := parseLogLevel(value)
+		assert.True(t, ok, value)
+		assert.Equal(t, expected, level, value)
+	}
+
+	_, ok := parseLogLevel("verbose")
+	assert.False(t, ok)
+}
+
+func TestGetAirflowLogLevelName(t *testing.T) {
+	tests := map[slog.Level]string{
+		notsetLogLevel:   "notset",
+		slog.LevelDebug:  "debug",
+		slog.LevelInfo:   "info",
+		slog.LevelWarn:   "warning",
+		slog.LevelError:  "error",
+		criticalLogLevel: "critical",
+	}
+	for level, expected := range tests {
+		name, ok := getAirflowLogLevelName(level)
+		assert.True(t, ok, level)
+		assert.Equal(t, expected, name, level)
+	}
+
+	_, ok := getAirflowLogLevelName(slog.LevelDebug + 1)
+	assert.False(t, ok)
+}
+
+func TestParseNamespaceLogLevels(t *testing.T) {
+	assert.Equal(t, map[string]slog.Level{
+		"example":        slog.LevelWarn,
+		"example.detail": slog.LevelDebug,
+	}, parseNamespaceLogLevels(
+		"example=INFO, malformed example.detail=DEBUG example=WARNING =ERROR empty= unknown=VERBOSE",
+	))
+}
+
+func TestLogLevelFilterUsesLongestNamespacePrefix(t *testing.T) {
+	filter := newLogLevelFilter(slog.LevelError, map[string]slog.Level{
+		"example":        slog.LevelInfo,
+		"example.detail": slog.LevelDebug,
+	})
+
+	assert.Equal(t, slog.LevelDebug, filter.getLevel("example.detail.child"))
+	assert.Equal(t, slog.LevelInfo, filter.getLevel("example.other"))
+	assert.Equal(t, slog.LevelError, filter.getLevel("exampled"))
+	assert.Equal(t, slog.LevelError, filter.getLevel(""))
+}
+
+func TestSocketLogHandlerUsesEnvironmentLevelFiltering(t *testing.T) {
+	t.Setenv(loggingLevelEnv, "ERROR")
+	t.Setenv(namespaceLevelsEnv, "example=DEBUG, example.noisy=WARNING")
+
+	var buf bytes.Buffer
+	logger := slog.New(newSocketLogHandlerFromEnv(&buf))
+	logger.Info("global filtered")
+	logger.With("logger", "example.detail").Debug("namespace debug")
+	logger.With("logger", "example.noisy.child").Info("namespace filtered")
+	logger.With("logger", "example.noisy.child").Warn("namespace warning")
+	logger.With("logger", "unrelated").Warn("unrelated filtered")
+	logger.Log(context.Background(), slog.LevelDebug+1, "unsupported level")
+	logger.Error("global error")
+
+	var events []string
+	for line := range strings.Lines(buf.String()) {
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+		events = append(events, entry["event"].(string))
+	}
+	assert.Equal(t, []string{"namespace debug", "namespace warning", "global error"}, events)
+}
+
+func TestSocketLogHandlerDefaultsInvalidEnvironmentLevelToInfo(t *testing.T) {
+	t.Setenv(loggingLevelEnv, "VERBOSE")
+	t.Setenv(namespaceLevelsEnv, "")
+
+	var buf bytes.Buffer
+	logger := slog.New(newSocketLogHandlerFromEnv(&buf))
+	logger.Debug("filtered")
+	logger.Info("included")
+
+	assert.Contains(t, buf.String(), `"event":"included"`)
+	assert.NotContains(t, buf.String(), "filtered")
 }
 
 func TestSocketLogHandlerBuffering(t *testing.T) {
