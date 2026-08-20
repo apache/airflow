@@ -94,7 +94,8 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.serialization.decoders import decode_deadline_reference
+from airflow.serialization.decoders import decode_deadline_alert
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -247,9 +248,20 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
         return
 
     for deadline, deadline_alert in results:
-        new_deadline_time = decode_deadline_reference(deadline_alert.reference).evaluate_with(
+        decoded_alert = decode_deadline_alert(
+            {
+                DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+                DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+                DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+            }
+        )
+        interval = decoded_alert.interval
+        if not isinstance(interval, timedelta):
+            interval = interval.resolve()
+
+        new_deadline_time = decoded_alert.reference.evaluate_with(
             session=session,
-            interval=timedelta(seconds=deadline_alert.interval),
+            interval=interval,
             dagrun=dagrun,
             dag_id=dagrun.dag_id,
             run_id=dagrun.run_id,
