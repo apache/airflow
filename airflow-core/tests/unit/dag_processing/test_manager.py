@@ -1769,7 +1769,7 @@ class TestDagFileProcessorManager:
             result = manager._build_parse_result(file, processor)
             manager._persist_sweep([result])
 
-        mock_persist.assert_called_once_with([result])
+        mock_persist.assert_called_once_with([result], session=mock.ANY)
         assert result.file is file
         assert result.parsing_result is processor.parsing_result
         assert manager._file_stats[file] is not original_stat
@@ -2099,7 +2099,7 @@ class TestDagFileProcessorManager:
             def handle_parsing_result(self, file, proc, *, session=None):
                 super().handle_parsing_result(file, proc)
 
-            def persist_parsing_results(self, results, *, session=None):
+            def persist_parsing_results(self, results, *, session):
                 seen.extend(str(item.file.rel_path) for item in results)
 
         manager = WrappingApiManager(max_runs=1)
@@ -2162,8 +2162,50 @@ class TestDagFileProcessorManager:
             ["c.py"],
         ], "c.py may not join a.py's group, which would write it before b.py"
 
+    @pytest.mark.parametrize(
+        ("sweep", "expected"),
+        [
+            pytest.param(
+                [("blamer.py", [], {"blamed.py": "boom"}), ("blamed.py", ["blamed_dag"], None)],
+                [["blamer.py"], ["blamed.py"]],
+                id="blamer-then-the-file-it-blamed",
+            ),
+            pytest.param(
+                [("blamed.py", ["blamed_dag"], None), ("blamer.py", [], {"blamed.py": "boom"})],
+                [["blamed.py"], ["blamer.py"]],
+                id="the-file-it-blamed-then-blamer",
+            ),
+            pytest.param(
+                [("broken.py", [], {"broken.py": "boom"}), ("other.py", ["other_dag"], None)],
+                [["broken.py"], ["other.py"]],
+                id="a-file-that-blames-itself",
+            ),
+        ],
+    )
+    def test_a_file_reporting_import_errors_ends_its_run(self, sweep, expected):
+        """
+        Nothing may be written beside a file that failed to parse.
+
+        A write stales the Dags filed under a path last but reads what is already registered
+        first, so a file grouped after a failure would read what the failure had staled. This is
+        also why a group cannot both raise and resolve an error: the two never share one.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+
+        groups = manager._build_persistence_groups(
+            [self._item(name, dag_ids, import_errors=errors) for name, dag_ids, errors in sweep]
+        )
+
+        assert [[str(item.file.rel_path) for item in group] for group in groups] == expected
+
     def test_a_files_own_parse_clears_an_error_another_file_reported_against_it(self):
-        """Merging a sweep must apply what a later file says, including that it is now clean."""
+        """
+        A write applies what a later file in the group says, including that it is now clean.
+
+        The manager never builds this group -- a file reporting import errors ends its run, which
+        ``test_a_file_reporting_import_errors_ends_its_run`` holds it to. This covers the write
+        itself, which is handed whatever a caller passes it.
+        """
         manager = DagFileProcessorManager(max_runs=1)
         blamed = self._item("blamed.py", ["blamed_dag"])
         blamer = FileParseResult(
@@ -2340,7 +2382,7 @@ class TestDagFileProcessorManager:
         seen: list[tuple[str | None, dict | None]] = []
 
         class BatchApiManager(DagFileProcessorManager):
-            def persist_parsing_results(self, results, *, session=None):
+            def persist_parsing_results(self, results, *, session):
                 seen.extend((item.bundle_version, item.version_data) for item in results)
 
         manager = BatchApiManager(max_runs=1)
@@ -4764,7 +4806,7 @@ class TestDagFileProcessorManager:
         seen: list[list[str]] = []
 
         class BatchApiManager(DagFileProcessorManager):
-            def persist_parsing_results(self, results, *, session=None):
+            def persist_parsing_results(self, results, *, session):
                 seen.append([str(item.file.rel_path) for item in results])
 
         manager = BatchApiManager(max_runs=1)
@@ -4775,12 +4817,37 @@ class TestDagFileProcessorManager:
         assert seen == [["file_0.py", "file_1.py"]], "files that can share a group arrive in one call"
         db_write.assert_not_called()
 
+    def test_a_batch_override_is_given_a_session_it_did_not_create(self, tmp_path):
+        """
+        ``@provide_session`` decorates the base write, not a replacement for it.
+
+        A hook called without a session would hand the override whatever its own signature
+        defaulted to, so one written to the documented contract raises and the sweep is thrown
+        away. The assertion is made out here because ``_persist_sweep`` swallows what the hook
+        raises.
+        """
+        seen: list[object] = []
+
+        class BatchApiManager(DagFileProcessorManager):
+            def persist_parsing_results(self, results, *, session):
+                seen.append(session)
+
+        manager = BatchApiManager(max_runs=1)
+        manager._bundle_versions["testing"] = None
+
+        manager._persist_sweep(
+            [self._persisted_result(tmp_path, "one"), self._persisted_result(tmp_path, "two")]
+        )
+
+        assert seen, "the override was never reached; it was handed a signature it could not take"
+        assert all(isinstance(session, Session) for session in seen), seen
+
     def test_a_batch_override_is_called_once_per_group_not_once_per_sweep(self, tmp_path):
         """A sweep spanning bundles cannot be one write, so the seam has to be documented per group."""
         seen: list[list[str]] = []
 
         class BatchApiManager(DagFileProcessorManager):
-            def persist_parsing_results(self, results, *, session=None):
+            def persist_parsing_results(self, results, *, session):
                 seen.append([str(item.file.rel_path) for item in results])
 
         manager = BatchApiManager(max_runs=1)

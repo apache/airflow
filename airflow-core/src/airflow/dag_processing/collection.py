@@ -865,6 +865,10 @@ class AssetModelOperation(NamedTuple):
                 dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
+            # Insertion order here is the order the rows are locked, and a batched write hands
+            # over several files' Dags at once, so two writers can take shared assets in opposite
+            # orders and deadlock. Sorting by a stable key closes it; tracked at
+            # https://github.com/apache/airflow/issues/71911
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
