@@ -38,6 +38,9 @@ start the foreign runtime and *how* to communicate with it, and the language SDK
 implements the other end of whatever protocol the coordinator chooses. There is
 no single mandated communication mechanism.
 
+For a diagram-driven overview of how a task runs across the Python, Coordinator,
+and edge-worker paths, see `Task execution architecture <31_task_execution_architecture.rst>`__.
+
 .. contents:: Table of Contents
    :depth: 2
    :local:
