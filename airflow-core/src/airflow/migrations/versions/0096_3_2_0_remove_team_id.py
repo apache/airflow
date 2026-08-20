@@ -36,6 +36,30 @@ depends_on = None
 airflow_version = "3.2.0"
 
 
+def _convert_team_ids_to_names(
+    conn,
+    tables: tuple[str, ...] = ("connection", "variable", "slot_pool", "dag_bundle_team"),
+    team_table: str = "team",
+) -> None:
+    """
+    Rewrite team references from team ids to team names.
+
+    Runs while both the id and the name still exist on the team table. Correlated updates keep
+    this one code path that also works when Alembic only renders SQL, and mirror how the
+    downgrade converts in the opposite direction. Only references that match a team change.
+    Postgres stores the id as a native uuid, so it is cast to text for the comparison.
+    """
+    team_id = "CAST(id AS VARCHAR(36))" if conn.dialect.name == "postgresql" else "id"
+    for table in tables:
+        conn.execute(
+            sa.text(
+                f"UPDATE {table} SET team_name = "
+                f"(SELECT name FROM {team_table} WHERE {team_id} = {table}.team_name) "
+                f"WHERE team_name IN (SELECT {team_id} FROM {team_table})"
+            )
+        )
+
+
 def upgrade():
     # Drop team id references
     for table in ("connection", "variable", "slot_pool"):
@@ -63,6 +87,12 @@ def upgrade():
             type_=sa.String(50),
             nullable=False,
         )
+
+    # Convert the UUID values the renamed columns still hold into team names, while
+    # team.id — the only mapping — still exists. Without this the foreign keys created
+    # below fail validation on any populated deployment, mirroring the name-to-UUID
+    # conversion the downgrade performs in the opposite direction.
+    _convert_team_ids_to_names(op.get_bind())
 
     # Team table
     with op.batch_alter_table("team") as batch_op:
