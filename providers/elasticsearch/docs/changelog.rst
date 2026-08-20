@@ -27,6 +27,54 @@
 Changelog
 ---------
 
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ElasticsearchRemoteLogIO.from_config and register elasticsearch scheme (#70525)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Do not show @timestamp in logs in UI (#70790)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify Elasticsearch remote-logging scheme needs Airflow 3.3.0+ (#70920)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
+6.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent malformed Elasticsearch log entries from crashing task log fetch (#69306)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Show running task logs in the UI with Elasticsearch remote logging (#69090)``
+* ``ElasticsearchSQLHook: add chunked Polars DataFrame support via custom SQL reader (#68411)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 6.7.0
 .....
 
@@ -419,7 +467,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 
 6.1.0

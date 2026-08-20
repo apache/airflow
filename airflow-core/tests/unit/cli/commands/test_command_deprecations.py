@@ -30,13 +30,39 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.cli.commands import asset_command, dag_command, pool_command, variable_command
+from airflow.cli.commands import (
+    asset_command,
+    backfill_command,
+    config_command,
+    connection_command,
+    dag_command,
+    jobs_command,
+    pool_command,
+    provider_command,
+    task_command,
+    variable_command,
+)
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
 MIGRATED_CLI_COMMANDS = [
+    (backfill_command.create_backfill, "airflowctl backfill create"),
+    (connection_command.connections_list, "airflowctl connections list"),
+    (connection_command.connections_add, "airflowctl connections create"),
+    (connection_command.connections_delete, "airflowctl connections delete"),
+    (connection_command.connections_import, "airflowctl connections import"),
+    (connection_command.connections_test, "airflowctl connections test"),
+    (connection_command.create_default_connections, "airflowctl connections create-defaults"),
     (dag_command.dag_trigger, "airflowctl dags trigger"),
     (dag_command.dag_delete, "airflowctl dags delete"),
+    (dag_command.dag_list_dags, "airflowctl dags list"),
     (dag_command.dag_details, "airflowctl dags get-details"),
+    (dag_command.dag_list_import_errors, "airflowctl dags list-import-errors"),
+    (dag_command.dag_pause, "airflowctl dags pause"),
+    (dag_command.dag_unpause, "airflowctl dags unpause"),
+    (dag_command.dag_list_dag_runs, "airflowctl dagrun list"),
+    (dag_command.dag_list_jobs, "airflowctl jobs list"),
+    (dag_command.dag_state, "airflowctl dags state"),
+    (dag_command.dag_next_execution, "airflowctl dags next-execution"),
     (pool_command.pool_list, "airflowctl pools list"),
     (pool_command.pool_get, "airflowctl pools get"),
     (pool_command.pool_set, "airflowctl pools create"),
@@ -50,7 +76,18 @@ MIGRATED_CLI_COMMANDS = [
     (variable_command.variables_import, "airflowctl variables import"),
     (asset_command.asset_materialize, "airflowctl assets materialize"),
     (asset_command.asset_list, "airflowctl assets list / airflowctl assets list-aliases"),
-    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-by-alias"),
+    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-alias"),
+    (provider_command.provider_get, "airflowctl providers get"),
+    (provider_command.providers_list, "airflowctl providers list"),
+    (config_command.get_value, "airflowctl config get"),
+    (config_command.show_config, "airflowctl config list"),
+    (task_command.task_failed_deps, "airflowctl tasks failed-deps"),
+    (task_command.task_state, "airflowctl tasks state"),
+    (task_command.task_list, "airflowctl tasks list"),
+    (task_command.task_states_for_dag_run, "airflowctl tasks states-for-dag-run"),
+    (task_command.task_clear, "airflowctl tasks clear"),
+    (task_command.task_failed_deps, "airflowctl tasks failed-deps"),
+    (jobs_command.check, "airflowctl jobs check"),
 ]
 
 

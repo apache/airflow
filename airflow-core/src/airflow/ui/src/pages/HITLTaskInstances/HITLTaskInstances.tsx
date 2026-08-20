@@ -37,7 +37,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { IconButton, RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { useAutoRefresh } from "src/utils";
+import { useAutoRefresh, useDocumentTitle } from "src/utils";
 import { getHITLState, isHITLPending } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -222,6 +222,10 @@ export const HITLTaskInstances = ({
 }) => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
+
+  // Only the standalone required-actions page owns the tab title; nested tabs inherit their parent's.
+  useDocumentTitle(enableHITLReviewDrawer ? translate("common:browse.requiredActions") : undefined);
+
   const { closeHITLReviewDrawer, isHITLReviewDrawerOpen, openHITLReviewDrawer, selectedDetail } =
     useHITLReviewDrawer();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -317,11 +321,11 @@ export const HITLTaskInstances = ({
 
   return (
     <VStack align="start">
-      <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
         columns={columns}
         data={data?.hitl_details ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={<HITLFilters onResponseChange={handleResponseChange} />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="hitl:requiredAction"

@@ -31,6 +31,7 @@ import { PartitionScheduleModal } from "./PartitionScheduleModal";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) =>
       options?.count === undefined ? key : `${key}:${options.count}`,
@@ -43,34 +44,29 @@ vi.mock("src/queries/useConfig", () => ({
 
 vi.mock("src/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
-  const DialogPart = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>;
 
   return {
     ...actual,
-    Dialog: {
-      ...actual.Dialog,
-      Body: DialogPart,
-      CloseTrigger: () => undefined,
-      Content: DialogPart,
-      Header: DialogPart,
-      Root: ({
-        children,
-        onOpenChange,
-        open,
-      }: {
-        readonly children?: ReactNode;
-        readonly onOpenChange?: () => void;
-        readonly open?: boolean;
-      }) =>
-        open ? (
-          <div>
-            <button onClick={onOpenChange} type="button">
-              close dialog
-            </button>
-            {children}
-          </div>
-        ) : undefined,
-    },
+    Modal: ({
+      children,
+      onOpenChange,
+      open,
+      title,
+    }: {
+      readonly children?: ReactNode;
+      readonly onOpenChange?: () => void;
+      readonly open?: boolean;
+      readonly title?: ReactNode;
+    }) =>
+      open ? (
+        <div>
+          <button onClick={onOpenChange} type="button">
+            close dialog
+          </button>
+          {title}
+          {children}
+        </div>
+      ) : undefined,
   };
 });
 

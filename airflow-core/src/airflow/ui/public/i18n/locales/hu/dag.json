@@ -106,11 +106,6 @@
     "viewInExternal": "Naplók megtekintése itt: {{name}} (próbálkozás: {{attempt}})",
     "warning": "FIGYELMEZTETÉS"
   },
-  "navigation": {
-    "navigation": "Navigáció: {{arrow}}",
-    "openGraphFilters": "Feladat szűrők: Ctrl+Shift+F",
-    "toggleGroup": "Csoport váltása: Szóköz"
-  },
   "notFound": {
     "back": "Vissza",
     "backToDags": "Vissza a Dag-ekhez",

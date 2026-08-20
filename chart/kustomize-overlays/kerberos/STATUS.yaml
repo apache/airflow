@@ -1,0 +1,47 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The verify: block below is the smoke-test contract consumed by
+# `breeze k8s smoke-test-overlay kerberos`. Run that command locally
+# with --promote-status to refresh chart-version + last-verified
+# automatically after a successful run; CI re-runs the smoke test on
+# every PR but never mutates this file (CI=true refuses
+# --promote-status).
+---
+status: tested
+chart-version: 1.22.0
+last-verified: '2026-05-15'
+verify:
+  timeout_seconds: 300
+  # Resource names are the suffix only - the smoke-test runner
+  # prepends the current release name (default `airflow`) so the
+  # same overlay works under any release. Listed in dependency order
+  # so a partial-apply failure trips on the first missing thing
+  # rather than several steps later via a confusing pod-mount error.
+  resources:
+    - kind: ConfigMap
+      name: krb5-conf
+    - kind: Deployment
+      name: kerberos-kdc
+      ready: true
+    - kind: Service
+      name: kerberos-kdc
+    - kind: Job
+      name: keytab-bootstrap
+      complete: true
+    - kind: Secret
+      name: kerberos-keytab

@@ -21,7 +21,6 @@ from collections.abc import Sequence
 from confluent_kafka import Consumer, KafkaError
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
-from airflow.providers.common.compat.module_loading import import_string
 
 
 class KafkaAuthenticationError(Exception):
@@ -51,10 +50,10 @@ class KafkaConsumerHook(KafkaBaseHook):
 
     def _get_client(self, config) -> Consumer:
         config_shallow = config.copy()
-        if config.get("error_cb") is None:
+        # KafkaBaseHook resolves user-provided callbacks. Set a default if
+        # none was provided for ``error_cb``.
+        if config_shallow.get("error_cb") is None:
             config_shallow["error_cb"] = error_callback
-        else:
-            config_shallow["error_cb"] = import_string(config["error_cb"])
         return Consumer(config_shallow)
 
     def get_consumer(self) -> Consumer:

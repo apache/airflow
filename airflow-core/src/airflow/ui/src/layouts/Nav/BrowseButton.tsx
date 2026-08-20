@@ -63,15 +63,14 @@ export const BrowseButton = ({
   readonly externalViews: Array<NavItemResponse>;
 }) => {
   const { t: translate } = useTranslation("common");
-  const menuItems = links
-    .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
-    .map((link) => (
-      <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>
-        <RouterLink aria-label={translate(`browse.${link.key}`)} to={link.href}>
-          {translate(`browse.${link.key}`)}
-        </RouterLink>
-      </Menu.Item>
-    ));
+  const authorizedLinks = links.filter(({ title }) => authorizedMenuItems.includes(title as MenuItem));
+  const menuItems = authorizedLinks.map((link) => (
+    <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>
+      <RouterLink aria-label={translate(`browse.${link.key}`)} to={link.href}>
+        {translate(`browse.${link.key}`)}
+      </RouterLink>
+    </Menu.Item>
+  ));
 
   if (!menuItems.length && !externalViews.length) {
     return undefined;
@@ -80,7 +79,11 @@ export const BrowseButton = ({
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={FiGlobe} title={translate("nav.browse")} />
+        <NavButton
+          icon={FiGlobe}
+          title={translate("nav.browse")}
+          to={authorizedLinks.map(({ href }) => href)}
+        />
       </Menu.Trigger>
       <Menu.Content>
         {menuItems}

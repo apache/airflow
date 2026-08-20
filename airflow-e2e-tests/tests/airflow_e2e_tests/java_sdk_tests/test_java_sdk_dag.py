@@ -165,6 +165,32 @@ class TestJavaSDKAnnotationExample:
             f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
         )
 
+    def test_numeric_xcom_casting(self):
+        """Numeric XComs are read across declared types (int -> long -> double, and a wire
+        double back as a float), and a boxed param stays null when its XCom is absent."""
+        resp = self.airflow_client.trigger_dag(
+            "java_xcom_casting_example",
+            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+        )
+        run_id = resp["dag_run_id"]
+
+        dag_state = self.airflow_client.wait_for_dag_run(
+            dag_id="java_xcom_casting_example",
+            run_id=run_id,
+            timeout=_JAVA_TASK_TIMEOUT,
+        )
+
+        ti_resp = self.airflow_client.get_task_instances(dag_id="java_xcom_casting_example", run_id=run_id)
+        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+
+        for task_id in ("widen_to_double", "consume_nullable", "consume_float"):
+            assert ti_map.get(task_id, {}).get("state") == "success", (
+                f"Java {task_id!r} task did not succeed.\n"
+                f"  task state : {ti_map.get(task_id, {}).get('state')!r}\n"
+                f"  dag state  : {dag_state!r}\n"
+                f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+            )
+
     def test_load_retried_then_succeeded(self):
         """``load`` fails once (UP_FOR_RETRY) then succeeds on the second attempt.
 

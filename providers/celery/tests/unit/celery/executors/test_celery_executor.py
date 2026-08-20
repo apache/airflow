@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, conf
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
@@ -215,6 +215,64 @@ class TestCeleryExecutor:
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @pytest.mark.backend("mysql", "postgres")
+    @pytest.mark.parametrize(
+        ("team_name", "tags"),
+        [
+            pytest.param(
+                None,
+                {},
+                id="without_team",
+            ),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS,
+                    reason="team_name metrics require Airflow 3.1+",
+                ),
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.celery.executors.celery_executor.Stats")
+    def test_send_workloads_emits_task_timeout_metric(
+        self,
+        mock_stats,
+        team_name,
+        tags,
+    ):
+        with _prepare_app():
+            executor = celery_executor.CeleryExecutor()
+            executor.team_name = team_name
+
+            key = TaskInstanceKey(
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                try_number=1,
+            )
+            timeout = AirflowTaskTimeout()
+            exception = celery_executor_utils.ExceptionWithTraceback(timeout, "traceback")
+
+            executor.workload_publish_max_retries = 3
+            executor.workload_publish_retries[key] = 0
+            executor.queued_tasks[key] = mock.Mock()
+
+            with mock.patch.object(
+                executor,
+                "_send_workloads_to_celery",
+                return_value=[(key, None, exception)],
+            ):
+                executor._send_workloads([mock.Mock()])
+
+            mock_stats.incr.assert_called_once_with(
+                "celery.task_timeout_error",
+                tags=tags,
+            )
+
+            assert executor.workload_publish_retries[key] == 1
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have execute_command anymore")
     @pytest.mark.parametrize(
@@ -666,15 +724,147 @@ def test_celery_executor_with_no_recommended_result_backend(caplog):
         ) in caplog.text
 
 
-@conf_vars({("celery_broker_transport_options", "sentinel_kwargs"): '{"service_name": "mymaster"}'})
-def test_sentinel_kwargs_loaded_from_string():
+_dict_options_test_cases: list[tuple[str, str, dict]] = [
+    (
+        "client-config",
+        '{"connect_timeout": 5}',
+        {
+            "connect_timeout": 5,
+        },
+    ),
+    (
+        "fetch_message_attributes",
+        """
+            {
+                "MessageSystemAttributeNames": ["SenderId", "SentTimestamp"],
+                "MessageAttributeNames": ["S3MessageBodyKey"]
+            }
+        """,
+        {
+            "MessageSystemAttributeNames": ["SenderId", "SentTimestamp"],
+            "MessageAttributeNames": ["S3MessageBodyKey"],
+        },
+    ),
+    (
+        "predefined_exchanges",
+        """
+            {
+                "exchange-1": {
+                    "arn": "arn:aws:sns:us-east-1:xxx:exchange-1",
+                    "access_key_id": "a",
+                    "secret_access_key": "b"
+                },
+                "exchange-2.fifo": {
+                    "arn": "arn:aws:sns:us-east-1:xxx:exchange-2",
+                    "access_key_id": "c",
+                    "secret_access_key": "d"
+                }
+            }
+        """,
+        {
+            "exchange-1": {
+                "arn": "arn:aws:sns:us-east-1:xxx:exchange-1",
+                "access_key_id": "a",
+                "secret_access_key": "b",
+            },
+            "exchange-2.fifo": {
+                "arn": "arn:aws:sns:us-east-1:xxx:exchange-2",
+                "access_key_id": "c",
+                "secret_access_key": "d",
+            },
+        },
+    ),
+    (
+        "predefined_queues",
+        """
+        {
+            "queue-1": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/aaa",
+                "access_key_id": "a",
+                "secret_access_key": "b",
+                "backoff_tasks": ["svc.tasks.tasks.task1"]
+            },
+            "queue-2.fifo": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/bbb.fifo",
+                "access_key_id": "c",
+                "secret_access_key": "d"
+            }
+        }
+        """,
+        {
+            "queue-1": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/aaa",
+                "access_key_id": "a",
+                "secret_access_key": "b",
+                "backoff_tasks": ["svc.tasks.tasks.task1"],
+            },
+            "queue-2.fifo": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/bbb.fifo",
+                "access_key_id": "c",
+                "secret_access_key": "d",
+            },
+        },
+    ),
+    (
+        "queue_tags",
+        """
+        {
+                "Environment": "production",
+                "Team": "backend"
+        }
+        """,
+        {
+            "Environment": "production",
+            "Team": "backend",
+        },
+    ),
+    (
+        "sqs-creation-attributes",
+        """
+        {
+            "KmsMasterKeyId": "alias/aws/sqs"
+        }
+        """,
+        {
+            "KmsMasterKeyId": "alias/aws/sqs",
+        },
+    ),
+    (
+        "kafka_admin_config",
+        '{"sasl.username": "foo", "sasl.password": "bar"}',
+        {"sasl.username": "foo", "sasl.password": "bar"},
+    ),
+    ("kafka_common_config", '{"compression.type": "zstd"}', {"compression.type": "zstd"}),
+    (
+        "kafka_consumer_config",
+        '{"group.id": "myconsumer"}',
+        {"group.id": "myconsumer"},
+    ),
+    (
+        "kafka_producer_config",
+        '{"ssl.certificate.location": "/foo/bar"}',
+        {"ssl.certificate.location": "/foo/bar"},
+    ),
+    ("sentinel_kwargs", '{"service_name": "mymaster"}', {"service_name": "mymaster"}),
+]
+
+
+@pytest.mark.parametrize(
+    (
+        "option",
+        "value",
+        "expected",
+    ),
+    _dict_options_test_cases,
+    ids=[t[0] for t in _dict_options_test_cases],
+)
+def test_dict_options_loaded_from_string(option, value, expected):
     import importlib
 
     # Reload celery conf to apply the new config.
-    importlib.reload(default_celery)
-    assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["sentinel_kwargs"] == {
-        "service_name": "mymaster"
-    }
+    with conf_vars({("celery_broker_transport_options", option): value}):
+        importlib.reload(default_celery)
+        assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"][option] == expected
 
 
 @conf_vars({("celery", "task_acks_late"): "False"})
@@ -787,6 +977,32 @@ def test_result_backend_transport_options_with_multiple_options():
     result_backend_opts = default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]
     assert result_backend_opts["sentinel_kwargs"] == {"password": "redis_password"}
     assert result_backend_opts["master_name"] == "mymaster"
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg(monkeypatch):
+    """A driverless sql_alchemy_conn must derive a psycopg (v3) result_backend, not psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", True)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_falls_back_to_psycopg2_without_psycopg3(monkeypatch):
+    """Without psycopg/SQLAlchemy 2.0 available, the derivation must fall back to psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", False)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg2://user:pass@host/db"
 
 
 @conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): "invalid_json"})

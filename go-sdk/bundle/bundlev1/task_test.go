@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -123,6 +124,138 @@ func (s *TaskSuite) TestArgumentBinding() {
 			logger := slog.New(logging.NewTeeLogger())
 			task.Execute(ctx, logger)
 		})
+	}
+}
+
+// TestClientSubsetInjection checks any subset of sdk.Client is injected, even
+// an unnamed one.
+func (s *TaskSuite) TestClientSubsetInjection() {
+	task, err := NewTaskFunction(func(client interface {
+		GetVariable(ctx context.Context, key string) (string, error)
+	},
+	) error {
+		s.NotNil(client)
+		return nil
+	})
+	s.Require().NoError(err)
+	s.Require().NoError(task.Execute(context.Background(), slog.New(logging.NewTeeLogger())))
+}
+
+func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
+	cases := map[string]struct {
+		fn          any
+		errContains string
+	}{
+		"non-client-method": {
+			func(x interface{ NotAClientMethod() }) error { return nil },
+			"sdk.Client has no method NotAClientMethod",
+		},
+		"wrong-signature": {
+			func(x interface {
+				GetVariable(key string) (string, error)
+			},
+			) error {
+				return nil
+			},
+			"method GetVariable is func(context.Context, string) (string, error) on sdk.Client",
+		},
+		"func-param": {
+			func(cb func()) error { return nil },
+			"cannot receive a task argument",
+		},
+		"context-with-extra-methods": {
+			func(x interface {
+				context.Context
+				TaskInstance() sdk.TaskInstance
+			},
+			) error {
+				return nil
+			},
+			"adds methods on top of context.Context",
+		},
+	}
+
+	for name, tt := range cases {
+		s.Run(name, func() {
+			_, err := NewTaskFunction(tt.fn)
+			if s.Assert().Error(err) {
+				s.Assert().Contains(err.Error(), "parameter 0")
+				s.Assert().Contains(err.Error(), tt.errContains)
+			}
+		})
+	}
+}
+
+func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
+	var gotCountry string
+	var gotMeta map[string]any
+	task, err := NewTaskFunction(func(log *slog.Logger, country string, meta map[string]any) error {
+		gotCountry = country
+		gotMeta = meta
+		return nil
+	})
+	s.Require().NoError(err)
+
+	tw, ok := task.(TaskWithArgs)
+	s.Require().True(ok, "taskFunction must implement TaskWithArgs")
+
+	err = tw.ExecuteArgs(context.Background(), slog.New(logging.NewTeeLogger()), []binding.Arg{
+		binding.LiteralArg{Value: "uk"},
+		binding.LiteralArg{Value: map[string]any{"k": "v"}},
+	})
+	s.Require().NoError(err)
+	s.Equal("uk", gotCountry)
+	s.Equal(map[string]any{"k": "v"}, gotMeta)
+}
+
+func (s *TaskSuite) TestExecuteWithoutArgsZeroFillsDataParameters() {
+	type settings struct {
+		Region    string
+		Threshold float64
+	}
+	var gotCountry string
+	var gotSettings settings
+	called := false
+	task, err := NewTaskFunction(func(country string, input settings) error {
+		gotCountry, gotSettings, called = country, input, true
+		return nil
+	})
+	s.Require().NoError(err)
+
+	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()))
+	s.Require().NoError(err)
+	s.True(called, "the task body must run")
+	s.Empty(gotCountry)
+	s.Equal(settings{}, gotSettings)
+}
+
+func (s *TaskSuite) TestExecuteArgsWithoutSpecFailsForDataParameters() {
+	task, err := NewTaskFunction(func(country string) error { return nil })
+	s.Require().NoError(err)
+
+	err = task.(TaskWithArgs).ExecuteArgs(
+		context.Background(), slog.New(logging.NewTeeLogger()), nil,
+	)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "argument count mismatch")
+	}
+}
+
+func (s *TaskSuite) TestExecuteArgsArityMismatch() {
+	task, err := NewTaskFunction(func(country string) error { return nil })
+	s.Require().NoError(err)
+
+	err = task.(TaskWithArgs).ExecuteArgs(
+		context.Background(),
+		slog.New(logging.NewTeeLogger()),
+		[]binding.Arg{
+			binding.LiteralArg{Value: "uk"},
+			binding.LiteralArg{Value: "de"},
+		},
+	)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "argument count mismatch")
+		s.Contains(err.Error(), "passes 2 positional argument(s)")
 	}
 }
 

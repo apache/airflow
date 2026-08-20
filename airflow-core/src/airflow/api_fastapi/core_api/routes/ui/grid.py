@@ -42,7 +42,11 @@ from airflow.api_fastapi.common.parameters import (
     QueryOffset,
     RangeFilter,
     SortParam,
+    _PrefixSearchParam,
+    _SearchParam,
     datetime_range_filter_factory,
+    prefix_search_param_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import (
@@ -65,10 +69,11 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     task_group_to_dict_grid,
 )
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
+from airflow.utils.helpers import chunks
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -80,14 +85,7 @@ grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
 
 def _get_latest_serdag(dag_id, session):
-    serdag = session.scalar(
-        select(SerializedDagModel)
-        .where(
-            SerializedDagModel.dag_id == dag_id,
-        )
-        .order_by(SerializedDagModel.id.desc())
-        .limit(1)
-    )
+    serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     if not serdag:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -144,6 +142,11 @@ def get_dag_structure(
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
     triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.run_id, "run_id_prefix_pattern")),
+    ],
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     depth: int | None = None,
@@ -177,59 +180,86 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
+        filters=[
+            run_after,
+            run_type,
+            state,
+            triggering_user,
+            triggering_user_prefix,
+            run_id_pattern,
+            run_id_prefix_pattern,
+        ],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
 
     task_group_sort = get_task_group_children_getter()
+    # Built once per render and passed down, intentionally not memoized/LRU-cached: it is a
+    # derived view of a mutable task-group tree, so a cache would go stale with no invalidation
+    # and would pin the whole map for the group's lifetime, fighting the streaming/expunge below.
+    # It is released when the request returns (explicitly del-eted after the latest serdag is
+    # merged on the main path).
+    latest_group_dict = latest_dag.task_group.get_task_group_dict()
     if not run_ids:
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+        nodes = [
+            task_group_to_dict_grid(x, group_dict=latest_group_dict)
+            for x in task_group_sort(latest_dag.task_group, latest_group_dict)
+        ]
         return [GridNodeResponse(**n) for n in nodes]
 
     # Process and merge the latest serdag first
     merged_nodes: list[dict[str, Any]] = []
-    nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+    nodes = [
+        task_group_to_dict_grid(x, group_dict=latest_group_dict)
+        for x in task_group_sort(latest_dag.task_group, latest_group_dict)
+    ]
     _merge_node_dicts(merged_nodes, nodes)
-    del latest_dag
+    del latest_dag, latest_group_dict
 
-    # Process serdags one by one and merge immediately to reduce memory usage.
-    # Use yield_per() for streaming results and expunge each serdag after processing
-    # to allow garbage collection and prevent memory buildup in the session identity map.
-    serdags_query = (
-        select(SerializedDagModel)
-        .where(
-            # Even though dag_id is filtered in base_query,
-            # adding this line here can improve the performance of this endpoint
-            SerializedDagModel.dag_id == dag_id,
-            SerializedDagModel.id != latest_serdag_id,
-            SerializedDagModel.dag_version_id.in_(
-                select(TaskInstance.dag_version_id)
-                .join(TaskInstance.dag_run)
-                .where(
-                    DagRun.id.in_(run_ids),
-                )
-                .distinct()
-            ),
-        )
-        .execution_options(yield_per=5)  # balance between peak memory usage and round trips
-    )
-
-    for serdag in session.scalars(serdags_query):
-        filtered_dag = serdag.dag
-        # Apply the same filtering to historical Dag versions
-        if root:
-            filtered_dag = filtered_dag.partial_subset(
-                task_ids=root,
-                include_upstream=include_upstream,
-                include_downstream=include_downstream,
-                depth=depth,
+    # we get the ids so that we can split serialization into batches and balance round trips and mem usage
+    serdag_id_query = select(SerializedDagModel.id).where(
+        # Even though dag_id is filtered in base_query,
+        # adding this line here can improve the performance of this endpoint
+        SerializedDagModel.dag_id == dag_id,
+        SerializedDagModel.id != latest_serdag_id,
+        SerializedDagModel.dag_version_id.in_(
+            select(TaskInstance.dag_version_id)
+            .join(TaskInstance.dag_run)
+            .where(
+                DagRun.id.in_(run_ids),
             )
-        # Merge immediately instead of collecting all Dags in memory
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
-        _merge_node_dicts(merged_nodes, nodes)
+            .distinct()
+        ),
+    )
+    serdag_ids = list(session.scalars(serdag_id_query))
+    # Release the request session's transaction/connection before the batched work.
+    session.close()
 
-        session.expunge(serdag)  # to allow garbage collection
+    for serdag_id_batch in chunks(serdag_ids, 5):  # balance memory usage and round trips
+        with create_session(scoped=False) as batch_session:
+            serdags = batch_session.scalars(
+                select(SerializedDagModel).where(SerializedDagModel.id.in_(serdag_id_batch))
+            ).all()
+            for serdag in serdags:
+                batch_session.expunge(serdag)  # detach so `.dag` deserializes without the session
+        # Connection is released here; deserialize + merge this batch outside the transaction.
+        for serdag in serdags:
+            filtered_dag = serdag.dag
+            # Apply the same filtering to historical Dag versions
+            if root:
+                filtered_dag = filtered_dag.partial_subset(
+                    task_ids=root,
+                    include_upstream=include_upstream,
+                    include_downstream=include_downstream,
+                    depth=depth,
+                )
+            # Merge immediately instead of collecting all Dags in memory
+            filtered_group_dict = filtered_dag.task_group.get_task_group_dict()
+            nodes = [
+                task_group_to_dict_grid(x, group_dict=filtered_group_dict)
+                for x in task_group_sort(filtered_dag.task_group, filtered_group_dict)
+            ]
+            _merge_node_dicts(merged_nodes, nodes)
 
     return [GridNodeResponse(**n) for n in merged_nodes]
 
@@ -282,6 +312,11 @@ def get_grid_runs(
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
     triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.run_id, "run_id_prefix_pattern")),
+    ],
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous Dag Runs
@@ -291,8 +326,14 @@ def get_grid_runs(
         .correlate(DagRun)
         .label("has_missed_deadline")
     )
+    has_note_subq = (
+        exists()
+        .where(DagRunNote.dag_run_id == DagRun.id, DagRunNote.content.isnot(None))
+        .correlate(DagRun)
+        .label("has_note")
+    )
     base_query = (
-        select(DagRun, has_missed_deadline)
+        select(DagRun, has_missed_deadline, has_note_subq)
         .where(DagRun.dag_id == dag_id)
         .options(
             load_only(
@@ -324,15 +365,23 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
+        filters=[
+            run_after,
+            run_type,
+            state,
+            triggering_user,
+            triggering_user_prefix,
+            run_id_pattern,
+            run_id_prefix_pattern,
+        ],
         limit=limit,
         return_total_entries=False,
     )
-    results = session.execute(dag_runs_select_filter).unique().all()
-    dag_runs = [run for run, _ in results]
+    results = session.execute(dag_runs_select_filter).all()
+    dag_runs = [run for run, _, _ in results]
     attach_dag_versions_to_runs(dag_runs, session=session)
     grid_runs = []
-    for run, has_missed in results:
+    for run, has_missed, has_note in results:
         grid_runs.append(
             GridRunsResponse.model_validate(
                 {
@@ -346,6 +395,7 @@ def get_grid_runs(
                     "run_type": run.run_type,
                     "dag_versions": run.dag_versions,
                     "has_missed_deadline": has_missed,
+                    "has_note": has_note,
                 }
             )
         )
@@ -470,7 +520,7 @@ def get_grid_ti_summaries_stream(
 
         has_note_subq = (
             exists()
-            .where(TaskInstanceNote.ti_id == TaskInstance.id)
+            .where(TaskInstanceNote.ti_id == TaskInstance.id, TaskInstanceNote.content.isnot(None))
             .correlate(TaskInstance)
             .label("has_note")
         )

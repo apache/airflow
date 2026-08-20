@@ -7,9 +7,15 @@
     "backwards": "Run Backwards",
     "dateRange": "Date Range",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
+    "exceptionReason": {
+      "alreadyExists": "Already exists",
+      "inFlight": "In flight",
+      "unknown": "Unknown"
+    },
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
+    "notCreatedReason": "Not Created Reason",
     "overrideExistingParams": "Override parameters on existing runs",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
@@ -29,7 +35,8 @@
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
       "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
-    }
+    },
+    "viewSlots": "View slots for Backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill in progress",
@@ -65,6 +72,7 @@
     "lastDagRun_other": "Last {{count}} Dag Runs",
     "lastTaskInstance_one": "Last Task Instance",
     "lastTaskInstance_other": "Last {{count}} Task Instances",
+    "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Queued Duration",
     "runAfter": "Run After",
     "runDuration": "Run Duration"
@@ -111,7 +119,15 @@
     "file": "File",
     "location": "line {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Hide value",
+    "show": "Show value"
+  },
   "reparseDag": "Reparse Dag",
+  "slowestTaskInstances": {
+    "empty": "No completed task instances in this range",
+    "title": "Slowest task instances"
+  },
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
@@ -136,6 +152,7 @@
     "loading": "Loading Dag information...",
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "manualRunDenied": "Manual runs are not allowed for this Dag",
+    "partitionKeyHelp": "Optional - only applies to partitioned Dags",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",

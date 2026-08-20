@@ -34,7 +34,7 @@ from copy import deepcopy
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from multiprocessing import Pool
+from multiprocessing import get_context
 from pathlib import Path
 from subprocess import DEVNULL
 from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple
@@ -105,6 +105,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_airflowctl_version,
     get_task_sdk_version,
+    get_ts_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -255,7 +256,8 @@ MY_DIR_PATH = os.path.dirname(__file__)
 # always correct regardless of how breeze is launched.
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+PR_REFERENCE_PATTERN = re.compile(r"#([0-9]+)")
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)(?![0-9])")
 # Release-management commits (provider documentation / release preparation) are pure
 # release-process noise: they are not user-facing changes and existing providers already
 # exclude them (the release tooling parks them in the changelog's excluded section). Match
@@ -284,13 +286,13 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.24"
+AIRFLOW_PIP_VERSION = "26.2.1"
+AIRFLOW_UV_VERSION = "0.12.5"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.50"
+GITPYTHON_VERSION = "3.1.59"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.5"
-HATCH_VERSION = "1.17.0"
+PREK_VERSION = "0.4.13"
+HATCH_VERSION = "1.18.0"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -1252,6 +1254,14 @@ def _build_provider_distributions(
     help="Skip checking if the tag already exists in the remote repository",
 )
 @click.option(
+    "--skip-git-fetch",
+    default=False,
+    is_flag=True,
+    help="Skip recreating and fetching the 'apache-https-for-providers' remote, and check tags against "
+    "the state already in the local repository. Useful when building several batches in a row - the "
+    "fetch pulls the full history and all tags, which is slow and flaky on an unreliable network.",
+)
+@click.option(
     "--skip-deleting-generated-files",
     default=False,
     is_flag=True,
@@ -1289,6 +1299,7 @@ def prepare_provider_distributions(
     distributions_list_file: IO | None,
     provider_distributions: tuple[str, ...],
     skip_deleting_generated_files: bool,
+    skip_git_fetch: bool,
     skip_tag_check: bool,
     version_suffix: str,
 ):
@@ -1323,7 +1334,7 @@ def prepare_provider_distributions(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    if not skip_tag_check and not is_local_package_version(version_suffix):
+    if not skip_tag_check and not is_local_package_version(version_suffix) and not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
@@ -1547,6 +1558,7 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
+@option_allow_pre_releases
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1554,6 +1566,7 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1598,6 +1611,7 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
+                allow_pre_releases=allow_pre_releases,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1616,6 +1630,7 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
+            allow_pre_releases=allow_pre_releases,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
@@ -2032,10 +2047,14 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name == "task-sdk":
         return get_task_sdk_version()
 
+    if package_name == "ts-sdk":
+        return get_ts_sdk_version()
+
     if package_name == "helm-chart":
         return chart_version()
 
-    if package_name in ("docker-stack", "apache-airflow-providers"):
+    if package_name in ("docker-stack", "apache-airflow-providers", "java-sdk"):
+        # Non-versioned packages; java-sdk is versioned but only via a staged stable.txt.
         return None
 
     if package_name.startswith("apache-airflow-providers-"):
@@ -2610,8 +2629,8 @@ def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str 
 
 
 def get_prs_for_package(provider_id: str, current_release_version: str | None = None) -> list[int]:
-    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    prs = []
+    prs: list[int] = []
+    seen_prs: set[int] = set()
     if current_release_version is None:
         provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
         if not provider_yaml_dict:
@@ -2635,9 +2654,12 @@ def get_prs_for_package(provider_id: str, current_release_version: str | None = 
             if line.startswith(".. Below changes are excluded from the changelog"):
                 # The reminder of PRs is not important skipping it
                 break
-            match_result = pr_matcher.match(line.strip())
-            if match_result:
-                prs.append(int(match_result.group(1)))
+            if line.lstrip().startswith("*"):
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    pr_number = int(pr_match)
+                    if pr_number not in seen_prs:
+                        seen_prs.add(pr_number)
+                        prs.append(pr_number)
     return prs
 
 
@@ -2731,7 +2753,6 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
     Returns list of PRs that are commented out in the changelog.
     :return: list of PR numbers that appear only in comments in changelog.rst files in "providers" dir
     """
-    pr_matcher = re.compile(r".*\(#([0-9]+)\).*")
     commented_prs = set()
 
     # Get all provider distributions
@@ -2769,9 +2790,8 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
 
             # Extract PRs from excluded sections
             if in_excluded_section and line.strip().startswith("*"):
-                match_result = pr_matcher.search(line)
-                if match_result:
-                    commented_prs.add(int(match_result.group(1)))
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    commented_prs.add(int(pr_match))
 
     return sorted(commented_prs)
 
@@ -3610,7 +3630,10 @@ def generate_providers_metadata(
     )
 
     console_print("\n[info]Checking provider.yaml versions[1:] against PyPI for stale entries...[/]\n")
-    with Pool() as pypi_pool:
+    # "spawn" (not the platform-default fork): the parent has already used GitPython and
+    # opened network sockets before reaching here, and forking that state into workers
+    # deadlocks. See get_all_constraint_files_and_airflow_releases for the same reasoning.
+    with get_context("spawn").Pool() as pypi_pool:
         pruned_per_provider = pypi_pool.map(prune_unreleased_versions_from_provider_yaml, package_ids)
     total_pruned = 0
     for pid, pruned in zip(package_ids, pruned_per_provider):
@@ -3635,7 +3658,7 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    with Pool() as pool:
+    with get_context("spawn").Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
             package_ids,
@@ -3961,7 +3984,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.23.0"
+OPENAPI_GENERATOR_CLI_VER = "7.24.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",

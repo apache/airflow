@@ -30,15 +30,15 @@ val mockkVersion: String by project
 // runtime when it's unnecessary.
 @Suppress("GradleDependencyAddedMultipleTimes")
 dependencies {
-    annotationProcessor("org.apache.logging.log4j:log4j-core:2.26.0")
-    api("org.apache.logging.log4j:log4j-api:2.26.0")
-    compileOnly("org.apache.logging.log4j:log4j-core:2.26.0")
+    annotationProcessor("org.apache.logging.log4j:log4j-core:2.26.1")
+    api("org.apache.logging.log4j:log4j-api:2.26.1")
+    compileOnly("org.apache.logging.log4j:log4j-core:2.26.1")
     implementation(project(":sdk"))
 
     testImplementation(kotlin("test"))
     testImplementation("io.mockk:mockk:$mockkVersion")
     testImplementation("io.mockk:mockk-agent:$mockkVersion")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.26.0")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.26.1")
 }
 
 java {

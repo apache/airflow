@@ -25,7 +25,7 @@ import zipfile
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from rich.markup import escape
 
@@ -253,7 +253,9 @@ def get_active_airflow_versions(
     repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
-        ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
+        # `git.ls_remote` is typed as returning the full union of git-command return shapes;
+        # with plain args it is always the command output.
+        ref_tags = cast("str", repo.git.ls_remote("--tags", remote_name)).splitlines()
     except GitCommandError as ex:
         console_print(
             f"[error]Could not fetch tags from `{remote_name}` remote! Make sure to have it configured.\n"

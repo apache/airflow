@@ -192,6 +192,31 @@ code is never executed in the context of the *scheduler*.
     bundle version when dispatching each task. If needed, the cadence of sync and scan
     of the *Dag bundle* can be configured.
 
+.. _overview-task-execution-architecture:
+
+Task execution architecture
+----------------------------
+
+The diagrams above show how Airflow's components are *deployed*.
+This section covers what you should expect to be running on a *worker* while tasks execute, so you can size workers for the memory and start-up cost that each concurrent task instance adds.
+
+A *worker* never runs task code in its own process.
+For every task instance it starts a **new subprocess**, supervises it, and tears it down once the task instance finishes.
+That is true whatever language the task is written in — only the kind of subprocess differs:
+
+* **Python** — a forked Python interpreter.
+* **Java** — a brand-new JVM instance.
+* **Go** — a brand-new process of the compiled task binary.
+
+.. image:: ../img/diagram_task_execution_architecture.png
+
+Nothing is pooled or reused between task instances, so *N* concurrent task instances cost *N* subprocesses plus anything the task code itself spawns.
+Sizing a worker therefore means budgeting for the peak number of task instances it runs at once, not for the worker process alone.
+
+The worker process is also the only side that holds the task's short-lived credentials and talks to the *Execution API*, so the subprocess running the task code never reaches the metadata database directly, in any language.
+
+For how the worker drives each runtime internally — the wire protocol and sequence diagrams — see the `task execution architecture developer guide <https://github.com/apache/airflow/blob/main/contributing-docs/31_task_execution_architecture.rst>`_.
+
 .. _overview:workloads:
 
 Workloads

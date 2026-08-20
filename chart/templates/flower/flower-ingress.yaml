@@ -22,6 +22,9 @@
 #########################
 {{- if .Values.flower.enabled }}
 {{- if and .Values.ingress.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
+{{- if .Values.flower.httpRoute.enabled }}
+{{- fail "`ingress.flower.enabled` and `flower.httpRoute.enabled` are both set to `true`. The Flower Ingress is an alternative to HTTPRoute (Gateway API); enable only one of them." }}
+{{- end }}
 {{- $fullname := include "airflow.fullname" . }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress

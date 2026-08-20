@@ -23,6 +23,7 @@
 - [Intro](#intro)
   - [What the provider distributions are](#what-the-provider-distributions-are)
   - [Decide when to release](#decide-when-to-release)
+  - [Delegating release duties to a non-PMC committer](#delegating-release-duties-to-a-non-pmc-committer)
 - [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Special procedures (done very infrequently)](#special-procedures-done-very-infrequently)
   - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
@@ -86,6 +87,47 @@ You can release Provider distributions separately from the main Airflow on an ad
 a given provider needs to be released due to new features or due to bug fixes.  You can release each provider
 package separately, but due to voting and release overhead we try to group releases of Provider
 distributions together.
+
+## Delegating release duties to a non-PMC committer
+
+Per the [ASF release policy](http://www.apache.org/legal/release-policy.html), the Release Manager
+does not need to be a PMC member, and there is no requirement that only a PMC member may call a
+release vote. The policy's own wording: *"If the Release Manager is not a member of the PMC, they
+will need to ask a PMC member to do the actual release publication"* — i.e. the one hard boundary
+is write access to the `dist/release` SVN area and the binding vote itself; everything else can be
+run by any committer.
+
+This means a non-PMC committer (the **Delegate** below) can run most of the provider release
+process end to end, with a PMC member only stepping in for the parts ASF policy reserves to the
+PMC. Split of duties:
+
+| Step | Owner | Notes |
+|---|---|---|
+| [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions) | Delegate | Normal PR review/merge process, no PMC involvement needed. |
+| [Build](#build-provider-distributions-for-svn-apache-upload) + [sign](#build-and-sign-the-source-and-convenience-packages) + [commit to `dist/dev`](#commit-the-source-packages-to-apache-svn-repo) + [publish RC to PyPI](#publish-the-regular-distributions-to-pypi-release-candidates) | PMC | Kept as **one contiguous PMC block**: per [ASF release policy](https://www.apache.org/legal/release-policy.html#owned-controlled-hardware), a PMC member signing a release should build it themselves from source rather than sign artifacts someone else built, so they know what they're actually signing. The PMC member builds, signs with their own key (already in the project's `KEYS` file), commits packages + signatures to `dist/dev`, and uploads the RC to the `apache-airflow-providers-*` PyPI namespace under the PMC's trusted publishing identity. The PMC then hands `files/packages.txt` (the PyPI URLs) back to the Delegate for the vote email. |
+| [Push the RC tags](#push-the-rc-tags) | Delegate | Plain git tag push, no elevated access needed. |
+| [Prepare documentation in Staging](#prepare-documentation-in-staging) | Delegate | |
+| [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing) | Delegate | Delegate also tracks the issue, the vote thread, and related PRs throughout the release. |
+| [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate) | Delegate | Delegate may send the `[VOTE]` email, but must **not** claim a personal binding `+1` (see note in that section) — only PMC votes are binding. |
+| Casting the deciding vote(s) | PMC | At least 3 binding `+1` votes from PMC members are required for the release to pass; this cannot be delegated. |
+| [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release) (`[RESULT][VOTE]`) | Delegate | Only after at least 3 binding PMC `+1` votes are already visible in the thread — the Delegate is reporting a result the PMC already reached, not deciding it. |
+| [Publish release to SVN](#publish-release-to-svn) (`dist/release`) | PMC | Per [ASF Infra policy](https://infra.apache.org/release-publishing), `dist/release` write access is PMC-only by default (a project can request Infra to open it to all committers, but Airflow has not done so). |
+| [Publish the packages to PyPI](#publish-the-packages-to-pypi) (final) | PMC | |
+| [Add the final release tag in git](#add-the-final-release-tag-in-git) | Either | Not privileged; whoever is running that phase of the process does it. |
+| [Publish documentation](#publish-documentation) (live) | Delegate | |
+| [Update providers metadata](#update-providers-metadata) | Delegate | |
+| [Notify developers of release](#notify-developers-of-release), security announcements, social media, committee report | PMC | Official project communications made under the PMC's authority. |
+| [Close the testing status issue](#close-the-testing-status-issue) | Delegate | |
+
+The PMC continues to oversee the overall process regardless of how many steps are delegated, and
+remains the party accountable for the release under ASF policy.
+
+> [!NOTE]
+> Delegation is also a runway toward PMC membership. The first time a committer takes on the
+> Delegate role, the overseeing PMC member is encouraged to walk them through the reserved block
+> live — sharing their screen (or pairing) through the build → sign → `dist/dev` → PyPI-RC steps so the
+> Delegate sees exactly how it is done. The aim is simply that these steps are familiar rather than
+> a surprise if and when the Delegate later becomes a PMC member and runs them for real.
 
 # Collect ambiguities during the release (for a follow-up doc PR)
 
@@ -457,6 +499,14 @@ breeze release-management prepare-provider-documentation --include-removed-provi
 
 ## Build Provider distributions for SVN apache upload
 
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this build step
+> begins the **PMC block**, together with signing, the `dist/dev` commit, and the PyPI RC upload.
+> Per [ASF release policy](https://www.apache.org/legal/release-policy.html#owned-controlled-hardware),
+> a PMC member should build the release themselves before signing it, rather than sign artifacts
+> built by someone else — otherwise they don't actually know what they're signing. So the PMC member
+> who signs also runs the build below, instead of the Delegate handing over pre-built artifacts.
+
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
 should keep the final version number without the rc suffix, even if they are rc1/rc2/... candidates.
 
@@ -513,6 +563,13 @@ key you want to use.
 
 ## Build and sign the source and convenience packages
 
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this step
+> continues the **PMC block** started at [Build Provider distributions](#build-provider-distributions-for-svn-apache-upload)
+> — the same PMC member builds and signs with their own key (already in the project's `KEYS`
+> file), then stays on through the `dist/dev` commit and the PyPI RC upload without handing control
+> back.
+
 * Cleanup dist folder:
 
 ```shell script
@@ -533,12 +590,21 @@ Set tags for the providers in the repo.
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
 git push upstream providers/${RELEASE_DATE}
-breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
 The `prepare-*-distributions` commands should produce the reproducible `.whl`, `.tar.gz` packages in the dist folder.
 The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
+
+> [!IMPORTANT]
+> `--version-suffix ""` is passed deliberately, and the empty value is the point: the packages
+> committed to SVN carry the **final** version in their filename (`...-6.0.1-py3-none-any.whl`), with
+> no `rcN`. That is what lets a passing vote promote them with a plain `svn mv` instead of a rebuild.
+> The [PyPI upload below](#publish-the-regular-distributions-to-pypi-release-candidates) is the
+> opposite case - it builds a *separate* set of packages from the same sources with
+> `--version-suffix rcN`, so those filenames do carry the candidate number. Mixing the two up
+> produces an SVN wave that cannot be promoted.
 
 if you only build few packages, run:
 
@@ -546,7 +612,7 @@ if you only build few packages, run:
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
 git push upstream providers/${RELEASE_DATE}
-breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix "" PACKAGE PACKAGE ....
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 
 ```
@@ -567,6 +633,13 @@ If you see ``Library not loaded error`` it means that you are missing `libassuan
 check above steps to install them.
 
 ## Commit the source packages to Apache SVN repo
+
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this is the middle
+> of the **PMC block** — the same PMC member who signed commits the packages and signatures here and
+> continues to the PyPI RC upload. (`dist/dev` is committer-writable per [ASF Infra
+> policy](https://infra.apache.org/release-publishing), so a Delegate *could* do this step, but it is
+> kept with the PMC to avoid bouncing control mid-way.)
 
 * Push the artifacts to ASF dev dist repo
 
@@ -592,20 +665,6 @@ svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 cd "$AIRFLOW_REPO_ROOT"
 ```
 
-* Before sending the vote email, gate on the same completeness check the PMC verifiers run, so a
-  missing artifact (e.g. the `-source.tar.gz` tarball) fails here instead of in the vote thread.
-  Put the package list from the upcoming vote email into `dev/packages.txt`, then run:
-
-```shell script
-cd "$AIRFLOW_REPO_ROOT"
-breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" \
-  --packages-file ./dev/packages.txt \
-  --path-to-airflow-svn "$(cd ../asf-dist/dev/airflow && pwd -P)"
-```
-
-  It exits non-zero and lists every missing file (including `.asc`/`.sha512` variants) if anything is
-  absent. Only proceed to the vote once it prints `All expected files are present!`.
-
 Verify that the files are available in the ${RELEASE_DATE} folder under
 [providers](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
@@ -621,6 +680,14 @@ cd "$AIRFLOW_REPO_ROOT"
 ```
 
 ## Publish the Regular distributions to PyPI (release candidates)
+
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this is the end of
+> the **PMC block** (build → sign → `dist/dev` → PyPI RC) — all uploads to the `apache-airflow-providers-*`
+> PyPI namespace, RC and final alike, go through the PMC's trusted publishing identity. When done,
+> the PMC member hands the generated `files/packages.txt` (the PyPI URLs) back to the Delegate, who
+> needs it for the vote email's completeness gate and body, and the Delegate resumes at [Push the RC
+> tags](#push-the-rc-tags).
 
 In order to publish release candidate to PyPI you just need to build and release packages.
 The packages should however contain the rcN suffix in the version file name but not internally in the package,
@@ -692,23 +759,57 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.
 
-* Upload the package to PyPI:
+* Upload the packages to PyPI. Only the provider wheels and sdists are uploaded — the ASF
+  `-source.tar.gz` tarball and the `.asc`/`.sha512` files are SVN-only and must not go to PyPI.
+  The output is teed to a log and the PyPI URLs twine prints are extracted (sorted, de-duplicated)
+  into `files/packages.txt`. That file is what you paste into the vote email, and what the
+  completeness gate ("Prepare voting email" section below) and the PMC verifiers consume. Both files
+  land in `files/` (git-ignored), so they are never accidentally committed:
 
 ```shell script
-twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
+mkdir -p "${AIRFLOW_REPO_ROOT}/files"
+# COLUMNS=200 stops rich (twine's printer) from wrapping long URLs when stdout is a pipe.
+COLUMNS=200 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl \
+  $(ls ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz | grep -v -- '-source.tar.gz') 2>&1 \
+  | tee "${AIRFLOW_REPO_ROOT}/files/twine-upload.log"
+# Only trust packages.txt if the upload above succeeded (PIPESTATUS[0] == 0):
+grep -oE 'https://pypi\.org/project/[^[:space:]]+' "${AIRFLOW_REPO_ROOT}/files/twine-upload.log" \
+  | sort -u > "${AIRFLOW_REPO_ROOT}/files/packages.txt"
 ```
 
-* Confirm that the packages are available under the links printed and look good.
-
-* Save these links for later, you'll need to paste them in the email you'll send to dev@airflow.apache.org
+* Confirm that the packages are available under the links printed and look good. The same links are
+  now saved, sorted, in `files/packages.txt` — you'll paste them into the vote email you send to
+  dev@airflow.apache.org.
 
 
 ## Push the RC tags
 
 Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
 
+> [!IMPORTANT]
+> `tag-providers` tags whatever `HEAD` currently points at — it does not derive the commit from
+> `--release-date`. **Always check out the wave tag `providers/${RELEASE_DATE}` first**, so the
+> per-provider tags land on the exact commit the artifacts were built from. Anything that moved
+> `HEAD` between the build and this step — a `git pull`, a branch switch, a rebase, or concurrent
+> work by another terminal or agent sharing the same checkout — is otherwise tagged silently and
+> without any error. This has gone wrong in a real wave: all 44 tags were pushed at an unrelated
+> commit and had to be force-recreated afterwards. For the same reason, prefer running release
+> steps from a dedicated worktree rather than a checkout you are also working in.
+
 ```shell script
+git checkout providers/${RELEASE_DATE}
+# Both SHAs printed here must be identical before you tag
+git rev-parse HEAD "providers/${RELEASE_DATE}^{commit}"
 breeze release-management tag-providers --release-date ${RELEASE_DATE}
+```
+
+You will see `You are in 'detached HEAD' state.` — that is expected, the wave tag is behind `main`.
+
+Verify the pushed tags point where you think they do. Plain `git ls-remote` prints the *tag object*
+SHA for annotated tags, which never matches the commit and looks alarming; dereference it with `^{}`:
+
+```shell script
+git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
 ## Prepare documentation in Staging
@@ -755,71 +856,39 @@ not be needed unless there is some problem with workflow automation above)
 
 ## Prepare issue in GitHub to keep status of testing
 
-Create a GitHub issue with the content generated via manual execution of the command below. You will use
-link to that issue in the next step.
+To avoid GitHub's URL length limitations when creating massive issues, and to allow local modifications (such as carrying over completed checkmarks from previous waves), the recommended workflow is to **first generate the issue body locally into a file**, edit/update it as needed, and then publish it using the GitHub CLI.
+
+### 1. Generate the issue content locally to `files/provider_issue.md`
+
+Run the following command to fetch all relevant PRs and write the issue body to a local file:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management generate-issue-content-providers --only-available-in-dist
-```
-
-By default the command will attempt to retrieve the GitHub token used to authenticate with GH and tackle
-rate limiting from locally run `gh auth token` command output - but if you do not have `gh` installed,
-you can generate such token in GitHub Interface and pass it to the command manually. When you use
-`breeze release-management generate-issue-content-providers --help` - you will see the link that you
-will be able to click to generate such token.
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN
-```
-
-Sometimes, when there are big PRs implemented across many providers, you want to filter them out
-from the issue content. When there are many of the same PRs/issues they create a noise in the issue
-and not add value, usually those PRs and issues are about package preparation mechanism so they
-are tested well outside regular package testing.
-
-The command will exclude automatically PRs that are commented out, but sometimes there
-are issues you want to exclude additionally.
-
-You can optionally pass list of such PR to be excluded from  the issue with `--excluded-pr-list`.
-This might limit the scope of verification. Some providers might disappear
-from the list and list of authors that will be pinged in the generated issue.
-
-You can repeat that and regenerate the issue content until you are happy with the generated issue
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN \
-    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
-```
-
-The command always writes the full, untruncated issue body to a file (a temporary file by
-default, or the path you pass with `--output-file`) and prints that path together with a ready
-to run `gh issue create --body-file ...` command. This file is the source of truth for the issue
-content - it is safe to edit it before the issue is created. There is a comment generated with
-NOTE TO RELEASE MANAGER about this in the issue content.
-
-By default, the command will ask whether to create the issue. You can answer Yes and it will
-create the issue with the `gh` tool using `--body-file` (so there is no longer any "URL too long"
-limitation - the previous `--web` based flow encoded the whole body into the URL and failed on
-large provider waves). If you prefer to create it yourself (or want to preview it first), answer
-No and run the printed `gh issue create --body-file ...` command, or copy the file content into a
-"New Issue" screen in GitHub.
-
-For non-interactive / agentic runs you can skip the prompt by passing `--answer yes` (create the
-issue) or `--answer no` (only generate the file). For example, to generate the body without
-creating the issue:
-
-```shell script
 breeze release-management generate-issue-content-providers --only-available-in-dist \
     --output-file files/provider_issue.md --answer no
 ```
 
-### Always carry over checkmarks from the previous wave's testing issue
+By default, the command attempts to retrieve the GitHub token used to authenticate with `gh`. If you ran into GitHub rate limits, or do not have `gh` installed globally, you can generate a token in the GitHub web interface and pass it manually:
+
+```shell script
+breeze release-management generate-issue-content-providers --only-available-in-dist \
+    --output-file files/provider_issue.md --answer no --github-token TOKEN
+```
+
+#### Filtering out noisy PRs (Optional)
+
+Sometimes, large PRs that took place across many providers (like preparation mechanisms or boilerplate changes) create redundant noise. You can specify a comma-separated list of PRs to exclude:
+
+```shell script
+breeze release-management generate-issue-content-providers --only-available-in-dist \
+    --output-file files/provider_issue.md --answer no --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
+
+This local file (`files/provider_issue.md`) is now your working source of truth. You can preview or edit it directly before posting.
+
+### 2. Always carry over checkmarks from the previous wave's testing issue
 
 Whenever a provider in this wave is a **re-cut** of one that already appeared in
 an earlier wave's testing issue — providers held back from the previous wave and
@@ -829,22 +898,30 @@ ticked in the new one. Testers should not be asked to re-verify unchanged code;
 only the genuinely new commits in the re-cut are left unchecked. **Do this every
 time** before creating the issue.
 
+> [!IMPORTANT]
+> **Prerequisite**: You must have generated the local `files/provider_issue.md` file using the command in Step 1 before running the `sed` commands below.
+
 Extract the checked PRs from the previous issue and carry them over to the
-generated body:
+generated body. Note that the `sed` command behaves differently on macOS and GNU/Linux:
 
 ```shell script
 # PREV_ISSUE = the previous wave's testing-status issue number
 gh issue view PREV_ISSUE --repo apache/airflow --json body -q .body > /tmp/prev_issue.md
 checked=$(grep -E '^\s*- \[x\]' /tmp/prev_issue.md | grep -oE '#[0-9]+' | tr -d '#' | sort -u | paste -sd '|' -)
-# macOS sed: `sed -i ''`; GNU/Linux sed: `sed -i`
+
+# On macOS:
 sed -i '' -E "s/- \[ \] (.*\(#(${checked})\))/- [x] \1/" files/provider_issue.md
+
+# On GNU/Linux:
+sed -i -E "s/- \[ \] (.*\(#(${checked})\))/- [x] \1/" files/provider_issue.md
 ```
 
-Review the resulting `[x]` lines (PRs only present in the new wave stay
-unchecked), then create the issue as below. If the issue was already created,
-apply the same edit to the file and run `gh issue edit <ISSUE> --body-file ...`.
+Review the resulting `[x]` lines in `files/provider_issue.md` (PRs only present in the new wave stay
+unchecked). If the issue was already created, apply the same local edit and then edit the online issue as described in Step 3.
 
-then create it from the file:
+### 3. Create the issue on GitHub
+
+Once you are satisfied with `files/provider_issue.md` (and any checkmarks have been carried over), create the issue from the file:
 
 ```shell script
 gh issue create --repo apache/airflow \
@@ -852,12 +929,40 @@ gh issue create --repo apache/airflow \
     --body-file files/provider_issue.md --label "testing status,kind:meta"
 ```
 
+If the issue has already been created on GitHub and you only need to update its description with the carried-over checkmarks:
+
+```shell script
+gh issue edit <ISSUE_NUMBER> --repo apache/airflow --body-file files/provider_issue.md
+```
+
 ## Prepare voting email for Providers release candidate
 
 Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/providers/
 
+* Before sending the vote email, gate on the same completeness check the PMC verifiers run, so a
+  missing artifact (e.g. the `-source.tar.gz` tarball) fails here instead of in the vote thread.
+  `files/packages.txt` was already generated by the PyPI upload step ("Publish the Regular
+  distributions to PyPI" above); run the check against it:
+
+```shell script
+cd "$AIRFLOW_REPO_ROOT"
+breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" \
+  --packages-file ./files/packages.txt \
+  --path-to-airflow-svn "$(cd ../asf-dist/dev/airflow && pwd -P)"
+```
+
+  It exits non-zero and lists every missing file (including `.asc`/`.sha512` variants) if anything is
+  absent. Only proceed to the vote once it prints `All expected files are present!`.
+
 Send out a vote to the dev@airflow.apache.org mailing list. Here you can prepare text of the
 email.
+
+> [!NOTE]
+> If you are a non-PMC Delegate running this step under the [delegated
+> process](#delegating-release-duties-to-a-non-pmc-committer), set `IS_RM_VOTE_BINDING=false` below
+> — your vote is not binding under ASF policy. Ask a PMC member to reply to the vote thread with
+> their own explicit `+1 (binding)` as soon as they've verified the release; the vote is not valid
+> until at least 3 such binding replies are posted, regardless of who sent the `[VOTE]` email.
 
 ```shell script
 export VOTE_DURATION_IN_HOURS=72
@@ -870,6 +975,10 @@ else  # Linux
 fi
 export RELEASE_MANAGER_NAME="TODO:RELEASE_MANAGER_NAME"
 export GITHUB_ISSUE_LINK="TODO:ISSUE_LINK"
+# true if the PMC itself is running the vote, false for a non-PMC Delegate (see note above)
+export IS_RM_VOTE_BINDING=true
+export RM_VOTE_BINDING_TEXT=$([ "$IS_RM_VOTE_BINDING" = "true" ] && echo "binding" || echo "non-binding")
+export NON_PMC_RM_TEXT=$([ "$IS_RM_VOTE_BINDING" = "true" ] && echo "" || echo "I am a non-PMC committer running this release under Airflow's delegated release process; a PMC member will cast the binding votes needed to pass it.")
 ```
 
 subject:
@@ -888,7 +997,8 @@ I have just cut the new wave Airflow Providers packages with release preparation
 which will last for $VOTE_DURATION_IN_HOURS hours - which means that it will end on $VOTE_END_TIME UTC and until 3 binding +1 votes have been received.
 $([ "$IS_SHORTEN_VOTE" = "true" ] && echo "${SHORTEN_VOTE_TEXT}" || echo "")
 
-Consider this my (binding) +1.
+Consider this my ($RM_VOTE_BINDING_TEXT) +1.
+$([ -n "$NON_PMC_RM_TEXT" ] && echo "$NON_PMC_RM_TEXT" || echo "")
 
 <ADD ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
 
@@ -999,18 +1109,21 @@ cd asf-dist/dev/airflow
 export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
 
-Optionally you can use the `breeze release-management check-release-files` command
-to verify that all expected files are present in SVN. This command will produce a `Dockerfile.pmc` which
-may help with verifying installation of the packages.
+Verify that all expected files are present in SVN. You can do this manually by inspecting the
+directory listing against the file counts described above, but the recommended way is to run the
+`breeze release-management check-release-files` command below, which checks completeness for you
+(it is the same gate the release manager runs before sending the vote email). As a bonus it produces
+a `Dockerfile.pmc` which helps with verifying installation of the packages.
 
 Once you have cloned/updated the SVN repository, copy the PyPi URLs shared
-in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
-directory.
+in the email to a file called `packages.txt` in the `$AIRFLOW_REPO_ROOT/files`
+directory (git-ignored, so it won't be accidentally committed).
 
 ```shell script
 cd "$AIRFLOW_REPO_ROOT"
+mkdir -p files
 # Copy packages.txt extracted from the mail sent by the release manager here
-breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" --packages-file ./dev/packages.txt --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
+breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" --packages-file ./files/packages.txt --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
 ```
 
 After the above command completes you can build `Dockerfile.pmc` to trigger an installation of each provider
@@ -1034,7 +1147,7 @@ it means that the build has a verified provenance.
 
 How to verify it:
 
-1) Change directory where your airflow sources are checked out
+1) Change directory to where your airflow sources are checked out:
 
 ```shell
 cd "$AIRFLOW_REPO_ROOT"
@@ -1043,7 +1156,6 @@ cd "$AIRFLOW_REPO_ROOT"
 2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
-cd "$AIRFLOW_REPO_ROOT"
 git fetch upstream --tags
 git checkout providers/${RELEASE_DATE}
 ```
@@ -1057,7 +1169,7 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both
+breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
@@ -1379,6 +1491,12 @@ echo "prepare release date is ${RELEASE_DATE}"
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
 
+> [!NOTE]
+> A Delegate may send this `[RESULT][VOTE]` email under the [delegated
+> process](#delegating-release-duties-to-a-non-pmc-committer), but only after confirming at least 3
+> binding `+1` votes from PMC members are already present in the vote thread — the email reports a
+> decision the PMC has already made, it does not make that decision.
+
 In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers). In case
 some providers were  excluded, explain why they were excluded and what is the plan for them
 (otherwise remove the optional part of the message). There are two options for releasing
@@ -1432,6 +1550,13 @@ EOF
 ```
 
 ## Publish release to SVN
+
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this step is
+> owned by the **PMC member** — moving artifacts into `dist/release` requires PMC write karma that a
+> non-PMC Delegate does not have (see the ownership table). The Delegate should have already
+> confirmed the vote passed and, if helpful, staged the exact `svn cp`/`clean-old-provider-artifacts`
+> commands below for the PMC member to run.
 
 The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries
 again, and gives a clearer history in the svn commit logs.
@@ -1519,6 +1644,11 @@ This is simply by removing the relevant files locally.
 
 ## Publish the packages to PyPI
 
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this final PyPI
+> upload is owned by the **PMC member**, using the same trusted publishing identity as the RC upload
+> — it is not delegated.
+
 By that time the packages should be in your dist folder.
 
 ```shell script
@@ -1566,17 +1696,24 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.
 
-* Upload the package to PyPI:
+* Upload the packages to PyPI. Only the provider wheels and sdists are uploaded — the ASF
+  `-source.tar.gz` tarball and the `.asc`/`.sha512` files are SVN-only. The PyPI URLs twine prints
+  are extracted (sorted, de-duplicated) into `files/packages.txt` for the announcement message; both
+  files land in `files/` (git-ignored):
 
 ```shell script
-twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
+mkdir -p "${AIRFLOW_REPO_ROOT}/files"
+# COLUMNS=200 stops rich (twine's printer) from wrapping long URLs when stdout is a pipe.
+COLUMNS=200 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl \
+  $(ls ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz | grep -v -- '-source.tar.gz') 2>&1 \
+  | tee "${AIRFLOW_REPO_ROOT}/files/twine-upload.log"
+# Only trust packages.txt if the upload above succeeded (PIPESTATUS[0] == 0):
+grep -oE 'https://pypi\.org/project/[^[:space:]]+' "${AIRFLOW_REPO_ROOT}/files/twine-upload.log" \
+  | sort -u > "${AIRFLOW_REPO_ROOT}/files/packages.txt"
 ```
 
-* Verify that the packages are available under the links printed.
-
-Copy links to updated packages, sort it alphabetically and save it on the side. You will need it for the announcement message.
-
-* Again, confirm that the packages are available under the links printed.
+* Confirm that the packages are available under the links printed. The sorted list is saved in
+  `files/packages.txt` for the announcement message.
 
 
 ## Add the final release tag in git
@@ -1594,8 +1731,21 @@ and lead to annoying errors. The default behavior would be to clean such local t
 
 If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
 
+As when [pushing the RC tags](#push-the-rc-tags), check out the wave tag first — `tag-providers`
+tags `HEAD`, so the final tags must be created from the wave commit and not from whatever the
+checkout happens to be on:
+
 ```shell script
+git checkout providers/${RELEASE_DATE}
+# Both SHAs printed here must be identical before you tag
+git rev-parse HEAD "providers/${RELEASE_DATE}^{commit}"
 breeze release-management tag-providers --release-date ${RELEASE_DATE}
+```
+
+Then confirm each pushed tag resolves to the wave commit (`^{}` dereferences the annotated tag):
+
+```shell script
+git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
 ## Publish documentation
@@ -1695,6 +1845,14 @@ gh pr create --title "Update providers metadata ${current_date}" --web
 ```
 
 ## Notify developers of release
+
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) the official
+> post-release communications — this announcement, the [security-issue
+> announcements](#send-announcements-about-security-issues-fixed-in-the-release), [social
+> media](#announce-about-the-release-in-social-media), and the [committee
+> report](#add-release-data-to-apache-committee-report-helper) — are made by the **PMC member**
+> under the PMC's authority. The Delegate can still draft the text and hand it over.
 
 Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
 the artifacts have been published.

@@ -26,13 +26,13 @@ from sqlalchemy import delete
 
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance as TI
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.marketing_platform.operators.bid_manager import (
     GoogleBidManagerCreateQueryOperator,
     GoogleBidManagerDeleteQueryOperator,
     GoogleBidManagerDownloadReportOperator,
     GoogleBidManagerRunQueryOperator,
 )
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS

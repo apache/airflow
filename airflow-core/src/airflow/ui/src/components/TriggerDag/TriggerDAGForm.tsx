@@ -107,10 +107,14 @@ const TriggerDAGForm = ({
         note: "",
         partitionKey: undefined,
       });
-      // Also update the param store to keep it in sync.
-      // Wait until we have the initial params so section ordering stays consistent.
-      if (confString && Object.keys(initialParamsDict.paramsDict).length > 0) {
-        if (Object.keys(initialParamDict).length === 0) {
+      // Also update the param store to keep it in sync. Seed the initial params (for stable
+      // section ordering) only once they are available, but always push the conf so a run's
+      // configuration propagates even for Dags with no declared params or before params load.
+      if (confString) {
+        if (
+          Object.keys(initialParamsDict.paramsDict).length > 0 &&
+          Object.keys(initialParamDict).length === 0
+        ) {
           setInitialParamDict(initialParamsDict.paramsDict);
         }
         setConf(confString);
@@ -244,7 +248,7 @@ const TriggerDAGForm = ({
           setErrors={setErrors}
           setFormError={setFormError}
         >
-          <TriggerDAGAdvancedOptions control={control} />
+          <TriggerDAGAdvancedOptions control={control} isPartitioned={isPartitioned} />
         </ConfigForm>
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>

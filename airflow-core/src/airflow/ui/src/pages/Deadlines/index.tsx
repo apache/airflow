@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Heading, Link, VStack } from "@chakra-ui/react";
+import { Badge, Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -31,7 +31,7 @@ import { FilterBar } from "src/components/FilterBar";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 type DeadlineRow = { row: { original: DeadlineResponse } };
 
@@ -100,6 +100,9 @@ const deadlinesFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 export const Deadlines = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
+
+  useDocumentTitle(translate("common:browse.deadlines"));
+
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams] = useSearchParams();
 
@@ -130,25 +133,23 @@ export const Deadlines = () => {
   });
 
   return (
-    <Box p={2}>
-      <Heading>{translate("browse:deadlines.title")}</Heading>
-      <VStack align="start" gap={4} paddingY="4px">
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
+    <Box px={2}>
       <DataTable
         columns={columns}
         data={data?.deadlines ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <FilterBar
+            configs={filterConfigs}
+            initialValues={initialValues}
+            onFiltersChange={handleFiltersChange}
+          />
+        }
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:deadlines.deadline"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

@@ -27,8 +27,15 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
+import org.msgpack.core.buffer.ArrayBufferInput
 import org.msgpack.core.buffer.MessageBuffer
 import org.msgpack.core.buffer.MessageBufferInput
+
+data class RawFrame(
+  val id: Int,
+  val rawBody: Any?,
+  val rawError: Any?,
+)
 
 object Frame {
   internal const val MAX_FRAME_LENGTH = 0xFFFF_FFFFL
@@ -47,9 +54,13 @@ object Frame {
     body: Any,
   ): List<MessageBuffer> = encodeFrame(id, body)
 
-  fun decode(input: MessageBufferInput): IncomingFrame = MessagePack.newDefaultUnpacker(input).use { decodeFrom(it) }
+  /**
+   * Decode the structural envelope of a frame, streaming the payload from
+   * [input] so a large frame never has to be held in one contiguous array.
+   */
+  fun decodeRaw(input: MessageBufferInput): RawFrame = MessagePack.newDefaultUnpacker(input).use { decodeRawFrom(it) }
 
-  private fun decodeFrom(unpacker: MessageUnpacker): IncomingFrame {
+  private fun decodeRawFrom(unpacker: MessageUnpacker): RawFrame {
     val headerSize = unpacker.unpackArrayHeader()
     check(headerSize >= 1) { "Unexpected Task SDK frame arity $headerSize" }
 
@@ -57,9 +68,17 @@ object Frame {
     val rawBody = if (headerSize >= 2) unpacker.unpackAny() else null
     val rawError = if (headerSize >= 3) unpacker.unpackAny() else null
 
-    val body = decodeMessage(rawError) ?: decodeMessage(rawBody)
-    return IncomingFrame(id, body)
+    return RawFrame(id, rawBody, rawError)
   }
+
+  fun decodeBody(raw: RawFrame): Any? = decodeMessage(raw.rawError) ?: decodeMessage(raw.rawBody)
+
+  fun decode(input: MessageBufferInput): IncomingFrame {
+    val raw = decodeRaw(input)
+    return IncomingFrame(raw.id, decodeBody(raw))
+  }
+
+  fun decode(bytes: ByteArray): IncomingFrame = decode(ArrayBufferInput(bytes))
 
   fun lengthPrefix(length: UInt) =
     byteArrayOf(

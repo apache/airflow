@@ -19,8 +19,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import threading
 from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
@@ -41,6 +41,7 @@ from airflow.providers.openlineage.utils.emission_policy import (
 from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    DagRunInfo,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -57,6 +58,7 @@ from airflow.providers.openlineage.utils.utils import (
     print_warning,
 )
 from airflow.settings import configure_orm
+from airflow.utils.helpers import prune_dict
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -113,17 +115,48 @@ def _executor_initializer():
         log.debug("Exception details:", exc_info=True)
 
 
-def _emit_manual_state_change_event(adapter_method, stats_key, **kwargs):
+@cache
+def _get_process_adapter() -> OpenLineageAdapter:
     """
-    Emit an OL event via the given adapter method and record its serialized size.
+    Return the per-process ``OpenLineageAdapter`` used inside pool worker processes.
+
+    Each ``ProcessPoolExecutor`` worker keeps exactly one adapter — and therefore one
+    ``OpenLineageClient`` with one set of transports — for its whole lifetime.
+    """
+    return OpenLineageAdapter()
+
+
+def _run_adapter_method(method_name: str, /, *args, **kwargs):
+    """
+    Run the named ``OpenLineageAdapter`` method on the per-process adapter.
+
+    Module-level so it is picklable across the ProcessPoolExecutor boundary. Bound adapter
+    methods must not be submitted to the pool directly: pickling them serializes the whole
+    adapter, so the worker unpickles a fresh adapter per event and builds a new
+    ``OpenLineageClient`` (with new transports) on every emit. Transports that start
+    background worker threads (e.g. the ``datadog`` transport, which always starts an async
+    HTTP worker thread) are never closed, so this leaks one thread per event and steadily
+    consumes scheduler CPU and memory until restart.
+
+    Returns nothing: the emitted event is only of use inside the pool worker, and pickling it
+    back to the parent would turn a redacted event the pickler chokes on into a spurious
+    "failed to submit" warning for an emission that actually succeeded.
+    """
+    getattr(_get_process_adapter(), method_name)(*args, **kwargs)
+
+
+def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **kwargs):
+    """
+    Emit an OL event via the named adapter method and record its serialized size.
 
     Module-level so it is picklable across the ProcessPoolExecutor boundary used by
     `_on_task_instance_manual_state_change` for scheduler-side "task state changed
-    externally" emissions.
+    externally" emissions. The method is resolved on the per-process adapter so the
+    pool worker reuses one client across events (see ``_run_adapter_method``), and nothing is
+    returned so an unpicklable event cannot fail the future after a successful emission.
     """
-    event = adapter_method(**kwargs)
+    event = getattr(_get_process_adapter(), adapter_method_name)(**kwargs)
     Stats.gauge(stats_key, len(Serde.to_json(event).encode("utf-8")))
-    return event
 
 
 class OpenLineageListener:
@@ -241,9 +274,18 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -257,6 +299,7 @@ class OpenLineageListener:
                     "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
                     task_instance.task_id,
                 )
+
                 task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.start_task(
@@ -291,10 +334,17 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_running, "on_running", use_fork=True)
@@ -386,9 +436,18 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -402,6 +461,7 @@ class OpenLineageListener:
                     "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
                     task_instance.task_id,
                 )
+
                 task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.complete_task(
@@ -435,10 +495,17 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_success, "on_success", use_fork=True)
@@ -545,9 +612,18 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -595,10 +671,17 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_failure, "on_failure", use_fork=True)
@@ -681,9 +764,18 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -730,10 +822,17 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_skipped, "on_skipped", use_fork=True)
@@ -782,10 +881,10 @@ class OpenLineageListener:
                 return
 
             if ti_state == TaskInstanceState.FAILED:
-                adapter_method = self.adapter.fail_task
+                adapter_method_name = "fail_task"
                 event_type = RunState.FAIL.value.lower()
             elif ti_state in (TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED):
-                adapter_method = self.adapter.complete_task
+                adapter_method_name = "complete_task"
                 event_type = RunState.COMPLETE.value.lower()
             else:
                 raise ValueError(f"Unsupported ti_state: `{ti_state}`.")
@@ -867,7 +966,7 @@ class OpenLineageListener:
             operator_name = (ti.operator or "unknown").lower()
             self.submit_callable(
                 _emit_manual_state_change_event,
-                adapter_method,
+                adapter_method_name,
                 f"ol.event.size.{event_type}.{operator_name}",
                 **adapter_kwargs,
             )
@@ -879,9 +978,59 @@ class OpenLineageListener:
 
     def _execute(self, callable, callable_name: str, use_fork: bool = False):
         if use_fork:
-            self._fork_execute(callable, callable_name)
+            if conf.execute_in_thread():
+                self._thread_execute(callable, callable_name)
+            else:
+                self._fork_execute(callable, callable_name)
         else:
             callable()
+
+    def _thread_execute(self, callable, callable_name: str):
+        """
+        Run OpenLineage event emission in a time-bounded daemon thread.
+
+        Opt-in alternative to :meth:`_fork_execute`, enabled via
+        ``[openlineage] execute_in_thread``. Unlike forking, this never duplicates the
+        task runner process, so no supervisor connection is inherited and left in a broken
+        state -- emission therefore cannot strand the task in the ``running`` state. The
+        task runner waits at most ``[openlineage] execution_timeout`` for emission and then
+        proceeds. Metadata extraction still runs in-process with full access to the task
+        runtime, so Operators whose extractors resolve Connections, Variables or XComs keep
+        working.
+        """
+
+        def _run():
+            try:
+                callable()
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s thread failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+
+        thread = threading.Thread(
+            target=_run,
+            name=f"openlineage-{callable_name}",
+            daemon=True,
+        )
+        thread.start()
+        thread.join(timeout=conf.execution_timeout())
+        if thread.is_alive():
+            # Emission is still running. We deliberately do not keep waiting: the thread is a
+            # daemon, reaped when the process exits. Unlike the fork path -- where parent and
+            # child shared a socket fd with no cross-process locking and could interleave bytes
+            # on the supervisor channel -- this thread reaches the supervisor only through the
+            # shared SUPERVISOR_COMMS threading lock, so it cannot corrupt the protocol. The main
+            # thread may briefly wait on that lock if the abandoned thread is mid-request, but the
+            # wait is bounded by a single round trip. This mirrors the fork path terminating an
+            # over-running child.
+            self.log.warning(
+                "OpenLineage %s thread did not finish within execution_timeout=%ss and will be "
+                "abandoned. This has no impact on actual task execution status.",
+                callable_name,
+                conf.execution_timeout(),
+            )
 
     def _terminate_with_wait(self, process: psutil.Process):
         process.terminate()
@@ -912,14 +1061,21 @@ class OpenLineageListener:
                 self._terminate_with_wait(process)
             self.log.debug("Process with pid %s finished - parent", pid)
         else:
-            setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
-            if not AIRFLOW_V_3_0_PLUS:
-                configure_orm(disable_connection_pool=True)
-            self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
+            # Everything the child does lives in this try, and the exit lives in its finally: a child
+            # that returns instead of exiting becomes a second task runner. It would unwind into the
+            # hook's caller and keep executing task-runner code while sharing the supervisor socket
+            # with the real one, duplicating state writes and interleaving bytes on the channel.
             try:
+                setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
+                if not AIRFLOW_V_3_0_PLUS:
+                    configure_orm(disable_connection_pool=True)
+                self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
                 callable()
                 self.log.debug("Process with current pid finishes after %s", callable_name)
-            except Exception:
+            except BaseException:
+                # BaseException, not Exception: a SIGINT delivered to the process group reaches this
+                # child as KeyboardInterrupt, and Airflow's own AirflowTaskTimeout / TaskDeferred
+                # also derive from BaseException.
                 self.log.warning(
                     "OpenLineage %s process failed. This has no impact on actual task execution status.",
                     callable_name,
@@ -930,8 +1086,13 @@ class OpenLineageListener:
                 # logging so buffered records (including any warnings above) are flushed
                 # before the process exits. Without this, the final log lines are silently
                 # dropped, making failures invisible.
-                logging.shutdown()
-            os._exit(0)
+                # Nest os._exit in its own finally so that a raising logging.shutdown()
+                # (e.g. a remote handler whose close() throws) cannot skip the exit and
+                # unwind back into the task runner as a second process.
+                try:
+                    logging.shutdown()
+                finally:
+                    os._exit(0)
 
     @property
     def executor(self) -> ProcessPoolExecutor:
@@ -949,8 +1110,26 @@ class OpenLineageListener:
     @hookimpl
     def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
-        with timeout(30):
-            self.executor.shutdown(wait=True)
+        if self._executor is None:
+            # Do not build a pool just to tear it down -- on the task runner this hook fires at the
+            # end of every task, where no pool was ever needed.
+            return
+
+        # Detach before shutting down so a later event rebuilds a fresh pool. Left attached, every
+        # subsequent submission would raise "cannot schedule new futures after shutdown" and drop
+        # its event for the remaining lifetime of the process.
+        executor, self._executor = self._executor, None
+        try:
+            with timeout(30):
+                executor.shutdown(wait=True)
+        except BaseException:
+            # `timeout` is SIGALRM-based: it raises AirflowTaskTimeout when shutdown overruns, and
+            # ValueError when called off the main thread. Neither may escape a listener hook --
+            # and BaseException is required, not Exception, because AirflowTaskTimeout derives from
+            # BaseException so that user code cannot swallow it. Every hook call site guards with
+            # `except Exception`, so letting it through would reach the caller.
+            self.log.warning("OpenLineage executor did not shut down cleanly.", exc_info=True)
+            executor.shutdown(wait=False)
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str) -> None:
@@ -979,7 +1158,8 @@ class OpenLineageListener:
             doc, doc_type = get_dag_documentation(dag_run.dag)
 
             self.submit_callable(
-                self.adapter.dag_started,
+                _run_adapter_method,
+                "dag_started",
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 logical_date=date,
@@ -1031,7 +1211,8 @@ class OpenLineageListener:
             doc, doc_type = get_dag_documentation(dag_run.dag)
 
             self.submit_callable(
-                self.adapter.dag_success,
+                _run_adapter_method,
+                "dag_success",
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
@@ -1082,7 +1263,8 @@ class OpenLineageListener:
             doc, doc_type = get_dag_documentation(dag_run.dag)
 
             self.submit_callable(
-                self.adapter.dag_failed,
+                _run_adapter_method,
+                "dag_failed",
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
@@ -1109,9 +1291,14 @@ class OpenLineageListener:
     def submit_callable(self, callable, *args, **kwargs):
         try:
             fut = self.executor.submit(callable, *args, **kwargs)
-        except BrokenProcessPool:
-            self.log.warning("ProcessPoolExecutor is broken; recreating and retrying submission.")
-            self._executor.shutdown(wait=False)
+        except RuntimeError:
+            # BrokenProcessPool subclasses RuntimeError, so this also covers a pool that was already
+            # shut down ("cannot schedule new futures after shutdown"). The retry is deliberately
+            # unguarded: every caller wraps this in `except BaseException`, and a second consecutive
+            # failure deserves to surface in their warning rather than be swallowed here.
+            self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
+            if self._executor is not None:
+                self._executor.shutdown(wait=False)
             self._executor = None
             fut = self.executor.submit(callable, *args, **kwargs)
         fut.add_done_callback(self.log_submit_error)

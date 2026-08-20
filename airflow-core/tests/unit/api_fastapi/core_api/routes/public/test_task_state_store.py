@@ -78,7 +78,6 @@ class TestTaskStateEndpoint:
 
     @pytest.fixture(autouse=True)
     def setup(self, dag_maker, session):
-        self.clear_db()
         _create_dag_run(dag_maker, session)
         self.dag_run = session.scalar(select(DagRun).where(DagRun.run_id == RUN_ID))
         self._session = session
@@ -499,3 +498,60 @@ class TestRoutesNeverCallCustomBackend(TestTaskStateEndpoint):
             getattr(test_client, method)(path, **kwargs)
 
         mock_get_backend.assert_not_called()
+
+
+class TestUnknownTaskInstance(TestTaskStateEndpoint):
+    UNKNOWN_TASK_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/no_such_task/state-store"
+    UNKNOWN_RUN_URL = f"/dags/{DAG_ID}/dagRuns/no_such_run/taskInstances/{TASK_ID}/state-store"
+
+    @pytest.mark.parametrize(
+        ("method", "suffix", "kwargs"),
+        [
+            ("put", "/job_id", {"json": {"value": "v"}}),
+            ("patch", "/job_id", {"json": {"value": "v"}}),
+            ("delete", "/job_id", {}),
+            ("delete", "", {}),
+            ("delete", "?all_map_indices=true", {}),
+        ],
+    )
+    @pytest.mark.parametrize("base", [UNKNOWN_TASK_URL, UNKNOWN_RUN_URL], ids=["task_id", "run_id"])
+    def test_returns_404(self, test_client, base, method, suffix, kwargs):
+        response = getattr(test_client, method)(f"{base}{suffix}", **kwargs)
+        assert response.status_code == 404
+        assert "Task instance not found" in response.json()["detail"]
+
+    @pytest.mark.parametrize(
+        ("method", "suffix", "kwargs"),
+        [
+            ("put", "/job_id", {"json": {"value": "v"}}),
+            ("patch", "/job_id", {"json": {"value": "v"}}),
+            ("delete", "/job_id", {}),
+            ("delete", "", {}),
+        ],
+    )
+    def test_unknown_map_index_returns_404(self, test_client, method, suffix, kwargs):
+        response = getattr(test_client, method)(f"{BASE_URL}{suffix}?map_index=7", **kwargs)
+        assert response.status_code == 404
+        assert "map_index=7" in response.json()["detail"]
+
+    def test_clear_all_map_indices_reports_the_indices_it_looked_for(self, test_client):
+        response = test_client.delete(f"{self.UNKNOWN_TASK_URL}?all_map_indices=true")
+        assert response.status_code == 404
+        assert response.json()["detail"].endswith("task_id='no_such_task', all_map_indices=True")
+
+    @pytest.mark.parametrize("base", [UNKNOWN_TASK_URL, UNKNOWN_RUN_URL], ids=["task_id", "run_id"])
+    def test_list_returns_an_empty_collection(self, test_client, base):
+        response = test_client.get(base)
+        assert response.status_code == 200
+        assert response.json() == {"task_state_store": [], "total_entries": 0}
+
+    @pytest.mark.parametrize("base", [UNKNOWN_TASK_URL, UNKNOWN_RUN_URL], ids=["task_id", "run_id"])
+    def test_get_reports_the_missing_key(self, test_client, base):
+        response = test_client.get(f"{base}/job_id")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Task state store key 'job_id' not found"
+
+    def test_missing_key_still_reports_the_key_not_the_task_instance(self, test_client):
+        response = test_client.get(f"{BASE_URL}/no_such_key")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Task state store key 'no_such_key' not found"

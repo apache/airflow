@@ -130,7 +130,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -195,7 +195,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -206,7 +206,8 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -278,7 +279,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -294,7 +295,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -310,7 +311,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -322,7 +323,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -363,7 +364,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -453,7 +454,7 @@ jobs:
           inputs.canary-run == 'true' &&
           (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b  # v6.2.0
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6.2.3
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -488,12 +489,12 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: "apache/airflow-client-python"
           fetch-depth: 1

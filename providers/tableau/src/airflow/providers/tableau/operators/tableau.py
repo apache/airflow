@@ -19,11 +19,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from tableauserverclient import JobItem
+from tableauserverclient import JobItem, ServerResponseError
 
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
+    AirflowSkipException,
     BaseOperator,
 )
 from airflow.providers.tableau.hooks.tableau import (
@@ -34,6 +35,12 @@ from airflow.providers.tableau.hooks.tableau import (
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+
+# Tableau REST API error code returned when an extract refresh -- triggered directly via
+# datasources/workbooks "refresh" or via running a scheduled extract refresh task ("tasks.run")
+# -- is requested for a resource that already has one queued or running.
+# See: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_concepts_errors.htm
+RESOURCE_CONFLICT_ERROR_CODE = "409093"
 
 RESOURCES_METHODS = {
     "datasources": ["delete", "refresh"],
@@ -66,8 +73,20 @@ class TableauOperator(BaseOperator):
     :param blocking_refresh: By default will be blocking means it will wait until it has finished.
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
+    :param timeout: maximum total time in seconds to wait for a blocking refresh to finish before
+        giving up with a ``TimeoutError``. ``None`` (the default) waits indefinitely until the job
+        leaves the PENDING state.
+    :param exponential_backoff: when ``True`` the wait between status checks grows by 50% each
+        time, starting from ``check_interval``, instead of staying fixed.
+    :param max_check_interval: maximum interval in seconds between two consecutive status checks
+        when ``exponential_backoff`` is enabled. ``None`` leaves the growth uncapped.
     :param incremental_refresh: Whether to perform an incremental refresh instead of a full refresh.
         Only applies to datasource and workbook refresh operations. Defaults to False (full refresh).
+    :param skip_on_conflict: When ``True``, treat a Tableau ``409093 Resource Conflict`` error
+        while triggering a refresh, or while running an extract refresh task, as a skipped task
+        instead of a failure. Raised when a refresh/run for the same resource is already queued
+        or running. Applies to ``method="refresh"`` and to ``method="run"`` on ``tasks``.
+        Defaults to ``False``, so the conflict fails the task as before.
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
     """
@@ -87,7 +106,11 @@ class TableauOperator(BaseOperator):
         site_id: str | None = None,
         blocking_refresh: bool = True,
         check_interval: float = 20,
+        timeout: float | None = None,
+        exponential_backoff: bool = False,
+        max_check_interval: float | None = None,
         incremental_refresh: bool = False,
+        skip_on_conflict: bool = False,
         tableau_conn_id: str = "tableau_default",
         **kwargs,
     ) -> None:
@@ -97,9 +120,13 @@ class TableauOperator(BaseOperator):
         self.find = find
         self.match_with = match_with
         self.check_interval = check_interval
+        self.timeout = timeout
+        self.exponential_backoff = exponential_backoff
+        self.max_check_interval = max_check_interval
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
         self.incremental_refresh = incremental_refresh
+        self.skip_on_conflict = skip_on_conflict
         self.tableau_conn_id = tableau_conn_id
 
     def execute(self, context: Context) -> str:
@@ -134,24 +161,40 @@ class TableauOperator(BaseOperator):
 
             if self.resource == "tasks" and self.method == "run":
                 task_item = resource.get_by_id(resource_id)
-                response_bytes = method(task_item)
+                try:
+                    response_bytes = method(task_item)
+                except ServerResponseError as e:
+                    if self.skip_on_conflict and e.code == RESOURCE_CONFLICT_ERROR_CODE:
+                        raise AirflowSkipException(
+                            f"Tableau task {resource_id} run is already queued or running "
+                            f"({e.code}: {e.summary}); skipping this task."
+                        ) from e
+                    raise
                 job_items = JobItem.from_response(response_bytes, tableau_hook.server.namespace)
                 if not job_items:
                     raise ValueError("Tableau tasks.run returned no JobItem in response")
                 job_id = job_items[0].id
             elif self.method == "refresh":
-                if self.incremental_refresh:
-                    try:
-                        response = method(resource_id, incremental=True)
-                    except TypeError as e:
-                        if "incremental" in str(e):
-                            raise AirflowOptionalProviderFeatureException(
-                                "Incremental refresh requires tableauserverclient>=0.35. "
-                                "Please upgrade: pip install 'tableauserverclient>=0.35'"
-                            ) from e
-                        raise
-                else:
-                    response = method(resource_id)
+                try:
+                    if self.incremental_refresh:
+                        try:
+                            response = method(resource_id, incremental=True)
+                        except TypeError as e:
+                            if "incremental" in str(e):
+                                raise AirflowOptionalProviderFeatureException(
+                                    "Incremental refresh requires tableauserverclient>=0.35. "
+                                    "Please upgrade: pip install 'tableauserverclient>=0.35'"
+                                ) from e
+                            raise
+                    else:
+                        response = method(resource_id)
+                except ServerResponseError as e:
+                    if self.skip_on_conflict and e.code == RESOURCE_CONFLICT_ERROR_CODE:
+                        raise AirflowSkipException(
+                            f"Tableau {self.resource} refresh is already queued or running "
+                            f"({e.code}: {e.summary}); skipping this task."
+                        ) from e
+                    raise
                 job_id = response.id
             else:
                 response = method(resource_id)
@@ -163,6 +206,9 @@ class TableauOperator(BaseOperator):
                         job_id=job_id,
                         check_interval=self.check_interval,
                         target_state=TableauJobFinishCode.SUCCESS,
+                        timeout=self.timeout,
+                        exponential_backoff=self.exponential_backoff,
+                        max_check_interval=self.max_check_interval,
                     ):
                         raise TableauJobFailedException(f"The Tableau Refresh {self.resource} Job failed!")
 

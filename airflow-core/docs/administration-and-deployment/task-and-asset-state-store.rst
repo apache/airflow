@@ -99,7 +99,7 @@ When this is set, ``TaskStateStoreAccessor.set()`` calls ``serialize_task_state_
 Garbage collection semantics
 -----------------------------
 
-The cleanup task, also known as "garbage collection" is triggered using the Airflow CLI. The command to trigger the cleanup task is ``airflow state-store cleanup-task-state-store``. This process removes store rows according to the following rules:
+The cleanup task, also known as "garbage collection" is triggered using the Airflow CLI. The command to trigger the cleanup task is ``airflow state-store clean``. This process removes store rows according to the following rules:
 
 **Time-based expiry (task state store only)**
   Rows whose ``expires_at < now()`` are deleted. ``expires_at`` is computed on the *worker* at write time, not by the server.
@@ -115,7 +115,7 @@ The cleanup task, also known as "garbage collection" is triggered using the Airf
 
 .. important::
 
-   Garbage collection only works for the ``MetastoreStateBackend``. Custom backends are explicitly skipped.
+   Garbage collection only works for the ``MetastoreBackend``. Custom backends are explicitly skipped.
 
 
 
@@ -207,5 +207,5 @@ Example skeleton:
             return json.loads(s3_object["Body"].read().decode())
 
         # Implement the remaining abstract methods as pass-throughs or delegating to the
-        # default MetastoreStateBackend for the DB side
+        # default MetastoreBackend for the DB side
         ...

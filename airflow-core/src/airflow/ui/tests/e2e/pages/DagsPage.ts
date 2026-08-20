@@ -19,6 +19,7 @@
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
 import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
@@ -30,19 +31,18 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
+  public readonly addFilterButton: Locator;
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
-  public readonly failedFilter: Locator;
   public readonly hitlReviewModal: HITLReviewModal;
+  public readonly lastRunStateFilter: Locator;
+  public readonly lastRunStatePill: Locator;
   public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
-  public readonly queuedFilter: Locator;
   public readonly retriesFilter: Locator;
-  public readonly runningFilter: Locator;
   public readonly searchBox: Locator;
   public readonly searchInput: Locator;
-  public readonly successFilter: Locator;
   public readonly tableViewButton: Locator;
   public readonly triggerButton: Locator;
   public readonly triggerRuleFilter: Locator;
@@ -64,14 +64,15 @@ export class DagsPage extends BasePage {
     this.retriesFilter = page.getByTestId("retries-filter");
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
-    this.successFilter = page.getByRole("button", { name: "Success" });
-    this.failedFilter = page.getByRole("button", { name: "Failed" });
+    // Dags filters live in the shared FilterBar: a filter is added from the "Add Filter"
+    // menu, then edited in its pill. Test ids are derived from the search-param key.
+    this.addFilterButton = page.getByTestId("add-filter-button");
+    this.lastRunStateFilter = page.getByTestId("last_dag_run_state-filter");
+    this.lastRunStatePill = page.getByTestId("last_dag_run_state-pill");
     this.hitlReviewModal = new HITLReviewModal(page);
     this.needsReviewBadges = page.getByTestId("needs-review-badge");
-    this.runningFilter = page.getByRole("button", { name: "Running" });
-    this.queuedFilter = page.getByRole("button", { name: "Queued" });
-    // Uses testId because this button's text is driven by an i18n key.
-    this.needsReviewFilter = page.getByTestId("dags-needs-review-filter");
+    // Uses testId because this menu item's text is driven by an i18n key.
+    this.needsReviewFilter = page.getByTestId("add-filter-needs_review");
   }
 
   public static getDagDetailUrl(dagName: string): string {
@@ -118,14 +119,6 @@ export class DagsPage extends BasePage {
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
   ): Promise<void> {
-    const filterMap: Record<typeof status, Locator> = {
-      failed: this.failedFilter,
-      needs_review: this.needsReviewFilter,
-      queued: this.queuedFilter,
-      running: this.runningFilter,
-      success: this.successFilter,
-    };
-
     // Set up response listener before the click so we don't miss a fast response.
     const responsePromise = this.page
       .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
@@ -137,7 +130,25 @@ export class DagsPage extends BasePage {
         }
       });
 
-    await filterMap[status].click();
+    if (status === "needs_review") {
+      // A boolean filter is active the moment it is picked from the menu.
+      await this.openAddFilterMenu();
+      await this.needsReviewFilter.click();
+    } else {
+      if (await this.lastRunStatePill.isVisible().catch(() => false)) {
+        // An existing pill already holds a value, so re-opening it leaves the menu shut.
+        await this.lastRunStatePill.click();
+        await this.lastRunStateFilter.click();
+      } else {
+        // A filter added from the menu opens onto its options; clicking the trigger would shut it.
+        await this.openAddFilterMenu();
+        await this.page.getByTestId("add-filter-last_dag_run_state").click();
+      }
+      await this.page.getByTestId(`last_dag_run_state-filter-${status}`).click();
+      // Selecting blurs the pill, which collapses it ~150ms later. Wait for that so a
+      // follow-up call sees the pill rather than racing it and reopening the menu.
+      await expect(this.lastRunStatePill).toBeVisible({ timeout: 5000 });
+    }
     await responsePromise;
   }
 
@@ -229,7 +240,7 @@ export class DagsPage extends BasePage {
       return this.page.locator('[data-testid="dag-id"]').count();
     }
 
-    return this.page.getByTestId("table-list").locator("tbody tr").count();
+    return this.page.getByTestId("table-list").locator(DATA_ROWS).count();
   }
 
   public async getFilterOptions(filter: Locator): Promise<Array<string>> {
@@ -317,6 +328,14 @@ export class DagsPage extends BasePage {
         timeout: 30_000,
       });
     }).toPass({ intervals: [2000], timeout: 60_000 });
+  }
+
+  /**
+   * Open the Add Filter menu and wait for its items to render.
+   */
+  public async openAddFilterMenu(): Promise<void> {
+    await expect(this.addFilterButton).toBeVisible({ timeout: 30_000 });
+    await this.addFilterButton.click();
   }
 
   /**

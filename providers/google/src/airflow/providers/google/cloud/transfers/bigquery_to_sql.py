@@ -79,8 +79,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
     def __init__(
         self,
         *,
-        dataset_table: str,
         target_table_name: str | None,
+        dataset_table: str | None = None,
         selected_fields: list[str] | str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         database: str | None = None,
@@ -101,12 +101,13 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         self.batch_size = batch_size
         self.location = location
         self.impersonation_chain = impersonation_chain
+        if dataset_table is not None:
+            try:
+                dataset_id, table_id = dataset_table.split(".")
+            except ValueError:
+                raise ValueError(f"Could not parse {dataset_table} as <dataset>.<table>") from None
         self.dataset_id = dataset_id
         self.table_id = table_id
-        try:
-            self.dataset_id, self.table_id = dataset_table.split(".")
-        except ValueError:
-            raise ValueError(f"Could not parse {dataset_table} as <dataset>.<table>") from None
 
     @abc.abstractmethod
     def get_sql_hook(self) -> DbApiHook:
@@ -150,7 +151,12 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         operators. Children still provide a concrete SQL hook via
         ``get_sql_hook()`` and may override behavior if needed.
         """
-        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            DatasetFacet,
+            SchemaDatasetFacet,
+            SchemaDatasetFacetFields,
+        )
         from airflow.providers.google.cloud.openlineage.utils import (
             BIGQUERY_NAMESPACE,
             get_facets_from_bq_table_for_given_fields,
@@ -181,20 +187,40 @@ class BigQueryToSqlBaseOperator(BaseOperator):
 
         if self.selected_fields:
             if isinstance(self.selected_fields, str):
-                bigquery_field_names = list(self.selected_fields)
+                transferred_field_names = [
+                    field.strip() for field in self.selected_fields.split(",") if field.strip()
+                ]
             else:
-                bigquery_field_names = self.selected_fields
+                transferred_field_names = list(self.selected_fields)
         else:
-            bigquery_field_names = [f.name for f in getattr(table_obj, "schema", [])]
+            transferred_field_names = [field.name for field in getattr(table_obj, "schema", [])]
 
         input_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,
             name=self.source_project_dataset_table,
-            facets=get_facets_from_bq_table_for_given_fields(table_obj, bigquery_field_names),
+            facets=get_facets_from_bq_table_for_given_fields(table_obj, selected_fields=None),
+        )
+        input_schema_facet = input_dataset.facets.get("schema") if input_dataset.facets else None
+        transferred_field_names_set = set(transferred_field_names)
+        lineage_input_schema_facet = (
+            SchemaDatasetFacet(
+                fields=[
+                    field
+                    for field in getattr(input_schema_facet, "fields", [])
+                    if field.name in transferred_field_names_set
+                ]
+            )
+            if input_schema_facet
+            else None
+        )
+        output_schema_facet = SchemaDatasetFacet(
+            fields=[
+                SchemaDatasetFacetFields(name=field_name, type=None) for field_name in transferred_field_names
+            ]
         )
 
         sql_hook = self.get_sql_hook()
-        db_info = sql_hook.get_openlineage_database_info(sql_hook.get_conn())
+        db_info = sql_hook.get_openlineage_database_info(sql_hook.connection)
         if db_info is None:
             self.log.debug("OpenLineage: could not get database info from SQL hook %s", type(sql_hook))
             return OperatorLineage()
@@ -227,11 +253,25 @@ class BigQueryToSqlBaseOperator(BaseOperator):
                 else:
                     output_name = f"{table_part}"
 
+        # The identity helper requires the source schema to be a subset of the destination schema.
+        lineage_input_dataset = Dataset(
+            namespace=input_dataset.namespace,
+            name=input_dataset.name,
+            facets={"schema": lineage_input_schema_facet} if lineage_input_schema_facet else {},
+        )
         column_lineage_facet = get_identity_column_lineage_facet(
-            bigquery_field_names, input_datasets=[input_dataset]
+            transferred_field_names, input_datasets=[lineage_input_dataset]
         )
 
-        output_facets = column_lineage_facet or {}
-        output_dataset = Dataset(namespace=namespace, name=output_name, facets=output_facets)
+        output_facets: dict[str, DatasetFacet] = {"schema": output_schema_facet}
+
+        if column_lineage_facet:
+            output_facets.update(column_lineage_facet)
+
+        output_dataset = Dataset(
+            namespace=namespace,
+            name=output_name,
+            facets=output_facets,
+        )
 
         return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])

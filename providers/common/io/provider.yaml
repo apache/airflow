@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1780426378
+source-date-epoch: 1782937929
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.8.0
   - 1.7.3
   - 1.7.2
   - 1.7.1
@@ -119,7 +120,7 @@ config:
         description: |
           Base path on object storage for the task/asset state store backend, in URL format.
           When set, StateStoreObjectStorageBackend will persist task and asset state under this
-          prefix, organised as <dag_id>/<run_id>/<task_id>/<map_index>/<key> for tasks and
+          prefix, organized as <dag_id>/<run_id>/<task_id>/<map_index>/<key> for tasks and
           assets/<asset_identifier>/<key> for assets.
         version_added: 1.8.0
         type: string
@@ -137,7 +138,7 @@ config:
       state_store_objectstorage_compression:
         description: |
           Compression algorithm to use when writing task/asset state store values to object storage.
-          Supported algorithms are a.o.: gzip, bz2, lzma, and xz. If not specified,
+          Supported algorithms are a.o.: ``gzip``, ``bz2``, ``lzma``, and ``xz``. If not specified,
           no compression will be used. The same algorithm must be available on all workers.
         version_added: 1.8.0
         type: string

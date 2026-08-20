@@ -50,7 +50,7 @@ To use this operator you need to provide either ``branch`` or ``tag`` and either
    * - databricks_retry_limit: integer
      - amount of times retry if the Databricks backend is unreachable.
    * - databricks_retry_delay: decimal
-     - number of seconds to wait between retries.
+     - minimum wait in seconds between retryable attempts (exponential backoff by default).
 
 Examples
 --------

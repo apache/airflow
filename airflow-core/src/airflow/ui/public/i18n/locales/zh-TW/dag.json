@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
     "count_one": "{{count}} 個期限",
     "count_other": "{{count}} 個期限",
     "referenceType": {
@@ -102,9 +103,6 @@
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F"
-  },
   "notFound": {
     "back": "返回",
     "backToDags": "返回 Dag 列表",
@@ -146,13 +144,7 @@
       "label": "Dag 執行次數"
     },
     "dependencies": {
-      "label": "相依性 (Dependencies)",
-      "options": {
-        "allDagDependencies": "所有 Dag 相依性",
-        "externalConditions": "外部條件",
-        "onlyTasks": "僅限任務"
-      },
-      "placeholder": "相依性 (Dependencies)"
+      "allDagDependencies": "所有 Dag 相依性"
     },
     "graphDirection": {
       "label": "圖表方向"

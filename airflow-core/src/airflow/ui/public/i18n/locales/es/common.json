@@ -20,16 +20,22 @@
   "assetEvent_many": "Eventos de Asset",
   "assetEvent_one": "Evento de Asset",
   "assetEvent_other": "Eventos de Asset",
+  "assetInactive": {
+    "tooltip": "El Asset upstream ha sido desactivado; el programador retiene la evaluación de particiones hasta que se reactive."
+  },
   "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Auditar Log",
+    "deadlines": "Plazos",
+    "jobs": "Trabajos",
     "requiredActions": "Acciones Requeridas",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Colapsar todos los extra json",
   "collapseDetailsPanel": "Colapsar Detalles del Panel",
+  "consumingAsset": "Asset Consumidor",
   "createdAssetEvent_many": "Eventos de Asset Creados",
   "createdAssetEvent_one": "Evento de Asset Creado",
   "createdAssetEvent_other": "Eventos de Asset Creados",
@@ -70,6 +76,8 @@
     },
     "expectedDuration": "Duración Esperada",
     "lastSchedulingDecision": "Última Decisión de Programación",
+    "mappedPartitionKey": "Clave de Partición Mapeada",
+    "partitionKey": "Clave de Partición",
     "queuedAt": "En Cola en",
     "runAfter": "Ejecutar Después",
     "runType": "Tipo de Ejecución",
@@ -84,6 +92,11 @@
   "dagWarnings": "Advertencias/Errores del Dag",
   "defaultToGraphView": "Por defecto a vista gráfica",
   "defaultToGridView": "Por defecto a vista en cuadrícula",
+  "delete": "Eliminar",
+  "diff": "Diff",
+  "diffCompareWith": "Comparar con",
+  "diffExit": "Salir de Diff",
+  "diffSelectVersionToCompare": "Seleccionar versión para comparar",
   "direction": "Dirección",
   "docs": {
     "documentation": "Documentación",
@@ -96,13 +109,21 @@
     "tooltip": "Presiona {{hotkey}} para descargar los registros"
   },
   "duration": "Duración",
+  "edit": "Editar",
   "endDate": "Fecha Final",
   "error": {
     "back": "Atrás",
     "defaultMessage": "Ocurrió un error inesperado",
     "home": "Inicio",
+    "invalidUrl": "Página No Encontrada. Verifica la URL e inténtalo de nuevo.",
     "notFound": "Página no encontrada",
     "title": "Error"
+  },
+  "errors": {
+    "forbidden": {
+      "description": "No tienes permiso para realizar esta acción.",
+      "title": "Acceso Denegado"
+    }
   },
   "expand": {
     "collapse": "Colapsar",
@@ -121,22 +142,33 @@
   "filters": {
     "durationFrom": "Duración Desde",
     "durationTo": "Duración Hasta",
+    "endTime": "Hora Final",
     "logicalDateFrom": "Fecha Lógica Desde",
     "logicalDateTo": "Fecha Lógica Hasta",
     "runAfterFrom": "Ejecutar Después Desde",
-    "runAfterTo": "Ejecutar Después Hasta"
+    "runAfterTo": "Ejecutar Después Hasta",
+    "searchAsset": "Buscar Asset",
+    "selectDateRange": "Seleccionar Rango de Fechas",
+    "startTime": "Hora Inicial"
   },
+  "fullscreen": {
+    "tooltip": "Presiona {{hotkey}} para pantalla completa"
+  },
+  "generateToken": "Generar Token",
+  "key": "Clave",
   "logicalDate": "Fecha Lógica",
   "logout": "Cerrar Sesión",
   "logoutConfirmation": "Estás a punto de cerrar sesión de la aplicación.",
   "mapIndex": "Mapa de Índice",
   "modal": {
+    "add": "Agregar",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "delete": {
       "button": "Eliminar",
       "confirmation": "¿Confirmas de querer eliminar {{resourceName}}? Esta acción no se puede deshacer."
-    }
+    },
+    "save": "Guardar"
   },
   "nav": {
     "admin": "Administración",
@@ -153,23 +185,27 @@
   "note": {
     "add": "Agregar una nota",
     "dagRun": "Nota de Ejecución del Dag",
+    "edit": "Editar nota",
     "label": "Nota",
     "placeholder": "Agregar una nota...",
-    "taskInstance": "Nota de Instancia de Tarea"
+    "preview": "Vista Previa",
+    "taskInstance": "Nota de Instancia de Tarea",
+    "write": "Escribir"
   },
-  "pools": {
-    "deferred": "Diferido",
-    "open": "Abierto",
-    "pools_many": "pools",
-    "pools_one": "pool",
-    "pools_other": "pools",
-    "queued": "En Cola",
-    "running": "En Ejecución",
-    "scheduled": "Programado"
+  "overallStatus": "Estado General",
+  "partitionedDagRun_many": "Ejecuciones del Dag Particionadas",
+  "partitionedDagRun_one": "Ejecución del Dag Particionada",
+  "partitionedDagRun_other": "Ejecuciones del Dag Particionadas",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Eventos de Asset Recibidos"
   },
+  "pendingDagRun_many": "{{count}} Ejecuciones del Dag Pendientes",
+  "pendingDagRun_one": "{{count}} Ejecución del Dag Pendiente",
+  "pendingDagRun_other": "{{count}} Ejecuciones del Dag Pendientes",
   "reset": "Restablecer",
   "runId": "ID de la ejecución",
   "runTypes": {
+    "asset_materialization": "Materialización de Asset",
     "asset_triggered": "Asset Activado",
     "backfill": "Backfill",
     "manual": "Manual",
@@ -182,6 +218,12 @@
     },
     "tooltip": "Presiona {{hotkey}} para desplazarte a {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Coincide en cualquier parte del valor (búsqueda por subcadena). Más lento en despliegues grandes porque no puede usar el índice B-tree predeterminado. Consulta la sección de documentación sobre índices de metadata personalizados para más detalles.",
+      "title": "Coincidir en Cualquier Parte"
+    }
+  },
   "security": {
     "actions": "Acciones",
     "permissions": "Permisos",
@@ -190,7 +232,9 @@
     "users": "Usuarios"
   },
   "selectLanguage": "Seleccionar Idioma",
+  "selected": "Seleccionado",
   "showDetailsPanel": "Mostrar Panel de Detalles",
+  "signedInAs": "Sesión iniciada como",
   "source": {
     "hide": "Ocultar Fuente",
     "hotkey": "s",
@@ -202,10 +246,12 @@
   "startDate": "Fecha Inicial",
   "state": "Estado",
   "states": {
+    "awaiting_input": "Esperando Entrada",
     "deferred": "Diferido",
     "failed": "Fallido",
     "no_status": "Sin Estado",
     "none": "Sin Estado",
+    "open": "Abierto",
     "planned": "Planificado",
     "queued": "En Cola",
     "removed": "Removido",
@@ -234,23 +280,35 @@
       "any": "Cualquiera"
     },
     "tagPlaceholder": "Filtrar por etiqueta",
-    "to": "Hasta"
+    "to": "Hasta",
+    "updatedAt": "Actualizado en"
   },
   "task": {
+    "dependsOnPast": "Depende del Pasado",
     "documentation": "Documentación de la Tarea",
     "lastInstance": "Última Instancia",
     "operator": "Operador",
-    "triggerRule": "Regla de Activación"
+    "retries": "Reintentos",
+    "triggerRule": "Regla de Activación",
+    "waitForDownstream": "Esperar Downstream"
   },
   "task_many": "Tareas",
   "task_one": "Tarea",
   "task_other": "Tareas",
+  "taskGroup": {
+    "documentation": "Documentación del Grupo de Tareas"
+  },
+  "taskGroup_many": "Grupos de Tareas",
+  "taskGroup_one": "Grupo de Tareas",
+  "taskGroup_other": "Grupos de Tareas",
   "taskId": "ID de la Tarea",
   "taskInstance": {
+    "additionalAttributes": "Atributos Adicionales de la Instancia de Tarea",
     "dagVersion": "Versión del Dag",
     "executor": "Executor",
     "executorConfig": "Configuración del Executor",
     "hostname": "Nombre de Host",
+    "id": "ID",
     "maxTries": "Máximo de Intentos",
     "pid": "PID",
     "pool": "Pool",
@@ -258,12 +316,15 @@
     "priorityWeight": "Peso de Prioridad",
     "queue": "Cola",
     "queuedWhen": "En Cola en",
+    "renderedMapIndex": "Map Index Renderizado",
     "scheduledWhen": "Programado en",
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Triggerer Asignado",
       "class": "Clase del Trigger",
       "createdAt": "Tiempo de Creación del Trigger",
       "id": "ID del Trigger",
+      "job": "Trabajo del Triggerer",
       "latestHeartbeat": "Último Heartbeat del Triggerer",
       "title": "Información del Triggerer"
     },
@@ -291,11 +352,25 @@
     "utc": "UTC (Tiempo Universal Coordinado)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Solicitud de Limpieza Masiva de {{resourceName}} Fallida",
+      "success": {
+        "description": "{{count}} {{resourceName}} han sido limpiados exitosamente. Claves: {{keys}}",
+        "title": "Solicitud de Limpieza Masiva de {{resourceName}} Enviada"
+      }
+    },
     "bulkDelete": {
       "error": "Eliminar {{resourceName}} Request Fallido",
       "success": {
         "description": "{{count}} {{resourceName}} han sido eliminados exitosamente. Claves: {{keys}}",
         "title": "Eliminar {{resourceName}} Request Enviado"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Solicitud de Actualización Masiva de {{resourceName}} Fallida",
+      "success": {
+        "description": "{{count}} {{resourceName}} han sido actualizados exitosamente. Claves: {{keys}}",
+        "title": "Solicitud de Actualización Masiva de {{resourceName}} Enviada"
       }
     },
     "create": {
@@ -327,10 +402,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "Token de API",
+    "cliToken": "Token de CLI",
+    "errorDescription": "Ocurrió un error al generar el token. Inténtalo de nuevo.",
+    "errorTitle": "Generación de Token Fallida",
+    "generate": "Generar",
+    "selectType": "Selecciona el tipo de token a generar.",
+    "title": "Generar Token",
+    "tokenExpiresIn": "Este token expira en {{duration}}.",
+    "tokenGenerated": "Tu token ha sido generado.",
+    "tokenShownOnce": "Este token solo se mostrará una vez. Cópialo ahora."
+  },
   "total": "Total {{state}}",
   "triggered": "Activado",
   "tryNumber": "Intento Número",
   "user": "Usuario",
+  "validation": {
+    "mustBeAtLeast": "Debe ser al menos {{min}}.",
+    "mustBeValidNumber": "Debe ser un número válido."
+  },
+  "value": "Valor",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Presiona {{hotkey}} para alternar el 'envolver'",

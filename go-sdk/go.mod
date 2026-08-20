@@ -1,8 +1,6 @@
 module github.com/apache/airflow/go-sdk
 
-go 1.24.0
-
-toolchain go1.24.6
+go 1.25.0
 
 tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack
 
@@ -11,7 +9,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.7.0
-	github.com/ivanpirog/coloredcobra v1.0.2-0.20250501221745-46194c320708
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.1
@@ -19,8 +16,8 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.11.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	google.golang.org/grpc v1.79.3
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/grpc v1.82.1
+	google.golang.org/protobuf v1.36.11
 	resty.dev/v3 v3.0.0-beta.2
 )
 
@@ -42,25 +39,23 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	go.opentelemetry.io/otel v1.41.0 // indirect
-	go.opentelemetry.io/otel/trace v1.41.0 // indirect
+	go.opentelemetry.io/otel v1.43.0 // indirect
+	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
 
 require (
-	github.com/MatusOllah/slogcolor v1.6.0
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/evanphx/go-hclog-slog v0.0.0-20240717231540-be48fc4c4df5
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.18.0 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/samber/slog-http v1.8.2
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )
