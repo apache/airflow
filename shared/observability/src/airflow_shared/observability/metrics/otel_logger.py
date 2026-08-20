@@ -23,7 +23,7 @@ import os
 import random
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
@@ -47,6 +47,8 @@ from .validators import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from opentelemetry.metrics import Instrument
     from opentelemetry.util.types import Attributes
 
@@ -444,17 +446,38 @@ def flush_otel_metrics():
         _provider.force_flush()
 
 
+def _find_own_readers(provider: MeterProvider) -> Sequence[Any] | None:
+    """
+    Return the readers belonging to *provider*, across opentelemetry-sdk versions.
+
+    ``_metric_readers`` exists from opentelemetry-sdk 1.44; before that the same list lives on
+    ``_sdk_config.metric_readers``. Airflow accepts ``opentelemetry-api>=1.27.0`` with no upper
+    bound, so reading only the newer attribute leaves the fix inert -- and silently so -- on a
+    supported install.
+
+    Both attributes are per-provider. ``_all_metric_readers`` is deliberately not among them: it
+    is a class attribute shared with every provider in the process, including ones Airflow did not
+    build.
+
+    Readers come back untyped because what the caller does with them -- replacing the collect
+    callback, setting the shutdown event -- reaches for private attributes the SDK does not
+    declare.
+    """
+    readers = getattr(provider, "_metric_readers", None)
+    if readers is not None:
+        return readers
+    return getattr(getattr(provider, "_sdk_config", None), "metric_readers", None)
+
+
 def _stop_inherited_pipeline(provider: MeterProvider) -> None:
     """
     Stop the readers a fork handed us without letting them export the parent's state.
 
     The SDK's own ``after_in_child`` hook revives each reader's export thread, and the revived
     ticker does one final collect on its way out, so telling a reader to stop is not enough by
-    itself: its collect callback has to stop producing the parent's measurements too. Only this
-    provider's own readers are touched — ``_all_metric_readers`` is a class attribute shared with
-    every provider in the process, including ones Airflow did not build.
+    itself: its collect callback has to stop producing the parent's measurements too.
     """
-    readers = getattr(provider, "_metric_readers", None)
+    readers = _find_own_readers(provider)
     if readers is None:
         log.warning("Could not find the inherited metric readers; they may keep exporting.")
         return
