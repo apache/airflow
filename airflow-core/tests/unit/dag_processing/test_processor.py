@@ -637,6 +637,48 @@ def test_parse_file_static_check_with_error():
     assert "Don't use the variables as arguments" in next(iter(result.import_errors.values()))
 
 
+@conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
+def test_parse_file_static_check_error_still_executes_callbacks(spy_agency):
+    """Callbacks for already-scheduled runs must run even when the stability check blocks parsing."""
+    from airflow import DAG
+
+    called = False
+
+    def on_failure(context):
+        nonlocal called
+        called = True
+
+    dag = DAG(dag_id="a", on_failure_callback=on_failure)
+
+    def fake_collect_dags(self, *args, **kwargs):
+        self.dags[dag.dag_id] = dag
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+    requests = [
+        DagCallbackRequest(
+            filepath="test_dag_version_inflation_check.py",
+            msg="Message",
+            dag_id="a",
+            run_id="b",
+            bundle_name="testing",
+            bundle_version=None,
+        )
+    ]
+    result = _parse_file(
+        DagFileParseRequest(
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
+            bundle_path=TEST_DAG_FOLDER,
+            bundle_name="testing",
+            callback_requests=requests,
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert result is None
+    assert called is True
+
+
 def test_parse_file_static_check_with_default_warning():
     result = _parse_file(
         DagFileParseRequest(
