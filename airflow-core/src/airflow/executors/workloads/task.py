@@ -77,8 +77,8 @@ class ExecuteTask(BaseDagBundleWorkload):
 
     @property
     def sort_key(self) -> int:
-        """Return the task priority weight for sorting (lower = higher priority)."""
-        return self.ti.priority_weight
+        """Return the negated task priority weight so the ascending sort dispatches the highest ``priority_weight`` first."""
+        return -self.ti.priority_weight
 
     @property
     def display_name(self) -> str:
