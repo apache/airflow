@@ -24,15 +24,16 @@ writing Apache Airflow task handlers and the coordinator runtime that executes
 registered TypeScript handlers from an Airflow worker.
 
 > **Note**
-> This package is **alpha**: the API will change, it requires **Node 22+**, and
-> it is **ESM-only**. It is not yet published to a public npm registry — until an
-> official Apache Airflow release is available, build and use it from source.
+> This package is **0.1.0-beta1**: the API may change, it requires **Node 22+**, and
+> it is **ESM-only**.
 
 ## Getting Started
 
-The SDK is currently distributed as source in the `ts-sdk/` directory of the
-Apache Airflow repository. Build it there and add it as a local dependency of
-your task bundle; it is not yet published to a public npm registry.
+Install the beta package from npm:
+
+```bash
+npm install apache-airflow-ts-sdk@0.1.0-beta1
+```
 
 Define a Dag and register its task handlers. Handlers receive a `TaskContext`
 and a `TaskClient`; any non-`undefined` return value is pushed to XCom under
@@ -40,7 +41,7 @@ the `"return_value"` key by the active runtime, matching Python `@task`
 behavior:
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");

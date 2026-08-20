@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 const dag = new Dag("typescript_example");
 
