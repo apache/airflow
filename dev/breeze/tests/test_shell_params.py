@@ -88,6 +88,24 @@ console = Console(width=400, color_system="standard")
         ),
         pytest.param(
             {},
+            {},
+            {
+                "AIRFLOW_MCP_ALLOW_WRITES": "true",
+                "AIRFLOW_MCP_ALLOW_DELETES": "false",
+            },
+            id="MCP server writes enabled and deletes disabled by default",
+        ),
+        pytest.param(
+            {"AIRFLOW_MCP_ALLOW_WRITES": "false", "AIRFLOW_MCP_ALLOW_DELETES": "true"},
+            {},
+            {
+                "AIRFLOW_MCP_ALLOW_WRITES": "false",
+                "AIRFLOW_MCP_ALLOW_DELETES": "true",
+            },
+            id="MCP server write and delete gates overridden from host env",
+        ),
+        pytest.param(
+            {},
             {"celery_broker": "redis"},
             {
                 "AIRFLOW__CELERY__BROKER_URL": "redis://redis:6379/0",
