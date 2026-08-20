@@ -491,11 +491,6 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
-        # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
-        # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
-        # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
-        # response could redirect the token off-host. Pin follow-up requests to the configured
-        # endpoint's host (CWE-918).
         self.allowed_netloc = urlparse(request_adapter.base_url).netloc
         return request_adapter
 
@@ -620,6 +615,27 @@ class KiotaRequestAdapterHook(BaseHook):
 
         return response
 
+    async def assert_allowed_host(self, url: str | None) -> None:
+        """
+        Refuse an absolute ``url`` whose host differs from the configured Microsoft Graph endpoint.
+
+        A pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is re-fetched
+        with the connection's bearer token attached. That token is withheld only from hosts outside
+        ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered response
+        could send it to an arbitrary host (CWE-918).
+        """
+        if not url or not url.startswith("http"):
+            return
+
+        if self.allowed_netloc is None:
+            await self.get_async_conn()
+
+        if urlparse(url).netloc != self.allowed_netloc:
+            raise ValueError(
+                f"Refusing to follow pagination link {url!r}: its host differs "
+                f"from the configured Microsoft Graph endpoint {self.allowed_netloc!r}."
+            )
+
     async def paginated_run(
         self,
         url: str = "",
@@ -667,15 +683,7 @@ class KiotaRequestAdapterHook(BaseHook):
                             data=data,
                             responses=lambda: responses,
                         )
-                        if (
-                            next_url
-                            and next_url.startswith("http")
-                            and urlparse(next_url).netloc != self.allowed_netloc
-                        ):
-                            raise ValueError(
-                                f"Refusing to follow pagination link {next_url!r}: its host differs "
-                                f"from the configured Microsoft Graph endpoint {self.allowed_netloc!r}."
-                            )
+                        await self.assert_allowed_host(next_url)
                         url = next_url
                 else:
                     break
