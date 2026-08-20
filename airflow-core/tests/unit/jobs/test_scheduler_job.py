@@ -8421,6 +8421,35 @@ class TestSchedulerJob:
         assert active == [asset1, asset3, asset5]
         assert orphaned == [asset2, asset4]
 
+    def test_asset_orphaning_keeps_alias_materialized_asset_active(self, session):
+        """An asset linked only through an ``AssetAlias`` association must stay active, not orphaned.
+
+        Reproduces #58058: a task with an ``AssetAlias`` outlet materializes a concrete asset at
+        runtime (via ``Metadata``). It has no schedule/outlet/inlet reference — only the alias
+        association — so the orphanage pass used to treat it as orphaned, leaving it out of the
+        Assets tab despite having events and a live alias.
+        """
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        asset = AssetModel(uri="test://alias_materialized", name="alias_materialized_asset", group="asset")
+        alias = AssetAliasModel(name="materializing_alias", group="asset")
+        asset.aliases.append(alias)
+        session.add_all([asset, alias])
+        session.flush()
+
+        # Referenced only via the alias association, so inactive before the pass.
+        orphaned, active = self._find_assets_activation(session)
+        assert asset in orphaned
+        assert asset not in active
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        # The alias association now counts as a reference, so the asset is activated.
+        orphaned, active = self._find_assets_activation(session)
+        assert asset in active
+        assert asset not in orphaned
+
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
