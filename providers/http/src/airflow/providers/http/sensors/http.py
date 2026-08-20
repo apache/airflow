@@ -21,12 +21,17 @@ from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    BaseSensorOperator,
+    PokeReturnValue,
+    conf,
+)
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.providers.http.triggers.http import HttpSensorTrigger
+from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpSensorTrigger
 
 if TYPE_CHECKING:
-    from airflow.sdk import Context, PokeReturnValue
+    from airflow.sdk import Context
 
 
 class HttpSensor(BaseSensorOperator):
@@ -72,7 +77,9 @@ class HttpSensor(BaseSensorOperator):
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
-        It should return True for 'pass' and False otherwise.
+        It should return True for 'pass' and False otherwise. In deferrable mode, the
+        triggerer waits for the endpoint to respond without error and the check runs on
+        the worker; if it returns False, the task defers again until the check passes.
     :param extra_options: Extra options for the 'requests' library, see the
         'requests' documentation (options to modify timeout, ssl, etc.)
     :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
@@ -158,22 +165,48 @@ class HttpSensor(BaseSensorOperator):
         return True
 
     def execute(self, context: Context) -> Any:
-        if not self.deferrable or self.response_check:
+        if not self.deferrable:
             return super().execute(context=context)
-        if not self.poke(context):
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=HttpSensorTrigger(
-                    endpoint=self.endpoint,
-                    http_conn_id=self.http_conn_id,
-                    data=self.request_params,
-                    headers=self.headers,
-                    method=self.method,
-                    extra_options=self.extra_options,
-                    poke_interval=self.poke_interval,
-                ),
-                method_name="execute_complete",
-            )
+        result = self.poke(context)
+        if not result:
+            self._defer()
+        # Keep sync mode's contract of returning the xcom value from a truthy PokeReturnValue.
+        if isinstance(result, PokeReturnValue):
+            return result.xcom_value
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def _defer(self, initial_delay: float = 0.0) -> None:
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=HttpSensorTrigger(
+                endpoint=self.endpoint,
+                http_conn_id=self.http_conn_id,
+                data=self.request_params,
+                headers=self.headers,
+                method=self.method,
+                extra_options=self.extra_options,
+                poke_interval=self.poke_interval,
+                initial_delay=initial_delay,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
+        if self.response_check:
+            from airflow.utils.operator_helpers import determine_kwargs
+
+            if not isinstance(event, dict) or "response" not in event:
+                raise ValueError(
+                    "The trigger event does not contain the HTTP response required to "
+                    "evaluate response_check. The deferred task was most likely resumed by a "
+                    "trigger serialized with an older version of the http provider."
+                )
+            response = HttpResponseSerializer.deserialize(event["response"])
+            kwargs = determine_kwargs(self.response_check, [response], context)
+            result = self.response_check(response, **kwargs)
+            if not result:
+                # The check did not pass yet; hand polling back to the triggerer.
+                self._defer(initial_delay=self.poke_interval)
+            if isinstance(result, PokeReturnValue):
+                self.log.info("%s completed successfully.", self.task_id)
+                return result.xcom_value
         self.log.info("%s completed successfully.", self.task_id)
