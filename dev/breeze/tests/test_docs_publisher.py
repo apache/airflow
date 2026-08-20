@@ -114,6 +114,13 @@ def test_publish_java_sdk_version_falls_back_to_gradle_properties(
     assert (java_sdk_archive / "stable.txt").read_text() == "9.9.9\n"
 
 
+def test_mypy_version_falls_back_to_package_source(monkeypatch):
+    monkeypatch.setattr(docs_publisher, "get_airflow_mypy_version", lambda: "0.2.0")
+    publisher = DocsPublisher(package_name="apache-airflow-mypy", output=None, verbose=False)
+
+    assert publisher._current_version == "0.2.0"
+
+
 def test_publish_ts_sdk_version_falls_back_to_package_json(generated_path, airflow_site_dir, monkeypatch):
     monkeypatch.setattr(docs_publisher, "get_ts_sdk_version", lambda: "0.1.0-alpha.0")
     _stage_ts_sdk_docs(generated_path, version=None)

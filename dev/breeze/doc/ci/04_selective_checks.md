@@ -467,8 +467,8 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * If there are some build dependencies changed (`hatch_build.py` and updated system dependencies in
   the `pyproject.toml` - then `upgrade to newer dependencies` is enabled.
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
-  several criteria: if any of the airflow core, charts, docker-stack, providers files or docs have changed,
-  then corresponding packages are build (including cross-dependent providers). If any of the core files
+  several criteria: if any of the airflow core, charts, docker-stack, Apache Airflow Mypy, providers files or
+  docs have changed, then corresponding packages are built (including cross-dependent providers). If any of the core files
   changed, also providers docs are built because all providers depend on airflow docs. If any of the docs
   build python files changed or when build is "canary" type in main - all docs packages are built.
 

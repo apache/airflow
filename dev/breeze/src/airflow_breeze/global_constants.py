@@ -33,6 +33,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
+    MYPY_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
@@ -316,6 +317,7 @@ REGULAR_DOC_PACKAGES = [
     "task-sdk",
     "ts-sdk",
     "apache-airflow-ctl",
+    "apache-airflow-mypy",
 ]
 
 
@@ -709,6 +711,19 @@ def get_airflowctl_version():
     if airflowctl_version == "unknown":
         raise RuntimeError("Unable to determine AirflowCTL version")
     return airflowctl_version
+
+
+def get_airflow_mypy_version():
+    mypy_init_py_file = MYPY_SOURCES_PATH / "airflow_mypy" / "__init__.py"
+    mypy_version = "unknown"
+    with open(mypy_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                mypy_version = line.split()[2][1:-1]
+                break
+    if mypy_version == "unknown":
+        raise RuntimeError("Unable to determine Apache Airflow Mypy version")
+    return mypy_version
 
 
 def get_airflow_version():

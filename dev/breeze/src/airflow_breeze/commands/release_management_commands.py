@@ -102,6 +102,7 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
     SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
+    get_airflow_mypy_version,
     get_airflow_version,
     get_airflowctl_version,
     get_task_sdk_version,
@@ -2043,6 +2044,9 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
 
     if package_name == "apache-airflow-ctl":
         return get_airflowctl_version()
+
+    if package_name == "apache-airflow-mypy":
+        return get_airflow_mypy_version()
 
     if package_name == "task-sdk":
         return get_task_sdk_version()
