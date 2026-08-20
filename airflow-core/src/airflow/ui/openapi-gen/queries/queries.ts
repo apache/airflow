@@ -1477,10 +1477,10 @@ export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskSt
 * Get Task State Store
 * Get a single task state store entry.
 * @param data The data for the request.
+* @param data.key
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @param data.key
 * @param data.mapIndex
 * @returns TaskStateStoreResponse Successful Response
 * @throws ApiError
@@ -2372,10 +2372,10 @@ export const useAssetStateStoreServiceSetAssetStateStore = <TData = Common.Asset
 * Set Task State Store
 * Set a task state store value. Creates or overwrites the key.
 * @param data The data for the request.
+* @param data.key
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @param data.key
 * @param data.requestBody
 * @param data.mapIndex
 * @returns void Successful Response
@@ -2784,10 +2784,10 @@ export const usePoolServiceBulkPools = <TData = Common.PoolServiceBulkPoolsMutat
 * Patch Task State Store
 * Update the value of an existing task state store key.
 * @param data The data for the request.
+* @param data.key
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @param data.key
 * @param data.requestBody
 * @param data.mapIndex
 * @returns unknown Successful Response
@@ -3031,8 +3031,8 @@ export const useAssetStateStoreServiceDeleteAssetStateStore = <TData = Common.As
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @param data.mapIndex
 * @param data.allMapIndices
+* @param data.mapIndex
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3053,10 +3053,10 @@ export const useTaskStateStoreServiceClearTaskStateStore = <TData = Common.TaskS
 * Delete Task State Store
 * Delete a single task state store key. No-op if the key does not exist.
 * @param data The data for the request.
+* @param data.key
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @param data.key
 * @param data.mapIndex
 * @returns void Successful Response
 * @throws ApiError
