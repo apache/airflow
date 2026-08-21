@@ -69,7 +69,6 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
-    SCHEDULER_DAG_CACHE_SIZE,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
 )
@@ -526,7 +525,7 @@ class TestSchedulerJob:
 
         assert isinstance(job_runner.scheduler_dag_bag, CachedDBDagBag)
         assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
-        assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
+        assert job_runner.scheduler_dag_bag._dags.maxsize == 512
         # Reported separately from the API server's cache, not folded into it.
         assert job_runner.scheduler_dag_bag._stats_prefix == "scheduler.dag_bag"
 
