@@ -161,10 +161,10 @@ class TestQuickSightCreateIngestionOperator:
     @mock.patch.object(QuickSightHook, "wait_for_ingestion")
     @mock.patch.object(QuickSightHook, "create_ingestion", return_value=MOCK_RESPONSE)
     def test_check_interval_deprecation(self, mock_create_ingestion, mock_wait_for_ingestion, check_interval):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="check_interval"):
-            op = QuickSightCreateIngestionOperator(**self.default_op_kwargs, check_interval=check_interval)
+        op = QuickSightCreateIngestionOperator(**self.default_op_kwargs, check_interval=check_interval)
 
-        op.execute({})
+        with pytest.warns(AirflowProviderDeprecationWarning, match="check_interval"):
+            op.execute({})
 
         mock_wait_for_ingestion.assert_called_once_with(
             data_set_id=DATA_SET_ID,

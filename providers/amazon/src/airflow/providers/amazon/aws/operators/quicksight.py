@@ -88,14 +88,6 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        if check_interval is not None:
-            warnings.warn(
-                "The `check_interval` parameter is deprecated and will be removed in a future release. "
-                "Use `waiter_delay` instead. While `check_interval` is set, it takes precedence over "
-                "`waiter_delay`.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.data_set_id = data_set_id
         self.ingestion_id = ingestion_id
         self.ingestion_type = ingestion_type
@@ -106,6 +98,15 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
         self.deferrable = deferrable
 
     def execute(self, context: Context):
+        # check_interval may be templated, so it is only resolvable once rendering has happened
+        if self.check_interval is not None:
+            warnings.warn(
+                "The `check_interval` parameter is deprecated and will be removed in a future release. "
+                "Use `waiter_delay` instead. While `check_interval` is set, it takes precedence over "
+                "`waiter_delay`.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s", self.data_set_id)
         ingestion = self.hook.create_ingestion(
             data_set_id=self.data_set_id,
@@ -113,7 +114,6 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
             ingestion_type=self.ingestion_type,
             wait_for_completion=False,
         )
-        # check_interval may be templated, so resolve the deprecated value at execution time
         waiter_delay = int(self.waiter_delay if self.check_interval is None else self.check_interval)
         waiter_max_attempts = int(self.waiter_max_attempts)
         if self.deferrable:
