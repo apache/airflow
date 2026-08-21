@@ -61,6 +61,7 @@ class DeadlineAlertResponse(BaseModel):
             "only resolved at scheduler evaluation time."
         ),
     )
+    fire_on_failure: bool
     created_at: datetime
 
     @field_validator("interval", mode="before")

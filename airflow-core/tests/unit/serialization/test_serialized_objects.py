@@ -23,6 +23,7 @@ import pickle
 import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -96,7 +97,11 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetRef,
 )
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedDeadlineAlert
-from airflow.serialization.encoders import ensure_serialized_asset, ensure_serialized_deadline_alert
+from airflow.serialization.encoders import (
+    encode_deadline_alert,
+    ensure_serialized_asset,
+    ensure_serialized_deadline_alert,
+)
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import PartitionMapperNotFound
 from airflow.serialization.serialized_objects import (
@@ -500,6 +505,7 @@ def test_serialize_deserialize_deadline_alert(reference):
         reference=reference,
         interval=timedelta(hours=1),
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
+        fire_on_failure=True,
     )
 
     # Use BaseSerialization like assets do
@@ -511,6 +517,35 @@ def test_serialize_deserialize_deadline_alert(reference):
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
     assert deserialized.callback == original.callback
+    assert deserialized.fire_on_failure is True
+
+
+def test_deserialize_deadline_alert_defaults_fire_on_failure_false():
+    original = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+
+    serialized = BaseSerialization.serialize(original)
+    del serialized[Encoding.VAR][DeadlineAlertFields.FIRE_ON_FAILURE]
+
+    deserialized = BaseSerialization.deserialize(serialized)
+
+    assert deserialized.fire_on_failure is False
+
+
+def test_serialize_deadline_alert_from_older_sdk_defaults_fire_on_failure_false():
+    older_sdk_alert = SimpleNamespace(
+        name=None,
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+
+    serialized = encode_deadline_alert(older_sdk_alert)
+
+    assert serialized[DeadlineAlertFields.FIRE_ON_FAILURE] is False
 
 
 def test_deserialize_deadline_alert_none_interval_raises():

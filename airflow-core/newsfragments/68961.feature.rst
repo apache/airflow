@@ -1,0 +1,1 @@
+Add ``DeadlineAlert.fire_on_failure`` to optionally fire pending DagRun deadline alerts immediately when the scheduler marks a DagRun failed.
