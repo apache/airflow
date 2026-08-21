@@ -123,3 +123,46 @@ you can do it by adding the following section to your ``values.yaml``:
 
    airflow:
      executor: KubernetesExecutor
+
+Deploying extra Kubernetes objects
+----------------------------------
+
+Creating a custom chart is the right approach when the extra templates are a project of their own.
+For a small number of resources the chart does not model, ``extraObjects`` is a lighter alternative:
+every item of that list is rendered as an additional manifest by the Airflow chart itself,
+so no umbrella chart, no ``helm dependency build`` and no second release are needed.
+
+Each item is either a mapping holding a full manifest, or a string holding a rendered manifest.
+Both forms go through ``tpl``, so the chart values, ``.Release`` and ``.Chart`` are available:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   extraObjects:
+     - apiVersion: networking.k8s.io/v1
+       kind: NetworkPolicy
+       metadata:
+         name: '{{ .Release.Name }}-deny-egress'
+       spec:
+         podSelector:
+           matchLabels:
+             release: '{{ .Release.Name }}'
+         policyTypes:
+           - Egress
+     - |
+       apiVersion: v1
+       kind: ConfigMap
+       metadata:
+         name: {{ .Release.Name }}-extra-config
+       data:
+         MY_KEY: "my_value"
+
+The manifests are passed through as they are written, which means the chart adds no labels,
+no annotations and no Helm hooks to them, and it applies no validation beyond what the API server does.
+Objects created this way share the lifecycle of the release, so they are removed on ``helm uninstall``.
+
+.. note::
+
+   Use the dedicated values where they exist. Secrets and ConfigMaps consumed by Airflow containers
+   belong in :ref:`extraSecrets and extraConfigMaps <parameters:Kubernetes>`, which do add the chart
+   labels and Helm hooks, and additional containers belong in the ``extra*Containers`` values.
