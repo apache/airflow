@@ -504,14 +504,11 @@ class TestDatetimeRangeFilterFactory:
         rf = _make_datetime_filter("end_date")
         assert isinstance(rf, NullableDatetimeRangeFilter)
 
-    def test_aliased_filter_name_returns_plain_filter(self):
-        """dag_run_start_date uses attribute_name='start_date' via outer join; NULL means 'no run',
-        not 'currently running', so it must return a plain RangeFilter to avoid inflating counts."""
+    def test_aliased_start_date_returns_nullable_filter(self):
         rf = _make_datetime_filter("dag_run_start_date", model=DagRun, attribute_name="start_date")
-        assert type(rf) is RangeFilter
+        assert isinstance(rf, NullableDatetimeRangeFilter)
 
     def test_aliased_end_date_returns_plain_filter(self):
-        """dag_run_end_date uses attribute_name='end_date' via outer join; must return plain RangeFilter."""
         rf = _make_datetime_filter("dag_run_end_date", model=DagRun, attribute_name="end_date")
         assert type(rf) is RangeFilter
 
