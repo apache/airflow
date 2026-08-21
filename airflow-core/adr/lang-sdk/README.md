@@ -33,6 +33,7 @@ bind core interfaces and apply to every language SDK, not just the Java SDK.
 - [ADR-0005](0005-coordinator-packaging.md): coordinator packaging, module layout, and registration.
 - [ADR-0006](0006-no-lang-sdk-source-display.md): no Lang-SDK source display for mixed-language (`@task.stub`) Dags.
 - [ADR-0007](0007-taskflow-across-language-boundary.md): TaskFlow across the language boundary — argument binding for Lang-SDK tasks.
+- [ADR-0008](0008-mixed-language-dag-processing.md): mixed-language Dag processing — DagImporter routing and persistence.
 
 Decisions specific to a single SDK stay next to that SDK — for example, the Go SDK's bundle-format
 decisions live in [`go-sdk/adr/`](../../../go-sdk/adr).
