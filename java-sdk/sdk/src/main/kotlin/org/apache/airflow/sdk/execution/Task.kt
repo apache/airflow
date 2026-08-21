@@ -71,9 +71,11 @@ internal object TaskRunner {
     request: StartupDetails,
     client: Client,
   ): Any {
-    val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskResult.of(TaskState.State.REMOVED)
+    val definition =
+      bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId]?.definition
+        ?: return TaskResult.of(TaskState.State.REMOVED)
     return try {
-      task.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
+      definition.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
       TaskResult.success()
     } catch (e: CancellationException) {
       throw e // Let coroutine cancellation propagate so the task coroutine unwinds.

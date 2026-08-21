@@ -15,11 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/static-type-checking:
+Release Notes
+=============
 
-Static Type Checking for Dags
-=============================
-
-Airflow publishes optional `mypy <https://mypy-lang.org/>`_ plugins as the independently versioned
-`apache-airflow-mypy <https://airflow.apache.org/docs/apache-airflow-mypy/stable/index.html>`_ distribution.
-See the plugin documentation for installation, configuration, supported Airflow patterns, and release notes.
+.. include:: ../RELEASE_NOTES.rst
