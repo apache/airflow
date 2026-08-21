@@ -149,6 +149,11 @@ dags:
   concurrent_xcom_dag:
     tasks:
       - "pull_xcoms_concurrently"
+  native_dag:
+    tasks:
+      - "nativeExtract"
+      - "nativeTransform"
+      - "nativeLoad"
   simple_dag:
     tasks:
       - "extract"

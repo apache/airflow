@@ -37,14 +37,27 @@ type myBundle struct{}
 var _ v1.BundleProvider = (*myBundle)(nil)
 
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-	simpleDag := dagbag.AddDag("simple_dag", v1.DagSpec{
+	simpleDag := dagbag.AddDag("simple_dag")
+	simpleDag.AddTask(extract, nil)
+	simpleDag.AddTask(transform, nil)
+	simpleDag.AddTask(load, nil)
+
+	nativeDag := dagbag.AddDag("native_dag", v1.DagSpec{
 		Schedule:    "@daily",
 		Description: "Example Go-authored Dag",
 		Tags:        []string{"example", "go-sdk"},
 	})
-	simpleDag.AddTask(extract, nil, v1.TaskSpec{Queue: "go-task", Retries: 2})
-	simpleDag.AddTask(transform, []string{"extract"}, v1.TaskSpec{Queue: "go-task"})
-	simpleDag.AddTask(load, []string{"transform"}, v1.TaskSpec{Queue: "go-task"})
+	nativeDag.AddTask(nativeExtract, nil, v1.TaskSpec{Queue: "go-task"})
+	nativeDag.AddTask(
+		nativeTransform,
+		[]string{"nativeExtract"},
+		v1.TaskSpec{Queue: "go-task"},
+	)
+	nativeDag.AddTask(
+		nativeLoad,
+		[]string{"nativeTransform"},
+		v1.TaskSpec{Queue: "go-task"},
+	)
 
 	// Tasks defined in other packages register through the same dagbag.
 	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
@@ -78,6 +91,21 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap, nil)
 	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap, nil)
 
+	return nil
+}
+
+func nativeExtract(log *slog.Logger) error {
+	log.Info("Extracting native Dag data")
+	return nil
+}
+
+func nativeTransform(log *slog.Logger) error {
+	log.Info("Transforming native Dag data")
+	return nil
+}
+
+func nativeLoad(log *slog.Logger) error {
+	log.Info("Loading native Dag data")
 	return nil
 }
 
