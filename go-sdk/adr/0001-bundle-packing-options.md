@@ -194,7 +194,7 @@ The SDK settles that sub-decision in favour of a *single*
 ### Option E: Static AST scan, no introspection
 
 Parser-only packer: walk the DAG source AST, find `dagbag.AddDag("X")`
-calls and the `.AddTask(fn, nil)` calls chained off them, and synthesise the
+calls and the `.AddTask(fn)` calls chained off them, and synthesise the
 manifest without running the binary.
 
 - **Pros:** no runtime dependency on the binary (works even if it

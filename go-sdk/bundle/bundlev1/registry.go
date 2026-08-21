@@ -31,9 +31,9 @@ type (
 	// Dag is the handle returned by Registry.AddDag. Use it to attach the Go
 	// functions that implement the dag's tasks.
 	Dag interface {
-		// AddTask registers fn under its Go name. depends names
-		// already-registered upstream tasks; the optional spec configures the
-		// task.
+		// AddTask registers fn under its Go name. Its optional arguments are an
+		// upstream task-id slice followed by a TaskSpec. Either or both may be
+		// omitted.
 		//
 		// fn is an ordinary Go function whose parameters are injected by type
 		// and may appear in any order. Recognised parameters are:
@@ -46,13 +46,13 @@ type (
 		// the task, and a non-nil first result is pushed as the task's
 		// return-value XCom. Passing a non-function, or a function whose return
 		// signature does not match, panics at registration time.
-		AddTask(fn any, depends []string, spec ...TaskSpec)
+		AddTask(fn any, args ...any)
 
 		// AddTaskWithName is like AddTask but sets task_id explicitly instead of
 		// deriving it from the function name. Use it when the Go function name
 		// cannot match the Python @task.stub id, for example for an anonymous
 		// function or a differing name.
-		AddTaskWithName(taskId string, fn any, depends []string, spec ...TaskSpec)
+		AddTaskWithName(taskId string, fn any, args ...any)
 	}
 
 	// Registry is the recorder passed to BundleProvider.RegisterDags. Use it to
@@ -84,18 +84,73 @@ type dagShim struct {
 	registry *registry
 }
 
-func (d dagShim) AddTask(fn any, depends []string, spec ...TaskSpec) {
-	d.registry.registerTask(d.dagId, fn, depends, optionalSpec(spec, "AddTask"))
+func (d dagShim) AddTask(fn any, args ...any) {
+	depends, spec := taskArgs(args, "AddTask")
+	d.registry.registerTask(d.dagId, fn, depends, spec)
 }
 
-func (d dagShim) AddTaskWithName(taskId string, fn any, depends []string, spec ...TaskSpec) {
+func (d dagShim) AddTaskWithName(taskId string, fn any, args ...any) {
+	depends, spec := taskArgs(args, "AddTaskWithName")
 	d.registry.registerTaskWithName(
 		d.dagId,
 		taskId,
 		fn,
 		depends,
-		optionalSpec(spec, "AddTaskWithName"),
+		spec,
 	)
+}
+
+func taskArgs(args []any, caller string) (depends []string, spec TaskSpec) {
+	if len(args) > 2 {
+		panic(fmt.Errorf(
+			"%s accepts at most two optional arguments: depends []string, then TaskSpec; got %d",
+			caller,
+			len(args),
+		))
+	}
+
+	if len(args) == 0 {
+		return nil, TaskSpec{}
+	}
+
+	if len(args) == 1 {
+		switch arg := args[0].(type) {
+		case nil:
+			return nil, TaskSpec{}
+		case []string:
+			return arg, TaskSpec{}
+		case TaskSpec:
+			return nil, arg
+		default:
+			panic(fmt.Errorf(
+				"%s optional argument must be depends []string or TaskSpec, got %T",
+				caller,
+				arg,
+			))
+		}
+	}
+
+	if args[0] != nil {
+		var ok bool
+		depends, ok = args[0].([]string)
+		if !ok {
+			panic(fmt.Errorf(
+				"%s first optional argument must be depends []string, got %T",
+				caller,
+				args[0],
+			))
+		}
+	}
+	var ok bool
+	spec, ok = args[1].(TaskSpec)
+	if !ok {
+		panic(fmt.Errorf(
+			"%s second optional argument must be TaskSpec, got %T",
+			caller,
+			args[1],
+		))
+	}
+	return depends, spec
 }
 
 func optionalSpec[T any](specs []T, caller string) T {

@@ -108,14 +108,14 @@ func (s *RegistrySuite) TestAddDag_ValidatesID() {
 }
 
 func (s *RegistrySuite) TestAddTask_RegistersAndFindsTask() {
-	s.dag.AddTask(myTask, nil)
+	s.dag.AddTask(myTask)
 	task, exists := s.reg.LookupTask("dag1", "myTask")
 	s.True(exists)
 	s.NotNil(task)
 }
 
 func (s *RegistrySuite) TestAddTaskWithName_RegistersAndFindsTask() {
-	s.dag.AddTaskWithName("special", myTask, nil)
+	s.dag.AddTaskWithName("special", myTask)
 	task, exists := s.reg.LookupTask("dag1", "special")
 	s.True(exists)
 	s.NotNil(task)
@@ -132,26 +132,26 @@ func (s *RegistrySuite) TestAddTaskWithName_ValidatesID() {
 		"over-max-size": strings.Repeat("a", maxIDLength+1),
 	} {
 		s.Run(name, func() {
-			s.Panics(func() { s.dag.AddTaskWithName(id, myTask, nil) })
+			s.Panics(func() { s.dag.AddTaskWithName(id, myTask) })
 		})
 	}
 }
 
 func (s *RegistrySuite) TestRegisterTaskWithName_DuplicatePanics() {
-	s.dag.AddTaskWithName("special", myTask, nil)
+	s.dag.AddTaskWithName("special", myTask)
 	s.PanicsWithError("taskId \"special\" is already registered for DAG \"dag1\"", func() {
-		s.dag.AddTaskWithName("special", myTask, nil)
+		s.dag.AddTaskWithName("special", myTask)
 	})
 }
 
 func (s *RegistrySuite) TestAddTask_NonFuncPanics() {
 	s.PanicsWithError("task fn was a string, not a func", func() {
-		s.dag.AddTask("not a func", nil)
+		s.dag.AddTask("not a func")
 	})
 }
 
 func (s *RegistrySuite) TestAddTaskWithArgs_BindsCorrectArgs() {
-	s.dag.AddTask(myTaskWithArgs, nil)
+	s.dag.AddTask(myTaskWithArgs)
 	task, exists := s.reg.LookupTask("dag1", "myTaskWithArgs")
 	s.True(exists)
 	s.NotNil(task)
@@ -161,13 +161,13 @@ func (s *RegistrySuite) TestAddTask_InvalidReturnType() {
 	s.PanicsWithError(
 		"error registering task \"NotErrorRet\" for DAG \"dag1\": expected task function github.com/apache/airflow/go-sdk/bundle/bundlev1.NotErrorRet last return value to return error but found int",
 		func() {
-			s.dag.AddTask(NotErrorRet, nil)
+			s.dag.AddTask(NotErrorRet)
 		},
 	)
 }
 
 func (s *RegistrySuite) TestAddTask_ErrorReturnType() {
-	s.dag.AddTask(errorTask, nil)
+	s.dag.AddTask(errorTask)
 	_, exists := s.reg.LookupTask("dag1", "errorTask")
 	s.True(exists)
 }
@@ -183,11 +183,11 @@ func (s *RegistrySuite) TestOrderedDags_PreservesRegistrationOrder() {
 	// Register dags out of alphabetical order so the test fails if OrderedDags
 	// ever sorts instead of preserving AddDag order.
 	zeta := reg.AddDag("zeta")
-	zeta.AddTaskWithName("z1", myTask, nil)
-	zeta.AddTaskWithName("z2", myTask, nil)
+	zeta.AddTaskWithName("z1", myTask)
+	zeta.AddTaskWithName("z2", myTask)
 
 	alpha := reg.AddDag("alpha")
-	alpha.AddTaskWithName("a1", myTask, nil)
+	alpha.AddTaskWithName("a1", myTask)
 
 	reg.AddDag("mid") // dag with no tasks
 
@@ -216,7 +216,7 @@ func (s *RegistrySuite) TestOrderedDags_PreservesRegistrationOrder() {
 }
 
 func (s *RegistrySuite) TestAddTask_WithSpec() {
-	s.dag.AddTask(myTask, nil, TaskSpec{Queue: "high_mem", Retries: 3, DoXComPush: Bool(false)})
+	s.dag.AddTask(myTask, TaskSpec{Queue: "high_mem", Retries: 3, DoXComPush: Bool(false)})
 	enum, ok := s.reg.(EnumerableBundle)
 	s.Require().True(ok)
 	dags := enum.OrderedDags()
@@ -231,7 +231,7 @@ func (s *RegistrySuite) TestAddTask_WithSpec() {
 }
 
 func (s *RegistrySuite) TestAddTask_HonorsDoXComPush() {
-	s.dag.AddTask(resultTask, nil, TaskSpec{DoXComPush: Bool(false)})
+	s.dag.AddTask(resultTask, TaskSpec{DoXComPush: Bool(false)})
 	task, exists := s.reg.LookupTask("dag1", "resultTask")
 	s.Require().True(exists)
 	client := &recordingClient{}
@@ -240,7 +240,7 @@ func (s *RegistrySuite) TestAddTask_HonorsDoXComPush() {
 }
 
 func (s *RegistrySuite) TestAddTask_PushesNilResult() {
-	s.dag.AddTask(nilResultTask, nil)
+	s.dag.AddTask(nilResultTask)
 	task, exists := s.reg.LookupTask("dag1", "nilResultTask")
 	s.Require().True(exists)
 	client := &recordingClient{}
@@ -250,7 +250,7 @@ func (s *RegistrySuite) TestAddTask_PushesNilResult() {
 }
 
 func (s *RegistrySuite) TestAddTaskWithName_WithSpec() {
-	s.dag.AddTaskWithName("special", myTask, nil, TaskSpec{Queue: "gpu", Pool: "gpu_pool"})
+	s.dag.AddTaskWithName("special", myTask, TaskSpec{Queue: "gpu", Pool: "gpu_pool"})
 	enum, ok := s.reg.(EnumerableBundle)
 	s.Require().True(ok)
 	dags := enum.OrderedDags()
@@ -263,7 +263,7 @@ func (s *RegistrySuite) TestAddTaskWithName_WithSpec() {
 }
 
 func (s *RegistrySuite) TestAddTask_DependsRecordsDownstream() {
-	s.dag.AddTaskWithName("extract", myTask, nil)
+	s.dag.AddTaskWithName("extract", myTask)
 	s.dag.AddTaskWithName("transform", myTask, []string{"extract"})
 	s.dag.AddTaskWithName("load", myTask, []string{"transform"})
 
@@ -279,7 +279,7 @@ func (s *RegistrySuite) TestAddTask_DependsRecordsDownstream() {
 }
 
 func (s *RegistrySuite) TestAddTask_FanOutFanIn() {
-	s.dag.AddTaskWithName("extract", myTask, nil)
+	s.dag.AddTaskWithName("extract", myTask)
 	s.dag.AddTaskWithName("transform_a", myTask, []string{"extract"})
 	s.dag.AddTaskWithName("transform_b", myTask, []string{"extract"})
 	s.dag.AddTaskWithName("load", myTask, []string{"transform_a", "transform_b"})
@@ -296,7 +296,7 @@ func (s *RegistrySuite) TestAddTask_FanOutFanIn() {
 }
 
 func (s *RegistrySuite) TestAddTask_DependsDuplicatesIgnored() {
-	s.dag.AddTaskWithName("extract", myTask, nil)
+	s.dag.AddTaskWithName("extract", myTask)
 	s.dag.AddTaskWithName("load", myTask, []string{"extract", "extract"})
 
 	enum := s.reg.(EnumerableBundle)
@@ -324,15 +324,39 @@ func (s *RegistrySuite) TestAddTask_DependsOnSelfPanics() {
 }
 
 func (s *RegistrySuite) TestAddTask_TooManySpecsPanics() {
-	s.PanicsWithError("AddTask accepts at most one spec, got 2", func() {
-		s.dag.AddTask(myTask, nil, TaskSpec{}, TaskSpec{})
-	})
+	s.PanicsWithError(
+		"AddTask accepts at most two optional arguments: depends []string, then TaskSpec; got 3",
+		func() {
+			s.dag.AddTask(myTask, nil, TaskSpec{}, TaskSpec{})
+		},
+	)
 }
 
 func (s *RegistrySuite) TestAddTaskWithName_TooManySpecsPanics() {
-	s.PanicsWithError("AddTaskWithName accepts at most one spec, got 2", func() {
-		s.dag.AddTaskWithName("special", myTask, nil, TaskSpec{}, TaskSpec{})
-	})
+	s.PanicsWithError(
+		"AddTaskWithName accepts at most two optional arguments: depends []string, then TaskSpec; got 3",
+		func() {
+			s.dag.AddTaskWithName("special", myTask, nil, TaskSpec{}, TaskSpec{})
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddTask_RejectsSpecBeforeDepends() {
+	s.PanicsWithError(
+		"AddTask first optional argument must be depends []string, got bundlev1.TaskSpec",
+		func() {
+			s.dag.AddTask(myTask, TaskSpec{}, []string{"upstream"})
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddTask_RejectsInvalidOptionalArgument() {
+	s.PanicsWithError(
+		"AddTask optional argument must be depends []string or TaskSpec, got string",
+		func() {
+			s.dag.AddTask(myTask, "upstream")
+		},
+	)
 }
 
 func (s *RegistrySuite) TestAddDag_WithSpec() {

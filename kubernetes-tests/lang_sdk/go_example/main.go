@@ -44,8 +44,8 @@ func (m *combinedBundle) RegisterDags(dagbag v1.Registry) error {
 	dag := dagbag.AddDag(combinedDagID)
 	// Explicit task ids so the Go tasks are namespaced apart from the Java
 	// tasks that share this dag_id in the Python stub.
-	dag.AddTaskWithName("go_extract", goExtract, nil)
-	dag.AddTaskWithName("go_transform", goTransform, nil)
+	dag.AddTaskWithName("go_extract", goExtract)
+	dag.AddTaskWithName("go_transform", goTransform)
 	return nil
 }
 

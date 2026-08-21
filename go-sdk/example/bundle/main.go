@@ -38,16 +38,16 @@ var _ v1.BundleProvider = (*myBundle)(nil)
 
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	simpleDag := dagbag.AddDag("simple_dag")
-	simpleDag.AddTask(extract, nil)
-	simpleDag.AddTask(transform, nil)
-	simpleDag.AddTask(load, nil)
+	simpleDag.AddTask(extract)
+	simpleDag.AddTask(transform)
+	simpleDag.AddTask(load)
 
 	nativeDag := dagbag.AddDag("native_dag", v1.DagSpec{
 		Schedule:    "@daily",
 		Description: "Example Go-authored Dag",
 		Tags:        []string{"example", "go-sdk"},
 	})
-	nativeDag.AddTask(nativeExtract, nil, v1.TaskSpec{Queue: "go-task"})
+	nativeDag.AddTask(nativeExtract, v1.TaskSpec{Queue: "go-task"})
 	nativeDag.AddTask(
 		nativeTransform,
 		[]string{"nativeExtract"},
@@ -64,32 +64,28 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	concurrentDag.AddTaskWithName(
 		"pull_xcoms_concurrently",
 		concurrentxcom.PullXComsConcurrently,
-		nil,
 	)
 
 	bindingDag := dagbag.AddDag("taskflow_binding_dag")
-	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig, nil)
-	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers, nil)
-	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion, nil)
-	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs, nil)
+	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
+	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
+	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion)
+	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs)
 	bindingDag.AddTaskWithName(
 		"via_struct_no_tags",
 		taskflowbinding.ViaStructNoTags,
-		nil,
 	)
 	bindingDag.AddTaskWithName(
 		"via_struct_arg_tag",
 		taskflowbinding.ViaStructArgTag,
-		nil,
 	)
 	bindingDag.AddTaskWithName(
 		"via_struct_unmatched_arg",
 		taskflowbinding.ViaStructUnmatchedArg,
-		nil,
 	)
-	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap, nil)
-	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap, nil)
-	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap, nil)
+	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
+	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
+	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
 
 	return nil
 }
