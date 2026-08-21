@@ -372,9 +372,7 @@ class TestGetDags(TestDagEndpoint):
             pytest.param("2 2 * * *", id="cron-summary"),
         ],
     )
-    def test_get_dags_filter_is_scheduled_ignores_summary(
-        self, session, test_client, timetable_summary
-    ):
+    def test_get_dags_filter_is_scheduled_ignores_summary(self, session, test_client, timetable_summary):
         self._update_and_assert_dag_fields(
             session,
             {

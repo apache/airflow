@@ -3489,6 +3489,10 @@ export type GetDagsData = {
      */
     hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
+    /**
+     * Filter Dags by whether their timetable can create scheduled runs.
+     */
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
