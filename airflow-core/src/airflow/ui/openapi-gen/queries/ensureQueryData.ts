@@ -585,6 +585,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (queryClient: Query
 * Get Dags
 * Get all Dags.
 * @param data The data for the request.
+* @param data.isScheduled Filter Dags by whether their timetable can create scheduled runs.
 * @param data.limit
 * @param data.offset
 * @param data.tags
@@ -614,7 +615,6 @@ export const ensureUseDagWarningServiceListDagWarningsData = (queryClient: Query
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
 * @param data.isFavorite
 * @param data.timetableType
-* @param data.isScheduled Filter Dags by whether their timetable can create scheduled runs.
 * @returns DAGCollectionResponse Successful Response
 * @throws ApiError
 */
