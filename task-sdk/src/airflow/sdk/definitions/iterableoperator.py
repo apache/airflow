@@ -275,7 +275,7 @@ class IterableOperator(BaseOperator):
         context: Context,
         tasks: Iterable[IndexedTaskInstance],
     ) -> XComIterable | None:
-        exceptions: list[BaseException] = []
+        exceptions: list[Exception] = []
         reschedule_date = timezone.utcnow()
         failed_tasks: deque[IndexedTaskInstance] = deque()
         do_xcom_push = True
