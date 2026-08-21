@@ -16,5 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { HStack, type StackProps } from "@chakra-ui/react";
 
-export { default } from "./MarkRunAsButton";
+/**
+ * The bar the crumbs sit in. `overflow="hidden"` is what clips the end segments' hover fill to the
+ * rounded corners, and `width="fit-content"` keeps the bar hugging its crumbs rather than the header.
+ */
+export const BreadcrumbRow = ({ children, ...rest }: StackProps) => (
+  <HStack
+    alignItems="stretch"
+    as="nav"
+    borderRadius="md"
+    gap={0}
+    overflow="hidden"
+    width="fit-content"
+    {...rest}
+  >
+    {children}
+  </HStack>
+);
