@@ -3641,6 +3641,17 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: is_scheduled
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by whether their timetable can create scheduled
+            runs.
+          title: Is Scheduled
+        description: Filter Dags by whether their timetable can create scheduled runs.
       - name: limit
         in: query
         required: false
@@ -3919,17 +3930,6 @@ paths:
           items:
             type: string
           title: Timetable Type
-      - name: is_scheduled
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          description: Filter Dags by whether their timetable can create scheduled
-            runs.
-          title: Is Scheduled
-        description: Filter Dags by whether their timetable can create scheduled runs.
       responses:
         '200':
           description: Successful Response
