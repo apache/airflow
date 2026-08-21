@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-20T06:40:56.576246
+# This constraints file was automatically generated on 2026-08-21T08:48:22.800418
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -54,7 +54,7 @@ PyJWT==2.13.0
 PyMySQL==1.1.3
 PyNaCl==1.6.2
 PyYAML==6.0.3
-Pygments==2.20.0
+Pygments==2.21.0
 SQLAlchemy-Utils==0.42.1
 SQLAlchemy==2.0.52
 SecretStorage==3.5.0
@@ -80,17 +80,14 @@ aiosqlite==0.22.1
 airbyte-api==1.0.1
 akeyless==5.0.28
 alembic==1.19.1
-alibabacloud-adb20211201==3.7.0
+alibabacloud-adb20211201==4.1.1
 alibabacloud-credentials-api==1.0.1
 alibabacloud-credentials==1.0.11
 alibabacloud-gateway-spi==0.0.4
-alibabacloud-openapi-util==0.2.4
 alibabacloud-oss-v2==1.3.2
+alibabacloud-tea-openapi==0.4.6
 alibabacloud-tea-util==0.3.15
 alibabacloud-tea==0.4.3
-alibabacloud_endpoint_util==0.0.4
-alibabacloud_tea_openapi==0.3.16
-alibabacloud_tea_xml==0.0.3
 amqp==5.3.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
@@ -210,7 +207,7 @@ async-timeout==4.0.3
 asyncpg==0.31.0
 asyncssh==2.24.0
 atlasclient==1.0.0
-atlassian-python-api==5.0.1
+atlassian-python-api==5.0.2
 attrs==26.1.0
 azure-ai-projects==2.4.0
 azure-batch==14.2.0
@@ -280,6 +277,7 @@ cron_descriptor==2.1.0
 croniter==6.2.4
 cryptography==50.0.0
 curlify==3.0.0
+darabonba-core==1.0.8
 databricks-sql-connector==4.4.0
 datadog==0.53.0
 db-dtypes==1.7.1
@@ -312,7 +310,7 @@ fastuuid==0.14.0
 filelock==3.32.3
 flask-appbuilder==5.2.2
 flask-babel==4.0.0
-flower==2.0.1
+flower==2.1.0
 frozenlist==1.8.0
 fsspec==2026.7.0
 future==1.0.0
@@ -384,7 +382,7 @@ graphviz==0.21
 greenback==1.3.0
 greenlet==3.5.5
 gremlinpython==3.8.1
-griffelib==2.1.0
+griffelib==2.2.0
 grpc-google-iam-v1==0.14.5
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -496,7 +494,7 @@ narwhals==2.24.0
 natsort==8.4.0
 nbclient==0.11.0
 nbconvert==7.17.1
-nbformat==5.11.0
+nbformat==5.11.1
 neo4j==6.2.0
 nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
@@ -595,7 +593,7 @@ python-arango==8.3.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-discovery==1.5.2
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.1.1
