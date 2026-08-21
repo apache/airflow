@@ -91,21 +91,26 @@ func TestParseLogLevel(t *testing.T) {
 
 func TestGetAirflowLogLevelName(t *testing.T) {
 	tests := map[slog.Level]string{
-		notsetLogLevel:   "notset",
-		slog.LevelDebug:  "debug",
-		slog.LevelInfo:   "info",
-		slog.LevelWarn:   "warning",
-		slog.LevelError:  "error",
-		criticalLogLevel: "critical",
+		notsetLogLevel:       "notset",
+		slog.LevelDebug - 1:  "notset",
+		slog.LevelDebug:      "debug",
+		slog.LevelDebug + 1:  "debug",
+		slog.LevelInfo - 1:   "debug",
+		slog.LevelInfo:       "info",
+		slog.LevelInfo + 1:   "info",
+		slog.LevelWarn - 1:   "info",
+		slog.LevelWarn:       "warning",
+		slog.LevelWarn + 1:   "warning",
+		slog.LevelError - 1:  "warning",
+		slog.LevelError:      "error",
+		slog.LevelError + 1:  "error",
+		criticalLogLevel - 1: "error",
+		criticalLogLevel:     "critical",
+		criticalLogLevel + 1: "critical",
 	}
 	for level, expected := range tests {
-		name, ok := getAirflowLogLevelName(level)
-		assert.True(t, ok, level)
-		assert.Equal(t, expected, name, level)
+		assert.Equal(t, expected, getAirflowLogLevelName(level), level)
 	}
-
-	_, ok := getAirflowLogLevelName(slog.LevelDebug + 1)
-	assert.False(t, ok)
 }
 
 func TestParseNamespaceLogLevels(t *testing.T) {
