@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from urllib3.response import HTTPResponse
 
     from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
+    from airflow.sdk.types import Logger
 
 
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
@@ -102,6 +103,30 @@ def _parse_log_level(message: str) -> int:
     if match:
         return _POD_LOG_LEVEL_MAP.get(match.group(1).upper(), logging.INFO)
     return logging.INFO
+
+
+def log_message(
+    logger: Logger | logging.Logger,
+    message: str,
+    container_name: str,
+    container_name_log_prefix_enabled: bool = True,
+    log_formatter: Callable[[str, str], str] | None = None,
+) -> None:
+    """
+    Emit a single pod log line at the level detected from its prefix, with appropriate formatting.
+
+    ``logger`` is a parameter rather than ``self.log`` so that each caller's records keep their
+    own logger identity.
+    """
+    if is_log_group_marker(message):
+        print(message)
+        return
+    level = _parse_log_level(message)
+    if log_formatter:
+        formatted_message = log_formatter(container_name, message)
+    else:
+        formatted_message = f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
+    logger.log(level, formatted_message)
 
 
 class XComRetrievalError(AirflowException):
@@ -479,26 +504,6 @@ class PodManager(LoggingMixin):
             check_interval=check_interval,
         )
 
-    def _log_message(
-        self,
-        message: str,
-        container_name: str,
-        container_name_log_prefix_enabled: bool,
-        log_formatter: Callable[[str, str], str] | None,
-    ) -> None:
-        """Log a message at the level detected from its prefix, with appropriate formatting."""
-        if is_log_group_marker(message):
-            print(message)
-        else:
-            level = _parse_log_level(message)
-            if log_formatter:
-                formatted_message = log_formatter(container_name, message)
-            else:
-                formatted_message = (
-                    f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
-                )
-            self.log.log(level, formatted_message)
-
     def fetch_container_logs(
         self,
         pod: V1Pod,
@@ -595,7 +600,8 @@ class PodManager(LoggingMixin):
                                         timestamp=message_timestamp,
                                         pod=pod,
                                     )
-                                self._log_message(
+                                log_message(
+                                    self.log,
                                     message_to_log,
                                     container_name,
                                     container_name_log_prefix_enabled,
@@ -622,8 +628,12 @@ class PodManager(LoggingMixin):
                                 timestamp=message_timestamp,
                                 pod=pod,
                             )
-                        self._log_message(
-                            message_to_log, container_name, container_name_log_prefix_enabled, log_formatter
+                        log_message(
+                            self.log,
+                            message_to_log,
+                            container_name,
+                            container_name_log_prefix_enabled,
+                            log_formatter,
                         )
                     last_captured_timestamp = message_timestamp
                     if last_captured_timestamp:

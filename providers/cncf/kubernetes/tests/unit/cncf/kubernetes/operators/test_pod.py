@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import logging
 import re
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
@@ -3467,11 +3468,69 @@ class TestKubernetesPodOperatorAsync:
             # Verify that client.read_namespaced_pod_log was called
             mocked_client.read_namespaced_pod_log.assert_called_once()
             # Verify the log output using caplog
-            assert f"[base] logs: {test_logs}" in caplog.text
+            assert f"[base] {test_logs}" in caplog.text
             post_complete_action.assert_called_once()
         else:
             # When get_logs=False, _write_logs should not be called, so client.read_namespaced_pod_log should not be called
             mocked_client.read_namespaced_pod_log.assert_not_called()
+
+    @staticmethod
+    def _write_logs_with(mocked_client, container_line: str, **operator_kwargs):
+        mocked_client.read_namespaced_pod_log.return_value = [container_line.encode("utf-8")]
+        op = KubernetesPodOperator(task_id="task", deferrable=True, **operator_kwargs)
+        op._write_logs(
+            k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)),
+        )
+
+    @pytest.mark.parametrize(
+        ("container_line", "expected_level"),
+        [
+            ("ERROR: boom", logging.ERROR),
+            ("WARNING - careful", logging.WARNING),
+            ("[CRITICAL] meltdown", logging.CRITICAL),
+            ("just a plain line", logging.INFO),
+        ],
+    )
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_forwards_container_log_level(
+        self, mocked_client, container_line, expected_level, caplog
+    ):
+        caplog.set_level(logging.DEBUG)
+        self._write_logs_with(mocked_client, container_line)
+
+        (record,) = [r for r in caplog.records if container_line in r.getMessage()]
+        assert record.levelno == expected_level
+        assert record.getMessage() == f"[base] {container_line}"
+
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_honors_log_formatter(self, mocked_client, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._write_logs_with(
+            mocked_client,
+            "ERROR: boom",
+            log_formatter=lambda container_name, message: f"<{container_name}|{message}>",
+        )
+
+        (record,) = [r for r in caplog.records if "boom" in r.getMessage()]
+        assert record.getMessage() == "<base|ERROR: boom>"
+        assert record.levelno == logging.ERROR
+
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_honors_container_name_log_prefix_disabled(self, mocked_client, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._write_logs_with(mocked_client, "ERROR: boom", container_name_log_prefix_enabled=False)
+
+        (record,) = [r for r in caplog.records if "boom" in r.getMessage()]
+        assert record.getMessage() == "ERROR: boom"
+
+    @patch("builtins.print")
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_routes_group_marker_to_print(self, mocked_client, mocked_print, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._write_logs_with(mocked_client, "::group::setup")
+
+        mocked_print.assert_called_once_with("::group::setup")
+        assert not [r for r in caplog.records if "::group::" in r.getMessage()]
 
     @patch(KUB_OP_PATH.format("post_complete_action"))
     @patch(KUB_OP_PATH.format("client"))
