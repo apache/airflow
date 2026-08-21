@@ -423,9 +423,24 @@ In a Kubernetes / Helm deployment add them to ``values.yaml``:
 
 **2. Install the** ``PySocks`` **package in the worker image — this is mandatory.**
 
-.. code-block:: bash
+For a bare-metal or custom Docker image, add it at build time:
 
-    pip install pysocks
+.. code-block:: dockerfile
+
+    RUN pip install pysocks
+
+In a Kubernetes / Helm deployment, add it to ``values.yaml`` so it survives pod restarts:
+
+.. code-block:: yaml
+
+    workers:
+      extraEnv:
+        - name: _PIP_ADDITIONAL_REQUIREMENTS
+          value: "pysocks"
+
+.. warning::
+   Running ``pip install pysocks`` inside a running container is **not** sufficient for
+   Kubernetes deployments — the package will be lost on the next pod restart.
 
 Why PySocks is required even for an HTTP proxy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -437,11 +452,12 @@ HTTPS. To route an HTTPS request through an HTTP proxy, the client must first op
 The ``httplib2`` library — used by ``google-api-python-client`` and the
 ``_authorize()`` path of ``GoogleBaseHook`` for services such as BigQuery Jobs API,
 Dataflow, Compute, Cloud SQL, Datastore, Cloud Functions, and Marketing Platform — does
-**not** implement ``CONNECT`` tunneling itself. It delegates *all* proxying to
-`PySocks <https://github.com/Anorov/PySocks>`_ via a ``socks.socksocket``. If PySocks is
-not installed, ``httplib2`` silently skips the proxy even when ``HTTPS_PROXY`` is set, and
-the worker attempts a direct DNS lookup of the Google endpoint — which fails in a
-network-restricted environment.
+**not** implement ``CONNECT`` tunneling itself. It bundles a minimal socks adapter but
+relies on the external `PySocks <https://pypi.org/project/PySocks/>`_ package being
+importable at runtime to activate its HTTP ``CONNECT`` tunnel path via a ``socks.socksocket``.
+If PySocks is not installed, ``httplib2`` silently falls back to a direct connection even
+when ``HTTPS_PROXY`` is set, and the worker attempts a direct DNS lookup of the Google
+endpoint — which fails in a network-restricted environment.
 
 The symptom is a ``socket.gaierror: [Errno -2] Name or service not known`` (or
 ``[Errno 11001] getaddrinfo failed`` on Windows) when a task first tries to authenticate
