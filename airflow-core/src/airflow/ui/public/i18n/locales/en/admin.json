@@ -148,6 +148,7 @@
   },
   "variables": {
     "add": "Add $t(variables.variable_one)",
+    "backendsOrder": "Secret backends order",
     "columns": {
       "isEncrypted": "Is Encrypted"
     },
@@ -189,6 +190,7 @@
       "upload": "Upload a JSON File",
       "uploadPlaceholder": "Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...})"
     },
+    "loading": "Loading...",
     "noRowsMessage": "No variables found",
     "searchPlaceholder": "Search Keys",
     "variable_one": "Variable",
