@@ -197,14 +197,27 @@ def get_json_error(response: httpx.Response):
         raise err
 
 
+def _raise_for_status_picklable(response: httpx.Response) -> None:
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        if 400 <= response.status_code < 600:
+            raise
+        wrapped = ServerResponseError(str(e), request=e.request, response=e.response)
+        wrapped.detail = None
+        raise wrapped from e
+
+
 def raise_on_4xx_5xx(response: httpx.Response):
-    return get_json_error(response) or response.raise_for_status()
+    get_json_error(response)
+    _raise_for_status_picklable(response)
 
 
 # Py 3.11+ version
 def raise_on_4xx_5xx_with_note(response: httpx.Response):
     try:
-        return get_json_error(response) or response.raise_for_status()
+        get_json_error(response)
+        _raise_for_status_picklable(response)
     except httpx.HTTPStatusError as e:
         if TYPE_CHECKING:
             assert hasattr(e, "add_note")
