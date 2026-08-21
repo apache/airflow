@@ -158,22 +158,20 @@ func parseLogLevel(value string) (slog.Level, bool) {
 	}
 }
 
-func getAirflowLogLevelName(level slog.Level) (string, bool) {
-	switch level {
-	case notsetLogLevel:
-		return "notset", true
-	case slog.LevelDebug:
-		return "debug", true
-	case slog.LevelInfo:
-		return "info", true
-	case slog.LevelWarn:
-		return "warning", true
-	case slog.LevelError:
-		return "error", true
-	case criticalLogLevel:
-		return "critical", true
+func getAirflowLogLevelName(level slog.Level) string {
+	switch {
+	case level < slog.LevelDebug:
+		return "notset"
+	case level < slog.LevelInfo:
+		return "debug"
+	case level < slog.LevelWarn:
+		return "info"
+	case level < slog.LevelError:
+		return "warning"
+	case level < criticalLogLevel:
+		return "error"
 	default:
-		return "", false
+		return "critical"
 	}
 }
 
@@ -263,11 +261,7 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 	if !h.filter.isEnabled(loggerName, r.Level) {
 		return nil
 	}
-	levelName, ok := getAirflowLogLevelName(r.Level)
-	if !ok {
-		return nil
-	}
-	entry["level"] = levelName
+	entry["level"] = getAirflowLogLevelName(r.Level)
 
 	line, err := json.Marshal(entry)
 	if err != nil {
