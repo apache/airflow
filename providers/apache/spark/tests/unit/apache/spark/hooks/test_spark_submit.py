@@ -158,6 +158,14 @@ class TestSparkSubmitHook:
         )
         create_connection_without_db(
             Connection(
+                conn_id="spark_standalone_cluster_rpc_endpoint",
+                conn_type="spark",
+                host="spark://spark-standalone-master:7077",
+                extra='{"deploy-mode": "cluster"}',
+            )
+        )
+        create_connection_without_db(
+            Connection(
                 conn_id="spark_standalone_cluster_client_mode",
                 conn_type="spark",
                 host="spark://spark-standalone-master:6066",
@@ -329,6 +337,8 @@ class TestSparkSubmitHook:
         hook_spark_standalone_cluster._driver_id = "driver-20171128111416-0001"
         hook_spark_yarn_cluster = SparkSubmitHook(conn_id="spark_yarn_cluster")
         hook_spark_yarn_cluster._driver_id = "driver-20171128111417-0001"
+        hook_spark_standalone_cluster_rpc_endpoint = SparkSubmitHook(conn_id="spark_standalone_cluster_rpc_endpoint")
+        hook_spark_standalone_cluster_rpc_endpoint._driver_id = "driver-20171128111418-0001"
 
         # When
         build_track_driver_status_spark_standalone_cluster = (
@@ -336,6 +346,9 @@ class TestSparkSubmitHook:
         )
         build_track_driver_status_spark_yarn_cluster = (
             hook_spark_yarn_cluster._build_track_driver_status_command()
+        )
+        build_track_driver_status_spark_standalone_cluster_rpc_endpoint = (
+            hook_spark_standalone_cluster_rpc_endpoint._build_track_driver_status_command()
         )
 
         # Then
@@ -352,9 +365,16 @@ class TestSparkSubmitHook:
             "--status",
             "driver-20171128111417-0001",
         ]
+        expected_spark_standalone_cluster_rpc_endpoint = [
+            "/usr/bin/curl",
+            "--max-time",
+            "30",
+            "http://spark-standalone-master:6066/v1/submissions/status/driver-20171128111418-0001",
+        ]
 
         assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
         assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
+        assert expected_spark_standalone_cluster_rpc_endpoint == build_track_driver_status_spark_standalone_cluster_rpc_endpoint
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1190,9 +1210,12 @@ class TestSparkSubmitHook:
         ]
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
         hook._process_spark_submit_log(log_lines)
+        hook_rpc_endpoint = SparkSubmitHook(conn_id="spark_standalone_cluster_rpc_endpoint")
+        hook_rpc_endpoint._process_spark_submit_log(log_lines)
 
         # When
         kill_cmd = hook._build_spark_driver_kill_command()
+        kill_cmd_rpc_endpoint = hook_rpc_endpoint._build_spark_driver_kill_command()
 
         # Then
         assert kill_cmd[0] == "spark-submit"
@@ -1200,6 +1223,17 @@ class TestSparkSubmitHook:
         assert kill_cmd[2] == "spark://spark-standalone-master:6066"
         assert kill_cmd[3] == "--kill"
         assert kill_cmd[4] == "driver-20171128111415-0001"
+        
+        expected_spark_standalone_cluster_rpc_endpoint = [
+            "/usr/bin/curl",
+            "--max-time",
+            "30",
+            "-X",
+            "POST",
+            "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
+        ]
+
+        assert expected_spark_standalone_cluster_rpc_endpoint == kill_cmd_rpc_endpoint
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
