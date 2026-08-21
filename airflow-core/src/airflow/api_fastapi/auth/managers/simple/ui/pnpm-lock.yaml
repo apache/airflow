@@ -70,8 +70,8 @@ importers:
         version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     devDependencies:
       '@7nohe/openapi-react-query-codegen':
-        specifier: ^2.2.0
-        version: 2.2.0(commander@15.0.0)(magicast@0.5.3)(ts-morph@28.0.0)(typescript@6.0.3)
+        specifier: ^3.0.2
+        version: 3.0.2(@tanstack/react-query@5.101.4(react@19.2.8))(commander@15.0.0)(magicast@0.5.3)(ts-morph@28.0.0)(typescript@6.0.3)
       '@eslint/compat':
         specifier: ^2.1.0
         version: 2.1.0(eslint@10.8.1(jiti@2.7.0))
@@ -165,12 +165,13 @@ importers:
 
 packages:
 
-  '@7nohe/openapi-react-query-codegen@2.2.0':
-    resolution: {integrity: sha512-QSvdjXpAL2JaT85LEBC7U65uQ+/wqOKkMdDrmX56RmEI/1QBDf68f12Gd5Xsxp3r55hs/NCJ7gPZ/vJw5a78fg==}
+  '@7nohe/openapi-react-query-codegen@3.0.2':
+    resolution: {integrity: sha512-DUH/3zebpNpDiFd7e8sUgzhA7OLbXpGarCSjoGk2RrV4BDG2pPwBuJbLDl8mWp5w5atWSH8ddYei9nrM64q5uA==}
     engines: {node: '>=22.18.0', pnpm: '>=9'}
     hasBin: true
     peerDependencies:
-      commander: 12.x
+      '@tanstack/react-query': ^5.0.0
+      commander: 12.x || 13.x || 14.x || 15.x
       ts-morph: 28.x
       typescript: 5.x || 6.x
 
@@ -2903,9 +2904,10 @@ packages:
 
 snapshots:
 
-  '@7nohe/openapi-react-query-codegen@2.2.0(commander@15.0.0)(magicast@0.5.3)(ts-morph@28.0.0)(typescript@6.0.3)':
+  '@7nohe/openapi-react-query-codegen@3.0.2(@tanstack/react-query@5.101.4(react@19.2.8))(commander@15.0.0)(magicast@0.5.3)(ts-morph@28.0.0)(typescript@6.0.3)':
     dependencies:
       '@hey-api/openapi-ts': 0.99.0(magicast@0.5.3)(typescript@6.0.3)
+      '@tanstack/react-query': 5.101.4(react@19.2.8)
       commander: 15.0.0
       cross-spawn: 7.0.6
       ts-morph: 28.0.0
