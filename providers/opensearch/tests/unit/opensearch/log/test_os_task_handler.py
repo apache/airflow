@@ -831,7 +831,34 @@ class TestOpensearchRemoteLogIO:
         log_file.write_text('{"message": "test"}\n')
         self.opensearch_io.upload(log_file, ti=None)
 
+    @pytest.mark.parametrize(
+        ("username", "password"),
+        [
+            ("admin", "secret"),
+            ("admin", ""),
+            ("", "secret"),
+        ],
+    )
+    def test_client_with_auth(self, username, password):
+        """If either username or password are provided, the IO should pass http_auth to the client."""
+        opensearch_io = OpensearchRemoteLogIO(
+            write_to_opensearch=True,
+            write_stdout=True,
+            delete_local_copy=True,
+            host="localhost",
+            port=9200,
+            username=username,
+            password=password,
+            base_log_folder=self.opensearch_io.base_log_folder,
+            log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
+
+        transport_args = opensearch_io.client.transport.kwargs
+        assert "http_auth" in transport_args
+        assert transport_args["http_auth"] == (username, password)
+
     def test_client_no_auth(self):
+        """If both username and password are empty, the IO should _not_ pass http_auth to the client."""
         opensearch_io = OpensearchRemoteLogIO(
             write_to_opensearch=True,
             write_stdout=True,
@@ -843,6 +870,7 @@ class TestOpensearchRemoteLogIO:
             base_log_folder=self.opensearch_io.base_log_folder,
             log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
         )
+
         assert "http_auth" not in opensearch_io.client.transport.kwargs
 
 
