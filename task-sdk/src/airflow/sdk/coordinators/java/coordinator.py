@@ -29,7 +29,11 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import convert_roots, validate_schema_version
+from airflow.sdk.coordinators._bundle_metadata import (
+    ARTIFACT_ROOTS_NOT_CONFIGURED,
+    convert_configured_roots,
+    validate_schema_version,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 
 if TYPE_CHECKING:
@@ -200,8 +204,8 @@ class JavaCoordinator(SubprocessCoordinator):
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
     jars_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        factory=list,
+        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
+        converter=convert_configured_roots,
     )
     main_class: str = ""
 

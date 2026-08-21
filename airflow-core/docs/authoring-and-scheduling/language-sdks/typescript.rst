@@ -301,7 +301,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - *(optional)*
      - One or more directories searched, in order, for a ``bundle.mjs`` with embedded metadata. Accepts a
        string, a path, or a list of strings/paths. When omitted, the bundle is located through a Dag bundle
-       instead (see the note below).
+       instead (see the note below). Explicitly setting this option to ``null`` or an empty list is invalid.
    * - ``dag_bundle_name``
      - *(auto: task's own bundle)*
      - Name of a configured Dag bundle to load the ``bundle.mjs`` from. Mutually exclusive with

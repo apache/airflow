@@ -100,9 +100,10 @@ class TestNodeCoordinatorAttributes:
         assert coordinator.bundles_root == []
         assert coordinator.dag_bundle_name is None
 
-    def test_none_bundles_root_normalized_to_empty(self):
-        coordinator = NodeCoordinator(bundles_root=None)
-        assert coordinator.bundles_root == []
+    @pytest.mark.parametrize("bundles_root", [None, []], ids=["none", "empty-list"])
+    def test_explicit_empty_bundles_root_raises(self, bundles_root):
+        with pytest.raises(ValueError, match="must contain at least one path when provided"):
+            NodeCoordinator(bundles_root=bundles_root)
 
     def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
         with pytest.raises(ValueError, match="at most one of 'bundles_root' or 'dag_bundle_name'"):

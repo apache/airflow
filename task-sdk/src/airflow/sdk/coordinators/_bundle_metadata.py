@@ -21,12 +21,19 @@ from __future__ import annotations
 
 import os
 import pathlib
-from typing import Any
+from typing import Any, Final
 
 import attrs
 import yaml
 
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
+
+
+class _UnsetArtifactRoots:
+    """Sentinel distinguishing an omitted artifact-roots option from an empty value."""
+
+
+ARTIFACT_ROOTS_NOT_CONFIGURED: Final = _UnsetArtifactRoots()
 
 
 def convert_roots(
@@ -38,6 +45,25 @@ def convert_roots(
     if isinstance(value, (str, os.PathLike, pathlib.Path)):
         return [pathlib.Path(value).expanduser()]
     return [pathlib.Path(v).expanduser() for v in value]
+
+
+def convert_configured_roots(
+    value: _UnsetArtifactRoots
+    | None
+    | os.PathLike[str]
+    | pathlib.Path
+    | list[os.PathLike[str] | pathlib.Path],
+) -> list[pathlib.Path]:
+    """Normalize configured roots while rejecting explicitly empty values."""
+    if isinstance(value, _UnsetArtifactRoots):
+        return []
+    roots = convert_roots(value)
+    if not roots:
+        raise ValueError(
+            "Artifact roots must contain at least one path when provided; "
+            "omit the option to use the task's Dag bundle."
+        )
+    return roots
 
 
 def validate_schema_version(instance, _, value) -> str:
