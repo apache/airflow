@@ -22,6 +22,7 @@ import logging
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
@@ -692,7 +693,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
                 method=method, details=DagDetails(id=dag_id, team_name=team_name), user=user
             )
 
-        return {dag_id for dag_id in dag_ids if _is_authorized_dag_id(dag_id)}
+        if not dag_ids:
+            return set()
+
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(_is_authorized_dag_id, dag_ids)
+
+        return {dag_id for dag_id, authorized in zip(dag_ids, results) if authorized}
 
     @provide_session
     def get_authorized_pools(
