@@ -427,7 +427,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # Append port if provided
             conn_data["master"] = f"{conn_data['master']}:{conn.port}" if conn.port else conn_data["master"]
 
-
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
             conn_data["queue"] = self._yarn_queue if self._yarn_queue else extra.get("queue")
@@ -1325,7 +1324,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self.log.info(connection_cmd)
 
         else:
-           
             connection_cmd = self._get_spark_binary_path()
 
             # The url to the spark master
