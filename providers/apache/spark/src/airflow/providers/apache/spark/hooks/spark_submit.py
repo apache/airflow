@@ -687,8 +687,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         curl_max_wait_time = 30
         spark_host = self._connection["master"]
-        if spark_host.endswith(":6066"):
-            spark_host = spark_host.replace("spark://", "http://")
+        if spark_host.endswith(":6066") or spark_host.endswith(":7077"):
+            spark_host = (
+                spark_host.replace("spark://", "http://")
+                if spark_host.endswith(":6066")
+                else self._connection["rest_endpoint"]
+            )
             connection_cmd = [
                 "/usr/bin/curl",
                 "--max-time",
@@ -702,21 +706,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 raise AirflowException(
                     "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
-        elif spark_host.endswith(":7077"):
-            host = self._connection["rest_endpoint"]
-            connection_cmd = [
-                "/usr/bin/curl",
-                "--max-time",
-                str(curl_max_wait_time),
-                f"{host}/v1/submissions/status/{self._driver_id}",
-            ]
-            self.log.info(connection_cmd)
 
-            # The driver id so we can poll for its status
-            if not self._driver_id:
-                raise AirflowException(
-                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
-                )
         else:
             connection_cmd = self._get_spark_binary_path()
 
