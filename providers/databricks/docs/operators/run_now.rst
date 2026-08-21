@@ -81,7 +81,7 @@ disable this parameter forwarding behavior.
   # i.e. the same dict, passed straight through to the run-now request body.
 
 OpenLineage parent job information
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Set ``openlineage_inject_parent_job_info=True`` to add the standardized OpenLineage context to the
 run's ``job_parameters`` under the ``OPENLINEAGE_CONTEXT`` key. The JSON value contains the Airflow
