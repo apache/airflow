@@ -156,6 +156,8 @@ class Variable(Base, LoggingMixin):
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
         team_name: str | None = None,
+        *,
+        session: Session | None = None,
     ) -> Any:
         """
         Get a value for an Airflow Variable Key.
@@ -164,6 +166,8 @@ class Variable(Base, LoggingMixin):
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         :param team_name: Team name associated to the task trying to access the variable (if any)
+        :param session: Existing session to reuse for the metadata database lookup. Callers holding an
+            open transaction (the scheduler under ``prohibit_commit``, for example) must pass it.
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
@@ -172,6 +176,11 @@ class Variable(Base, LoggingMixin):
         # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            if session is not None:
+                raise ValueError(
+                    "Variable.get() cannot use a metadata database session from an execution context; "
+                    "reads there go through the Execution API. Use airflow.sdk.Variable.get() instead."
+                )
             warnings.warn(
                 "Using Variable.get from `airflow.models` is deprecated."
                 "Please use `get` on Variable from sdk(`airflow.sdk.Variable`) instead",
@@ -192,7 +201,7 @@ class Variable(Base, LoggingMixin):
                 "Multi-team mode is not configured in the Airflow environment but the task trying to access the variable belongs to a team"
             )
 
-        var_val = Variable.get_variable_from_secrets(key=key, team_name=team_name)
+        var_val = Variable.get_variable_from_secrets(key=key, team_name=team_name, session=session)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -344,7 +353,7 @@ class Variable(Base, LoggingMixin):
 
         Variable.check_for_write_conflict(key=key)
 
-        if Variable.get_variable_from_secrets(key=key, team_name=team_name) is None:
+        if Variable.get_variable_from_secrets(key=key, team_name=team_name, session=session) is None:
             raise KeyError(f"Variable {key} does not exist")
 
         ctx: contextlib.AbstractContextManager
@@ -465,12 +474,18 @@ class Variable(Base, LoggingMixin):
         return None
 
     @staticmethod
-    def get_variable_from_secrets(key: str, team_name: str | None = None) -> str | None:
+    def get_variable_from_secrets(
+        key: str, team_name: str | None = None, *, session: Session | None = None
+    ) -> str | None:
         """
         Get Airflow Variable by iterating over all Secret Backends.
 
         :param key: Variable Key
         :param team_name: Team name associated to the task trying to access the variable (if any)
+        :param session: Existing session to reuse for the metadata database lookup. Callers that
+            already hold a transaction must pass it, otherwise ``MetastoreBackend`` opens the same
+            scoped session and commits it, which detaches the caller's objects and is rejected
+            outright under ``prohibit_commit``.
         :return: Variable Value
         """
         from airflow.sdk import SecretCache
@@ -487,7 +502,16 @@ class Variable(Base, LoggingMixin):
         for secrets_backend in ensure_secrets_loaded():
             try:
                 var_val = call_secrets_backend_method(
-                    secrets_backend.get_variable, team_name=team_name, key=key
+                    secrets_backend.get_variable,
+                    team_name=team_name,
+                    key=key,
+                    # Only the metastore backend touches the metadata database, and it is the only
+                    # one whose signature accepts a session.
+                    **(
+                        {"session": session}
+                        if session is not None and isinstance(secrets_backend, MetastoreBackend)
+                        else {}
+                    ),
                 )
                 if var_val is not None:
                     break
