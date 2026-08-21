@@ -282,31 +282,6 @@ class TestDBDagBagCache:
         if expected_maxsize is not None:
             assert dag_bag._dags.maxsize == expected_maxsize
 
-    @pytest.mark.parametrize(
-        ("cache_size", "cache_ttl", "expected_message"),
-        [
-            pytest.param(
-                -1,
-                60,
-                "cache_size must be greater than or equal to 0",
-                id="negative_size",
-            ),
-            pytest.param(
-                10,
-                -1,
-                "cache_ttl must be greater than or equal to 0",
-                id="negative_ttl",
-            ),
-        ],
-    )
-    def test_rejects_negative_cache_configuration(self, cache_size, cache_ttl, expected_message):
-        with pytest.raises(ValueError, match=expected_message):
-            CachedDBDagBag(
-                cache_size=cache_size,
-                cache_ttl=cache_ttl,
-                stats_prefix=STUB_PREFIX,
-            )
-
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
         dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)

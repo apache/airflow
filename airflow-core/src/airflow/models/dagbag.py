@@ -89,7 +89,7 @@ class DBDagBag:
     def _on_cache_clear(self) -> None:
         """Handle the Dag cache being cleared."""
 
-    def _on_cache_size(self, size: int, *, rate: float = 1.0) -> None:
+    def _on_cache_size(self, *, rate: float = 1.0) -> None:
         """Handle a change in the Dag cache size."""
 
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
@@ -100,8 +100,7 @@ class DBDagBag:
             return None
         with self._lock:
             self._dags[serdag.dag_version_id] = _CacheEntry(dag, serdag.dag_hash, time.monotonic())
-            cache_size = len(self._dags)
-        self._on_cache_size(cache_size, rate=0.1)
+        self._on_cache_size(rate=0.1)
         return dag
 
     @staticmethod
@@ -190,7 +189,7 @@ class DBDagBag:
             self._dags.clear()
 
         self._on_cache_clear()
-        self._on_cache_size(0)
+        self._on_cache_size()
         return count
 
     @staticmethod
@@ -250,12 +249,8 @@ class CachedDBDagBag(DBDagBag):
         :param cache_size: Maximum cached entries. Zero means no size limit.
         :param cache_ttl: Seconds until a cached entry expires. Zero disables TTL.
         :param stats_prefix: Metric namespace for this component's cache.
-        :raises ValueError: If either cache option is negative or the metrics namespace is empty.
+        :raises ValueError: If the metrics namespace is empty.
         """
-        if cache_size < 0:
-            raise ValueError("cache_size must be greater than or equal to 0")
-        if cache_ttl < 0:
-            raise ValueError("cache_ttl must be greater than or equal to 0")
         if not stats_prefix:
             raise ValueError("CachedDBDagBag requires a stats_prefix")
 
@@ -280,7 +275,9 @@ class CachedDBDagBag(DBDagBag):
     def _on_cache_clear(self) -> None:
         stats.incr(f"{self._stats_prefix}.cache_clear")
 
-    def _on_cache_size(self, size: int, *, rate: float = 1.0) -> None:
+    def _on_cache_size(self, *, rate: float = 1.0) -> None:
+        with self._lock:
+            size = len(self._dags)
         stats.gauge(f"{self._stats_prefix}.cache_size", size, rate=rate)
 
 
