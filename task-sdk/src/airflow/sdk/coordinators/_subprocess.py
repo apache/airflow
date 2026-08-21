@@ -446,7 +446,6 @@ class SubprocessCoordinator(BaseCoordinator):
     # The subclass's explicit root, recorded at construction so the base can
     # resolve roots without knowing the subclass field name.
     _configured_roots: list[pathlib.Path] = attrs.field(init=False, factory=list)
-    _active_bundle_info: BundleInfo | None = attrs.field(init=False, default=None)
     _active_scan_roots: tuple[pathlib.Path, ...] | None = attrs.field(init=False, default=None)
 
     @property
@@ -500,7 +499,7 @@ class SubprocessCoordinator(BaseCoordinator):
         )
 
     def _init_root_source(
-        self, logger: FilteringBoundLogger
+        self, bundle_info: BundleInfo, logger: FilteringBoundLogger
     ) -> tuple[list[pathlib.Path], BaseDagBundle | None]:
         """
         Resolve the directories to scan for artifacts, dispatched on the classified mode.
@@ -517,9 +516,7 @@ class SubprocessCoordinator(BaseCoordinator):
             # NAMED_BUNDLE implies dag_bundle_name is set.
             target = BundleInfo(name=cast("str", self.dag_bundle_name))
         else:
-            if self._active_bundle_info is None:
-                raise RuntimeError("_init_root_source requires an active task; call it during execute_task.")
-            target = self._active_bundle_info
+            target = bundle_info
 
         bundle = _initialize_pinned_bundle(target, logger)
         path = bundle.path
@@ -548,24 +545,10 @@ class SubprocessCoordinator(BaseCoordinator):
         raise NotImplementedError
 
     @contextlib.contextmanager
-    def _set_current_bundle(self, bundle_info: BundleInfo):
-        """
-        Bind *bundle_info* as the active task for the duration of the block, clearing it on exit.
-
-        Rejects a second concurrent bind: this coordinator runs one blocking task
-        per process and is not re-entrant.
-        """
-        if self._active_bundle_info is not None:
-            raise RuntimeError("SubprocessCoordinator.execute_task is not re-entrant.")
-        self._active_bundle_info = bundle_info
-        try:
-            yield
-        finally:
-            self._active_bundle_info = None
-
-    @contextlib.contextmanager
     def _set_scan_roots(self, roots: Sequence[pathlib.Path]):
         """Expose *roots* to the command builder for the duration of the task."""
+        if self._active_scan_roots is not None:
+            raise RuntimeError("SubprocessCoordinator.execute_task is not re-entrant.")
         self._active_scan_roots = tuple(roots)
         try:
             yield
@@ -586,8 +569,7 @@ class SubprocessCoordinator(BaseCoordinator):
     ) -> BaseCoordinator.ExecutionResult:
         task_logger = logger or log
         with contextlib.ExitStack() as stack:
-            stack.enter_context(self._set_current_bundle(bundle_info))
-            roots, resolved_bundle = self._init_root_source(task_logger)
+            roots, resolved_bundle = self._init_root_source(bundle_info, task_logger)
             if resolved_bundle is not None:
                 # Hold the version lock across start()/wait() so bundle cleanup
                 # cannot rmtree a version this task is still reading from,
