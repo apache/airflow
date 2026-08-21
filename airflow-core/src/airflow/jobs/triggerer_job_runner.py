@@ -202,7 +202,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         capacity=None,
         queues: set[str] | None = None,
-        team_name: str | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -212,7 +211,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
         self.queues = queues
-        self.team_name = team_name
         # Set up only when _execute() starts the subprocess; keep it defined so that
         # signal handlers (or other code) firing before startup don't hit AttributeError.
         self.trigger_runner: TriggerRunnerSupervisor | None = None
@@ -274,7 +272,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
-                team_name=self.team_name,
+                team_name=self.job.team_name,
             )
             # Run the main DB comms loop in this process
             self.trigger_runner.run()

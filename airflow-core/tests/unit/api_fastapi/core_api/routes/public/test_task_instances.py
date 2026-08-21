@@ -456,11 +456,13 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "queue": None,
             },
             "triggerer_job": {
+                "bundle_names": None,
                 "dag_display_name": None,
                 "dag_id": None,
                 "end_date": None,
                 "job_type": "TriggererJob",
                 "state": "running",
+                "team_name": None,
                 "unixname": getuser(),
             },
             "team_name": None,
