@@ -22,8 +22,10 @@ Regression tests for migration 0049 (eed27faa34e3) value sanitization.
 The 2.x -> 3.x conversion of ``xcom.value`` from pickled bytea to JSON/JSONB must not choke
 on values that are legal in the pickled blob but illegal in strict JSON/JSONB: non-finite
 floats (NaN/Infinity/-Infinity) and the U+0000 (NUL) escape. It must also NOT corrupt a
-genuinely escaped backslash sequence (a literal backslash-u-0000 in the data). These tests
-run the migration's own per-dialect sanitization SQL against an isolated table.
+genuinely escaped backslash sequence (a literal backslash-u-0000 in the data), and it must
+stay correct when the non-finite token sits inside a JSON string that holds another JSON
+document, where every interior quote is backslash-escaped. These tests run the migration's
+own per-dialect sanitization SQL against an isolated table.
 """
 
 from __future__ import annotations
@@ -47,13 +49,25 @@ _BS = chr(92)
 _RAW = json.dumps(
     {"d": "F" + chr(0) + "oo", "a": float("nan"), "b": float("inf"), "c": float("-inf"), "ok": 1.5}
 )
-_EXPECTED = {"d": "Foo", "a": "NaN", "b": "Infinity", "c": "-Infinity", "ok": 1.5}
+_EXPECTED = {"d": "Foo", "a": None, "b": None, "c": None, "ok": 1.5}
 
 # Row 2: a string that literally contains backslash-u-0000 (no null byte). It serializes to
 # an escaped backslash sequence (\\u0000) and MUST survive sanitization unchanged.
 _LITERAL_VALUE = "x" + _BS + "u0000y"
 _LITERAL_RAW = json.dumps({"k": _LITERAL_VALUE})
 _LITERAL_EXPECTED = {"k": _LITERAL_VALUE}
+
+# Rows 3 and 4: a task that pushed already-serialized JSON, so the stored value is a JSON
+# string wrapping another JSON document and its interior quotes are backslash-escaped.
+# Injecting a bare quote around the non-finite token here would close the wrapping string
+# early and abort the JSONB cast, which is the reported upgrade failure.
+_INNER = json.dumps({"amount": 604441.0, "commission": float("nan"), "rate": float("-inf")})
+# Row 3: the whole XCom value is the serialized document.
+_ESCAPED_RAW = json.dumps(_INNER)
+_ESCAPED_EXPECTED = json.dumps({"amount": 604441.0, "commission": None, "rate": None})
+# Row 4: the serialized document sits under a key in a normal dict.
+_NESTED_RAW = json.dumps({"report": _INNER})
+_NESTED_EXPECTED = {"report": _ESCAPED_EXPECTED}
 
 # Migration filenames start with a digit so they cannot be imported via the normal import
 # system; load the module by file path instead.
@@ -68,7 +82,7 @@ _spec.loader.exec_module(_migration)  # type: ignore[union-attr]
 _TABLE = "_test_xcom_sanitize"
 
 
-def test_sqlite_sanitize_quotes_nonfinite_strips_nul_and_keeps_literal():
+def test_sqlite_sanitize_nulls_nonfinite_strips_nul_and_keeps_literal():
     """SQLite branch: real sanitize SQL on an in-memory db. Backend-independent."""
     engine = sa.create_engine("sqlite://")
     with engine.begin() as conn:
@@ -81,11 +95,21 @@ def test_sqlite_sanitize_quotes_nonfinite_strips_nul_and_keeps_literal():
             sa.text(f"INSERT INTO {_TABLE} (id, value) VALUES (2, :v)"),
             {"v": _LITERAL_RAW.encode("utf-8")},
         )
+        conn.execute(
+            sa.text(f"INSERT INTO {_TABLE} (id, value) VALUES (3, :v)"),
+            {"v": _ESCAPED_RAW.encode("utf-8")},
+        )
+        conn.execute(
+            sa.text(f"INSERT INTO {_TABLE} (id, value) VALUES (4, :v)"),
+            {"v": _NESTED_RAW.encode("utf-8")},
+        )
         conn.execute(sa.text(_migration._xcom_sqlite_sanitize_sql(_TABLE)))
         # json(...) mirrors the migration's own conversion and raises if still invalid JSON.
         rows = dict(conn.execute(sa.text(f"SELECT id, json(CAST(value AS TEXT)) FROM {_TABLE}")).all())
     assert json.loads(rows[1]) == _EXPECTED
     assert json.loads(rows[2]) == _LITERAL_EXPECTED
+    assert json.loads(rows[3]) == _ESCAPED_EXPECTED
+    assert json.loads(rows[4]) == _NESTED_EXPECTED
 
 
 @pytest.mark.db_test
@@ -102,6 +126,14 @@ class TestPostgresSanitize:
                 sa.text(f"INSERT INTO {_TABLE} VALUES (2, convert_to(:v, 'UTF8'))"),
                 {"v": _LITERAL_RAW},
             )
+            conn.execute(
+                sa.text(f"INSERT INTO {_TABLE} VALUES (3, convert_to(:v, 'UTF8'))"),
+                {"v": _ESCAPED_RAW},
+            )
+            conn.execute(
+                sa.text(f"INSERT INTO {_TABLE} VALUES (4, convert_to(:v, 'UTF8'))"),
+                {"v": _NESTED_RAW},
+            )
         try:
             # Before sanitizing, the JSONB cast fails on the NUL escape (the reported bug).
             with settings.engine.connect() as conn:
@@ -117,6 +149,8 @@ class TestPostgresSanitize:
                 )
             assert json.loads(rows[1]) == _EXPECTED
             assert json.loads(rows[2]) == _LITERAL_EXPECTED
+            assert json.loads(rows[3]) == _ESCAPED_EXPECTED
+            assert json.loads(rows[4]) == _NESTED_EXPECTED
         finally:
             with settings.engine.begin() as conn:
                 conn.execute(sa.text(drop))
@@ -136,6 +170,14 @@ class TestMysqlSanitize:
                 sa.text(f"INSERT INTO {_TABLE} VALUES (2, CONVERT(:v USING utf8mb4))"),
                 {"v": _LITERAL_RAW},
             )
+            conn.execute(
+                sa.text(f"INSERT INTO {_TABLE} VALUES (3, CONVERT(:v USING utf8mb4))"),
+                {"v": _ESCAPED_RAW},
+            )
+            conn.execute(
+                sa.text(f"INSERT INTO {_TABLE} VALUES (4, CONVERT(:v USING utf8mb4))"),
+                {"v": _NESTED_RAW},
+            )
         try:
             with settings.engine.begin() as conn:
                 conn.execute(sa.text(_migration._xcom_mysql_sanitize_sql(_TABLE)))
@@ -145,6 +187,8 @@ class TestMysqlSanitize:
                 )
             assert json.loads(rows[1]) == _EXPECTED
             assert json.loads(rows[2]) == _LITERAL_EXPECTED
+            assert json.loads(rows[3]) == _ESCAPED_EXPECTED
+            assert json.loads(rows[4]) == _NESTED_EXPECTED
         finally:
             with settings.engine.begin() as conn:
                 conn.execute(sa.text(drop))

@@ -53,8 +53,10 @@ def _json_safe(obj):
     Pickled ``conf`` can hold values that round-trip through pickle but are illegal in
     strict JSON/JSONB:
 
-    * non-finite floats (NaN / inf / -inf) -> quoted strings, mirroring the SQL
-      sanitization in migration 0049 (xcom);
+    * non-finite floats (NaN / inf / -inf) -> quoted strings. This runs on the
+      deserialized object, so json.dumps does the quoting and gets the escaping right at
+      any nesting depth. Migration 0049 (xcom) rewrites the serialized text with a regex
+      instead and cannot, so it substitutes ``null`` there;
     * embedded U+0000 (NUL) characters in strings -> stripped, since PostgreSQL
       JSON/JSONB cannot store them.
 

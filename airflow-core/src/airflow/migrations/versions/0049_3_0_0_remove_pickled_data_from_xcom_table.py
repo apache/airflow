@@ -44,9 +44,18 @@ airflow_version = "3.0.0"
 # --- Value-sanitization SQL, factored out so migration tests can run the real statements
 # against an isolated table via the helpers below; ``table`` defaults to "xcom" for the
 # production calls. Both classes of value that are legal in the pickled blob but illegal in
-# strict JSON/JSONB are handled: non-finite floats (NaN/Infinity/-Infinity) are quoted, and
-# the active U+0000 (NUL) escape is stripped (escaped backslashes are protected first so a
+# strict JSON/JSONB are handled: non-finite floats (NaN/Infinity/-Infinity) become ``null``,
+# and the active U+0000 (NUL) escape is stripped (escaped backslashes are protected first so a
 # literal U+0000 escape embedded in the data survives).
+#
+# The non-finite tokens are replaced with the bare literal ``null`` rather than a quoted
+# ``"NaN"`` string. The replacement text has to be valid at whatever JSON nesting depth the
+# token happens to sit at, and a quote character is not: an XCom whose value is a JSON string
+# holding another JSON document (``json.dumps(json.dumps(...))``, or a dict with a
+# json.dumps'd value) has its interior quotes backslash-escaped, so injecting a bare ``"``
+# closes the enclosing string early and leaves the token bare again. That produced an
+# unrecoverable upgrade failure on the bytea -> JSONB cast below. ``null`` needs no quoting,
+# so it is correct at every depth.
 _XCOM_PG_SANITIZE_SQL = r"""
                 UPDATE __TABLE__
                 SET value = convert_to(
@@ -69,7 +78,7 @@ _XCOM_PG_SANITIZE_SQL = r"""
                         -- (e.g. [NaN, Infinity]) are each matched independently.
                         -- NaN and Infinity are done in the same query to avoid another table scan.
                         '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
-                        '\1"\2"',
+                        '\1null',
                         'g'
                     ),
                     'UTF8'
@@ -90,13 +99,18 @@ _XCOM_MYSQL_SANITIZE_SQL = """
                             ),
                             CHAR(1), '\\\\\\\\'
                         ),
-                        -- Same lookahead strategy as PostgreSQL (see above).
+                        -- Same grouping and lookahead strategy as PostgreSQL (see above).
+                        -- The run of spaces after the delimiter is inside group 1 so it is
+                        -- put back by the replacement. Leaving it outside the group dropped
+                        -- it, which is invisible in a top-level document (JSON ignores
+                        -- whitespace) but not when the document is itself a JSON string:
+                        -- there the bytes are the value the consumer reads back.
                         -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
                         -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
                         -- The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
                         -- NaN and Infinity are done in the same query to avoid another table scan.
-                        '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
-                        '$1"$2"',
+                        '([:,\\\\[][ ]*|^)(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
+                        '$1null',
                         1,
                         0,
                         'c'
@@ -109,7 +123,7 @@ _XCOM_SQLITE_SANITIZE_SQL = """
                 SET value = CAST(
                     REPLACE(
                         REPLACE(
-                            -- Step 1: replace NaN first so it doesn't interfere with Infinity.
+                            -- Step 1: replace -Infinity before the bare Infinity below.
                             REPLACE(
                                 -- Protect escaped backslashes with char(1), strip the active
                                 -- U+0000 (NUL) escape, then restore (see PostgreSQL branch).
@@ -120,19 +134,21 @@ _XCOM_SQLITE_SANITIZE_SQL = """
                                     ),
                                     char(1), '\\\\'
                                 ),
-                                'NaN', '"NaN"'
+                                '-Infinity', 'null'
                             ),
-                            -- Step 2: replace Infinity (also matches the Infinity in -Infinity,
-                            -- turning -Infinity into -"Infinity").
-                            'Infinity', '"Infinity"'
+                            -- Step 2: replace the remaining bare Infinity. -Infinity is done
+                            -- first above, otherwise this step would leave '-null' behind.
+                            'Infinity', 'null'
                         ),
-                        -- Step 3: fix the -"Infinity" artifact left by step 2.
-                        '-"Infinity"', '"-Infinity"'
+                        -- Step 3: NaN.
+                        'NaN', 'null'
                     ) AS BLOB)
                 -- NOTE: SQLite lacks REGEXP_REPLACE, so plain REPLACE is used.
                 -- This is a substring operation and will incorrectly alter XCom values
                 -- that contain the literal text 'NaN' or 'Infinity' inside a JSON string
-                -- (e.g. {"msg": "NaN detected"}).  In practice such values are rare and
+                -- (e.g. {"msg": "NaN detected"} becomes {"msg": "null detected"}).  The
+                -- result is still valid JSON, so the migration completes either way.
+                -- In practice such values are rare and
                 -- SQLite is not recommended for production deployments.
                 WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
             """
