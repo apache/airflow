@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -54,8 +54,9 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         method: str,
         endpoint: str,
         payload: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
         timeout: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[dict[str, Any]]:
 
         response = requests.request(
             method=method,
@@ -65,6 +66,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
                 "Content-Type": "application/json",
             },
             json=payload,
+            params=params,
             timeout=timeout,
         )
 
@@ -159,11 +161,124 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
 
         endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}:run"
 
-        return self._request(
-            method="POST",
-            endpoint=endpoint,
-            payload=payload,
-            timeout=timeout,
+        return cast(
+            "dict[str, Any]",
+            self._request(
+                method="POST",
+                endpoint=endpoint,
+                payload=payload,
+                timeout=timeout,
+            ),
+        )
+
+    def describe_agent(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        timeout: int | None = 600,
+    ) -> dict[str, Any]:
+        """
+        Describe a Snowflake Cortex Agent.
+
+        :param database: Database containing the Cortex Agent.
+        :param schema: Schema containing the Cortex Agent.
+        :param agent_name: Name of the Cortex Agent.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent
+            request to complete. Defaults to ``600``.
+        :return: JSON description of the Cortex Agent.
+        """
+        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
+
+        return cast(
+            "dict[str, Any]",
+            self._request(
+                method="GET",
+                endpoint=endpoint,
+                timeout=timeout,
+            ),
+        )
+
+    def list_agents(
+        self,
+        *,
+        database: str,
+        schema: str,
+        like: str | None = None,
+        from_name: str | None = None,
+        show_limit: int | None = None,
+        timeout: int | None = 600,
+    ) -> list[dict[str, Any]]:
+        """
+        List Snowflake Cortex Agents.
+
+        :param database: Database containing the Cortex Agents.
+        :param schema: Schema containing the Cortex Agents.
+        :param like: Optional case-insensitive name filter. Optional.
+            Defaults to ``None``.
+        :param from_name: Optional pagination starting point. Optional.
+            Defaults to ``None``.
+        :param show_limit: Maximum number of agents to return. Optional.
+            Defaults to ``None``.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent
+            request to complete. Defaults to ``600``.
+        :return: List of Cortex Agents.
+        """
+        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents"
+
+        params: dict[str, Any] = {}
+
+        if like is not None:
+            params["like"] = like
+
+        if from_name is not None:
+            params["fromName"] = from_name
+
+        if show_limit is not None:
+            params["showLimit"] = show_limit
+
+        return cast(
+            "list[dict[str, Any]]",
+            self._request(
+                method="GET",
+                endpoint=endpoint,
+                params=params or None,
+                timeout=timeout,
+            ),
+        )
+
+    def delete_agent(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        if_exists: bool = False,
+        timeout: int | None = 600,
+    ) -> dict[str, Any]:
+        """
+        Delete a Snowflake Cortex Agent.
+
+        :param database: Database containing the Cortex Agent.
+        :param schema: Schema containing the Cortex Agent.
+        :param agent_name: Name of the Cortex Agent.
+        :param if_exists: If ``True``, do not fail when the agent does not exist.
+            Defaults to ``False``.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent request
+            to complete. Defaults to ``600``.
+        :return: JSON response confirming deletion.
+        """
+        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
+
+        return cast(
+            "dict[str, Any]",
+            self._request(
+                method="DELETE",
+                endpoint=endpoint,
+                params={"ifExists": str(if_exists).lower()},
+                timeout=timeout,
+            ),
         )
 
     @staticmethod
