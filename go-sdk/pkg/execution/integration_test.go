@@ -673,8 +673,8 @@ func TestServeUsesSupervisorLogLevelEnvironment(t *testing.T) {
 		register: func(r bundlev1.Registry) error {
 			r.AddDag("dag1").AddTaskWithName("logging", func(logger *slog.Logger) error {
 				logger.Info("global filtered")
-				logger.With("logger", "example.child").Debug("namespace debug")
-				logger.With("logger", "unrelated").Warn("unrelated filtered")
+				logger.WithGroup("example.child").Debug("namespace debug")
+				logger.WithGroup("unrelated").Warn("unrelated filtered")
 				logger.Error("global error")
 				return nil
 			})
