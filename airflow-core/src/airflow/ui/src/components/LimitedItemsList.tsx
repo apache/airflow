@@ -27,6 +27,7 @@ type ListProps = {
   readonly interactive?: boolean;
   readonly items: Array<ReactNode | string>;
   readonly maxItems?: number;
+  readonly orientation?: "horizontal" | "vertical";
   readonly separator?: string;
 };
 
@@ -35,92 +36,112 @@ export const LimitedItemsList = ({
   interactive = false,
   items,
   maxItems,
+  orientation = "horizontal",
   separator = ", ",
 }: ListProps) => {
   const { t: translate } = useTranslation("components");
   const shouldTruncate = maxItems !== undefined && items.length > maxItems;
   const displayItems = shouldTruncate ? items.slice(0, maxItems) : items;
   const remainingItems = shouldTruncate ? items.slice(maxItems) : [];
+  const isVertical = orientation === "vertical";
 
   if (!items.length) {
     return undefined;
   }
 
+  const expandAffordance = shouldTruncate ? (
+    remainingItems.length === 1 ? (
+      <Text as="span" data-testid={isVertical ? "limited-items-item" : undefined}>
+        {remainingItems[0]}
+      </Text>
+    ) : (
+      <Popover.Root lazyMount unmountOnExit>
+        <Popover.Trigger asChild>
+          <Button
+            data-testid="limited-items-expand-button"
+            fontSize="sm"
+            minH="auto"
+            px={1}
+            py={0}
+            size="xs"
+            variant="ghost"
+          >
+            {translate("limitedList", { count: remainingItems.length })}
+          </Button>
+        </Popover.Trigger>
+        <Popover.Content maxW="400px" width="fit-content">
+          <Popover.Arrow />
+          <Popover.Body>
+            <Text fontSize="sm" fontWeight="medium" mb={3}>
+              {translate("limitedList.allItems", { count: items.length })}
+            </Text>
+
+            <Box maxH="300px" overflowY="auto">
+              {interactive ? (
+                <HStack flexWrap="wrap" gap={2}>
+                  {items.map((item, index) => (
+                    <Box
+                      bg="bg.subtle"
+                      borderRadius="sm"
+                      key={typeof item === "string" ? item : index}
+                      px={2}
+                      py={1}
+                    >
+                      {item}
+                    </Box>
+                  ))}
+                </HStack>
+              ) : (
+                <Stack gap={1}>
+                  {items.map((item, index) => (
+                    <Text fontSize="sm" key={typeof item === "string" ? item : index} userSelect="text">
+                      {item}
+                    </Text>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+
+            <Text fontSize="xs" mt={3}>
+              {interactive
+                ? translate("limitedList.clickToInteract")
+                : translate("limitedList.copyPasteText")}
+            </Text>
+          </Popover.Body>
+        </Popover.Content>
+      </Popover.Root>
+    )
+  ) : undefined;
+
   return (
-    <HStack align="center" data-testid="limited-items-list" gap={1}>
+    <HStack align={isVertical ? "flex-start" : "center"} data-testid="limited-items-list" gap={1}>
       {icon}
       <Box fontSize="sm">
-        {displayItems.map((item, index) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <Fragment key={index}>
-            <Text as="span">{item}</Text>
-            {index < displayItems.length - 1 ||
-            (shouldTruncate && remainingItems.length >= 1 && index === displayItems.length - 1) ? (
-              <Text as="span">{separator}</Text>
-            ) : undefined}
-          </Fragment>
-        ))}
-        {shouldTruncate ? (
-          remainingItems.length === 1 ? (
-            <Text as="span">{remainingItems[0]}</Text>
-          ) : (
-            <Popover.Root lazyMount unmountOnExit>
-              <Popover.Trigger asChild>
-                <Button
-                  data-testid="limited-items-expand-button"
-                  fontSize="sm"
-                  minH="auto"
-                  px={1}
-                  py={0}
-                  size="xs"
-                  variant="ghost"
-                >
-                  {translate("limitedList", { count: remainingItems.length })}
-                </Button>
-              </Popover.Trigger>
-              <Popover.Content maxW="400px" width="fit-content">
-                <Popover.Arrow />
-                <Popover.Body>
-                  <Text fontSize="sm" fontWeight="medium" mb={3}>
-                    {translate("limitedList.allItems", { count: items.length })}
-                  </Text>
-
-                  <Box maxH="300px" overflowY="auto">
-                    {interactive ? (
-                      <HStack flexWrap="wrap" gap={2}>
-                        {items.map((item, index) => (
-                          <Box
-                            bg="bg.subtle"
-                            borderRadius="sm"
-                            key={typeof item === "string" ? item : index}
-                            px={2}
-                            py={1}
-                          >
-                            {item}
-                          </Box>
-                        ))}
-                      </HStack>
-                    ) : (
-                      <Stack gap={1}>
-                        {items.map((item, index) => (
-                          <Text fontSize="sm" key={typeof item === "string" ? item : index} userSelect="text">
-                            {item}
-                          </Text>
-                        ))}
-                      </Stack>
-                    )}
-                  </Box>
-
-                  <Text fontSize="xs" mt={3}>
-                    {interactive
-                      ? translate("limitedList.clickToInteract")
-                      : translate("limitedList.copyPasteText")}
-                  </Text>
-                </Popover.Body>
-              </Popover.Content>
-            </Popover.Root>
-          )
-        ) : undefined}
+        {isVertical ? (
+          <Stack data-testid="limited-items-vertical" gap={1}>
+            {displayItems.map((item, index) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <Text as="span" data-testid="limited-items-item" key={index}>
+                {item}
+              </Text>
+            ))}
+            {expandAffordance}
+          </Stack>
+        ) : (
+          <>
+            {displayItems.map((item, index) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <Fragment key={index}>
+                <Text as="span">{item}</Text>
+                {index < displayItems.length - 1 ||
+                (shouldTruncate && remainingItems.length >= 1 && index === displayItems.length - 1) ? (
+                  <Text as="span">{separator}</Text>
+                ) : undefined}
+              </Fragment>
+            ))}
+            {expandAffordance}
+          </>
+        )}
       </Box>
     </HStack>
   );
