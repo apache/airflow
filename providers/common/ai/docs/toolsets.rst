@@ -894,7 +894,7 @@ derives one from a method name when there is no docstring.
     agent.
 
 Toolset or operator?
-""""""""""""""""""""
+""""""""""""""""""""""
 
 Most managed-agent platforms do not offer a plain one-request-one-answer API. Some
 require polling a job; others require creating a session and tearing it down around
@@ -916,6 +916,7 @@ That draws a boundary worth respecting:
     * - Long-running submitted work as a pipeline step in its own right
       - That provider's own operator, with deferral or
         :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin`
+
 
 ``ResumableJobMixin`` exists for exactly the second case: it persists the external
 job ID to the task state store before polling, so a worker crash reconnects to the
@@ -964,7 +965,7 @@ acceptable and when the provider's own deferrable operator is the right surface
 instead.
 
 Failover between interchangeable agents
-"""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""
 
 :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
 composes several managed agents into one tool, trying them in order until one
