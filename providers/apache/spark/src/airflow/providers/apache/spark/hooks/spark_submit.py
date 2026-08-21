@@ -1311,7 +1311,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         curl_max_wait_time = 30
         spark_host = self._connection["master"]
-        if spark_host.endswith(":6066") or spark_host.endswith(":7077"):
+        if spark_host.endswith(":7077"):
             spark_host = self._connection["rest_endpoint"]
             connection_cmd = [
                 "/usr/bin/curl",
