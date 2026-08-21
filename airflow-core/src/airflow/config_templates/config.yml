@@ -1714,10 +1714,10 @@ api:
       default: "False"
     dag_cache_size:
       description: |
-        Max number of deserialized SerializedDAG objects the API server keeps in memory.
-        Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``. Set both this and
-        ``dag_cache_ttl`` to 0 to use an unbounded dict with no eviction, matching the behavior
-        before 3.2.2.
+        Max number of deserialized SerializedDAG objects the API server keeps in memory. Set to 0 for no
+        size limit, leaving eviction to ``dag_cache_ttl``. Setting both this and ``dag_cache_ttl`` to 0
+        disables eviction, so the API server retains every deserialized Dag it loads until restart, matching
+        the behavior before 3.2.2.
 
         The cache is keyed by Dag version ID, so lookups by Dag ID
         (e.g., viewing a Dag's details) always query the database for the latest
@@ -2664,6 +2664,40 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    dag_cache_size:
+      description: |
+        Max number of deserialized SerializedDAG objects the scheduler keeps in memory, keyed by Dag version
+        ID. Once full, the least recently used version is evicted, so this is a hard ceiling on how much the
+        cache can grow no matter how many Dag versions accumulate.
+
+        Raise it if the scheduler has more Dag versions with runs in flight than this; a limit below the
+        working set evicts versions that are still being scheduled, costing a database fetch and a
+        deserialization on the next loop. Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``.
+        Setting both this and ``dag_cache_ttl`` to 0 disables eviction, so the scheduler retains every
+        deserialized Dag it loads until restart, matching the behavior before 3.3.2.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "512"
+    dag_cache_ttl:
+      description: |
+        Seconds a deserialized SerializedDAG stays in the scheduler's cache. Defaults to 0, which disables
+        TTL and leaves eviction to the ``dag_cache_size`` LRU policy.
+
+        Note that each re-check resets an entry's expiry, so a TTL only reclaims Dag versions that stop being
+        requested for the whole interval. Versions still referenced by active Dag runs are kept, so
+        ``dag_cache_size`` remains the only hard ceiling and a TTL alone (``dag_cache_size = 0``) bounds
+        memory by the concurrently active set rather than outright.
+
+        Note: this does not govern staleness. A Dag update that creates a new version is picked up
+        immediately, because the new version is a different cache key. A version rewritten in place is
+        re-checked against its current ``dag_hash`` once ``[core] min_serialized_dag_update_interval`` has
+        elapsed since the entry was last validated, so that option bounds how long a rewritten version can be
+        served stale.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "0"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
