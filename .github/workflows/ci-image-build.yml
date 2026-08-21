@@ -137,7 +137,7 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        uses: apache/infrastructure-actions/stash/restore@69afc125e535c4c41e7f1b7470f583087e0f344b
         with:
           key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
           path: "/tmp/"
@@ -194,7 +194,7 @@ jobs:
         run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        uses: apache/infrastructure-actions/stash/save@69afc125e535c4c41e7f1b7470f583087e0f344b
         with:
           key: ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
@@ -209,7 +209,7 @@ jobs:
           --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: inputs.upload-mount-cache-artifact == 'true'
       - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        uses: apache/infrastructure-actions/stash/save@69afc125e535c4c41e7f1b7470f583087e0f344b
         with:
           key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
           path: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
