@@ -56,6 +56,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         containing only [a-z0-9.-]).
     :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
     :param template_spec: kubernetes sparkApplication specification
+    :param application_arguments: list of arguments for the Spark application, merged into
+        ``spec.arguments`` of the SparkApplication CRD, overriding any arguments already present
+        in application_file/template_spec. Not to be confused with ``arguments``, which is inherited
+        from ``KubernetesPodOperator`` and sets the driver container's entrypoint args. Templated, so
+        it can be populated from Dag run Params entered when triggering the Dag via the UI.
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
@@ -73,7 +78,13 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param random_name_suffix: If True, adds a random suffix to the pod name
     """
 
-    template_fields = ["application_file", "namespace", "template_spec", "kubernetes_conn_id"]
+    template_fields = [
+        "application_file",
+        "namespace",
+        "template_spec",
+        "kubernetes_conn_id",
+        "application_arguments",
+    ]
     template_fields_renderers = {"template_spec": "py"}
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
@@ -89,6 +100,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         name: str | None = None,
         application_file: str | None = None,
         template_spec=None,
+        application_arguments: list[str] | None = None,
         get_logs: bool = True,
         do_xcom_push: bool = False,
         success_run_history_limit: int = 1,
@@ -105,6 +117,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.code_path = code_path
         self.application_file = application_file
         self.template_spec = template_spec
+        self.application_arguments = application_arguments
         self.kubernetes_conn_id = kubernetes_conn_id
         self.startup_timeout_seconds = startup_timeout_seconds
         self.reattach_on_restart = reattach_on_restart
@@ -401,6 +414,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 spec_dict[component]["labels"].update(task_context_labels)
 
         spec_dict = template_body.setdefault("spark", {}).setdefault("spec", {})
+        if self.application_arguments:
+            spec_dict["arguments"] = self.application_arguments
         for component in ["driver", "executor"]:
             env_list = spec_dict.setdefault(component, {}).setdefault("env", [])
             if not any(e.get("name") == "SPARK_APPLICATION_NAME" for e in env_list):
