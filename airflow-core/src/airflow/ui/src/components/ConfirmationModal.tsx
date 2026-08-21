@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type DialogBodyProps, Heading } from "@chakra-ui/react";
+import { Button, type DialogBodyProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 
 type Props = {
   readonly children?: DialogBodyProps["children"];
@@ -30,45 +30,28 @@ type Props = {
 };
 
 export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, open }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
-    <Dialog.Root
+    <Modal
+      cancelActionProps={{ "data-testid": "confirmation-cancel-button" }}
       data-testid="confirmation-modal"
-      lazyMount
+      footerActions={
+        <Button
+          data-testid="confirmation-confirm-button"
+          onClick={() => {
+            onConfirm();
+            onOpenChange({ open });
+          }}
+        >
+          {translate("modal.confirm")}
+        </Button>
+      }
       onOpenChange={onOpenChange}
       open={open}
-      unmountOnExit
+      title={header}
     >
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading>{header}</Heading>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body>{children}</Dialog.Body>
-        <Dialog.Footer>
-          <Dialog.ActionTrigger asChild>
-            <Button
-              data-testid="confirmation-cancel-button"
-              onClick={() => onOpenChange({ open })}
-              variant="outline"
-            >
-              {translate("modal.cancel")}
-            </Button>
-          </Dialog.ActionTrigger>
-          <Button
-            data-testid="confirmation-confirm-button"
-            onClick={() => {
-              onConfirm();
-              onOpenChange({ open });
-            }}
-          >
-            {translate("modal.confirm")}
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
-    </Dialog.Root>
+      {children}
+    </Modal>
   );
 };

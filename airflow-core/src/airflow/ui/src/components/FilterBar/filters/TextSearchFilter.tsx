@@ -17,7 +17,7 @@
  * under the License.
  */
 import { HStack } from "@chakra-ui/react";
-import { useRef } from "react";
+import { useRef, type ChangeEvent } from "react";
 import { LuRegex } from "react-icons/lu";
 
 import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
@@ -37,7 +37,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
 
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
 
     onChange(newValue || undefined);

@@ -812,3 +812,80 @@ with DAG(
 """
         warnings = self._check_code(code)
         assert len(warnings) == 1
+
+    def test_nested_non_dag_with_does_not_exit_dag_context(self):
+        """Regression test: a non-DAG with-statement nested inside a DAG with-block must not
+        prematurely exit the DAG context.
+
+        Before the fix, visit_With() called exit_dag_context() unconditionally regardless of
+        whether a DAG context was entered. This meant any nested non-DAG with-statement (e.g.,
+        ``with open(...) as f``) would reset is_in_dag_context=False, causing tasks that appear
+        AFTER the nested with-statement (but still inside the DAG with-block) to be missed.
+        """
+        code = """
+from airflow import DAG
+from datetime import datetime
+from airflow.operators.bash import BashOperator
+
+with DAG('my_dag') as dag:
+    with open('some_file.txt') as f:   # non-DAG with — must not exit DAG context
+        data = f.read()
+    # This task is still inside the DAG block and uses datetime.now() — must be flagged
+    t1 = BashOperator(
+        task_id='test',
+        bash_command=str(datetime.now()),
+    )
+"""
+        warnings = self._check_code(code)
+        assert len(warnings) == 1, (
+            "BashOperator after a nested non-DAG with-statement must still be detected "
+            "as inside the DAG context and flagged for using datetime.now()"
+        )
+
+    def test_multiple_nested_non_dag_withs_do_not_exit_dag_context(self):
+        """Multiple successive non-DAG with-statements inside a DAG block must not exit the context."""
+        code = """
+from airflow import DAG
+from datetime import datetime
+from airflow.operators.bash import BashOperator
+
+with DAG('my_dag') as dag:
+    with open('a.txt') as f1:
+        pass
+    with open('b.txt') as f2:
+        pass
+    t1 = BashOperator(task_id='t', bash_command=str(datetime.now()))
+"""
+        warnings = self._check_code(code)
+        assert len(warnings) == 1
+
+    def test_task_inside_nested_non_dag_with_is_still_flagged(self):
+        """A task constructed inside a nested non-DAG with-block is still in DAG context."""
+        code = """
+from airflow import DAG
+from datetime import datetime
+from airflow.operators.bash import BashOperator
+
+with DAG('my_dag') as dag:
+    with open('a.txt') as f:
+        t1 = BashOperator(task_id='t', bash_command=str(datetime.now()))
+"""
+        warnings = self._check_code(code)
+        assert len(warnings) == 1
+
+    def test_task_outside_dag_with_not_flagged_after_nested_fix(self):
+        """Tasks genuinely outside any DAG block must not be flagged — the fix must not over-flag."""
+        code = """
+from airflow import DAG
+from datetime import datetime
+from airflow.operators.bash import BashOperator
+
+with DAG('my_dag') as dag:
+    with open('a.txt') as f:
+        pass
+
+# This task is outside the DAG with block — should NOT be flagged
+t_outside = BashOperator(task_id='outside', bash_command=str(datetime.now()))
+"""
+        warnings = self._check_code(code)
+        assert len(warnings) == 0, "A task constructed outside the DAG with-block must not be flagged"
