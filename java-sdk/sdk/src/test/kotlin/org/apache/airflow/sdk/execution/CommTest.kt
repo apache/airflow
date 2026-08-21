@@ -87,7 +87,10 @@ class CommsTest {
   @DisplayName("Should serialize all fields")
   fun shouldEncodeSucceedTask() {
     val endDate = OffsetDateTime.of(2024, 12, 1, 1, 0, 0, 0, ZoneOffset.UTC)
-    val bytes = CoordinatorComm.encode(OutgoingFrame(3, TaskResult.success(endDate = endDate)))
+    val bytes =
+      CoordinatorComm
+        .encode(OutgoingFrame(3, TaskResult.success(endDate = endDate)))
+        .fold(ByteArray(0)) { acc, buffer -> acc + buffer.toByteArray() }
     val actual = bytes.toHexString(HexFormat { bytes { byteSeparator = " " } })
 
     val expected =
@@ -134,13 +137,13 @@ class CommsTest {
   }
 
   private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
-    writeByteArray(Frame.lengthPrefix(payload.size))
+    writeByteArray(Frame.lengthPrefix(payload.size.toUInt()))
     writeByteArray(payload)
   }
 
   private suspend fun ByteChannel.readOneRequest() {
     val prefix = readByteArray(4)
-    readByteArray(Frame.parseLengthPrefix(prefix))
+    readByteArray(Frame.parseLengthPrefix(prefix).toInt())
   }
 
   @Test
@@ -180,7 +183,7 @@ class CommsTest {
           val ids =
             (0 until n).map {
               val prefix = fromClient.readByteArray(4)
-              val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix))
+              val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
               CoordinatorComm.decode(payload).id
             }
           ids.reversed().forEach { toClient.writeFrame(responseFrame(it)) }
@@ -232,7 +235,7 @@ class CommsTest {
         runBlocking {
           repeat(n) {
             val prefix = fromClient.readByteArray(4)
-            val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix))
+            val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
             toClient.writeFrame(responseFrame(CoordinatorComm.decode(payload).id))
           }
         }
