@@ -1,0 +1,1 @@
+Add ``extraObjects`` to deploy extra Kubernetes objects alongside the release
