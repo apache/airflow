@@ -2139,6 +2139,37 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     ]
 
 
+def test_mapped_expansion_defers_some_tis_to_later_scheduler_pass(dag_maker, session):
+    @task
+    def task_1(): ...
+
+    with dag_maker(session=session):
+
+        @task
+        def task_2(arg2): ...
+
+        task_2.expand(arg2=task_1())
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1", session=session)
+    assert ti
+    ti.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2, 3, 4]))
+    session.flush()
+
+    with conf_vars({("scheduler", "max_tis_per_query"): "2"}):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+    indices = [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis]
+    assert indices == [("task_2", 0), ("task_2", 1)]
+
+    with conf_vars({("scheduler", "max_tis_per_query"): "2"}):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+    indices = [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis]
+    assert indices == [("task_2", 0), ("task_2", 1), ("task_2", 2), ("task_2", 3)]
+
+
 def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker, session):
     """
     Test that when the length of mapped literal reduces at runtime, the missing task instances

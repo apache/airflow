@@ -1685,6 +1685,9 @@ class DagRun(Base, LoggingMixin):
         expansion_happened = False
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
         revised_map_index_task_ids: set[str] = set()
+        max_tis_per_query = airflow_conf.getint("scheduler", "max_tis_per_query")
+        if max_tis_per_query <= 0:
+            max_tis_per_query = airflow_conf.getint("core", "parallelism")
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
                 assert isinstance(schedulable.task, Operator)
@@ -1702,7 +1705,21 @@ class DagRun(Base, LoggingMixin):
             if schedulable.map_index < 0:
                 new_tis = _expand_mapped_task_if_needed(schedulable)
                 if new_tis is not None:
-                    additional_tis.extend(new_tis)
+                    expanded_tis = list(new_tis)
+                    # Avoid evaluating a huge number of newly expanded TIs in the same pass.
+                    # They are persisted already and picked up in subsequent loops.
+                    remaining_budget = max(max_tis_per_query - len(additional_tis), 0)
+                    if remaining_budget:
+                        additional_tis.extend(expanded_tis[:remaining_budget])
+                    dropped_tis = len(expanded_tis) - remaining_budget
+                    if dropped_tis > 0:
+                        self.log.debug(
+                            "Deferring dependency checks for expanded TIs to a later scheduler pass",
+                            task_id=schedulable.task_id,
+                            dag_id=self.dag_id,
+                            run_id=self.run_id,
+                            deferred_count=dropped_tis,
+                        )
                     expansion_happened = True
                     # Expansion changes a mapped task's instance count, which invalidates the
                     # trigger-rule upstream-count memo on this DepContext (a downstream evaluated
@@ -2145,17 +2162,50 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
-        new_tis: list[TI] = []
-        for index in range(total_length):
-            if index in existing_indexes:
-                continue
+        from airflow.settings import task_instance_mutation_hook
+
+        new_indexes = [index for index in range(total_length) if index not in existing_indexes]
+        if not new_indexes:
+            return []
+
+        hook_is_noop = getattr(task_instance_mutation_hook, "is_noop", False) is True
+        if hook_is_noop:
+            ti_mappings = [
+                TI.insert_mapping(
+                    self.run_id,
+                    task,
+                    map_index=index,
+                    dag_version_id=dag_version_id,
+                    dag_run=self,
+                )
+                for index in new_indexes
+            ]
+            session.bulk_insert_mappings(TI.__mapper__, ti_mappings)
+            session.flush()
+            inserted_tis = list(
+                session.scalars(
+                    select(TI)
+                    .where(
+                        TI.dag_id == self.dag_id,
+                        TI.task_id == task.task_id,
+                        TI.run_id == self.run_id,
+                        TI.map_index.in_(new_indexes),
+                    )
+                    .order_by(TI.map_index)
+                ).all()
+            )
+            for ti in inserted_tis:
+                ti.task = task
+            return inserted_tis
+
+        created_tis: list[TI] = []
+        for index in new_indexes:
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
             _add_and_prime_mapped_ti(ti, task, self, session=session)
-            new_tis.append(ti)
-        if new_tis:
-            session.flush()
-        return new_tis
+            created_tis.append(ti)
+        session.flush()
+        return created_tis
 
     @classmethod
     @provide_session
