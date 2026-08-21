@@ -31,8 +31,9 @@ import attrs
 import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import (
+    ARTIFACT_ROOTS_NOT_CONFIGURED,
     ResolvedBundle,
-    convert_roots,
+    convert_configured_roots,
     extract_supervisor_schema_version,
     parse_metadata_mapping,
 )
@@ -346,8 +347,8 @@ class ExecutableCoordinator(SubprocessCoordinator):
     """
 
     executables_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        factory=list,
+        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
+        converter=convert_configured_roots,
     )
 
     @property

@@ -26,7 +26,12 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, convert_roots, walk_files
+from airflow.sdk.coordinators._bundle_metadata import (
+    ARTIFACT_ROOTS_NOT_CONFIGURED,
+    ResolvedBundle,
+    convert_configured_roots,
+    walk_files,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import read_bundle
 
@@ -119,8 +124,8 @@ class NodeCoordinator(SubprocessCoordinator):
 
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        factory=list,
+        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
+        converter=convert_configured_roots,
     )
 
     @property

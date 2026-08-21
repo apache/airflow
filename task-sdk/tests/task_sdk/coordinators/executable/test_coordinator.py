@@ -375,9 +375,10 @@ class TestExecutableCoordinatorAttributes:
         assert coordinator.executables_root == []
         assert coordinator.dag_bundle_name is None
 
-    def test_none_executables_root_normalized_to_empty(self):
-        coordinator = ExecutableCoordinator(executables_root=None)
-        assert coordinator.executables_root == []
+    @pytest.mark.parametrize("executables_root", [None, []], ids=["none", "empty-list"])
+    def test_explicit_empty_executables_root_raises(self, executables_root):
+        with pytest.raises(ValueError, match="must contain at least one path when provided"):
+            ExecutableCoordinator(executables_root=executables_root)
 
     def test_root_and_dag_bundle_name_are_mutually_exclusive(self, tmp_path):
         with pytest.raises(ValueError, match="at most one of 'executables_root' or 'dag_bundle_name'"):
