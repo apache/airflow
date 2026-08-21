@@ -337,7 +337,9 @@ class TestSparkSubmitHook:
         hook_spark_standalone_cluster._driver_id = "driver-20171128111416-0001"
         hook_spark_yarn_cluster = SparkSubmitHook(conn_id="spark_yarn_cluster")
         hook_spark_yarn_cluster._driver_id = "driver-20171128111417-0001"
-        hook_spark_standalone_cluster_rpc_endpoint = SparkSubmitHook(conn_id="spark_standalone_cluster_rpc_endpoint")
+        hook_spark_standalone_cluster_rpc_endpoint = SparkSubmitHook(
+            conn_id="spark_standalone_cluster_rpc_endpoint"
+        )
         hook_spark_standalone_cluster_rpc_endpoint._driver_id = "driver-20171128111418-0001"
 
         # When
@@ -374,7 +376,10 @@ class TestSparkSubmitHook:
 
         assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
         assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
-        assert expected_spark_standalone_cluster_rpc_endpoint == build_track_driver_status_spark_standalone_cluster_rpc_endpoint
+        assert (
+            expected_spark_standalone_cluster_rpc_endpoint
+            == build_track_driver_status_spark_standalone_cluster_rpc_endpoint
+        )
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1223,7 +1228,7 @@ class TestSparkSubmitHook:
         assert kill_cmd[2] == "spark://spark-standalone-master:6066"
         assert kill_cmd[3] == "--kill"
         assert kill_cmd[4] == "driver-20171128111415-0001"
-        
+
         expected_spark_standalone_cluster_rpc_endpoint = [
             "/usr/bin/curl",
             "--max-time",
