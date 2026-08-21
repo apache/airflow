@@ -22,7 +22,7 @@
   "assetEvent_one": "Événement d'Asset",
   "assetEvent_other": "Événements d'Asset",
   "assetInactive": {
-    "tooltip": "L'Asset en amont a été désactivé ; le planificateur suspend l'évaluation des partitions jusqu'à sa réactivation."
+    "tooltip": "L'Asset en amont a été désactivé ; le scheduler suspend l'évaluation des partitions jusqu'à sa réactivation."
   },
   "backfill_many": "Rattrapages",
   "backfill_one": "Rattrapage",

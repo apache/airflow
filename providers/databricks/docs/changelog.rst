@@ -26,6 +26,32 @@
 Changelog
 ---------
 
+7.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Databricks SQL warehouse lifecycle operators (#70088)``
+* ``Add performance_target parameter to DatabricksSubmitRunOperator (#71374)``
+* ``Add Databricks-native retry settings to task operators (#69182)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
 7.18.1
 ......
 

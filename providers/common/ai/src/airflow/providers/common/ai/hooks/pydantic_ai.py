@@ -355,9 +355,10 @@ class PydanticAIBedrockHook(PydanticAIHook):
 
     Credentials are resolved in order:
 
-    1. IAM keys from ``extra`` (``aws_access_key_id`` + ``aws_secret_access_key``,
+    1. Bearer token in ``extra`` (``api_key``, maps to env ``AWS_BEARER_TOKEN_BEDROCK``).
+       Takes precedence over IAM keys if both are set.
+    2. IAM keys from ``extra`` (``aws_access_key_id`` + ``aws_secret_access_key``,
        optionally ``aws_session_token``).
-    2. Bearer token in ``extra`` (``api_key``, maps to env ``AWS_BEARER_TOKEN_BEDROCK``).
     3. Environment-variable / instance-role chain (``AWS_PROFILE``, IAM role, …)
        when no explicit keys are provided.
 

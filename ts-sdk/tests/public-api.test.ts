@@ -75,7 +75,7 @@ describe("public API", () => {
     const foreign = {};
     Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.DagRegistry"), { value: true });
     await expect(serveDags(foreign as unknown as DagRegistry)).rejects.toThrow(
-      /different copy of @apache-airflow\/ts-sdk/,
+      /different copy of apache-airflow-ts-sdk/,
     );
   });
 

@@ -122,8 +122,9 @@ The provider's extras split into a few groups:
   ``pydantic-ai-slim`` optional dependency group; pydantic-ai supports more model providers
   than these four, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
-* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``: MCP servers, Agent Skills, and
-  code-mode tool execution.
+* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``: MCP servers, Agent
+  Skills, code-mode tool execution, and shield capabilities (input/output guards, tool
+  guards, cost tracking).
 * **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
   document pipelines.
 * **Retrieval / SQL** — ``sql``, ``common.sql``, ``langchain``, ``llamaindex``: RAG and
@@ -203,7 +204,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 0.7.0
+Release: 0.8.0
 
 Provider package
 ----------------
@@ -291,5 +292,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 0.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.7.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 0.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.7.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl.sha512>`__)
