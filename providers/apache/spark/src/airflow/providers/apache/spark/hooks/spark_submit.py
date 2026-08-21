@@ -696,7 +696,21 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 raise AirflowException(
                     "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
-
+        elif spark_host.endswith(":7077"):
+            host = self._connection["rest_endpoint"]
+            connection_cmd = [
+                "/usr/bin/curl",
+                "--max-time",
+                str(curl_max_wait_time),
+                f"{host}/v1/submissions/status/{self._driver_id}",
+            ]
+            self.log.info(connection_cmd)
+        
+            # The driver id so we can poll for its status
+            if not self._driver_id:
+                raise AirflowException(
+                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
+                )
         else:
             connection_cmd = self._get_spark_binary_path()
 
