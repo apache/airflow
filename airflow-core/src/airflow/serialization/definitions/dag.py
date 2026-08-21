@@ -1125,8 +1125,7 @@ class SerializedDAG:
             tis_full = apply_state_filter(tis_full)
 
         if include_dependent_dags:
-            # Recursively find external tasks indicated by ExternalTaskMarker
-            from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
+            external_task_marker_type = "ExternalTaskMarker"
 
             # Build a full-object query for identifying ExternalTaskMarker TIs in the current set
             if as_pk_tuple:
@@ -1143,7 +1142,7 @@ class SerializedDAG:
                     visited_external_tis = set()
 
                 external_marker_tis = session.scalars(
-                    marker_query.where(TaskInstance.operator == ExternalTaskMarker.__name__)
+                    marker_query.where(TaskInstance.operator == external_task_marker_type)
                 )
 
                 for ti in external_marker_tis:
@@ -1151,16 +1150,17 @@ class SerializedDAG:
                         continue
 
                     visited_external_tis.add(ti_key)
-                    task: ExternalTaskMarker = cast("ExternalTaskMarker", self.get_task(ti.task_id))
+                    task = self.get_task(ti.task_id)
+                    task_recursion_depth = getattr(task, "recursion_depth")
 
                     if max_recursion_depth is None:
                         # Maximum recursion depth is set from the first ExternalTaskMarker encountered
-                        max_recursion_depth = task.recursion_depth
+                        max_recursion_depth = task_recursion_depth
 
                     if recursion_depth + 1 > max_recursion_depth:
                         raise MaxRecursionDepthError(
                             f"Maximum recursion depth {max_recursion_depth} reached for "
-                            f"{ExternalTaskMarker.__name__} {ti.task_id}. "
+                            f"{external_task_marker_type} {ti.task_id}. "
                             f"Attempted to clear too many tasks or there may be a cyclic dependency."
                         )
 
@@ -1169,8 +1169,8 @@ class SerializedDAG:
 
                     # Retrieve the logical date from the TI, Dag/task ID's from the task
                     logical_date_str: str = ti.dag_run.logical_date.isoformat()
-                    external_dag_id = task.external_dag_id
-                    external_task_id = task.external_task_id
+                    external_dag_id = getattr(task, "external_dag_id")
+                    external_task_id = getattr(task, "external_task_id")
 
                     if rendered := RenderedTaskInstanceFields.get_templated_fields(ti, session=session):
                         external_dag_id = rendered.get("external_dag_id", external_dag_id)
