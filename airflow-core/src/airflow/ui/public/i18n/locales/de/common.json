@@ -8,6 +8,7 @@
     "Variables": "Variablen"
   },
   "allOperators": "Alle Operatoren",
+  "allTeams": "Alle Teams",
   "appearance": {
     "appearance": "Darstellung",
     "darkMode": "Dunkelmodus",
@@ -57,7 +58,8 @@
     "owner": "Eigentümer",
     "params": "Parameter",
     "schedule": "Zeitplan",
-    "tags": "Markierungen"
+    "tags": "Markierungen",
+    "team": "Team"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -72,6 +74,7 @@
     "expectedDuration": "Erwartete mittlere Laufzeit",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
     "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
+    "partitionDate": "Partitionsdatum",
     "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
@@ -83,9 +86,8 @@
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
   "dagRunId": "Dag Lauf ID",
+  "dagRunState": "Status des Dag Laufs",
   "dagWarnings": "Dag Warnungen und Fehler",
-  "defaultToGraphView": "Graph-Ansicht als Standard",
-  "defaultToGridView": "Gitter-Ansicht als Standard",
   "delete": "Löschen",
   "diff": "Differenzansicht",
   "diffCompareWith": "Vergleichen mit",
@@ -119,6 +121,8 @@
       "title": "Zugriff verweigert"
     }
   },
+  "event_one": "Ereignis",
+  "event_other": "Ereignisse",
   "expand": {
     "collapse": "Einklappen",
     "expand": "Ausklappen",
@@ -145,7 +149,11 @@
     "selectDateRange": "Zeitraum auswählen",
     "startTime": "Startzeitpunkt"
   },
+  "fullscreen": {
+    "tooltip": "Drücken Sie {{hotkey}} für den Vollbildmodus"
+  },
   "generateToken": "Zugriffstoken erzeugen",
+  "includedIn": "Enthalten in",
   "key": "Schlüssel",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
@@ -176,9 +184,12 @@
   "note": {
     "add": "Eine Notiz hinzufügen",
     "dagRun": "Notizen zum Dag Lauf",
+    "edit": "Notiz bearbeiten",
     "label": "Notiz",
     "placeholder": "Eine Notiz hinzufügen...",
-    "taskInstance": "Notizen zu Task Instanzen"
+    "preview": "Vorschau",
+    "taskInstance": "Notizen zu Task Instanzen",
+    "write": "Schreiben"
   },
   "overallStatus": "Gesamtstatus",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
@@ -188,6 +199,23 @@
   },
   "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
   "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
+  "presetFilters": {
+    "deleteTitle": "Gespeicherten Filter löschen",
+    "deleteWarning": "Gespeicherte Filter werden nur in diesem Browser gespeichert.",
+    "duplicate": "Der gespeicherte Filter \"{{name}}\" enthält bereits genau diese Konfiguration.",
+    "empty": "Noch keine gespeicherten Filter",
+    "info": {
+      "default": "Legen Sie einen gespeicherten Filter als Standard fest. Er wird automatisch angewendet, wenn Sie diese Seite ohne Filter öffnen.",
+      "save": "Speichern Sie die aktuellen Filter und die Sortierung und verwenden Sie ihn jederzeit wieder.",
+      "storage": "Gespeicherte Filter werden in diesem Browser gespeichert."
+    },
+    "namePlaceholder": "Name des gespeicherten Filters",
+    "nothingToSave": "Nichts zu speichern. Wenden Sie Filter an oder ändern Sie die Sortierung, um einen gespeicherten Filter zu erstellen.",
+    "save": "Speichern",
+    "setDefault": "Als Standard festlegen",
+    "title": "Gespeicherte Filter",
+    "unsetDefault": "Standard aufheben"
+  },
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
@@ -219,8 +247,85 @@
   },
   "selectLanguage": "Sprache wählen",
   "selected": "Ausgewählt",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Laufende Tasks beim Löschen von Task Instanzen überspringen.",
+        "label": "Löschen laufender Tasks verhindern"
+      },
+      "runSelection": {
+        "helper": "Standardmäßig ausgewählte Optionen beim Löschen eines Dag Laufs.",
+        "label": "Standardauswahl zum Löschen eines Laufs"
+      },
+      "taskSelection": {
+        "helper": "Standardmäßig ausgewählte Optionen beim Löschen von Task Instanzen.",
+        "label": "Standardauswahl zum Löschen von Tasks"
+      },
+      "title": "Löschen"
+    },
+    "description": "Diese Einstellungen werden nur in diesem Browser gespeichert und gelten für die gesamte Anwendung.",
+    "graph": {
+      "defaultDirection": {
+        "helper": "Ausrichtung für Dag- und Datenset-(Asset)-Graphen, für die Sie keine individuelle Ausrichtung festgelegt haben.",
+        "label": "Standardausrichtung des Graphen"
+      },
+      "title": "Graph"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Standardmäßig ausgewählte Optionen beim Markieren des Status einer Task Instanz.",
+        "label": "Standardauswahl zum Markieren"
+      },
+      "title": "Markieren"
+    },
+    "title": "Einstellungen"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Code",
+      "dagView": "Dag-Ansicht",
+      "filters": "Filter",
+      "global": "Global",
+      "logs": "Protokolle",
+      "navigation": "Navigation",
+      "runActions": "Lauf- und Task-Aktionen",
+      "search": "Suche"
+    },
+    "descriptions": {
+      "clearRun": "$t(dagRun_one) löschen",
+      "clearTaskInstance": "$t(taskInstance_one) löschen",
+      "downloadLogs": "Protokolle herunterladen",
+      "focusFilterSearch": "Filtersuche fokussieren",
+      "focusLogSearch": "Protokolle durchsuchen",
+      "focusSearch": "Suche fokussieren",
+      "markRunFailed": "$t(dagRun_one) als fehlgeschlagen markieren",
+      "markRunSuccess": "$t(dagRun_one) als erfolgreich markieren",
+      "markTaskFailed": "$t(task_one) als fehlgeschlagen markieren",
+      "markTaskGroupFailed": "$t(taskGroup_one) als fehlgeschlagen markieren",
+      "markTaskGroupSuccess": "$t(taskGroup_one) als erfolgreich markieren",
+      "markTaskSuccess": "$t(task_one) als erfolgreich markieren",
+      "navigateTasks": "Zu $t(task_other) navigieren",
+      "openGraphFilters": "Graphfilter öffnen",
+      "scrollBottom": "Nach unten scrollen",
+      "scrollTop": "Nach oben scrollen",
+      "searchDags": "$t(dag_other) suchen",
+      "showHelp": "$t(shortcuts.title) anzeigen",
+      "toggleExpand": "Alle Gruppen ein- oder ausklappen",
+      "toggleFullscreen": "Vollbild umschalten",
+      "toggleGraphGrid": "Zwischen Graph- und Gitteransicht wechseln",
+      "toggleSource": "Quelle umschalten",
+      "toggleTaskGroup": "$t(taskGroup_one) ein- oder ausklappen",
+      "toggleTimestamp": "Zeitstempel umschalten",
+      "toggleWrap": "$t(wrap.wrap) umschalten"
+    },
+    "empty": "Auf dieser Seite sind keine Tastenkürzel verfügbar.",
+    "title": "Tastenkürzel"
+  },
   "showDetailsPanel": "Detailansicht einblenden",
   "signedInAs": "Angemeldet als",
+  "slot": "Slot",
+  "slot_one": "Slot",
+  "slot_other": "Slots",
   "source": {
     "hide": "Log-Quelle ausblenden",
     "hotkey": "s",
@@ -259,6 +364,7 @@
     "from": "Von",
     "maxActiveRuns": "Maximal aktive Läufe",
     "noTagsFound": "Keine Markierungen gefunden",
+    "noTeamsFound": "Keine Teams gefunden",
     "tagMode": {
       "all": "Alle",
       "any": "Einer"
@@ -285,10 +391,12 @@
   "taskGroup_other": "Task Gruppen",
   "taskId": "Task ID",
   "taskInstance": {
+    "additionalAttributes": "Zusätzliche Attribute der Task Instanz",
     "dagVersion": "Dag Version",
     "executor": "Ausführungsumgebung",
     "executorConfig": "Konfiguration der Ausführungsumgebung",
     "hostname": "Hostname",
+    "id": "ID",
     "maxTries": "Maximale Versuche",
     "pid": "PID",
     "pool": "Pool",
@@ -298,11 +406,13 @@
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
     "scheduledWhen": "Geplant ab",
+    "trigger": "Auslöser",
     "triggerer": {
       "assigned": "Zugewiesene Abrufumgebung",
       "class": "Abruf-Klasse",
       "createdAt": "Zeitpunkt der Erstellung",
       "id": "Abrufungs ID",
+      "job": "Abrufumgebungs-Job",
       "latestHeartbeat": "Letztes Lebenszeichen",
       "title": "Abrufumgebungs-Information"
     },
@@ -310,6 +420,12 @@
   },
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
+  "teams": {
+    "more_one": "und {{count}} weitere",
+    "more_other": "und {{count}} weitere",
+    "none": "Kein Team",
+    "title": "Teams"
+  },
   "timeRange": {
     "last12Hours": "Letzte 12 Stunden",
     "last24Hours": "Letzte 24 Stunden",

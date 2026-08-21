@@ -287,12 +287,12 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.2.1"
-AIRFLOW_UV_VERSION = "0.12.3"
+AIRFLOW_UV_VERSION = "0.12.5"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.58"
+GITPYTHON_VERSION = "3.1.59"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.12"
-HATCH_VERSION = "1.17.1"
+PREK_VERSION = "0.4.13"
+HATCH_VERSION = "1.18.0"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -1254,6 +1254,14 @@ def _build_provider_distributions(
     help="Skip checking if the tag already exists in the remote repository",
 )
 @click.option(
+    "--skip-git-fetch",
+    default=False,
+    is_flag=True,
+    help="Skip recreating and fetching the 'apache-https-for-providers' remote, and check tags against "
+    "the state already in the local repository. Useful when building several batches in a row - the "
+    "fetch pulls the full history and all tags, which is slow and flaky on an unreliable network.",
+)
+@click.option(
     "--skip-deleting-generated-files",
     default=False,
     is_flag=True,
@@ -1291,6 +1299,7 @@ def prepare_provider_distributions(
     distributions_list_file: IO | None,
     provider_distributions: tuple[str, ...],
     skip_deleting_generated_files: bool,
+    skip_git_fetch: bool,
     skip_tag_check: bool,
     version_suffix: str,
 ):
@@ -1325,7 +1334,7 @@ def prepare_provider_distributions(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    if not skip_tag_check and not is_local_package_version(version_suffix):
+    if not skip_tag_check and not is_local_package_version(version_suffix) and not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
