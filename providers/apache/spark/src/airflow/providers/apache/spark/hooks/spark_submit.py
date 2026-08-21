@@ -465,8 +465,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 and conn_data["deploy_mode"] == "cluster"
             ):
                 if conn_data["master"].endswith("7077"):
+                    host = conn_data['master'].replace("spark://", "").strip()
                     conn_data["rest_endpoint"] = (
-                        f"{conn_data['rest_scheme']}://{conn_data['master'].strip().split(':')[0]}:{conn_data['rest_port']}"
+                        f"{conn_data['rest_scheme']}://{host.split(':')[0]}:{conn_data['rest_port']}"
                     )
                 elif conn_data["master"].endswith("6066"):
                     conn_data["rest_endpoint"] = conn_data["master"].replace("spark://", "http://")
