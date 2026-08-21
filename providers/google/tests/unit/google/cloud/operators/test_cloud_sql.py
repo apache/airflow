@@ -849,6 +849,23 @@ class TestCloudSqlQueryValidation:
         err = ctx.value
         assert "The UNIX socket path length cannot exceed" in str(err)
 
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDatabaseHook")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_hook_passes_impersonation_chain(self, get_connection, mock_hook):
+        get_connection.return_value = mock.MagicMock(extra_dejson={})
+        impersonation_chain = "impersonated@project.iam.gserviceaccount.com"
+        op = CloudSQLExecuteQueryOperator(
+            sql="SELECT 1",
+            task_id="task_id",
+            impersonation_chain=impersonation_chain,
+        )
+
+        assert "impersonation_chain" in op.template_fields
+
+        _ = op.hook
+
+        assert mock_hook.call_args.kwargs["impersonation_chain"] == impersonation_chain
+
     @pytest.mark.parametrize(
         ("connection_port", "default_port", "expected_port"),
         [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
