@@ -148,6 +148,7 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         enough for that to matter belong in that provider's own operator, where
         deferral and :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin`
         can reconnect to the existing job instead of leaking it.
+
         :param prompt: The question or instruction to send to the remote agent.
         """
 
@@ -191,6 +192,7 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         log.info("Consulting managed agent %s on %s", ref.get("name"), ref.get("platform"))
         result = await self.invoke(tool_args["prompt"])
         return serialize_for_llm(result)
+
 
 class FailoverManagedAgentToolset(BaseManagedAgentToolset):
     """
