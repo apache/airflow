@@ -196,10 +196,10 @@ func extract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
 
 ### Task logging
 
-In coordinator mode, the injected logger filters records using Airflow's configured `[logging] logging_level` before sending them to the supervisor. Airflow also propagates `[logging] namespace_levels`; because `slog` does not have named loggers, bind the namespace as the top-level `logger` attribute:
+In coordinator mode, the injected logger filters records using Airflow's configured `[logging] logging_level` before sending them to the supervisor. Airflow also propagates `[logging] namespace_levels`; use a group-scoped logger to set the namespace:
 
 ```go
-databaseLog := log.With("logger", "example.database")
+databaseLog := log.WithGroup("example.database")
 databaseLog.Debug("query complete", "rows", 42)
 ```
 

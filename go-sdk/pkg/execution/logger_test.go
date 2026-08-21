@@ -141,20 +141,37 @@ func TestSocketLogHandlerUsesEnvironmentLevelFiltering(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(newSocketLogHandlerFromEnv(&buf))
 	logger.Info("global filtered")
-	logger.With("logger", "example.detail").Debug("namespace debug")
-	logger.With("logger", "example.noisy.child").Info("namespace filtered")
-	logger.With("logger", "example.noisy.child").Warn("namespace warning")
-	logger.With("logger", "unrelated").Warn("unrelated filtered")
+	logger.WithGroup("example.detail").Debug("namespace debug")
+	logger.WithGroup("example.noisy.child").Info("namespace filtered")
+	logger.WithGroup("example.noisy.child").Warn("namespace warning")
+	logger.WithGroup("unrelated").Warn("unrelated filtered")
 	logger.Log(context.Background(), slog.LevelDebug+1, "unsupported level")
 	logger.Error("global error")
 
-	var events []string
+	var entries []map[string]any
 	for line := range strings.Lines(buf.String()) {
 		var entry map[string]any
 		require.NoError(t, json.Unmarshal([]byte(line), &entry))
-		events = append(events, entry["event"].(string))
+		entries = append(entries, entry)
 	}
-	assert.Equal(t, []string{"namespace debug", "namespace warning", "global error"}, events)
+	require.Len(t, entries, 3)
+	assert.Equal(t, "namespace debug", entries[0]["event"])
+	assert.Equal(t, "example.detail", entries[0]["logger"])
+	assert.Equal(t, "namespace warning", entries[1]["event"])
+	assert.Equal(t, "example.noisy.child", entries[1]["logger"])
+	assert.Equal(t, "global error", entries[2]["event"])
+	assert.NotContains(t, entries[2], "logger")
+}
+
+func TestSocketLogHandlerUsesGroupNamespaceInEnabled(t *testing.T) {
+	filter := newLogLevelFilter(slog.LevelError, map[string]slog.Level{"example": slog.LevelDebug})
+	handler := newSocketLogHandler(nil, filter)
+
+	assert.True(
+		t,
+		handler.WithGroup("example.detail").Enabled(context.Background(), slog.LevelDebug),
+	)
+	assert.False(t, handler.WithGroup("unrelated").Enabled(context.Background(), slog.LevelWarn))
 }
 
 func TestSocketLogHandlerDefaultsInvalidEnvironmentLevelToInfo(t *testing.T) {
@@ -214,6 +231,7 @@ func TestSocketLogHandlerWithGroup(t *testing.T) {
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
 	assert.Equal(t, "val", entry["grp.key"])
+	assert.Equal(t, "grp", entry["logger"])
 }
 
 // TestSocketLogHandlerInlineGroup verifies that an inline slog.Group passed as

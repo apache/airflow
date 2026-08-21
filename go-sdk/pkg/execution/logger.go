@@ -90,7 +90,6 @@ var _ slog.Handler = (*SocketLogHandler)(nil)
 type logLevelFilter struct {
 	defaultLevel    slog.Level
 	namespaceLevels map[string]slog.Level
-	minimumLevel    slog.Level
 }
 
 // NewSocketLogHandler creates a new handler. If writer is nil, messages are
@@ -126,16 +125,9 @@ func newLogLevelFilter(
 	defaultLevel slog.Level,
 	namespaceLevels map[string]slog.Level,
 ) *logLevelFilter {
-	minimumLevel := defaultLevel
-	for _, level := range namespaceLevels {
-		if level < minimumLevel {
-			minimumLevel = level
-		}
-	}
 	return &logLevelFilter{
 		defaultLevel:    defaultLevel,
 		namespaceLevels: namespaceLevels,
-		minimumLevel:    minimumLevel,
 	}
 }
 
@@ -225,13 +217,15 @@ func (h *SocketLogHandler) Connect(w io.Writer) {
 }
 
 func (h *SocketLogHandler) Enabled(_ context.Context, level slog.Level) bool {
-	// slog calls Enabled before it constructs a Record, so its logger attribute
-	// is not available yet. Admit every level that any namespace could accept;
-	// Handle applies the exact namespace threshold before buffering or writing.
-	return level >= h.filter.minimumLevel
+	return h.filter.isEnabled(h.getLoggerName(), level)
 }
 
 func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
+	loggerName := h.getLoggerName()
+	if !h.filter.isEnabled(loggerName, r.Level) {
+		return nil
+	}
+
 	entry := make(map[string]any)
 
 	// Set standard fields.
@@ -257,9 +251,8 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
-	loggerName, _ := entry["logger"].(string)
-	if !h.filter.isEnabled(loggerName, r.Level) {
-		return nil
+	if loggerName != "" {
+		entry["logger"] = loggerName
 	}
 	entry["level"] = getAirflowLogLevelName(r.Level)
 
@@ -315,6 +308,10 @@ func (h *SocketLogHandler) WithGroup(name string) slog.Handler {
 		attrs:  h.attrs,
 		groups: append(append([]string{}, h.groups...), name),
 	}
+}
+
+func (h *SocketLogHandler) getLoggerName() string {
+	return strings.Join(h.groups, ".")
 }
 
 // groupPrefix returns the dotted prefix (including trailing ".") to apply to
