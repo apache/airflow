@@ -427,15 +427,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # Append port if provided
             conn_data["master"] = f"{conn_data['master']}:{conn.port}" if conn.port else conn_data["master"]
 
-            # Construct the Standalone Restendpoint
-            if (
-                conn.conn_type == "spark"
-                and conn_data["master"].startswith("spark://")
-                and conn_data["master"].endswith("7077")
-            ):
-                conn_data["rest_endpoint"] = (
-                    f"{conn_data['rest_scheme']}://{conn_data['master'].strip().split(':')[0]}:{conn_data['rest_port']}"
-                )
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
@@ -468,6 +459,18 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
                         base64_keytab, conn_data["principal"]
                     )
+            # Construct the Standalone Restendpoint
+            if (
+                conn.conn_type == "spark"
+                and conn_data["master"].startswith("spark://")
+                and conn_data["deploy_mode"] == "cluster"
+            ):
+                if conn_data["master"].endswith("7077"):
+                    conn_data["rest_endpoint"] = (
+                        f"{conn_data['rest_scheme']}://{conn_data['master'].strip().split(':')[0]}:{conn_data['rest_port']}"
+                    )
+                elif conn_data["master"].endswith("6066"):
+                    conn_data["rest_endpoint"] = conn_data["master"].replace("spark://", "http://")
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
@@ -688,11 +691,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         curl_max_wait_time = 30
         spark_host = self._connection["master"]
         if spark_host.endswith(":6066") or spark_host.endswith(":7077"):
-            spark_host = (
-                spark_host.replace("spark://", "http://")
-                if spark_host.endswith(":6066")
-                else self._connection["rest_endpoint"]
-            )
+            spark_host = self._connection["rest_endpoint"]
             connection_cmd = [
                 "/usr/bin/curl",
                 "--max-time",
