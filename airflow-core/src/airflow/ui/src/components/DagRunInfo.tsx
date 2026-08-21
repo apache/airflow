@@ -35,7 +35,7 @@ type Props = {
 };
 
 const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Tooltip

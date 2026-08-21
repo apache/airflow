@@ -70,7 +70,7 @@ const getColumns = (
 ];
 
 export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionScheduleModalProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const { data, error, isFetching, isLoading } = usePartitionedDagRunServiceGetPartitionedDagRuns(
     { dagId, hasCreatedDagRunId: false },
