@@ -449,7 +449,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - *(optional)*
      - One or more directories searched recursively, in order, for an integrity-verified ``*.min.mjs``
        bundle that declares the requested Dag. Accepts a string, a path, or a list of strings/paths. When
-       omitted, the bundle is located through a Dag bundle instead (see the note below).
+       omitted, the bundle is located through a Dag bundle instead (see the note below). Explicitly setting
+       this option to ``null`` or an empty list is invalid.
    * - ``dag_bundle_name``
      - *(auto: task's own bundle)*
      - Name of a configured Dag bundle to load the ``*.min.mjs`` bundle from. Mutually exclusive with
