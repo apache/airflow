@@ -109,8 +109,12 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
 
         Must contain ``platform`` and ``name``, e.g.
         ``{"platform": "snowflake.cortex", "name": "ANALYTICS.REVENUE.BOOKINGS_ANALYST"}``.
-        Logged on every invocation so a run can be audited for which agents were
-        consulted.
+        Logged on every invocation, so the resolved remote identity behind a task
+        appears in that task's log even though the Dag only names a connection.
+        It is not pushed to XCom: ``FailoverManagedAgentToolset`` reports the
+        group rather than the responder, and the operational question -- how often
+        a standby is answering -- is carried by the ``managed_agent.served``
+        counter instead.
         """
 
     @abstractmethod
@@ -157,8 +161,10 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
             name=self._tool_name,
             description=self._description,
             parameters_json_schema=_PROMPT_SCHEMA,
-            # Each invocation is an independent request to a remote service, so
-            # consulting several specialists concurrently is both safe and the point.
+            # HookToolset sets sequential=True because its tools share one hook
+            # object doing synchronous I/O. Nothing is shared here: each call is
+            # an independent request to a remote service, so two calls the model
+            # issues in one turn are safe to run at once.
             sequential=False,
             **return_schema_kwargs({"type": "string"}),
         )
@@ -166,6 +172,10 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
             self._tool_name: ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
+                # One rephrase attempt, matching HookToolset. Deliberately not
+                # more: a managed agent invocation is expensive, and a prompt the
+                # remote agent could not parse rarely becomes parseable on a
+                # second try.
                 max_retries=1,
                 args_validator=build_args_validator(_PROMPT_SCHEMA),
             )
@@ -290,7 +300,8 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
                     },
                 )
                 continue
-            if position:
+            served_by_standby = position > 0
+            if served_by_standby:
                 log.info("Managed agent request served by standby %s", ref.get("name"))
             # Emitted on every answer so the standby-served fraction is a ratio of
             # this counter, not something that has to be scanned out of XCom.
@@ -298,7 +309,7 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
                 "managed_agent.served",
                 tags={
                     "platform": ref.get("platform", "unknown"),
-                    "role": "standby" if position else "primary",
+                    "role": "standby" if served_by_standby else "primary",
                 },
             )
             return result
