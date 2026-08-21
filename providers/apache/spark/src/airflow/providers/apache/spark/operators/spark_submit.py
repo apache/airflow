@@ -212,22 +212,16 @@ class _StandaloneSparkSubmitBackend(_SparkSubmitDeploymentBackend):
         return driver_id
 
     def get_job_status(self, external_id: str, context: Context) -> str:
-        scheme = self.hook._connection.get("rest_scheme", "http")
-        rest_port = self.hook._connection.get("rest_port", 6066)
-        # HA master URLs can look like spark://m1:7077,m2:7077 — try each host in order.
-        # The master URL port (e.g. 7077) is the RPC port — not the REST API port.
-        # Use rest-port connection extra to override spark.master.rest.port (default 6066).
-        master_urls = self.hook._connection["master"].replace("spark://", "").split(",")
+        
         last_exc: Exception = RuntimeError("No Spark masters to query")
-        for m in master_urls:
-            host = m.strip().split(":")[0]
-            url = f"{scheme}://{host}:{rest_port}/v1/submissions/status/{external_id}"
-            try:
-                status = self.operator._fetch_driver_status(url, external_id)
-                return status
-            except Exception as e:
-                self.operator.log.warning("Could not reach Spark master %s: %s", host, e)
-                last_exc = e
+        host = self.hook._connection["rest_endpoint"]
+        url = f"{host}/v1/submissions/status/{external_id}"
+        try:
+            status = self.operator._fetch_driver_status(url, external_id)
+            return status
+        except Exception as e:
+            self.operator.log.warning("Could not reach Spark master %s: %s", host, e)
+            last_exc = e
         raise last_exc
 
     def is_job_active(self, status: str) -> bool:
