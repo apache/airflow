@@ -918,28 +918,22 @@ class TestInitRootSource:
     def test_returns_configured_root_and_no_bundle_in_explicit_mode(self):
         configured = [pathlib.Path("/a"), pathlib.Path("/b")]
         coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=configured)
-        roots, bundle = coordinator._init_root_source(log)
+        roots, bundle = coordinator._init_root_source(MagicMock(), log)
         assert roots == configured
         assert bundle is None
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
-    def test_task_bundle_mode_uses_active_task_bundle(self, mock_initialize, tmp_path):
+    def test_task_bundle_mode_uses_passed_task_bundle(self, mock_initialize, tmp_path):
         resolved = MagicMock(path=tmp_path, version="v3")
         mock_initialize.return_value = resolved
         coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
         bundle_info = BundleInfo(name="dags", version="v3", version_data={"k": "v"})
-        coordinator._active_bundle_info = bundle_info
 
-        roots, bundle = coordinator._init_root_source(log)
+        roots, bundle = coordinator._init_root_source(bundle_info, log)
 
         assert roots == [tmp_path]
         assert bundle is resolved
         mock_initialize.assert_called_once_with(bundle_info)
-
-    def test_task_bundle_mode_without_active_task_raises(self):
-        coordinator = _StubSubprocessCoordinator(command=["x"], explicit_roots=[])
-        with pytest.raises(RuntimeError, match="requires an active task"):
-            coordinator._init_root_source(log)
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
     def test_version_less_bundle_is_rematerialized_at_its_current_version(self, mock_initialize, tmp_path):
@@ -962,7 +956,7 @@ class TestInitRootSource:
         coordinator.dag_bundle_name = "artifacts"
         coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
 
-        roots, bundle = coordinator._init_root_source(log)
+        roots, bundle = coordinator._init_root_source(MagicMock(), log)
 
         assert roots == [pinned_tree]
         assert bundle is pinned
@@ -981,7 +975,7 @@ class TestInitRootSource:
         coordinator.dag_bundle_name = "artifacts"
         coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
 
-        roots, bundle = coordinator._init_root_source(log)
+        roots, bundle = coordinator._init_root_source(MagicMock(), log)
 
         assert roots == [tmp_path]
         assert bundle is resolved
@@ -996,11 +990,11 @@ class TestInitRootSource:
         coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
 
         with pytest.raises(FileNotFoundError, match="does not exist"):
-            coordinator._init_root_source(log)
+            coordinator._init_root_source(MagicMock(), log)
 
 
 class TestExecuteTaskBundleWiring:
-    """execute_task binds the task bundle, forwards resolved roots, and holds the version lock."""
+    """execute_task passes the task bundle, forwards resolved roots, and holds the version lock."""
 
     @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock")
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
@@ -1024,11 +1018,8 @@ class TestExecuteTaskBundleWiring:
             subprocess_logs_to_stdout=False,
         )
 
-        # Resolution runs against the bound task bundle.
         mock_initialize.assert_called_once_with(bundle_info)
-        # The resolved root is forwarded to the subclass command builder.
         assert coordinator.recorded_roots == [[tmp_path]]
-        # The version lock is held around the subprocess for the resolved bundle.
         mock_lock.assert_called_once_with(bundle_name="dags", bundle_version="v9")
         mock_lock.return_value.__enter__.assert_called_once()
         mock_lock.return_value.__exit__.assert_called_once()
@@ -1095,34 +1086,21 @@ class TestGetScanRoots:
         with pytest.raises(RuntimeError, match="requires an active task"):
             coordinator._get_scan_roots()
 
-
-class TestSetCurrentBundle:
-    def test_binds_for_the_block_and_clears_on_exit_allowing_reuse(self):
+    def test_rejects_nested_reentry(self, tmp_path):
         coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
-        bundle = MagicMock()
-        with coordinator._set_current_bundle(bundle):
-            assert coordinator._active_bundle_info is bundle
-        assert coordinator._active_bundle_info is None
-        # A subsequent task on the same (reused) coordinator binds cleanly.
-        with coordinator._set_current_bundle(MagicMock()):
-            assert coordinator._active_bundle_info is not None
-        assert coordinator._active_bundle_info is None
-
-    def test_rejects_nested_reentry(self):
-        coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
-        with coordinator._set_current_bundle(MagicMock()):
+        with coordinator._set_scan_roots([tmp_path]):
             with pytest.raises(RuntimeError, match="not re-entrant"):
-                with coordinator._set_current_bundle(MagicMock()):
+                with coordinator._set_scan_roots([tmp_path]):
                     pass
 
-    def test_execute_task_is_not_reentrant(self, mock_client):
+    def test_execute_task_is_not_reentrant(self, mock_client, tmp_path):
         coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
-        coordinator._active_bundle_info = MagicMock()  # simulate an in-flight task
-        with pytest.raises(RuntimeError, match="not re-entrant"):
-            coordinator.execute_task(
-                what=_make_ti(),
-                dag_rel_path="dag.py",
-                bundle_info=MagicMock(),
-                client=mock_client,
-                subprocess_logs_to_stdout=False,
-            )
+        with coordinator._set_scan_roots([tmp_path]):
+            with pytest.raises(RuntimeError, match="not re-entrant"):
+                coordinator.execute_task(
+                    what=_make_ti(),
+                    dag_rel_path="dag.py",
+                    bundle_info=MagicMock(),
+                    client=mock_client,
+                    subprocess_logs_to_stdout=False,
+                )
