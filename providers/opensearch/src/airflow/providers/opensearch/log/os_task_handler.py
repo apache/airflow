@@ -219,7 +219,7 @@ def _create_opensearch_client(
     connection_kwargs: dict[str, Any] = {
         "hosts": [{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}]
     }
-    if username and password:
+    if username or password:
         connection_kwargs["http_auth"] = (username, password)
     return OpenSearch(
         **connection_kwargs,
