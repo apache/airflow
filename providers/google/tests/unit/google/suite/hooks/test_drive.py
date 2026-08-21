@@ -428,3 +428,22 @@ class TestGoogleDriveHook:
             ]
         )
         assert return_value == file_id
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_create_file(self, mock_get_conn):
+        file_metadata = {
+            "name": "Test File",
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+            "parents": ["shared_drive_123"],
+        }
+
+        mock_execute = mock_get_conn.return_value.files.return_value.create.return_value.execute
+        mock_execute.return_value = {"id": "NEW_FILE_ID", "webViewLink": "https://example.com/view"}
+
+        result = self.gdrive_hook.create_file(file_metadata=file_metadata)
+
+        mock_get_conn.return_value.files.return_value.create.assert_called_once_with(
+            body=file_metadata, fields="id, webViewLink", supportsAllDrives=True
+        )
+        mock_execute.assert_called_once()
+        assert result == {"id": "NEW_FILE_ID", "webViewLink": "https://example.com/view"}
