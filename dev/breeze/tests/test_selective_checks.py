@@ -3105,6 +3105,13 @@ def test_upgrade_to_newer_dependencies(
             id="Only Airflow docs changed",
         ),
         pytest.param(
+            ("dev/mypy/docs/index.rst",),
+            {
+                "docs-list-as-string": "apache-airflow-mypy",
+            },
+            id="Only Apache Airflow Mypy docs changed",
+        ),
+        pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),
             {"docs-list-as-string": "celery cncf.kubernetes common.compat"},
             id="Celery python files changed",
