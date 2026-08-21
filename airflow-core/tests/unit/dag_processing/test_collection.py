@@ -37,7 +37,10 @@ from airflow.dag_processing.collection import (
     AssetModelOperation,
     DagModelOperation,
     _get_latest_runs_stmt,
+    _get_latest_runs_stmt_batch,
     _get_latest_runs_stmt_partitioned,
+    _get_latest_runs_stmt_partitioned_batch,
+    _RunInfo,
     _update_dag_tags,
     update_dag_parsing_results_in_db,
 )
@@ -133,6 +136,148 @@ def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
     assert latest.run_after == run_after
     assert latest.partition_key is None
     assert latest.partition_date is None
+
+
+@pytest.mark.db_test
+def test_run_info_calculate_many_matches_calculate_per_dag(dag_maker, session):
+    """Batched run-info resolution returns the same result per Dag as per-dag resolution."""
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
+
+    lazy_dags = {}
+    for i in range(2):
+        with dag_maker(f"cm-plain-{i}", schedule="@daily", session=session) as dag:
+            pass
+        dag_maker.sync_dagbag_to_db()
+        if i == 0:  # one dag with a run, one without
+            dag_maker.create_dagrun(
+                run_id="cm-run",
+                logical_date=tz.datetime(2025, 1, 1),
+                run_type=DagRunType.SCHEDULED,
+                run_after=tz.datetime(2025, 1, 1),
+                session=session,
+            )
+        lazy_dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
+    with dag_maker("cm-partitioned", schedule=PartitionedAtRuntime(), session=session) as dag:
+        pass
+    dag_maker.sync_dagbag_to_db()
+    dag_maker.create_dagrun(
+        run_id="cm-part-run",
+        logical_date=None,
+        data_interval=None,
+        run_type=DagRunType.SCHEDULED,
+        run_after=tz.datetime(2025, 1, 2),
+        partition_key="2025-01-02",
+        partition_date=tz.datetime(2025, 1, 2),
+        session=session,
+    )
+    lazy_dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
+    with dag_maker("cm-unschedulable", schedule=None, session=session) as dag:
+        pass
+    dag_maker.sync_dagbag_to_db()
+    lazy_dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
+    session.flush()
+
+    many = _RunInfo.calculate_many(lazy_dags, session=session)
+
+    assert set(many) == set(lazy_dags)
+    for dag_id, lazy_dag in lazy_dags.items():
+        assert many[dag_id] == _RunInfo.calculate(lazy_dag, session=session), dag_id
+
+    only_one = {"cm-plain-0": lazy_dags["cm-plain-0"]}
+    assert _RunInfo.calculate_many(only_one, session=session)["cm-plain-0"] == _RunInfo.calculate(
+        lazy_dags["cm-plain-0"], session=session
+    )
+
+
+@pytest.mark.db_test
+def test_update_dags_resolves_run_info_with_constant_queries(dag_maker, session, testing_dag_bundle):
+    """Run-info resolution must not scale with the number of Dags in a parse batch."""
+    from tests_common.test_utils.asserts import count_queries
+
+    dags = []
+    for i in range(3):
+        with dag_maker(f"factory-dag-{i}", schedule="@daily", session=session) as dag:
+            pass
+        dags.append(dag)
+    session.commit()
+
+    with count_queries(stacklevel=4) as result:
+        update_dag_parsing_results_in_db("testing", None, dags, {}, None, set(), session)
+
+    run_info_queries = sum(count for location, count in result.items() if "calculate" in location)
+    assert run_info_queries == 2
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_batch_matches_single_per_dag(dag_maker, session):
+    """The batch statement selects the same latest run per Dag as the single-dag statement."""
+    logical_dates = (tz.datetime(2025, 1, 1), tz.datetime(2025, 1, 2))
+    for i in range(3):
+        with dag_maker(f"batch-dag-{i}", schedule="@daily", session=session):
+            pass
+        dag_maker.sync_dagbag_to_db()
+        for j, logical_date in enumerate(logical_dates):
+            dag_maker.create_dagrun(
+                run_id=f"run-{i}-{j}",
+                logical_date=logical_date,
+                run_type=DagRunType.SCHEDULED,
+                run_after=logical_date,
+                session=session,
+            )
+    # A dag whose automated runs all lack a logical_date must be absent, like the single stmt.
+    with dag_maker("batch-dag-no-logical-date", schedule="@daily", session=session):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    session.flush()
+    session.expunge_all()
+
+    dag_ids = [f"batch-dag-{i}" for i in range(3)] + ["batch-dag-no-logical-date"]
+    batch_results = {run.dag_id: run.run_id for run in session.scalars(_get_latest_runs_stmt_batch(dag_ids))}
+    single_results = {
+        dag_id: run.run_id
+        for dag_id in dag_ids
+        if (run := session.scalar(_get_latest_runs_stmt(dag_id))) is not None
+    }
+
+    assert batch_results == single_results
+    assert "batch-dag-no-logical-date" not in batch_results
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_partitioned_batch_matches_single_per_dag(dag_maker, session):
+    """The partitioned batch statement ranks each Dag's runs like the single-dag statement."""
+    for i in range(2):
+        with dag_maker(f"part-batch-dag-{i}", schedule=PartitionedAtRuntime(), session=session):
+            pass
+        dag_maker.sync_dagbag_to_db()
+        for j, (partition_key, partition_date) in enumerate(
+            (
+                (f"key-{i}-dated", tz.datetime(2025, 1, 2 + i)),
+                (f"key-{i}-null-date", None),
+            )
+        ):
+            dag_maker.create_dagrun(
+                run_id=f"part-run-{i}-{j}",
+                logical_date=None,
+                data_interval=None,
+                run_type=DagRunType.SCHEDULED,
+                run_after=tz.datetime(2025, 1, 1 + j),
+                partition_key=partition_key,
+                partition_date=partition_date,
+                session=session,
+            )
+    session.flush()
+    session.expunge_all()
+
+    dag_ids = [f"part-batch-dag-{i}" for i in range(2)]
+    batch_results = {
+        run.dag_id: run.run_id for run in session.scalars(_get_latest_runs_stmt_partitioned_batch(dag_ids))
+    }
+    single_results = {
+        dag_id: session.scalar(_get_latest_runs_stmt_partitioned(dag_id)).run_id for dag_id in dag_ids
+    }
+
+    assert batch_results == single_results
 
 
 @pytest.mark.db_test
