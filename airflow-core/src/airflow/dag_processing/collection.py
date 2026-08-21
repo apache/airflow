@@ -850,8 +850,13 @@ class AssetModelOperation(NamedTuple):
                 dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
-            assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
-            asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
+            # Insertion order is lock order, and assets are shared, so two writers taking them
+            # in opposite orders deadlock. Deduplicated before sorting: sorting the pairs first
+            # compares SerializedAssets wherever a Dag repeats one, which they do not support.
+            assets=dict(sorted({(a.name, a.uri): a for a in _find_all_assets(dags.values())}.items())),
+            asset_aliases=dict(
+                sorted({alias.name: alias for alias in _find_all_asset_aliases(dags.values())}.items())
+            ),
         )
         return coll
 
@@ -876,7 +881,9 @@ class AssetModelOperation(NamedTuple):
                 session=session,
             )
         )
-        return orm_assets
+        # Sorted again: the rows that already existed came back in the query's order, and
+        # ``activate_assets_if_possible`` locks them in the order it is handed.
+        return dict(sorted(orm_assets.items()))
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
         # Optimization: skip all database calls if no asset aliases were collected.
