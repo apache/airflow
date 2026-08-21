@@ -237,8 +237,7 @@ class BaseOperations:
             entry = safe_validate(self.response.content)
             offset = offset + limit
             entry_list.extend(getattr(entry, found_key))
-        obj = data_model(**{found_key: entry_list, "total_entries": total_entries})
-        return data_model.model_validate(obj.model_dump())  # type: ignore[union-attr]
+        return data_model(**{found_key: entry_list, "total_entries": total_entries})
 
 
 # Login operations
