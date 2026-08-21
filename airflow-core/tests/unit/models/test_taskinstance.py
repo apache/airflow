@@ -2509,6 +2509,68 @@ class TestTaskInstance:
             "reg_Task4": State.SKIPPED,
         }
 
+    def test_handle_failure_concurrent_reschedule_fk(self, dag_maker, session):
+        """
+        Regression test for GH#71923.
+
+        A rescheduling sensor in ``mode="reschedule"`` is killed at a poke boundary.
+        The scheduler's ``fetch_handle_failure_context`` deletes the old
+        ``task_reschedule`` row and assigns a new ``ti.id``, but listener hooks
+        (e.g. OpenLineage) can block the open transaction for seconds.  During that
+        window the Execution API inserts a new ``task_reschedule`` row referencing
+        the *old* ``ti.id``.  When the id-changing UPDATE is flushed, the FK
+        ``task_reschedule_ti_fkey`` is violated unless ``save_to_db`` re-issues the
+        cleanup right before the flush.
+        """
+        from airflow.listeners.listener import get_listener_manager
+
+        with dag_maker(dag_id="test_fk_race", schedule=None, start_date=timezone.datetime(2024, 1, 1)):
+            task = EmptyOperator(task_id="sensor", retries=3)
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            logical_date=timezone.datetime(2024, 1, 1),
+            state=DagRunState.RUNNING,
+            session=session,
+        )
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.task = task
+        ti.state = State.RUNNING
+        old_ti_id = ti.id
+        session.flush()
+
+        now = timezone.utcnow()
+
+        # Simulate the Execution API racing with the scheduler: while the listener
+        # hook runs (inside the scheduler's open transaction), a new
+        # task_reschedule row referencing the OLD ti.id is inserted.
+        def intercept(*, previous_state, task_instance, error):
+            session.add(
+                TaskReschedule(
+                    ti_id=old_ti_id,
+                    start_date=now - datetime.timedelta(seconds=10),
+                    end_date=now,
+                    reschedule_date=now,
+                )
+            )
+            session.flush()
+
+        get_listener_manager().pm.hook.on_task_instance_failed = intercept
+        try:
+            ti.handle_failure("test concurrent reschedule", test_mode=False)
+        finally:
+            get_listener_manager().clear()  # disconnect listener
+
+        assert ti.state == State.UP_FOR_RETRY
+        # The TI must have a fresh id (prepare_db_for_next_try replaced it) ...
+        assert ti.id != old_ti_id
+        # ... and no orphaned task_reschedule row may reference the old id, which
+        # would otherwise trip the FK on flush.
+        stale = session.scalar(
+            select(func.count()).select_from(TaskReschedule).where(TaskReschedule.ti_id == old_ti_id)
+        )
+        assert stale == 0
+
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
