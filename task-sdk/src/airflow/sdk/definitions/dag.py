@@ -812,6 +812,23 @@ class DAG:
         return list(self.task_dict)
 
     @property
+    def is_mixed_language_dag(self) -> bool:
+        """
+        Whether this Dag pairs Python with a Lang-SDK runtime, i.e. holds any ``@task.stub`` task.
+
+        Always derived from the Dag's tasks, never author-set, so that a Lang-SDK Dag processor can
+        tell a Dag that merely backs stub tasks from one authored natively in that language.
+        """
+        return any(task.is_stub for task in self.task_dict.values())
+
+    @is_mixed_language_dag.setter
+    def is_mixed_language_dag(self, val):
+        raise AttributeError(
+            "DAG.is_mixed_language_dag can not be set. It is derived from whether the Dag has any "
+            "@task.stub task."
+        )
+
+    @property
     def teardowns(self) -> list[Operator]:
         return [task for task in self.tasks if getattr(task, "is_teardown", None)]
 
