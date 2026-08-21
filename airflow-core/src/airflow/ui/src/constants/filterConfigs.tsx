@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/* eslint-disable max-lines */
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
