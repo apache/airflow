@@ -42,41 +42,66 @@ airflow_version = "3.0.0"
 
 
 # --- Value-sanitization SQL, factored out so migration tests can run the real statements
-# against an isolated table via the helpers below; ``table`` defaults to "xcom" for the
-# production calls. Both classes of value that are legal in the pickled blob but illegal in
-# strict JSON/JSONB are handled: non-finite floats (NaN/Infinity/-Infinity) become ``null``,
-# and the active U+0000 (NUL) escape is stripped (escaped backslashes are protected first so a
-# literal U+0000 escape embedded in the data survives).
+# against an isolated table; ``table`` defaults to "xcom" for the production calls.
 #
-# The non-finite tokens are replaced with the bare literal ``null`` rather than a quoted
-# ``"NaN"`` string. The replacement text has to be valid at whatever JSON nesting depth the
-# token happens to sit at, and a quote character is not: an XCom whose value is a JSON string
-# holding another JSON document (``json.dumps(json.dumps(...))``, or a dict with a
-# json.dumps'd value) has its interior quotes backslash-escaped, so injecting a bare ``"``
-# closes the enclosing string early and leaves the token bare again. That produced an
-# unrecoverable upgrade failure on the bytea -> JSONB cast below. ``null`` needs no quoting,
-# so it is correct at every depth.
+# Two things round-trip through pickle but are illegal in strict JSON/JSONB:
+#
+# 1. The U+0000 (NUL) escape. JSONB cannot represent it and it cannot be quoted, so it is
+#    stripped. Escaped backslashes are protected first so a literal ``\u0000`` in the data survives.
+# 2. Non-finite floats (NaN / Infinity / -Infinity), rewritten to bare ``null``.
+#
+# Step 2 is skipped for values that already parse as JSON, where the token can only be inside a
+# string: an XCom holding json.dumps'd JSON has its interior quotes escaped, so rewriting it
+# would change data for no reason. Rows that do need it get ``null`` and not a quoted ``"NaN"``,
+# because a raw quote is only valid at the top level. On a value that is invalid at the top level
+# and also wraps an escaped document, the quote closes that string early and leaves the token
+# bare, which aborts the cast.
+#
+# Step 1 runs first, or a value invalid only because of the escape looks like it needs step 2.
+_XCOM_PG_STRIP_NUL_SQL = r"""
+                UPDATE __TABLE__
+                SET value = convert_to(
+                    replace(
+                        replace(
+                            replace(convert_from(value, 'UTF8'), '\\', chr(1)),
+                            '\u0000', ''
+                        ),
+                        chr(1), '\\'
+                    ),
+                    'UTF8'
+                )
+                WHERE value IS NOT NULL AND get_byte(value, 0) != 128
+                    -- chr(1) never appears in the JSON text, json.dumps escapes control bytes.
+                    -- The chain is an identity without the escape, so those rows are skipped
+                    -- rather than rewritten.
+                    AND position(convert_to('\u0000', 'UTF8') in value) > 0
+            """
+# PostgreSQL has no non-throwing JSON validator before 16 (``pg_input_is_valid``) and 14 is still
+# supported, so the guard goes through a session-local function. The regex test comes first so
+# the cast is only attempted for rows that have a token at all.
+_XCOM_PG_NEEDS_NAN_FIX_SQL = r"""
+                CREATE OR REPLACE FUNCTION pg_temp._airflow_xcom_needs_nan_fix(txt text)
+                RETURNS boolean AS $$
+                BEGIN
+                    IF txt !~ '(NaN|Infinity)' THEN
+                        RETURN false;
+                    END IF;
+                    PERFORM txt::jsonb;
+                    RETURN false;
+                EXCEPTION WHEN others THEN
+                    RETURN true;
+                END;
+                $$ LANGUAGE plpgsql
+            """
 _XCOM_PG_SANITIZE_SQL = r"""
                 UPDATE __TABLE__
                 SET value = convert_to(
                     regexp_replace(
-                        -- Strip the active U+0000 (NUL) escape (illegal in JSON/JSONB, not quotable).
-                        -- Protect escaped backslashes with chr(1) first so an embedded literal
-                        -- backslash + u0000 in the data is preserved; chr(1) is safe because
-                        -- json.dumps escapes control bytes, so it never appears in the JSON text.
-                        replace(
-                            replace(
-                                replace(convert_from(value, 'UTF8'), '\\', chr(1)),
-                                '\u0000', ''
-                            ),
-                            chr(1), '\\'
-                        ),
-                        -- Group 1 captures the preceding delimiter (:, comma, or [)
-                        -- or ^ for a bare scalar value (the entire XCom value is just NaN).
-                        -- A lookahead is used for the closing delimiter instead of a
-                        -- consuming group so that consecutive tokens in an array
-                        -- (e.g. [NaN, Infinity]) are each matched independently.
-                        -- NaN and Infinity are done in the same query to avoid another table scan.
+                        convert_from(value, 'UTF8'),
+                        -- Group 1 is the preceding delimiter, or ^ for a bare scalar value. The
+                        -- closing delimiter is a lookahead rather than a consuming group so that
+                        -- consecutive tokens in an array ([NaN, Infinity]) each match. NaN and
+                        -- Infinity share one pass to avoid a second table scan.
                         '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
                         '\1null',
                         'g'
@@ -84,31 +109,33 @@ _XCOM_PG_SANITIZE_SQL = r"""
                     'UTF8'
                 )
                 WHERE value IS NOT NULL AND get_byte(value, 0) != 128
+                    AND pg_temp._airflow_xcom_needs_nan_fix(convert_from(value, 'UTF8'))
+            """
+_XCOM_MYSQL_STRIP_NUL_SQL = """
+                UPDATE __TABLE__
+                SET value = CONVERT(
+                    REPLACE(
+                        REPLACE(
+                            REPLACE(CONVERT(value USING utf8mb4), '\\\\\\\\', CHAR(1)),
+                            '\\\\u0000', ''
+                        ),
+                        CHAR(1), '\\\\\\\\'
+                    ) USING BINARY
+                )
+                WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
+                    AND LOCATE('\\\\u0000', value) > 0
             """
 _XCOM_MYSQL_SANITIZE_SQL = """
                 UPDATE __TABLE__
                 SET value = CONVERT(
                     REGEXP_REPLACE(
-                        -- Strip the active U+0000 (NUL) escape (illegal JSON; see PostgreSQL branch).
-                        -- Protect escaped backslashes with CHAR(1) first so an embedded literal
-                        -- backslash + u0000 in the data is preserved.
-                        REPLACE(
-                            REPLACE(
-                                REPLACE(CONVERT(value USING utf8mb4), '\\\\\\\\', CHAR(1)),
-                                '\\\\u0000', ''
-                            ),
-                            CHAR(1), '\\\\\\\\'
-                        ),
-                        -- Same grouping and lookahead strategy as PostgreSQL (see above).
-                        -- The run of spaces after the delimiter is inside group 1 so it is
-                        -- put back by the replacement. Leaving it outside the group dropped
-                        -- it, which is invisible in a top-level document (JSON ignores
-                        -- whitespace) but not when the document is itself a JSON string:
-                        -- there the bytes are the value the consumer reads back.
-                        -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
-                        -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
-                        -- The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
-                        -- NaN and Infinity are done in the same query to avoid another table scan.
+                        CONVERT(value USING utf8mb4),
+                        -- Same grouping and lookahead as PostgreSQL. The run of spaces after the
+                        -- delimiter is inside group 1 so the replacement puts it back; outside the
+                        -- group it was dropped, which is invisible in a top-level document but not
+                        -- when the document is itself a JSON string. 'c' forces case-sensitive
+                        -- matching (NaN != nan).
+                        -- Python escaping: \\\\[ -> SQL \\[ -> regex \\[ -> literal [
                         '([:,\\\\[][ ]*|^)(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
                         '$1null',
                         1,
@@ -117,53 +144,77 @@ _XCOM_MYSQL_SANITIZE_SQL = """
                     ) USING BINARY
                 )
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
+                    AND (LOCATE('NaN', value) > 0 OR LOCATE('Infinity', value) > 0)
+                    AND NOT JSON_VALID(CONVERT(value USING utf8mb4))
             """
+_XCOM_SQLITE_STRIP_NUL_SQL = """
+                UPDATE __TABLE__
+                SET value = CAST(
+                    REPLACE(
+                        REPLACE(
+                            REPLACE(CAST(value AS TEXT), '\\\\', char(1)),
+                            '\\u0000', ''
+                        ),
+                        char(1), '\\\\'
+                    ) AS BLOB)
+                WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
+                    AND instr(CAST(value AS TEXT), '\\u0000') > 0
+            """
+# SQLite has no REGEXP_REPLACE, so this is a plain substring replace that cannot tell a token in
+# a JSON syntax position from the same text inside a string. The json_valid() guard removes most
+# of that risk: a value holding "NaN detected" still parses and is left alone. Only a value that
+# fails to parse for some other reason can still be altered, and the result is valid JSON either
+# way, so the migration completes. json_valid() needs the JSON1 extension, which SQLite builds
+# before 3.38 may not have, so the guard is substituted in rather than inlined.
 _XCOM_SQLITE_SANITIZE_SQL = """
                 UPDATE __TABLE__
                 SET value = CAST(
                     REPLACE(
                         REPLACE(
-                            -- Step 1: replace -Infinity before the bare Infinity below.
-                            REPLACE(
-                                -- Protect escaped backslashes with char(1), strip the active
-                                -- U+0000 (NUL) escape, then restore (see PostgreSQL branch).
-                                REPLACE(
-                                    REPLACE(
-                                        REPLACE(CAST(value AS TEXT), '\\\\', char(1)),
-                                        '\\u0000', ''
-                                    ),
-                                    char(1), '\\\\'
-                                ),
-                                '-Infinity', 'null'
-                            ),
-                            -- Step 2: replace the remaining bare Infinity. -Infinity is done
-                            -- first above, otherwise this step would leave '-null' behind.
+                            -- -Infinity first, or the bare Infinity step leaves '-null' behind.
+                            REPLACE(CAST(value AS TEXT), '-Infinity', 'null'),
                             'Infinity', 'null'
                         ),
-                        -- Step 3: NaN.
                         'NaN', 'null'
                     ) AS BLOB)
-                -- NOTE: SQLite lacks REGEXP_REPLACE, so plain REPLACE is used.
-                -- This is a substring operation and will incorrectly alter XCom values
-                -- that contain the literal text 'NaN' or 'Infinity' inside a JSON string
-                -- (e.g. {"msg": "NaN detected"} becomes {"msg": "null detected"}).  The
-                -- result is still valid JSON, so the migration completes either way.
-                -- In practice such values are rare and
-                -- SQLite is not recommended for production deployments.
                 WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
+                    __GUARD__
             """
+_SQLITE_JSON_VALID_GUARD = "AND NOT json_valid(CAST(value AS TEXT))"
 
 
-def _xcom_pg_sanitize_sql(table: str = "xcom") -> str:
-    return _XCOM_PG_SANITIZE_SQL.replace("__TABLE__", table)
+def _xcom_pg_sanitize_statements(table: str = "xcom") -> list[str]:
+    return [
+        _XCOM_PG_STRIP_NUL_SQL.replace("__TABLE__", table),
+        _XCOM_PG_NEEDS_NAN_FIX_SQL,
+        _XCOM_PG_SANITIZE_SQL.replace("__TABLE__", table),
+    ]
 
 
-def _xcom_mysql_sanitize_sql(table: str = "xcom") -> str:
-    return _XCOM_MYSQL_SANITIZE_SQL.replace("__TABLE__", table)
+def _xcom_mysql_sanitize_statements(table: str = "xcom") -> list[str]:
+    return [
+        _XCOM_MYSQL_STRIP_NUL_SQL.replace("__TABLE__", table),
+        _XCOM_MYSQL_SANITIZE_SQL.replace("__TABLE__", table),
+    ]
 
 
-def _xcom_sqlite_sanitize_sql(table: str = "xcom") -> str:
-    return _XCOM_SQLITE_SANITIZE_SQL.replace("__TABLE__", table)
+def _xcom_sqlite_sanitize_statements(table: str = "xcom", json1: bool = True) -> list[str]:
+    return [
+        _XCOM_SQLITE_STRIP_NUL_SQL.replace("__TABLE__", table),
+        _XCOM_SQLITE_SANITIZE_SQL.replace("__TABLE__", table).replace(
+            "__GUARD__", _SQLITE_JSON_VALID_GUARD if json1 else ""
+        ),
+    ]
+
+
+def _sqlite_has_json1(conn) -> bool:
+    """Whether this SQLite build provides json_valid() (the JSON1 extension)."""
+    try:
+        conn.execute(text("SELECT json_valid('{}')")).fetchone()
+    except Exception:
+        print("SQLite JSON functions unavailable; sanitizing without the json_valid() guard.")
+        return False
+    return True
 
 
 def upgrade():
@@ -172,7 +223,7 @@ def upgrade():
     # 1. Create an archived table (`_xcom_archive`) to store the current "pickled" data in the xcom table
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
-    # 4. Sanitize values illegal in strict JSON/JSONB (quote NaN/Infinity, strip the U+0000 NUL escape)
+    # 4. Sanitize values illegal in strict JSON/JSONB (strip the U+0000 NUL escape, null out NaN/Infinity)
     # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
@@ -237,16 +288,11 @@ def upgrade():
     # Delete the pickled data from the xcom table so that we can update the column type
     conn.execute(text(f"DELETE FROM xcom WHERE value IS NOT NULL AND {condition}"))
 
-    # Sanitize values that round-trip through pickle but are illegal in strict JSON/JSONB
-    # before changing the column type:
-    #   * NaN / Infinity / -Infinity -> quoted strings (valid Python floats, illegal JSON).
-    #   * the U+0000 (NUL) escape -> stripped. PostgreSQL JSON/JSONB cannot represent it
-    #     ("unsupported Unicode escape sequence ... cannot be converted to text") and,
-    #     unlike the non-finite floats, it cannot be quoted/kept, so it is removed.
-    #     json.dumps() emits a literal NUL as the 6-char escape, never a raw 0x00 byte, so
-    #     stripping the escape covers values produced by normal XCom serialization.
+    # Sanitize values that are legal in the pickled blob but illegal in strict JSON/JSONB
+    # before changing the column type. See the statements at the top of this module.
     if dialect == "postgresql":
-        conn.execute(text(_xcom_pg_sanitize_sql()))
+        for stmt in _xcom_pg_sanitize_statements():
+            conn.execute(text(stmt))
 
         op.execute(
             """
@@ -259,7 +305,8 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
-        conn.execute(text(_xcom_mysql_sanitize_sql()))
+        for stmt in _xcom_mysql_sanitize_statements():
+            conn.execute(text(stmt))
 
         op.add_column("xcom", sa.Column("value_json", sa.JSON(), nullable=True))
         op.execute("UPDATE xcom SET value_json = CAST(value AS CHAR CHARACTER SET utf8mb4)")
@@ -267,7 +314,8 @@ def upgrade():
         op.alter_column("xcom", "value_json", existing_type=sa.JSON(), new_column_name="value")
 
     elif dialect == "sqlite":
-        conn.execute(text(_xcom_sqlite_sanitize_sql()))
+        for stmt in _xcom_sqlite_sanitize_statements(json1=_sqlite_has_json1(conn)):
+            conn.execute(text(stmt))
         # Rename the existing `value` column to `value_old`
         with op.batch_alter_table("xcom", schema=None) as batch_op:
             batch_op.alter_column("value", new_column_name="value_old")
