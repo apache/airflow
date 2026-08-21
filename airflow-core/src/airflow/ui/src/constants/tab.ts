@@ -16,15 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DagRunState } from "openapi/requests/types.gen";
 
-export type Option = {
-  readonly disabled?: boolean;
-  readonly label: string;
-  readonly value: string;
-};
+export enum TabEntity {
+  Dag = "dag",
+  Task = "task",
+  TaskInstance = "task-instance",
+}
 
-export type DagSearchOption = {
-  readonly isBackfillable: boolean;
-  readonly state: DagRunState | null;
-} & Option;
+export enum TabName {
+  Backfills = "backfills",
+  Calendar = "calendar",
+  Code = "code",
+  Details = "details",
+  Events = "events",
+  Overview = "",
+  Runs = "runs",
+  Tasks = "tasks",
+}
