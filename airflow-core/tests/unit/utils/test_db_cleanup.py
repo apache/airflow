@@ -22,13 +22,12 @@ import time
 from contextlib import suppress
 from importlib import import_module
 from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import Column, Integer, MetaData, Table, func, inspect, literal, select, text
+from sqlalchemy import Column, Integer, MetaData, Table, func, insert, inspect, literal, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
@@ -51,6 +50,7 @@ from airflow.utils.db_cleanup import (
     _confirm_drop_archives,
     _do_delete,
     _dump_table_to_file,
+    _effective_table_names,
     _get_archived_table_names,
     _TableConfig,
     config_dict,
@@ -825,11 +825,12 @@ class TestDBCleanup:
         """
         import pkgutil
 
-        proj_root = Path(__file__).parents[2].resolve()
-        mods = list(
-            f"airflow.models.{name}"
-            for _, name, _ in pkgutil.iter_modules([str(proj_root / "airflow/models")])
-        )
+        import airflow.models
+
+        # Walk the package's own __path__ rather than rebuilding it from this file's
+        # location: a path guessed relative to the test resolves to nothing once the
+        # sources move, leaving the assertions below with an empty set to check.
+        mods = [f"airflow.models.{name}" for _, name, _ in pkgutil.iter_modules(airflow.models.__path__)]
 
         all_models = {}
         for mod_name in mods:
@@ -869,12 +870,30 @@ class TestDBCleanup:
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
+            "team",  # leave alone - team configuration, not run data
+            # leave alone - per-asset key/value state, upserted in place (PK is asset_id+key),
+            # so it is bounded and current, not accumulating history; removed with its asset
+            "asset_state_store",
+            # Purged indirectly: each of these hangs off a cleaned table by an
+            # ON DELETE CASCADE foreign key, so the rows go when the parent does.
+            # cascade from dag_run once the partition run has fired; while it is still
+            # pending its created_dag_run_id is NULL, so those rows are not cleaned
+            "asset_partition_dag_run",
+            "asset_watcher",  # cascade from trigger
+            "dag_favorite",  # cascade from dag
+            "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
+            "hitl_detail",  # cascade from task_instance
+            "hitl_detail_history",  # cascade from task_instance_history
+            "task_inlet_asset_reference",  # cascade from dag
         }
 
         from airflow.utils.db_cleanup import config_dict
 
         print(f"all_models={set(all_models)}")
         print(f"excl+conf={exclusion_list.union(config_dict)}")
+        # Without this the two assertions below hold trivially for an empty set,
+        # which is how a table can go unnoticed by this check for several releases.
+        assert all_models, "discovered no models, so this check would pass vacuously"
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
 
@@ -1341,6 +1360,256 @@ class TestConnectionTestRequestCleanup:
             assert seeded[state] in survivors, f"{state} row should NOT be cleaned up"
         for state in ("success", "failed"):
             assert seeded[state] not in survivors, f"{state} row should be cleaned up"
+
+
+class TestCallbackCleanupConfig:
+    """The callback table is registered under the name it actually has in the schema."""
+
+    def test_callback_is_configured_under_its_current_name(self):
+        # The table was renamed from callback_request to callback; a config entry naming a
+        # table that does not exist is skipped with a warning, so the rows are never purged.
+        assert "callback" in config_dict
+        assert "callback_request" not in config_dict
+
+    def test_removed_tables_are_not_configured(self):
+        assert "sla_miss" not in config_dict
+
+    def test_cleaning_callback_pulls_in_its_dependent_deadline_rows(self):
+        # deadline.callback_id cascades from callback, so deadline has to be cleaned
+        # (and archived) first, or those rows would vanish unrecorded.
+        selected, _ = _effective_table_names(table_names=["callback"])
+        assert selected == ["deadline", "callback"]
+
+
+@pytest.mark.db_test
+class TestCallbackCleanup:
+    """Cleanup must purge finished callbacks without disturbing ones that can still run."""
+
+    def setup_method(self):
+        from tests_common.test_utils.db import clear_db_callbacks, clear_db_deadline
+
+        clear_db_deadline()
+        clear_db_callbacks()
+        with create_session() as session:
+            for name in _get_archived_table_names(["callback", "deadline"], session):
+                session.execute(text(f"DROP TABLE {name}"))
+            session.commit()
+
+    def teardown_method(self):
+        from tests_common.test_utils.db import clear_db_callbacks, clear_db_deadline
+
+        clear_db_deadline()
+        clear_db_callbacks()
+        with create_session() as session:
+            for name in _get_archived_table_names(["callback", "deadline"], session):
+                session.execute(text(f"DROP TABLE {name}"))
+            session.commit()
+
+    @staticmethod
+    def _add_callback(session, state, created_at):
+        from airflow.executors.workloads.callback import CallbackFetchMethod
+        from airflow.models.callback import Callback
+
+        callback = Callback(priority_weight=1)
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        callback.state = state
+        callback.created_at = created_at
+        session.add(callback)
+        session.flush()
+        return callback.id
+
+    @staticmethod
+    def _count_callbacks(session, callback_id):
+        from airflow.models.callback import Callback
+
+        return session.scalar(select(func.count()).select_from(Callback).where(Callback.id == callback_id))
+
+    @staticmethod
+    def _clean_callbacks(cutoff):
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["callback"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+    @pytest.mark.parametrize(
+        ("state", "should_survive"),
+        [
+            ("success", False),
+            ("failed", False),
+            (None, False),
+            ("scheduled", True),
+            ("pending", True),
+            ("queued", True),
+            ("running", True),
+        ],
+        ids=[
+            "success",
+            "failed",
+            "dag-processor-null-state",
+            "scheduled",
+            "pending",
+            "queued",
+            "running",
+        ],
+    )
+    def test_only_finished_callbacks_are_purged(self, state, should_survive):
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            callback_id = self._add_callback(session, state, old)
+            session.commit()
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            survived = self._count_callbacks(session, callback_id)
+
+        assert bool(survived) is should_survive
+
+    def test_recent_finished_callback_is_kept(self):
+        recent = pendulum.now(tz="UTC")
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            callback_id = self._add_callback(session, "success", recent)
+            session.commit()
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            assert self._count_callbacks(session, callback_id) == 1
+
+    def test_finished_callbacks_are_archived_not_just_deleted(self):
+        """Archiving is the default path, so the purged rows must be recoverable."""
+        from airflow.models.callback import Callback
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            self._add_callback(session, "success", old)
+            session.commit()
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["callback"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=False,
+                session=session,
+            )
+
+        with create_session() as session:
+            archives = _get_archived_table_names(["callback"], session)
+            assert archives, "no archive table was created"
+            archived = sum(
+                session.execute(text(f"SELECT count(*) FROM {name}")).scalar() for name in archives
+            )
+            assert archived == 1
+            assert session.scalar(select(func.count()).select_from(Callback)) == 0
+
+    def test_deadline_of_a_runnable_callback_is_not_cascade_deleted(self):
+        """deadline.callback_id is ON DELETE CASCADE, so purging a live callback would drop its deadline."""
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        future = pendulum.now(tz="UTC").add(days=365)
+
+        from airflow.models.deadline import Deadline
+
+        with create_session() as session:
+            callback_id = self._add_callback(session, "scheduled", old)
+            session.execute(
+                insert(Deadline.__table__).values(
+                    id=uuid4(),
+                    deadline_time=future,
+                    callback_id=callback_id,
+                    created_at=old,
+                    last_updated_at=old,
+                    missed=False,
+                )
+            )
+            session.commit()
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            assert session.scalar(select(func.count()).select_from(Deadline)) == 1
+
+
+@pytest.mark.db_test
+class TestPartitionedAssetKeyLogCleanup:
+    """Only orphaned key-log rows may go: live ones drive pending partition-run evaluation."""
+
+    def setup_method(self):
+        with create_session() as session:
+            session.execute(text("DELETE FROM partitioned_asset_key_log"))
+            session.execute(text("DELETE FROM asset_partition_dag_run"))
+            session.commit()
+
+    teardown_method = setup_method
+
+    @staticmethod
+    def _add_key_log(session, apdr_id, created_at):
+        from airflow.models.asset import PartitionedAssetKeyLog
+
+        row = PartitionedAssetKeyLog(
+            asset_id=1,
+            asset_event_id=1,
+            asset_partition_dag_run_id=apdr_id,
+            source_partition_key="2024-01-01",
+            target_dag_id="cleanup_probe_dag",
+            target_partition_key="2024-01-01",
+        )
+        row.created_at = created_at
+        session.add(row)
+        session.flush()
+        return row.id
+
+    def test_only_orphaned_key_log_rows_are_purged(self):
+        from airflow.models.asset import AssetPartitionDagRun, PartitionedAssetKeyLog
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            apdr = AssetPartitionDagRun(target_dag_id="cleanup_probe_dag", partition_key="2024-01-01")
+            session.add(apdr)
+            session.flush()
+            ids = {
+                "old orphan": self._add_key_log(session, apdr_id=apdr.id + 1000, created_at=old),
+                "old but live": self._add_key_log(session, apdr_id=apdr.id, created_at=old),
+                "recent orphan": self._add_key_log(
+                    session, apdr_id=apdr.id + 1000, created_at=pendulum.now(tz="UTC")
+                ),
+            }
+            session.commit()
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["partitioned_asset_key_log"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            surviving = set(session.scalars(select(PartitionedAssetKeyLog.id)).all())
+
+        assert ids["old orphan"] not in surviving
+        assert ids["old but live"] in surviving, "evidence for a pending partition run must not be deleted"
+        assert ids["recent orphan"] in surviving, "age filter still applies to orphans"
 
 
 def _delete_test_timestamp():
