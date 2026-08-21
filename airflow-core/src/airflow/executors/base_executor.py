@@ -72,6 +72,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow._shared.logging.remote import StreamingLogResponse
+    from airflow._shared.state import TaskFailureKind
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -228,6 +229,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_connection_tests: dict[ConnectionTestKey, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
+        self.task_failure_info: dict[WorkloadKey, tuple[TaskFailureKind, str | None]] = {}
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
 
@@ -552,6 +554,14 @@ class BaseExecutor(LoggingMixin):
                     cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events
+
+    def get_task_failure_info(self, key: WorkloadKey) -> tuple[TaskFailureKind, str | None] | None:
+        """
+        Return and clear the ``(failure_kind, reason)`` this executor classified for ``key``.
+
+        None unless the executor can read the real cause, as the Kubernetes executor does.
+        """
+        return self.task_failure_info.pop(key, None)
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         """

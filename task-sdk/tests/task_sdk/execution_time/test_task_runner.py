@@ -64,7 +64,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow.sdk._shared.state import AssetScope, TaskScope
+from airflow.sdk._shared.state import AssetScope, TaskFailureKind, TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -4730,6 +4730,44 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
+
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY], ids=["failed", "up_for_retry"]
+    )
+    def test_listener_declaring_reason_still_fires(
+        self, state, mocked_parse, mock_supervisor_comms, listener_manager
+    ):
+        """A hookimpl using the full signature the hookspec documents must still be called.
+
+        pluggy raises HookCallError when a hookspec argument is missing from the call, and
+        finalize() swallows it, so omitting one here silently stops the listener firing.
+        """
+        received = {}
+
+        class FullSignatureListener:
+            @hookimpl
+            def on_task_instance_failed(self, previous_state, task_instance, error, failure_kind, reason):
+                received["failure_kind"] = failure_kind
+                received["reason"] = reason
+
+        listener_manager(FullSignatureListener())
+
+        task = BaseOperator(task_id="test_listener_declaring_reason_still_fires")
+        dag = get_inline_dag(dag_id="test_dag", task=task)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, start_date=timezone.utcnow()
+        )
+        finalize(runtime_ti, state, runtime_ti.get_template_context(), mock.MagicMock(), RuntimeError("boom"))
+
+        assert received == {"failure_kind": TaskFailureKind.APPLICATION, "reason": None}
 
     def test_task_runner_calls_listeners_failed_when_terminal_send_fails(
         self, mocked_parse, mock_supervisor_comms, listener_manager
