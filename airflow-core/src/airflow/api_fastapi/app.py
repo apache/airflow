@@ -40,6 +40,8 @@ from airflow.exceptions import AirflowConfigException
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from fastapi import Request
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
 API_BASE_URL = conf.get("api", "base_url", fallback="")
@@ -58,6 +60,22 @@ def get_cookie_path() -> str:
     Falls back to ``"/"`` when no ``base_url`` is configured.
     """
     return API_ROOT_PATH or "/"
+
+
+def request_cookie_is_secure(request: Request) -> bool:
+    """
+    Return whether a FastAPI request cookie should be tagged as HTTP secure.
+
+    :param request: FastAPI Request object
+
+    usage:
+    ```python
+    secure = request_cookie_is_secure(request)
+
+    response.set_cookie("mycookie", "myvalue", path=get_cookie_path(), secure=secure, httponly=True)
+    ```
+    """
+    return request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
 
 
 # Fast API apps mounted under these prefixes are not allowed
