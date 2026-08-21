@@ -34,6 +34,8 @@ type Props = {
   readonly tabs: Array<NavTab>;
 };
 
+const INDICATOR_HEIGHT = "2px";
+
 export const NavTabs = ({ tabs }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
@@ -45,7 +47,7 @@ export const NavTabs = ({ tabs }: Props) => {
     <Flex
       alignItems="center"
       borderBottomColor="border.emphasized"
-      borderBottomWidth={1}
+      borderBottomWidth={INDICATOR_HEIGHT}
       mb={2}
       ref={containerRef}
     >
@@ -66,14 +68,14 @@ export const NavTabs = ({ tabs }: Props) => {
 
               return (
                 <Center
-                  _hover={{ color: "fg" }}
-                  borderBottomColor="border.info"
-                  borderBottomWidth={active ? 3 : 0}
-                  color={active ? "fg" : "fg.muted"}
-                  fontWeight="bold"
+                  _hover={{ color: "brand.solid" }}
+                  borderBottomColor={active ? "brand.solid" : "transparent"}
+                  borderBottomWidth={INDICATOR_HEIGHT}
+                  color={active ? "brand.solid" : "fg.muted"}
+                  fontSize="md"
+                  fontWeight="medium"
                   height="40px"
-                  mb="-2px" // Show the border on top of its parent's border
-                  pb={active ? 0 : "3px"}
+                  mb={`-${INDICATOR_HEIGHT}`} // Show the border on top of its parent's border
                   px={4}
                   transition="all 0.2s ease"
                 >

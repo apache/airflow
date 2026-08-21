@@ -159,9 +159,16 @@ export const GraphTaskFilters = () => {
       onOpenChange={({ open: nextOpen }) => setIsOpen(nextOpen)}
       open={isOpen}
       positioning={{ placement: "bottom-end" }}
+      tooltipLabel={translate("dag:panel.graphFilters.title")}
     >
       <Menu.Trigger asChild>
-        <IconButton variant={hasActiveFilters ? "solid" : "ghost"}>
+        {/* `aria-label`, not IconButton's `label`: the tooltip comes from Menu.Root, and a second one
+            nested inside `asChild` never gets its own trigger ref, so it lands in the corner. */}
+        <IconButton
+          aria-label={translate("dag:panel.graphFilters.title")}
+          bg="bg"
+          variant={hasActiveFilters ? "solid" : "outline"}
+        >
           <FiSearch />
         </IconButton>
       </Menu.Trigger>
