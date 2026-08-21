@@ -46,7 +46,6 @@ from airflow.providers.opensearch.log.os_task_handler import (
 )
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
-
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -288,7 +287,36 @@ class TestOpensearchTaskHandler:
         )
         assert handler.index_patterns == patterns
 
+    @pytest.mark.parametrize(
+        ("username", "password"),
+        [
+            ("admin", "secret"),
+            ("admin", ""),
+            ("", "secret"),
+        ],
+    )
+    def test_client_with_auth(self, username, password):
+        """If either username or password are provided, the handler should pass http_auth to the client."""
+        handler = OpensearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            host="localhost",
+            port=9200,
+            username=username,
+            password=password,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+        )
+
+        transport_args = handler.client.transport.kwargs
+        assert "http_auth" in transport_args
+        assert transport_args["http_auth"] == (username, password)
+
     def test_client_no_auth(self):
+        """If both username and password are empty, the handler should _not_ pass http_auth to the client."""
         handler = OpensearchTaskHandler(
             base_log_folder=self.local_log_location,
             end_of_log_mark=self.end_of_log_mark,
@@ -302,6 +330,7 @@ class TestOpensearchTaskHandler:
             host_field=self.host_field,
             offset_field=self.offset_field,
         )
+
         assert "http_auth" not in handler.client.transport.kwargs
 
     @pytest.mark.db_test
