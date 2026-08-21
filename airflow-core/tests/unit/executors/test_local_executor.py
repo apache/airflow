@@ -347,12 +347,18 @@ class TestLocalExecutor:
 
     @pytest.mark.execution_timeout(10)
     def test_end_drains_result_queue_to_avoid_join_deadlock(self):
+        # Pin the worker to "fork": the drain logic under test is start-method-agnostic, but under the
+        # "forkserver" default (Python 3.14+ on Linux) each spawned worker re-imports the whole airflow
+        # stack before it can write a result, which intermittently exceeds the execution_timeout and
+        # makes this test flaky. Forking inherits the already-imported parent, so the worker writes
+        # immediately and reliably reproduces the full-result_queue scenario this test guards.
+        ctx = multiprocessing.get_context("fork")
         executor = LocalExecutor(parallelism=1)
-        executor.activity_queue = multiprocessing.SimpleQueue()
-        executor.result_queue = multiprocessing.SimpleQueue()
+        executor.activity_queue = ctx.SimpleQueue()
+        executor.result_queue = ctx.SimpleQueue()
         result_count = 8
         payload_size = 128 * 1024
-        proc = multiprocessing.Process(
+        proc = ctx.Process(
             target=_write_large_results_to_queue,
             args=(executor.result_queue, result_count, payload_size),
         )

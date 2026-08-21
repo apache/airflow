@@ -184,20 +184,38 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return endpoint
 
+    def _resolve_http_path(self, allow_endpoint_lookup: bool = True) -> str | None:
+        """
+        Resolve http_path from explicit arg, endpoint name, or connection extra.
+
+        :param allow_endpoint_lookup: If True, may call API to resolve sql_endpoint_name.
+            Set False for offline-safe paths like sqlalchemy_url.
+        :return: resolved http_path or None if not found.
+
+        When allow_endpoint_lookup=False (used by sqlalchemy_url etc.),
+        sql_endpoint_name is ignored and we fall back to http_path from the
+        connection extra. This keeps the property fully offline. If both
+        sql_endpoint_name and an extra http_path are set, sqlalchemy_url may
+        therefore point at a different warehouse than the one get_conn() will
+        actually connect to. This asymmetry is intentional.
+        """
+        if self._http_path:
+            return self._http_path
+        if allow_endpoint_lookup and self._sql_endpoint_name:
+            endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
+            return endpoint["odbc_params"]["path"]
+        return self.databricks_conn.extra_dejson.get("http_path")
+
     def get_conn(self) -> AirflowConnection:
         """Return a Databricks SQL connection object."""
         if not self._http_path:
-            if self._sql_endpoint_name:
-                endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
-                self._http_path = endpoint["odbc_params"]["path"]
-            elif "http_path" in self.databricks_conn.extra_dejson:
-                self._http_path = self.databricks_conn.extra_dejson["http_path"]
-            else:
-                raise AirflowException(
-                    "http_path should be provided either explicitly, "
-                    "or in extra parameter of Databricks connection, "
-                    "or sql_endpoint_name should be specified"
-                )
+            self._http_path = self._resolve_http_path(allow_endpoint_lookup=True)
+        if not self._http_path:
+            raise AirflowException(
+                "http_path should be provided either explicitly, "
+                "or in extra parameter of Databricks connection, "
+                "or sql_endpoint_name should be specified"
+            )
 
         prev_token = self._token
         new_token = self._get_token(raise_error=True)
@@ -254,8 +272,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 "Install it with: pip install 'apache-airflow-providers-databricks[sqlalchemy]'"
             )
 
+        http_path = self._resolve_http_path(allow_endpoint_lookup=False)
+
         url_query = {
-            "http_path": self._http_path,
+            "http_path": http_path,
             "catalog": self.catalog,
             "schema": self.schema,
         }

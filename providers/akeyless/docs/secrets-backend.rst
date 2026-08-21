@@ -94,6 +94,81 @@ Connections can be stored in three formats:
         "port": 5432
     }
 
+Authentication Methods
+----------------------
+
+The secrets backend supports the following authentication types:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 85
+
+   * - ``access_type``
+     - Description
+   * - ``api_key``
+     - Authenticate with Access ID + Access Key. The default method.
+   * - ``uid``
+     - Use a pre-existing Universal Identity token.
+   * - ``aws_iam``
+     - Authenticate using the host's AWS IAM role. Ideal for **Amazon MWAA**,
+       EC2, ECS, and EKS workloads. No static credentials required.
+   * - ``gcp``
+     - Authenticate using GCP workload identity. Ideal for **Google Managed
+       Service for Apache Airflow** (formerly Cloud Composer) and GCE/GKE
+       workloads.
+   * - ``azure_ad``
+     - Authenticate using Azure AD identity. Ideal for Azure-hosted workloads.
+
+Cloud-based auth types (``aws_iam``, ``gcp``, ``azure_ad``) require the
+optional ``akeyless_cloud_id`` package:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-akeyless[cloud_id]
+
+Using with Amazon MWAA
+""""""""""""""""""""""
+
+On `Amazon MWAA <https://aws.amazon.com/managed-workflows-for-apache-airflow/>`__
+you can leverage the environment's IAM execution role to authenticate with
+Akeyless -- no static API keys needed.
+
+1. Add to your ``requirements.txt`` (uploaded to S3):
+
+   .. code-block:: text
+
+       apache-airflow-providers-akeyless[cloud_id]
+
+2. In the MWAA console, add these **Airflow configuration options**:
+
+   .. list-table::
+      :widths: 30 70
+
+      * - ``secrets.backend``
+        - ``airflow.providers.akeyless.secrets.akeyless.AkeylessBackend``
+      * - ``secrets.backend_kwargs``
+        - ``{"api_url": "https://api.akeyless.io", "access_id": "p-xxxxxxxxx", "access_type": "aws_iam"}``
+
+3. Ensure the MWAA VPC has outbound HTTPS access to your Akeyless API
+   endpoint (``api.akeyless.io`` or your Akeyless Gateway).
+
+4. Create an Akeyless ``aws_iam`` Auth Method associated with the MWAA
+   execution role ARN.
+
+Using with Google Managed Service for Apache Airflow
+""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.akeyless.secrets.akeyless.AkeylessBackend
+    backend_kwargs = {
+        "api_url": "https://api.akeyless.io",
+        "access_id": "p-xxxxxxxxx",
+        "access_type": "gcp",
+        "gcp_audience": "akeyless.io"
+    }
+
 Parameters
 ----------
 
@@ -127,4 +202,13 @@ Parameters
      - Akeyless Access Key (for ``api_key`` auth).
    * - ``access_type``
      - ``api_key``
-     - Authentication method.
+     - Authentication method (``api_key``, ``uid``, ``aws_iam``, ``gcp``, or ``azure_ad``).
+   * - ``gcp_audience``
+     -
+     - GCP audience string (only for ``gcp`` auth).
+   * - ``azure_object_id``
+     -
+     - Azure AD Object ID (only for ``azure_ad`` auth).
+   * - ``token_ttl``
+     - ``600``
+     - Seconds to cache the API token before re-authenticating.

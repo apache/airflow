@@ -78,7 +78,7 @@ Provides a Hook, Connection type, and Secrets Backend for managing static secret
 dynamic secrets, rotated secrets, and more.
 
 
-Release: 0.2.0
+Release: 0.3.0
 
 Provider package
 ----------------
@@ -106,11 +106,28 @@ PIP package                                 Version required
 ``akeyless``                                ``>=5.0.0``
 ==========================================  ==================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-akeyless[cloud_id]
+
+
+============  ============================
+Extra         Dependencies
+============  ============================
+``cloud_id``  ``akeyless-cloud-id>=0.3.0``
+============  ============================
+
 Downloading official packages
 -----------------------------
 
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-akeyless 0.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-akeyless 0.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-akeyless 0.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-akeyless 0.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-0.3.0-py3-none-any.whl.sha512>`__)

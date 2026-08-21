@@ -51,6 +51,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
@@ -393,6 +394,36 @@ class TestAssetModelOperation:
         triggers = session.scalars(select(Trigger)).all()
         assert len(triggers) == 1
         assert triggers[0].team_name == expected
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("queue", "expected"),
+        [pytest.param("my_q", "my_q", id="has-queue"), pytest.param(None, None, id="no-queue")],
+    )
+    def test_add_asset_trigger_references_populates_queue(self, dag_maker, session, queue, expected):
+        """Ensure the dag processor tracks the queue value of a `BaseEventTrigger`-type trigger."""
+        trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
+        trigger.queue = queue
+        asset = Asset("trigger_q_asset", watchers=[AssetWatcher(name="watcher", trigger=trigger)])
+        with dag_maker(dag_id="test_trigger_q_dag", schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_paused = False
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        triggers = session.scalars(select(Trigger)).all()
+        assert len(triggers) == 1
+        assert triggers[0].queue == expected
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_hash_consistency(self, dag_maker, session):
@@ -771,6 +802,87 @@ class TestUpdateDagParsingResults:
 
         new_serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
         assert new_serialized_dags_count == 1
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_duplicate_dag_id_creates_dag_warning(self, testing_dag_bundle, session):
+        session.add(
+            DagModel(
+                dag_id="duplicated_dag",
+                bundle_name="testing",
+                fileloc="/opt/airflow/dags/existing.py",
+                relative_fileloc="existing.py",
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        dag = DAG(dag_id="duplicated_dag")
+        dag.fileloc = "/opt/airflow/dags/current.py"
+        dag.relative_fileloc = "current.py"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == "duplicated_dag",
+                DagWarning.warning_type == DagWarningType.DUPLICATE_DAG_ID,
+            )
+        )
+
+        assert warning is not None
+        assert "existing.py" in warning.message
+        assert "overwritten" in warning.message
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_duplicate_dag_id_warning_is_removed_when_dag_file_matches(self, testing_dag_bundle, session):
+        session.add(
+            DagModel(
+                dag_id="same_file_dag",
+                bundle_name="testing",
+                fileloc="/opt/airflow/dags/current.py",
+                relative_fileloc="current.py",
+                is_stale=False,
+            )
+        )
+        session.add(
+            DagWarning(
+                dag_id="same_file_dag",
+                warning_type=DagWarningType.DUPLICATE_DAG_ID,
+                message="Previous duplicate dag_id warning",
+            )
+        )
+        session.flush()
+
+        dag = DAG(dag_id="same_file_dag")
+        dag.fileloc = "/opt/airflow/dags/current.py"
+        dag.relative_fileloc = "current.py"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == "same_file_dag",
+                DagWarning.warning_type == DagWarningType.DUPLICATE_DAG_ID,
+            )
+        )
+
+        assert warning is None
 
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""

@@ -25,6 +25,48 @@
 Changelog
 ---------
 
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Gate audit log rows not tied to a Dag on a dedicated AccessView (#70759)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Honor async hook subclass overrides in get_async_connection (#69140)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+1.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Added get_async_hook in common.compat provider (#69208)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'RecursionError' in 'common.compat' hook lineage 'add_extra polyfill' (#68735)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 1.15.0
 ......
 
@@ -394,7 +436,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 1.4.0
 .....

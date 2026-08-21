@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import json
-import time
 from datetime import datetime
 
 import boto3
@@ -50,7 +48,9 @@ from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_neptune_analytics"
 
-sys_test_context_task = SystemTestContextBuilder().build()
+NEPTUNE_IMPORT_ROLE_ARN_KEY = "NEPTUNE_IMPORT_ROLE_ARN"
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(NEPTUNE_IMPORT_ROLE_ARN_KEY).build()
 
 # Minimal OpenCypher CSV data for import testing.
 NODES_CSV = """~id,~label,name:String
@@ -61,58 +61,6 @@ n2,Person,Bob
 EDGES_CSV = """~id,~from,~to,~label
 e1,n1,n2,KNOWS
 """
-
-NEPTUNE_ANALYTICS_TRUST_POLICY = json.dumps(
-    {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Principal": {"Service": "neptune-graph.amazonaws.com"},
-                "Action": "sts:AssumeRole",
-            }
-        ],
-    }
-)
-
-S3_READ_POLICY_DOCUMENT = json.dumps(
-    {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Action": ["s3:GetObject", "s3:ListBucket"],
-                "Resource": ["arn:aws:s3:::*", "arn:aws:s3:::*/*"],
-            }
-        ],
-    }
-)
-
-
-@task
-def create_neptune_import_role(role_name: str) -> str:
-    iam_client = boto3.client("iam")
-    iam_client.create_role(
-        RoleName=role_name,
-        AssumeRolePolicyDocument=NEPTUNE_ANALYTICS_TRUST_POLICY,
-        Description="Role for Neptune Analytics import system test",
-    )
-    iam_client.put_role_policy(
-        RoleName=role_name,
-        PolicyName="NeptuneAnalyticsS3Access",
-        PolicyDocument=S3_READ_POLICY_DOCUMENT,
-    )
-    role = iam_client.get_role(RoleName=role_name)
-    time.sleep(60)  # Wait for IAM eventual consistency (role + inline policy propagation)
-    return role["Role"]["Arn"]
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_neptune_import_role(role_name: str) -> None:
-    iam_client = boto3.client("iam")
-    with contextlib.suppress(iam_client.exceptions.NoSuchEntityException):
-        iam_client.delete_role_policy(RoleName=role_name, PolicyName="NeptuneAnalyticsS3Access")
-        iam_client.delete_role(RoleName=role_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -162,7 +110,7 @@ with DAG(
     graph_name = f"{env_id}-graph"
     import_graph_name = f"{env_id}-import-graph"
     bucket_name = f"{env_id}-neptune-analytics"
-    import_role_name = f"{env_id}-neptune-import"
+    import_role_arn = test_context[NEPTUNE_IMPORT_ROLE_ARN_KEY]
     region = boto3.session.Session().region_name
 
     # --- TEST SETUP ---
@@ -187,8 +135,6 @@ with DAG(
         data=EDGES_CSV,
         replace=True,
     )
-
-    create_role = create_neptune_import_role(import_role_name)
 
     # --- TEST BODY ---
 
@@ -232,7 +178,7 @@ with DAG(
     start_import = NeptuneStartImportTaskOperator(
         task_id="start_import",
         graph_identifier="{{ ti.xcom_pull(task_ids='create_graph')['graph_id'] }}",
-        role_arn=create_role,
+        role_arn=import_role_arn,
         source=f"s3://{bucket_name}/data/",
         format="CSV",
         fail_on_error=True,
@@ -270,7 +216,7 @@ with DAG(
         graph_name=import_graph_name,
         vector_search_config={"dimension": 128},
         source=f"s3://{bucket_name}/data/",
-        role_arn=create_role,
+        role_arn=import_role_arn,
         format="CSV",
         fail_on_error=True,
         public_connectivity=True,
@@ -307,8 +253,6 @@ with DAG(
         force_delete=True,
     )
 
-    delete_role = delete_neptune_import_role(import_role_name)
-
     cleanup_graph = delete_graph_if_exists.override(task_id="cleanup_graph")(graph_name)
     cleanup_import_graph = delete_graph_if_exists.override(task_id="cleanup_import_graph")(import_graph_name)
 
@@ -317,7 +261,6 @@ with DAG(
         test_context,
         create_bucket,
         [upload_nodes, upload_edges],
-        create_role,
         # TEST BODY: Create graph, import data, then delete
         create_graph,
         create_endpoint,
@@ -331,7 +274,6 @@ with DAG(
         # TEST TEARDOWN
         [cleanup_graph, cleanup_import_graph],
         delete_bucket,
-        delete_role,
     )
 
     from tests_common.test_utils.watcher import watcher

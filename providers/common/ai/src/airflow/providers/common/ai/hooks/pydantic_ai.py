@@ -53,10 +53,10 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5.3"}``
+        - **extra** JSON: ``{"model": "openai:gpt-5.6-sol"}``
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
-    :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.3"``).
+    :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.6-sol"``).
         Overrides the model stored in the connection's extra field.
     """
 
@@ -90,7 +90,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1  (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5.3"}',
+                "extra": '{"model": "openai:gpt-5.6-sol"}',
             },
         }
 

@@ -107,6 +107,56 @@ class TestLifecycle:
         assert captured["exclude_tools"] == {"run_skill_script"}
         assert captured["directories"] == ["/x"]
 
+    def test_exclude_resources_passed_to_inner(self):
+        captured: dict = {}
+
+        def fake_skillstoolset(**kwargs):
+            captured.update(kwargs)
+            return _FakeInner(**kwargs)
+
+        toolset = AgentSkillsToolset(sources=["/x"], exclude_resources=["*.env", "secrets/*"])
+        with patch(
+            "airflow.providers.common.ai.toolsets.skills._materialize_skills",
+            autospec=True,
+            return_value=(["/x"], lambda: None),
+        ):
+            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
+                asyncio.run(_enter_exit(toolset))
+
+        assert captured["exclude_resources"] == ["*.env", "secrets/*"]
+
+    def test_no_optional_kwargs_when_unset(self):
+        # Omit exclude_tools/exclude_resources entirely so an older pydantic-ai-skills
+        # that lacks the kwarg still works when the feature is not used.
+        captured: dict = {}
+
+        def fake_skillstoolset(**kwargs):
+            captured.update(kwargs)
+            return _FakeInner(**kwargs)
+
+        toolset = AgentSkillsToolset(sources=["/x"])
+        with patch(
+            "airflow.providers.common.ai.toolsets.skills._materialize_skills",
+            autospec=True,
+            return_value=(["/x"], lambda: None),
+        ):
+            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
+                asyncio.run(_enter_exit(toolset))
+
+        assert "exclude_tools" not in captured
+        assert "exclude_resources" not in captured
+
+    def test_for_run_propagates_optional_kwargs(self):
+        # for_run hands each run its own instance; dropping a kwarg here would
+        # silently expose excluded files in concurrent runs.
+        toolset = AgentSkillsToolset(
+            sources=["/x"], exclude_tools={"run_skill_script"}, exclude_resources=["*.env"]
+        )
+        per_run = asyncio.run(toolset.for_run(MagicMock()))  # noqa: spec  (for_run ignores ctx)
+        assert per_run is not toolset
+        assert per_run._exclude_tools == {"run_skill_script"}
+        assert per_run._exclude_resources == ["*.env"]
+
 
 class TestCleanup:
     def test_cleanup_runs_if_inner_construction_fails(self):

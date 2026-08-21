@@ -47,6 +47,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/apache/kafka/index>
 
 .. toctree::
@@ -83,7 +84,7 @@ apache-airflow-providers-apache-kafka package
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.14.0
+Release: 1.16.0
 
 Provider package
 ----------------
@@ -134,11 +135,30 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
 ========================================================================================================================  ====================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-kafka[google]
+
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``google``            ``apache-airflow-providers-google``
+``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
+
 Downloading official packages
 -----------------------------
 
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-kafka 1.14.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.14.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.14.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.14.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-kafka 1.14.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.14.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.14.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.14.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-kafka 1.16.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.16.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.16.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.16.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-kafka 1.16.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.16.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.16.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.16.0-py3-none-any.whl.sha512>`__)

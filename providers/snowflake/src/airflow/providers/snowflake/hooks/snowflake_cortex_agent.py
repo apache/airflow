@@ -130,7 +130,10 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         if thread_id is not None and parent_message_id is None:
             raise ValueError("parent_message_id must be provided when thread_id is specified.")
 
-        payload: dict[str, Any] = {"messages": messages}
+        payload: dict[str, Any] = {
+            "messages": messages,
+            "stream": False,
+        }
 
         if thread_id is not None:
             payload["thread_id"] = thread_id

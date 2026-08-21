@@ -63,6 +63,34 @@ coordinator scans.
 The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
 **separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).
 
+## Which SDK sources get built
+
+`breeze k8s setup-lang-sdk-test` (and `run-complete-tests --lang-sdk-test`) resolves them in
+`_lang_sdk_resolve_sdk_sources()` in `kubernetes_commands.py`:
+
+| Checkout | Go/Java SDK sources |
+| --- | --- |
+| has `go-sdk/` and `java-sdk/` | its own copies |
+| has neither (or only one) | upstream `main`, fetched fresh via `_lang_sdk_fetch_upstream_sdk_sources()` |
+
+The checkout's own copies win because they are the ones that pair with the Airflow this test
+deploys. A packed bundle declares a dated `supervisor_schema_version` and the task-SDK supervisor
+rejects a bundle whose version it does not know, so a release branch's Airflow cannot run an SDK
+built from a later `main` — the Go task fails with `cannot find executable bundle with usable
+supervisor_schema_version`. Building the checkout's own SDK is also what makes the k8s test exercise
+a PR's SDK changes: `go_example`/`java_example` are harness fixtures that track the checked-out
+branch, so compiling them against a *different* SDK means any SDK rename in the PR fails to build.
+
+The upstream-`main` fallback is only for a branch cut before `go-sdk`/`java-sdk` existed. When it
+kicks in, that copy and the branch's `go_example` can diverge (upstream may change go-sdk's
+dependency graph while `go_example`'s committed `go.sum` is tidied against the in-repo go-sdk), so
+the Go bundle build re-runs `go mod tidy` in its scratch workspace before packing and reconciles to
+whichever `go-sdk` it is compiled against. The committed `go_example` `go.sum` is untouched and
+stays guarded by the `check-go-example-mod-tidy` prek hook.
+
+Everything else — `airflow-core/`, `task-sdk/`, the deployed Airflow image, and this directory's own
+`go_example`/`java_example` fixtures — always comes from the checked-out branch.
+
 ## Running it
 
 The artifacts, localstack, config, and Helm release are provisioned by a single breeze
@@ -95,19 +123,25 @@ RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor \
     -- -k test_lang_sdk_combined_dag_succeeds
 ```
 
-In CI (and for a one-shot local run) steps 2-3 are folded into the standard k8s job via
-`breeze k8s run-complete-tests --lang-sdk-test`: it provisions the lang-SDK env after the base
-deploy, then runs the test. The `k8s-tests.yml` workflow enables it (`RUN_LANG_SDK_K8S_TESTS=true`,
-which `--lang-sdk-test` reads) for a single variant only -- KubernetesExecutor with standard-naming
-off -- so the other five k8s jobs skip the test. The provisioning builds (Go bundle, Java jar, Java
-worker image) and the localstack deploy run in parallel.
+In CI (and for a one-shot local run) steps 2-3 are folded into a single `run-complete-tests` call via
+`breeze k8s run-complete-tests --lang-sdk-test`: it provisions the lang-SDK env after the base deploy,
+then runs the test. Rather than bolting this onto the regular k8s system-test matrix (which ran it
+redundantly on all six `KubernetesExecutor` / standard-naming-off jobs and added ~6 minutes each), the
+`k8s-tests.yml` workflow runs it in a **dedicated `tests-kubernetes-lang-sdk` job** on a single default
+Python-Kubernetes combo (the `lang-sdk-kubernetes-combo` input, wired from the `default-python-version`
+and `default-kubernetes-version` build-info outputs). That job sets `RUN_LANG_SDK_K8S_TESTS=true`
+(which `--lang-sdk-test` reads) and runs only the lang-SDK test (`-k
+test_lang_sdk_combined_dag_succeeds`), not the full suite; the regular system-test matrix no longer runs
+it at all. The provisioning builds (Go bundle, Java jar, Java worker image) and the localstack deploy
+run in parallel.
 
 By default the Go bundle and Java jar are built inside ephemeral toolchain containers so a dev host
-needs neither Go nor a JDK installed. In CI that variant sets `LANG_SDK_NATIVE_TOOLCHAIN=true`, which
-makes breeze build both artifacts with the host `go` / `./gradlew` instead: the workflow installs the
-toolchains via `actions/setup-go` and `actions/setup-java` and restores the Go module/build cache and
-the Gradle distribution + dependency cache with `actions/cache`, so the build skips the per-run
-toolchain-image pulls and cold dependency downloads. The cache keys carry a `-v1-` salt (see
-`lang-sdk-go-v1-` / `lang-sdk-gradle-v1-` in `k8s-tests.yml`) — bump it to force-invalidate a poisoned
-cache. The JDK version comes from the `java-sdk-version` build-info output (the `JAVA_SDK_VERSION`
-breeze constant).
+needs neither Go nor a JDK installed. In CI the dedicated job sets `LANG_SDK_NATIVE_TOOLCHAIN=true`,
+which makes breeze build both artifacts with the host `go` / `./gradlew` instead: the workflow installs
+the toolchains via `actions/setup-go` and `actions/setup-java` and restores the Go module/build cache
+and the Gradle distribution + dependency cache with `actions/cache`, so the build skips the per-run
+toolchain-image pulls and cold dependency downloads. The cache keys carry a `-v1-` salt and a
+`runner.arch` segment (see `lang-sdk-go-v1-` / `lang-sdk-gradle-v1-` in `k8s-tests.yml`) — bump the salt
+to force-invalidate a poisoned cache; the arch segment keeps the amd64 and arm64 caches separate. The
+JDK version comes from the `java-sdk-version` build-info output (the `JAVA_SDK_VERSION` breeze
+constant).

@@ -36,6 +36,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
     DagNotPartitionedError,
+    DagVersionNotFound,
     InvalidPartitionKeyError,
     NodeNotFound,
     TaskNotFound,
@@ -583,8 +584,10 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        bundle_version: str | None = None,
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
+        dag_version: DagVersion | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -652,10 +655,28 @@ class SerializedDAG:
                     f"is reserved for {inferred_run_type.value} runs"
                 )
 
-        self.validate_partition_key(partition_key)
-
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-        copied_params = self.params.deep_merge(conf)
+
+        # When triggering against a specific bundle version, resolve that version first so
+        # partition_key and conf are validated against it (not the live/latest dag).
+        if bundle_version is not None:
+            if self.disable_bundle_versioning:
+                raise ValueError(f"DAG with dag_id: '{self.dag_id}' does not support bundle versioning")
+            if dag_version is None:
+                dag_version = DagVersion.get_latest_version(
+                    self.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session
+                )
+                if not dag_version:
+                    raise DagVersionNotFound(
+                        f"DAG with dag_id: '{self.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                    )
+            params_dag = dag_version.serialized_dag.dag
+        else:
+            params_dag = self
+
+        params_dag.validate_partition_key(partition_key)
+
+        copied_params = params_dag.params.deep_merge(conf)
         copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
@@ -672,12 +693,15 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            bundle_version=bundle_version,
             partition_date=partition_date,
             note=note,
+            dag_version=dag_version,
+            resolved_dag=params_dag if bundle_version is not None else None,
             session=session,
         )
 
-        if self.deadline:
+        if params_dag.deadline:
             self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
         return orm_dagrun
@@ -1393,16 +1417,25 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    bundle_version: str | None = None,
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
+    dag_version: DagVersion | None = None,
+    resolved_dag: SerializedDAG | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
-    if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    resolved_bundle_version: str | None = None
+    use_resolved_dag = False
+    if dag_version is not None:
+        resolved_bundle_version = bundle_version
+        use_resolved_dag = True
+    else:
+        if not dag.disable_bundle_versioning:
+            resolved_bundle_version = session.scalar(
+                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
+            )
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 
@@ -1420,7 +1453,7 @@ def _create_orm_dagrun(
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
-        bundle_version=bundle_version,
+        bundle_version=resolved_bundle_version,
         partition_key=partition_key,
         partition_date=partition_date,
         note=note,
@@ -1433,6 +1466,8 @@ def _create_orm_dagrun(
     session.add(run)
     session.flush()
     run.dag = dag
+    if use_resolved_dag:
+        run.dag = resolved_dag if resolved_dag is not None else dag_version.serialized_dag.dag
     # create the associated task instances
     # state is None at the moment of creation
     run.verify_integrity(session=session, dag_version_id=dag_version.id)

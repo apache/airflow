@@ -1,12 +1,15 @@
 {
-  "name": "@apache-airflow/ts-sdk",
-  "version": "0.1.0-alpha.0",
+  "name": "apache-airflow-ts-sdk",
+  "version": "0.1.0-beta1",
   "packageManager": "pnpm@10.28.1",
   "description": "TypeScript Task SDK for Apache Airflow task handlers",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "airflow-ts-pack": "./dist/cli/main.js"
+  },
   "homepage": "https://airflow.apache.org",
   "repository": {
     "type": "git",
@@ -15,6 +18,9 @@
   },
   "bugs": {
     "url": "https://github.com/apache/airflow/issues"
+  },
+  "publishConfig": {
+    "tag": "beta"
   },
   "exports": {
     ".": {
@@ -34,10 +40,10 @@
   ],
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "lint": "eslint src tests",
-    "lint:fix": "eslint src tests --fix",
-    "format:check": "prettier --check src tests",
-    "format": "prettier --write src tests",
+    "lint": "eslint api-docs src tests",
+    "lint:fix": "eslint api-docs src tests --fix",
+    "format:check": "prettier --check api-docs src tests",
+    "format": "prettier --write api-docs src tests",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -59,9 +65,18 @@
   "dependencies": {
     "@msgpack/msgpack": "^3.1.2"
   },
+  "peerDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^22.19.17",
+    "esbuild": "^0.28.2",
+    "@types/node": "^26.1.2",
     "eslint": "^10.4.0",
     "json-schema-to-typescript": "^15.0.4",
     "prettier": "^3.8.3",

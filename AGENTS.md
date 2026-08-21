@@ -52,9 +52,9 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
-- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex` (the skipped hooks start long-running local servers or provision the opt-in Codex environment rather than run checks that complete)
 - **Build docs:** `breeze build-docs`
-- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
+- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`
 <!-- END generated-commands, please keep comment here to allow auto update -->
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
@@ -158,7 +158,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
-- Do not use `caplog` in tests, prefer checking logic and not log output.
+- Do not assert on raw log text (`caplog.text` for example), these are legacy string matching APIs planned for removal. Structured assertions via `caplog` (which resolves to `cap_structlog` under structlog) are fine and preferred: `"event name" in caplog` or `{"event": ..., "field": ...} in caplog`.
 
 ## Output conventions
 
@@ -294,7 +294,10 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
    described in this file.
 4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
    and fix any failures. This includes mypy checks for non-provider projects (airflow-core, task-sdk, airflow-ctl, dev, scripts, devel-common).
-5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
+5. Run manual (slower) checks
+   (`prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex`)
+   and fix any failures. The skipped hooks start long-running local servers or provision the
+   opt-in Codex environment rather than run checks that complete.
 6. Run relevant individual tests and confirm they pass.
 7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
 8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.

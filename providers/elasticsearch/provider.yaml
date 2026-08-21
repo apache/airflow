@@ -23,12 +23,15 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1781642052
+source-date-epoch: 1785633505
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.9.0
+  - 6.8.1
+  - 6.8.0
   - 6.7.0
   - 6.6.0
   - 6.5.4
@@ -113,6 +116,10 @@ connection-types:
 
 logging:
   - airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler
+
+remote-logging:
+  - classpath: airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchRemoteLogIO
+    scheme: elasticsearch
 
 config:
   elasticsearch:

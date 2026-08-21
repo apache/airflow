@@ -10,17 +10,28 @@
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
+    "anyRunState": "Any run",
+    "anyRunStatePlaceholder": "Select any run state…",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
       "unfavorite": "Unfavorite"
     },
+    "favoriteState": "Favorite state",
+    "favoriteStatePlaceholder": "Select favorite state…",
+    "lastRunState": "Last run",
+    "lastRunStatePlaceholder": "Select last run state…",
+    "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Active",
       "all": "All",
       "paused": "Paused"
     },
-    "runIdPatternFilter": "Search Dag Runs"
+    "pausedPlaceholder": "Select paused state…",
+    "pausedState": "Paused state",
+    "requiresHitlAction": "Requires HITL action",
+    "runIdPatternFilter": "Search Dag Runs",
+    "timetableType": "Timetable type"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
@@ -73,8 +84,14 @@
       "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
+      "runOnLatestVersionForced": "Always uses the latest — there's no earlier version to go back to",
       "upstream": "Upstream"
     }
+  },
+  "runStateCounts": {
+    "label": "Run states",
+    "loading": "Loading run state counts",
+    "tooltip": "{{state}}: {{formattedCount}} — click to filter runs"
   },
   "search": {
     "advanced": "Advanced Search",
@@ -88,9 +105,9 @@
       "asc": "Sort by Display Name (A-Z)",
       "desc": "Sort by Display Name (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sort by Latest Run Start Date (Earliest-Latest)",
-      "desc": "Sort by Latest Run Start Date (Latest-Earliest)"
+    "lastRunAfter": {
+      "asc": "Sort by Latest Run After (Earliest-Latest)",
+      "desc": "Sort by Latest Run After (Latest-Earliest)"
     },
     "lastRunState": {
       "asc": "Sort by Latest Run State (A-Z)",

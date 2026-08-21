@@ -31,16 +31,18 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Column, Integer, MetaData, Table, select
+from sqlalchemy import Column, Integer, MetaData, Table, delete, select
 
 from airflow import settings
 from airflow.models import Base as airflow_base
+from airflow.models.team import Team
 from airflow.utils.db import (
     AutocommitEngineForMySQL,
     LazySelectSequence,
     _get_alembic_config,
     _get_current_revision,
     check_migrations,
+    check_team_names_can_be_lower_cased,
     compare_server_default,
     compare_type,
     create_default_connections,
@@ -50,6 +52,7 @@ from airflow.utils.db import (
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
 
@@ -180,6 +183,8 @@ class TestDb:
             lambda t: t[0] == "add_index" and t[1].name == "idx_ab_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
+            # Postgres-only GIN index created by raw SQL in migration, not in SQLAlchemy model
+            lambda t: t[0] == "remove_index" and t[1].name == "idx_asset_event_extra_gin",
         ]
 
         for ignore in ignores:
@@ -234,6 +239,36 @@ class TestDb:
         # Should run without error. Can't easily test the behaviour, but we can check it works
         check_migrations(0)
         check_migrations(1)
+
+    @pytest.mark.usefixtures("initialized_db")
+    def test_check_team_names_can_be_lower_cased_passes_when_no_names_collide(self):
+        with create_session() as session:
+            session.add_all([Team(name="data-eng"), Team(name="Platform")])
+            session.commit()
+            try:
+                assert list(check_team_names_can_be_lower_cased(session=session)) == []
+            finally:
+                session.execute(delete(Team))
+                session.commit()
+
+    # MySQL's default collation is case insensitive, so the two rows this needs cannot coexist
+    # there -- which is also why the collision it guards against cannot arise on MySQL.
+    @pytest.mark.backend("postgres", "sqlite")
+    @pytest.mark.usefixtures("initialized_db")
+    def test_check_team_names_can_be_lower_cased_reports_a_collision(self):
+        """Two names folding onto one row would merge two teams, so migration has to stop."""
+        with create_session() as session:
+            session.add_all([Team(name="data-eng"), Team(name="Data-Eng")])
+            session.commit()
+            try:
+                errors = list(check_team_names_can_be_lower_cased(session=session))
+            finally:
+                session.execute(delete(Team))
+                session.commit()
+
+        assert len(errors) == 1
+        assert "'Data-Eng', 'data-eng'" in errors[0]
+        assert "would both become 'data-eng'" in errors[0]
 
     @pytest.mark.parametrize(
         ("auth", "expected"),

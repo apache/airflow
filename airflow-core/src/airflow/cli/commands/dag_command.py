@@ -408,6 +408,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     }
 
 
+@deprecated_for_airflowctl("airflowctl dags state")
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -437,6 +438,7 @@ def dag_state(args, *, session: Session = NEW_SESSION) -> None:
         print(dr.state)
 
 
+@deprecated_for_airflowctl("airflowctl dags next-execution")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:
@@ -528,6 +530,7 @@ def dag_next_execution(args) -> None:
             print(value)
 
 
+@deprecated_for_airflowctl("airflowctl dags list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -571,7 +574,9 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
-        dags_list.extend(cast("DAG", sm.dag) for sm in session.scalars(select(SerializedDagModel)))
+        dags_list.extend(
+            cast("DAG", dag) for dag in SerializedDagModel.read_all_dags(session=session).values()
+        )
         pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
             pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
@@ -729,6 +734,7 @@ def dag_report(args) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl jobs list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded

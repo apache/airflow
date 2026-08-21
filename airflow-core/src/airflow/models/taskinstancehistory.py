@@ -45,7 +45,6 @@ from airflow.models.base import Base, StringID
 from airflow.models.hitl import HITLDetail
 from airflow.models.hitl_history import HITLDetailHistory
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
@@ -103,9 +102,6 @@ class TaskInstanceHistory(Base):
     )
     rendered_map_index: Mapped[str | None] = mapped_column(String(250), nullable=True)
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)

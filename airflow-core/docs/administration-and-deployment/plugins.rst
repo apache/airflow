@@ -81,6 +81,7 @@ Airflow plugins can register the following components:
 * *Macros* – Define reusable Python functions available in DAG templates.
 * *Operator Extra Links* – Add custom buttons in the task details view.
 * *Timetables & Listeners* – Implement custom scheduling logic and event hooks.
+* *Deadline References* – Register custom :doc:`Deadline Alert </howto/deadline-alerts>` reference classes.
 
 When are plugins (re)loaded?
 ----------------------------
@@ -237,10 +238,10 @@ definitions in Airflow.
         # Name of the external view, this will be displayed in the UI.
         "name": "Name of the External View",
         # Source URL of the external view. This URL can be templated using context variables, depending on the location where the external view is rendered
-        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX).
+        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX, ASSET_ID, ASSET_URI).
         "href": "https://example.com/{DAG_ID}/{RUN_ID}/{TASK_ID}/{MAP_INDEX}",
         # Destination of the external view. This is used to determine where the view will be loaded in the UI.
-        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "base"], default to "nav".
+        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"], default to "nav".
         "destination": "dag_run",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
@@ -257,6 +258,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this view is shown. Omit it entirely to show the view
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "dag_ids": ["my_dag", "my_other_dag"],
+        },
     }
 
     # Note: The React app integration is experimental and interfaces might change in future versions.
@@ -265,14 +272,14 @@ definitions in Airflow.
         "name": "Name of the React App",
         # Bundle URL of the React app. This is the URL where the React app is served from. It can be a static file or a CDN.
         # This URL can be templated using context variables, depending on the location where the external view is rendered
-        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX).
+        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX, ASSET_ID, ASSET_URI).
         "bundle_url": "https://example.com/static/js/my_react_app.js",
         # Destination of the react app. This is used to determine where the app will be loaded in the UI.
-        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "base"], default to "nav".
+        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"], default to "nav".
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
-        "destination": "dag_run",
+        "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
@@ -287,6 +294,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this app is shown. Omit it entirely to show the app
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "operators": ["KubernetesPodOperator"],
+        },
     }
 
 
@@ -300,6 +313,92 @@ definitions in Airflow.
         react_apps = [react_app_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
+
+Scoping a view to specific Dags and tasks
+-----------------------------------------
+
+By default an external view or React app is shown on every page matching its ``destination``.
+The optional ``applies_to`` block narrows that down, so a tab is only offered where it is
+relevant instead of appearing on every Dag:
+
+.. code-block:: python
+
+    "applies_to": {
+        "dag_tags": ["ml"],  # Dag carries any of these tags
+        "dag_ids": ["train_pipeline"],  # exact dag_id
+        "task_ids": ["train_model"],  # exact task_id
+        "operators": ["KubernetesPodOperator"],  # operator class name
+    }
+
+All keys are optional. ``operators`` and ``operator_names`` are matched separately, the same
+way the task instance filters treat them: ``operators`` is the operator class name, while
+``operator_names`` is the display name shown in the UI (an operator's
+``custom_operator_name``). For a plain operator the two are identical, so either key works.
+They differ for decorator-based tasks: a ``@task.bash`` task has the display name
+``@task.bash`` but the private class name ``_BashDecoratedOperator``, so use
+``operator_names`` to target it.
+
+Criteria combine like Kubernetes label selectors — **OR within a key, AND across keys**. A
+Dag matching any listed tag satisfies ``dag_tags``, and a view configured with both
+``dag_tags`` and ``operators`` requires both to match.
+
+Crucially, the AND applies **only across criteria the current page can evaluate**. A
+``task_ids`` criterion cannot be judged on a Dag-level page, so it is skipped there rather
+than failing the match. This lets one ``applies_to`` block be shared by a plugin's Dag- and
+task-level destinations. Which criteria each destination can evaluate:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Destination
+     - ``dag_tags`` / ``dag_ids``
+     - ``task_ids`` / ``operators`` / ``operator_names``
+   * - ``dag``, ``dag_run``, ``dag_overview``
+     - evaluated
+     - skipped
+   * - ``task``, ``task_overview``, ``task_instance``
+     - evaluated
+     - evaluated
+   * - ``nav``, ``base``, ``dashboard``, ``asset``
+     - skipped
+     - skipped
+
+If none of the configured criteria can be evaluated on a given page, the view is shown. On
+task group pages the task-level criteria are skipped, since a group is not a task.
+
+A malformed ``applies_to`` — one that is not a dictionary, names an unknown criterion, or
+gives a criterion something other than a list of strings — is reported as a warning when
+plugins are loaded, and ignored, so the view still loads unscoped. Configuring a criterion
+the ``destination`` cannot evaluate (for example ``task_ids`` on a ``dag`` view) is also
+warned about, since it has no effect there. Check the API server log for these warnings if a
+view is not scoped the way you expect.
+
+.. note::
+    ``applies_to`` is a display convenience, not an authorization boundary. It controls
+    whether the UI offers the tab, not whether the underlying view can be reached — a user
+    who knows the ``url_route`` can still navigate to it directly. Use access control to
+    restrict who may view a plugin's data.
+
+React app context props
+-----------------------
+
+.. note::
+    The React app integration is experimental and these props may change in future versions.
+
+Unlike an external view, which only receives context through ``{DAG_ID}``-style tokens in its
+``bundle_url``, a React app is rendered as a component and receives context directly as props.
+The props available depend on where the app is mounted (its ``destination`` and route):
+
+- ``dagId``, ``runId``, ``taskId``, ``mapIndex``, ``assetId`` — the identifiers from the current
+  route (strings), when present.
+- ``assetUri`` — the URI of the current asset, when mounted on an asset route.
+- ``dag``, ``dagRun``, ``taskInstance``, ``asset`` — the full records for the current route,
+  matching the corresponding REST API response schemas
+  (``DAGDetailsResponse``, ``DAGRunResponse``, ``TaskInstanceResponse``, ``AssetResponse``).
+  Each object is only provided once the identifiers it depends on are present in the route, and
+  is served from the UI's query cache the details page has already populated (no extra request).
+  On routes or ``destination`` values without those identifiers (e.g. ``nav``, ``base``,
+  ``dashboard``), the corresponding objects are ``undefined``.
 
 Exclude views from CSRF protection
 ----------------------------------

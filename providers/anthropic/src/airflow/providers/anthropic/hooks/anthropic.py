@@ -18,9 +18,12 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Mapping
+from copy import deepcopy
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 from anthropic import (
     Anthropic,
@@ -28,6 +31,7 @@ from anthropic import (
     AnthropicBedrock,
     AnthropicFoundry,
     AnthropicVertex,
+    BadRequestError,
     IdentityTokenFile,
     WorkloadIdentityCredentials,
 )
@@ -38,6 +42,8 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicBatchJobError,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicSessionBudgetExceeded,
+    AnthropicTriggerEventError,
 )
 from airflow.providers.common.compat.sdk import AirflowSkipException, BaseHook
 
@@ -50,7 +56,9 @@ if TYPE_CHECKING:
     from anthropic.types.beta import (
         BetaEnvironment,
         BetaManagedAgentsAgent,
+        BetaManagedAgentsBudgetLimitParam,
         BetaManagedAgentsSession,
+        agent_create_params,
         environment_create_params,
     )
     from anthropic.types.beta.sessions import BetaManagedAgentsEventParams
@@ -118,6 +126,78 @@ class SessionStatus(str, Enum):
 #: ``outcome_evaluations[].result`` values that mean the outcome did NOT succeed.
 OUTCOME_FAILURE_RESULTS = frozenset({"failed", "max_iterations_reached", "interrupted"})
 
+# ``session.status_idle`` stop reason emitted when a session stops against its budget.
+BUDGET_REACHED = "budget_reached"
+
+# What a caller may pass as a session budget: an amount in USD, or the raw API payload.
+BudgetSpec = str | int | float | Decimal | Mapping[str, Any]
+
+
+def build_budget(budget: BudgetSpec) -> BetaManagedAgentsBudgetLimitParam:
+    """
+    Normalize a session budget into the API's ``max_list_cost`` payload.
+
+    A scalar is read as **US dollars** (``25``, ``25.0`` and ``"25.00"`` all mean $25.00).
+    The API wants minor units as an integer decimal string, so the conversion runs through
+    :class:`~decimal.Decimal` (never binary float) and rejects an amount finer than a cent
+    rather than silently rounding money. A mapping is deep-copied and otherwise returned
+    unchanged, so a raw payload the provider has not caught up with stays usable without a
+    provider release.
+
+    .. warning::
+        The ceiling is a stop trigger, not a cap: it is checked between model requests, so
+        a request already in flight can carry the session well past it.
+    """
+    if isinstance(budget, Mapping):
+        # Deep, not ``dict()``: a shallow copy leaves the nested ``max_list_cost`` aliased
+        # to the caller's object, so a later edit of the returned payload would reach back
+        # into a templated operator field.
+        # Cast, not validate: a raw payload is accepted precisely so a caller can reach a
+        # field this provider does not model yet, so its shape cannot be checked here.
+        return cast("BetaManagedAgentsBudgetLimitParam", deepcopy(dict(budget)))
+    try:
+        dollars = Decimal(str(budget))
+    except (InvalidOperation, ValueError) as e:
+        raise ValueError(f"Invalid budget {budget!r}: not a decimal amount in USD.") from e
+    if not dollars.is_finite() or dollars <= 0:
+        raise ValueError(f"Invalid budget {budget!r}: must be a positive USD amount.")
+    minor_units = dollars * 100
+    if minor_units != minor_units.to_integral_value():
+        raise ValueError(
+            f"Invalid budget {budget!r}: amounts finer than a cent are not representable. "
+            "Pass a mapping if you need the raw payload."
+        )
+    return {
+        "type": "limit",
+        "max_list_cost": {"amount": str(int(minor_units)), "currency": "USD"},
+    }
+
+
+def _create_session_error(message: str, stop_reason: str | None) -> AnthropicAgentSessionError:
+    """
+    Return the session error class matching an idle ``stop_reason``.
+
+    Keyed on the SDK's own ``stop_reason`` value rather than on the message text, so the
+    synchronous path and the deferrable path (which only carries the reason as a string
+    through the trigger event) raise the same type for the same cause.
+    """
+    if stop_reason == BUDGET_REACHED:
+        return AnthropicSessionBudgetExceeded(message)
+    return AnthropicAgentSessionError(message)
+
+
+class SessionPollResult(NamedTuple):
+    """
+    Verdict from one poll of a session; see :meth:`AnthropicHook.poll_session_completion`.
+
+    Named rather than a bare tuple because ``error_message`` and ``stop_reason`` are both
+    ``str | None``, so transposing them at a call site would still type-check.
+    """
+
+    done: bool
+    error_message: str | None
+    stop_reason: str | None
+
 
 def evaluate_session_state(
     session: BetaManagedAgentsSession, *, expect_outcome: bool
@@ -147,6 +227,29 @@ def evaluate_session_state(
             return True, f"Outcome not satisfied for session {session.id}: {evaluation.result}.", False
     # idle but no terminal outcome verdict yet (e.g. the run has not started)
     return False, None, False
+
+
+#: Statuses the provider's triggers emit in their terminal event.
+TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "timeout"})
+
+
+def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Validate the event a deferred task resumes with, returning it if well-formed.
+
+    The event crosses the triggerer/worker boundary through the metadata DB, so a
+    resuming task can receive ``None`` or a status its handlers do not recognize
+    (version skew, a custom trigger). Both must fail loudly: the ``execute_complete``
+    handlers raise on ``timeout``/``error`` and treat everything else as success, so
+    an unrecognized status would otherwise silently succeed.
+    """
+    if event is None:
+        raise AnthropicTriggerEventError("Trigger error: event is None")
+    if event.get("status") not in TRIGGER_EVENT_STATUSES:
+        raise AnthropicTriggerEventError(
+            f"Unexpected trigger event status {event.get('status')!r}: {event!r}"
+        )
+    return event
 
 
 def evaluate_batch_counts(
@@ -385,17 +488,35 @@ class AnthropicHook(BaseHook):
             params["system"] = system
         return self.conn.messages.count_tokens(**params).input_tokens
 
-    def create_batch(self, requests: list[dict[str, Any]]) -> MessageBatch:
+    @staticmethod
+    def _apply_default_model(request: dict[str, Any], default_model: str) -> dict[str, Any]:
+        """
+        Fill ``params['model']`` from ``default_model`` when the request omits it.
+
+        The input dict is never mutated, and a request that sets its own ``model`` is
+        returned unchanged, so a single batch can still mix models across requests.
+        """
+        params = request.get("params")
+        if not isinstance(params, dict) or params.get("model"):
+            return request
+        return {**request, "params": {**params, "model": default_model}}
+
+    def create_batch(self, requests: list[dict[str, Any]], model: str | None = None) -> MessageBatch:
         """
         Submit a Message Batch.
 
         :param requests: A list of ``{"custom_id": str, "params": {...}}`` dicts, where
             ``params`` is a ``messages.create`` payload (``model``, ``max_tokens``,
-            ``messages``, ...).
+            ``messages``, ...). A request that omits ``model`` inherits ``model`` below,
+            or the connection's ``default_model`` (``extra['model']``) when that is unset too.
+        :param model: Default model id for requests that do not set their own. Falls back
+            to the connection's :attr:`default_model`.
         """
         self._require_first_party("The Message Batches API")
+        default_model = model or self.default_model
+        prepared = [self._apply_default_model(request, default_model) for request in requests]
         # ``Request`` is a TypedDict, so the plain dicts callers build match structurally.
-        return self.conn.messages.batches.create(requests=cast("Iterable[Request]", requests))
+        return self.conn.messages.batches.create(requests=cast("Iterable[Request]", prepared))
 
     def get_batch(self, batch_id: str) -> MessageBatch:
         """Retrieve a Message Batch by ID."""
@@ -470,16 +591,21 @@ class AnthropicHook(BaseHook):
     # (these helpers, the ``ant`` CLI, or a setup script) and store the IDs. The
     # operator references those IDs; it never creates an agent per run.
 
-    def create_agent(self, name: str, model: str | None = None, **kwargs: Any) -> BetaManagedAgentsAgent:
+    def create_agent(
+        self, name: str, model: str | dict[str, Any] | None = None, **kwargs: Any
+    ) -> BetaManagedAgentsAgent:
         """
         Create a (reusable, versioned) Managed Agents agent. One-time setup.
 
         ``model`` defaults to :attr:`default_model` (the connection's ``extra['model']``
-        or :data:`DEFAULT_MODEL`).
+        or :data:`DEFAULT_MODEL`). Pass a mapping instead of a bare id to set the model
+        config, e.g. ``{"id": "claude-opus-5", "inference_geo": "us"}``.
         """
         self._require_first_party("Managed Agents")
         agent = self._first_party_conn.beta.agents.create(
-            name=name, model=model or self.default_model, **kwargs
+            name=name,
+            model=cast("agent_create_params.Model", model or self.default_model),
+            **kwargs,
         )
         self.log.debug("Created agent %s (name=%r, model=%s)", agent.id, name, model or self.default_model)
         return agent
@@ -498,16 +624,82 @@ class AnthropicHook(BaseHook):
         return environment
 
     def create_session(self, agent: str, environment_id: str, **kwargs: Any) -> BetaManagedAgentsSession:
-        """Start a session against a pre-created agent + environment."""
+        """
+        Start a session against a pre-created agent + environment.
+
+        A ``budget`` keyword accepts an amount in USD as well as the raw API payload; see
+        :func:`build_budget`.
+        """
         self._require_first_party("Managed Agents")
+        if "budget" in kwargs:
+            if kwargs["budget"] is None:
+                # ``SessionCreateParams.budget`` is not Optional -- unlike the update
+                # params, create has no "clear the ceiling" semantics, and sending
+                # ``"budget": null`` is rejected. Treat None as "no budget".
+                kwargs.pop("budget")
+            else:
+                kwargs["budget"] = build_budget(kwargs["budget"])
         return self._first_party_conn.beta.sessions.create(
             agent=agent, environment_id=environment_id, **kwargs
         )
+
+    def update_session(self, session_id: str, **kwargs: Any) -> BetaManagedAgentsSession:
+        """
+        Update a live session -- raise or clear its ``budget``, swap ``agent`` tools, retitle.
+
+        Only the keywords you pass are sent, which matters because the API distinguishes
+        *omitted* (preserve) from ``None`` (clear). So ``update_session(sid)`` changes
+        nothing, while ``update_session(sid, budget=None)`` removes the ceiling -- the
+        escape hatch for a session stopped by a model with no list price, which raising the
+        budget cannot unblock.
+
+        ``budget`` accepts an amount in USD or the raw payload (see :func:`build_budget`).
+        ``agent={"tools": [...]}`` is a **full replacement** of the tool list, not a merge,
+        and needs the ``mid-conversation-tool-changes-2026-07-01`` beta.
+        """
+        self._require_first_party("Managed Agents")
+        if kwargs.get("budget") is not None:
+            kwargs["budget"] = build_budget(kwargs["budget"])
+        return self._first_party_conn.beta.sessions.update(session_id, **kwargs)
 
     def get_session(self, session_id: str) -> BetaManagedAgentsSession:
         """Retrieve a session (carries its current ``status``)."""
         self._require_first_party("Managed Agents")
         return self._first_party_conn.beta.sessions.retrieve(session_id)
+
+    def get_session_usage(self, session_id: str) -> dict[str, Any]:
+        """
+        Return a JSON-serializable token/cost summary for a session.
+
+        Plain scalars and a nested ``list_cost`` mapping rather than SDK models, so the
+        result survives XCom serialization and can be queried across runs. ``amount`` is
+        kept as the API's **minor-unit string** (``"44"`` is $0.44) rather than converted to
+        a float, so no rounding is applied to a cost figure.
+
+        Every field is optional server-side -- ``list_cost`` is absent when usage includes a
+        model with no list price -- so missing values come back as ``None``. That absence is
+        why every billable dimension is reported and not just the token totals: it is
+        exactly when a caller has to reconstruct cost from usage that the breakdown must be
+        complete. Cache *writes* (``cache_creation``) are billed above base input, and
+        server tool calls are billed per request.
+        """
+        return self.summarize_usage(self.get_session(session_id))
+
+    @staticmethod
+    def summarize_usage(session: BetaManagedAgentsSession) -> dict[str, Any]:
+        """
+        Flatten an already-retrieved session's usage; see :meth:`get_session_usage`.
+
+        Split out because ``sessions.archive`` also returns the session, so a caller that
+        is tearing a session down can report its usage without a second request.
+
+        Dumps the model rather than copying a fixed list of fields. The usage model sets
+        ``extra="allow"``, so a billable dimension added by the API is kept on the object --
+        an allowlist here would drop it silently, which is worst precisely when ``list_cost``
+        is ``None`` and a caller has to price the run from the breakdown. ``mode="json"``
+        keeps the result XCom-safe and leaves ``amount`` a minor-unit string.
+        """
+        return session.usage.model_dump(mode="json")
 
     def send_event(self, session_id: str, event: dict[str, Any]) -> Any:
         """Send a single event (e.g. a ``user.message`` or ``user.define_outcome``)."""
@@ -517,10 +709,58 @@ class AnthropicHook(BaseHook):
             session_id, events=cast("list[BetaManagedAgentsEventParams]", [event])
         )
 
-    def archive_session(self, session_id: str) -> Any:
-        """Archive a session (frees the server-side container). Best-effort teardown."""
+    def interrupt_session(self, session_id: str) -> Any:
+        """
+        Send ``user.interrupt`` to pause a running session.
+
+        The API refuses to archive or delete a session while it is ``running``, so this is
+        the only way to release one that is not going to stop on its own -- see
+        :meth:`archive_session`.
+        """
         self._require_first_party("Managed Agents")
-        return self._first_party_conn.beta.sessions.archive(session_id)
+        return self.send_event(session_id, {"type": "user.interrupt"})
+
+    def archive_session(
+        self, session_id: str, *, attempts: int = 6, wait_seconds: float = 5
+    ) -> BetaManagedAgentsSession:
+        """
+        Archive a session (frees the server-side container). Best-effort teardown.
+
+        Returns the archived session, which carries its final ``usage`` -- so a caller
+        tearing a session down does not need a separate retrieve to report what it spent.
+
+        A ``running`` session cannot be archived (nor deleted): the API rejects both with a
+        400. Only then does this interrupt the session and retry, because a session that
+        will not stop on its own otherwise accrues billable runtime with no way to release
+        it. Any other failure is re-raised untouched, so a transient 5xx does not send
+        ``user.interrupt`` to a session that was working fine.
+
+        Retrying costs up to ``attempts`` further calls with ``wait_seconds`` between them
+        (about 25s at the defaults), which is longer than some callers have: a killed task's
+        ``on_kill`` is SIGKILLed a few seconds in, so it passes a much tighter budget.
+        """
+        self._require_first_party("Managed Agents")
+        try:
+            return self._first_party_conn.beta.sessions.archive(session_id)
+        except BadRequestError as e:
+            # Catching the SDK's published error type, not matching on message text: a 400
+            # here is the documented "cannot archive while running" rejection.
+            self.log.info("Archiving session %s failed (%s); interrupting and retrying.", session_id, e)
+            self.interrupt_session(session_id)
+            return self._wait_for_archive(session_id, attempts=attempts, wait_seconds=wait_seconds)
+
+    def _wait_for_archive(
+        self, session_id: str, attempts: int = 6, wait_seconds: float = 5
+    ) -> BetaManagedAgentsSession:
+        """Retry archiving while the interrupt takes effect; the status change is not instant."""
+        for attempt in range(attempts):
+            try:
+                return self._first_party_conn.beta.sessions.archive(session_id)
+            except Exception:
+                if attempt == attempts - 1:
+                    raise
+                time.sleep(wait_seconds)
+        raise AnthropicError(f"Could not archive session {session_id}.")  # pragma: no cover
 
     def _latest_idle_reason(self, session_id: str, kickoff_event_id: str | None) -> str | None:
         """
@@ -545,13 +785,24 @@ class AnthropicHook(BaseHook):
 
     def poll_session_completion(
         self, session_id: str, *, expect_outcome: bool = False, kickoff_event_id: str | None = None
-    ) -> tuple[bool, str | None]:
+    ) -> SessionPollResult:
         """
-        Return ``(done, error_message)`` for one poll of a session.
+        Return the :class:`SessionPollResult` for one poll of a session.
 
         Combines the session object (status / outcome verdict) with the event log
         (``stop_reason`` of the latest idle) so a ``message`` run distinguishes genuine
-        ``end_turn`` completion from ``requires_action`` / ``retries_exhausted``.
+        ``end_turn`` completion from ``requires_action`` / ``retries_exhausted`` /
+        ``budget_reached``.
+
+        ``stop_reason`` is the SDK's own idle stop reason, or ``None`` when the verdict did
+        not come from an idle event (a ``terminated`` session, or an outcome verdict). It
+        exists so callers can pick an error class without matching on the message text; pass
+        it to :func:`_create_session_error`.
+
+        .. note::
+            A budget stop is classified on ``message`` runs only. An ``outcome`` run is
+            judged from ``outcome_evaluations`` before the event log is consulted, so a
+            budget stop there surfaces as whatever verdict the outcome recorded.
         """
         session = self.get_session(session_id)
         done, error_message, needs_event_check = evaluate_session_state(
@@ -565,15 +816,34 @@ class AnthropicHook(BaseHook):
             needs_event_check,
         )
         if not needs_event_check:
-            return done, error_message
+            return SessionPollResult(done=done, error_message=error_message, stop_reason=None)
         reason = self._latest_idle_reason(session_id, kickoff_event_id)
         if reason is None:
-            return False, None
+            return SessionPollResult(done=False, error_message=None, stop_reason=None)
         if reason == "end_turn":
-            return True, None
-        return True, (
-            f"Session {session_id} is idle but did not complete ({reason}); "
-            "configure an autonomous agent or use an outcome run."
+            return SessionPollResult(done=True, error_message=None, stop_reason=reason)
+        if reason == BUDGET_REACHED:
+            # Both causes are worth naming: a session also stops with ``budget_reached``
+            # when its usage includes a model with no list price, because the budget cannot
+            # measure that spend -- and then raising the ceiling does not unblock it.
+            return SessionPollResult(
+                done=True,
+                error_message=(
+                    f"Session {session_id} stopped against its budget: the tracked list cost "
+                    "reached the configured ceiling, or its usage included a model with no "
+                    "list price (which a budget cannot measure). The operator archives the "
+                    "session on this path, so it cannot be resumed -- raise the ceiling for "
+                    "the next run, or drop the budget if a model has no list price."
+                ),
+                stop_reason=reason,
+            )
+        return SessionPollResult(
+            done=True,
+            error_message=(
+                f"Session {session_id} is idle but did not complete ({reason}); "
+                "configure an autonomous agent or use an outcome run."
+            ),
+            stop_reason=reason,
         )
 
     def wait_for_session(
@@ -594,12 +864,13 @@ class AnthropicHook(BaseHook):
             idle event on a ``message`` run (defeats the start race).
         :param poll_interval: Seconds to sleep between polls.
         :param timeout: Maximum seconds to wait before raising :class:`AnthropicAgentSessionTimeout`.
+        :raises AnthropicSessionBudgetExceeded: If the session stopped against its budget.
         """
         start = time.monotonic()
         consecutive_failures = 0
         while True:
             try:
-                done, error_message = self.poll_session_completion(
+                poll_result = self.poll_session_completion(
                     session_id, expect_outcome=expect_outcome, kickoff_event_id=kickoff_event_id
                 )
             except Exception as e:
@@ -615,9 +886,9 @@ class AnthropicHook(BaseHook):
                 time.sleep(poll_interval)
                 continue
             consecutive_failures = 0
-            if done:
-                if error_message:
-                    raise AnthropicAgentSessionError(error_message)
+            if poll_result.done:
+                if poll_result.error_message:
+                    raise _create_session_error(poll_result.error_message, poll_result.stop_reason)
                 return
             if time.monotonic() - start > timeout:
                 raise AnthropicAgentSessionTimeout(

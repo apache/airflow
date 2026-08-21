@@ -127,6 +127,11 @@ class TestVariable:
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert Variable.get("tested_var_set_id") == "Monday morning breakfast"
 
+    def test_set_val_rejects_non_string_with_clear_error(self):
+        var = Variable(key="a_key")
+        with pytest.raises(TypeError, match="Variable value must be a string, got list"):
+            var.val = ["a", "b"]
+
     def test_variable_set_with_env_variable(self, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         Variable.set(key="key", value="db-value", session=session)
@@ -363,6 +368,14 @@ class TestVariable:
             ]
         finally:
             session.rollback()
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_variable_set_does_not_change_team_name_on_update(self, testing_team, session):
+        Variable.set(key="k", value="v1", session=session)
+
+        Variable.set(key="k", value="v2", team_name=testing_team.name, session=session)
+
+        assert Variable.get("k") == "v2"
 
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
     def test_caching_caches(self, mock_ensure_secrets: mock.Mock):

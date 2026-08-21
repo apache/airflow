@@ -100,7 +100,9 @@ Two ways:
 
 .. note::
 
-    The Message Batches API, token counting and the Models API are served only by the
-    first-party Anthropic API (``platform="anthropic"``) and Claude Platform on AWS
-    (``platform="aws"``). They are **not** available on Amazon Bedrock, Google Vertex AI
-    or Microsoft Foundry; the hook raises a clear error if you call them on those platforms.
+    The Message Batches API, token counting, the Models API and Managed Agents (including
+    :class:`~airflow.providers.anthropic.operators.agent.AnthropicAgentSessionOperator`) are
+    served only by the first-party Anthropic API (``platform="anthropic"``) and Claude
+    Platform on AWS (``platform="aws"``). They are **not** available on Amazon Bedrock,
+    Google Vertex AI or Microsoft Foundry; the hook raises a clear error if you call them on
+    those platforms.

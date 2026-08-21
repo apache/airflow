@@ -248,6 +248,30 @@ eleventyComputed:
         </button>
         {% endfor %}
       </div>
+      {% set hasExternalServices = false %}
+      {% for conn in conns %}
+        {% if conn.external_services and conn.external_services.length > 0 %}{% set hasExternalServices = true %}{% endif %}
+      {% endfor %}
+      {% if hasExternalServices %}
+      <table class="conn-external-services-table">
+        <thead>
+          <tr class="conn-external-services-header">
+            <th>Connection type</th>
+            <th>External services (examples)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for conn in conns %}
+          {% if conn.external_services and conn.external_services.length > 0 %}
+          <tr class="conn-external-services-row">
+            <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
+            <td class="conn-external-services-list">{{ conn.external_services | join(", ") }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
       <div class="conn-builder-panel" id="conn-builder-panel" hidden>
         <div class="conn-builder-header">
           <span class="conn-builder-title" id="conn-builder-title"></span>
@@ -276,16 +300,35 @@ eleventyComputed:
   </section>
 
   {% if totalModules > 0 %}
-  {# Module Type Tabs #}
+  {# Module Type Tabs: sorted by module count (busiest first), overflow into a "More" menu #}
+  {% set moduleTabsVisibleCount = 8 %}
+  {% set sortedTypes = types | sortTypesByCount(moduleCounts) %}
+  {% set visibleTypes = sortedTypes | slice(0, moduleTabsVisibleCount) %}
+  {% set overflowTypes = sortedTypes | slice(moduleTabsVisibleCount, sortedTypes.length) %}
   <nav class="module-tabs">
     <button class="module-tab active" data-type="all">All ({{ totalModules }})</button>
-    {% for t in types %}
-    {% if moduleCounts[t.id] > 0 %}
+    {% for t in visibleTypes %}
     <button class="module-tab" data-type="{{ t.id }}">
-      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ moduleCounts[t.id] }})
+      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ t.count }})
     </button>
-    {% endif %}
     {% endfor %}
+    {% if overflowTypes.length > 0 %}
+    <div class="module-tab-more">
+      <button class="module-tab module-tab-more-btn" type="button" id="module-tab-more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="module-tab-more-menu">
+        More
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div class="module-tab-more-menu" id="module-tab-more-menu" hidden>
+        {% for t in overflowTypes %}
+        <button class="module-tab" data-type="{{ t.id }}">
+          <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ t.count }})
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </nav>
 
   {# Main content with sidebar #}
@@ -352,10 +395,15 @@ eleventyComputed:
         {% for module in providerModules %}
         <div id="{{ module.id or module.name }}" class="module card" data-name="{{ module.name | lower }}" data-type="{{ module.type }}" data-category="{{ module.category }}">
           <div class="icon {{ module.type }}">
-            <span>{{ module.type[0] | upper }}</span>
+            <span>{{ types | typeIcon(module.type) }}</span>
           </div>
           <div class="content">
-            <h3>{{ module.name }}</h3>
+            <h3>
+              {{ module.name }}
+              {% if module.supports_durable_execution %}
+              <span class="durable-badge" title="Reconnects to an already-running job on retry instead of resubmitting. Requires durable=True (default) and depends on operator configuration.">Durable</span>
+              {% endif %}
+            </h3>
             <p>{{ module.short_description }}</p>
             <div class="import-row">
               <code class="path">{{ module.import_path }}</code>

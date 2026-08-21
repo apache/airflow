@@ -151,6 +151,14 @@ steps are executed to rebuild parts of the image (for example, PIP
 dependencies) and will give you an image consistent with the one used
 during Continuous Integration.
 
+Locally built CI images are labelled with the aggregated hash of the
+files that trigger image rebuild when changed
+(`org.apache.airflow.ci.sources-hash` label). When another checkout of
+the same sources - for example a git worktree - shares the same Docker
+daemon, Breeze recognizes via that label that the image present in the
+daemon was built from identical sources and reuses it instead of
+rebuilding it, even though that checkout never built the image itself.
+
 The command that builds the production image is optimised for size of
 the image.
 
@@ -442,9 +450,9 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    |                             | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`         |                             | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`             | `26.1.2`                    | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`              | `0.11.25`                    | `uv` version used.                                                                                                |
-| `AIRFLOW_PREK_VERSION`            | `0.4.5`                     | `prek` version used.                                                                                              |
+| `AIRFLOW_PIP_VERSION`             | `26.2.1`                    | `pip` version used.                                                                                               |
+| `AIRFLOW_UV_VERSION`              | `0.12.5`                     | `uv` version used.                                                                                                |
+| `AIRFLOW_PREK_VERSION`            | `0.4.13`                    | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
 

@@ -225,6 +225,7 @@ def _extract_entity_arg(call_node: ast.Call) -> str | None:
 # Map from requires_access_* function name → (resource base name, forced entity or None)
 _FN_TO_RESOURCE_INFO: dict[str, tuple[str, str | None]] = {
     "requires_access_dag": ("DAG", None),
+    "requires_access_dag_from_file_token": ("DAG", None),  # reparse authorizes the file_token's Dags
     "requires_access_backfill": ("DAG", "RUN"),  # backfill is a DAG.RUN alias
     "requires_access_dag_run_bulk": ("DAG", "RUN"),  # dag_run bulk is a DAG.RUN alias
     "requires_access_dag_run_clear_bulk": ("DAG", "RUN"),  # dag_run clear bulk is a DAG.RUN alias

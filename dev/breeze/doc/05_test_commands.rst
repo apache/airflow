@@ -371,7 +371,15 @@ a local venv. You can build the prod image with breeze and that will be used by 
 You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
 ``breeze testing airflow-e2e-tests`` command.
 
-The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
+The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Each suite is a
+``--e2e-test-mode`` (``basic``, ``remote_log``, ``event_driven``, ``java_sdk``, ``go_sdk``,
+``openlineage``, ...); the mode selects a docker-compose overlay and the matching test package under
+``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
+deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
+emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
+Pass ``--airflow-version`` (openlineage mode only) to run against an older released Airflow version
+with the current providers from main, instead of the default PROD image; CI runs this compat matrix
+on canary only. See ``airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/README.md``.
 
 Running Airflow UI E2E tests
 .............................

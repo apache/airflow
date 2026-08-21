@@ -202,7 +202,6 @@ class TestCommitToConnectionTable:
     def setup_teardown(self):
         clear_db_connections(add_default_connections_back=False)
         clear_db_connection_tests()
-        clear_db_teams()
         yield
         clear_db_connections(add_default_connections_back=False)
         clear_db_connection_tests()

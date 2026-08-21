@@ -20,6 +20,8 @@ import { useParams } from "react-router-dom";
 
 import { useGridServiceGetGridRuns } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useGridRuns = ({
@@ -28,6 +30,7 @@ export const useGridRuns = ({
   offset,
   runAfterGte,
   runAfterLte,
+  runIdPattern,
   runType,
   triggeringUser,
 }: {
@@ -36,12 +39,31 @@ export const useGridRuns = ({
   offset?: number;
   runAfterGte?: string;
   runAfterLte?: string;
+  runIdPattern?: string | undefined;
   runType?: DagRunType | undefined;
   triggeringUser?: string | undefined;
 }) => {
   const { dagId = "" } = useParams();
 
   const refetchInterval = useAutoRefresh({ dagId });
+
+  // Advanced-search toggle picks between the substring ``runIdPattern`` and the
+  // index-friendly ``runIdPrefixPattern`` variants of the Run ID filter.
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: SearchParamsKeys.RUN_ID_PATTERN,
+    value: runIdPattern,
+  });
+
+  // Advanced-search toggle picks between the substring ``triggeringUser`` and the
+  // index-friendly ``triggeringUserPrefix`` variants of the Triggering User filter.
+  const triggeringUserArg = useAdvancedSearchArg({
+    patternApiKey: "triggeringUser",
+    prefixApiKey: "triggeringUserPrefix",
+    storageKey: SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
+    value: triggeringUser,
+  });
 
   const { data: GridRuns, ...rest } = useGridServiceGetGridRuns(
     {
@@ -51,9 +73,10 @@ export const useGridRuns = ({
       orderBy: ["-run_after"],
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
+      ...runIdPatternArg,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
-      triggeringUser: triggeringUser ?? undefined,
+      ...triggeringUserArg,
     },
     undefined,
     {

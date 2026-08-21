@@ -215,87 +215,37 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
     session.merge(dag_run)
 
 
-@provide_session
-def set_dag_run_state_to_success(
+def _set_dag_run_terminal_state(
     *,
     dag: SerializedDAG,
-    run_id: str | None = None,
-    commit: bool = False,
-    session: SASession = NEW_SESSION,
-) -> list[TaskInstance]:
+    run_id: str | None,
+    run_state: DagRunState,
+    ti_state: TaskInstanceState,
+    commit: bool,
+    session: SASession,
+) -> tuple[list[TaskInstance], list[TaskInstance]]:
     """
-    Set the dag run's state to success.
+    Set the dag run's state to the given terminal state.
 
-    Set for a specific logical date and its task instances to success.
-
-    :param dag: the Dag of which to alter state
-    :param run_id: the run_id to start looking from
-    :param commit: commit Dag and tasks to be altered to the database
-    :param session: database session
-    :return: If commit is true, list of tasks that have been updated,
-             otherwise list of tasks that will be updated
-    :raises: ValueError if dag or logical_date is invalid
-    """
-    if not dag:
-        return []
-    if not run_id:
-        raise ValueError(f"Invalid dag_run_id: {run_id}")
-
-    tasks = dag.tasks
-
-    # Mark all task instances of the dag run to success - except for unfinished teardown as they need to complete work.
-    teardown_tasks = [task for task in tasks if task.is_teardown]
-    unfinished_teardown_task_ids = set(
-        session.scalars(
-            select(TaskInstance.task_id).where(
-                TaskInstance.dag_id == dag.dag_id,
-                TaskInstance.run_id == run_id,
-                TaskInstance.task_id.in_(task.task_id for task in teardown_tasks),
-                or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
-            )
-        )
-    )
-
-    # Mark the dag run to success if there are no unfinished teardown tasks.
-    if commit and len(unfinished_teardown_task_ids) == 0:
-        _set_dag_run_state(dag.dag_id, run_id, DagRunState.SUCCESS, session)
-
-    tasks_to_mark_success = [task for task in tasks if not task.is_teardown] + [
-        task for task in teardown_tasks if task.task_id not in unfinished_teardown_task_ids
-    ]
-    for task in tasks_to_mark_success:
-        task.dag = dag
-    return set_state(
-        tasks=tasks_to_mark_success,
-        run_id=run_id,
-        state=TaskInstanceState.SUCCESS,
-        commit=commit,
-        session=session,
-    )
-
-
-@provide_session
-def set_dag_run_state_to_failed(
-    *,
-    dag: SerializedDAG,
-    run_id: str | None = None,
-    commit: bool = False,
-    session: SASession = NEW_SESSION,
-) -> list[TaskInstance]:
-    """
-    Set the dag run's state to failed.
-
-    Set for a specific logical date and its task instances to failed.
+    Running task instances are set to ``ti_state`` and non-finished ones to
+    SKIPPED; finished task instances keep their state. Teardown tasks are left
+    untouched so they can complete their work.
 
     :param dag: the Dag of which to alter state
     :param run_id: the Dag run_id to start looking from
+    :param run_state: terminal state to set on the dag run
+    :param ti_state: state to set on running task instances
     :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
-    :return: If commit is true, list of tasks that have been updated,
-             otherwise list of tasks that will be updated
+    :return: ``(all_updated_tis, killed_tis)`` where ``all_updated_tis`` is the
+        combined list of pending (now SKIPPED) and running (now ``ti_state``) TIs,
+        and ``killed_tis`` contains only the non-teardown TIs that were in an active
+        running state and were forcefully terminated (teardown TIs are intentionally
+        left running so they can finish their own cleanup, and must not receive a
+        terminal listener event here).
     """
     if not dag:
-        return []
+        return [], []
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
@@ -318,9 +268,10 @@ def set_dag_run_state_to_failed(
             )
         ).all()
     )
-
     # Do not kill teardown tasks
     task_ids_of_running_tis = {ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown}
+    # Keep task instances that were killed with no cleanup capability (all running minus teardown ones).
+    killed_tis = [ti for ti in running_tis if ti.task_id in task_ids_of_running_tis]
 
     def _set_running_task(task: Operator) -> Operator:
         task.dag = dag
@@ -352,14 +303,90 @@ def set_dag_run_state_to_failed(
         for ti in pending_normal_tis:
             ti.set_state(TaskInstanceState.SKIPPED)
 
-        # Mark the dag run to failed if there is no pending teardown (else this would not be scheduled later).
+        # Set the dag run state only if there is no pending teardown (else this would not be scheduled later).
         if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):
-            _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
+            _set_dag_run_state(dag.dag_id, run_id, run_state, session)
 
-    return pending_normal_tis + set_state(
+    all_updated = pending_normal_tis + set_state(
         tasks=running_tasks,
         run_id=run_id,
-        state=TaskInstanceState.FAILED,
+        state=ti_state,
+        commit=commit,
+        session=session,
+    )
+    return all_updated, killed_tis
+
+
+@provide_session
+def set_dag_run_state_to_success(
+    *,
+    dag: SerializedDAG,
+    run_id: str | None = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> tuple[list[TaskInstance], list[TaskInstance]]:
+    """
+    Set the dag run's state to success.
+
+    Set for a specific logical date and its task instances to success.
+
+    :param dag: the Dag of which to alter state
+    :param run_id: the run_id to start looking from
+    :param commit: commit Dag and tasks to be altered to the database
+    :param session: database session
+    :return: A tuple ``(all_updated_tis, killed_tis)``.
+        ``all_updated_tis`` is the combined list of task instances that were updated:
+        previously-running ones (now SUCCESS) and non-finished pending ones (now SKIPPED).
+        If ``commit`` is ``False``, this is the list of task instances *that would be* updated.
+        ``killed_tis`` contains only the non-teardown task instances that were in an active
+        running state (RUNNING, DEFERRED, UP_FOR_RESCHEDULE, AWAITING_INPUT) and were
+        forcefully terminated — teardown tasks are intentionally excluded because they are
+        left running to finish their own cleanup. Use ``killed_tis`` for firing terminal
+        listener hooks.
+    :raises: ValueError if dag or logical_date is invalid
+    """
+    return _set_dag_run_terminal_state(
+        dag=dag,
+        run_id=run_id,
+        run_state=DagRunState.SUCCESS,
+        ti_state=TaskInstanceState.SUCCESS,
+        commit=commit,
+        session=session,
+    )
+
+
+@provide_session
+def set_dag_run_state_to_failed(
+    *,
+    dag: SerializedDAG,
+    run_id: str | None = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> tuple[list[TaskInstance], list[TaskInstance]]:
+    """
+    Set the dag run's state to failed.
+
+    Set for a specific logical date and its task instances to failed.
+
+    :param dag: the Dag of which to alter state
+    :param run_id: the Dag run_id to start looking from
+    :param commit: commit Dag and tasks to be altered to the database
+    :param session: database session
+    :return: A tuple ``(all_updated_tis, killed_tis)``.
+        ``all_updated_tis`` is the combined list of task instances that were updated:
+        previously-running ones (now FAILED) and non-finished pending ones (now SKIPPED).
+        If ``commit`` is ``False``, this is the list of task instances *that would be* updated.
+        ``killed_tis`` contains only the non-teardown task instances that were in an active
+        running state (RUNNING, DEFERRED, UP_FOR_RESCHEDULE, AWAITING_INPUT) and were
+        forcefully terminated — teardown tasks are intentionally excluded because they are
+        left running to finish their own cleanup. Use ``killed_tis`` for firing terminal
+        listener hooks.
+    """
+    return _set_dag_run_terminal_state(
+        dag=dag,
+        run_id=run_id,
+        run_state=DagRunState.FAILED,
+        ti_state=TaskInstanceState.FAILED,
         commit=commit,
         session=session,
     )

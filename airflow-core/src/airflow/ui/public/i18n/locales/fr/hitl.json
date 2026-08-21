@@ -26,6 +26,20 @@
     "success": "Réponse pour {{taskId}} réussie",
     "title": "Instance de tâche humaine - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Sélectionnez une action requise pour voir les détails"
+    },
+    "list": {
+      "completedRequiredActions": "Actions requises terminées ({{count}})",
+      "loadError": "Impossible de charger les actions requises",
+      "loadingActions": "Chargement des actions requises...",
+      "pendingRequiredActions": "Actions requises en attente ({{count}})"
+    },
+    "openReviewDrawer": "Ouvrir le panneau de revue",
+    "pageLimitHint": "Seules les premières actions sont affichées ici. Utilisez « $t(review.viewAll) » pour toutes les voir.",
+    "viewAll": "Voir toutes les actions requises"
+  },
   "state": {
     "approvalReceived": "Approbation reçue",
     "approvalRequired": "Approbation requise",

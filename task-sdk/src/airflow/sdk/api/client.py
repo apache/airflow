@@ -211,6 +211,12 @@ def raise_on_4xx_5xx_with_note(response: httpx.Response):
         e.add_note(
             f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
         )
+        # .detail sits behind the generic message and only reaches logs where a handler
+        # logs it by hand. Add it as a note too, so uncaught paths (e.g. the executor) keep it.
+
+        detail = getattr(e, "detail", None)
+        if detail is not None:
+            e.add_note(f"Server error detail: {detail!r}")
         raise
 
 
@@ -720,7 +726,7 @@ class TaskStateStoreOperations:
     def get(self, ti_id: uuid.UUID, key: str) -> TaskStateStoreResponse | ErrorResponse:
         """Get a task store value from the API server."""
         try:
-            resp = self.client.get(f"store/ti/{ti_id}/{key}")
+            resp = self.client.get(f"store/ti/{ti_id}/{quote(key, safe='')}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug("Task store key not found", ti_id=ti_id, key=key)
@@ -731,12 +737,12 @@ class TaskStateStoreOperations:
     def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
         """Set a task store value via the API server."""
         body = TaskStateStorePutBody(value=value, expires_at=expires_at)
-        self.client.put(f"store/ti/{ti_id}/{key}", content=body.model_dump_json())
+        self.client.put(f"store/ti/{ti_id}/{quote(key, safe='')}", content=body.model_dump_json())
         return OKResponse(ok=True)
 
     def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
         """Delete a single task store key via the API server."""
-        self.client.delete(f"store/ti/{ti_id}/{key}")
+        self.client.delete(f"store/ti/{ti_id}/{quote(key, safe='')}")
         return OKResponse(ok=True)
 
     def clear(self, ti_id: uuid.UUID) -> OKResponse:
@@ -858,6 +864,9 @@ class AssetEventOperations:
         before: datetime | None = None,
         ascending: bool = True,
         limit: int | None = None,
+        partition_key: str | None = None,
+        partition_key_regexp_pattern: str | None = None,
+        extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
         common_params: dict[str, Any] = {}
@@ -866,15 +875,24 @@ class AssetEventOperations:
         if before:
             common_params["before"] = before.isoformat()
         common_params["ascending"] = ascending
-        if limit:
+        if limit is not None:
             common_params["limit"] = limit
+        if partition_key is not None:
+            common_params["partition_key"] = partition_key
+        if partition_key_regexp_pattern is not None:
+            common_params["partition_key_regexp_pattern"] = partition_key_regexp_pattern
+        extra_params: list[tuple[str, str]] = []
+        if extra:
+            extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]
         if name or uri:
             resp = self.client.get(
-                "asset-events/by-asset", params={"name": name, "uri": uri, **common_params}
+                "asset-events/by-asset",
+                params=[*{"name": name, "uri": uri, **common_params}.items(), *extra_params],
             )
         elif alias_name:
             resp = self.client.get(
-                "asset-events/by-asset-alias", params={"name": alias_name, **common_params}
+                "asset-events/by-asset-alias",
+                params=[*{"name": alias_name, **common_params}.items(), *extra_params],
             )
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")

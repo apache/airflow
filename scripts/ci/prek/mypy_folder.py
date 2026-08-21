@@ -30,10 +30,11 @@ import sys
 
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
-    KNOWN_SECOND_LEVEL_PATHS,
     console,
     get_all_provider_ids,
     initialize_breeze_prek,
+    is_duplicated_namespace_init,
+    is_hidden_within_root,
     run_command_via_breeze_run,
 )
 
@@ -75,18 +76,6 @@ MYPY_FILE_LIST.parent.mkdir(parents=True, exist_ok=True)
 
 FILE_ARGUMENT = "@/files/mypy_files.txt"
 
-all_provider_duplicated_path_to_ignore = []
-
-for second_level_path in KNOWN_SECOND_LEVEL_PATHS:
-    all_provider_duplicated_path_to_ignore.extend(
-        [
-            rf"^.*/providers/{second_level_path}/.*/src/airflow/providers/{second_level_path}/__init__.py$",
-            rf"^.*/providers/{second_level_path}/.*/tests/unit/{second_level_path}/__init__.py$",
-            rf"^.*/providers/{second_level_path}/.*/tests/integration/{second_level_path}/__init__.py$",
-            rf"^.*/providers/{second_level_path}/.*/tests/system/{second_level_path}/__init__.py$",
-        ]
-    )
-
 exclude_regexps = [
     re.compile(x)
     for x in [
@@ -99,7 +88,6 @@ exclude_regexps = [
         r"^.*/providers/.*/tests/unit/__init__.py$",
         r"^.*/providers/.*/tests/integration/__init__.py$",
         r"^.*/providers/.*/tests/system/__init__.py$",
-        *all_provider_duplicated_path_to_ignore,
     ]
 ]
 
@@ -109,8 +97,12 @@ def get_all_files(folder: str) -> list[str]:
     python_file_paths = (AIRFLOW_ROOT_PATH / folder).resolve().rglob("*.py")
     for file in python_file_paths:
         if (
-            (file.name not in ("conftest.py",) and not any(x.match(file.as_posix()) for x in exclude_regexps))
-            and not any(part.startswith(".") for part in file.parts)
+            (
+                file.name not in ("conftest.py",)
+                and not any(x.match(file.as_posix()) for x in exclude_regexps)
+                and not is_duplicated_namespace_init(file)
+            )
+            and not is_hidden_within_root(file, AIRFLOW_ROOT_PATH)
         ) and not file.as_posix().endswith("src/airflow/providers/__init__.py"):
             files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
     file_spec = "@/files/mypy_files.txt"

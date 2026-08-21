@@ -16,14 +16,15 @@
 # under the License.
 #
 ---
-name: Update constraints (on uv.lock push or manual dispatch)
+name: Update constraints (on uv.lock push)
 # This workflow refreshes the pinned constraint files stored in the
 # `constraints-*` branches. It runs automatically whenever `uv.lock` changes on
-# `main` or a `vX-Y-test` branch, and can also be triggered manually via the
-# "Run workflow" button (workflow_dispatch) - for example to pick up newly
-# released providers/dependencies from PyPI just before promoting an RC.
+# `main` or a `vX-Y-test` branch. The manual path lives in
+# `refresh-constraints.yml`, which calls this workflow -- keeping the two triggers
+# in separate workflows means a manual refresh is not filtered by `paths: uv.lock`
+# and shows up in the Actions list under its own name.
 #
-# The manual run is always launched from `main` (so the workflow definition and
+# A manual run is always launched from `main` (so the workflow definition and
 # `breeze` come from `main`), and the `ref` input selects the commit-ish
 # (branch, tag or commit hash) whose sources the constraints are refreshed from.
 # The `constraints-X-Y` branch to push to is derived from that ref's
@@ -37,7 +38,7 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-test
     paths:
       - 'uv.lock'
-  workflow_dispatch:
+  workflow_call:
     inputs:
       # `ref` is optional. Leave it empty to refresh constraints for the branch
       # you run the workflow from (normally `main` -> `constraints-main`). Set a
@@ -51,8 +52,13 @@ on:  # yamllint disable-line rule:truthy
         type: string
       upgrade-to-newer-dependencies:
         description: "Upgrade deps to newest from PyPI"
+        required: false
         type: boolean
         default: true
+    secrets:
+      SLACK_BOT_TOKEN:
+        description: "Slack bot token used to post provider-downgrade alerts (optional)."
+        required: false
 permissions:
   contents: read
 
@@ -98,7 +104,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ inputs.ref || github.ref }} ( ${{ inputs.ref || github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
@@ -182,6 +188,8 @@ jobs:
       debug-resources: "false"
       checkout-ref: ${{ inputs.ref }}
       use-uv: "true"
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   update-constraints:
     runs-on: ["ubuntu-22.04"]
@@ -199,11 +207,11 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: Checkout ${{ env.CONSTRAINTS_BRANCH }}
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           path: "constraints"
           ref: ${{ env.CONSTRAINTS_BRANCH }}
@@ -233,7 +241,7 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     steps:
       - name: "Send Slack notification"
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

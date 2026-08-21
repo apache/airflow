@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import uuid
 from unittest import mock
 from unittest.mock import patch
 
@@ -171,6 +172,47 @@ class TestEmrContainerOperator:
         event = {"status": "error", "message": "Job failed", "job_id": "test_job_id"}
         with pytest.raises(AirflowException, match="Error while running job"):
             self.emr_container.execute_complete(context=None, event=event)
+
+    def _make_operator_without_token(self):
+        return EmrContainerOperator(
+            task_id="start_job",
+            name="test_emr_job",
+            virtual_cluster_id="vzw123456",
+            execution_role_arn="arn:aws:somerole",
+            release_label="6.3.0-latest",
+            job_driver={},
+            configuration_overrides={},
+            poll_interval=0,
+        )
+
+    def test_default_client_request_token_not_generated_at_construction(self):
+        operator = self._make_operator_without_token()
+        assert operator.client_request_token is None
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(EmrContainerHook, "check_query_status", return_value="COMPLETED")
+    def test_execute_generates_fresh_token_per_attempt(self, mock_check_query_status, mock_submit_job):
+        operator = self._make_operator_without_token()
+
+        operator.execute(None)
+        operator.execute(None)
+
+        tokens = [call.args[5] for call in mock_submit_job.call_args_list]
+        assert tokens[0] != tokens[1]
+        for token in tokens:
+            assert uuid.UUID(token).version == 4
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(EmrContainerHook, "check_query_status", return_value="COMPLETED")
+    def test_execute_honors_explicit_token_across_attempts(self, mock_check_query_status, mock_submit_job):
+        self.emr_container.execute(None)
+        self.emr_container.execute(None)
+
+        tokens = [call.args[5] for call in mock_submit_job.call_args_list]
+        assert tokens == [GENERATED_UUID, GENERATED_UUID]
+
+    def test_client_request_token_not_templated(self):
+        assert "client_request_token" not in EmrContainerOperator.template_fields
 
 
 class TestEmrEksCreateClusterOperator:

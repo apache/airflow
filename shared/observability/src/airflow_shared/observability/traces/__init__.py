@@ -60,10 +60,11 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
 TASK_SPAN_DETAIL_LEVEL_KEY = "airflow/task_span_detail_level"
 DEFAULT_TASK_SPAN_DETAIL_LEVEL = 1
 TRACE_SAMPLED_KEY = "airflow/trace_sampled"
+DAGRUN_PARENT_TRACE_CONTEXT_KEY = "airflow/dagrun_parent_trace_context"
 
 
 def new_dagrun_trace_carrier(
-    task_span_detail_level=None, attributes=None, force_sampled=None
+    task_span_detail_level=None, attributes=None, force_sampled=None, parent_context=None
 ) -> dict[str, str]:
     """
     Generate a fresh W3C traceparent carrier without creating a recordable span.
@@ -83,9 +84,29 @@ def new_dagrun_trace_carrier(
     SAMPLED flag directly (True = always trace this run, False = never) and the
     sampler is not consulted. Airflow wires this from the ``airflow/trace_sampled``
     run conf key; when None the configured sampler makes the decision.
+
+    ``parent_context`` optionally embeds the run in an *external* trace: when it
+    carries a valid span the carrier reuses that trace_id (so the whole run --
+    dag_run, task_run, worker spans -- lives inside the external trace) and the
+    sampling decision is made with that parent, so parent-based samplers inherit
+    the external SAMPLED flag. Airflow wires this from the
+    ``airflow/dagrun_parent_trace_context`` run conf key; when None the run is a root
+    trace as before.
     """
+    parent_span_context = (
+        trace.get_current_span(context=parent_context).get_span_context() if parent_context else None
+    )
     gen = RandomIdGenerator()
-    trace_id = gen.generate_trace_id()
+    if parent_span_context is not None and parent_span_context.is_valid:
+        # Embed in the external trace: ride its trace_id, inherit its tracestate, and
+        # let the sampler decide with this parent (so parent-based samplers follow it).
+        trace_id = parent_span_context.trace_id
+        parent_trace_state: TraceState | None = parent_span_context.trace_state
+        sampler_parent_context = parent_context
+    else:
+        trace_id = gen.generate_trace_id()
+        parent_trace_state = None
+        sampler_parent_context = None
 
     if force_sampled is not None:
         sampled = force_sampled
@@ -95,7 +116,7 @@ def new_dagrun_trace_carrier(
         sampler = getattr(provider, "sampler", None)
         if sampler is not None:
             result = sampler.should_sample(
-                parent_context=None,  # root decision
+                parent_context=sampler_parent_context,  # None => root decision; else inherit parent
                 trace_id=trace_id,
                 name="dag_run",
                 attributes=attributes or {},
@@ -109,9 +130,13 @@ def new_dagrun_trace_carrier(
             sampled = False
             sampler_trace_state = None
 
-    # Preserve the detail-level tracestate by merging it onto whatever the
-    # sampler returned. TraceState is immutable, so update() returns a new one.
-    trace_state = sampler_trace_state or TraceState()
+    # Preserve the detail-level tracestate by merging it onto whatever the sampler
+    # returned, falling back to the external parent's tracestate when embedding
+    # without a sampler decision. TraceState is immutable, so update() returns a new one.
+    trace_state = sampler_trace_state
+    if trace_state is None and parent_trace_state is not None:
+        trace_state = parent_trace_state
+    trace_state = trace_state or TraceState()
     for key, value in build_trace_state_entries(task_span_detail_level):
         trace_state = trace_state.update(key, value)
 
