@@ -405,7 +405,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # fallback if connection lookup fails; overridden by rest-scheme/rest-port extras below
             "rest_scheme": "http",
             "rest_port": 6066,
-            "rest_endpoint": None
+            "rest_endpoint": None,
         }
 
         try:
@@ -426,10 +426,16 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             # Append port if provided
             conn_data["master"] = f"{conn_data['master']}:{conn.port}" if conn.port else conn_data["master"]
-            
+
             # Construct the Standalone Restendpoint
-            if conn.conn_type == "spark" and conn_data["master"].startswith("spark://") and conn_data["master"].endswith("7077"):
-                conn_data["rest_endpoint"] = f"{conn_data["rest_scheme"]}://{conn_data["master"].strip().split(":")[0]}:{conn_data["rest_port"]}"
+            if (
+                conn.conn_type == "spark"
+                and conn_data["master"].startswith("spark://")
+                and conn_data["master"].endswith("7077")
+            ):
+                conn_data["rest_endpoint"] = (
+                    f"{conn_data['rest_scheme']}://{conn_data['master'].strip().split(':')[0]}:{conn_data['rest_port']}"
+                )
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
@@ -705,7 +711,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 f"{host}/v1/submissions/status/{self._driver_id}",
             ]
             self.log.info(connection_cmd)
-        
+
             # The driver id so we can poll for its status
             if not self._driver_id:
                 raise AirflowException(

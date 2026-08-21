@@ -212,7 +212,7 @@ class _StandaloneSparkSubmitBackend(_SparkSubmitDeploymentBackend):
         return driver_id
 
     def get_job_status(self, external_id: str, context: Context) -> str:
-        
+
         last_exc: Exception = RuntimeError("No Spark masters to query")
         host = self.hook._connection["rest_endpoint"]
         url = f"{host}/v1/submissions/status/{external_id}"
