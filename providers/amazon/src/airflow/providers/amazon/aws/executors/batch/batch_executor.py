@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_3_PLUS,
     AIRFLOW_V_3_4_PLUS,
 )
@@ -47,6 +48,8 @@ if AIRFLOW_V_3_4_PLUS:
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.batch.utils import BatchJobWorkloadKey
@@ -135,6 +138,15 @@ class AwsBatchExecutor(BaseExecutor):
             AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS,
             fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS],
         )
+
+    if not AIRFLOW_V_3_1_PLUS:
+
+        def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+            from airflow.executors import workloads
+
+            if not isinstance(workload, workloads.ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+            self.queued_tasks[workload.ti.key] = workload
 
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads

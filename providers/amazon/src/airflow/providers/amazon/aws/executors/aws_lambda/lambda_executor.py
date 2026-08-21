@@ -42,7 +42,11 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+from airflow.providers.amazon.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import prune_dict
 
@@ -52,6 +56,8 @@ if AIRFLOW_V_3_4_PLUS:
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
 
@@ -228,6 +234,15 @@ class AwsLambdaExecutor(BaseExecutor):
                 )
         except Exception:
             self.log.exception("An error occurred while syncing workloads.")
+
+    if not AIRFLOW_V_3_1_PLUS:
+
+        def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+            from airflow.executors import workloads
+
+            if not isinstance(workload, workloads.ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+            self.queued_tasks[workload.ti.key] = workload
 
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
