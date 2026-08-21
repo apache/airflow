@@ -53,7 +53,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs
+from airflow.models.dagrun import DagRun, DagRunNote, FinishedTI, clear_partition_runs
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
@@ -471,6 +471,10 @@ class TestDagRun:
         # Make sure the correct TI is passed on success
         call_args = execute_dag_callbacks.call_args
         ti_passed = call_args.kwargs["relevant_ti"]
+        # During scheduling, finished tis are accessed as a minimal FinishedTI view,
+        # and only the ti handed to a dag callback is fetched as a full TaskInstance.
+        # Check that the callback receives a TaskInstance and not a FinishedTI.
+        assert isinstance(ti_passed, TaskInstance)
         assert ti_passed.task_id == "test_state_succeeded2"
 
         assert dag_run.state == DagRunState.SUCCESS
@@ -505,6 +509,10 @@ class TestDagRun:
         # Make sure the correct TI is passed on failure
         call_args = execute_dag_callbacks.call_args
         ti_passed = call_args.kwargs["relevant_ti"]
+        # During scheduling, finished tis are accessed as a minimal FinishedTI view,
+        # and only the ti handed to a dag callback is fetched as a full TaskInstance.
+        # Check that the callback receives a TaskInstance and not a FinishedTI.
+        assert isinstance(ti_passed, TaskInstance)
         assert ti_passed.task_id == "test_state_failed2"
 
         assert dag_run.state == DagRunState.FAILED
@@ -2409,9 +2417,15 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
 
     decision = dr.task_instance_scheduling_decisions(session=session)
 
-    # ti1 finished execution. ti2 goes directly to finished state because it's
-    # expanded against a zero-length XCom.
-    assert decision.finished_tis == [ti1, ti2]
+    # The finished_tis list contains both FinishedTI and TaskInstance types,
+    # so compare by content rather than identity.
+    #
+    # ti1 finished execution (before the decision - FinishedTI). ti2 goes directly to finished state
+    # (during the decision - TaskInstance) because it's expanded against a zero-length XCom.
+    assert [(ti.task_id, ti.state) for ti in decision.finished_tis] == [
+        (ti1.task_id, TaskInstanceState.SUCCESS),
+        (ti2.task_id, TaskInstanceState.SKIPPED),
+    ]
 
     indices = session.execute(
         select(TI.map_index, TI.state)
@@ -3957,6 +3971,29 @@ def test_teardown_and_fail_fast(dag_maker):
         "tg_2.my_teardown": "skipped",
         "tg_2.my_work": "skipped",
     }
+
+
+def test_scheduling_decisions_mark_orphaned_finished_tis_removed(dag_maker, session):
+    """A finished ti whose task no longer exists in the dag is marked REMOVED and excluded."""
+    with dag_maker(session=session):
+        EmptyOperator(task_id="stays")
+        EmptyOperator(task_id="vanishes")
+    dr = dag_maker.create_dagrun()
+    for ti in dr.get_task_instances(session=session):
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    del dr.dag.task_dict["vanishes"]
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert len(decision.finished_tis) == 1
+    finished_ti = decision.finished_tis[0]
+    assert isinstance(finished_ti, FinishedTI)
+    assert finished_ti.task_id == "stays"
+    assert finished_ti.state == TaskInstanceState.SUCCESS
+    assert finished_ti.task is dr.dag.task_dict["stays"]
+    session.expire_all()
+    assert dr.get_task_instance("vanishes", session=session).state == TaskInstanceState.REMOVED
 
 
 class TestDagRunHandleDagCallback:
