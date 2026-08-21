@@ -23,10 +23,20 @@ Changelog
 3.8.1
 .....
 
+.. note::
+    The Azure AD OAuth provider in the FAB auth manager validates the ``iss`` (issuer) and
+    ``aud`` (audience) claims of ``id_token`` by default when ``verify_signature`` is enabled.
+    Both tenant GUID authorities (case-insensitive) and tenant domain authorities (e.g.
+    ``*.onmicrosoft.com`` or custom verified domains) are supported. For domain authorities, the
+    canonical tenant GUID is resolved via Microsoft OpenID Connect discovery. Deployments using
+    tenant-agnostic endpoints (``common``, ``organizations``, ``consumers``) must explicitly
+    configure a specific tenant GUID or domain via ``tenant_id`` in ``client_kwargs``.
+
 Bug Fixes
 ~~~~~~~~~
 
 * ``Validate issuer and audience of Azure AD id_tokens in FAB auth manager (#71735)``
+* ``Support Azure tenant domain and uppercase GUID authorities in FAB auth manager (#71920)``
 
 Misc
 ~~~~
