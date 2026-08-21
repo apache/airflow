@@ -1310,17 +1310,32 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :return: full command to kill a driver
         """
-        # Assume that spark-submit is present in the path to the executing user
-        connection_cmd = [self._connection["spark_binary"]]
+        curl_max_wait_time = 30
+        spark_host = self._connection["master"]
+        if spark_host.endswith(":6066") or spark_host.endswith(":7077"):
+            spark_host = self._connection["rest_endpoint"]
+            connection_cmd = [
+                "/usr/bin/curl",
+                "--max-time",
+                str(curl_max_wait_time),
+                "-X",
+                "POST",
+                f"{spark_host}/v1/submissions/kill/{self._driver_id}",
+            ]
+            self.log.info(connection_cmd)
 
-        # The url to the spark master
-        connection_cmd += ["--master", self._connection["master"]]
+        else:
+           
+            connection_cmd = self._get_spark_binary_path()
 
-        # The actual kill command
-        if self._driver_id:
-            connection_cmd += ["--kill", self._driver_id]
+            # The url to the spark master
+            connection_cmd += ["--master", self._connection["master"]]
 
-        self.log.debug("Spark-Kill cmd: %s", connection_cmd)
+            # The actual kill command
+            if self._driver_id:
+                connection_cmd += ["--kill", self._driver_id]
+
+            self.log.debug("Spark-Kill cmd: %s", connection_cmd)
 
         return connection_cmd
 
