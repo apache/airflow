@@ -100,7 +100,7 @@ from airflow.models.connection_test import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion, _resolve_version_data
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -383,7 +383,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = DBDagBag(load_op_links=False, cache_size=SCHEDULER_DAG_CACHE_SIZE)
+        self.scheduler_dag_bag = CachedDBDagBag(
+            load_op_links=False,
+            cache_size=SCHEDULER_DAG_CACHE_SIZE,
+            cache_ttl=0,
+            stats_prefix="scheduler.dag_bag",
+        )
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the

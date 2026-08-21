@@ -84,6 +84,7 @@ from airflow.models.connection_test import (
 )
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import CachedDBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
@@ -420,8 +421,11 @@ class TestSchedulerJob:
 
         job_runner = SchedulerJobRunner(Job())
 
+        assert isinstance(job_runner.scheduler_dag_bag, CachedDBDagBag)
         assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
         assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
+        # Reported separately from the API server's cache, not folded into it.
+        assert job_runner.scheduler_dag_bag._stats_prefix == "scheduler.dag_bag"
 
     @pytest.mark.parametrize(
         "heartrate",
