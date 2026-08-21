@@ -126,7 +126,7 @@ class Variable(Base, LoggingMixin):
         return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
-    def setdefault(cls, key, default, description=None, deserialize_json=False):
+    def setdefault(cls, key, default, description=None, deserialize_json=False, *, session=None):
         """
         Return the current value for a key or store the default value and return it.
 
@@ -138,13 +138,20 @@ class Variable(Base, LoggingMixin):
         :param description: Default value to set Description of the Variable
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
-        :param session: Session
+        :param session: Existing session to reuse for the metadata database read and write.
+            Callers holding an open transaction must pass it.
         :return: Mixed
         """
-        obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
+        obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json, session=session)
         if obj is None:
             if default is not None:
-                Variable.set(key=key, value=default, description=description, serialize_json=deserialize_json)
+                Variable.set(
+                    key=key,
+                    value=default,
+                    description=description,
+                    serialize_json=deserialize_json,
+                    session=session,
+                )
                 return default
             raise ValueError("Default Value must be set")
         return obj

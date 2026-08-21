@@ -245,6 +245,23 @@ class TestVariable:
         with prohibit_commit(session):
             Variable.update(key="interval_key", value="120", session=session)
 
+    def test_setdefault_with_session_does_not_commit_under_prohibit_commit(self, session):
+        """``setdefault`` reads through the secrets chain before deciding whether to write."""
+        Variable.set(key="interval_key", value="60", session=session)
+        session.commit()
+        SecretCache.invalidate_variable("interval_key")
+
+        with prohibit_commit(session):
+            assert Variable.setdefault("interval_key", "120", session=session) == "60"
+
+    def test_setdefault_writes_default_with_session_under_prohibit_commit(self, session):
+        """The write half must reuse the session too, so the miss path stays inside the transaction."""
+        with prohibit_commit(session):
+            assert Variable.setdefault("absent_key", "30", session=session) == "30"
+        session.commit()
+
+        assert Variable.get("absent_key", session=session) == "30"
+
     def test_get_rejects_session_in_execution_context(self):
         """Reads from an execution context go via the Execution API, where a session is meaningless."""
         task_runner = mock.Mock(SUPERVISOR_COMMS=mock.Mock())
