@@ -2513,6 +2513,7 @@ docs = [
     { name = "sphinxcontrib-serializinghtml" },
     { name = "sphinxcontrib-spelling" },
     { name = "swagger-plugin-for-sphinx" },
+    { name = "tabulate" },
 ]
 docs-gen = [
     { name = "diagrams" },
@@ -2702,6 +2703,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'sqlalchemy'", specifier = ">=1.4.49" },
     { name = "sqlalchemy-utils", marker = "extra == 'sqlalchemy'", specifier = ">=0.41.2" },
     { name = "swagger-plugin-for-sphinx", marker = "extra == 'docs'", specifier = ">=7.1.0,!=7.2.0" },
+    { name = "tabulate", marker = "extra == 'docs'", specifier = ">=0.9.0" },
     { name = "time-machine", extras = ["dateutil"], specifier = ">=3.0.0" },
     { name = "towncrier", marker = "extra == 'devscripts'", specifier = ">=23.11.0" },
     { name = "twine", marker = "extra == 'devscripts'", specifier = ">=4.0.2" },
@@ -2876,8 +2878,20 @@ dependencies = [
     { name = "mypy" },
 ]
 
+[package.dev-dependencies]
+docs = [
+    { name = "apache-airflow-core" },
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
 [package.metadata]
 requires-dist = [{ name = "mypy", specifier = ">=1.0.0" }]
+
+[package.metadata.requires-dev]
+docs = [
+    { name = "apache-airflow-core", editable = "airflow-core" },
+    { name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" },
+]
 
 [[package]]
 name = "apache-airflow-providers"
