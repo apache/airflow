@@ -156,17 +156,6 @@ DM = DagModel
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
-SCHEDULER_DAG_CACHE_SIZE = 512
-"""
-Max deserialized Dag versions the scheduler keeps in memory.
-
-The scheduler reaches its DagBag through the Dag version of each active Dag run, so an
-unbounded cache retains every version the process has ever seen and grows for the life of
-the process. Sized to sit above the versions-with-runs-in-flight working set of a typical
-deployment, so eviction costs a re-fetch only where that working set is genuinely larger.
-
-:meta private:
-"""
 
 # Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
 # Bounds the per-tick transaction so executor heartbeats and regular scheduling
@@ -301,6 +290,30 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
+def _create_scheduler_dag_bag() -> CachedDBDagBag:
+    """
+    Build the scheduler's DagBag from the ``[scheduler]`` cache options.
+
+    Defaults to an LRU cache of 512 versions with no TTL. A size limit is the only hard ceiling:
+    each re-check resets an entry's expiry, so a TTL reclaims a version only once its runs finish
+    and it stops being requested, bounding memory by the concurrently active set rather than
+    outright. With both limits disabled, retain loaded Dags without eviction for the process
+    lifetime.
+    """
+    cache_size = conf.getint("scheduler", "dag_cache_size", fallback=512)
+    cache_ttl = conf.getint("scheduler", "dag_cache_ttl", fallback=0)
+    if cache_size < 0:
+        raise ValueError("[scheduler] dag_cache_size must be greater than or equal to 0")
+    if cache_ttl < 0:
+        raise ValueError("[scheduler] dag_cache_ttl must be greater than or equal to 0")
+    return CachedDBDagBag(
+        load_op_links=False,
+        cache_size=cache_size,
+        cache_ttl=cache_ttl,
+        stats_prefix="scheduler.dag_bag",
+    )
+
+
 def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
     """Get the dag_run IDs and how many tasks are in the provided states for each one."""
     return (
@@ -383,12 +396,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = CachedDBDagBag(
-            load_op_links=False,
-            cache_size=SCHEDULER_DAG_CACHE_SIZE,
-            cache_ttl=0,
-            stats_prefix="scheduler.dag_bag",
-        )
+        self.scheduler_dag_bag = _create_scheduler_dag_bag()
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
