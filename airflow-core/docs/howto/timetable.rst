@@ -347,7 +347,7 @@ Changing generated ``run_id``
 
 Since Airflow 2.4, Timetables are also responsible for generating the ``run_id`` for DagRuns.
 
-For example to have the Run ID show a "human friendly" date of when the run started (that is, the end of the data interval, rather then the start which is the date currently used) you could add a method like this to a custom timetable:
+For example to have the Run ID show a "human friendly" date of when the run started (that is, the end of the data interval, rather than the start which is the date currently used) you could add a method like this to a custom timetable:
 
 .. code-block:: python
 
