@@ -183,6 +183,55 @@ class TestAssetModelOperation:
         yield
         self.clean_db()
 
+    @staticmethod
+    def _dags_for(dag_maker, schedules):
+        """One Dag per schedule, keyed by dag_id in the order given."""
+        dags = {}
+        for index, schedule in enumerate(schedules):
+            with dag_maker(dag_id=f"dag_{index}", schedule=[schedule]) as dag:
+                EmptyOperator(task_id="mytask")
+            dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
+        return dags
+
+    def test_shared_assets_and_aliases_are_collected_in_a_stable_order(self, dag_maker):
+        """Two writers reaching the same rows must take them the same way round or they deadlock."""
+        dags = self._dags_for(
+            dag_maker,
+            [
+                Asset("c_asset"),
+                AssetAlias("z_alias"),
+                Asset("a_asset"),
+                AssetAlias("a_alias"),
+                Asset("b_asset"),
+            ],
+        )
+        reversed_dags = dict(reversed(list(dags.items())))
+
+        forwards = AssetModelOperation.collect(dags)
+        backwards = AssetModelOperation.collect(reversed_dags)
+
+        assert [name for name, _ in forwards.assets] == ["a_asset", "b_asset", "c_asset"]
+        assert list(forwards.assets) == list(backwards.assets)
+        assert list(forwards.asset_aliases) == ["a_alias", "z_alias"]
+        assert list(forwards.asset_aliases) == list(backwards.asset_aliases)
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_assets_that_already_exist_keep_the_stable_order(self, dag_maker, session):
+        """Existing rows come back in the query's order, so it is put back before returning."""
+        dags = self._dags_for(dag_maker, [Asset("c_asset"), Asset("b_asset"), Asset("a_asset")])
+        asset_op = AssetModelOperation.collect(dags)
+        committed = session.scalars(select(AssetModel).order_by(AssetModel.name)).all()
+        assert [a.name for a in committed] == ["a_asset", "b_asset", "c_asset"], committed
+
+        # No backend returns a chosen bad order on demand, so stub it -- with the rows that really
+        # are there, or the write below creates one the database already holds.
+        with mock.patch.object(session, "scalars", autospec=True, return_value=list(reversed(committed))):
+            orm_assets = asset_op.sync_assets(session=session)
+
+        assert [name for name, _ in orm_assets] == ["a_asset", "b_asset", "c_asset"], (
+            "rows that already existed kept the order the database returned them in"
+        )
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
         """When a producer bundle (without access_control) is synced after a consumer bundle
