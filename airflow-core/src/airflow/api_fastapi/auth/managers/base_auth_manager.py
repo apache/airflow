@@ -181,7 +181,17 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         unauthenticated requests when public access is configured) should override this
         method.
         """
-        return []
+        return [self._get_jwt_refresh_middleware()]
+
+    def _get_jwt_refresh_middleware(self) -> tuple[_MiddlewareFactory[Any], dict[str, Any]]:
+        """
+        Return the JWTRefreshMiddleware to refresh the Airflow JWT token.
+
+        :important: The JWTRefreshMiddleware should be included in get_fastapi_middlewares()
+        """
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+
+        return JWTRefreshMiddleware, {}
 
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
