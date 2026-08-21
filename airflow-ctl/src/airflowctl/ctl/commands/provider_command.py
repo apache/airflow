@@ -14,31 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Command functions for installed Airflow providers."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
+from airflowctl.ctl.console_formatting import AirflowConsole
 
 
-class ProviderResponse(BaseModel):
-    """Provider serializer for responses."""
+@provide_api_client(kind=ClientKind.CLI)
+def get_provider(args, api_client: Client = NEW_API_CLIENT) -> dict[str, Any]:
+    """Get information for an installed provider."""
+    response = api_client.providers.get(provider_name=args.provider_name)
+    if args.full:
+        result = response.provider_info
+    else:
+        result = {"Provider": response.package_name, "Version": response.version}
 
-    package_name: str
-    description: str
-    version: str
-    documentation_url: str | None
-
-
-class ProviderCollectionResponse(BaseModel):
-    """Provider Collection serializer for responses."""
-
-    providers: list[ProviderResponse]
-    total_entries: int
-
-
-class ProviderDetailsResponse(ProviderResponse):
-    """Detailed provider serializer for responses."""
-
-    provider_info: dict[str, Any]
+    AirflowConsole().print_as(data=[result], output=args.output)
+    return result

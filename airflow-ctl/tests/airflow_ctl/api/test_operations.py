@@ -89,6 +89,7 @@ from airflowctl.api.datamodels.generated import (
     PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
+    ProviderDetailsResponse,
     ProviderResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
@@ -1736,6 +1737,22 @@ class TestProvidersOperations:
         providers=[provider_response],
         total_entries=1,
     )
+    provider_details_response = ProviderDetailsResponse(
+        package_name="package_name",
+        version="version",
+        description="description",
+        documentation_url=None,
+        provider_info={"package-name": "package_name", "name": "Provider"},
+    )
+
+    def test_get(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/providers/package_name"
+            return httpx.Response(200, json=json.loads(self.provider_details_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.providers.get("package_name")
+        assert response == self.provider_details_response
 
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
