@@ -501,6 +501,47 @@ def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, crea
             assert call.args[0].map_index == expected_map_index[index]
 
 
+def test_expand_mapped_task_uses_bulk_insert_when_mutation_hook_is_noop(dag_maker, session) -> None:
+    with dag_maker(session=session, serialized=True) as dag:
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+
+    dr = dag_maker.create_dagrun()
+
+    class NoopHook:
+        is_noop = True
+
+        def __call__(self, *_, **__):
+            return None
+
+    noop_hook = NoopHook()
+
+    with (
+        mock.patch("airflow.settings.task_instance_mutation_hook", noop_hook),
+        mock.patch.object(session, "bulk_insert_mappings", wraps=session.bulk_insert_mappings) as bulk_insert,
+    ):
+        expand_mapped_task(
+            dag.task_dict[mapped.task_id],
+            dr.run_id,
+            task1.task_id,
+            length=4,
+            session=session,
+        )
+
+    assert bulk_insert.called
+    mapped_indexes = session.scalars(
+        select(TaskInstance.map_index)
+        .where(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.run_id == dr.run_id,
+            TaskInstance.map_index >= 0,
+        )
+        .order_by(TaskInstance.map_index)
+    ).all()
+    assert mapped_indexes == [0, 1, 2, 3]
+
+
 class TestMappedSetupTeardown:
     @staticmethod
     def get_states(dr):
