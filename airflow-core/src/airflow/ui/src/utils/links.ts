@@ -93,6 +93,20 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   return "";
 };
 
+const TASK_INSTANCE_DEFAULT_TAB_PATHS = new Set([
+  "asset_events",
+  "code",
+  "details",
+  "events",
+  "rendered_templates",
+  "xcom",
+]);
+
+// Resolve a stored default-tab preference to a route path. "logs" and any unknown
+// value map to "" so the index route keeps rendering Logs, matching legacy behavior.
+export const getDefaultTaskInstanceTabPath = (value: unknown): string =>
+  typeof value === "string" && TASK_INSTANCE_DEFAULT_TAB_PATHS.has(value) ? value : "";
+
 const SAFE_EXTERNAL_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 
 /**

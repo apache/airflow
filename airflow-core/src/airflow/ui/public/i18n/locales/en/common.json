@@ -269,6 +269,17 @@
       "title": "Clearing"
     },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
+    "general": {
+      "landingPage": {
+        "helper": "Page shown when you open Airflow.",
+        "label": "Landing page",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "General"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
@@ -282,6 +293,13 @@
         "label": "Default mark selection"
       },
       "title": "Marking"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Tab shown first when you open a task instance. Links to a specific tab still open that tab.",
+        "label": "Default task instance tab"
+      },
+      "title": "Task Instance"
     },
     "title": "Settings"
   },

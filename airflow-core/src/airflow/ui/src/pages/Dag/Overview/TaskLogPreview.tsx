@@ -73,7 +73,7 @@ export const TaskLogPreview = ({
               : translate("overview.failedLogs.showLogs")}
           </Button>
           <ClearTaskInstanceButton taskInstance={taskInstance} />
-          <RouterLink fontSize="sm" to={getTaskInstanceLink(taskInstance)}>
+          <RouterLink fontSize="sm" to={`${getTaskInstanceLink(taskInstance)}/logs`}>
             {translate("overview.failedLogs.viewFullLogs")}
           </RouterLink>
         </Flex>

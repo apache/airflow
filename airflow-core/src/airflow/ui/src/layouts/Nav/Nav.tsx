@@ -171,7 +171,7 @@ export const Nav = () => {
             />
           </Link>
         </Box>
-        <NavButton data-testid="nav-home-link" icon={FiHome} title={translate("nav.home")} to="/" />
+        <NavButton data-testid="nav-home-link" icon={FiHome} title={translate("nav.home")} to="/home" />
         <NavButton
           data-testid="nav-dags-link"
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
