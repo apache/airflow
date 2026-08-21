@@ -160,7 +160,7 @@ class TestSparkSubmitHook:
             Connection(
                 conn_id="spark_standalone_cluster_rpc_endpoint",
                 conn_type="spark",
-                host="spark://spark-standalone-master:7077",
+                host="spark://spark-standalone-master-rpc-endpoint:7077",
                 extra='{"deploy-mode": "cluster"}',
             )
         )
@@ -371,7 +371,7 @@ class TestSparkSubmitHook:
             "/usr/bin/curl",
             "--max-time",
             "30",
-            "http://spark-standalone-master:6066/v1/submissions/status/driver-20171128111418-0001",
+            "http://spark-standalone-master-rpc-endpoint:6066/v1/submissions/status/driver-20171128111418-0001",
         ]
 
         assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
@@ -1235,7 +1235,7 @@ class TestSparkSubmitHook:
             "30",
             "-X",
             "POST",
-            "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
+            "http://spark-standalone-master-rpc-endpoint:6066/v1/submissions/kill/driver-20171128111415-0001",
         ]
 
         assert expected_spark_standalone_cluster_rpc_endpoint == kill_cmd_rpc_endpoint
