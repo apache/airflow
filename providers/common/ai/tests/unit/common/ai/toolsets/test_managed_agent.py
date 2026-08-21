@@ -59,12 +59,19 @@ class TestBaseManagedAgentToolsetConstruction:
 
     @pytest.mark.parametrize(
         "description",
-        ["", "   ", "\n"],
-        ids=["empty", "whitespace", "newline"],
+        [None, "", "   ", "\n"],
+        ids=["none", "empty", "whitespace", "newline"],
     )
-    def test_blank_description_rejected(self, description):
-        with pytest.raises(ValueError, match="description is required"):
-            FakeManagedAgentToolset(description=description)
+    def test_absent_description_falls_back_to_the_tool_name(self, description):
+        # Matches HookToolset, which derives a description from the method name
+        # when there is no docstring. The name is the required identifier; the
+        # description is guidance the author may omit.
+        toolset = FakeManagedAgentToolset(tool_name="ask_bookings_analyst", description=description)
+        assert toolset._description == "Ask bookings analyst"
+
+    def test_supplied_description_is_kept_verbatim(self):
+        toolset = FakeManagedAgentToolset(description="Knows bookings. Cannot see support tickets.")
+        assert toolset._description == "Knows bookings. Cannot see support tickets."
 
     def test_empty_tool_name_rejected(self):
         with pytest.raises(ValueError, match="tool_name must be a non-empty string"):

@@ -879,12 +879,19 @@ Tool naming, argument validation, result serialisation, and logging are handled
 by the base class, so every provider's implementation presents the same surface
 to the calling model.
 
+``tool_name`` is the required identifier — it is what the model emits when it
+calls the tool, and the Dag author chooses it. ``description`` is optional and
+falls back to the tool name rendered as prose, the same way ``HookToolset``
+derives one from a method name when there is no docstring.
+
 .. note::
 
-    ``description`` is a required constructor argument. A remote agent's
-    competence cannot be introspected the way ``HookToolset`` reads a hook's
-    docstrings, and the description is the only basis the calling model has for
-    choosing between specialists.
+    Writing a description is still worth the line. It is what tells the model to
+    consult the agent rather than answer from its own knowledge, and it is the
+    only place to record a scope limit the name cannot carry — "cannot see
+    revenue figures". Because the argument schema is always a bare prompt, the
+    name and the description are the whole of what the model knows about the
+    agent.
 
 Toolset or operator?
 """"""""""""""""""""

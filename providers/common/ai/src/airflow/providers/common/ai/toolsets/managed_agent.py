@@ -64,11 +64,17 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
     argument validation, result serialisation and logging are handled here so
     every provider's implementation presents the same surface to the model.
 
-    :param tool_name: Name the calling model sees. A verb phrase naming the
-        specialist reads best, e.g. ``ask_bookings_analyst``.
-    :param description: What this agent knows and when to consult it. Required:
-        a remote agent's competence cannot be introspected, and this is the only
-        basis the calling model has for choosing between specialists.
+    :param tool_name: Name the calling model sees, and the identifier it emits
+        when calling the tool. A verb phrase naming the specialist reads best,
+        e.g. ``ask_bookings_analyst``.
+    :param description: What this agent knows and when to consult it. Optional --
+        it falls back to ``tool_name`` rendered as prose, matching how
+        ``HookToolset`` handles a method with no docstring. Worth writing anyway:
+        it is what tells the model to consult the agent rather than answer from
+        its own knowledge, and it is the only place to state a scope limit the
+        name cannot carry ("cannot see revenue figures"). Since the argument
+        schema is always a bare prompt, the name and this string are the whole
+        of what the model knows about the agent.
     :param timeout: Seconds to wait for a single invocation. ``None`` defers to
         the platform default, which subclasses supply -- a number chosen here
         would silently disagree with the vendor operator's documented timeout
@@ -85,18 +91,14 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         self,
         *,
         tool_name: str,
-        description: str,
+        description: str | None = None,
         timeout: float | None = None,
     ) -> None:
         if not tool_name:
             raise ValueError("tool_name must be a non-empty string.")
-        if not description or not description.strip():
-            raise ValueError(
-                "description is required: the calling model uses it to decide which "
-                "specialist to consult, and it cannot be derived from the agent's identifier."
-            )
         self._tool_name = tool_name
-        self._description = description
+        # Same fallback as HookToolset uses for a method with no docstring.
+        self._description = (description or "").strip() or tool_name.replace("_", " ").capitalize()
         self._timeout = timeout
 
     @property
