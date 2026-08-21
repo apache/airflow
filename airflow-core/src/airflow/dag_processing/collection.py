@@ -581,11 +581,15 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
+        # Ordered, because these rows are locked, and two writers taking the same ones the other
+        # way round deadlock. Dag ids are shared between writers whenever a Dag moves file or a
+        # reserialize runs beside the Dag processor.
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
                 select(DagModel)
                 .options(joinedload(DagModel.tags, innerjoin=False))
                 .where(DagModel.dag_id.in_(self.dags))
+                .order_by(DagModel.dag_id)
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
@@ -603,7 +607,8 @@ class DagModelOperation(NamedTuple):
             for model in _create_orm_dags(
                 bundle_name=self.bundle_name,
                 bundle_version=self.bundle_version,
-                dags=(dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
+                # Sorted for the same reason the lock above is: insertion order is lock order.
+                dags=(dag for dag_id, dag in sorted(self.dags.items()) if dag_id not in orm_dags),
                 session=session,
             )
         )

@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, inspect as sa_inspect, select
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -170,6 +170,60 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
 
 
 @pytest.mark.db_test
+class TestDagModelOperation:
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        clear_db_dags()
+        yield
+        clear_db_dags()
+
+    @staticmethod
+    def _build_dags(dag_maker, names):
+        dags = {}
+        for name in names:
+            with dag_maker(dag_id=name) as dag:
+                EmptyOperator(task_id="mytask")
+            dags[name] = LazyDeserializedDAG.from_dag(dag)
+        return dags
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_existing_dag_rows_are_locked_in_a_stable_order(self, dag_maker, session):
+        dags = self._build_dags(dag_maker, ("c_dag", "a_dag", "b_dag"))
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        locks = [q for q in statements if "dag_id IN" in q]
+        assert locks, statements
+        assert all("ORDER BY" in q for q in locks), f"dag rows are locked in plan order:\n{locks}"
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_new_dag_rows_are_created_in_a_stable_order(self, dag_maker, session):
+        dags = self._build_dags(dag_maker, ("c_dag", "a_dag", "b_dag"))
+        created: list[str] = []
+
+        def spy(*, bundle_name, bundle_version, dags, session):
+            created.extend(dag.dag_id for dag in dags)
+            return []
+
+        with (
+            mock.patch.object(DagModelOperation, "find_orm_dags", autospec=True, return_value={}),
+            mock.patch("airflow.dag_processing.collection._create_orm_dags", spy),
+        ):
+            DagModelOperation(dags, "testing", None).add_dags(session=session)
+
+        assert created == ["a_dag", "b_dag", "c_dag"], created
+
+
+@pytest.mark.db_test
 class TestAssetModelOperation:
     @staticmethod
     def clean_db():
@@ -184,7 +238,7 @@ class TestAssetModelOperation:
         self.clean_db()
 
     @staticmethod
-    def _dags_for(dag_maker, schedules):
+    def _build_dags_for(dag_maker, schedules):
         """One Dag per schedule, keyed by dag_id in the order given."""
         dags = {}
         for index, schedule in enumerate(schedules):
@@ -195,7 +249,7 @@ class TestAssetModelOperation:
 
     def test_shared_assets_and_aliases_are_collected_in_a_stable_order(self, dag_maker):
         """Two writers reaching the same rows must take them the same way round or they deadlock."""
-        dags = self._dags_for(
+        dags = self._build_dags_for(
             dag_maker,
             [
                 Asset("c_asset"),
@@ -218,7 +272,7 @@ class TestAssetModelOperation:
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_assets_that_already_exist_keep_the_stable_order(self, dag_maker, session):
         """Existing rows come back in the query's order, so it is put back before returning."""
-        dags = self._dags_for(dag_maker, [Asset("c_asset"), Asset("b_asset"), Asset("a_asset")])
+        dags = self._build_dags_for(dag_maker, [Asset("c_asset"), Asset("b_asset"), Asset("a_asset")])
         asset_op = AssetModelOperation.collect(dags)
         committed = session.scalars(select(AssetModel).order_by(AssetModel.name)).all()
         assert [a.name for a in committed] == ["a_asset", "b_asset", "c_asset"], committed
