@@ -42,45 +42,41 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 		Description: "Example Go-authored Dag",
 		Tags:        []string{"example", "go-sdk"},
 	})
-	simpleDag.AddTask(extract, v1.TaskSpec{Queue: "go-task", Retries: 2}, nil)
-	simpleDag.AddTask(transform, v1.TaskSpec{Queue: "go-task"}, []string{"extract"})
-	simpleDag.AddTask(load, v1.TaskSpec{Queue: "go-task"}, []string{"transform"})
+	simpleDag.AddTask(extract, nil, v1.TaskSpec{Queue: "go-task", Retries: 2})
+	simpleDag.AddTask(transform, []string{"extract"}, v1.TaskSpec{Queue: "go-task"})
+	simpleDag.AddTask(load, []string{"transform"}, v1.TaskSpec{Queue: "go-task"})
 
 	// Tasks defined in other packages register through the same dagbag.
 	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
 	concurrentDag.AddTaskWithName(
 		"pull_xcoms_concurrently",
 		concurrentxcom.PullXComsConcurrently,
-		v1.TaskSpec{},
 		nil,
 	)
 
 	bindingDag := dagbag.AddDag("taskflow_binding_dag")
-	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig, v1.TaskSpec{}, nil)
-	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers, v1.TaskSpec{}, nil)
-	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion, v1.TaskSpec{}, nil)
-	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig, nil)
+	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers, nil)
+	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion, nil)
+	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs, nil)
 	bindingDag.AddTaskWithName(
 		"via_struct_no_tags",
 		taskflowbinding.ViaStructNoTags,
-		v1.TaskSpec{},
 		nil,
 	)
 	bindingDag.AddTaskWithName(
 		"via_struct_arg_tag",
 		taskflowbinding.ViaStructArgTag,
-		v1.TaskSpec{},
 		nil,
 	)
 	bindingDag.AddTaskWithName(
 		"via_struct_unmatched_arg",
 		taskflowbinding.ViaStructUnmatchedArg,
-		v1.TaskSpec{},
 		nil,
 	)
-	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap, v1.TaskSpec{}, nil)
-	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap, v1.TaskSpec{}, nil)
-	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap, nil)
+	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap, nil)
+	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap, nil)
 
 	return nil
 }

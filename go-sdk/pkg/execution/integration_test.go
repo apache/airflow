@@ -108,7 +108,7 @@ func newStartupDetails(
 func TestDagParsing(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		d := r.AddDag("test_dag")
-		d.AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+		d.AddTask(simpleTask, nil)
 	})
 
 	req := &genmodels.DagFileParseRequest{
@@ -146,8 +146,8 @@ func TestDagParsing(t *testing.T) {
 
 func TestDagParsingMultipleDagsPreservesOrder(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("dag1").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
-		r.AddDag("dag2").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("dag1").AddTask(simpleTask, nil)
+		r.AddDag("dag2").AddTask(failingTask, nil)
 	})
 
 	req := &genmodels.DagFileParseRequest{File: "/bundle/main.go", BundlePath: "/bundle"}
@@ -165,7 +165,7 @@ func TestDagParsingMultipleDagsPreservesOrder(t *testing.T) {
 
 func TestTaskRunnerSuccess(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("test_dag").AddTask(simpleTask, nil)
 	})
 
 	details := newStartupDetails("simpleTask")
@@ -179,7 +179,7 @@ func TestTaskRunnerSuccess(t *testing.T) {
 
 func TestTaskRunnerFailure(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("test_dag").AddTask(failingTask, nil)
 	})
 
 	details := newStartupDetails("failingTask")
@@ -193,7 +193,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 
 func TestTaskRunnerRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("test_dag").AddTask(failingTask, nil)
 	})
 
 	details := newStartupDetails("failingTask")
@@ -209,7 +209,7 @@ func TestTaskRunnerRetry(t *testing.T) {
 
 func TestTaskRunnerTaskNotFound(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("test_dag").AddTask(simpleTask, nil)
 	})
 
 	details := newStartupDetails("nonexistent")
@@ -223,7 +223,7 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 
 func TestTaskRunnerPanic(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("test_dag").AddTask(panicTask, nil)
 	})
 
 	details := newStartupDetails("panicTask")
@@ -237,7 +237,7 @@ func TestTaskRunnerPanic(t *testing.T) {
 
 func TestTaskRunnerPanicRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("test_dag").AddTask(panicTask, nil)
 	})
 
 	details := newStartupDetails("panicTask")
@@ -260,7 +260,7 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 				gotCountry = country
 				gotMeta = meta
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := newStartupDetails(
@@ -295,7 +295,7 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 			func(country string, meta map[string]any) error {
 				ran = true
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := newStartupDetails(
@@ -327,7 +327,7 @@ func TestTaskRunnerBindsStructArgs(t *testing.T) {
 			func(input regionInput) error {
 				got = input
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := newStartupDetails(
@@ -355,7 +355,7 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 			func(input regionInput) error {
 				got = input
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := newStartupDetails(
@@ -386,7 +386,7 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(count int) error { return nil }, bundlev1.TaskSpec{}, nil)
+			func(count int) error { return nil }, nil)
 	})
 
 	details := newStartupDetails(
@@ -413,7 +413,7 @@ func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 			func(country string) error {
 				ran = true
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := newStartupDetails(
@@ -436,7 +436,7 @@ func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 			func(country string) error {
 				ran = true
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := newStartupDetails(
@@ -485,7 +485,7 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 					func(country string) error {
 						ran = true
 						return nil
-					}, bundlev1.TaskSpec{}, nil)
+					}, nil)
 			})
 
 			details := newStartupDetails("transform", tc.spec)
@@ -503,7 +503,7 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(country string) error { return nil }, bundlev1.TaskSpec{}, nil)
+			func(country string) error { return nil }, nil)
 	})
 
 	details := newStartupDetails(
@@ -522,7 +522,7 @@ func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 func TestRunTaskHonorsContextCancellation(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
-			func(ctx context.Context) error { return ctx.Err() }, bundlev1.TaskSpec{}, nil)
+			func(ctx context.Context) error { return ctx.Err() }, nil)
 	})
 
 	details := newStartupDetails("ctxcheck")
@@ -550,7 +550,7 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 			func(ctx sdk.TIRunContext) error {
 				got = ctx
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := &genmodels.StartupDetails{
@@ -610,7 +610,7 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 			func(ctx sdk.TIRunContext) error {
 				got = ctx
 				return nil
-			}, bundlev1.TaskSpec{}, nil)
+			}, nil)
 	})
 
 	details := newStartupDetails("ctxgrab")
@@ -680,7 +680,7 @@ func TestServeDagFileParseEndToEnd(t *testing.T) {
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
 			d := r.AddDag("simple_dag")
-			d.AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+			d.AddTask(simpleTask, nil)
 			return nil
 		},
 	}
@@ -731,7 +731,7 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+			r.AddDag("dag1").AddTask(simpleTask, nil)
 			return nil
 		},
 	}
@@ -797,7 +797,7 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 					}
 					gotVar = v
 					return "xval", nil
-				}, bundlev1.TaskSpec{}, nil)
+				}, nil)
 			return nil
 		},
 	}

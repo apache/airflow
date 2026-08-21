@@ -31,8 +31,9 @@ type (
 	// Dag is the handle returned by Registry.AddDag. Use it to attach the Go
 	// functions that implement the dag's tasks.
 	Dag interface {
-		// AddTask registers fn under its Go name. spec configures the task;
-		// depends names already-registered upstream tasks.
+		// AddTask registers fn under its Go name. depends names
+		// already-registered upstream tasks; the optional spec configures the
+		// task.
 		//
 		// fn is an ordinary Go function whose parameters are injected by type
 		// and may appear in any order. Recognised parameters are:
@@ -45,13 +46,13 @@ type (
 		// the task, and a non-nil first result is pushed as the task's
 		// return-value XCom. Passing a non-function, or a function whose return
 		// signature does not match, panics at registration time.
-		AddTask(fn any, spec TaskSpec, depends []string)
+		AddTask(fn any, depends []string, spec ...TaskSpec)
 
 		// AddTaskWithName is like AddTask but sets task_id explicitly instead of
 		// deriving it from the function name. Use it when the Go function name
 		// cannot match the Python @task.stub id, for example for an anonymous
 		// function or a differing name.
-		AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string)
+		AddTaskWithName(taskId string, fn any, depends []string, spec ...TaskSpec)
 	}
 
 	// Registry is the recorder passed to BundleProvider.RegisterDags. Use it to
@@ -83,12 +84,18 @@ type dagShim struct {
 	registry *registry
 }
 
-func (d dagShim) AddTask(fn any, spec TaskSpec, depends []string) {
-	d.registry.registerTask(d.dagId, fn, spec, depends)
+func (d dagShim) AddTask(fn any, depends []string, spec ...TaskSpec) {
+	d.registry.registerTask(d.dagId, fn, depends, optionalSpec(spec, "AddTask"))
 }
 
-func (d dagShim) AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string) {
-	d.registry.registerTaskWithName(d.dagId, taskId, fn, spec, depends)
+func (d dagShim) AddTaskWithName(taskId string, fn any, depends []string, spec ...TaskSpec) {
+	d.registry.registerTaskWithName(
+		d.dagId,
+		taskId,
+		fn,
+		depends,
+		optionalSpec(spec, "AddTaskWithName"),
+	)
 }
 
 func optionalSpec[T any](specs []T, caller string) T {
@@ -194,7 +201,7 @@ func (r *registry) AddDag(dagId string, spec ...DagSpec) Dag {
 	return dagShim{dagId, r}
 }
 
-func (r *registry) registerTask(dagId string, fn any, spec TaskSpec, depends []string) {
+func (r *registry) registerTask(dagId string, fn any, depends []string, spec TaskSpec) {
 	val := reflect.ValueOf(fn)
 
 	if val.Kind() != reflect.Func {
@@ -203,14 +210,14 @@ func (r *registry) registerTask(dagId string, fn any, spec TaskSpec, depends []s
 
 	fnName := getFnName(val)
 
-	r.registerTaskWithName(dagId, fnName, fn, spec, depends)
+	r.registerTaskWithName(dagId, fnName, fn, depends, spec)
 }
 
 func (r *registry) registerTaskWithName(
 	dagId, taskId string,
 	fn any,
-	spec TaskSpec,
 	depends []string,
+	spec TaskSpec,
 ) {
 	validateID("task ID", taskId)
 	doXComPush := spec.DoXComPush == nil || *spec.DoXComPush

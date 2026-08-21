@@ -31,8 +31,8 @@ type BundleProvider interface {
 	//
 	//	func (m *myBundle) RegisterDags(dagbag bundlev1.Registry) error {
 	//		dag := dagbag.AddDag("simple_dag")
-	//		dag.AddTask(extract, bundlev1.TaskSpec{}, nil)
-	//		dag.AddTask(transform, bundlev1.TaskSpec{}, nil)
+	//		dag.AddTask(extract, nil)
+	//		dag.AddTask(transform, []string{"extract"})
 	//		return nil
 	//	}
 	//
