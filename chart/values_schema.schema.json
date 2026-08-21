@@ -138,6 +138,17 @@
                     {
                         "properties": {
                             "type": {
+                                "const": [
+                                    "object",
+                                    "string"
+                                ]
+                            },
+                            "properties": false
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
                                 "const": "string"
                             }
                         }
