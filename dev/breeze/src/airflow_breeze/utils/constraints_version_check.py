@@ -20,17 +20,20 @@ from __future__ import annotations
 import json
 import re
 import shlex
+import shutil
 import sys
 import tempfile
+import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError, URLError
 
 from rich.console import Console
-from rich.syntax import Syntax
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import MOUNT_SELECTED
@@ -39,12 +42,30 @@ from airflow_breeze.utils.console import Output, console_print
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
 from airflow_breeze.utils.github import download_constraints_file
 from airflow_breeze.utils.parallel import get_temp_file_name
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, FILES_PATH
 from airflow_breeze.utils.shared_options import get_verbose
 
 console = Console(color_system="standard")
 
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+# A constraints file pins ~770 packages, each one a PyPI round-trip. The fetches are
+# independent, so they run on a small pool; the table is still printed in constraints-file
+# order because the results are consumed in that order afterwards.
+PYPI_FETCH_PARALLELISM = 10
+PYPI_FETCH_TIMEOUT_SECONDS = 30
+
+# Ten requests in flight is polite enough that PyPI's CDN serves them without complaint, but
+# a burst can still come back throttled (429) or fail transiently (5xx) on a bad day. Those
+# are retried a few times rather than failing the package, obeying Retry-After when PyPI
+# sends one so the wait matches what it is actually asking for.
+PYPI_FETCH_MAX_ATTEMPTS = 3
+PYPI_FETCH_BACKOFF_SECONDS = 1.0
+PYPI_RETRIABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from packaging.version import Version
 
 
@@ -411,13 +432,15 @@ def print_explanations(explanations: list[str]):
         console_print(explanation)
 
 
-def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: str, python_version: str):
-    lines = pyproject_path.read_text().splitlines()
+def pin_dependency_in_pyproject(
+    pyproject_text: str, pkg: str, latest_version: str, python_version: str
+) -> str:
+    """Return the pyproject text with ``pkg`` pinned to ``latest_version`` for that Python."""
     new_lines = []
     in_deps = False
     dep_added = False
     dep_string = f"    \"{pkg}=={latest_version}; python_version=='{python_version}'\","
-    for line in lines:
+    for line in pyproject_text.splitlines():
         new_lines.append(line)
         if line.strip() == "dependencies = [":
             in_deps = True
@@ -427,11 +450,67 @@ def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: 
             in_deps = False
     if not dep_added:
         new_lines.append(dep_string)
-    pyproject_path.write_text("\n".join(new_lines) + "\n")
-    if get_verbose():
-        console_print(
-            f"[cyan]Fixed {pkg} at {latest_version} in [white]{pyproject_path}[/] [dim](pyproject.toml)[/]"
-        )
+    return "\n".join(new_lines) + "\n"
+
+
+def read_pypi_json(pypi_url: str) -> dict:
+    with urllib.request.urlopen(pypi_url, timeout=PYPI_FETCH_TIMEOUT_SECONDS) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def get_retry_after_seconds(error: HTTPError) -> float | None:
+    """Return the Retry-After delay PyPI asked for, or None if it did not ask in seconds."""
+    retry_after = error.headers.get("Retry-After") if error.headers else None
+    if not retry_after:
+        return None
+    try:
+        return max(0.0, float(retry_after))
+    except ValueError:
+        # The header also has an HTTP-date form; fall back to the backoff schedule for it.
+        return None
+
+
+def compute_backoff_seconds(attempt: int) -> float:
+    return PYPI_FETCH_BACKOFF_SECONDS * 2**attempt
+
+
+def fetch_pypi_data(pkg: str) -> dict:
+    """Fetch one package's PyPI metadata, retrying while PyPI is throttling or erroring.
+
+    The final attempt is made outside the loop so whatever it raises reaches the caller
+    unchanged - a package that is genuinely gone still fails against itself.
+    """
+    pypi_url = f"https://pypi.org/pypi/{pkg}/json"
+    for attempt in range(PYPI_FETCH_MAX_ATTEMPTS - 1):
+        try:
+            return read_pypi_json(pypi_url)
+        except HTTPError as e:
+            if e.code not in PYPI_RETRIABLE_STATUS_CODES:
+                raise
+            time.sleep(get_retry_after_seconds(e) or compute_backoff_seconds(attempt))
+        except (URLError, OSError):
+            time.sleep(compute_backoff_seconds(attempt))
+    return read_pypi_json(pypi_url)
+
+
+def iter_pypi_data(package_names: list[str]) -> Iterator[dict | BaseException]:
+    """Yield each package's PyPI metadata in order, fetching a batch at a time.
+
+    A failed fetch is yielded as its exception rather than raised, so one unreachable
+    package is reported against that package alone, as it was when the fetches ran one
+    at a time. Fetching stays batched instead of prefetching everything because a single
+    project's release history can be tens of megabytes - only one batch is ever alive.
+    """
+
+    def fetch(pkg: str) -> dict | BaseException:
+        try:
+            return fetch_pypi_data(pkg)
+        except (HTTPError, URLError, OSError, json.JSONDecodeError) as e:
+            return e
+
+    with ThreadPoolExecutor(max_workers=PYPI_FETCH_PARALLELISM) as executor:
+        for start in range(0, len(package_names), PYPI_FETCH_PARALLELISM):
+            yield from executor.map(fetch, package_names[start : start + PYPI_FETCH_PARALLELISM])
 
 
 def process_packages(
@@ -446,11 +525,6 @@ def process_packages(
     github_repository: str | None,
     cooldown_days: int = 4,
 ) -> tuple[int, int, list[str], dict[str, int]]:
-    def fetch_pypi_data(pkg: str) -> dict:
-        pypi_url = f"https://pypi.org/pypi/{pkg}/json"
-        with urllib.request.urlopen(pypi_url) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-
     def get_release_dates(releases: dict, version: str) -> str:
         if releases.get(version):
             return (
@@ -462,15 +536,15 @@ def process_packages(
 
     outdated_count = 0
     skipped_count = 0
-    explanations = []
     status_counts: dict[str, int] = {"ok": 0, "new": 0, "warning": 0, "critical": 0}
-    # Resolved lazily on the first package that needs an explanation, then shared by all of
-    # them — see resolve_baseline_versions() for why one resolution is enough.
-    baseline: tuple[str, dict[str, str]] | None = None
+    # Collected while the table is printed and explained together afterwards, in one container.
+    candidates: list[UpgradeCandidate] = []
 
-    for pkg, pinned_version in packages:
+    pypi_data = iter_pypi_data([pkg for pkg, _ in packages])
+    for (pkg, pinned_version), data in zip(packages, pypi_data):
         try:
-            data = fetch_pypi_data(pkg)
+            if isinstance(data, BaseException):
+                raise data
             releases = data["releases"]
             latest_version_with_cooldown = get_latest_version_with_cooldown(releases, cooldown_days)
             latest_version = latest_version_with_cooldown or data["info"]["version"]
@@ -500,30 +574,26 @@ def process_packages(
                 skipped_count += 1
 
             if explain_why and not is_latest_version:
-                if baseline is None:
-                    baseline = resolve_baseline_versions(
-                        python_version=python_version,
-                        airflow_constraints_mode=airflow_constraints_mode,
-                        github_repository=github_repository,
-                    )
-                baseline_text, baseline_versions = baseline
-                explanation = explain_package_upgrade(
-                    pkg=pkg,
-                    pinned_version=pinned_version,
-                    latest_version=latest_version,
-                    python_version=python_version,
-                    airflow_constraints_mode=airflow_constraints_mode,
-                    github_repository=github_repository,
-                    baseline_text=baseline_text,
-                    baseline_versions=baseline_versions,
-                )
-                explanations.append(explanation)
+                candidates.append(UpgradeCandidate(pkg, pinned_version, latest_version))
         except HTTPError as e:
             console_print(f"[bold red]Error fetching {pkg} from PyPI: HTTP {e.code}[/]")
             continue
         except URLError as e:
             console_print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
             continue
+        except (OSError, json.JSONDecodeError) as e:
+            console_print(f"[bold red]Error fetching {pkg} from PyPI: {e}[/]")
+            continue
+    explanations = (
+        explain_upgrades(
+            candidates=candidates,
+            python_version=python_version,
+            airflow_constraints_mode=airflow_constraints_mode,
+            github_repository=github_repository,
+        )
+        if candidates
+        else []
+    )
     return outdated_count, skipped_count, explanations, status_counts
 
 
@@ -599,8 +669,7 @@ def extract_uv_conflict(text: str) -> str:
     of unrelated build/install output — this returns just the conflict block (with ANSI color
     codes stripped), or an empty string if no conflict was reported.
     """
-    ansi_re = re.compile(r"\x1b\[[0-9;]*m")
-    clean = ansi_re.sub("", text)
+    clean = ANSI_ESCAPE_RE.sub("", text)
     lines = clean.splitlines()
     for index, line in enumerate(lines):
         if "No solution found" in line:
@@ -654,28 +723,57 @@ def get_additional_sync_args(airflow_constraints_mode: str) -> list[str]:
     return []
 
 
-# Marker echoed between ``uv sync`` and ``uv pip freeze`` so the freeze output can be
-# sliced out of the combined shell log.
+# Every ``execute_command_in_shell`` call is a fresh ``docker compose run --rm`` container,
+# which costs more than the resolution it wraps. All the explanations therefore run as one
+# script in a single container, with these markers echoed around each step so the combined
+# log can be sliced back into one section per package.
+SECTION_MARKER = "===BREEZE_EXPLAIN_SECTION==="
+RETURN_CODE_MARKER = "===BREEZE_EXPLAIN_RC==="
 FREEZE_MARKER = "===BREEZE_RESOLVED_FREEZE==="
+BASELINE_SECTION = "baseline"
+CONTAINER_WORKSPACE_PATH = "/opt/airflow"
+CONTAINER_FILES_PATH = "/files"
 
 
-def sync_and_freeze(
-    *,
-    python_version: str,
-    airflow_constraints_mode: str,
-    github_repository: str | None,
-    title: str,
-):
-    """Resolve at --resolution highest and, in the *same* shell, freeze the result.
+@dataclass
+class UpgradeCandidate:
+    """An outdated package and the version it would have to reach to be up to date."""
 
-    Each ``execute_command_in_shell`` call is a fresh ``docker compose run --rm``
-    container, so running ``uv pip freeze`` as a separate call would not reliably see
-    the environment the sync just populated. Chaining both in one ``bash -c`` keeps
-    the freeze in the same shell/venv as the sync. ``&&`` ensures the freeze only runs
-    when the sync succeeds and that a sync failure is still reflected in the return
-    code. Returns ``(result, combined_output_text, {canonical_name: version})``.
+    pkg: str
+    pinned_version: str
+    latest_version: str
+
+
+@dataclass
+class ResolvedSection:
+    """One step's slice of the batched run: what uv said, and what it resolved to."""
+
+    name: str
+    returncode: int
+    text: str = ""
+    versions: dict[str, str] = field(default_factory=dict)
+
+
+def build_section(
+    name: str, command: str, *, prepare: list[str] | None = None, freeze: bool = False
+) -> list[str]:
+    """Wrap one command in the markers that make its output findable in the combined log.
+
+    The return code is echoed rather than acted on: one package failing to resolve is a
+    result to report, not a reason to abandon the remaining packages.
     """
-    sync = shlex.join(
+    lines = [f"echo {shlex.quote(f'{SECTION_MARKER} {name}')}"]
+    lines.extend(prepare or [])
+    lines.append(command)
+    lines.append(f'echo "{RETURN_CODE_MARKER} $?"')
+    if freeze:
+        lines.append(f"echo {shlex.quote(FREEZE_MARKER)}")
+        lines.append("uv pip freeze")
+    return lines
+
+
+def build_uv_sync_command(python_version: str, airflow_constraints_mode: str, refresh: bool) -> str:
+    return shlex.join(
         [
             "uv",
             "sync",
@@ -683,179 +781,344 @@ def sync_and_freeze(
             *get_additional_sync_args(airflow_constraints_mode),
             "--resolution",
             "highest",
-            "--refresh",
+            *(["--refresh"] if refresh else []),
             "--python",
             python_version,
         ]
     )
+
+
+def get_pyproject_copy_name(index: int) -> str:
+    return f"pyproject-{index}.toml"
+
+
+def get_section_name(index: int, pkg: str) -> str:
+    """Name a package's section by position as well as name, so two sections can never collide."""
+    return f"{index}-{pkg}"
+
+
+def build_resolution_script(
+    *,
+    plan_path: str,
+    candidates: list[UpgradeCandidate],
+    python_version: str,
+    airflow_constraints_mode: str,
+) -> str:
+    """Chain the baseline resolution and one resolution per candidate into a single script.
+
+    Only the baseline refreshes uv's caches. It re-reads every index page immediately before
+    the pinned resolutions run, so they already see today's releases; refreshing again per
+    package would re-download the metadata of the whole workspace for each one.
+    """
+    lines = [f"cd {CONTAINER_WORKSPACE_PATH}"]
+    lines.extend(
+        build_section(
+            BASELINE_SECTION,
+            build_uv_sync_command(python_version, airflow_constraints_mode, refresh=True),
+            freeze=True,
+        )
+    )
+    pinned_sync = build_uv_sync_command(python_version, airflow_constraints_mode, refresh=False)
+    for index, candidate in enumerate(candidates):
+        lines.extend(
+            build_section(
+                get_section_name(index, candidate.pkg),
+                pinned_sync,
+                # ``cp``, never ``mv``: both files are bind-mounted individually, so replacing
+                # the inode would detach the container's copy from the host's. Restoring the
+                # lock matters as much as pinning - uv prefers versions already locked, so a
+                # lock left behind by the previous package would skew this resolution.
+                prepare=[
+                    f"cp {plan_path}/{get_pyproject_copy_name(index)} pyproject.toml",
+                    f"cp {plan_path}/uv.lock uv.lock",
+                ],
+                freeze=True,
+            )
+        )
+    return "\n".join(lines)
+
+
+def build_conflict_probe_script(probe_pins: list[list[str]], python_version: str) -> str:
+    """Chain the conflict probes of every package that needs one into a single script.
+
+    A fresh ``uv pip compile`` of just the package at its target version plus the packages it
+    would otherwise displace (held at their current versions) is a contradiction, so uv fails
+    and prints exactly why they cannot coexist. Running it from scratch (rather than against
+    the workspace) keeps the output to the conflict itself.
+    """
+    lines = [f"cd {CONTAINER_WORKSPACE_PATH}"]
+    for index, pins in enumerate(probe_pins):
+        printf_cmd = "printf '%s\\n' " + " ".join(shlex.quote(pin) for pin in pins)
+        lines.extend(
+            build_section(
+                str(index),
+                f"{printf_cmd} | uv pip compile - --python {shlex.quote(python_version)}",
+            )
+        )
+    return "\n".join(lines)
+
+
+def split_sections(text: str) -> dict[str, ResolvedSection]:
+    """Slice a batched run's log into ``{section name: section}``.
+
+    A section whose marker never appears is simply absent from the result - the caller reports
+    that package as unexplained rather than attributing another package's resolution to it.
+    """
+    sections: dict[str, ResolvedSection] = {}
+    current: ResolvedSection | None = None
+    body: list[str] = []
+
+    def close_section():
+        if current is None:
+            return
+        current.text = "\n".join(body)
+        if FREEZE_MARKER in current.text:
+            current.versions = parse_freeze(current.text.split(FREEZE_MARKER, 1)[1])
+        sections[current.name] = current
+
+    for line in ANSI_ESCAPE_RE.sub("", text).splitlines():
+        stripped = line.strip()
+        if stripped.startswith(SECTION_MARKER):
+            close_section()
+            current = ResolvedSection(name=stripped[len(SECTION_MARKER) :].strip(), returncode=-1)
+            body = []
+        elif current is None:
+            continue
+        elif stripped.startswith(RETURN_CODE_MARKER):
+            return_code = stripped[len(RETURN_CODE_MARKER) :].strip()
+            current.returncode = int(return_code) if return_code.isdigit() else -1
+        else:
+            body.append(line)
+    close_section()
+    return sections
+
+
+def run_script_in_container(
+    *, script: str, title: str, python_version: str, github_repository: str | None
+) -> str:
     output = Output(title=title, file_name=get_temp_file_name())
-    result = execute_command_in_shell(
+    execute_command_in_shell(
         ShellParams(
             github_repository=github_repository,
             python=python_version,
             mount_sources=MOUNT_SELECTED,
         ),
         project_name="breeze-constraints",
-        command=shlex.join(["bash", "-c", f"{sync} && echo {FREEZE_MARKER} && uv pip freeze"]),
+        command=shlex.join(["bash", "-c", script]),
         output=output,
         signal_error=False,
     )
-    text = Path(output.file_name).read_text()
-    versions = parse_freeze(text.split(FREEZE_MARKER, 1)[1]) if FREEZE_MARKER in text else {}
-    return result, text, versions
+    return Path(output.file_name).read_text()
 
 
-def resolve_baseline_versions(
-    *,
-    python_version: str,
-    airflow_constraints_mode: str,
-    github_repository: str | None,
-) -> tuple[str, dict[str, str]]:
-    """Resolve the unpinned workspace at --resolution highest, once.
+@contextmanager
+def write_resolution_plan(candidates: list[UpgradeCandidate], python_version: str):
+    """Lay out one patched ``pyproject.toml`` per candidate where the container can read them.
 
-    This is the resolution that actually generates the constraints, so it is the ground
-    truth for "what would the constraints pick". It depends only on the workspace and the
-    command's own arguments — never on which package is being explained — and every
-    explanation restores ``pyproject.toml``/``uv.lock`` before the next one starts. So one
-    resolution is enough for the whole run, and recomputing it per package would repeat an
-    identical several-minute ``uv sync`` dozens of times.
+    ``files/`` is mounted into the container, so the whole batch's inputs are written once and
+    the script only has to copy them into place.
     """
-    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
-        _, text, versions = sync_and_freeze(
-            python_version=python_version,
-            airflow_constraints_mode=airflow_constraints_mode,
-            github_repository=github_repository,
-            title="output_baseline",
-        )
-    return text, versions
+    FILES_PATH.mkdir(parents=True, exist_ok=True)
+    plan_path = Path(tempfile.mkdtemp(prefix="constraints-explain-", dir=FILES_PATH))
+    try:
+        pyproject_text = (AIRFLOW_ROOT_PATH / "pyproject.toml").read_text()
+        shutil.copy(AIRFLOW_ROOT_PATH / "uv.lock", plan_path / "uv.lock")
+        for index, candidate in enumerate(candidates):
+            (plan_path / get_pyproject_copy_name(index)).write_text(
+                pin_dependency_in_pyproject(
+                    pyproject_text, candidate.pkg, candidate.latest_version, python_version
+                )
+            )
+        yield plan_path
+    finally:
+        shutil.rmtree(plan_path, ignore_errors=True)
 
 
-def explain_package_upgrade(
-    pkg: str,
-    pinned_version: str,
-    latest_version: str,
+def resolve_upgrade_candidates(
+    *,
+    candidates: list[UpgradeCandidate],
     python_version: str,
     airflow_constraints_mode: str,
     github_repository: str | None,
-    baseline_text: str,
-    baseline_versions: dict[str, str],
-) -> str:
+) -> dict[str, ResolvedSection]:
+    """Resolve the workspace once as it stands and once per candidate, all in one container.
+
+    The unpinned resolution is what actually generates the constraints, so it is the ground
+    truth for "what would the constraints pick" and is shared by every explanation. Each
+    candidate is then resolved with its own version pinned, always from the same starting
+    point: the script restores ``pyproject.toml`` and ``uv.lock`` before every step.
+    """
+    with (
+        preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"),
+        write_resolution_plan(candidates, python_version) as plan_path,
+    ):
+        text = run_script_in_container(
+            script=build_resolution_script(
+                plan_path=f"{CONTAINER_FILES_PATH}/{plan_path.name}",
+                candidates=candidates,
+                python_version=python_version,
+                airflow_constraints_mode=airflow_constraints_mode,
+            ),
+            title="output_resolutions",
+            python_version=python_version,
+            github_repository=github_repository,
+        )
+    return split_sections(text)
+
+
+def run_conflict_probes(
+    *, probe_pins: list[list[str]], python_version: str, github_repository: str | None
+) -> list[str]:
+    """Return uv's own conflict narrative for each set of pins that cannot coexist."""
+    text = run_script_in_container(
+        script=build_conflict_probe_script(probe_pins, python_version),
+        title="output_conflict_probes",
+        python_version=python_version,
+        github_repository=github_repository,
+    )
+    sections = split_sections(text)
+    conflicts = []
+    for index in range(len(probe_pins)):
+        section = sections.get(str(index))
+        conflicts.append(extract_uv_conflict(section.text) if section else "")
+    return conflicts
+
+
+def classify_package_upgrade(
+    *, candidate: UpgradeCandidate, baseline: ResolvedSection, section: ResolvedSection | None
+) -> tuple[str, list[str]]:
+    """Turn one candidate's resolution into a verdict, plus the pins that would prove it.
+
+    The pins are returned rather than probed here so that every package that needs uv's
+    conflict narrative can be probed together, in one more container rather than one each.
+    """
+    from packaging.utils import canonicalize_name
+
+    pkg, pinned_version, latest_version = (
+        candidate.pkg,
+        candidate.pinned_version,
+        candidate.latest_version,
+    )
     explanation = (
         f"[bold blue]\n--- Explaining for {pkg} (current: {pinned_version}, latest: {latest_version}) ---[/]"
     )
-    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
-        from packaging.utils import canonicalize_name
-
-        airflow_pyproject = AIRFLOW_ROOT_PATH / "pyproject.toml"
-        canonical_pkg = str(canonicalize_name(pkg))
-        baseline_version = baseline_versions.get(canonical_pkg)
-
-        update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
-        if get_verbose():
-            syntax = Syntax(
-                airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False
-            )
-            explanation += "\n" + str(syntax)
-        after_result, after_text, after_versions = sync_and_freeze(
-            python_version=python_version,
-            airflow_constraints_mode=airflow_constraints_mode,
-            github_repository=github_repository,
-            title="output_after",
+    if section is None:
+        return (
+            explanation + f"\n[bold yellow]The resolver run produced no output for {pkg}, so the "
+            f"upgrade to {latest_version} could not be classified.[/]",
+            [],
         )
 
-        # A zero exit code only proves that *some* valid resolution exists with the pin — not
-        # that --resolution highest would ever select it. Inspect what was actually resolved:
-        # if honouring the pin forced *other* packages to be downgraded, the unpinned highest
-        # resolution (i.e. the constraints) keeps the package at its lower version, so this is
-        # NOT a clean upgrade.
-        resolved_version = after_versions.get(canonical_pkg)
-        downgrades = find_downgrades(baseline_versions, after_versions, exclude=canonical_pkg)
+    canonical_pkg = str(canonicalize_name(pkg))
+    baseline_version = baseline.versions.get(canonical_pkg)
+    # A zero exit code only proves that *some* valid resolution exists with the pin — not
+    # that --resolution highest would ever select it. Inspect what was actually resolved:
+    # if honouring the pin forced *other* packages to be downgraded, the unpinned highest
+    # resolution (i.e. the constraints) keeps the package at its lower version, so this is
+    # NOT a clean upgrade.
+    resolved_version = section.versions.get(canonical_pkg)
+    downgrades = find_downgrades(baseline.versions, section.versions, exclude=canonical_pkg)
 
-        if after_result.returncode != 0:
-            # Forcing the package to its latest version produced no valid resolution at all:
-            # a genuine hard conflict. Surface uv's own conflict narrative from the sync log.
-            explanation += (
-                f"\n[bold red]Package {pkg} CANNOT be upgraded to {latest_version}: "
-                f"uv could not resolve the workspace with {pkg}=={latest_version} pinned "
-                f"(hard conflict).[/]"
-            )
-            conflict = extract_uv_conflict(after_text)
-            if conflict:
-                explanation += f"\n\n[bold yellow]Conflict as reported by uv:[/]\n{conflict}"
-        elif not baseline_versions or not after_versions:
-            # Without the resolved version lists we cannot tell a clean upgrade apart from one
-            # that only works by downgrading other packages — never silently claim success.
-            explanation += (
-                f"\n[bold yellow]uv sync succeeded but the resolved package versions could not "
-                f"be read (empty freeze output), so the upgrade of {pkg} to {latest_version} "
-                f"could not be classified.[/]"
-            )
-        elif baseline_version == latest_version:
-            explanation += (
-                f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
-                f"--resolution highest. The constraints file appears to be stale.[/]"
-            )
-        elif resolved_version != latest_version:
-            explanation += (
-                f"\n[bold yellow]uv sync succeeded but {pkg} still resolved to "
-                f"{resolved_version or 'an unknown version'}, not {latest_version} — "
-                f"the pin did not take effect, so this is not a real upgrade.[/]"
-            )
-        elif downgrades:
-            explanation += (
-                f"\n[bold yellow]Package {pkg} can reach {latest_version} only by DOWNGRADING "
-                f"other packages, so --resolution highest keeps it at "
-                f"{baseline_version or pinned_version}. Required downgrades:[/]"
-            )
-            for name, before_version, after_version in downgrades:
-                explanation += f"\n  - {name}: {before_version} -> {after_version}"
-            # Reproduce the conflict explicitly so uv's own resolver narrative is visible.
-            # A fresh `uv pip compile` of just the package at its target version plus the
-            # packages it would otherwise displace (held at their current versions) is a
-            # contradiction, so uv fails and prints exactly why they cannot coexist. Running
-            # it from scratch (rather than against the workspace) keeps the output to the
-            # conflict itself, and we filter to uv's narrative regardless of shell noise.
-            conflict_pins = [f"{pkg}=={latest_version}"]
-            conflict_pins += [f"{name}=={before_version}" for name, before_version, _ in downgrades]
-            printf_cmd = "printf '%s\\n' " + " ".join(shlex.quote(pin) for pin in conflict_pins)
-            probe_output = Output(title="conflict_probe", file_name=get_temp_file_name())
-            execute_command_in_shell(
-                ShellParams(
-                    github_repository=github_repository,
-                    python=python_version,
-                    mount_sources=MOUNT_SELECTED,
-                ),
-                project_name="breeze-constraints",
-                command=shlex.join(
-                    [
-                        "bash",
-                        "-c",
-                        f"{printf_cmd} | uv pip compile - --python {shlex.quote(python_version)}",
-                    ]
-                ),
-                output=probe_output,
-                signal_error=False,
-            )
-            conflict = extract_uv_conflict(Path(probe_output.file_name).read_text())
-            explanation += (
-                f"\n\n[bold yellow]Conflict as reported by uv "
-                f"(uv pip compile {' '.join(conflict_pins)}):[/]\n"
-            )
-            explanation += conflict or "[dim](uv did not emit a conflict narrative)[/]"
-        else:
-            explanation += (
-                f"\n[bold green]Package {pkg} can be upgraded from {pinned_version} to "
-                f"{latest_version} without conflicts and without downgrading other packages.[/]"
-                f"\n[dim]If this result is unexpected, run 'uv cache clean' and retry — a stale "
-                f"uv cache can make breeze resolve against an out-of-date environment.[/]"
-            )
+    if section.returncode != 0:
+        # Forcing the package to its latest version produced no valid resolution at all:
+        # a genuine hard conflict. Surface uv's own conflict narrative from the sync log.
+        explanation += (
+            f"\n[bold red]Package {pkg} CANNOT be upgraded to {latest_version}: "
+            f"uv could not resolve the workspace with {pkg}=={latest_version} pinned "
+            f"(hard conflict).[/]"
+        )
+        conflict = extract_uv_conflict(section.text)
+        if conflict:
+            explanation += f"\n\n[bold yellow]Conflict as reported by uv:[/]\n{conflict}"
+    elif not baseline.versions or not section.versions:
+        # Without the resolved version lists we cannot tell a clean upgrade apart from one
+        # that only works by downgrading other packages — never silently claim success.
+        explanation += (
+            f"\n[bold yellow]uv sync succeeded but the resolved package versions could not "
+            f"be read (empty freeze output), so the upgrade of {pkg} to {latest_version} "
+            f"could not be classified.[/]"
+        )
+    elif baseline_version == latest_version:
+        explanation += (
+            f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
+            f"--resolution highest. The constraints file appears to be stale.[/]"
+        )
+    elif resolved_version != latest_version:
+        explanation += (
+            f"\n[bold yellow]uv sync succeeded but {pkg} still resolved to "
+            f"{resolved_version or 'an unknown version'}, not {latest_version} — "
+            f"the pin did not take effect, so this is not a real upgrade.[/]"
+        )
+    elif downgrades:
+        explanation += (
+            f"\n[bold yellow]Package {pkg} can reach {latest_version} only by DOWNGRADING "
+            f"other packages, so --resolution highest keeps it at "
+            f"{baseline_version or pinned_version}. Required downgrades:[/]"
+        )
+        for name, before_version, after_version in downgrades:
+            explanation += f"\n  - {name}: {before_version} -> {after_version}"
+        return explanation, [
+            f"{pkg}=={latest_version}",
+            *(f"{name}=={before_version}" for name, before_version, _ in downgrades),
+        ]
+    else:
+        explanation += (
+            f"\n[bold green]Package {pkg} can be upgraded from {pinned_version} to "
+            f"{latest_version} without conflicts and without downgrading other packages.[/]"
+            f"\n[dim]If this result is unexpected, run 'uv cache clean' and retry — a stale "
+            f"uv cache can make breeze resolve against an out-of-date environment.[/]"
+        )
+    return explanation, []
 
-        if get_verbose():
-            # Full resolver logs of both phases — only when explicitly requested, since they
-            # are very long (each is a complete uv sync plus freeze).
-            explanation += (
-                f"\n\n[yellow]--- uv resolver output: phase 1, baseline (no pin) ---[/]\n{baseline_text}"
-                f"\n[yellow]--- uv resolver output: phase 2, with {pkg}=={latest_version} pinned ---[/]"
-                f"\n{after_text}"
+
+def explain_upgrades(
+    *,
+    candidates: list[UpgradeCandidate],
+    python_version: str,
+    airflow_constraints_mode: str,
+    github_repository: str | None,
+) -> list[str]:
+    """Explain why each outdated package is not at its latest version."""
+    sections = resolve_upgrade_candidates(
+        candidates=candidates,
+        python_version=python_version,
+        airflow_constraints_mode=airflow_constraints_mode,
+        github_repository=github_repository,
+    )
+    baseline = sections.get(BASELINE_SECTION) or ResolvedSection(name=BASELINE_SECTION, returncode=-1)
+    explanations: list[str] = []
+    probe_indexes: list[int] = []
+    probe_pins: list[list[str]] = []
+    for index, candidate in enumerate(candidates):
+        explanation, pins = classify_package_upgrade(
+            candidate=candidate,
+            baseline=baseline,
+            section=sections.get(get_section_name(index, candidate.pkg)),
+        )
+        if pins:
+            probe_indexes.append(len(explanations))
+            probe_pins.append(pins)
+        explanations.append(explanation)
+
+    if probe_pins:
+        conflicts = run_conflict_probes(
+            probe_pins=probe_pins, python_version=python_version, github_repository=github_repository
+        )
+        for index, pins, conflict in zip(probe_indexes, probe_pins, conflicts):
+            explanations[index] += (
+                f"\n\n[bold yellow]Conflict as reported by uv (uv pip compile {' '.join(pins)}):[/]\n"
             )
-    return explanation
+            explanations[index] += conflict or "[dim](uv did not emit a conflict narrative)[/]"
+
+    if get_verbose():
+        # Full resolver logs of both phases — only when explicitly requested, since they
+        # are very long (each is a complete uv sync plus freeze).
+        for index, candidate in enumerate(candidates):
+            section = sections.get(get_section_name(index, candidate.pkg))
+            explanations[index] += (
+                f"\n\n[yellow]--- uv resolver output: phase 1, baseline (no pin) ---[/]\n{baseline.text}"
+                f"\n[yellow]--- uv resolver output: phase 2, with "
+                f"{candidate.pkg}=={candidate.latest_version} pinned ---[/]"
+                f"\n{section.text if section else ''}"
+            )
+    return explanations
