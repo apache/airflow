@@ -102,6 +102,49 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
    You can override the way both standard logs of the components and "task" logs are handled.
 
 
+Custom logging configs and remote logging
+-----------------------------------------
+
+When ``[logging] remote_logging = True`` and you point ``logging_config_class``
+at your own module, define two module-level attributes in that module:
+
+* ``REMOTE_TASK_LOG`` — an instance of
+  :class:`~airflow.logging.remote.RemoteLogIO` (or
+  :class:`~airflow.logging.remote.RemoteLogStreamIO`) that uploads task logs
+  and reads them back for the UI.
+* ``DEFAULT_REMOTE_CONN_ID`` — default Airflow connection id used when
+  ``[logging] remote_log_conn_id`` is unset.
+
+If ``REMOTE_TASK_LOG`` is missing, Airflow emits one ``WARNING`` at startup
+(``Remote log handler could not be loaded; logs will be available locally only.``)
+and the UI cannot read task logs back from the remote backend.
+
+    .. code-block:: python
+
+      # ~/airflow/config/log_config.py
+      from airflow.logging.remote import RemoteLogIO
+
+
+      class MyRemoteLogIO:
+          @property
+          def processors(self):
+              return ()
+
+          def upload(self, path, ti): ...  # upload local log file at ``path`` to your backend
+
+          def read(self, relative_path, ti): ...  # return (source_info, log_messages) for the UI
+
+
+      REMOTE_TASK_LOG: RemoteLogIO | None = MyRemoteLogIO()
+      DEFAULT_REMOTE_CONN_ID: str | None = "my_remote_conn"
+
+.. note::
+
+   Define ``REMOTE_TASK_LOG`` in your own module rather than re-exporting it
+   from ``airflow.config_templates.airflow_local_settings``, which is planned
+   for deprecation.
+
+
 Custom logger for Operators, Hooks and Tasks
 --------------------------------------------
 
