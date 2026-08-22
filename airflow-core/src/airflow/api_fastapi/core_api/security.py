@@ -54,6 +54,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -118,6 +119,25 @@ MAP_BULK_ACTION_TO_AUTH_METHOD: dict[BulkAction, ResourceMethod] = {
 }
 
 
+def _is_system_access(user: BaseUser) -> bool:
+    """
+    Return whether the request is made by a trusted in-process ``SystemUser``.
+
+    A :class:`SystemUser` is never produced by deserializing a JWT token (auth managers only
+    deserialize their own user types), so it can only originate from a process that explicitly
+    overrides the ``get_user`` dependency (see ``InProcessCoreAPI``). Such trusted system access
+    bypasses authorization and per-resource permission filtering.
+    """
+    return isinstance(user, SystemUser)
+
+
+class _UnrestrictedFilter(OrmClause[set[str]]):
+    """Permission filter that applies no restriction, used to bypass filtering for trusted system access."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select
+
+
 async def resolve_user_from_token(token_str: str | None) -> BaseUser:
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -180,6 +200,8 @@ def requires_access_dag(
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         # Required for the closure to capture the dag_id but still be able to mutate it.
         # Prevent from using a nonlocal statement causing test failures.
         dag_id = param_dag_id
@@ -351,6 +373,8 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
+        if _is_system_access(user):
+            return _UnrestrictedFilter()  # type: ignore[return-value]
         authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
         return filter_class(authorized_dags)
 
@@ -428,6 +452,8 @@ def requires_access_backfill(
         user: GetUserDep,
         session: SessionDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         dag_id = None
 
         # Try to retrieve the dag_id from the backfill_id path param
@@ -483,6 +509,8 @@ def requires_access_event_log(
         user: GetUserDep,
         session: SessionDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         dag_id = None
 
         event_log_id_raw = request.path_params.get("event_log_id")
@@ -539,6 +567,8 @@ def permitted_pool_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedPoolFilter:
+        if _is_system_access(user):
+            return _UnrestrictedFilter()  # type: ignore[return-value]
         authorized_pools: set[str] = auth_manager.get_authorized_pools(user=user, method=method)
         return PermittedPoolFilter(authorized_pools)
 
@@ -553,6 +583,8 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         pool_name = request.path_params.get("pool_name")
         for team_name in await _collect_teams_to_check(method, request, pool_name, Pool.get_team_name):
 
@@ -571,6 +603,8 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
         request: BulkBody[PoolBody],
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         multi_team = conf.getboolean("core", "multi_team")
         # Build the list of pool names provided as part of the request that may correspond to
         # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
@@ -641,6 +675,8 @@ def permitted_connection_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedConnectionFilter:
+        if _is_system_access(user):
+            return _UnrestrictedFilter()  # type: ignore[return-value]
         authorized_connections: set[str] = auth_manager.get_authorized_connections(user=user, method=method)
         return PermittedConnectionFilter(authorized_connections)
 
@@ -659,6 +695,8 @@ def requires_access_connection(
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         connection_id = request.path_params.get("connection_id")
         for team_name in await _collect_teams_to_check(
             method, request, connection_id, Connection.get_team_name
@@ -681,6 +719,8 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
         request: BulkBody[ConnectionBody],
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         multi_team = conf.getboolean("core", "multi_team")
         # Build the list of ``conn_id`` provided as part of the request that may correspond to
         # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
@@ -740,6 +780,8 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         section: str | None = request.query_params.get("section") or request.path_params.get("section")
 
         _requires_access(
@@ -767,6 +809,8 @@ def permitted_team_filter_factory() -> Callable[[BaseUser, BaseAuthManager], Per
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedTeamFilter:
+        if _is_system_access(user):
+            return _UnrestrictedFilter()  # type: ignore[return-value]
         authorized_teams: set[str] = auth_manager.get_authorized_teams(user=user, method="GET")
         return PermittedTeamFilter(authorized_teams)
 
@@ -796,6 +840,8 @@ def permitted_variable_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedVariableFilter:
+        if _is_system_access(user):
+            return _UnrestrictedFilter()  # type: ignore[return-value]
         authorized_variables: set[str] = auth_manager.get_authorized_variables(user=user, method=method)
         return PermittedVariableFilter(authorized_variables)
 
@@ -814,6 +860,8 @@ def requires_access_variable(
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         variable_key: str | None = request.path_params.get("variable_key")
         for team_name in await _collect_teams_to_check(method, request, variable_key, Variable.get_team_name):
 
@@ -832,6 +880,8 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         request: BulkBody[VariableBody],
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         multi_team = conf.getboolean("core", "multi_team")
         # Build the list of variable keys provided as part of the request that may correspond to
         # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
@@ -915,6 +965,8 @@ def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUs
         user: GetUserDep,
         dag_id: str,
     ) -> None:
+        if _is_system_access(user):
+            return
         entity_methods: list[tuple[str, ResourceMethod]] = []
         for action in request.actions:
             methods = _get_resource_methods_from_bulk_request(action)
@@ -946,6 +998,8 @@ def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseU
         user: GetUserDep,
         dag_id: str,
     ) -> None:
+        if _is_system_access(user):
+            return
         entity_methods: list[tuple[str, ResourceMethod]] = []
         for run in body.dag_runs:
             entity_dag_id = run.dag_id or dag_id
@@ -973,6 +1027,8 @@ def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         asset_id = request.path_params.get("asset_id")
 
         _requires_access(
@@ -989,6 +1045,8 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
                 access_view=access_view, user=user
@@ -1003,6 +1061,8 @@ def requires_access_asset_alias(method: ResourceMethod) -> Callable[[Request, Ba
         request: Request,
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         asset_alias_id: str | None = request.path_params.get("asset_alias_id")
 
         _requires_access(
