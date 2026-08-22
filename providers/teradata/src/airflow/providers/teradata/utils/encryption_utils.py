@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import secrets
+import shlex
 import string
 import subprocess
 
@@ -51,14 +52,13 @@ def decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, bteq_co
     # Use -pass stdin to avoid shell quoting on any OS and keep the passphrase
     # out of the remote process table where ps could expose it.
     decrypt_cmd = (
-        f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in {remote_enc_file} | " + bteq_command_str
+        f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in {shlex.quote(remote_enc_file)} | "
+        + bteq_command_str
     )
     stdin, stdout, stderr = ssh_client.exec_command(decrypt_cmd)
     stdin.write(password + "\n")
     stdin.flush()
     stdin.channel.shutdown_write()
-    # Clear password to prevent lingering sensitive data
-    password = None
     exit_status = stdout.channel.recv_exit_status()
     output = stdout.read().decode()
     err = stderr.read().decode()
