@@ -2895,6 +2895,10 @@ scheduler:
         Notably, for **DeltaTriggerTimetable**, the logical date is the same as the time the DAG Run will
         try to schedule, while for **DeltaDataIntervalTimetable**, the logical date is the beginning of
         the data interval, but the DAG Run will try to schedule at the end of the data interval.
+
+        When a DAG is switched from **DeltaTriggerTimetable** to **DeltaDataIntervalTimetable** (for example,
+        by flipping this setting from ``False`` to ``True``), the next scheduled run skips one period past
+        the most recent **DeltaTriggerTimetable** run to avoid colliding with its logical date.
       version_added: 2.11.0
       type: boolean
       example: ~
