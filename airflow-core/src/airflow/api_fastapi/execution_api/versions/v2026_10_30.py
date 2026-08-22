@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from cadwyn import (
     ResponseInfo,
+    VersionChange,
     VersionChangeWithSideEffects,
     convert_response_to_previous_version_for,
+    endpoint,
     schema,
 )
 
@@ -40,3 +42,13 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
+
+
+class AddXComBulkDeleteEndpoint(VersionChange):
+    """Add XCom bulk delete endpoint."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/xcoms/{dag_id}/{run_id}", ["DELETE"]).didnt_exist,
+    )
