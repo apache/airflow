@@ -304,6 +304,7 @@ class GitDagBundle(BaseDagBundle):
                     env=self.hook.env if self.hook else None,
                 )
             self.bare_repo = Repo(self.bare_repo_path)
+            self._sync_bare_repo_remote_url()
 
             # Fetch to ensure we have latest refs and validate repo integrity
             self._fetch_bare_repo()
@@ -316,6 +317,23 @@ class GitDagBundle(BaseDagBundle):
             if os.path.exists(self.bare_repo_path):
                 shutil.rmtree(self.bare_repo_path)
             raise
+
+    def _sync_bare_repo_remote_url(self) -> None:
+        """
+        Re-point the bare repo's origin at the current repo url.
+
+        Bundles cloned before credentials moved to GIT_ASKPASS embedded ``user:token`` in the
+        remote url, so the token sits in cleartext in ``<bundle>/bare/config``, readable by any
+        Dag author on the Dag processor. Rewriting origin is what removes it from those bundles.
+        """
+        try:
+            origin = self.bare_repo.remotes.origin
+        except AttributeError:
+            return
+        repo_url = str(self.repo_url)
+        if origin.url != repo_url:
+            self._log.info("Updating bare repository remote url", bare_repo_path=self.bare_repo_path)
+            origin.set_url(repo_url)
 
     def _ensure_version_in_bare_repo(self) -> None:
         if not self.version:

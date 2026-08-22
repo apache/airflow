@@ -27,7 +27,6 @@ import stat
 import tempfile
 import warnings
 from typing import Any
-from urllib.parse import quote as urlquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import BaseHook
@@ -93,6 +92,8 @@ class GitHook(BaseHook):
         extra = connection.extra_dejson
 
         self.repo_url = repo_url or connection.host
+        if isinstance(self.repo_url, str) and not self.repo_url.startswith(("git@", "https://")):
+            self.repo_url = os.path.expanduser(self.repo_url)
         self.user_name = connection.login or "user"
         self.auth_token = connection.password
 
@@ -127,7 +128,6 @@ class GitHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
     _SSH_REPO_URL_PATTERN = re.compile(r"^[^/@:]+@[^/:]+:")
@@ -183,22 +183,46 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
-    def _process_git_auth_url(self):
-        if not isinstance(self.repo_url, str):
+    @contextlib.contextmanager
+    def _token_askpass_env(self):
+        """Hand the token to git through GIT_ASKPASS so it never reaches the repo URL."""
+        if not self.auth_token:
+            yield
             return
-        if self.auth_token and self.repo_url.startswith("https://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
-        elif self.auth_token and self.repo_url.startswith("http://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("http://", f"http://{encoded_user}:{encoded_token}@", 1)
-        elif self.repo_url.startswith("http://"):
-            # if no auth token, use the repo url as is
-            pass
-        elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
-            self.repo_url = os.path.expanduser(self.repo_url)
+
+        username = shlex.quote(self.user_name)
+        password = shlex.quote(self.auth_token)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
+            askpass_script.write(
+                f"""#!/bin/sh
+case "$1" in
+    *Username*) echo {username} ;;
+    *Password*) echo {password} ;;
+    *) exit 1 ;;
+esac
+"""
+            )
+            askpass_script.flush()
+            os.chmod(askpass_script.name, stat.S_IRWXU)
+
+            # ``self.env`` alone is not enough: callers only forward it on the initial clone,
+            # so fetches would run without the credential and hang on the terminal prompt.
+            envs = (os.environ, self.env)
+            saved = [
+                (env, var, env.get(var)) for env in envs for var in ("GIT_ASKPASS", "GIT_TERMINAL_PROMPT")
+            ]
+            try:
+                for env in envs:
+                    env["GIT_ASKPASS"] = askpass_script.name
+                    env["GIT_TERMINAL_PROMPT"] = "0"
+                yield
+            finally:
+                for env, var, old_val in saved:
+                    if old_val is None:
+                        env.pop(var, None)
+                    else:
+                        env[var] = old_val
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
@@ -240,21 +264,24 @@ class GitHook(BaseHook):
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        if self.private_key:
-            with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
-                tmp_keyfile.write(self.private_key)
-                tmp_keyfile.flush()
-                os.chmod(tmp_keyfile.name, 0o600)
-                self.set_git_env(tmp_keyfile.name)
+        # Wraps every branch, not just the token-only one: a connection may carry both a token
+        # and SSH options, and the token previously reached git through the URL on any branch.
+        with self._token_askpass_env():
+            if self.private_key:
+                with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
+                    tmp_keyfile.write(self.private_key)
+                    tmp_keyfile.flush()
+                    os.chmod(tmp_keyfile.name, 0o600)
+                    self.set_git_env(tmp_keyfile.name)
+                    with self._passphrase_askpass_env():
+                        yield
+            elif self.key_file:
+                self.set_git_env(self.key_file)
                 with self._passphrase_askpass_env():
                     yield
-        elif self.key_file:
-            self.set_git_env(self.key_file)
-            with self._passphrase_askpass_env():
+            elif self.host_proxy_cmd or self.ssh_port or self.ssh_config_file or self.known_hosts_file:
+                self.set_git_env()
                 yield
-        elif self.host_proxy_cmd or self.ssh_port or self.ssh_config_file or self.known_hosts_file:
-            self.set_git_env()
-            yield
-        else:
-            self.set_git_env(self.key_file)
-            yield
+            else:
+                self.set_git_env(self.key_file)
+                yield
