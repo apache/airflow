@@ -217,7 +217,7 @@ class DBDagBag:
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        for sdm in session.scalars(select(SerializedDagModel)):
+        for sdm in SerializedDagModel.get_latest_serialized_dags(session=session):
             sdm.load_op_links = self.load_op_links
             if dag := sdm.dag:
                 yield dag
