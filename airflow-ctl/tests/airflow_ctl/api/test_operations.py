@@ -1276,6 +1276,28 @@ class TestDagOperations:
         response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
 
+    def test_trigger_excludes_unsupported_fields_from_request_body(self):
+        """Regression test: trigger() must exclude partition_key/bundle_version
+        (added in Airflow 3.2.0) so older API servers don't reject the request
+        with extra_forbidden - but must still send logical_date (even as null),
+        since the server declares it as a required (non-defaulted) field.
+        """
+        captured_body = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal captured_body
+            captured_body = json.loads(request.content)
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+
+        for field in ("partition_key", "bundle_version"):
+            assert field not in captured_body, f"{field} should be excluded (unsupported by older servers)"
+
+        # logical_date must still be present (even as null) - the server requires it.
+        assert "logical_date" in captured_body
+
 
 class TestDagRunOperations:
     dag_id = "dag_id"
