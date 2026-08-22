@@ -248,7 +248,7 @@ const renderStructuredLogImpl = ({
   const { error_detail: errorDetail, ...reStructured } = structured;
   let details;
 
-  if (errorDetail !== undefined) {
+  if (Array.isArray(errorDetail)) {
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => {
         if (renderingMode === "text") {
@@ -289,6 +289,15 @@ const renderStructuredLogImpl = ({
         </chakra.details>
       );
     });
+  } else if (errorDetail !== undefined) {
+    // Some producers render the traceback themselves instead of sending the frames. Break the
+    // line first so it does not run into the event text, and let the whitespace through: both
+    // the text branch and the jsx wrapper below preserve it. Anything that is neither shape is
+    // stringified rather than rendered, so an unexpected value cannot take the log view down.
+    const rendered = typeof errorDetail === "string" ? errorDetail : JSON.stringify(errorDetail);
+
+    // An empty detail would otherwise contribute nothing but the line break.
+    details = rendered === "" ? undefined : `\n${rendered}`;
   }
 
   elements.push(
