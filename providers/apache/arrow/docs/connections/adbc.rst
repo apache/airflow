@@ -111,16 +111,16 @@ Extra (JSON)
            * - Key
              - Type
              - Description
-           * - ``autocommit``
+           * - ``adbc.connection.autocommit``
              - bool
              - Enable autocommit for this connection.
-           * - ``read_only``
+           * - ``adbc.connection.read_only``
              - bool
              - Open the connection in read-only mode.
-           * - ``current_catalog``
+           * - ``adbc.connection.current_catalog``
              - string
              - Default catalog for unqualified table names.
-           * - ``current_db_schema``
+           * - ``adbc.connection.current_db_schema``
              - string
              - Default schema for unqualified table names.
 
@@ -169,8 +169,7 @@ PostgreSQL with extra driver options:
         "adbc.postgresql.query.batch_rows": 1000
       },
       "conn_kwargs": {
-        "autocommit": true,
-        "read_only": false
+        "adbc.connection.autocommit": true
       }
     }
 

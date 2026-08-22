@@ -114,15 +114,15 @@ class TestAdbcHook:
         assert self.conn.commit.call_count == 0
 
     def test_set_autocommit_applies_adbc_option(self):
-        """set_autocommit must set the driver-level option, not only a Python attribute."""
+        """set_autocommit must call set_autocommit() on the underlying AdbcConnection."""
         conn = mock.MagicMock()
         self.hook.set_autocommit(conn, True)
-        conn._conn.set_options.assert_called_once_with(**{"adbc.connection.autocommit": "true"})
+        conn.adbc_connection.set_autocommit.assert_called_once_with(True)
         assert conn.autocommit is True
 
         conn.reset_mock()
         self.hook.set_autocommit(conn, False)
-        conn._conn.set_options.assert_called_once_with(**{"adbc.connection.autocommit": "false"})
+        conn.adbc_connection.set_autocommit.assert_called_once_with(False)
         assert conn.autocommit is False
 
     def test_insert_rows_commit_every_zero_inserts_all_rows(self):
@@ -222,6 +222,42 @@ class TestAdbcHook:
 
         with AdbcHook()._create_autocommit_connection() as adbc_conn:
             assert isinstance(adbc_conn, dbapi.Connection)
+
+    @pytest.mark.skipif(
+        importlib.util.find_spec("adbc_driver_sqlite") is None,
+        reason="adbc_driver_sqlite not installed",
+    )
+    @pytest.mark.parametrize(
+        "conn_kwargs, should_raise",
+        [
+            pytest.param(
+                {"adbc.connection.autocommit": "true"},
+                False,
+                id="canonical-dotted-name-accepted",
+            ),
+            pytest.param(
+                {"autocommit": "true"},
+                True,
+                id="short-name-rejected",
+            ),
+        ],
+    )
+    def test_conn_kwargs_canonical_names_required(self, conn_kwargs, should_raise):
+        """Canonical dotted ADBC option names are required; short names raise NotSupportedError.
+
+        This test documents and enforces actual driver behaviour so that the hook
+        docstring and the connection docs stay accurate.
+        """
+        import adbc_driver_sqlite.dbapi as sqlite_dbapi
+        from adbc_driver_manager import NotSupportedError
+
+        if should_raise:
+            with sqlite_dbapi.connect("file::memory:") as conn:
+                with pytest.raises(NotSupportedError):
+                    conn.adbc_connection.set_options(**conn_kwargs)
+        else:
+            with sqlite_dbapi.connect("file::memory:") as conn:
+                conn.adbc_connection.set_options(**conn_kwargs)
 
     def _make_real_conn_hook(self, connection: Connection) -> AdbcHook:
         """Return an AdbcHook whose get_connection() returns *connection* but whose
