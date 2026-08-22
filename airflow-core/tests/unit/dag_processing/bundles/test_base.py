@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import fcntl
 import logging
+import structlog
 import tempfile
 import threading
 import time
@@ -362,8 +363,6 @@ def test_log_is_lazy_and_cached():
 
 def test_log_includes_bundle_name_and_version():
     """_log is bound with bundle_name and version."""
-    import structlog.testing
-
     bundle = BasicBundle(name="ctx-bundle", version="v1.2.3")
     with structlog.testing.capture_logs() as cap:
         bundle._log.info("test event")
@@ -373,8 +372,6 @@ def test_log_includes_bundle_name_and_version():
 
 def test_log_includes_subclass_context():
     """Keys returned by _get_log_context() are merged into the bound logger."""
-    import structlog.testing
-
     bundle = BundleWithContext(name="ctx-bundle", version="v2")
     with structlog.testing.capture_logs() as cap:
         bundle._log.info("test event")
@@ -383,8 +380,6 @@ def test_log_includes_subclass_context():
 
 def test_log_setter_allows_direct_assignment():
     """Assigning self._log directly (as legacy providers do) must not raise AttributeError."""
-    import structlog
-
     bundle = BasicBundle(name="setter-test")
     custom_logger = structlog.get_logger("custom").bind(bundle_name="setter-test")
     bundle._log = custom_logger
