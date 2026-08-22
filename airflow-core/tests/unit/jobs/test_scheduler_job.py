@@ -4258,6 +4258,48 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @pytest.mark.parametrize(
+        ("initial_state", "started_ago", "expected_duration"),
+        [
+            pytest.param(TaskInstanceState.RUNNING, datetime.timedelta(hours=1), 3600.0, id="running"),
+            pytest.param(None, None, 0.0, id="never_started"),
+        ],
+    )
+    def test_dagrun_timeout_sets_end_date_and_duration_on_skipped_tasks(
+        self, dag_maker, initial_state, started_ago, expected_duration
+    ):
+        """Without an end_date the UI keeps growing the duration of a task the timeout already skipped."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_dagrun_timeout_sets_end_date_and_duration",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        now = timezone.utcnow()
+        dr = dag_maker.create_dagrun(start_date=now - datetime.timedelta(days=1))
+        ti = dr.get_task_instance("dummy", session=session)
+        ti.state = initial_state
+        ti.start_date = now - started_ago if started_ago else None
+        session.merge(ti)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with time_machine.travel(now, tick=False):
+            self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(ti)
+        assert ti.state == TaskInstanceState.SKIPPED
+        assert ti.end_date is not None
+        assert ti.duration == expected_duration
+
+        session.rollback()
+        session.close()
+
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_dagrun_timeout_duration_metric_has_run_type(self, mock_get_backend, dag_maker):
         """
