@@ -208,6 +208,14 @@ class DBDagBag:
             return self._get_dag(version_id=version_id, session=session)
         return None
 
+    def get_serialized_dag_model_for_run(
+        self, dag_run: DagRun, *, session: Session
+    ) -> SerializedDagModel | None:
+        """Return the SerializedDagModel for the dag version this dag run resolves to."""
+        if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
+            return self.get_serialized_dag_model(version_id=version_id, session=session)
+        return None
+
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
         """
         Walk through all latest version dags available in the database.
