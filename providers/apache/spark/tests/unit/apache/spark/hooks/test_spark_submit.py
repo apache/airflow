@@ -166,6 +166,14 @@ class TestSparkSubmitHook:
         )
         create_connection_without_db(
             Connection(
+                conn_id="spark_standalone_cluster_rpc_port",
+                conn_type="spark",
+                host="spark://spark-standalone-master:7077",
+                extra='{"deploy-mode": "cluster"}',
+            )
+        )
+        create_connection_without_db(
+            Connection(
                 conn_id="spark_principal_set",
                 conn_type="spark",
                 host="yarn",
@@ -355,6 +363,21 @@ class TestSparkSubmitHook:
 
         assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
         assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
+
+    def test_build_track_driver_status_command_rpc_port_master(self):
+        # Regression test for #71881: master URL on the binary RPC port (7077) must still
+        # poll via the REST API port (6066) — spark-submit --status cannot reach it.
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster_rpc_port")
+        hook._driver_id = "driver-20260820115651-0003"
+
+        cmd = hook._build_track_driver_status_command()
+
+        assert cmd == [
+            "/usr/bin/curl",
+            "--max-time",
+            "30",
+            "http://spark-standalone-master:6066/v1/submissions/status/driver-20260820115651-0003",
+        ]
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1195,11 +1218,34 @@ class TestSparkSubmitHook:
         kill_cmd = hook._build_spark_driver_kill_command()
 
         # Then
-        assert kill_cmd[0] == "spark-submit"
-        assert kill_cmd[1] == "--master"
-        assert kill_cmd[2] == "spark://spark-standalone-master:6066"
-        assert kill_cmd[3] == "--kill"
-        assert kill_cmd[4] == "driver-20171128111415-0001"
+        assert kill_cmd == [
+            "/usr/bin/curl",
+            "-X",
+            "DELETE",
+            "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
+        ]
+
+    def test_standalone_cluster_rpc_port_process_on_kill(self):
+        # Regression test for #71881: kill must go through the REST API port (6066),
+        # not spark-submit --kill against the binary RPC port master URL.
+        log_lines = [
+            "Running Spark using the REST application submission protocol.",
+            "17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request "
+            "to launch an application in spark://spark-standalone-master:7077",
+            "17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully "
+            "created as driver-20171128111415-0001. Polling submission state...",
+        ]
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster_rpc_port")
+        hook._process_spark_submit_log(log_lines)
+
+        kill_cmd = hook._build_spark_driver_kill_command()
+
+        assert kill_cmd == [
+            "/usr/bin/curl",
+            "-X",
+            "DELETE",
+            "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
+        ]
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
