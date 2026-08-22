@@ -863,7 +863,9 @@ class WatchedSubprocess:
             logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(target_loggers),
+                on_close=self._on_socket_closed,
+                drop_incomplete_at_eof=True,
             ),
         )
         self.selector.register(
@@ -1993,7 +1995,9 @@ class ActivitySubprocess(WatchedSubprocess):
             read_logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(target_loggers),
+                on_close=self._on_socket_closed,
+                drop_incomplete_at_eof=True,
             ),
         )
         # We don't explicitly close the old log socket, that will get handled for us if/when the other end is
@@ -2291,19 +2295,31 @@ def make_buffered_socket_reader(
     data: bytes = b"",
     on_close: Callable[[socket], None],
     buffer_size: int = 4096,
+    drop_incomplete_at_eof: bool = False,
 ):
     buffer = bytearray(data)  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
+    # Position up to which `buffer` has already been searched for a newline. Persisting
+    # this across calls to `process()` (i.e. across selector callbacks) means a large
+    # record spread over many small reads is scanned once per byte instead of once per
+    # byte *per chunk*, which was quadratic in the record size. Reset to 0 whenever a
+    # complete record is consumed and the buffer is sliced, since the new tail is
+    # unsearched. See #66158.
+    search_from = 0
 
     # We need to start up the generator to get it to the point it's at waiting on the yield
     next(gen)
 
     def process(buffer: bytearray) -> bytearray:
+        nonlocal search_from
         # We could have read multiple lines in one go, yield them all
-        while (newline_pos := buffer.find(b"\n")) != -1:
-            line = buffer[: newline_pos + 1]
+        while (newline_pos := buffer.find(b"\n", search_from)) != -1:
+            # Avoid an intermediate bytearray copy while producing the immutable record.
+            line = bytes(memoryview(buffer)[: newline_pos + 1])
             gen.send(line)
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
+            search_from = 0
+        search_from = len(buffer)
         return buffer
 
     # Flush any complete lines that arrived before the selector was running.
@@ -2316,10 +2332,29 @@ def make_buffered_socket_reader(
         n_received = sock.recv_into(read_buffer)
 
         if not n_received:
-            # If no data is returned, the connection is closed. Return whatever is left in the buffer
+            # Connection closed. Any bytes left in the buffer are an incomplete,
+            # non-newline-terminated fragment.
+            #
+            # For newline-delimited JSON channels (drop_incomplete_at_eof=True),
+            # this means the writer terminated mid-record, failed to flush, or
+            # violated the framing contract -- we cannot reconstruct the missing
+            # bytes, so we report it once with bounded metadata (length only; the
+            # fragment may contain secrets or multi-megabyte content) and drop it
+            # rather than handing a truncated value to the JSON decoder as if it
+            # were complete. See #66158.
+            #
+            # For plain stdout/stderr forwarding, a trailing unterminated line at
+            # process exit (e.g. print(..., end="")) is ordinary, valid output --
+            # forward it as before.
             if len(buffer):
-                with suppress(StopIteration):
-                    gen.send(buffer)
+                if drop_incomplete_at_eof:
+                    log.warning(
+                        "Discarding incomplete record at socket EOF",
+                        fragment_length=len(buffer),
+                    )
+                else:
+                    with suppress(StopIteration):
+                        gen.send(buffer)
             return False
 
         buffer.extend(read_buffer[:n_received])
