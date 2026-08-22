@@ -1050,10 +1050,9 @@ class TestDagRun:
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_next_dagruns_to_examine_only_unpaused(self, session, state, testing_dag_bundle):
+    def test_next_dagruns_to_examine_paused_dag(self, session, state, testing_dag_bundle):
         """
-        Check that "next_dagruns_to_examine" ignores runs from paused/inactive DAGs
-        and gets running/queued dagruns
+        Check that pause only blocks queued DagRuns from starting, not already-running DagRuns.
         """
         dag = DAG(dag_id="test_dags", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
@@ -1100,7 +1099,10 @@ class TestDagRun:
         session.commit()
 
         runs = fetch().all()
-        assert runs == []
+        if state == DagRunState.RUNNING:
+            assert runs == [dr]
+        else:
+            assert runs == []
 
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
