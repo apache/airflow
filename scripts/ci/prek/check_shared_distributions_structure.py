@@ -44,6 +44,7 @@ from common_prek_utils import AIRFLOW_ROOT_PATH, console
 SHARED_DIR = AIRFLOW_ROOT_PATH / "shared"
 TASK_SDK_DIR = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_CORE_DIR = AIRFLOW_ROOT_PATH / "airflow-core"
+DEVEL_COMMON_DIR = AIRFLOW_ROOT_PATH / "devel-common"
 
 
 def check_pyproject_exists(shared_path: Path) -> bool:
@@ -489,40 +490,104 @@ def check_only_allowed_shared_imports(dist_path: Path, dist_name: str, allowed_p
     return True
 
 
-def check_task_sdk_distribution() -> bool:
-    """Check task-sdk for airflow_shared and cross-distribution _shared imports."""
-    dist_name = "task-sdk"
+def check_distribution(dist_path: Path, dist_name: str, allowed_shared_prefix: str) -> bool:
+    """
+    Check a distribution for proper _shared imports usage.
+
+    Args:
+        dist_path: Path to the distribution directory
+        dist_name: Name of the distribution for display
+        allowed_shared_prefix: Allowed prefix for _shared imports (e.g., 'airflow.sdk._shared')
+
+    Returns:
+        True if all checks pass, False otherwise
+    """
     console.print(f"\n[bold blue]Checking:[/bold blue] [magenta]{dist_name}[/magenta] distribution")
-    if not TASK_SDK_DIR.exists():
+
+    if not dist_path.exists():
         console.print(f"  [yellow]{dist_name} directory does not exist[/yellow]")
         return True
+
     all_ok = True
-    if not check_no_airflow_shared_imports(TASK_SDK_DIR, dist_name):
+
+    # Check 1: No airflow_shared imports
+    if not check_no_airflow_shared_imports(dist_path, dist_name):
         all_ok = False
-    if not check_only_allowed_shared_imports(TASK_SDK_DIR, dist_name, "airflow.sdk._shared"):
+
+    # Check 2: Only allowed _shared imports
+    if not check_only_allowed_shared_imports(dist_path, dist_name, allowed_shared_prefix):
         all_ok = False
+
     if all_ok:
         console.print(f"[bold green]Summary: {dist_name} is OK[/bold green]")
+
     return all_ok
 
 
-def check_airflow_core_distribution() -> bool:
-    """Check airflow-core for airflow_shared imports.
+def check_task_sdk_distribution() -> bool:
+    """Check task-sdk distribution for proper _shared imports usage."""
+    return check_distribution(TASK_SDK_DIR, "task-sdk", "airflow.sdk._shared")
 
-    Note: ``check_only_allowed_shared_imports`` is intentionally not run here yet —
-    airflow-core currently imports a few symbols from ``airflow.sdk._shared`` (e.g.
-    ``SecretsMasker``) that need to be relocated before that check can be enabled.
-    """
-    dist_name = "airflow-core"
-    console.print(f"\n[bold blue]Checking:[/bold blue] [magenta]{dist_name}[/magenta] distribution")
-    if not AIRFLOW_CORE_DIR.exists():
-        console.print(f"  [yellow]{dist_name} directory does not exist[/yellow]")
+
+def check_airflow_core_distribution() -> bool:
+    """Check airflow-core distribution for proper _shared imports usage."""
+    return check_distribution(AIRFLOW_CORE_DIR, "airflow-core", "airflow._shared")
+
+
+def check_no_airflow_imports_devel_common(dist_path: Path) -> bool:
+    """Check that no Python files in devel-common use airflow imports."""
+    src_path = dist_path / "src"
+    if not src_path.exists():
+        console.print("  [yellow]src/ directory does not exist for [magenta]devel-common[/magenta][/yellow]")
         return True
+
+    def airflow_import_predicate(node, module_name, is_from_import):
+        """Check if import is from airflow package."""
+        if module_name == "airflow" or module_name.startswith("airflow."):
+            if is_from_import:
+                imported_names = ", ".join(alias.name for alias in node.names)
+                return True, f"from {module_name} import {imported_names}"
+            return True, f"import {module_name}"
+        return False, ""
+
+    py_files = list(src_path.rglob("*.py"))
+    violations = _check_imports_in_files(py_files, dist_path, airflow_import_predicate, "devel-common")
+
+    if violations:
+        console.print("  [red]Found airflow imports in [magenta]devel-common[/magenta]:[/red]")
+        for file_path, lineno, import_stmt in violations:
+            rel_path = file_path.relative_to(dist_path)
+            console.print(f"    [red]{rel_path}:{lineno}: {import_stmt}[/red]")
+        console.print()
+        console.print("  [red]Please remove airflow imports from [magenta]devel-common[/magenta][/red]")
+        console.print(
+            "  [yellow]devel-common should not depend on airflow packages to remain independent[/yellow]\n\n"
+            "  [yellow]Those imports should be converted to `from airflow_shared` or "
+            "moved to the devel-common distribution.[/yellow]"
+        )
+        return False
+
+    console.print("  No airflow imports found in [magenta]devel-common[/magenta] [bold green]OK[/bold green]")
+    return True
+
+
+def check_devel_common_distribution() -> bool:
+    """Check devel-common distribution for proper imports usage."""
+    console.print("\n[bold blue]Checking:[/bold blue] [magenta]devel-common[/magenta] distribution")
+
+    if not DEVEL_COMMON_DIR.exists():
+        console.print("  [yellow]devel-common directory does not exist[/yellow]")
+        return True
+
     all_ok = True
-    if not check_no_airflow_shared_imports(AIRFLOW_CORE_DIR, dist_name):
+
+    # Check: No airflow imports
+    if not check_no_airflow_imports_devel_common(DEVEL_COMMON_DIR):
         all_ok = False
+
     if all_ok:
-        console.print(f"[bold green]Summary: {dist_name} is OK[/bold green]")
+        console.print("[bold green]Summary: devel-common is OK[/bold green]")
+
     return all_ok
 
 
@@ -545,6 +610,8 @@ def main() -> None:
     if not check_task_sdk_distribution():
         all_ok = False
     if not check_airflow_core_distribution():
+        all_ok = False
+    if not check_devel_common_distribution():
         all_ok = False
     if not all_ok:
         sys.exit(2)
