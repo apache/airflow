@@ -345,6 +345,12 @@ The time when a Dag run is triggered
 Both trigger and data interval timetables trigger Dag runs at the same time. However, the timestamp for the
 ``run_id`` is different for each. This is because ``run_id`` is based on ``logical_date``.
 
+.. note::
+    For **CronDataIntervalTimetable** and **DeltaDataIntervalTimetable**, ``run_id`` anchoring to
+    ``logical_date`` requires ``[scheduler] create_cron_data_intervals`` to be enabled — this single
+    flag currently gates both. Without it, Dags default to a trigger timetable, whose ``run_id`` is
+    anchored to ``run_after`` instead.
+
 For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable Dags using the two timetables at 3PM on January
 31st,
 

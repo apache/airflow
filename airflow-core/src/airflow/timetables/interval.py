@@ -29,6 +29,7 @@ from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 if TYPE_CHECKING:
     from airflow.timetables.base import TimeRestriction
+    from airflow.utils.types import DagRunType
 
 Delta = datetime.timedelta | relativedelta
 
@@ -128,6 +129,37 @@ class _DataIntervalTimetable(Timetable):
             return None
         end = self._get_next(start)
         return DagRunInfo.interval(start=start, end=end)
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: DagRunType,
+        run_after: DateTime,
+        data_interval: DataInterval | None,
+        **extra: Any,
+    ) -> str:
+        """
+        Anchor the run_id suffix to the data interval start (== logical_date).
+
+        ``_DataIntervalTimetable`` is only instantiated when
+        ``[scheduler] create_cron_data_intervals`` is enabled (see
+        ``_create_timetable`` in ``airflow.sdk.definitions.dag``); that flag's
+        whole purpose is to restore Airflow-2-style semantics, where
+        ``logical_date`` is meaningful and ``run_id`` is derived from it. The
+        base implementation (``Timetable.generate_run_id``) anchors on
+        ``run_after`` instead, which is correct for the AIP-76 default but
+        defeats this opt-in flag for the one part of it callers actually
+        parse: the ``run_id`` string itself.
+
+        Falls back to the base behavior when no data interval is available
+        (e.g. for run types this timetable doesn't schedule intervals for),
+        so this never raises on an unexpected ``None``.
+        """
+        if data_interval is None:
+            return super().generate_run_id(
+                run_type=run_type, run_after=run_after, data_interval=data_interval, **extra
+            )
+        return run_type.generate_run_id(suffix=data_interval.start.isoformat())
 
 
 class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
