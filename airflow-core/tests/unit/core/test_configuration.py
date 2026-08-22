@@ -1908,6 +1908,30 @@ sql_alchemy_conn=sqlite://test
                 assert not airflow_cfg.has_option("test_deprecated_section", deprecated_key)
 
 
+@pytest.mark.parametrize(
+    ("section", "option"),
+    [
+        ("logging", "color_log_error_keywords"),
+        ("logging", "color_log_warning_keywords"),
+        ("scheduler", "ignore_first_depends_on_past_by_default"),
+    ],
+)
+def test_unused_config_options_are_deprecated(section, option):
+    """Options that are no longer read must carry deprecation markers and be excluded from defaults."""
+    from airflow.configuration import retrieve_configuration_description
+
+    config_description = retrieve_configuration_description(include_providers=False)
+    option_desc = config_description[section]["options"][option]
+
+    assert option_desc.get("version_deprecated"), f"[{section}] {option} must have version_deprecated set"
+    assert option_desc.get("deprecation_reason"), f"[{section}] {option} must have deprecation_reason set"
+
+    airflow_cfg = AirflowConfigParser()
+    assert not airflow_cfg.has_option(section, option), (
+        f"[{section}] {option} is deprecated and must not appear in defaults"
+    )
+
+
 @skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
     from airflow.settings import conf
