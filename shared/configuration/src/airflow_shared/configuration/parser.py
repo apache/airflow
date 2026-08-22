@@ -618,6 +618,15 @@ class AirflowConfigParser(ConfigParser):
                     return True
         return False
 
+    # Dynamically-named per-key options that are sensitive by prefix, keyed by their base
+    # section name. These can never appear in sensitive_config_values because the key itself
+    # is user defined (e.g. backend_kwarg__connections_prefix).
+    # See https://github.com/apache/airflow/issues/71037
+    _PER_KEY_SENSITIVE_PREFIXES: dict[str, str] = {
+        "secrets": "backend_kwarg__",
+        "workers": "secrets_backend_kwarg__",
+    }
+
     def is_sensitive_option(self, section: str, key: str) -> bool:
         """
         Check whether the value of ``key`` in ``section`` is registered as sensitive.
@@ -628,6 +637,10 @@ class AirflowConfigParser(ConfigParser):
         spellings are resolved back to the base option here, so that a team scoped value is treated
         exactly like the base one. A name that does not resolve to a registered option is not
         sensitive - so this only ever recognises more options as sensitive, never fewer.
+
+        Per-key secrets-backend-kwarg options (``backend_kwarg__*`` under ``[secrets]``,
+        ``secrets_backend_kwarg__*`` under ``[workers]``) are dynamically named -- the key itself
+        is user supplied -- so they can never be registered here and are matched by prefix instead.
 
         :param section: section name, either a base one or a team scoped one
         :param key: option name
@@ -648,6 +661,9 @@ class AirflowConfigParser(ConfigParser):
                     continue
                 if (base_section, key.removesuffix(fallback_suffix)) in self.sensitive_config_values:
                     return True
+        per_key_prefix = self._PER_KEY_SENSITIVE_PREFIXES.get(base_section)
+        if per_key_prefix and key.startswith(per_key_prefix):
+            return True
         # A team scoped environment variable is reported under the section and key its name splits
         # into, which is neither the base nor the team scoped section name.
         return self._names_sensitive_team_env_var(self._env_var_name(section, key))
