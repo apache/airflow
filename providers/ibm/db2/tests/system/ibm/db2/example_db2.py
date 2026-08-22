@@ -52,7 +52,7 @@ with DAG(
     @task
     def cleanup_tables() -> None:
         """Drop tables if they exist to ensure clean state."""
-        hook = Db2Hook(conn_id="db2_default")
+        hook = Db2Hook(db2_conn_id="db2_default")
         for table in ["EMPLOYEES_BACKUP", "EMPLOYEES"]:
             try:
                 hook.run(f"DROP TABLE {table}")
@@ -96,7 +96,7 @@ with DAG(
     @task
     def query_employees() -> int:
         """Query employees and return count using Db2Hook."""
-        hook = Db2Hook(conn_id="db2_default")
+        hook = Db2Hook(db2_conn_id="db2_default")
         sql = "SELECT employee_id, first_name, last_name, department, salary FROM employees ORDER BY employee_id"
         records = hook.get_records(sql)
         return len(records)
@@ -134,7 +134,7 @@ with DAG(
     @task
     def display_statistics() -> None:
         """Display department statistics using Db2Hook."""
-        hook = Db2Hook(conn_id="db2_default")
+        hook = Db2Hook(db2_conn_id="db2_default")
         sql = """
             SELECT
                 department,
@@ -163,7 +163,7 @@ with DAG(
     @task
     def verify_backup() -> None:
         """Verify backup table was created successfully."""
-        hook = Db2Hook(conn_id="db2_default")
+        hook = Db2Hook(db2_conn_id="db2_default")
         original_count = hook.get_first("SELECT COUNT(*) FROM employees")[0]
         backup_count = hook.get_first("SELECT COUNT(*) FROM employees_backup")[0]
         if original_count != backup_count:

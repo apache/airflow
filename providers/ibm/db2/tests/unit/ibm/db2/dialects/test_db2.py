@@ -90,6 +90,18 @@ class TestDb2Dialect:
             table_name="TEST_TABLE", schema="MY_SCHEMA"
         )
 
+    def test_get_target_fields_passes_predicate_positionally(self):
+        """get_target_fields() passes predicate as a positional arg — must not raise TypeError."""
+        self.test_db_hook.inspector.get_columns.return_value = [
+            {"name": "ID", "autoincrement": True, "identity": {"always": True}},
+            {"name": "NAME", "autoincrement": False},
+        ]
+
+        # Would raise TypeError before the fix (positional predicate hit **kwargs)
+        fields = Db2Dialect(self.test_db_hook).get_target_fields("TEST_TABLE")
+
+        assert fields == ["NAME"]
+
     def test_get_column_names_schema_prefix_in_table(self):
         """get_column_names() splits a 'schema.table' string correctly."""
         self.test_db_hook.inspector.get_columns.return_value = [

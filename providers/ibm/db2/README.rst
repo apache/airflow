@@ -52,13 +52,14 @@ To use this provider, you need to configure a Db2 connection in Airflow:
    - **Login**: Db2 username
    - **Password**: Db2 password
    - **Port**: Db2 port (default: 50000)
-   - **Extra**: Optional JSON with additional parameters:
+   - **Extra**: Optional JSON with additional parameters (keys are
+     converted to uppercase by the hook):
 
      .. code-block:: json
 
         {
-          "ssl": true,
-          "sslcert": "/path/to/cert.pem"
+          "SECURITY": "SSL",
+          "SSLServerCertificate": "/path/to/cert.crt"
         }
 
 Usage
@@ -72,7 +73,7 @@ Using the Db2Hook
     from airflow.providers.ibm.db2.hooks.db2 import Db2Hook
 
     hook = Db2Hook(db2_conn_id="db2_default")
-    records = hook.get_records("SELECT * FROM employees WHERE dept = %s", parameters=("IT",))
+    records = hook.get_records("SELECT * FROM employees WHERE dept = ?", parameters=("IT",))
 
 Using with SQLExecuteQueryOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,8 +88,8 @@ Using with SQLExecuteQueryOperator
         query_task = SQLExecuteQueryOperator(
             task_id="query_db2",
             conn_id="db2_default",
-            sql="SELECT * FROM employees WHERE dept = %(dept)s",
-            parameters={"dept": "IT"},
+            sql="SELECT * FROM employees WHERE dept = ?",
+            parameters=("IT",),
         )
 
 Features

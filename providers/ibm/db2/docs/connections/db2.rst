@@ -28,8 +28,9 @@ Configuring the Connection
 Host (required)
     The host to connect to.
 
-Schema (optional)
-    Specify the schema name to be used in the database.
+Schema (required)
+    The Db2 database name to connect to. Maps to the ``DATABASE`` keyword in
+    the Db2 connection string.
 
 Login (required)
     Specify the user name to connect.
@@ -38,23 +39,31 @@ Password (required)
     Specify the password to connect.
 
 Port (optional)
-    Port of the Db2 database. Default is 50000.
+    Port of the Db2 database. Default is ``50000``.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in the
-    Db2 connection. The following parameters are supported:
+    Specify extra parameters (as a JSON dictionary) that are appended verbatim
+    to the Db2 connection string. Parameter names are converted to uppercase
+    automatically.
 
-    * ``database`` - The database name to connect to.
-    * ``protocol`` - The protocol to use (default: TCPIP).
-    * ``security`` - Security protocol (e.g., SSL).
+    .. note::
+
+        Do **not** put ``database`` or ``protocol`` here — ``database`` is
+        taken from the **Schema** field above, and ``protocol`` is always set
+        to ``TCPIP`` by the hook. Values placed in extras for these keys will
+        be appended as duplicates and ignored by the driver.
+
+    Common parameters:
+
+    * ``SECURITY`` - Enable SSL (set to ``"SSL"``).
+    * ``SSLServerCertificate`` - Path to the server SSL certificate.
     * Any other parameter supported by the IBM Db2 driver.
 
-    Example "extras" field:
+    Example "extras" field for SSL:
 
     .. code-block:: json
 
        {
-          "database": "sample",
-          "protocol": "TCPIP",
-          "security": "SSL"
+          "SECURITY": "SSL",
+          "SSLServerCertificate": "/path/to/server.crt"
        }
