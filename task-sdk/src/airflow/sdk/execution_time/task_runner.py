@@ -265,6 +265,13 @@ class RuntimeTaskInstance(TaskInstance):
     sentry_integration: str = ""
 
     @property
+    def team_name(self) -> str | None:
+        """The team that owns this task, as provided by the server context, if any."""
+        if self._ti_context_from_server:
+            return self._ti_context_from_server.dag_run.team_name
+        return None
+
+    @property
     def stats_tags(self) -> dict[str, str]:
         """Metric tags for this task instance, including dag tags and team_name when available."""
         tags: dict[str, str] = {}
@@ -278,8 +285,8 @@ class RuntimeTaskInstance(TaskInstance):
             # than "dagruntype.scheduled" (matching the scheduler, which emits the plain string).
             run_type = self._ti_context_from_server.dag_run.run_type
             tags["run_type"] = getattr(run_type, "value", run_type)
-            if self._ti_context_from_server.dag_run.team_name:
-                tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+            if self.team_name:
+                tags["team_name"] = self.team_name
         return tags
 
     def __rich_repr__(self):
@@ -1446,7 +1453,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
     try:
         # TODO: Call pre execute etc.
-        get_listener_manager().hook.on_task_instance_running(
+        get_listener_manager(team_name=ti.team_name).hook.on_task_instance_running(
             previous_state=TaskInstanceState.QUEUED, task_instance=ti
         )
     except Exception:
@@ -2349,7 +2356,7 @@ def finalize(
     if state == TaskInstanceState.SUCCESS:
         _run_task_state_change_callbacks(task, "on_success_callback", context, log)
         try:
-            get_listener_manager().hook.on_task_instance_success(
+            get_listener_manager(team_name=ti.team_name).hook.on_task_instance_success(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti
             )
         except Exception:
@@ -2357,7 +2364,7 @@ def finalize(
     elif state == TaskInstanceState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
         try:
-            get_listener_manager().hook.on_task_instance_skipped(
+            get_listener_manager(team_name=ti.team_name).hook.on_task_instance_skipped(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti
             )
         except Exception:
@@ -2365,7 +2372,7 @@ def finalize(
     elif state == TaskInstanceState.UP_FOR_RETRY:
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
-            get_listener_manager().hook.on_task_instance_failed(
+            get_listener_manager(team_name=ti.team_name).hook.on_task_instance_failed(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
             )
         except Exception:
@@ -2375,7 +2382,7 @@ def finalize(
     elif state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
-            get_listener_manager().hook.on_task_instance_failed(
+            get_listener_manager(team_name=ti.team_name).hook.on_task_instance_failed(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
             )
         except Exception:
