@@ -28,6 +28,9 @@ from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.github import run_gh_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
+NEW_RUN_TIMEOUT_SECONDS = 180
+NEW_RUN_POLL_SECONDS = 5
+
 
 def tigger_workflow(workflow_name: str, repo: str, branch: str = "main", **kwargs):
     """
@@ -93,12 +96,13 @@ def make_sure_gh_is_installed():
         sys.exit(1)
 
 
-def get_workflow_run_id(workflow_name: str, repo: str) -> int:
+def get_latest_workflow_run_id(workflow_name: str, repo: str) -> int | None:
     """
     Get the latest workflow run ID for a given workflow name and repository.
 
     :param workflow_name: The name of the workflow to check.
     :param repo: The repository in the format 'owner/repo'.
+    :return: The run id, or None when the workflow has never run.
     """
     make_sure_gh_is_installed()
     command = [
@@ -122,16 +126,41 @@ def get_workflow_run_id(workflow_name: str, repo: str) -> int:
 
     runs_data = result.stdout.strip()
     if not runs_data:
-        console_print("[red]No workflow runs found.[/red]")
-        sys.exit(1)
+        return None
 
-    run_id = json.loads(runs_data)[0].get("databaseId")
+    runs = json.loads(runs_data)
+    return runs[0].get("databaseId") if runs else None
 
-    console_print(
-        f"[blue]Running workflow {workflow_name} at https://github.com/{repo}/actions/runs/{run_id}[/blue]",
-    )
 
-    return run_id
+def wait_for_new_workflow_run(workflow_name: str, repo: str, previous_run_id: int | None) -> int:
+    """
+    Wait until a run newer than ``previous_run_id`` shows up and return its id.
+
+    Run ids increase monotonically, so anything above the id observed just before the dispatch is
+    the run we started. Taking whatever run is newest would instead latch onto an unrelated one -
+    a scheduled run, or another maintainer's - whenever ours has not registered yet, and report
+    that run's result as ours.
+
+    :param workflow_name: The name of the workflow that was dispatched.
+    :param repo: The repository in the format 'owner/repo'.
+    :param previous_run_id: The newest run id seen before dispatching, or None if there was none.
+    """
+    deadline = time.monotonic() + NEW_RUN_TIMEOUT_SECONDS
+    while True:
+        run_id = get_latest_workflow_run_id(workflow_name, repo)
+        if run_id is not None and (previous_run_id is None or run_id > previous_run_id):
+            console_print(
+                f"[blue]Running workflow {workflow_name} at "
+                f"https://github.com/{repo}/actions/runs/{run_id}[/blue]",
+            )
+            return run_id
+        if time.monotonic() >= deadline:
+            console_print(
+                f"[red]Timed out after {NEW_RUN_TIMEOUT_SECONDS}s waiting for the dispatched run of "
+                f"{workflow_name} in {repo} to appear.[/red]"
+            )
+            sys.exit(1)
+        time.sleep(NEW_RUN_POLL_SECONDS)
 
 
 def get_workflow_run_info(run_id: str, repo: str, fields: str) -> dict:
@@ -188,12 +217,14 @@ def monitor_workflow_run(run_id: str, repo: str):
         if status == "completed":
             if conclusion == "success":
                 console_print(f"[green]Workflow {name} run {run_id} completed successfully.[/green]")
-            elif conclusion == "failure":
-                console_print(
-                    f"[red]Workflow {name} run {run_id} failed, see for more info: https://github.com/{repo}/actions/runs/{run_id}[/red]"
-                )
-                sys.exit(1)
-            break
+                break
+            # Anything else - failure, cancelled, timed_out, action_required - means the run did not
+            # produce what the caller is about to chain further work onto.
+            console_print(
+                f"[red]Workflow {name} run {run_id} finished with conclusion '{conclusion}', "
+                f"see for more info: https://github.com/{repo}/actions/runs/{run_id}[/red]"
+            )
+            sys.exit(1)
 
         # Check status of jobs every 30 seconds
         time.sleep(30)
@@ -203,6 +234,7 @@ def trigger_workflow_and_monitor(
     workflow_name: str, repo: str, branch: str = "main", monitor=True, **workflow_fields
 ):
     make_sure_gh_is_installed()
+    previous_run_id = None if get_dry_run() else get_latest_workflow_run_id(workflow_name, repo)
     tigger_workflow(
         workflow_name=workflow_name,
         repo=repo,
@@ -213,9 +245,10 @@ def trigger_workflow_and_monitor(
     if get_dry_run():
         return
 
-    workflow_run_id = get_workflow_run_id(
+    workflow_run_id = wait_for_new_workflow_run(
         workflow_name=workflow_name,
         repo=repo,
+        previous_run_id=previous_run_id,
     )
 
     console_print(
