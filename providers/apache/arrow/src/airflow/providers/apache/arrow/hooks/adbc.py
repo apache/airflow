@@ -96,7 +96,7 @@ class AdbcHook(DbApiHook):
           ``"adbc.connection.current_catalog": "my_catalog"``,
           ``"adbc.connection.current_db_schema": "my_schema"``.
           Short names such as ``autocommit`` or ``read_only`` are **not**
-          recognised by ADBC drivers and will raise ``NotSupportedError``.
+          recognized by ADBC drivers and will raise ``NotSupportedError``.
         - dialect: SQL dialect name (default: "default").
 
     Example usage:
