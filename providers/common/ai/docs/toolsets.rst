@@ -121,6 +121,19 @@ Parameters
 - ``tool_name_prefix``: Optional prefix prepended to each tool name
   (e.g. ``"s3_"`` produces ``"s3_list_keys"``).
 
+Binary parameters
+^^^^^^^^^^^^^^^^^
+
+JSON has no binary type, so a ``bytes``-typed parameter is advertised to the
+model as a base64 string (``contentEncoding: base64``, repeated in the
+parameter description because most function-calling APIs drop the keyword) and
+decoded before the hook method is called. A value that is not valid base64 is
+rejected and fed back to the model as a retry rather than stored as the wrong
+bytes.
+
+This applies to ``bytes`` and ``bytes | None`` only. A parameter that already
+accepts text, such as ``bytes | str``, is passed through untouched.
+
 
 ``SQLToolset``
 --------------
