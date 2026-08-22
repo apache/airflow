@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import gzip
 import io
 import logging
 import os
@@ -85,6 +86,15 @@ class TestGCSRemoteLogIOFromConfig:
     def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
         with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
             GCSRemoteLogIO.from_config()
+
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): "gs://bucket/remote/log/location",
+            ("logging", "remote_task_handler_kwargs"): '{"gzip": true}',
+        }
+    )
+    def test_from_config_enables_gzip(self):
+        assert GCSRemoteLogIO.from_config().gzip is True
 
     def test_provider_registers_gs_scheme(self):
         from airflow.providers_manager import ProvidersManager
@@ -375,6 +385,103 @@ class TestGCSRemoteLogIO:
             else:
                 assert logs is None
 
+    @pytest.mark.parametrize(
+        ("gzip_enabled", "expected_remote_name"),
+        [
+            pytest.param(True, "existing.log.gz", id="gzip"),
+            pytest.param(False, "existing.log", id="no-gzip"),
+        ],
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_upload_adds_gz_suffix_when_gzip_enabled(
+        self,
+        mock_blob,
+        mock_client,
+        mock_creds,
+        gzip_enabled: bool,
+        expected_remote_name: str,
+        tmp_path: Path,
+    ):
+        gcs_remote_log_io = GCSRemoteLogIO(
+            remote_base=self.gcs_log_folder,
+            base_log_folder=tmp_path.as_posix(),
+            delete_local_copy=False,
+            gzip=gzip_enabled,
+        )
+        (tmp_path / "existing.log").write_text("log content")
+
+        with mock.patch.object(gcs_remote_log_io, "write", return_value=True) as mock_write_method:
+            gcs_remote_log_io.upload("existing.log", self.ti)
+
+        assert mock_write_method.call_args[0][1] == f"{self.gcs_log_folder}/{expected_remote_name}"
+
+    @pytest.mark.parametrize(
+        ("old_log_exists", "expected_uploaded"),
+        [
+            pytest.param(True, b"OLD LOG CONTENT\nNEW LOG CONTENT", id="append-to-existing"),
+            pytest.param(False, b"NEW LOG CONTENT", id="fresh-blob"),
+        ],
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_write_compresses_gzip_location(
+        self,
+        mock_blob,
+        mock_client,
+        mock_creds,
+        old_log_exists: bool,
+        expected_uploaded: bytes,
+    ):
+        if old_log_exists:
+            mock_blob.from_string.return_value.download_as_bytes.return_value = gzip.compress(
+                b"OLD LOG CONTENT"
+            )
+        else:
+            mock_blob.from_string.return_value.download_as_bytes.side_effect = Exception(
+                "No such object: bucket/airflow/logs/task_1/attempt_1.log.gz"
+            )
+
+        gcs_remote_log_io = GCSRemoteLogIO(
+            remote_base=self.gcs_log_folder,
+            base_log_folder=self.base_log_folder,
+            delete_local_copy=False,
+            gzip=True,
+        )
+
+        result = gcs_remote_log_io.write("NEW LOG CONTENT", f"{self.gcs_log_folder}/task_1/attempt_1.log.gz")
+
+        assert result is True
+        args, kwargs = mock_blob.from_string.return_value.upload_from_string.call_args
+        assert gzip.decompress(args[0]) == expected_uploaded
+        assert kwargs["content_type"] == "application/gzip"
+
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_stream_reads_both_gzipped_and_plain_blobs(self, mock_blob, mock_client, mock_creds):
+        """Logs written before and after ``gzip`` was enabled live side by side and must both be readable."""
+        patch_mock_client_for_list_blobs(
+            mock_client,
+            ["airflow/logs/task_1/attempt_1.log", "airflow/logs/task_1/attempt_2.log.gz"],
+        )
+
+        def fake_open(mode):
+            if mode == "rb":
+                return io.BytesIO(gzip.compress(b"GZIPPED\nLOG"))
+            return io.TextIOWrapper(io.BytesIO(b"PLAIN\nLOG"), encoding="utf-8")
+
+        mock_blob.from_string.return_value.open.side_effect = fake_open
+
+        gcs_remote_log_io = GCSRemoteLogIO(
+            remote_base=self.gcs_log_folder,
+            base_log_folder=self.base_log_folder,
+            delete_local_copy=False,
+        )
+
+        _, log_streams = gcs_remote_log_io.stream("airflow/logs/task_1", self.ti)
+
+        assert ["".join(log_stream) for log_stream in log_streams] == ["PLAIN\nLOG", "GZIPPED\nLOG"]
+
 
 @pytest.mark.db_test
 class TestGCSTaskHandler:
@@ -406,6 +513,15 @@ class TestGCSTaskHandler:
             gcs_log_folder="gs://bucket/remote/log/location",
         )
         return self.gcs_task_handler
+
+    def test_gzip_is_forwarded_to_io(self, local_log_location):
+        handler = GCSTaskHandler(
+            base_log_folder=local_log_location,
+            gcs_log_folder="gs://bucket/remote/log/location",
+            gzip=True,
+        )
+
+        assert handler.io.gzip is True
 
     @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
     @mock.patch("google.cloud.storage.Client")
