@@ -875,6 +875,7 @@ class TestCycleTester:
         assert not dag.check_cycle()
 
     def test_semi_complex(self):
+        # test a semi-complex dag for cycle
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # A -> B -> C
@@ -889,6 +890,8 @@ class TestCycleTester:
             create_cluster >> pod_task >> delete_cluster
             create_cluster >> pod_task_xcom >> delete_cluster
             pod_task_xcom >> pod_task_xcom_result
+
+        assert not dag.check_cycle()
 
     def test_cycle_no_cycle(self):
         # test no cycle
