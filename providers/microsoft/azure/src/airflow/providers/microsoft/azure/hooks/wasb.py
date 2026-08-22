@@ -482,13 +482,13 @@ class WasbHook(BaseHook):
 
         for item in local_dir.rglob("*"):
             if item.is_file() and item.resolve() not in current_wasb_keys:
-                self.log.debug("Deleted stale local file: %s", item)
+                self.log.debug("Deleting stale local file: %s", item)
                 item.unlink()
         for root, dirs, _ in os.walk(local_dir, topdown=False):
             for d in dirs:
                 dir_path = os.path.join(root, d)
                 if not os.listdir(dir_path):
-                    self.log.debug("Deleted stale empty directory: %s", dir_path)
+                    self.log.debug("Deleting stale empty directory: %s", dir_path)
                     os.rmdir(dir_path)
 
     def _sync_to_local_dir_if_changed(
