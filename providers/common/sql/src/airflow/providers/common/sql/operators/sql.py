@@ -193,7 +193,7 @@ class BaseSQLOperator(BaseOperator):
         hook_params: dict | None = None,
         retry_on_failure: bool = True,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.database = database
@@ -220,7 +220,7 @@ class BaseSQLOperator(BaseOperator):
         return connection.get_hook(hook_params=hook_params)
 
     @cached_property
-    def _hook(self):
+    def _hook(self) -> DbApiHook:
         """Get DB Hook based on connection type."""
         conn_id = getattr(self, self.conn_id_field)
         self.log.debug("Get connection for %s", conn_id)
@@ -552,7 +552,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push
 
-    def execute(self, context):
+    def execute(self, context) -> Any:
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
         if self.split_statements is not None:
@@ -683,7 +683,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.sql = f"SELECT col_name, check_type, check_result FROM ({checks_sql}) AS check_columns"
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> None:
         hook = self.get_db_hook()
         records = hook.get_records(self.sql)
 

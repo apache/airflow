@@ -64,7 +64,7 @@ class TimeDeltaSensor(BaseSensorOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         end_from_trigger: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.delta = delta
         self.deferrable = deferrable
