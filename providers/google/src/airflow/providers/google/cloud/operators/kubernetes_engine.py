@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import datetime
 import time
 import warnings
 from collections.abc import Sequence
@@ -799,6 +800,19 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         on_finish_action = self.on_finish_action
         if type(on_finish_action) is str and self.on_finish_action not in [i.value for i in OnFinishAction]:
             on_finish_action = self.on_finish_action.split(".")[-1].lower()  # type: ignore[assignment]
+
+        # Anchor on ti.start_date so the deadline survives re-deferrals.
+        trigger_kwargs = dict(self.trigger_kwargs or {})
+        defer_timeout: datetime.timedelta | None = None
+        if self.execution_timeout is not None and context is not None:
+            ti_start_date = context["ti"].start_date
+            execution_deadline = int(ti_start_date.timestamp() + self.execution_timeout.total_seconds())
+            trigger_kwargs["_execution_deadline"] = execution_deadline
+            # Allow the trigger to emit its timeout event before the framework backstop fires.
+            remaining = execution_deadline - time.time()
+            poll_buffer = max(60, int(self.poll_interval * 2))
+            defer_timeout = datetime.timedelta(seconds=max(remaining, 0) + poll_buffer)
+
         self.defer(
             trigger=GKEStartPodTrigger(
                 pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
@@ -819,8 +833,10 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
                 logging_interval=self.logging_interval,
                 last_log_time=last_log_time,
                 use_dns_endpoint=self.use_dns_endpoint,
+                trigger_kwargs=trigger_kwargs,
             ),
             method_name="trigger_reentry",
+            timeout=defer_timeout,
         )
 
 
