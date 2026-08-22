@@ -125,8 +125,8 @@ Tasks whose only parameter slot is ``List[str]`` (``spark_jar_task``, ``spark_py
 dict to a positional argument list — pass those parameters explicitly via the ``json``
 or ``tasks`` argument.
 
-Params whose value is ``None`` — a nullable ``Param(default=None)`` left unset — are
-skipped, since Databricks has no value to receive for them.
+Params whose value resolves to ``None`` are skipped, since Databricks has no value to
+receive for them.
 
 .. code-block:: python
 
