@@ -216,6 +216,9 @@ def action_logging(event: str | None = None):
             task_id=params.get("task_id"),
             dag_id=params.get("dag_id"),
             run_id=params.get("run_id") or params.get("dag_run_id"),
+            # Needed for the team-scoped resources that carry no Dag (a pool, for instance);
+            # a Dag-scoped event has its team stamped from ``dag_id`` when the row is inserted.
+            team_name=params.get("team_name"),
         )
 
         if "logical_date" in request.query_params:

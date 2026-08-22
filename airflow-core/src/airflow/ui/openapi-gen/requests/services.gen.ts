@@ -2170,6 +2170,7 @@ export class EventLogService {
      * @param data.ownerPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.ownerDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.eventPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.teams
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2203,7 +2204,8 @@ export class EventLogService {
                 run_id_prefix_pattern: data.runIdPrefixPattern,
                 owner_prefix_pattern: data.ownerPrefixPattern,
                 owner_display_name_prefix_pattern: data.ownerDisplayNamePrefixPattern,
-                event_prefix_pattern: data.eventPrefixPattern
+                event_prefix_pattern: data.eventPrefixPattern,
+                teams: data.teams
             },
             errors: {
                 401: 'Unauthorized',

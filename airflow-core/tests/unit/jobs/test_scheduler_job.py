@@ -9976,6 +9976,20 @@ class TestSchedulerJob:
         call_args = mock_listener_manager.hook.on_dag_run_success.call_args
         assert call_args.kwargs["dag_run"]._team_name == "testing"
 
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_process_task_event_logs_records_the_team_owning_the_dag(self, dag_maker, session, team_bundle):
+        with dag_maker(dag_id="test_task_event_log_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        self.job_runner = SchedulerJobRunner(Job(), executors=[MagicMock()])
+        self.job_runner._process_task_event_logs(
+            deque([Log(event="test_task_event_log_team_event", dag_id="test_task_event_log_team")]), session
+        )
+
+        log = session.scalar(select(Log).where(Log.event == "test_task_event_log_team_event"))
+        assert log.team_name == "testing"
+
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
         """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
