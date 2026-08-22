@@ -1242,7 +1242,7 @@ derives one from a method name when there is no docstring.
     agent.
 
 Toolset or operator?
-""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^
 
 Most managed-agent platforms do not offer a plain one-request-one-answer API. Some
 require polling a job; others require creating a session and tearing it down around
@@ -1274,7 +1274,7 @@ and re-issues the call. Durable execution covers the *completed* call (see
 ``replayable`` below); it does not cover a call that was still in flight.
 
 Error handling
-""""""""""""""
+^^^^^^^^^^^^^^
 
 Failures sort into three buckets, and conflating them is the most common way an
 implementation goes wrong:
@@ -1297,7 +1297,7 @@ implementation goes wrong:
       - Airflow's task-level retry. A rephrase does nothing for a 503.
 
 Durable execution
-"""""""""""""""""
+^^^^^^^^^^^^^^^^^
 
 ``replayable`` is ``False`` by default. A managed agent may act on systems
 Airflow cannot observe, so replaying a cached answer on retry could skip a side
@@ -1305,7 +1305,7 @@ effect. Implementations whose agent is read-only should set it to ``True`` to
 avoid paying for the same invocation twice.
 
 Deferral
-""""""""
+^^^^^^^^
 
 A toolset call runs in the worker and cannot defer to the Triggerer — it blocks
 for the duration of the call. See `Toolset or operator?`_ above for when that is
@@ -1313,7 +1313,7 @@ acceptable and when the provider's own deferrable operator is the right surface
 instead.
 
 Failover between interchangeable agents
-"""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
 composes several managed agents into one tool, trying them in order until one

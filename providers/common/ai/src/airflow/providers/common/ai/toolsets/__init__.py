@@ -25,7 +25,6 @@ from airflow.providers.common.ai.toolsets.managed_agent import (
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 
-
 __all__ = [
     "BaseManagedAgentToolset",
     "FailoverManagedAgentToolset",

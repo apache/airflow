@@ -60,8 +60,8 @@ def serialize_for_llm(value: Any) -> str:
         return json.dumps(value, default=str)
     except (TypeError, ValueError):
         return str(value)
-      
-      
+
+
 _SUPPORTS_METADATA = any(f.name == "metadata" for f in dataclasses.fields(ToolDefinition))
 
 
