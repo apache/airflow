@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
+from base64 import b64encode
 from contextlib import AbstractAsyncContextManager
 from json import JSONDecodeError
 from os.path import dirname
@@ -27,6 +29,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from httpx import AsyncClient, Response
 from httpx._utils import URLPattern
+from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
@@ -40,6 +43,7 @@ from airflow.providers.microsoft.azure.hooks.msgraph import (
     CachedAsyncTokenCredential,
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
+    MSGraphMailHook,
     execute_callable,
 )
 
@@ -845,4 +849,189 @@ class TestResponseHandler:
             method_source = inspect.getsource(KiotaRequestAdapterHook.get_proxies)
             raise AirflowProviderDeprecationWarning(
                 f"Check TODO's to remove obsolete code in get_proxies method:\n\r\n\r\t\t\t{method_source}"
+            )
+
+
+class TestMSGraphMailHook:
+    FROM_EMAIL = "airflow@example.com"
+
+    @staticmethod
+    def get_request_information(mock_get_http_response) -> RequestInformation:
+        return mock_get_http_response.call_args.args[0]
+
+    @pytest.mark.parametrize(
+        ("addresses", "expected"),
+        (
+            pytest.param(None, [], id="none"),
+            pytest.param("", [], id="empty-string"),
+            pytest.param("first@example.com", ["first@example.com"], id="single-address"),
+            pytest.param(
+                "first@example.com,second@example.com",
+                ["first@example.com", "second@example.com"],
+                id="comma-separated",
+            ),
+            pytest.param(
+                "first@example.com ; second@example.com",
+                ["first@example.com", "second@example.com"],
+                id="semicolon-separated",
+            ),
+            pytest.param(
+                ["first@example.com", "second@example.com"],
+                ["first@example.com", "second@example.com"],
+                id="list",
+            ),
+        ),
+    )
+    def test_extract_email_addresses(self, addresses, expected):
+        assert MSGraphMailHook.extract_email_addresses(addresses) == expected
+
+    def test_build_message(self, tmp_path):
+        attachment = tmp_path / "report.csv"
+        attachment.write_bytes(b"a,b\n1,2\n")
+
+        actual = MSGraphMailHook.build_message(
+            to="first@example.com,second@example.com",
+            subject="Airflow alert",
+            html_content="<b>Something</b> happened",
+            files=[attachment.as_posix()],
+            cc="cc@example.com",
+            bcc=["bcc@example.com"],
+            custom_headers={"x-custom": 1},
+        )
+
+        assert actual == {
+            "subject": "Airflow alert",
+            "body": {"contentType": "HTML", "content": "<b>Something</b> happened"},
+            "toRecipients": [
+                {"emailAddress": {"address": "first@example.com"}},
+                {"emailAddress": {"address": "second@example.com"}},
+            ],
+            "ccRecipients": [{"emailAddress": {"address": "cc@example.com"}}],
+            "bccRecipients": [{"emailAddress": {"address": "bcc@example.com"}}],
+            "attachments": [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": "report.csv",
+                    "contentType": "text/csv",
+                    "contentBytes": b64encode(b"a,b\n1,2\n").decode("ascii"),
+                }
+            ],
+            "internetMessageHeaders": [{"name": "x-custom", "value": "1"}],
+        }
+
+    def test_build_message_without_recipients(self):
+        with pytest.raises(ValueError, match="No recipients"):
+            MSGraphMailHook.build_message(to=[], subject="Airflow alert", html_content="Something happened")
+
+    def test_build_attachments(self, tmp_path):
+        attachment = tmp_path / "report.csv"
+        attachment.write_bytes(b"a,b\n1,2\n")
+
+        assert MSGraphMailHook.build_attachments([attachment.as_posix()]) == [
+            {
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                "name": "report.csv",
+                "contentType": "text/csv",
+                "contentBytes": b64encode(b"a,b\n1,2\n").decode("ascii"),
+            }
+        ]
+
+    def test_build_attachments_when_the_attachments_are_too_large(self, tmp_path):
+        first = tmp_path / "first.csv"
+        first.write_bytes(b"x" * MSGraphMailHook.MAX_ATTACHMENTS_SIZE)
+        second = tmp_path / "second.csv"
+        second.write_bytes(b"x")
+
+        with pytest.raises(ValueError, match="add up to at least 3145729 bytes"):
+            MSGraphMailHook.build_attachments([first.as_posix(), second.as_posix()])
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "from_email",
+        (
+            pytest.param(FROM_EMAIL, id="bare-address"),
+            pytest.param(f"Airflow alerts <{FROM_EMAIL}>", id="with-display-name"),
+        ),
+    )
+    async def test_asend_email(self, from_email):
+        with patch_hook_and_request_adapter(mock_json_response(202)) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = MSGraphMailHook(conn_id="msgraph_api")
+
+            await hook.asend_email(
+                from_email=from_email,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+                save_to_sent_items=False,
+            )
+
+            request_information = self.get_request_information(mock_get_http_response)
+            assert request_information.http_method == Method.POST
+            request_information.path_parameters["baseurl"] = "https://graph.microsoft.com/v1.0/"
+            assert (
+                request_information.url
+                == "https://graph.microsoft.com/v1.0/users/airflow%40example.com/sendMail"
+            )
+            assert json.loads(request_information.content) == {
+                "message": {
+                    "subject": "Airflow alert",
+                    "body": {"contentType": "HTML", "content": "Something happened"},
+                    "toRecipients": [{"emailAddress": {"address": "user@example.com"}}],
+                },
+                "saveToSentItems": False,
+            }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("from_email", (pytest.param(None, id="none"), pytest.param("", id="empty")))
+    async def test_asend_email_without_a_sender_mailbox(self, from_email):
+        hook = MSGraphMailHook(conn_id="msgraph_api")
+
+        with pytest.raises(ValueError, match="mailbox to send from is required"):
+            await hook.asend_email(
+                from_email=from_email,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+            )
+
+    def test_send_email(self):
+        with patch_hook_and_request_adapter(mock_json_response(202)) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = MSGraphMailHook(conn_id="msgraph_api")
+
+            hook.send_email(
+                from_email=self.FROM_EMAIL,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+            )
+
+            request_information = self.get_request_information(mock_get_http_response)
+            assert json.loads(request_information.content)["saveToSentItems"] is True
+            # The adapter is bound to the event loop asyncio.run just closed, so it must not be reused.
+            assert "msgraph_api" not in MSGraphMailHook.cached_request_adapters
+
+    def test_send_email_without_a_sender_mailbox(self):
+        hook = MSGraphMailHook(conn_id="msgraph_api")
+
+        # The connection is never opened, so the cleanup in the sync wrapper has nothing to close.
+        with pytest.raises(ValueError, match="mailbox to send from is required"):
+            hook.send_email(
+                from_email=None,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+            )
+
+    @pytest.mark.asyncio
+    async def test_send_email_inside_a_running_event_loop(self):
+        hook = MSGraphMailHook(conn_id="msgraph_api")
+
+        with pytest.raises(RuntimeError, match="await asend_email instead"):
+            hook.send_email(
+                from_email=self.FROM_EMAIL,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
             )

@@ -378,6 +378,7 @@ def get_provider_info():
                 "python-module": "airflow.providers.microsoft.azure.transfers.gcs_to_wasb",
             },
         ],
+        "notifications": ["airflow.providers.microsoft.azure.notifications.msgraph.MSGraphNotifier"],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook",
@@ -956,6 +957,7 @@ def get_provider_info():
             },
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],
+        "email-backends": ["airflow.providers.microsoft.azure.emailer.send_email"],
         "logging": ["airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler"],
         "remote-logging": [
             {
