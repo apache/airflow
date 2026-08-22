@@ -107,9 +107,10 @@ response that does so, so a wildcard origin would simply break every cross-origi
 Page size limit
 ---------------
 
-To protect against requests that may lead to application instability, the stable API has a limit of items in response.
-The default is 100 items, but you can change it using ``maximum_page_limit``  option in ``[api]``
-section in the ``airflow.cfg`` file.
+To protect against requests that may lead to application instability, the stable API limits the number of items in
+each response. The default maximum is 100 items, but you can change it using the ``maximum_page_limit`` option in the
+``[api]`` section of the ``airflow.cfg`` file. Requests with a ``limit`` greater than this value return the maximum
+number of items instead.
 
 Request Payload Considerations
 ------------------------------
