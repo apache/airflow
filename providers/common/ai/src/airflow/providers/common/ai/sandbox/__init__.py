@@ -26,9 +26,13 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxSpec,
     SandboxTerminalError,
 )
+
+# SbxSandboxBackend only shells out to the `sbx` CLI (stdlib imports), so it is
+# always importable; IsloSandboxBackend needs the optional `islo` SDK.
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "IsloSandboxBackend",
     "SandboxBackend",
     "SandboxError",
     "SandboxExecResult",
@@ -37,3 +41,15 @@ __all__ = [
     "SandboxTerminalError",
     "SbxSandboxBackend",
 ]
+
+
+def __getattr__(name: str):
+    if name == "IsloSandboxBackend":
+        try:
+            from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+        return IsloSandboxBackend
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
