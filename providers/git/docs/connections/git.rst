@@ -50,7 +50,11 @@ Username or Access Token name (optional)
 
 Access Token (optional)
     The access token for HTTPS authentication. When provided along with the username,
-    the hook injects the credentials into the repository URL for HTTPS cloning.
+    the hook injects the credentials into the repository URL for HTTPS cloning. With Git 2.46
+    or newer, the hook also enables URL-scoped ``http.proactiveAuth`` so public repositories
+    authenticate the initial request instead of using anonymous rate limits. Older Git versions,
+    or installations whose version cannot be detected, retain challenge-based authentication and
+    emit a warning. Proactive Basic authentication is not enabled for plaintext HTTP connections.
 
 Extra (optional)
     Specify the extra parameters as a JSON dictionary. The following keys are supported:
