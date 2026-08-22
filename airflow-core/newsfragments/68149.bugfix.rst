@@ -1,0 +1,1 @@
+Fix scheduler-side ``log_filename_template`` rendering for runs without a ``logical_date`` by rendering ``{logical_date}`` as ``None`` instead of dereferencing it.
