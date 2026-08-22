@@ -153,9 +153,9 @@ Deletes *all* asset state store keys for the asset.
 Using ``asset_state_store`` inside a Watcher Trigger
 -----------------------------------------------------
 
-:class:`~airflow.triggers.base.BaseEventTrigger` subclasses (watcher triggers) can read and write asset state store directly from within ``run()``. The triggerer injects ``self.asset_state_store`` before ``run()`` is called, scoped to the asset the trigger is watching. It is not available during ``__init__`` or ``serialize()``, only access it from within ``run()``.
+:class:`~airflow.triggers.base.BaseEventTrigger` subclasses (watcher triggers) can read and write asset state store directly from within ``run()``. The triggerer injects ``self.asset_state_store`` before ``run()`` is called, scoped to the assets that watch the trigger. It is not available during ``__init__`` or ``serialize()``, only access it from within ``run()``.
 
-Unlike task-based access (where the asset is identified by an inlet or outlet declaration), the accessor in a watcher trigger is automatically bound to the watched asset, so no subscripting is needed.
+Unlike task-based access (where the asset is identified by an inlet or outlet declaration), a watcher trigger never names its asset, so the shorthand is bound for it and no subscripting is needed.
 
 .. code-block:: python
 
@@ -218,6 +218,27 @@ The corresponding :class:`~airflow.sdk.definitions.asset.AssetWatcher` wires the
     ...
 
 ``self.asset_state_store`` behaves identically to the per-asset accessor described in the task sections above: ``get``, ``set``, ``delete``, and ``clear`` are all available. Values written by the trigger are visible to any task that declares ``my_asset`` as an inlet or outlet, and vice versa.
+
+Triggers are deduplicated by their classpath and arguments, so several assets watching identical triggers share one, and that trigger is handed one accessor per asset. The shorthand above raises a ``ValueError`` in that case, because there is no single asset to bind to. A trigger that keeps state has to handle it, and cannot follow the error's advice to subscript, since it does not know its assets. Size ``self.asset_state_store`` to tell the cases apart, and iterate it to reach each accessor:
+
+.. code-block:: python
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        while True:
+            # The oldest cursor, so a write that reached only some assets repeats rather than skips.
+            seen = [accessor.get("last_seen_id") for accessor in self.asset_state_store]
+            last_seen = min((value for value in seen if value is not None), default=0)
+
+            new_id = self._poll_for_new_record(source=self.source, last_seen=last_seen)
+            if new_id is not None:
+                for accessor in self.asset_state_store:
+                    accessor.set("last_seen_id", new_id)
+                yield TriggerEvent({"status": "success", "record_id": new_id})
+                return
+
+            await asyncio.sleep(self.waiter_delay)
+
+``len(self.asset_state_store)`` reports how many assets watch the trigger, for a trigger that would rather keep no state than keep it for several assets at once.
 
 .. note::
 

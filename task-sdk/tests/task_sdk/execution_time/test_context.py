@@ -1980,6 +1980,42 @@ class TestAssetStateStoreAccessors:
         with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
             AssetStateStoreAccessors([a1, a2]).get("watermark")
 
+    def test_len_reports_the_accessor_count(self):
+        a1 = Asset(name="asset_one", uri="s3://one")
+        a2 = Asset(name="asset_two", uri="s3://two")
+
+        assert len(AssetStateStoreAccessors([a1])) == 1
+        assert len(AssetStateStoreAccessors([a1, a2])) == 2
+        assert len(AssetStateStoreAccessors([])) == 0
+
+    def test_len_counts_a_uri_ref_alongside_a_name(self):
+        assert (
+            len(AssetStateStoreAccessors([Asset(name="one", uri="s3://one"), AssetUriRef("s3://two")])) == 2
+        )
+
+    def test_iter_yields_every_accessor(self):
+        a1 = Asset(name="asset_one", uri="s3://one")
+        a2 = Asset(name="asset_two", uri="s3://two")
+        accessors = AssetStateStoreAccessors([a1, a2])
+
+        assert list(accessors) == [accessors[a1], accessors[a2]]
+
+    def test_iter_yields_name_and_uri_accessors(self):
+        asset = Asset(name="by_name", uri="s3://one")
+        ref = AssetUriRef("s3://two")
+
+        accessors = AssetStateStoreAccessors([asset, ref])
+
+        assert list(accessors) == [accessors[asset], accessors[ref]]
+
+    def test_iter_is_independent_per_call(self):
+        accessors = AssetStateStoreAccessors([Asset(name="one", uri="s3://one")])
+
+        assert list(accessors) == list(accessors)
+
+    def test_iter_is_empty_without_assets(self):
+        assert list(AssetStateStoreAccessors([])) == []
+
     def test_alias_inlet_resolves_to_concrete_assets(self, mock_supervisor_comms):
         alias = AssetAlias(name="my_alias")
         mock_supervisor_comms.send.return_value = AssetsByAliasResult(

@@ -25,6 +25,7 @@ from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from functools import cache
+from itertools import chain
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from uuid import UUID
 
@@ -852,6 +853,10 @@ class AssetStateStoreAccessors:
 
     For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
     ``set``, ``delete``, ``clear``) can be called directly without subscripting.
+
+    Callers that do not know their assets up front, such as a trigger shared by several
+    asset watchers, can use ``len()`` to tell whether the direct methods apply and iterate
+    to reach every accessor in turn.
     """
 
     def __init__(self, inlets: list, outlets: list | None = None) -> None:
@@ -889,6 +894,13 @@ class AssetStateStoreAccessors:
         except KeyError:
             raise KeyError(f"{key!r} is not in this task's inlets or outlets")
         raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
+
+    def __len__(self) -> int:
+        return self._total
+
+    def __iter__(self) -> Iterator[AssetStateStoreAccessor]:
+        """Iterate the per asset accessors, for callers that address every asset in turn."""
+        return chain(self._by_name.values(), self._by_uri.values())
 
     def _single_accessor(self) -> AssetStateStoreAccessor:
         if self._total != 1:
