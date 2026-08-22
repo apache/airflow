@@ -53,6 +53,7 @@ type TriggerDAGFormProps = {
         runId: string;
       }
     | undefined;
+  readonly suggestedPartitionKey?: string | undefined;
 };
 
 const TriggerDAGForm = ({
@@ -66,6 +67,7 @@ const TriggerDAGForm = ({
   onSubmitTrigger,
   open,
   prefillConfig,
+  suggestedPartitionKey,
 }: TriggerDAGFormProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
@@ -76,7 +78,14 @@ const TriggerDAGForm = ({
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const {
+    control,
+    formState: { dirtyFields },
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+  } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -87,12 +96,13 @@ const TriggerDAGForm = ({
       // For partitioned Dags, logical date is not applicable.
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
-      partitionKey: undefined,
+      partitionKey: suggestedPartitionKey,
     },
   });
 
   // Pre-fill form when prefillConfig is provided (priority over conf)
-  // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
+  // Only restore 'conf' (parameters) from the previous run. Its logicalDate, runId and partition key
+  // would collide with that run (409), so the partition key is seeded from the current suggestion.
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
@@ -105,7 +115,7 @@ const TriggerDAGForm = ({
         dataIntervalStart: "",
         logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
-        partitionKey: undefined,
+        partitionKey: suggestedPartitionKey,
       });
       // Also update the param store to keep it in sync. Seed the initial params (for stable
       // section ordering) only once they are available, but always push the conf so a run's
@@ -132,7 +142,16 @@ const TriggerDAGForm = ({
     initialParamDict,
     setInitialParamDict,
     isPartitioned,
+    suggestedPartitionKey,
   ]);
+
+  // The suggestion is computed per request, so a response served from cache can seed the field with
+  // a partition that has already elapsed. Apply a newer suggestion unless the user edited the field.
+  useEffect(() => {
+    if (suggestedPartitionKey !== undefined && !Boolean(dirtyFields.partitionKey)) {
+      setValue("partitionKey", suggestedPartitionKey);
+    }
+  }, [dirtyFields.partitionKey, setValue, suggestedPartitionKey]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {

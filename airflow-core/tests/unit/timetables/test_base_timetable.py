@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
@@ -44,6 +45,13 @@ def test_custom_timetable_type_name_returns_qualname():
 
     # The Timetable.type_name logic should return qualname for custom timetables
     assert inst.type_name == expected
+
+
+def test_suggest_partition_key_non_partitioned_returns_none():
+    """Non-partitioned timetables never suggest a partition key."""
+
+    tt = NullTimetable()
+    assert tt.suggest_partition_key(pendulum.datetime(2026, 2, 18, tz="UTC")) is None
 
 
 # ---------------------------------------------------------------------------

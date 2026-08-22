@@ -215,4 +215,151 @@ describe("TriggerDAGForm", () => {
     await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
     expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
   });
+
+  it("pre-fills the partition key field with the suggested value", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Partitioned Dag"
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        suggestedPartitionKey="2026-02-18T00:00:00"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
+    );
+    const partitionKeyField = container.querySelector<HTMLInputElement>('input[name="partitionKey"]');
+
+    expect(partitionKeyField?.value).toBe("2026-02-18T00:00:00");
+  });
+
+  it("leaves the partition key field blank when no suggestion is provided", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Partitioned Dag"
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
+    );
+    const partitionKeyField = container.querySelector<HTMLInputElement>('input[name="partitionKey"]');
+
+    expect(partitionKeyField?.value).toBe("");
+  });
+
+  it("applies a fresher suggestion arriving after the form is shown", async () => {
+    const { container, rerender } = render(
+      <TriggerDAGForm
+        dagDisplayName="Partitioned Dag"
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        suggestedPartitionKey="2026-02-18T00:00:00"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
+    );
+
+    rerender(
+      <TriggerDAGForm
+        dagDisplayName="Partitioned Dag"
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        suggestedPartitionKey="2026-02-18T01:00:00"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')?.value).toBe(
+        "2026-02-18T01:00:00",
+      ),
+    );
+  });
+
+  it("keeps an edited partition key when a fresher suggestion arrives", async () => {
+    const { container, rerender } = render(
+      <TriggerDAGForm
+        dagDisplayName="Partitioned Dag"
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        suggestedPartitionKey="2026-02-18T00:00:00"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
+    );
+
+    const partitionKeyField = container.querySelector<HTMLInputElement>('input[name="partitionKey"]');
+
+    fireEvent.change(partitionKeyField as HTMLInputElement, { target: { value: "2026-01-01T00:00:00" } });
+
+    rerender(
+      <TriggerDAGForm
+        dagDisplayName="Partitioned Dag"
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        suggestedPartitionKey="2026-02-18T01:00:00"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')?.value).toBe(
+        "2026-01-01T00:00:00",
+      ),
+    );
+  });
 });

@@ -2681,6 +2681,7 @@ class DAGDetailsResponse(BaseModel):
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+    suggested_partition_key: Annotated[str | None, Field(title="Suggested Partition Key")] = None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
