@@ -5937,6 +5937,11 @@ dependencies = [
     { name = "requests-toolbelt" },
 ]
 
+[package.optional-dependencies]
+srv = [
+    { name = "dnspython" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
@@ -5955,10 +5960,12 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
+    { name = "dnspython", marker = "extra == 'srv'", specifier = ">=2.0.0" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "requests-toolbelt", specifier = ">=1.0.0" },
 ]
+provides-extras = ["srv"]
 
 [package.metadata.requires-dev]
 dev = [
