@@ -24,6 +24,7 @@ API compared to InfluxDB 2.x.
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -47,6 +48,15 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from airflow.models import Connection
+
+
+class InfluxDB3AsyncQueryNotAvailableError(RuntimeError):
+    """Raised when the installed InfluxDB 3 client lacks async query support."""
+
+
+def convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
+    """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
+    return json.loads(dataframe.to_json(orient="records", date_format="iso"))
 
 
 class InfluxDB3Hook(BaseHook):
@@ -204,6 +214,39 @@ class InfluxDB3Hook(BaseHook):
             )
 
         return result
+
+    async def query_async(self, query: str) -> list[dict[str, Any]]:
+        """
+        Run a SQL query from the triggerer and return JSON-serializable records.
+
+        ``InfluxDBClient3.query_async`` runs the blocking Arrow Flight calls in the event
+        loop's default executor, so awaiting it does not block the triggerer. It is a plain
+        coroutine that resolves once the whole result stream has been read -- InfluxDB 3 has
+        no submit-then-poll query API, so there is nothing to poll in between.
+
+        Requires ``influxdb3-python>=0.12.0``, the release that introduced ``query_async``.
+
+        :param query: SQL query string
+        :return: List of dictionaries representing query results
+        """
+        import pandas as pd
+
+        client = self.get_conn()
+        if not hasattr(client, "query_async"):
+            raise InfluxDB3AsyncQueryNotAvailableError(
+                "Deferrable mode requires influxdb3-python>=0.12.0, which introduced "
+                "InfluxDBClient3.query_async(). Upgrade with: pip install 'influxdb3-python>=0.12.0'"
+            )
+
+        result = await client.query_async(query=query, language="sql", mode="pandas")
+
+        if not isinstance(result, pd.DataFrame):
+            raise ValueError(
+                f"Query did not return a DataFrame. "
+                f"Result type: {type(result).__module__}.{type(result).__name__}"
+            )
+
+        return convert_dataframe_to_records(result)
 
     def write(
         self,

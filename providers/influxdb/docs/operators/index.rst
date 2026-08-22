@@ -46,3 +46,24 @@ Example usage:
     :language: python
     :start-after: [START howto_operator_influxdb3]
     :end-before: [END howto_operator_influxdb3]
+
+Deferrable mode
+^^^^^^^^^^^^^^^
+
+Set ``deferrable=True`` to release the worker slot while the query runs. The task is resumed by the
+:class:`~airflow.providers.influxdb.triggers.influxdb3.InfluxDB3QueryTrigger` once results are ready.
+
+.. exampleinclude:: /../../influxdb/tests/system/influxdb/example_influxdb3.py
+    :language: python
+    :start-after: [START howto_operator_influxdb3_deferrable]
+    :end-before: [END howto_operator_influxdb3_deferrable]
+
+.. note::
+
+    InfluxDB 3 streams query results over a single Arrow Flight call rather than exposing a job that
+    can be polled, so the trigger awaits the query once instead of polling at an interval, and there
+    is no ``poll_interval`` parameter. Results still travel back through XCom, so deferring is most
+    useful for long-running queries with small-to-moderate result sets. For very large extracts,
+    keep using :class:`~airflow.providers.influxdb.hooks.influxdb3.InfluxDB3Hook` from a Python task.
+
+    Deferrable mode requires ``influxdb3-python>=0.12.0`` and a running ``triggerer``.

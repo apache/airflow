@@ -19,12 +19,12 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseOperator
-from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
+from airflow.providers.common.compat.sdk import BaseOperator, conf
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook, convert_dataframe_to_records
+from airflow.providers.influxdb.triggers.influxdb3 import InfluxDB3QueryTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -40,6 +40,11 @@ class InfluxDB3Operator(BaseOperator):
 
     :param sql: The SQL query to be executed
     :param influxdb3_conn_id: Reference to :ref:`InfluxDB 3 connection id <howto/connection:influxdb3>`.
+    :param deferrable: Run the query from the triggerer instead of holding a worker slot for its
+        duration. Requires ``influxdb3-python>=0.12.0``. Note that InfluxDB 3 streams results over
+        Arrow Flight rather than exposing a pollable job, so the whole result set still flows back
+        through XCom -- deferring helps with long-running queries returning modest result sets
+        (aggregations, freshness probes), not with very large extracts.
     """
 
     template_fields: Sequence[str] = ("sql",)
@@ -49,24 +54,50 @@ class InfluxDB3Operator(BaseOperator):
         *,
         sql: str,
         influxdb3_conn_id: str = "influxdb3_default",
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.influxdb3_conn_id = influxdb3_conn_id
         self.sql = sql
+        self.deferrable = deferrable
 
-    def execute(self, context: Context) -> list[dict[str, Any]]:
+    def execute(self, context: Context) -> list[dict[str, Any]] | None:
         """
         Execute SQL query and return results as JSON-serializable list of dictionaries.
 
         :param context: Airflow context
-        :return: List of dictionaries representing query results
+        :return: List of dictionaries representing query results, or ``None`` when deferring
         """
         self.log.info("Executing SQL query: %s", self.sql)
+
+        if self.deferrable:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=InfluxDB3QueryTrigger(
+                    sql=self.sql,
+                    influxdb3_conn_id=self.influxdb3_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
         hook = InfluxDB3Hook(conn_id=self.influxdb3_conn_id)
         result = hook.query(self.sql)
 
         self.log.info("Query executed successfully. Rows returned: %d", len(result))
+        return convert_dataframe_to_records(result)
 
-        json_str = result.to_json(orient="records", date_format="iso")
-        return json.loads(json_str)
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """Return the query results produced by :class:`InfluxDB3QueryTrigger`."""
+        if event is None:
+            raise RuntimeError("InfluxDB 3 query did not return an event")
+
+        status = event.get("status")
+        if status == "error":
+            raise RuntimeError(event.get("message", "InfluxDB 3 query failed"))
+        if status != "success":
+            raise RuntimeError(f"InfluxDB 3 query returned unexpected status: {status!r}")
+
+        records = event["records"]
+        self.log.info("Query executed successfully. Rows returned: %d", len(records))
+        return records

@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3AsyncQueryNotAvailableError, InfluxDB3Hook
 
 
 class TestInfluxDB3Hook:
@@ -84,6 +84,44 @@ class TestInfluxDB3Hook:
         )
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_query_async(self):
+        """Test async query with InfluxDB 3.x."""
+        pd = pytest.importorskip("pandas")
+
+        self.influxdb3_hook.client = mock.Mock()
+        mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
+        self.influxdb3_hook.client.query_async = mock.AsyncMock(return_value=mock_df)
+        self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
+
+        influxdb_query = 'SELECT "duration" FROM "pyexample"'
+        result = await self.influxdb3_hook.query_async(influxdb_query)
+
+        self.influxdb3_hook.get_conn.assert_called()
+        self.influxdb3_hook.client.query_async.assert_awaited_once_with(
+            query=influxdb_query, language="sql", mode="pandas"
+        )
+        assert result == [{"col1": 1, "col2": 3}, {"col1": 2, "col2": 4}]
+
+    @pytest.mark.asyncio
+    async def test_query_async_requires_supported_client(self):
+        """Deferrable execution requires an InfluxDB client exposing query_async."""
+        self.influxdb3_hook.client = mock.Mock(spec=[])
+        self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
+
+        with pytest.raises(InfluxDB3AsyncQueryNotAvailableError, match="influxdb3-python>=0.12.0"):
+            await self.influxdb3_hook.query_async('SELECT "duration" FROM "pyexample"')
+
+    @pytest.mark.asyncio
+    async def test_query_async_requires_dataframe_result(self):
+        """Async query results must resolve to a pandas DataFrame."""
+        self.influxdb3_hook.client = mock.Mock()
+        self.influxdb3_hook.client.query_async = mock.AsyncMock(return_value=[{"col1": 1}])
+        self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
+
+        with pytest.raises(ValueError, match="did not return a DataFrame"):
+            await self.influxdb3_hook.query_async('SELECT "duration" FROM "pyexample"')
 
     def test_write(self):
         """Test write with InfluxDB 3.x."""
