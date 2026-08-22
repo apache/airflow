@@ -17,15 +17,17 @@
  under the License.
 -->
 
-# SandboxToolset system test
+# SandboxToolset system tests
 
-The `example_sandbox_toolset_sbx.py` system test exercises the complete local boundary:
+Both tests exercise the complete toolset boundary with a deterministic pydantic-ai model:
 
 1. an Airflow task runs a deterministic pydantic-ai agent;
-2. the agent calls `SandboxToolset` twice;
-3. `SbxSandboxBackend` creates a Docker Sandbox microVM;
-4. the second Python call reads the file written by the first call, proving per-run persistence; and
+2. the agent calls every sandbox tool;
+3. the selected backend creates a sandbox;
+4. later calls read the file written by the first call, proving per-run persistence; and
 5. the agent run tears the sandbox down.
+
+## Docker Sandboxes
 
 Install the `sbx` CLI on every worker that can run this Dag and initialize its network policy once:
 
@@ -39,3 +41,18 @@ Airflow system-test environment whose task process has access to the host `sbx` 
 ```console
 pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_sbx.py
 ```
+
+## OpenSandbox
+
+Install the OpenSandbox extra, point the SDK at a running server, and run:
+
+```console
+pip install "apache-airflow-providers-common-ai[sandbox-opensandbox]"
+export OPEN_SANDBOX_DOMAIN="opensandbox.example.com"
+export OPEN_SANDBOX_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_opensandbox.py
+```
+
+The test requests the default deny-all egress policy, so the OpenSandbox server
+must have its egress sidecar configured. It also applies a 15-minute server-side
+sandbox lifetime.
