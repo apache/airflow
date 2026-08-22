@@ -176,7 +176,9 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
+BatchNodeState
 BatchServiceClient
 bc
 bcc
@@ -463,6 +465,7 @@ deliverability
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations

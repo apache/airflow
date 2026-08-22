@@ -22,8 +22,9 @@ package org.apache.airflow.sdk.execution
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
-import org.apache.airflow.sdk.Dag
+import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Task
+import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
 import org.apache.airflow.sdk.execution.comm.RetryTask
@@ -88,8 +89,7 @@ class TaskTest {
     taskId: String,
     taskClass: Class<out Task>,
   ): Bundle {
-    val dag = Dag("test_dag")
-    dag.addTask(taskId, taskClass)
+    val dag = DagDef("test_dag").addTask(TaskDef(taskId, taskClass))
     return Bundle(listOf(dag))
   }
 

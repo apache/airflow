@@ -18,23 +18,11 @@
 package sdkcontext
 
 type (
-	workoadContextKey   struct{}
-	apiClientContextKey struct{}
-	workerContextKey    struct{}
-	runtimeTIContextKey struct{}
 	runtimeContextKey   struct{}
 	sdkClientContextKey struct{}
 )
 
 var (
-	// WorkloadContextKey stores the current workload
-	//
-	// workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
-	WorkloadContextKey  = workoadContextKey{}
-	RuntimeTIContextKey = runtimeTIContextKey{}
-	ApiClientContextKey = apiClientContextKey{}
-	WorkerContextKey    = workerContextKey{}
-
 	// RuntimeContextKey stores the public, task-facing runtime context
 	// (task instance identifiers and the Dag run's scheduling timestamps).
 	// The coordinator-mode runtime populates it from StartupDetails; the
@@ -45,10 +33,7 @@ var (
 	// but this package does not import sdk to avoid an import cycle.
 	RuntimeContextKey = runtimeContextKey{}
 
-	// SdkClientContextKey, when present, holds an sdk.Client implementation
-	// that should be injected into task functions instead of constructing a
-	// default HTTP-backed client. The coordinator-mode runtime uses this to
-	// route task SDK calls (GetVariable, GetConnection, ...) over the
-	// supervisor comm socket rather than to the Execution API.
+	// SdkClientContextKey holds the coordinator-backed sdk.Client injected into
+	// task functions. SDK calls travel over the supervisor comm socket.
 	SdkClientContextKey = sdkClientContextKey{}
 )

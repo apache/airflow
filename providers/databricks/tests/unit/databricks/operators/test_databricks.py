@@ -748,6 +748,27 @@ class TestDatabricksSubmitRunOperator:
 
         assert expected == utils.normalise_json_content(op._get_merged_json())
 
+    def test_init_with_performance_target_named_parameter(self):
+        """
+        Test the initializer merges ``performance_target`` into the submit payload.
+        """
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            notebook_task=NOTEBOOK_TASK,
+            performance_target="PERFORMANCE_OPTIMIZED",
+        )
+        expected = utils.normalise_json_content(
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "performance_target": "PERFORMANCE_OPTIMIZED",
+                "run_name": TASK_ID,
+            }
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
     def test_init_with_spark_python_task_named_parameters(self):
         """
         Test the initializer with the named parameters.
