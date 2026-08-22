@@ -1,0 +1,1 @@
+Fix TaskInstanceHistory missing host/metadata when task is retried from a non-RUNNING state (e.g. killed externally or failed in queued/deferred status)
