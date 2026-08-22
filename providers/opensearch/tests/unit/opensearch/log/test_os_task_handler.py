@@ -844,7 +844,7 @@ class TestOpensearchRemoteLogIO:
             assert "http_auth" in transport_args
             assert transport_args["http_auth"] == (username, password)
         else:
-            assert "http_auth" not in handler.client.transport.kwargs
+            assert "http_auth" not in opensearch_io.client.transport.kwargs
 
 
 class TestOpensearchRemoteLogIOFromConfig:
