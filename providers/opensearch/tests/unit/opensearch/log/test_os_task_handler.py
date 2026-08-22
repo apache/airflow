@@ -839,7 +839,7 @@ class TestOpensearchRemoteLogIO:
             log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
         )
 
-        transport_args = handler.client.transport.kwargs
+        transport_args = opensearch_io.client.transport.kwargs
         if expect_http_auth:
             assert "http_auth" in transport_args
             assert transport_args["http_auth"] == (username, password)
