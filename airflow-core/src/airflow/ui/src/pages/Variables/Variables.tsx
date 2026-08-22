@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, useDisclosure, VStack } from "@chakra-ui/react";
+import { Box, Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -199,20 +199,25 @@ export const Variables = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={variableKeyPattern ?? ""}
-          onChange={handleSearchChange}
-          placeholder={translate("variables.searchPlaceholder")}
-        />
-        <HStack gap={4} justifyContent="flex-end" mt={2}>
-          <ImportVariablesButton disabled={selectedRows.size > 0} />
-          <AddVariableButton disabled={selectedRows.size > 0} />
-        </HStack>
-      </VStack>
       <DataTable
-        actions={
+        columns={columns}
+        data={variables}
+        errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={variableKeyPattern ?? ""}
+            onChange={handleSearchChange}
+            placeholder={translate("variables.searchPlaceholder")}
+          />
+        }
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="admin:variables.variable"
+        noRowsMessage={translate("variables.noRowsMessage")}
+        onStateChange={setTableURLState}
+        presentationActions={
           variables.length > 0 ? (
             <ExpandCollapseButtons
               collapseLabel={translate("common:expand.collapse")}
@@ -223,15 +228,12 @@ export const Variables = () => {
             />
           ) : undefined
         }
-        columns={columns}
-        data={variables}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="admin:variables.variable"
-        noRowsMessage={translate("variables.noRowsMessage")}
-        onStateChange={setTableURLState}
+        primaryActions={
+          <>
+            <ImportVariablesButton disabled={selectedRows.size > 0} />
+            <AddVariableButton disabled={selectedRows.size > 0} />
+          </>
+        }
         total={data?.total_entries ?? 0}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>

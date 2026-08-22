@@ -13940,8 +13940,10 @@ components:
           - type: 'null'
           title: Logical Date
         start_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Start Date
         end_date:
           anyOf:
@@ -14051,6 +14053,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -14369,6 +14376,10 @@ components:
           - type: 'null'
           title: Nav Top Level
           default: false
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
         href:
           type: string
           title: Href
@@ -14943,6 +14954,47 @@ components:
       type: object
       title: PatchTaskInstanceBody
       description: Request body for patching task instance state.
+    PluginAppliesToResponse:
+      properties:
+        dag_tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Dag Tags
+        dag_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Dag Ids
+        task_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Task Ids
+        operators:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Operators
+        operator_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Operator Names
+      additionalProperties: false
+      type: object
+      title: PluginAppliesToResponse
+      description: Serializer for the optional Dag/task scoping criteria of a UI plugin.
     PluginCollectionResponse:
       properties:
         plugins:
@@ -15331,6 +15383,10 @@ components:
           - type: 'null'
           title: Nav Top Level
           default: false
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
         bundle_url:
           type: string
           title: Bundle Url
@@ -16117,6 +16173,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:

@@ -180,31 +180,30 @@ export const AssetsList = () => {
   };
 
   return (
-    <>
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={namePattern}
-          onChange={handleSearchChange}
-          placeholder={translate("searchPlaceholder")}
-        />
-
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
-      <DataTable
-        columns={columns}
-        data={data?.assets ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:asset"
-        onStateChange={setTableURLState}
-        total={totalEntries}
-      />
-    </>
+    <DataTable
+      columns={columns}
+      data={data?.assets ?? []}
+      errorMessage={<ErrorAlert error={error} />}
+      filterActions={
+        <VStack alignItems="flex-start" gap={2} w="100%">
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={namePattern}
+            onChange={handleSearchChange}
+            placeholder={translate("searchPlaceholder")}
+          />
+          <FilterBar
+            configs={filterConfigs}
+            initialValues={initialValues}
+            onFiltersChange={handleFiltersChange}
+          />
+        </VStack>
+      }
+      initialState={tableURLState}
+      isLoading={isLoading}
+      modelName="common:asset"
+      onStateChange={setTableURLState}
+      total={totalEntries}
+    />
   );
 };

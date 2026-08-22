@@ -416,11 +416,11 @@ export const TaskInstances = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <TaskInstancesFilter />
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={<TaskInstancesFilter />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"

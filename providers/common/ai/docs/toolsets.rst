@@ -24,7 +24,8 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Four toolsets are included:
+Four toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
+package root:
 
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
@@ -37,7 +38,14 @@ Four toolsets are included:
   the agent a shell and a filesystem inside an isolated sandbox, off the
   Airflow worker. See :ref:`which boundary that is <sandbox-boundaries>`.
 
-All four implement pydantic-ai's
+Three more toolsets are documented later on this page. They are not re-exported from the
+package root, so import each of them from its own submodule::
+
+    from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
+    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+    from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
+
+All of the toolsets on this page implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -842,7 +850,7 @@ Four rules for an implementation:
   when it might. The first fails the task for Airflow to retry; the second
   becomes a bounded prompt back to the model.
 - If you cannot enforce something the ``SandboxSpec`` asks for, **raise**. Never
-  provision a weaker sandbox than the DAG author asked for.
+  provision a weaker sandbox than the Dag author asked for.
 
 Parameters
 ^^^^^^^^^^
