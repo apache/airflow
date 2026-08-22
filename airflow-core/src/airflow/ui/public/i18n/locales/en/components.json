@@ -153,6 +153,8 @@
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "manualRunDenied": "Manual runs are not allowed for this Dag",
     "partitionKeyHelp": "Optional - only applies to partitioned Dags",
+    "recentConfig": "Recent configurations",
+    "recentConfigPlaceholder": "Select a recent configuration",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",
