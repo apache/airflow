@@ -1,0 +1,1 @@
+Add a ``[metrics] statsd_socket_path`` option to submit StatsD or Datadog metrics over a Unix Domain Socket. When ``statsd_socket_path`` is set it takes precedence: the StatsD backend uses ``UnixSocketStatsClient`` and the Datadog backend passes ``socket_path`` to ``DogStatsd``.
