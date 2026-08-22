@@ -382,19 +382,106 @@ class TestHttpSensorAsync:
 
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
 
-    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
     @mock.patch(
-        "airflow.sdk.bases.sensor.BaseSensorOperator.execute"
-        if AIRFLOW_V_3_0_PLUS
-        else "airflow.sensors.base.BaseSensorOperator.execute"
+        "airflow.providers.http.sensors.http.HttpSensor.poke",
+        return_value=False,
     )
-    def test_execute_not_defer_when_response_check_is_not_none(self, mock_execute, mock_defer):
+    def test_execute_defers_when_response_check_is_not_none(self, mock_poke):
+        """A response_check must not force the sensor back onto the synchronous path."""
         task = HttpSensor(
             task_id="run_now",
             endpoint="test-endpoint",
             response_check=lambda response: "httpbin" in response.text,
             deferrable=True,
         )
-        task.execute({})
-        mock_execute.assert_called_once()
-        mock_defer.assert_not_called()
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute({})
+        assert isinstance(exc.value.trigger, HttpSensorTrigger)
+
+    @mock.patch(
+        "airflow.providers.http.sensors.http.HttpSensor.poke",
+        return_value=PokeReturnValue(is_done=True, xcom_value="payload"),
+    )
+    def test_execute_returns_xcom_when_first_poke_succeeds(self, mock_poke):
+        """Immediate success must keep the sync-mode contract of returning the xcom value."""
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            response_check=lambda response: PokeReturnValue(is_done=True, xcom_value=response.text),
+            deferrable=True,
+        )
+        assert task.execute({}) == "payload"
+
+    @staticmethod
+    def _make_event(text: str = "httpbin rocks") -> dict:
+        from airflow.providers.http.triggers.http import HttpResponseSerializer
+
+        response = requests.Response()
+        response.status_code = 200
+        response._content = text.encode()
+        response.url = "http://test-endpoint"
+        return {"status": "success", "response": HttpResponseSerializer.serialize(response)}
+
+    def test_execute_complete_response_check_passes(self):
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            response_check=lambda response: "httpbin" in response.text,
+            deferrable=True,
+        )
+        assert task.execute_complete(context={}, event=self._make_event()) is None
+
+    def test_execute_complete_response_check_fails_defers_again(self):
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            response_check=lambda response: "other" in response.text,
+            poke_interval=42,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute_complete(context={}, event=self._make_event())
+        assert isinstance(exc.value.trigger, HttpSensorTrigger)
+        # Re-deferring must keep the poke_interval pacing instead of refiring immediately.
+        assert exc.value.trigger.initial_delay == 42
+
+    def test_execute_complete_response_check_receives_response(self):
+        seen = {}
+
+        def response_check(response):
+            seen["text"] = response.text
+            seen["status_code"] = response.status_code
+            return True
+
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            response_check=response_check,
+            deferrable=True,
+        )
+        task.execute_complete(context={}, event=self._make_event("payload"))
+        assert seen == {"text": "payload", "status_code": 200}
+
+    def test_execute_complete_response_check_poke_return_value(self):
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            response_check=lambda response: PokeReturnValue(is_done=True, xcom_value=response.text),
+            deferrable=True,
+        )
+        assert task.execute_complete(context={}, event=self._make_event("payload")) == "payload"
+
+    def test_execute_complete_legacy_event_with_response_check_raises(self):
+        """An in-flight trigger from an older provider version cannot satisfy response_check."""
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            response_check=lambda response: True,
+            deferrable=True,
+        )
+        with pytest.raises(ValueError, match="does not contain the HTTP response"):
+            task.execute_complete(context={}, event=True)  # type: ignore[arg-type]
+
+    def test_execute_complete_legacy_event_without_response_check(self):
+        task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
+        assert task.execute_complete(context={}, event=True) is None  # type: ignore[arg-type]
