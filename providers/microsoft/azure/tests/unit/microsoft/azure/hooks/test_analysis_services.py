@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
+import httpx
 import pytest
-import requests
 from azure.core.credentials import AccessToken
 from azure.core.exceptions import ClientAuthenticationError
 
@@ -46,11 +47,18 @@ def build_response(
     *, headers: dict[str, str] | None = None, body: object | None = None, text: str = ""
 ) -> mock.Mock:
     """Build a response mock with the requested headers and JSON body."""
-    response = mock.Mock(spec=requests.Response)
+    response = mock.Mock(spec=httpx.Response)
     response.headers = headers or {}
     response.json.return_value = body
     response.text = text
     return response
+
+
+def build_client(client_class: mock.MagicMock) -> mock.MagicMock:
+    """Return the client instance that the patched ``httpx.Client`` context manager yields."""
+    client = client_class.return_value
+    client.__enter__.return_value = client
+    return client
 
 
 class TestAzureAnalysisServicesHook:
@@ -163,7 +171,20 @@ class TestAzureAnalysisServicesHook:
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Failed to authenticate"):
             AzureAnalysisServicesHook(CONN_ID)._get_headers()
 
-    @pytest.mark.parametrize("host", [None, "", "https://westus.asazure.windows.net", "host/path"])
+    @pytest.mark.parametrize(
+        "host",
+        [
+            None,
+            "",
+            "https://westus.asazure.windows.net",
+            "host/path",
+            "attacker@evil.example",
+            "@evil.example",
+            "evil.example:9999",
+            "host:abc",
+            "evil.example:0",
+        ],
+    )
     def test_rejects_invalid_region_endpoint(self, host, create_mock_connection):
         create_mock_connection(
             Connection(
@@ -202,9 +223,10 @@ class TestAzureAnalysisServicesHook:
 
     @pytest.mark.parametrize("refresh_type", sorted(VALID_REFRESH_TYPES))
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.post", autospec=True)
-    def test_trigger_refresh_posts_official_request_body(self, post, get_headers, refresh_type):
-        post.return_value = build_response(
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_trigger_refresh_posts_official_request_body(self, client_class, get_headers, refresh_type):
+        client = build_client(client_class)
+        client.post.return_value = build_response(
             headers={
                 "Location": f"https://{HOST}/servers/{SERVER_NAME}/models/Adventure%20Works/refreshes/{REFRESH_ID}"
             }
@@ -214,7 +236,7 @@ class TestAzureAnalysisServicesHook:
         result = hook.trigger_refresh(SERVER_NAME, DATABASE, refresh_type)
 
         assert result == REFRESH_ID
-        post.assert_called_once_with(
+        client.post.assert_called_once_with(
             f"https://{HOST}/servers/{SERVER_NAME}/models/Adventure%20Works/refreshes",
             json={"Type": refresh_type},
             headers=HEADERS,
@@ -230,17 +252,19 @@ class TestAzureAnalysisServicesHook:
         [None, "", f"https://{HOST}/servers/{SERVER_NAME}/models/{DATABASE}/refreshes/", "https://["],
     )
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.post", autospec=True)
-    def test_trigger_refresh_rejects_invalid_location(self, post, get_headers, location):
-        post.return_value = build_response(headers={"Location": location} if location is not None else {})
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_trigger_refresh_rejects_invalid_location(self, client_class, get_headers, location):
+        build_client(client_class).post.return_value = build_response(
+            headers={"Location": location} if location is not None else {}
+        )
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Location header"):
             AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
 
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.post", autospec=True)
-    def test_trigger_refresh_decodes_refresh_id(self, post, get_headers):
-        post.return_value = build_response(
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_trigger_refresh_decodes_refresh_id(self, client_class, get_headers):
+        build_client(client_class).post.return_value = build_response(
             headers={"Location": f"https://{HOST}/models/model/refreshes/refresh%20id"}
         )
 
@@ -248,24 +272,24 @@ class TestAzureAnalysisServicesHook:
 
         assert result == "refresh id"
 
-    @pytest.mark.parametrize("error", [requests.ConnectionError("offline"), requests.Timeout("slow")])
+    @pytest.mark.parametrize("error", [httpx.ConnectError("offline"), httpx.ReadTimeout("slow")])
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.post", autospec=True)
-    def test_trigger_refresh_wraps_request_errors(self, post, get_headers, error):
-        post.side_effect = error
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_trigger_refresh_wraps_request_errors(self, client_class, get_headers, error):
+        build_client(client_class).post.side_effect = error
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Failed to trigger"):
             AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
 
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.post", autospec=True)
-    def test_trigger_refresh_includes_truncated_http_error_response(self, post, get_headers):
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_trigger_refresh_includes_truncated_http_error_response(self, client_class, get_headers):
         response_text = "A refresh is already running. " + "x" * 1000
         response = build_response(text=response_text)
-        response.raise_for_status.side_effect = requests.HTTPError(
-            "409 Client Error: Conflict", response=response
+        response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "409 Client Error: Conflict", request=mock.Mock(spec=httpx.Request), response=response
         )
-        post.return_value = response
+        build_client(client_class).post.return_value = response
 
         with pytest.raises(AzureAnalysisServicesRefreshException) as error:
             AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
@@ -276,15 +300,16 @@ class TestAzureAnalysisServicesHook:
 
     @pytest.mark.parametrize("status", sorted(AzureAnalysisServicesRefreshStatus.VALID_STATUSES))
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.get", autospec=True)
-    def test_get_refresh_status_returns_valid_status(self, get, get_headers, status):
-        get.return_value = build_response(body={"status": status})
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_get_refresh_status_returns_valid_status(self, client_class, get_headers, status):
+        client = build_client(client_class)
+        client.get.return_value = build_response(body={"status": status})
         hook = AzureAnalysisServicesHook(CONN_ID, request_timeout=REQUEST_TIMEOUT)
 
         result = hook.get_refresh_status(SERVER_NAME, DATABASE, "refresh id")
 
         assert result == status
-        get.assert_called_once_with(
+        client.get.assert_called_once_with(
             f"https://{HOST}/servers/{SERVER_NAME}/models/Adventure%20Works/refreshes/refresh%20id",
             headers=HEADERS,
             timeout=REQUEST_TIMEOUT,
@@ -300,37 +325,40 @@ class TestAzureAnalysisServicesHook:
         ],
     )
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.get", autospec=True)
-    def test_get_refresh_status_rejects_invalid_response(self, get, get_headers, body, message):
-        get.return_value = build_response(body=body)
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_get_refresh_status_rejects_invalid_response(self, client_class, get_headers, body, message):
+        build_client(client_class).get.return_value = build_response(body=body)
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match=message):
             AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.get", autospec=True)
-    def test_get_refresh_status_rejects_non_json_response(self, get, get_headers):
-        get.return_value = build_response()
-        get.return_value.json.side_effect = requests.JSONDecodeError("bad json", "", 0)
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_get_refresh_status_rejects_non_json_response(self, client_class, get_headers):
+        response = build_response()
+        response.json.side_effect = json.JSONDecodeError("bad json", "", 0)
+        build_client(client_class).get.return_value = response
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="non-JSON"):
             AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
-    @pytest.mark.parametrize("error", [requests.ConnectionError("offline"), requests.Timeout("slow")])
+    @pytest.mark.parametrize("error", [httpx.ConnectError("offline"), httpx.ReadTimeout("slow")])
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.get", autospec=True)
-    def test_get_refresh_status_wraps_request_errors(self, get, get_headers, error):
-        get.side_effect = error
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_get_refresh_status_wraps_request_errors(self, client_class, get_headers, error):
+        build_client(client_class).get.side_effect = error
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Failed to get status"):
             AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.requests.get", autospec=True)
-    def test_get_refresh_status_includes_http_error_response(self, get, get_headers):
+    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
+    def test_get_refresh_status_includes_http_error_response(self, client_class, get_headers):
         response = build_response(text='{"error":"model not found"}')
-        response.raise_for_status.side_effect = requests.HTTPError("500 Server Error", response=response)
-        get.return_value = response
+        response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "500 Server Error", request=mock.Mock(spec=httpx.Request), response=response
+        )
+        build_client(client_class).get.return_value = response
 
         with pytest.raises(AzureAnalysisServicesRefreshException) as error:
             AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
