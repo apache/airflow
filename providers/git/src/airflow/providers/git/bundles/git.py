@@ -136,7 +136,7 @@ class GitDagBundle(BaseDagBundle):
             if repo is not None:
                 repo.close()
 
-    def _log_context(self) -> dict:
+    def _get_log_context(self) -> dict:
         return {
             "bare_repo_path": self.bare_repo_path,
             "repo_path": self.repo_path,
