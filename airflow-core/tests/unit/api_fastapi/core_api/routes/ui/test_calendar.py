@@ -27,7 +27,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.services.ui.calendar import CalendarService
 from airflow.models.deadline import Deadline
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import CronPartitionTimetable
+from airflow.sdk import CronPartitionTimetable, CronTriggerTimetable
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -189,6 +189,125 @@ class TestCalendar:
         body = response.json()
 
         assert body == result
+
+
+class TestCalendarCronNonUTCTimezone:
+    """Planned runs for a cron timetable must be computed in the timetable's own timezone, not UTC."""
+
+    DAG_NAME = "test_dag_non_utc_tz"
+
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.DAG_NAME,
+            schedule=CronTriggerTimetable("0 8 * * *", timezone="Asia/Seoul"),
+            start_date=datetime(2025, 1, 1),
+            catchup=True,
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="test_task1")
+        dag_maker.create_dagrun(
+            run_id="run_1",
+            state=DagRunState.SUCCESS,
+            logical_date=pendulum.datetime(2025, 1, 1, 23, 0, 0, tz="UTC"),
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_planned_runs_use_timetable_timezone_not_utc(self, test_client):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}", params={"granularity": "hourly"})
+        assert response.status_code == 200
+        body = response.json()
+
+        planned = [r for r in body["dag_runs"] if r["state"] == "planned"]
+        # Daily 08:00 Asia/Seoul is 23:00Z the previous day; the last run's data interval
+        # ends 2025-01-01T23:00Z, so planned runs are one per remaining day of 2025.
+        assert len(planned) == 364
+        assert min(r["date"] for r in planned) == "2025-01-02T23:00:00Z"
+        assert all(r["date"].endswith("T23:00:00Z") for r in planned), planned
+        assert all(r["count"] == 1 for r in planned)
+
+
+class CalendarEveryHourCronDstBase:
+    """Every-hour crons must plan exactly one run per UTC hour across a DST transition, like the scheduler."""
+
+    DAG_NAME: str
+    START_DATE: datetime
+    LAST_RUN_UTC: pendulum.DateTime
+    EXPECTED_HOURS: list[str]
+
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.DAG_NAME,
+            schedule=CronTriggerTimetable("0 * * * *", timezone="Europe/Zurich"),
+            start_date=self.START_DATE,
+            catchup=True,
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="test_task1")
+        dag_maker.create_dagrun(
+            run_id="run_1",
+            state=DagRunState.SUCCESS,
+            logical_date=self.LAST_RUN_UTC,
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_one_planned_run_per_utc_hour(self, test_client):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}", params={"granularity": "hourly"})
+        assert response.status_code == 200
+
+        planned = {r["date"]: r["count"] for r in response.json()["dag_runs"] if r["state"] == "planned"}
+        assert {h: planned.get(h) for h in self.EXPECTED_HOURS} == dict.fromkeys(self.EXPECTED_HOURS, 1)
+
+
+class TestCalendarEveryHourCronDstFold(CalendarEveryHourCronDstBase):
+    """Fall-back (2025-10-26 03:00 CEST -> 02:00 CET): the repeated hour keeps its planned run."""
+
+    DAG_NAME = "test_dag_every_hour_dst_fold"
+    START_DATE = datetime(2025, 10, 1)
+    LAST_RUN_UTC = pendulum.datetime(2025, 10, 25, 22, 0, 0, tz="UTC")
+    EXPECTED_HOURS = [
+        "2025-10-25T23:00:00Z",
+        "2025-10-26T00:00:00Z",
+        "2025-10-26T01:00:00Z",
+        "2025-10-26T02:00:00Z",
+        "2025-10-26T03:00:00Z",
+    ]
+
+
+class TestCalendarEveryHourCronDstGap(CalendarEveryHourCronDstBase):
+    """Spring-forward (2026-03-29 02:00 CET -> 03:00 CEST): the skipped hour is not double-counted."""
+
+    DAG_NAME = "test_dag_every_hour_dst_gap"
+    START_DATE = datetime(2026, 3, 1)
+    LAST_RUN_UTC = pendulum.datetime(2026, 3, 28, 22, 0, 0, tz="UTC")
+    EXPECTED_HOURS = [
+        "2026-03-28T23:00:00Z",
+        "2026-03-29T00:00:00Z",
+        "2026-03-29T01:00:00Z",
+        "2026-03-29T02:00:00Z",
+        "2026-03-29T03:00:00Z",
+    ]
 
 
 class TestPartitionedCalendar:
