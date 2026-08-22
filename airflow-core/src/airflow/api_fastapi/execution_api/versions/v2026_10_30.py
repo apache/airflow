@@ -19,11 +19,17 @@ from __future__ import annotations
 
 from cadwyn import (
     ResponseInfo,
+    VersionChange,
     VersionChangeWithSideEffects,
     convert_response_to_previous_version_for,
     schema,
 )
 
+from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.execution_api.datamodels.asset_event import (
+    AssetEventsResponse,
+    DagRunAssetReference,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
 
 
@@ -40,3 +46,33 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
+
+
+class MakeAssetEventDagRunStartDateNullable(VersionChange):
+    """Make DagRunAssetReference.start_date nullable for runs that have not started yet."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRunAssetReference).field("start_date").had(type=UtcDateTime),
+        schema(DagRunAssetReference).field("run_after").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(AssetEventsResponse)  # type: ignore[arg-type]
+    def ensure_start_date_in_created_dagruns(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """
+        Keep created_dagruns[*].start_date non-null for previous API versions.
+
+        Clients of those versions declare the field non-nullable and reject the whole response
+        when it is null, which happens while a created Dag run is queued or has been cleared.
+        Fall back to run_after, then drop the field those clients never knew about.
+        """
+        for event in response.body.get("asset_events") or ():
+            if not isinstance(event, dict):
+                continue
+            for dag_run in event.get("created_dagruns") or ():
+                if not isinstance(dag_run, dict):
+                    continue
+                if dag_run.get("start_date") is None:
+                    dag_run["start_date"] = dag_run.get("run_after")
+                dag_run.pop("run_after", None)
