@@ -138,6 +138,20 @@ or ``tasks`` argument.
   # i.e. the same dict, copied into the task's dict-shaped parameter slot.
 
 
+OpenLineage parent context
+--------------------------
+
+Set ``openlineage_inject_parent_job_info=True`` to inject the standardized OpenLineage context into
+the dict-shaped parameter slot of each supported task. The context is passed under the
+``OPENLINEAGE_CONTEXT`` key and includes the Airflow task as a ``BATCH/AIRFLOW/TASK`` parent and the
+Airflow Dag as a ``BATCH/AIRFLOW/DAG`` root job.
+
+For tasks with a ``new_cluster``, the operator also retains the existing injection into
+``new_cluster.spark_conf``. Tasks that only accept positional list parameters
+(``spark_jar_task``, ``spark_python_task``, or ``spark_submit_task``) receive the context only when
+their Spark configuration can be injected.
+
+
 Examples
 --------
 
