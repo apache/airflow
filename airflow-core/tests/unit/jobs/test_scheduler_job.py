@@ -136,7 +136,6 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
-from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
@@ -178,6 +177,8 @@ from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+    from airflow.serialization.definitions.dag import SerializedDAG
 
     from tests_common.pytest_plugin import DagMaker
 
@@ -1209,24 +1210,28 @@ class TestSchedulerJob:
         assert events[0].asset is not None
         assert events[0].source_aliases is not None
 
-    def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
-        dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
-        task_id_1 = "dummy_task"
+    def test_execute_task_instances_paused_running_dag_still_enqueues(self, session, dag_maker):
+        dag_id = "SchedulerJobTest.test_execute_task_instances_paused_running_dag_still_enqueues"
 
-        with dag_maker(dag_id=dag_id, session=session) as dag:
-            EmptyOperator(task_id=task_id_1)
-        assert isinstance(dag, SerializedDAG)
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="dummy_task")
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        assert dr1.state == State.RUNNING
+
+        dag_model = session.get(DagModel, dag_id)
+        dag_model.is_paused = True
+
         (ti1,) = dr1.task_instances
         ti1.state = State.SCHEDULED
+        session.flush()
 
         self.job_runner._critical_section_enqueue_task_instances(session)
         session.flush()
         ti1.refresh_from_db(session=session)
-        assert ti1.state == State.SCHEDULED
+        assert ti1.state == TaskInstanceState.QUEUED
         session.rollback()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
@@ -8727,16 +8732,15 @@ class TestSchedulerJob:
             )
         ) > (timezone.utcnow() - timedelta(days=2))
 
-    def test_update_dagrun_state_for_paused_dag(self, dag_maker, session):
-        """Test that _update_dagrun_state_for_paused_dag puts DagRuns in terminal states"""
-        with dag_maker("testdag") as dag:
+    def test_paused_running_dag_run_reaches_terminal_state(self, dag_maker, session):
+        """Test that a paused running dag run reaches a terminal state"""
+        with dag_maker(dag_id="test_paused_running_dag_run_terminal_state") as dag:
             EmptyOperator(task_id="task1")
 
         scheduled_run = dag_maker.create_dagrun(
             logical_date=datetime.datetime(2022, 1, 1),
             run_type=DagRunType.SCHEDULED,
         )
-        scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
         ti = scheduled_run.get_task_instances(session=session)[0]
         ti.set_state(TaskInstanceState.RUNNING)
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
@@ -8744,56 +8748,91 @@ class TestSchedulerJob:
         session.flush()
 
         assert scheduled_run.state == State.RUNNING
+        examined_run_ids = {
+            dr.id
+            for dr in DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=False)
+        }
+        assert scheduled_run.id in examined_run_ids
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
-        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
+        self.job_runner._schedule_dag_run(scheduled_run, session)
         session.flush()
 
-        # TI still running, DagRun left in running
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.RUNNING
-        prior_last_scheduling_decision = scheduled_run.last_scheduling_decision
 
-        # Make sure we don't constantly try dagruns over and over
-        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
-        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
-        assert scheduled_run.state == State.RUNNING
-        # last_scheduling_decision is bumped by update_state, so check that to determine if we tried again
-        assert prior_last_scheduling_decision == scheduled_run.last_scheduling_decision
-
-        # Once the TI is in a terminal state though, DagRun goes to success
         ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        self.job_runner._schedule_dag_run(scheduled_run, session)
+        session.flush()
 
-        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.SUCCESS
 
-    def test_update_dagrun_state_for_paused_dag_not_for_backfill(self, dag_maker, session):
-        """Test that the _update_dagrun_state_for_paused_dag does not affect backfilled dagruns"""
-        with dag_maker("testdag") as dag:
-            EmptyOperator(task_id="task1")
+    def test_paused_running_dag_still_schedules_and_enqueues_downstream(self, dag_maker, session):
+        """Test that a paused running dag still schedules and enqueues downstream"""
+        with dag_maker(dag_id="test_paused_running_dag_downstream_tasks") as dag:
+            task_a = BashOperator(task_id="a", bash_command="true")
+            task_b = BashOperator(task_id="b", bash_command="true")
+            task_a >> task_b
 
-        # Backfill run
-        backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
-        backfill_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
-        ti = backfill_run.get_task_instances(session=session)[0]
-        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        dr = dag_maker.create_dagrun(
+            logical_date=datetime.datetime(2022, 1, 1),
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti_a = dr.get_task_instance(task_id="a", session=session)
+        ti_b = dr.get_task_instance(task_id="b", session=session)
+        ti_a.set_state(TaskInstanceState.RUNNING, session=session)
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.is_paused = True
         session.flush()
 
-        assert backfill_run.state == State.RUNNING
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+        ti_b.refresh_from_db(session=session)
+        assert ti_b.state is None
+
+        ti_a.set_state(TaskInstanceState.SUCCESS, session=session)
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+        ti_b.refresh_from_db(session=session)
+        assert ti_b.state == TaskInstanceState.SCHEDULED
+
+        self.job_runner._critical_section_enqueue_task_instances(session)
+        session.flush()
+        ti_b.refresh_from_db(session=session)
+        assert ti_b.state == TaskInstanceState.QUEUED
+
+    def test_paused_queued_dag_run_stays_queued_until_unpause(self, dag_maker, session):
+        """Test that a paused queued DAG run stays queued until unpause"""
+        with dag_maker(dag_id="test_paused_queued_dag_run") as dag:
+            EmptyOperator(task_id="task")
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED, session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.is_paused = True
+        session.flush()
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
-        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
+        self.job_runner._do_scheduling(session)
+        dr = session.merge(dr)
+        session.refresh(dr)
+        assert dr.state == State.QUEUED
+
+        dm = session.get(DagModel, dag.dag_id)
+        dm.is_paused = False
         session.flush()
 
-        (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
-        assert backfill_run.state == State.SUCCESS
+        self.job_runner._do_scheduling(session)
+        dr = session.merge(dr)
+        session.refresh(dr)
+        assert dr.state == State.RUNNING
 
     @staticmethod
     def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:

@@ -52,7 +52,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
-from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
@@ -744,7 +743,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(TI.dag_run)
                 .where(DR.state == DagRunState.RUNNING)
                 .join(TI.dag_model)
-                .where(~DM.is_paused)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .where(DM.bundle_name.is_not(None))
                 .join(
@@ -1754,34 +1752,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("Exited execute loop")
         return None
 
-    @provide_session
-    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
-        try:
-            paused_runs = list(
-                session.scalars(
-                    select(DagRun)
-                    .join(DagRun.dag_model)
-                    .join(TI)
-                    .where(
-                        DagModel.is_paused == expression.true(),
-                        DagRun.state == DagRunState.RUNNING,
-                    )
-                    .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
-                    .group_by(DagRun)
-                )
-            )
-            # Team name should be added before listeners are called in update_state()
-            self._stamp_team_names(paused_runs, session)
-            for dag_run in paused_runs:
-                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-                if dag is not None:
-                    dag_run.dag = dag
-                    _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
-                    if callback_to_run:
-                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
-        except Exception as e:  # should not fail the scheduler
-            self.log.exception("Failed to update dag run state for paused dags due to %s", e)
-
     def _run_scheduler_loop(self) -> None:
         """
         Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
@@ -1845,8 +1815,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
             self._find_and_purge_task_instances_without_heartbeats,
         )
-
-        timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
