@@ -2864,6 +2864,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
+            if dag_run.bundle_version is not None and dag_run.created_dag_version_id is None:
+                # The run was pinned to a specific dag version, and that version row has
+                # since been deleted (the FK is ON DELETE SET NULL). This can never resolve
+                # on a later loop, unlike a run whose version simply hasn't parsed yet, so
+                # retrying forever isn't useful here: fail the run explicitly.
+                self.log.error(
+                    "DagRun %s for DAG '%s' is pinned to bundle_version=%s, but its dag "
+                    "version has been deleted; marking the run as failed instead of "
+                    "retrying indefinitely",
+                    dag_run.run_id,
+                    dag_run.dag_id,
+                    dag_run.bundle_version,
+                )
+                dag_run.set_state(DagRunState.FAILED)
+                dag_run.notify_dagrun_state_changed(msg="unresolvable_pinned_version")
+                continue
+
             dag = dag_run.dag = cached_get_dag(dag_run)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
