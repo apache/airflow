@@ -4,30 +4,28 @@
     "Connections": "Conexiones",
     "Plugins": "Plugins",
     "Pools": "Pools",
-    "Providers": "Proveedores",
+    "Providers": "Providers",
     "Variables": "Variables"
   },
-  "allOperators": "Todos los operadores",
+  "allOperators": "Todos los Operadores",
+  "allTeams": "Todos los Equipos",
   "appearance": {
     "appearance": "Apariencia",
     "darkMode": "Modo Oscuro",
     "lightMode": "Modo Claro",
     "systemMode": "Seguir Configuración del Sistema"
   },
-  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "assetEvent_many": "Eventos de Asset",
   "assetEvent_one": "Evento de Asset",
   "assetEvent_other": "Eventos de Asset",
   "assetInactive": {
     "tooltip": "El Asset upstream ha sido desactivado; el programador retiene la evaluación de particiones hasta que se reactive."
   },
-  "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
-    "auditLog": "Auditar Log",
+    "auditLog": "Auditoría de Log",
     "deadlines": "Plazos",
     "jobs": "Trabajos",
     "requiredActions": "Acciones Requeridas",
@@ -36,23 +34,21 @@
   "collapseAllExtra": "Colapsar todos los extra json",
   "collapseDetailsPanel": "Colapsar Detalles del Panel",
   "consumingAsset": "Asset Consumidor",
-  "createdAssetEvent_many": "Eventos de Asset Creados",
   "createdAssetEvent_one": "Evento de Asset Creado",
   "createdAssetEvent_other": "Eventos de Asset Creados",
-  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "dagRunTimeout": "Tiempo de Ejecución del Dag",
+    "dagRunTimeout": "Tiempo de Espera de la Ejecución del Dag",
     "defaultArgs": "Argumentos por Defecto",
     "description": "Descripción",
     "documentation": "Documentación del Dag",
     "fileLocation": "Ubicación del Archivo",
-    "hasTaskConcurrencyLimits": "Tiene límites de concurrencia de áreas",
+    "hasTaskConcurrencyLimits": "Tiene Límites de Concurrencia de Tareas",
     "lastExpired": "Último Expirado",
-    "lastParseDuration": "Duración del último parseo",
-    "lastParsed": "Último Parseado",
+    "lastParseDuration": "Duración del Último Análisis",
+    "lastParsed": "Último Análisis",
     "latestDagVersion": "Última Versión del Dag",
     "latestRun": "Última Ejecución",
     "maxActiveRuns": "Máximo de Ejecuciones Activas",
@@ -62,7 +58,8 @@
     "owner": "Propietario",
     "params": "Parámetros",
     "schedule": "Programación",
-    "tags": "Etiquetas"
+    "tags": "Etiquetas",
+    "team": "Equipo"
   },
   "dagId": "ID del Dag",
   "dagRun": {
@@ -77,6 +74,7 @@
     "expectedDuration": "Duración Esperada",
     "lastSchedulingDecision": "Última Decisión de Programación",
     "mappedPartitionKey": "Clave de Partición Mapeada",
+    "partitionDate": "Fecha de Partición",
     "partitionKey": "Clave de Partición",
     "queuedAt": "En Cola en",
     "runAfter": "Ejecutar Después",
@@ -85,13 +83,11 @@
     "triggeredBy": "Activado por",
     "triggeringUser": "Nombre del Usuario que Activa"
   },
-  "dagRun_many": "Ejecuciones del Dag",
   "dagRun_one": "Ejecución del Dag",
   "dagRun_other": "Ejecuciones del Dag",
   "dagRunId": "ID de la Ejecución del Dag",
+  "dagRunState": "Estado de la Ejecución del Dag",
   "dagWarnings": "Advertencias/Errores del Dag",
-  "defaultToGraphView": "Por defecto a vista gráfica",
-  "defaultToGridView": "Por defecto a vista en cuadrícula",
   "delete": "Eliminar",
   "diff": "Diff",
   "diffCompareWith": "Comparar con",
@@ -106,7 +102,7 @@
   "download": {
     "download": "Descargar",
     "hotkey": "d",
-    "tooltip": "Presiona {{hotkey}} para descargar los registros"
+    "tooltip": "Presiona {{hotkey}} para descargar los logs"
   },
   "duration": "Duración",
   "edit": "Editar",
@@ -115,8 +111,8 @@
     "back": "Atrás",
     "defaultMessage": "Ocurrió un error inesperado",
     "home": "Inicio",
-    "invalidUrl": "Página No Encontrada. Verifica la URL e inténtalo de nuevo.",
-    "notFound": "Página no encontrada",
+    "invalidUrl": "Página no encontrada. Verifica la URL e inténtalo de nuevo.",
+    "notFound": "Página No Encontrada",
     "title": "Error"
   },
   "errors": {
@@ -125,6 +121,8 @@
       "title": "Acceso Denegado"
     }
   },
+  "event_one": "Evento",
+  "event_other": "Eventos",
   "expand": {
     "collapse": "Colapsar",
     "expand": "Expandir",
@@ -140,6 +138,7 @@
   },
   "filter": "Filtro",
   "filters": {
+    "date": "Fecha",
     "durationFrom": "Duración Desde",
     "durationTo": "Duración Hasta",
     "endTime": "Hora Final",
@@ -149,17 +148,20 @@
     "runAfterTo": "Ejecutar Después Hasta",
     "searchAsset": "Buscar Asset",
     "selectDateRange": "Seleccionar Rango de Fechas",
-    "startTime": "Hora Inicial"
+    "selectDateTime": "Seleccionar Fecha y Hora",
+    "startTime": "Hora Inicial",
+    "time": "Hora"
   },
   "fullscreen": {
     "tooltip": "Presiona {{hotkey}} para pantalla completa"
   },
   "generateToken": "Generar Token",
+  "includedIn": "Incluido en",
   "key": "Clave",
   "logicalDate": "Fecha Lógica",
   "logout": "Cerrar Sesión",
   "logoutConfirmation": "Estás a punto de cerrar sesión de la aplicación.",
-  "mapIndex": "Mapa de Índice",
+  "mapIndex": "Map Index",
   "modal": {
     "add": "Agregar",
     "cancel": "Cancelar",
@@ -177,11 +179,11 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Inicio",
-    "legacyFabViews": "Vistas obsoletas",
+    "legacyFabViews": "Vistas Obsoletas",
     "plugins": "Plugins",
     "security": "Seguridad"
   },
-  "noItemsFound": "No se encontraron {{modelName}}s",
+  "noItemsFound": "No se encontraron {{modelName}}",
   "note": {
     "add": "Agregar una nota",
     "dagRun": "Nota de Ejecución del Dag",
@@ -193,17 +195,32 @@
     "write": "Escribir"
   },
   "overallStatus": "Estado General",
-  "partitionedDagRun_many": "Ejecuciones del Dag Particionadas",
   "partitionedDagRun_one": "Ejecución del Dag Particionada",
   "partitionedDagRun_other": "Ejecuciones del Dag Particionadas",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Eventos de Asset Recibidos"
   },
-  "pendingDagRun_many": "{{count}} Ejecuciones del Dag Pendientes",
   "pendingDagRun_one": "{{count}} Ejecución del Dag Pendiente",
   "pendingDagRun_other": "{{count}} Ejecuciones del Dag Pendientes",
+  "presetFilters": {
+    "deleteTitle": "Eliminar Filtro Preestablecido",
+    "deleteWarning": "Los filtros preestablecidos se almacenan solo en este navegador.",
+    "duplicate": "El filtro preestablecido \"{{name}}\" ya guarda exactamente esta configuración.",
+    "empty": "Aún no hay filtros preestablecidos",
+    "info": {
+      "default": "Fija un filtro preestablecido como predeterminado y se aplicará automáticamente al llegar a esta página sin filtros aplicados.",
+      "save": "Guarda los filtros y el ordenamiento actuales como un filtro preestablecido con nombre, y vuelve a él cuando quieras.",
+      "storage": "Los filtros preestablecidos se almacenan en este navegador."
+    },
+    "namePlaceholder": "Nombre del filtro preestablecido",
+    "nothingToSave": "No hay nada que guardar. Aplica filtros u ordenamiento para guardar un filtro preestablecido.",
+    "save": "Guardar",
+    "setDefault": "Establecer como predeterminado",
+    "title": "Filtros Preestablecidos",
+    "unsetDefault": "Quitar predeterminado"
+  },
   "reset": "Restablecer",
-  "runId": "ID de la ejecución",
+  "runId": "ID de la Ejecución",
   "runTypes": {
     "asset_materialization": "Materialización de Asset",
     "asset_triggered": "Asset Activado",
@@ -233,14 +250,90 @@
   },
   "selectLanguage": "Seleccionar Idioma",
   "selected": "Seleccionado",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Omitir las tareas que están en ejecución al limpiar instancias de tarea.",
+        "label": "Evitar limpiar tareas en ejecución"
+      },
+      "runSelection": {
+        "helper": "Opciones seleccionadas por defecto al limpiar una ejecución del Dag.",
+        "label": "Selección predeterminada al limpiar ejecuciones"
+      },
+      "taskSelection": {
+        "helper": "Opciones seleccionadas por defecto al limpiar instancias de tarea.",
+        "label": "Selección predeterminada al limpiar tareas"
+      },
+      "title": "Limpieza"
+    },
+    "description": "Estas preferencias se guardan solo en este navegador y se aplican en toda la aplicación.",
+    "graph": {
+      "defaultDirection": {
+        "helper": "Dirección de disposición para los gráficos de Dag y de Asset que no hayas configurado individualmente.",
+        "label": "Dirección predeterminada del gráfico"
+      },
+      "title": "Gráfico"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opciones seleccionadas por defecto al marcar el estado de una instancia de tarea.",
+        "label": "Selección predeterminada al marcar"
+      },
+      "title": "Marcado"
+    },
+    "title": "Configuración"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Código",
+      "dagView": "Vista del Dag",
+      "filters": "Filtros",
+      "global": "Global",
+      "logs": "Logs",
+      "navigation": "Navegación",
+      "runActions": "Acciones de Ejecución y Tarea",
+      "search": "Búsqueda"
+    },
+    "descriptions": {
+      "clearRun": "Limpiar $t(dagRun_one)",
+      "clearTaskInstance": "Limpiar $t(taskInstance_one)",
+      "downloadLogs": "Descargar logs",
+      "focusFilterSearch": "Enfocar la búsqueda de filtros",
+      "focusLogSearch": "Buscar en los logs",
+      "focusSearch": "Enfocar la búsqueda",
+      "markRunFailed": "Marcar $t(dagRun_one) como fallida",
+      "markRunSuccess": "Marcar $t(dagRun_one) como exitosa",
+      "markTaskFailed": "Marcar $t(task_one) como fallida",
+      "markTaskGroupFailed": "Marcar $t(taskGroup_one) como fallido",
+      "markTaskGroupSuccess": "Marcar $t(taskGroup_one) como exitoso",
+      "markTaskSuccess": "Marcar $t(task_one) como exitosa",
+      "navigateTasks": "Navegar por $t(task_other)",
+      "openGraphFilters": "Abrir los filtros del gráfico",
+      "scrollBottom": "Desplazarse hacia abajo",
+      "scrollTop": "Desplazarse hacia arriba",
+      "searchDags": "Buscar $t(dag_other)",
+      "showHelp": "Mostrar $t(shortcuts.title)",
+      "toggleExpand": "Expandir o colapsar todos los grupos",
+      "toggleFullscreen": "Alternar pantalla completa",
+      "toggleGraphGrid": "Alternar vista de gráfico / cuadrícula",
+      "toggleSource": "Alternar fuente",
+      "toggleTaskGroup": "Expandir o colapsar $t(taskGroup_one)",
+      "toggleTimestamp": "Alternar marcas de tiempo",
+      "toggleWrap": "Alternar $t(wrap.wrap)"
+    },
+    "empty": "No hay atajos de teclado disponibles en esta página.",
+    "title": "Atajos de Teclado"
+  },
   "showDetailsPanel": "Mostrar Panel de Detalles",
   "signedInAs": "Sesión iniciada como",
+  "slot": "Slot",
+  "slot_one": "Slot",
+  "slot_other": "Slots",
   "source": {
     "hide": "Ocultar Fuente",
     "hotkey": "s",
     "show": "Mostrar Fuente"
   },
-  "sourceAssetEvent_many": "Eventos de Asset Fuente",
   "sourceAssetEvent_one": "Evento de Asset Fuente",
   "sourceAssetEvent_other": "Eventos de Asset Fuente",
   "startDate": "Fecha Inicial",
@@ -269,12 +362,12 @@
     "createdAt": "Creado en",
     "filterByTag": "Filtrar Dags por etiqueta",
     "filterColumns": "Filtrar columnas de la tabla",
-    "filterReset_many": "Restablecer filtros",
     "filterReset_one": "Restablecer filtro",
     "filterReset_other": "Restablecer filtros",
     "from": "Desde",
     "maxActiveRuns": "Máximo de Ejecuciones Activas",
     "noTagsFound": "No se encontraron etiquetas",
+    "noTeamsFound": "No se encontraron equipos",
     "tagMode": {
       "all": "Todos",
       "any": "Cualquiera"
@@ -292,13 +385,11 @@
     "triggerRule": "Regla de Activación",
     "waitForDownstream": "Esperar Downstream"
   },
-  "task_many": "Tareas",
   "task_one": "Tarea",
   "task_other": "Tareas",
   "taskGroup": {
     "documentation": "Documentación del Grupo de Tareas"
   },
-  "taskGroup_many": "Grupos de Tareas",
   "taskGroup_one": "Grupo de Tareas",
   "taskGroup_other": "Grupos de Tareas",
   "taskId": "ID de la Tarea",
@@ -330,9 +421,14 @@
     },
     "unixname": "Nombre de Unix"
   },
-  "taskInstance_many": "Instancias de Tarea",
   "taskInstance_one": "Instancia de Tarea",
   "taskInstance_other": "Instancias de Tarea",
+  "teams": {
+    "more_one": "y {{count}} más",
+    "more_other": "y {{count}} más",
+    "none": "Sin equipo",
+    "title": "Equipos"
+  },
   "timeRange": {
     "last12Hours": "Últimas 12 Horas",
     "last24Hours": "Últimas 24 Horas",
@@ -340,9 +436,9 @@
     "pastWeek": "Semana Pasada"
   },
   "timestamp": {
-    "hide": "Ocultar marcas de tiempo",
+    "hide": "Ocultar Marcas de Tiempo",
     "hotkey": "t",
-    "show": "Mostrar marcas de tiempo"
+    "show": "Mostrar Marcas de Tiempo"
   },
   "timezone": "Zona Horaria",
   "timezoneModal": {
@@ -360,10 +456,10 @@
       }
     },
     "bulkDelete": {
-      "error": "Eliminar {{resourceName}} Request Fallido",
+      "error": "Solicitud de Eliminación Masiva de {{resourceName}} Fallida",
       "success": {
         "description": "{{count}} {{resourceName}} han sido eliminados exitosamente. Claves: {{keys}}",
-        "title": "Eliminar {{resourceName}} Request Enviado"
+        "title": "Solicitud de Eliminación Masiva de {{resourceName}} Enviada"
       }
     },
     "bulkUpdate": {
@@ -374,31 +470,31 @@
       }
     },
     "create": {
-      "error": "Crear {{resourceName}} Request Fallido",
+      "error": "Solicitud de Creación de {{resourceName}} Fallida",
       "success": {
         "description": "{{resourceName}} ha sido creado exitosamente.",
-        "title": "Crear {{resourceName}} Request Enviado"
+        "title": "Solicitud de Creación de {{resourceName}} Enviada"
       }
     },
     "delete": {
-      "error": "Eliminar {{resourceName}} Request Fallido",
+      "error": "Solicitud de Eliminación de {{resourceName}} Fallida",
       "success": {
         "description": "{{resourceName}} ha sido eliminado exitosamente.",
-        "title": "Eliminar {{resourceName}} Request Enviado"
+        "title": "Solicitud de Eliminación de {{resourceName}} Enviada"
       }
     },
     "import": {
-      "error": "Importar {{resourceName}} Request Fallido",
+      "error": "Solicitud de Importación de {{resourceName}} Fallida",
       "success": {
         "description": "{{count}} {{resourceName}} han sido importados exitosamente.",
-        "title": "Importar {{resourceName}} Request Enviado"
+        "title": "Solicitud de Importación de {{resourceName}} Enviada"
       }
     },
     "update": {
-      "error": "Actualizar {{resourceName}} Request Fallido",
+      "error": "Solicitud de Actualización de {{resourceName}} Fallida",
       "success": {
         "description": "{{resourceName}} ha sido actualizado exitosamente.",
-        "title": "Actualizar {{resourceName}} Request Enviado"
+        "title": "Solicitud de Actualización de {{resourceName}} Enviada"
       }
     }
   },
