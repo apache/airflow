@@ -676,8 +676,8 @@ class TestWasbHook:
             container_name=container_name, local_dir=sync_local_dir, prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
-        assert f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
-        assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleting stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleting stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
         assert not hook.get_file.called
 
         hook.log.debug = mock.MagicMock()
