@@ -633,6 +633,48 @@ class TestPostgresHookConnPPG3:
         )
 
 
+class TestPostgresHookSqlalchemyScheme:
+    """Tests for overriding the SQLAlchemy drivername via the sqlalchemy_scheme extra/parameter."""
+
+    @staticmethod
+    def get_hook(extra: dict | None = None, **hook_kwargs) -> PostgresHook:
+        conn = Connection(
+            login="login-conn", password="password-conn", host="host", schema="database", extra=extra
+        )
+        return PostgresHook(connection=conn, **hook_kwargs)
+
+    @pytest.mark.parametrize("scheme", ["postgresql", "postgresql+psycopg2", "postgresql+psycopg"])
+    def test_sqlalchemy_scheme_from_extra(self, scheme):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme=scheme))
+        expected = f"{scheme}://login-conn:password-conn@host/database"
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+
+    def test_sqlalchemy_scheme_parameter_takes_precedence_over_extra(self):
+        hook = self.get_hook(
+            extra=dict(sqlalchemy_scheme="postgresql"), sqlalchemy_scheme="postgresql+psycopg2"
+        )
+        expected = "postgresql+psycopg2://login-conn:password-conn@host/database"
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+
+    def test_get_uri_with_sqlalchemy_scheme(self):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme="postgresql+psycopg2"))
+        assert hook.get_uri() == "postgresql+psycopg2://login-conn:password-conn@host/database"
+
+    @pytest.mark.parametrize("scheme", ["mysql", "mysql+pymysql", "postgres+psycopg2"])
+    def test_sqlalchemy_scheme_with_wrong_dialect(self, scheme):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme=scheme))
+        with pytest.raises(
+            ValueError, match="'sqlalchemy_scheme' must be 'postgresql' or 'postgresql\\+<driver>'"
+        ):
+            hook.sqlalchemy_url
+
+    @pytest.mark.parametrize("scheme", ["postgresql+psycopg2://malicious", "postgresql+psycopg2/malicious"])
+    def test_sqlalchemy_scheme_with_forbidden_characters(self, scheme):
+        hook = self.get_hook(extra=dict(sqlalchemy_scheme=scheme))
+        with pytest.raises(ValueError, match="must not contain ':' or '/' characters"):
+            hook.sqlalchemy_url
+
+
 @pytest.mark.backend("postgres")
 class TestPostgresHook:
     """Tests that are identical between psycopg2 and psycopg3."""

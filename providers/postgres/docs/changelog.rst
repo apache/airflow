@@ -108,6 +108,9 @@ Breaking changes
     There is no connection or configuration option to keep hooks on psycopg2; the
     ``sql_alchemy_conn`` workarounds above cover the metadata database only. If your Dags rely on
     psycopg2-specific behaviour, test before upgrading or pin the provider below 7.0.0.
+    Starting with provider 7.1.0, the SQLAlchemy engines built by the hook can be kept on
+    psycopg2 by setting the ``sqlalchemy_scheme`` connection extra (or hook parameter) to
+    ``postgresql+psycopg2``.
 
 * ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
 * ``Switch the default async Postgres driver from asyncpg to psycopg3 (#69089)``
