@@ -45,7 +45,7 @@ type TogglePauseContext = {
 
 export const useTogglePause = ({ dagId }: { dagId: string }) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const dagKey = UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]);
   const dagDetailsKey = UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]);

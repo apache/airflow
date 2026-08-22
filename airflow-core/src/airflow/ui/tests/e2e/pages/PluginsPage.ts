@@ -18,6 +18,7 @@
  */
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 import { BasePage } from "./BasePage";
 
@@ -33,7 +34,7 @@ export class PluginsPage extends BasePage {
 
     this.heading = page.getByRole("heading", { name: /plugins/i });
     this.table = page.getByTestId("table-list");
-    this.rows = this.table.locator("tbody tr").filter({ has: page.locator("td") });
+    this.rows = this.table.locator(DATA_ROWS).filter({ has: page.locator("td") });
     this.nameColumn = this.rows.getByTestId("table-cell-name");
     this.sourceColumn = this.rows.getByTestId("table-cell-source");
   }

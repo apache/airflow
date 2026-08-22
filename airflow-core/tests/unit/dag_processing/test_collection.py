@@ -396,6 +396,36 @@ class TestAssetModelOperation:
         assert triggers[0].team_name == expected
 
     @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("queue", "expected"),
+        [pytest.param("my_q", "my_q", id="has-queue"), pytest.param(None, None, id="no-queue")],
+    )
+    def test_add_asset_trigger_references_populates_queue(self, dag_maker, session, queue, expected):
+        """Ensure the dag processor tracks the queue value of a `BaseEventTrigger`-type trigger."""
+        trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
+        trigger.queue = queue
+        asset = Asset("trigger_q_asset", watchers=[AssetWatcher(name="watcher", trigger=trigger)])
+        with dag_maker(dag_id="test_trigger_q_dag", schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_paused = False
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        triggers = session.scalars(select(Trigger)).all()
+        assert len(triggers) == 1
+        assert triggers[0].queue == expected
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_hash_consistency(self, dag_maker, session):
         """Trigger hash from the DAG-parsed path must equal the hash computed
         from the DB-stored Trigger row.  A mismatch causes the scheduler to

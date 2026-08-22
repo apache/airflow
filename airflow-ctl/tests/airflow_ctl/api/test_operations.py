@@ -370,6 +370,7 @@ class TestAssetsOperations:
         data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         partition_key=None,
+        triggering=True,
     )
 
     asset_event_response = AssetEventResponse(
@@ -433,14 +434,30 @@ class TestAssetsOperations:
         response = client.assets.list_aliases()
         assert response == assets_collection_response
 
-    def test_create_event(self):
+    @pytest.mark.parametrize(
+        "created_dagrun",
+        [
+            pytest.param(assets_dag_reference, id="running"),
+            pytest.param(
+                assets_dag_reference.model_copy(
+                    update={"start_date": None, "end_date": None, "state": "queued"}
+                ),
+                id="queued-without-start-date",
+            ),
+        ],
+    )
+    def test_create_event(self, created_dagrun):
+        asset_event_response = self.asset_event_response.model_copy(
+            update={"created_dagruns": [created_dagrun]}
+        )
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/assets/events"
-            return httpx.Response(200, json=json.loads(self.asset_event_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(asset_event_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
-        assert response == self.asset_event_response
+        assert response == asset_event_response
 
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:

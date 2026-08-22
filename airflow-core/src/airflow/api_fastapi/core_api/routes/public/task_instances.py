@@ -853,7 +853,11 @@ def get_mapped_task_instance_try_details(
 @task_instances_router.post(
     "/clearTaskInstances",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
     ),
     dependencies=[
         Depends(action_logging()),

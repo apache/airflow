@@ -276,7 +276,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
-            r"^ts-sdk/(?!.*\.md$).*",
+            # API documentation entry points and Markdown do not affect runtime e2e tests.
+            r"^ts-sdk/(?!api-docs/)(?!.*\.md$).*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/ts_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
@@ -366,6 +367,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-ctl/docs",
             r"^airflow-ctl/src/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+            r"^dev/mypy/docs/",
+            r"^dev/mypy/src/.*\.py$",
+            r"^dev/mypy/RELEASE_NOTES\.rst$",
+            r"^dev/mypy/pyproject\.toml$",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.rst",
@@ -486,20 +491,23 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^java-sdk/(?!.*\.md$).*",
         ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
-            # TypeDoc renders the reference from the SDK sources, and the landing page is
-            # authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md` counts here. tsconfig.json
-            # and package.json are included too: docs/tsconfig.json `extends` the former, and
-            # the latter pins the `@msgpack/msgpack` version the checked program depends on.
+            # TypeDoc renders the reference from the SDK sources and category entry points,
+            # and the landing page is authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md`
+            # counts here. tsconfig.json and package.json are included too: docs/tsconfig.json
+            # `extends` the former, and the latter pins the `@msgpack/msgpack` version the
+            # checked program depends on.
+            r"^ts-sdk/api-docs/.*",
             r"^ts-sdk/docs/.*",
             r"^ts-sdk/src/.*",
             r"^ts-sdk/tsconfig\.json$",
             r"^ts-sdk/package\.json$",
         ],
         FileGroupForCi.TS_SDK_FILES: [
-            # `.md` excluded — doc-only edits do not affect the generated supervisor schema.
-            # `ts-sdk/docs/package.json` and its lock file excluded too — they pin the docs
-            # toolchain's own dependencies and do not affect the SDK build.
-            r"^ts-sdk/(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
+            # Documentation entry points and `.md` files do not affect the generated
+            # supervisor schema. `ts-sdk/docs/package.json` and its lock file are excluded
+            # too — they pin the docs toolchain's own dependencies and do not affect the SDK
+            # build.
+            r"^ts-sdk/(?!api-docs/)(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1666,6 +1674,8 @@ class SelectiveChecks:
             packages.append("task-sdk")
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
+        if any(file.startswith("dev/mypy/") for file in self._files):
+            packages.append("apache-airflow-mypy")
         if providers_affected:
             suspended = set(get_suspended_provider_ids())
             for provider in providers_affected:

@@ -127,7 +127,15 @@ with DAG(
         project_id=PROJECT_ID,
         location=REGION,
         feature_online_store_id=FEATURE_ONLINE_STORE_ID,
-        feature_online_store=FeatureOnlineStore(optimized=FeatureOnlineStore.Optimized()),
+        feature_online_store=FeatureOnlineStore(
+            bigtable=FeatureOnlineStore.Bigtable(
+                auto_scaling=FeatureOnlineStore.Bigtable.AutoScaling(
+                    min_node_count=1,
+                    max_node_count=3,
+                    cpu_utilization_target=50,
+                )
+            )
+        ),
     )
     # [END how_to_cloud_vertex_ai_create_feature_online_store_operator]
 
@@ -206,6 +214,7 @@ with DAG(
         location=REGION,
         feature_online_store_id=FEATURE_ONLINE_STORE_ID,
         feature_view_id=FEATURE_VIEW_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_feature_view_operator]
 
@@ -215,6 +224,7 @@ with DAG(
         project_id=PROJECT_ID,
         location=REGION,
         feature_online_store_id=FEATURE_ONLINE_STORE_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_feature_online_store_operator]
 

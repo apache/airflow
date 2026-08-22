@@ -17,17 +17,17 @@
  * under the License.
  */
 import { Breadcrumb, type SystemStyleObject } from "@chakra-ui/react";
-import React from "react";
+import { type ReactNode, forwardRef, Children, isValidElement, Fragment } from "react";
 
 export type BreadcrumbRootProps = {
-  readonly separator?: React.ReactNode;
+  readonly separator?: ReactNode;
   readonly separatorGap?: SystemStyleObject["gap"];
 } & Breadcrumb.RootProps;
 
-export const Root = React.forwardRef<HTMLDivElement, BreadcrumbRootProps>((props, ref) => {
+export const Root = forwardRef<HTMLDivElement, BreadcrumbRootProps>((props, ref) => {
   const { children, separator, separatorGap, ...rest } = props;
 
-  const validChildren = React.Children.toArray(children).filter(React.isValidElement);
+  const validChildren = Children.toArray(children).filter(isValidElement);
 
   return (
     <Breadcrumb.Root ref={ref} {...rest}>
@@ -37,10 +37,10 @@ export const Root = React.forwardRef<HTMLDivElement, BreadcrumbRootProps>((props
 
           return (
             // eslint-disable-next-line react/no-array-index-key
-            <React.Fragment key={index}>
+            <Fragment key={index}>
               <Breadcrumb.Item>{child}</Breadcrumb.Item>
               {!last && <Breadcrumb.Separator>{separator}</Breadcrumb.Separator>}
-            </React.Fragment>
+            </Fragment>
           );
         })}
       </Breadcrumb.List>
