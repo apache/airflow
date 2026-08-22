@@ -138,7 +138,6 @@ github:
     - kacpermuda
 
 notifications:
-  jobs: jobs@airflow.apache.org
   commits: commits@airflow.apache.org
   issues: commits@airflow.apache.org
   pullrequests: commits@airflow.apache.org

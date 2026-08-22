@@ -95,6 +95,9 @@ export const TaskNode = ({
   const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
+  const hasTaskInstance = isGroup
+    ? true
+    : taskInstance?.dag_version_number !== null && taskInstance?.dag_version_number !== undefined;
 
   // Custom colors can mess up the readability of the text, so we calculate a readable foreground color for the node based on the background color.
   // Pass the resolved color so Chakra tokens are measured by their hex rather than skipped.
@@ -146,6 +149,7 @@ export const TaskNode = ({
               <LinkOverlay asChild>
                 <TaskLink
                   childCount={thisChildCount}
+                  hasTaskInstance={hasTaskInstance}
                   id={id}
                   isGroup={isGroup}
                   isMapped={isMapped}

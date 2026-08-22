@@ -78,7 +78,16 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    supports_triggerer_queue: bool = True
+    # Whether a deferred task's queue should be inherited by this trigger when
+    # ``triggerer.queues_enabled`` is set. Subclasses that assign their own ``queue``
+    # directly (e.g. ``BaseEventTrigger``, ``CallbackTrigger``) must set this to False,
+    # or ``_defer_task`` will overwrite that queue with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = True
+
+    # Trigger queue assignment. None means no explicit assignment; ``BaseEventTrigger`` and
+    # ``CallbackTrigger`` set this in their ``__init__``, see `trigger_queue_inherited_from_task`.
+    # Declared as a class attribute since many provider triggers don't call ``super().__init__()``.
+    queue: str | None = None
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -293,15 +302,26 @@ class BaseEventTrigger(BaseTrigger):
     See :mod:`airflow.triggers.shared_stream` for the full ack-mode design,
     including snapshot-at-fan-out semantics, per-event timeout behavior, and
     triggerer-restart redeliver notes.
+
+    **Trigger queue assignment**
+
+    Pass ``queue`` to assign this trigger to a specific trigger queue (see
+    :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of
+    ``airflow triggerer``). When used with team-based triggerer node assignment,
+    the team and queue function as a logical 'AND'.
     """
 
-    supports_triggerer_queue: bool = False
+    # BaseEventTrigger sets its own `queue` directly (see `__init__` below), so
+    # `_defer_task` must not overwrite it with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = False
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, queue: str | None = None, **kwargs):
         super().__init__(**kwargs)
 
         # Injected by the triggerer before run() is called
         self.asset_state_store: AssetStateStoreAccessors | None = None
+        # Read by Dag processing when registering the trigger; unused once running.
+        self.queue = queue
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:
