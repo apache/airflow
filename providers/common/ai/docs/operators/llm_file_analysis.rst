@@ -153,10 +153,10 @@ This operator also inherits ``LLMOperator``'s HITL review parameters --
 Supported Formats
 -----------------
 
-- Text-like: ``.log``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
+- Text-like: ``.log``, ``.txt``, ``.md``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
 - Multimodal: ``.png``, ``.jpg``, ``.jpeg``, ``.pdf`` when ``multi_modal=True``
 - Gzip-compressed text inputs are supported for ``.log.gz``, ``.json.gz``, and
-  ``.csv.gz``.
+  ``.csv.gz``, ``.txt.gz``, and ``.md.gz``.
 - Gzip is not supported for ``.parquet``, ``.avro``, image, or PDF inputs.
 
 Parquet and Avro readers require their corresponding optional extras:
