@@ -72,6 +72,7 @@ from airflowctl.api.datamodels.generated import (
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstancesLogResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -712,6 +713,28 @@ class TaskInstancesOperations(BaseOperations):
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
         return TaskDependencyCollectionResponse.model_validate_json(self.response.content)
+
+    def logs(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        try_number: int,
+        map_index: int | None = None,
+        *,
+        suppress_error_log: bool = False,
+    ) -> TaskInstancesLogResponse | ServerResponseError:
+        """Get the logs of a task instance for a given try number."""
+        path = _build_task_instance_path(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=None
+        )
+        params = {"map_index": map_index} if map_index is not None and map_index >= 0 else None
+        self.response = self.client.get(
+            f"{path}/logs/{try_number}",
+            params=params,
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        return TaskInstancesLogResponse.model_validate_json(self.response.content)
 
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances for a Dag run."""
