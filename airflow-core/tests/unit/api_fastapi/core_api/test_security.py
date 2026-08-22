@@ -20,7 +20,7 @@ from json import JSONDecodeError
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, status
 from jwt import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy.orm import Session
 
@@ -430,33 +430,61 @@ class TestFastApiSecurity:
     @pytest.mark.asyncio
     @patch.object(DagModel, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_backfill_backfill_not_found_falls_back_to_body(
+    async def test_requires_access_backfill_not_found_does_not_consult_body(
         self, mock_get_auth_manager, mock_get_team_name
     ):
-        """When backfill_id is int but Backfill not found, dag_id from body is used."""
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_team_name.return_value = "team1"
+        mock_get_team_name.return_value = None
 
         session = Mock()
         session.scalars.return_value.one_or_none.return_value = None
 
         request = Mock()
         request.path_params = {"backfill_id": "999"}
-        request.json = AsyncMock(return_value={"dag_id": "fallback_dag_id"})
+        request.query_params = {}
+        request.json = AsyncMock(return_value={"dag_id": "attacker_named_dag"})
 
         user = Mock()
 
         inner = requires_access_backfill("POST")
         await inner(request, user, session)
 
+        request.json.assert_not_called()
         auth_manager.is_authorized_dag.assert_called_once_with(
             method="POST",
             access_entity=DagAccessEntity.RUN,
-            details=DagDetails(id="fallback_dag_id", team_name="team1"),
+            details=DagDetails(id=None, team_name=None),
             user=user,
         )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_not_found_denies_unauthorized_caller(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+
+        session = Mock()
+        session.scalars.return_value.one_or_none.return_value = None
+
+        request = Mock()
+        request.path_params = {"backfill_id": "999"}
+        request.query_params = {}
+
+        user = Mock()
+
+        inner = requires_access_backfill("GET")
+        with pytest.raises(HTTPException, match="Forbidden") as exc_info:
+            await inner(request, user, session)
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
