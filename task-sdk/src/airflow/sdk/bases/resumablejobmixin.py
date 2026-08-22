@@ -149,42 +149,50 @@ class ResumableJobMixin(ABC):
                 if external_id:
                     stats.incr("resumable_job.reconnect_attempt", tags=stats_tags)
 
-                    status = self.get_job_status(external_id, context)
+                    try:
+                        status = self.get_job_status(external_id, context)
 
-                    span.set_attribute("resumable.external_id", str(external_id))
-                    span.set_attribute("resumable.prior_status", status)
+                        span.set_attribute("resumable.external_id", str(external_id))
+                        span.set_attribute("resumable.prior_status", status)
 
-                    if self.is_job_active(status):
-                        # Job is still running, skip submission and reconnect to it.
-                        span.set_attribute("resumable.decision", "reconnect")
-                        stats.incr("resumable_job.reconnect_success", tags=stats_tags)
-                        self.log.info(
-                            "Reconnecting to existing job",
-                            external_id_key=self.external_id_key,
-                            external_id=external_id,
-                            status=status,
-                        )
-                        reconnect_to = external_id
-                    elif self.is_job_succeeded(status):
-                        # Job already finished successfully, skip polling and return result directly.
-                        span.set_attribute("resumable.decision", "already_succeeded")
-                        stats.incr("resumable_job.already_succeeded", tags=stats_tags)
-                        self.log.info(
-                            "Job already completed successfully, skipping resubmission",
-                            external_id_key=self.external_id_key,
-                            external_id=external_id,
-                        )
-                        already_succeeded_id = external_id
-                    else:
-                        # Job is in a terminal failed state, fall through and submit a new job.
-                        span.set_attribute("resumable.decision", "terminal_resubmit")
-                        stats.incr("resumable_job.terminal_resubmit", tags=stats_tags)
-                        self.log.warning(
-                            "Prior job in terminal state, resubmitting fresh",
-                            external_id_key=self.external_id_key,
-                            external_id=external_id,
-                            status=status,
-                        )
+                        if self.is_job_active(status):
+                            # Job is still running, skip submission and reconnect to it.
+                            span.set_attribute("resumable.decision", "reconnect")
+                            stats.incr("resumable_job.reconnect_success", tags=stats_tags)
+                            self.log.info(
+                                "Reconnecting to existing job",
+                                external_id_key=self.external_id_key,
+                                external_id=external_id,
+                                status=status,
+                            )
+                            reconnect_to = external_id
+                        elif self.is_job_succeeded(status):
+                            # Job already finished successfully, skip polling and return result directly.
+                            span.set_attribute("resumable.decision", "already_succeeded")
+                            stats.incr("resumable_job.already_succeeded", tags=stats_tags)
+                            self.log.info(
+                                "Job already completed successfully, skipping resubmission",
+                                external_id_key=self.external_id_key,
+                                external_id=external_id,
+                            )
+                            already_succeeded_id = external_id
+                        else:
+                            # Job is in a terminal failed state, fall through and submit a new job.
+                            span.set_attribute("resumable.decision", "terminal_resubmit")
+                            stats.incr("resumable_job.terminal_resubmit", tags=stats_tags)
+                            self.log.warning(
+                                "Prior job in terminal state, resubmitting fresh",
+                                external_id_key=self.external_id_key,
+                                external_id=external_id,
+                                status=status,
+                            )
+                    except Exception:
+                        # Prior job status could not be determined, so the reconnect could not be
+                        # decided; count it so reconnect_attempt reconciles with its outcomes, then
+                        # let the error propagate unchanged.
+                        span.set_attribute("resumable.decision", "reconnect_failure")
+                        stats.incr("resumable_job.reconnect_failure", tags=stats_tags)
+                        raise
                 else:
                     span.set_attribute("resumable.decision", "fresh_submit")
                     stats.incr("resumable_job.fresh_submit", tags=stats_tags)

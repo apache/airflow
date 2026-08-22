@@ -296,6 +296,26 @@ class TestMetrics:
         assert "resumable_job.reconnect_success" not in called_names
         assert "resumable_job.fresh_submit" not in called_names
 
+    @pytest.mark.parametrize("failing_method", ["get_job_status", "is_job_active"])
+    def test_reconnect_failure_fires_when_reconnect_decision_raises(self, failing_method):
+        def boom(*args, **kwargs):
+            raise ConnectionError("external system unreachable")
+
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+        setattr(op, failing_method, boom)
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            with pytest.raises(ConnectionError):
+                op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert "resumable_job.reconnect_attempt" in called_names
+        assert "resumable_job.reconnect_failure" in called_names
+        assert "resumable_job.reconnect_success" not in called_names
+        assert "resumable_job.already_succeeded" not in called_names
+        assert "resumable_job.terminal_resubmit" not in called_names
+        assert "resumable_job.fresh_submit" not in called_names
+
     @pytest.mark.parametrize(
         ("team_name", "expected_tag"),
         [
