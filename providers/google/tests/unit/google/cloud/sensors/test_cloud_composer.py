@@ -201,6 +201,66 @@ class TestCloudComposerDAGRunSensor:
 
 
 class TestCloudComposerExternalTaskSensor:
+    def test_templated_task_id_is_normalized_after_rendering(self):
+        task = CloudComposerExternalTaskSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_external_dag_id="test_dag_id",
+            composer_external_task_id="{{ target_task_id }}",
+        )
+
+        assert task.composer_external_task_ids is None
+        task.render_template_fields(context={"target_task_id": TEST_COMPOSER_EXTERNAL_TASK_ID})
+        assert task.composer_external_task_id == TEST_COMPOSER_EXTERNAL_TASK_ID
+        assert task.composer_external_task_ids is None
+
+        with (
+            mock.patch.object(task, "_get_composer_airflow_version", return_value=3),
+            mock.patch.object(task, "poke", return_value=True),
+        ):
+            task.execute(context={})
+
+        assert task.composer_external_task_ids == [TEST_COMPOSER_EXTERNAL_TASK_ID]
+
+    def test_state_validation_uses_rendered_target(self):
+        task = CloudComposerExternalTaskSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_external_dag_id="test_dag_id",
+            composer_external_task_id=lambda *, context, jinja_env: None,
+            allowed_states=["up_for_retry"],
+        )
+
+        task.render_template_fields(context={})
+        assert task.composer_external_task_id is None
+
+        with pytest.raises(ValueError, match="composer_external_task_id.*is `None`"):
+            task.execute(context={})
+
+    def test_empty_task_ids_list_normalizes_before_exclusivity_check(self):
+        task = CloudComposerExternalTaskSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_external_dag_id="test_dag_id",
+            composer_external_task_group_id=TEST_COMPOSER_EXTERNAL_TASK_GROUP_ID,
+            composer_external_task_ids=[],
+        )
+
+        with (
+            mock.patch.object(task, "_get_composer_airflow_version", return_value=3),
+            mock.patch.object(task, "poke", return_value=True),
+        ):
+            task.execute(context={})
+
+        assert task.composer_external_task_ids is None
+        assert task.composer_external_task_group_id == TEST_COMPOSER_EXTERNAL_TASK_GROUP_ID
+
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
     def test_wait_ready(self, mock_hook, composer_airflow_version):

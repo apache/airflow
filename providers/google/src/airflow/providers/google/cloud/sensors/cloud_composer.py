@@ -391,6 +391,11 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         self.project_id = project_id
         self.region = region
         self.environment_id = environment_id
+        self.composer_external_dag_id = composer_external_dag_id
+        self.composer_external_task_id = composer_external_task_id
+        self.composer_external_task_ids = composer_external_task_ids
+        self.composer_external_task_group_id = composer_external_task_group_id
+        self.impersonation_chain = impersonation_chain
 
         self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
         self.skipped_states = list(skipped_states) if skipped_states else []
@@ -403,50 +408,8 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
                 "Duplicate values provided across allowed_states, skipped_states and failed_states."
             )
 
-        # convert [] to None
-        if not composer_external_task_ids:
-            composer_external_task_ids = None
-
-        # can't set both single task id and a list of task ids
-        if composer_external_task_id is not None and composer_external_task_ids is not None:
-            raise ValueError(
-                "Only one of `composer_external_task_id` or `composer_external_task_ids` may "
-                "be provided to CloudComposerExternalTaskSensor; "
-                "use `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id`."
-            )
-
-        # since both not set, convert the single id to a 1-elt list - from here on, we only consider the list
-        if composer_external_task_id is not None:
-            composer_external_task_ids = [composer_external_task_id]
-
-        if composer_external_task_group_id is not None and composer_external_task_ids is not None:
-            raise ValueError(
-                "Only one of `composer_external_task_group_id` or `composer_external_task_ids` may "
-                "be provided to CloudComposerExternalTaskSensor; "
-                "use `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id`."
-            )
-
-        # check the requested states are all valid states for the target type, be it dag or task
-        if composer_external_task_ids or composer_external_task_group_id:
-            if not total_states <= set(State.task_states):
-                raise ValueError(
-                    "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
-                    "when `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id` "
-                    f"is not `None`: {State.task_states}"
-                )
-        elif not total_states <= set(State.dag_states):
-            raise ValueError(
-                "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
-                f"when `composer_external_task_id` and `composer_external_task_group_id` is `None`: {State.dag_states}"
-            )
-
         self.execution_range = execution_range
-        self.composer_external_dag_id = composer_external_dag_id
-        self.composer_external_task_id = composer_external_task_id
-        self.composer_external_task_ids = composer_external_task_ids
-        self.composer_external_task_group_id = composer_external_task_group_id
         self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
@@ -632,6 +595,43 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
             )
 
     def execute(self, context: Context) -> None:
+        # Validate and normalize the target only after its template fields have been rendered.
+        # Treat an empty list the same as an unset value before the exclusivity checks.
+        if not self.composer_external_task_ids:
+            self.composer_external_task_ids = None
+
+        if self.composer_external_task_id is not None and self.composer_external_task_ids is not None:
+            raise ValueError(
+                "Only one of `composer_external_task_id` or `composer_external_task_ids` may "
+                "be provided to CloudComposerExternalTaskSensor; "
+                "use `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id`."
+            )
+
+        if self.composer_external_task_id is not None:
+            self.composer_external_task_ids = [self.composer_external_task_id]
+
+        if self.composer_external_task_group_id is not None and self.composer_external_task_ids is not None:
+            raise ValueError(
+                "Only one of `composer_external_task_group_id` or `composer_external_task_ids` may "
+                "be provided to CloudComposerExternalTaskSensor; "
+                "use `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id`."
+            )
+
+        total_states = set(self.allowed_states + self.skipped_states + self.failed_states)
+        if self.composer_external_task_ids or self.composer_external_task_group_id:
+            if not total_states <= set(State.task_states):
+                raise ValueError(
+                    "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
+                    "when `composer_external_task_id` or `composer_external_task_ids` or "
+                    f"`composer_external_task_group_id` is not `None`: {State.task_states}"
+                )
+        elif not total_states <= set(State.dag_states):
+            raise ValueError(
+                "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
+                f"when `composer_external_task_id` and `composer_external_task_group_id` is `None`: "
+                f"{State.dag_states}"
+            )
+
         self._composer_airflow_version = self._get_composer_airflow_version()
 
         if self.composer_external_task_ids and len(self.composer_external_task_ids) > len(
