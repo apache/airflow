@@ -91,6 +91,9 @@ class _TableConfig:
         in the table.  to ignore certain records even if they are the latest in the table, you can
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
+    :param dag_id_via: for a table that has no dag id of its own, the ``(fk_column, parent_table,
+        parent_pk_column)`` through which one is reached. ``--dag-ids`` / ``--exclude-dag-ids`` then
+        filter on the parent's ``dag_id``. Mutually exclusive with ``dag_id_column_name``.
     :param dependent_tables: list of tables which have FK relationship with this table
     :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
     :param skip_if_referenced: list of ``(referencing_table, fk_column)`` pairs whose FK points at this
@@ -105,6 +108,7 @@ class _TableConfig:
     recency_column_name: str
     extra_columns: list[str] | None = None
     dag_id_column_name: str | None = None
+    dag_id_via: tuple[str, str, str] | None = None
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
@@ -123,23 +127,23 @@ class _TableConfig:
     def __post_init__(self):
         self.schema_name, self.bare_table_name = _split_schema_table(self.table_name)
         self.recency_column = column(self.recency_column_name)
-        if self.dag_id_column_name is None:
-            self.dag_id_column = None
-            self.orm_model: Base = table(
-                self.bare_table_name,
-                *[column(x) for x in self.extra_columns or []],
-                self.recency_column,
-                schema=self.schema_name,
+        if self.dag_id_column_name and self.dag_id_via:
+            raise ValueError(
+                f"_TableConfig for table {self.table_name!r} sets both dag_id_column_name and "
+                "dag_id_via; a table reaches its dag id one way or the other, not both."
             )
-        else:
-            self.dag_id_column = column(self.dag_id_column_name)
-            self.orm_model: Base = table(
-                self.bare_table_name,
-                *[column(x) for x in self.extra_columns or []],
-                self.dag_id_column,
-                self.recency_column,
-                schema=self.schema_name,
-            )
+        self.dag_id_column = column(self.dag_id_column_name) if self.dag_id_column_name else None
+        column_names = list(self.extra_columns or [])
+        if self.dag_id_column_name:
+            column_names.append(self.dag_id_column_name)
+        if self.dag_id_via:
+            column_names.append(self.dag_id_via[0])
+        self.orm_model: Base = table(
+            self.bare_table_name,
+            *[column(name) for name in dict.fromkeys(column_names)],
+            self.recency_column,
+            schema=self.schema_name,
+        )
 
         # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
         # (added via extra_columns). Fail fast with a clear message instead of a cryptic KeyError
@@ -159,7 +163,11 @@ class _TableConfig:
         return {
             "table": self.table_name,
             "recency_column": str(self.recency_column),
-            "dag_id_column": str(self.dag_id_column),
+            "dag_id_column": (
+                f"{self.dag_id_via[0]} -> {self.dag_id_via[1]}.dag_id"
+                if self.dag_id_via
+                else str(self.dag_id_column)
+            ),
             "keep_last": self.keep_last,
             "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             "keep_last_group_by": str(self.keep_last_group_by),
@@ -184,7 +192,9 @@ config_list: list[_TableConfig] = [
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
-    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="source_dag_id"
+    ),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp", dag_id_column_name="dag_id"),
@@ -202,7 +212,11 @@ config_list: list[_TableConfig] = [
         recency_column_name="expires_at",
         dag_id_column_name="dag_id",
     ),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="task_reschedule",
+        recency_column_name="start_date",
+        dag_id_via=("ti_id", "task_instance", "id"),
+    ),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
@@ -227,7 +241,11 @@ config_list: list[_TableConfig] = [
         # and are cleaned. dag_run.created_dag_version_id is ON DELETE SET NULL, so it does not block.
         skip_if_referenced=[("task_instance", "dag_version_id")],
     ),
-    _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="deadline",
+        recency_column_name="deadline_time",
+        dag_id_via=("dagrun_id", "dag_run", "id"),
+    ),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
     _TableConfig(
         table_name="connection_test_request",
@@ -438,6 +456,7 @@ def _build_query(
     clean_before_timestamp: DateTime,
     session: Session,
     dag_id_column=None,
+    dag_id_via: tuple[str, str, str] | None = None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
     extra_filters: list[Any] | None = None,
@@ -478,6 +497,31 @@ def _build_query(
         if exclude_dag_ids:
             conditions.append(base_table_dag_id_col.not_in(exclude_dag_ids))
 
+    if (dag_ids or exclude_dag_ids) and dag_id_via is not None:
+        # EXISTS rather than a NOT IN subquery so that a row whose FK is NULL — a deadline not
+        # attached to any dag run, say — is treated as belonging to no dag: kept under --dag-ids
+        # and removed under --exclude-dag-ids, instead of NULL swallowing the comparison.
+        fk_column, parent_table_name, parent_pk_column = dag_id_via
+        parent_table = table(parent_table_name, column(parent_pk_column), column("dag_id"))
+        base_table_fk_col = base_table.c[fk_column]
+
+        def belongs_to_dags(wanted_dag_ids: list[str]) -> Any:
+            return (
+                select(literal(1))
+                .select_from(parent_table)
+                .where(
+                    parent_table.c[parent_pk_column] == base_table_fk_col,
+                    parent_table.c["dag_id"].in_(wanted_dag_ids),
+                )
+                .correlate(base_table)
+                .exists()
+            )
+
+        if dag_ids:
+            conditions.append(belongs_to_dags(dag_ids))
+        if exclude_dag_ids:
+            conditions.append(~belongs_to_dags(exclude_dag_ids))
+
     if keep_last:
         max_date_col_name = "max_date_per_group"
         group_by_columns: list[Any] = [column(x) for x in keep_last_group_by]
@@ -508,6 +552,7 @@ def _cleanup_table(
     keep_last_group_by,
     clean_before_timestamp: DateTime,
     dag_id_column=None,
+    dag_id_via: tuple[str, str, str] | None = None,
     dag_ids=None,
     exclude_dag_ids=None,
     dry_run: bool = True,
@@ -527,6 +572,7 @@ def _cleanup_table(
         orm_model=orm_model,
         recency_column=recency_column,
         dag_id_column=dag_id_column,
+        dag_id_via=dag_id_via,
         dag_ids=dag_ids,
         exclude_dag_ids=exclude_dag_ids,
         keep_last=keep_last,
