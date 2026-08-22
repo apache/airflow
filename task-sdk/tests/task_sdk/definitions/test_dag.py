@@ -875,7 +875,6 @@ class TestCycleTester:
         assert not dag.check_cycle()
 
     def test_semi_complex(self):
-        # test a semi-complex dag for cycle
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # A -> B -> C
