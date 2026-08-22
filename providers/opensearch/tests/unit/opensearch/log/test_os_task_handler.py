@@ -289,14 +289,14 @@ class TestOpensearchTaskHandler:
         assert handler.index_patterns == patterns
 
     @pytest.mark.parametrize(
-        ("username", "password"),
+        ("username", "password", "expect_http_auth"),
         [
-            ("admin", "secret"),
-            ("admin", ""),
-            ("", "secret"),
+            ("admin", "secret", True),
+            ("admin", "", True),
+            ("", "secret", True),
         ],
     )
-    def test_client_with_auth(self, username, password):
+    def test_client_with_auth(self, username, password, expect_http_auth):
         """If either username or password are provided, the handler should pass http_auth to the client."""
         handler = OpensearchTaskHandler(
             base_log_folder=self.local_log_location,
@@ -313,26 +313,11 @@ class TestOpensearchTaskHandler:
         )
 
         transport_args = handler.client.transport.kwargs
-        assert "http_auth" in transport_args
-        assert transport_args["http_auth"] == (username, password)
-
-    def test_client_no_auth(self):
-        """If both username and password are empty, the handler should _not_ pass http_auth to the client."""
-        handler = OpensearchTaskHandler(
-            base_log_folder=self.local_log_location,
-            end_of_log_mark=self.end_of_log_mark,
-            write_stdout=self.write_stdout,
-            host="localhost",
-            port=9200,
-            username="",
-            password="",
-            json_format=self.json_format,
-            json_fields=self.json_fields,
-            host_field=self.host_field,
-            offset_field=self.offset_field,
-        )
-
-        assert "http_auth" not in handler.client.transport.kwargs
+        if expect_http_auth:
+            assert "http_auth" in transport_args
+            assert transport_args["http_auth"] == (username, password)
+        else:
+            assert "http_auth" not in handler.client.transport.kwargs
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
@@ -833,14 +818,14 @@ class TestOpensearchRemoteLogIO:
         self.opensearch_io.upload(log_file, ti=None)
 
     @pytest.mark.parametrize(
-        ("username", "password"),
+        ("username", "password", "expect_http_auth"),
         [
-            ("admin", "secret"),
-            ("admin", ""),
-            ("", "secret"),
+            ("admin", "secret", True),
+            ("admin", "", True),
+            ("", "secret", True),
         ],
     )
-    def test_client_with_auth(self, username, password):
+    def test_client_with_auth(self, username, password, expect_http_auth):
         """If either username or password are provided, the IO should pass http_auth to the client."""
         opensearch_io = OpensearchRemoteLogIO(
             write_to_opensearch=True,
@@ -854,25 +839,12 @@ class TestOpensearchRemoteLogIO:
             log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
         )
 
-        transport_args = opensearch_io.client.transport.kwargs
-        assert "http_auth" in transport_args
-        assert transport_args["http_auth"] == (username, password)
-
-    def test_client_no_auth(self):
-        """If both username and password are empty, the IO should _not_ pass http_auth to the client."""
-        opensearch_io = OpensearchRemoteLogIO(
-            write_to_opensearch=True,
-            write_stdout=True,
-            delete_local_copy=True,
-            host="localhost",
-            port=9200,
-            username="",
-            password="",
-            base_log_folder=self.opensearch_io.base_log_folder,
-            log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
-        )
-
-        assert "http_auth" not in opensearch_io.client.transport.kwargs
+        transport_args = handler.client.transport.kwargs
+        if expect_http_auth:
+            assert "http_auth" in transport_args
+            assert transport_args["http_auth"] == (username, password)
+        else:
+            assert "http_auth" not in handler.client.transport.kwargs
 
 
 class TestOpensearchRemoteLogIOFromConfig:
