@@ -1410,6 +1410,12 @@ class DagFileProcessorManager(LoggingMixin):
         return os.path.join(self._get_log_dir(), bundle.name, f"{relative_path}.log")
 
     def _get_logger_for_dag_file(self, dag_file: DagFileInfo):
+        if conf.get("logging", "dag_processor_log_target") == "stdout":
+            processors = logging_processors(json_output=True)
+            return structlog.wrap_logger(
+                structlog.PrintLogger(), processors=processors, logger_name="processor"
+            ).bind(), None
+
         log_filename = self._render_log_filename(dag_file)
         log_file = init_log_file(log_filename)
         logger_filehandle = log_file.open("ab")
