@@ -1105,6 +1105,7 @@ def get_provider_info():
             {
                 "source-integration-name": "Exasol",
                 "target-integration-name": "Amazon Simple Storage Service (S3)",
+                "how-to-guide": "/docs/apache-airflow-providers-amazon/transfer/exasol_to_s3.rst",
                 "python-module": "airflow.providers.amazon.aws.transfers.exasol_to_s3",
             },
             {
