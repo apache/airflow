@@ -42,7 +42,11 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -76,7 +80,20 @@ class TestFileTaskLogHandler:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_streaming_task_log"
     )
-    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
+    @pytest.mark.parametrize(
+        "state",
+        [
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.SUCCESS,
+            pytest.param(
+                TaskInstanceState.FAILED,
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_4_PLUS,
+                    reason="Falling back to the executor log for a failed attempt requires Airflow 3.4+",
+                ),
+            ),
+        ],
+    )
     @pytest.mark.usefixtures("clean_executor_loader")
     def test__read_for_k8s_executor(self, mock_k8s_get_streaming_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_streaming_task_log method."""
@@ -95,10 +112,11 @@ class TestFileTaskLogHandler:
             reload(executor_loader)
             fth = FileTaskHandler("")
             fth._read(ti=ti, try_number=2)
-        if state == TaskInstanceState.RUNNING:
-            mock_k8s_get_streaming_task_log.assert_called_once_with(ti, 2)
-        else:
+        if state == TaskInstanceState.SUCCESS:
             mock_k8s_get_streaming_task_log.assert_not_called()
+        else:
+            # A failed attempt with no worker log falls back to the pod log.
+            mock_k8s_get_streaming_task_log.assert_called_once_with(ti, 2)
 
     @pytest.mark.parametrize(
         ("pod_override", "namespace_to_call"),
