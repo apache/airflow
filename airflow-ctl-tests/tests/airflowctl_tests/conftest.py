@@ -333,6 +333,19 @@ def docker_compose_up(tmp_path_factory):
         compose_project_name="breeze-airflowctl-test",
     )
 
+    # if environment is already up and SKIP_DOCKER_COMPOSE_DELETION is set, we assume it's intentional and skip starting up again
+    containers = _CtlTestState.docker_client.container.list(all=True)
+    for container in containers:
+        if (
+            "airflow-ctl-test0-airflow-apiserver" in container.name
+            and container.state.status == "running"
+            and os.environ.get("SKIP_DOCKER_COMPOSE_DELETION")
+        ):
+            console.print(
+                f"[yellow]Found existing running container '{container.name}' and SKIP_DOCKER_COMPOSE_DELETION is set. "
+            )
+            console.print("[green]Docker compose environment will be reused for airflowctl tests")
+            return
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
         _CtlTestState.docker_client.compose.up(detach=True, wait=True)
