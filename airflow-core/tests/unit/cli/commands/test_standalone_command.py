@@ -32,11 +32,20 @@ from airflow.executors.executor_constants import (
     LOCAL_EXECUTOR,
 )
 
+from tests_common.test_utils.markers import skip_if_cncf_kubernetes_not_installed
+
 
 class TestStandaloneCommand:
     @pytest.mark.parametrize(
         "conf_executor_name",
-        [LOCAL_EXECUTOR, CELERY_EXECUTOR, KUBERNETES_EXECUTOR],
+        [
+            LOCAL_EXECUTOR,
+            CELERY_EXECUTOR,
+            pytest.param(
+                KUBERNETES_EXECUTOR,
+                marks=skip_if_cncf_kubernetes_not_installed,
+            ),
+        ],
     )
     def test_calculate_env(self, conf_executor_name):
         """Should always force a local executor compatible with the db."""

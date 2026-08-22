@@ -570,13 +570,13 @@ class TestCliDags:
         dag_command.dag_pause(args)
         mock_yesno.assert_called_once()
         assert DagModel.get_dagmodel("example_bash_decorator").is_paused
-        assert DagModel.get_dagmodel("example_kubernetes_executor").is_paused
+        assert DagModel.get_dagmodel("example_simplest_dag").is_paused
         assert DagModel.get_dagmodel("example_xcom_args").is_paused
 
         args = self.parser.parse_args(["dags", "unpause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_unpause(args)
         assert not DagModel.get_dagmodel("example_bash_decorator").is_paused
-        assert not DagModel.get_dagmodel("example_kubernetes_executor").is_paused
+        assert not DagModel.get_dagmodel("example_simplest_dag").is_paused
         assert not DagModel.get_dagmodel("example_xcom_args").is_paused
 
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")

@@ -88,7 +88,6 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/operators/test_kubernetes_pod.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_k8s_model.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_kube_client.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_kube_config.py",
