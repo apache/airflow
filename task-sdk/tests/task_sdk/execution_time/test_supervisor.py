@@ -68,7 +68,12 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import (
+    AirflowRuntimeError,
+    ErrorType,
+    TaskAlreadyRunningError,
+    TaskInstanceSupersededError,
+)
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -803,7 +808,7 @@ class TestWatchedSubprocess:
         assert exit_code == 0, captured_logs
 
         # Validate calls to the client
-        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY, None)
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,
@@ -959,6 +964,8 @@ class TestWatchedSubprocess:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == f"/task-instances/{ti_id}/run":
+                body = json.loads(request.read())
+                assert body["external_executor_id"] == "launch-token"
                 return httpx.Response(
                     409,
                     json={
@@ -987,6 +994,52 @@ class TestWatchedSubprocess:
                     try_number=1,
                     dag_version_id=uuid7(),
                     queue="default",
+                    external_executor_id="launch-token",
+                ),
+                client=make_client(transport=httpx.MockTransport(handle_request)),
+                target=subprocess_main,
+            )
+
+    @pytest.mark.parametrize(
+        ("status_code", "detail"),
+        [
+            pytest.param(404, {"reason": "not_found", "message": "Task Instance not found"}, id="not_found"),
+            pytest.param(
+                409,
+                {
+                    "reason": "stale_executor_launch",
+                    "message": "TI executor launch token does not match the current queued task instance",
+                },
+                id="stale_executor_launch",
+            ),
+        ],
+    )
+    def test_start_raises_task_instance_superseded_and_kills_subprocess(self, status_code, detail):
+        """Test that ActivitySubprocess.start() raises TaskInstanceSupersededError and kills the child
+        when the API reports the task instance was superseded (404 not_found or 409 stale_executor_launch)."""
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(status_code, json={"detail": detail})
+            return httpx.Response(status_code=204)
+
+        def subprocess_main():
+            CommsDecoder()._get_response()
+
+        with pytest.raises(TaskInstanceSupersededError):
+            ActivitySubprocess.start(
+                dag_rel_path=os.devnull,
+                bundle_info=FAKE_BUNDLE,
+                what=TaskInstance(
+                    id=ti_id,
+                    task_id="b",
+                    dag_id="c",
+                    run_id="d",
+                    try_number=1,
+                    dag_version_id=uuid7(),
+                    queue="default",
+                    external_executor_id="launch-token",
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,

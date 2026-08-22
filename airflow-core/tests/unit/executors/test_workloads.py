@@ -159,7 +159,7 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
     )
 
     dumped = ti.model_dump(mode="json")
-    assert "external_executor_id" not in dumped
+    assert dumped["external_executor_id"] == "celery-id"
     assert "executor_config" not in dumped
     # Executor-side scheduling fields stay on the workload wire (older workers
     # deserialize the workload with a model that requires them) but are not
@@ -169,6 +169,7 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
 
     received = GeneratedTaskInstance.model_validate(dumped)
     assert received.queue == "jdk-17"
+    assert received.external_executor_id == "celery-id"
     assert received.map_index == 3
     assert not hasattr(received, "pool_slots")
 

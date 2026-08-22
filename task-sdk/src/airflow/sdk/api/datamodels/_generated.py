@@ -292,6 +292,7 @@ class TIEnterRunningPayload(BaseModel):
     unixname: Annotated[str, Field(title="Unixname")]
     pid: Annotated[int, Field(title="Pid")]
     start_date: Annotated[AwareDatetime, Field(title="Start Date")]
+    external_executor_id: Annotated[str | None, Field(title="External Executor Id")] = None
 
 
 class TIHeartbeatInfo(BaseModel):
@@ -561,6 +562,7 @@ class TaskInstance(BaseModel):
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
     queue: Annotated[str | None, Field(title="Queue")] = "default"
+    external_executor_id: Annotated[str | None, Field(title="External Executor Id")] = None
 
 
 class BundleInfo(BaseModel):
