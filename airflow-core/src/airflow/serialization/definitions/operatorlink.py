@@ -23,7 +23,9 @@ from typing import TYPE_CHECKING
 
 import attrs
 
+from airflow._shared.state import TaskScope, attempt_link_state_key
 from airflow.models.xcom import XComModel
+from airflow.state import get_state_backend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
 
@@ -43,19 +45,29 @@ class XComOperatorLink(LoggingMixin):
     name: str
     xcom_key: str
 
-    def get_link(self, operator: Operator, *, ti_key: TaskInstanceKey) -> str:
+    def _stored_link(self, ti_key: TaskInstanceKey) -> str | None:
         """
-        Retrieve the link from the XComs.
+        Return the stored link for ``ti_key``'s attempt, or None.
 
-        :param operator: The Airflow operator object this link is associated to.
-        :param ti_key: TaskInstance ID to return link for.
-        :return: link to external system, but by pulling it from XComs
+        The state store is read first because it is the only place an earlier attempt's link
+        survives: a task's XComs are cleared before every attempt, so the XCom row holds
+        whichever attempt ran last. That row is still the answer for links written before
+        per-attempt rows existed.
         """
-        self.log.info(
-            "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
+        scope = TaskScope(
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            task_id=ti_key.task_id,
+            map_index=ti_key.map_index,
         )
         with create_session() as session:
-            result = session.execute(
+            stored = get_state_backend().get(
+                scope, attempt_link_state_key(self.xcom_key, ti_key.try_number), session=session
+            )
+            if stored is not None:
+                return stored
+
+            row = session.execute(
                 XComModel.get_many(
                     key=self.xcom_key,
                     run_id=ti_key.run_id,
@@ -64,9 +76,21 @@ class XComOperatorLink(LoggingMixin):
                     map_indexes=ti_key.map_index,
                 ).with_only_columns(XComModel.value)
             ).first()
-        if not result:
+        return row.value if row else None
+
+    def get_link(self, operator: Operator, *, ti_key: TaskInstanceKey) -> str:
+        """
+        Retrieve the link from the XComs.
+
+        :param operator: The Airflow operator object this link is associated to.
+        :param ti_key: TaskInstance ID to return link for.
+        :return: link to external system, but by pulling it from XComs
+        """
+        self.log.info("Attempting to retrieve link with key: %s for task id: %s", self.xcom_key, ti_key)
+        raw_value = self._stored_link(ti_key)
+        if raw_value is None:
             self.log.debug(
-                "No link with name: %s present in XCom as key: %s, returning empty link",
+                "No link with name: %s present for key: %s, returning empty link",
                 self.name,
                 self.xcom_key,
             )
@@ -78,10 +102,10 @@ class XComOperatorLink(LoggingMixin):
         )
 
         try:
-            parsed_value = json.loads(result.value)
+            parsed_value = json.loads(raw_value)
         except (ValueError, TypeError):
             # Handling for cases when types do not need to be deserialized (e.g. when value is a simple string link)
-            parsed_value = result.value
+            parsed_value = raw_value
 
         try:
             return str(stringify_xcom(parsed_value))
