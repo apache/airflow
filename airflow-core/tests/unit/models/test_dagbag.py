@@ -39,6 +39,49 @@ from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
 
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    "task_id_pattern, expected_task_ids",
+    [
+        ("^write_", {"write_a", "write_b"}),
+        (None, {"read_a", "write_a", "write_b"}),
+    ],
+)
+def test_get_dag_for_run_prunes_subset_backfill(task_id_pattern, expected_task_ids, dag_maker):
+    """A subset backfill run resolves to a Dag pruned to the selected tasks."""
+    import pendulum
+    from sqlalchemy import select
+
+    from airflow.models.backfill import _create_backfill
+    from airflow.models.dagrun import DagRun
+
+    db.clear_db_backfills()
+    db.clear_db_runs()
+
+    with dag_maker(schedule="@daily") as dag:
+        EmptyOperator(task_id="read_a")
+        EmptyOperator(task_id="write_a")
+        EmptyOperator(task_id="write_b")
+
+    backfill = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-02"),
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        task_id_pattern=task_id_pattern,
+    )
+
+    dag_bag = DBDagBag()
+    with create_session() as session:
+        run = session.scalar(select(DagRun).where(DagRun.backfill_id == backfill.id).limit(1))
+        resolved = dag_bag.get_dag_for_run(run, session=session)
+        assert set(resolved.task_ids) == expected_task_ids
+
+
 STATS_PATH = "airflow.models.dagbag.stats"
 
 CACHE_METRIC_SUFFIXES = ("cache_hit", "cache_miss", "cache_clear", "cache_size")

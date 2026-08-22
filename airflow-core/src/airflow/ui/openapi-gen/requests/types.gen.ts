@@ -274,6 +274,10 @@ export type BackfillPostBody = {
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     /**
+     * Regular expression selecting a subset of tasks to backfill. When set, only the matching tasks are scheduled and dependencies on unselected upstream tasks are ignored. The request is rejected if the pattern matches no task.
+     */
+    task_id_pattern?: string | null;
+    /**
      * Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).
      */
     run_on_latest_version?: boolean | null;
@@ -293,6 +297,7 @@ export type BackfillResponse = {
     is_paused: boolean;
     reprocess_behavior: ReprocessBehavior;
     max_active_runs: number;
+    selected_task_ids: Array<(string)> | null;
     created_at: string;
     completed_at: string | null;
     updated_at: string;

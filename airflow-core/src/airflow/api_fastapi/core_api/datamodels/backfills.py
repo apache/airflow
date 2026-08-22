@@ -37,6 +37,12 @@ class BackfillPostBody(StrictBaseModel):
     dag_run_conf: dict | None = None
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = 10
+    task_id_pattern: str | None = Field(
+        default=None,
+        description="Regular expression selecting a subset of tasks to backfill. When set, only the "
+        "matching tasks are scheduled and dependencies on unselected upstream tasks are ignored. "
+        "The request is rejected if the pattern matches no task.",
+    )
     run_on_latest_version: bool | None = Field(
         default=None,
         description="Run on the latest bundle version of the Dag for each backfilled run. "
@@ -57,6 +63,7 @@ class BackfillResponse(BaseModel):
     is_paused: bool
     reprocess_behavior: ReprocessBehavior
     max_active_runs: int
+    selected_task_ids: list[str] | None
     created_at: datetime
     completed_at: datetime | None
     updated_at: datetime

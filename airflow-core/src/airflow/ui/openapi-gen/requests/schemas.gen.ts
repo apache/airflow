@@ -921,6 +921,18 @@ export const $BackfillPostBody = {
             title: 'Max Active Runs',
             default: 10
         },
+        task_id_pattern: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Id Pattern',
+            description: 'Regular expression selecting a subset of tasks to backfill. When set, only the matching tasks are scheduled and dependencies on unselected upstream tasks are ignored. The request is rejected if the pattern matches no task.'
+        },
         run_on_latest_version: {
             anyOf: [
                 {
@@ -985,6 +997,20 @@ export const $BackfillResponse = {
             type: 'integer',
             title: 'Max Active Runs'
         },
+        selected_task_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Selected Task Ids'
+        },
         created_at: {
             type: 'string',
             format: 'date-time',
@@ -1013,7 +1039,7 @@ export const $BackfillResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'dag_id', 'from_date', 'to_date', 'dag_run_conf', 'is_paused', 'reprocess_behavior', 'max_active_runs', 'created_at', 'completed_at', 'updated_at', 'dag_display_name'],
+    required: ['id', 'dag_id', 'from_date', 'to_date', 'dag_run_conf', 'is_paused', 'reprocess_behavior', 'max_active_runs', 'selected_task_ids', 'created_at', 'completed_at', 'updated_at', 'dag_display_name'],
     title: 'BackfillResponse',
     description: 'Base serializer for Backfill.'
 } as const;

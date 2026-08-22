@@ -23,6 +23,7 @@ Internal classes for management of dag backfills.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
@@ -135,6 +136,22 @@ class NoBackfillRunsToCreate(ValueError):
     """
 
 
+class NoMatchingTasksForBackfill(ValueError):
+    """
+    Raised when a backfill's task-id pattern matches no tasks in the Dag.
+
+    :meta private:
+    """
+
+
+class InvalidBackfillTaskPattern(ValueError):
+    """
+    Raised when a backfill's task-id pattern is not a valid regular expression.
+
+    :meta private:
+    """
+
+
 class UnknownActiveBackfills(AirflowException):
     """
     Raised when the quantity of active backfills cannot be determined.
@@ -178,6 +195,13 @@ class Backfill(Base):
         StringID(), nullable=False, default=ReprocessBehavior.NONE
     )
     max_active_runs: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    selected_task_ids: Mapped[list | None] = mapped_column(sa.JSON(), nullable=True)
+    """
+    Resolved task ids this backfill is restricted to, or ``None`` for the whole Dag.
+
+    Holds the concrete task ids matched at creation time (not the pattern), so the
+    backfill remains reproducible even if the Dag later changes.
+    """
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
@@ -284,6 +308,25 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
     return non_create_reason
 
 
+def _resolve_backfill_task_ids(dag: SerializedDAG, task_id_pattern: str) -> list[str]:
+    """
+    Resolve a task-id regex to the sorted list of matching task ids in the Dag.
+
+    :raises InvalidBackfillTaskPattern: the pattern is not a valid regular expression.
+    :raises NoMatchingTasksForBackfill: the pattern matches no task in the Dag.
+    """
+    try:
+        pattern = re.compile(task_id_pattern)
+    except re.error as e:
+        raise InvalidBackfillTaskPattern(f"Invalid task_id_pattern {task_id_pattern!r}: {e}") from e
+    matched = sorted(task_id for task_id in dag.task_ids if pattern.search(task_id))
+    if not matched:
+        raise NoMatchingTasksForBackfill(
+            f"task_id_pattern {task_id_pattern!r} did not match any task in Dag {dag.dag_id}."
+        )
+    return matched
+
+
 def _validate_backfill_params(
     dag: SerializedDAG,
     reverse: bool,
@@ -291,6 +334,7 @@ def _validate_backfill_params(
     to_date: datetime,
     reprocess_behavior: ReprocessBehavior | None,
     dag_run_conf: dict | None = None,
+    selected_task_ids: list[str] | None = None,
 ) -> None:
 
     if from_date > to_date:
@@ -302,7 +346,9 @@ def _validate_backfill_params(
     if from_date >= current_time and to_date >= current_time:
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
 
-    depends_on_past = any(x.depends_on_past for x in dag.tasks)
+    depends_on_past = any(
+        x.depends_on_past for x in dag.tasks if selected_task_ids is None or x.task_id in selected_task_ids
+    )
     if depends_on_past:
         if reverse is True:
             raise InvalidBackfillDirection(
@@ -329,6 +375,7 @@ def _do_dry_run(
     reprocess_behavior: ReprocessBehavior,
     session: Session,
     dag_run_conf: dict | None = None,
+    task_id_pattern: str | None = None,
 ) -> Iterable[DagRunInfo]:
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -344,6 +391,8 @@ def _do_dry_run(
     if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
         raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
+    selected_task_ids = _resolve_backfill_task_ids(dag, task_id_pattern) if task_id_pattern else None
+
     _validate_backfill_params(
         dag,
         reverse,
@@ -351,6 +400,7 @@ def _do_dry_run(
         to_date,
         reprocess_behavior,
         dag_run_conf,
+        selected_task_ids,
     )
     dagrun_info_list = _get_info_list(
         dag=dag,
@@ -631,6 +681,7 @@ def _create_backfill(
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
+    task_id_pattern: str | None = None,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -668,6 +719,8 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
+        selected_task_ids = _resolve_backfill_task_ids(dag, task_id_pattern) if task_id_pattern else None
+
         _validate_backfill_params(
             dag,
             reverse,
@@ -675,6 +728,7 @@ def _create_backfill(
             to_date,
             reprocess_behavior,
             dag_run_conf,
+            selected_task_ids,
         )
 
         dagrun_info_list = _get_info_list(
@@ -697,6 +751,7 @@ def _create_backfill(
             reprocess_behavior=reprocess_behavior,
             dag_model=dag,
             triggering_user_name=triggering_user_name,
+            selected_task_ids=selected_task_ids,
         )
         session.add(backfill)
         # Commit immediately so the backfill is visible to concurrent requests
