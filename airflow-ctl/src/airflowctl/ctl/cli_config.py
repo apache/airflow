@@ -386,27 +386,27 @@ ARG_JOB_ALLOW_MULTIPLE = Arg(
 # Config arguments
 ARG_CONFIG_SECTION = Arg(
     flags=("--section",),
-    type=str,
+    type=string_list_type,
     dest="section",
-    help="The section of the configuration",
+    help="The section name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_OPTION = Arg(
     flags=("--option",),
-    type=str,
+    type=string_list_type,
     dest="option",
-    help="The option of the configuration",
+    help="The option name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_IGNORE_SECTION = Arg(
     flags=("--ignore-section",),
-    type=str,
+    type=string_list_type,
     dest="ignore_section",
-    help="The configuration section being ignored",
+    help="The configuration section name(s) being ignored, comma separated",
 )
 ARG_CONFIG_IGNORE_OPTION = Arg(
     flags=("--ignore-option",),
-    type=str,
+    type=string_list_type,
     dest="ignore_option",
-    help="The configuration option being ignored",
+    help="The configuration option name(s) being ignored, comma separated",
 )
 ARG_CONFIG_VERBOSE = Arg(
     flags=(
