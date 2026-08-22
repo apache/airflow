@@ -182,8 +182,9 @@ class KubernetesPodOperator(BaseOperator):
         ``durable`` has no effect there.
     :param durable: if the worker dies while the pod is running, reattach and monitor during the next
         try instead of creating a duplicate pod. If False, always create a new pod for each try.
-        Supersedes ``reattach_on_restart`` on Airflow 3.3+, where the reconnection uses a persisted
-        pod identity in task state store instead of a label search. Defaults to ``True`` on Airflow
+        Supersedes ``reattach_on_restart`` on Airflow 3.3+, where the reconnection uses a pod
+        identity persisted in task state store, falling back to the label search when that identity
+        no longer resolves to the pod it recorded. Defaults to ``True`` on Airflow
         3.3+. Below 3.3, ``durable`` has no effect -- setting it explicitly only emits a warning --
         and ``reattach_on_restart`` (default ``True``) is the only lever, using the same
         label-search reattach mechanism it always has.
@@ -668,20 +669,45 @@ class KubernetesPodOperator(BaseOperator):
         self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
         self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
 
-    def _get_pod_from_task_state_store(self, context: Context) -> k8s.V1Pod | None:
+    def _get_pod_from_task_state_store(self, context: Context) -> tuple[k8s.V1Pod | None, str | None]:
+        """
+        Return the pod recorded for this task instance, with the namespace it was recorded in.
+
+        The namespace comes back even when the pod does not, so that a caller falling back to the
+        label search looks where the pod was submitted instead of where this try would put it.
+        """
         task_state_store = context.get("task_state_store")
         if task_state_store is None:
-            return None
+            return None, None
         stored = task_state_store.get(POD_IDENTIFIER_STATE_KEY)
         if not isinstance(stored, dict):
-            return None
+            return None, None
         name, namespace = stored.get("name"), stored.get("namespace")
-        if not isinstance(name, str) or not isinstance(namespace, str):
+        if not isinstance(name, str) or not name or not isinstance(namespace, str) or not namespace:
             self.log.warning(
                 "Pod identity stored in task state store is malformed (%s), falling back to label search.",
                 stored,
             )
-            return None
+            return None, None
+        uid = stored.get("uid")
+        if uid is None:
+            # Written before the uid was recorded. The name on its own cannot tell this pod from one
+            # that took its name, so leave it to the label search.
+            self.log.info(
+                "Pod identity stored in task state store for %s/%s has no uid, falling back to label search.",
+                namespace,
+                name,
+            )
+            return None, namespace
+        if not isinstance(uid, str) or not uid:
+            self.log.warning(
+                "Pod identity stored in task state store for %s/%s has an invalid uid (%r), "
+                "falling back to label search.",
+                namespace,
+                name,
+                uid,
+            )
+            return None, namespace
         try:
             pod = self.hook.get_pod(name, namespace)
         except ApiException as e:
@@ -692,7 +718,19 @@ class KubernetesPodOperator(BaseOperator):
                 namespace,
                 name,
             )
-            return None
+            return None, namespace
+        # Names are reusable, uids are not: this is a different pod under the recorded name. Only
+        # this lookup is fenced; https://github.com/apache/airflow/issues/71748 covers the rest.
+        if pod.metadata.uid != uid:
+            self.log.warning(
+                "Pod %s/%s from task state store is a different pod now "
+                "(recorded uid %s, found %s), falling back to label search.",
+                namespace,
+                name,
+                uid,
+                pod.metadata.uid,
+            )
+            return None, namespace
         if (pod.metadata.labels or {}).get(self.POD_CHECKED_KEY) == "True":
             # A prior attempt already fully processed this pod, it belongs to a previous
             # try_number, not one to reattach to. Fall through to fresh pod creation.
@@ -702,12 +740,12 @@ class KubernetesPodOperator(BaseOperator):
                 namespace,
                 name,
             )
-            return None
+            return None, namespace
         self.log.info(
             "Reconnecting to pod %s/%s via identity persisted in task state store.", namespace, name
         )
         self.log_matching_pod(pod=pod, context=context)
-        return pod
+        return pod, namespace
 
     def _persist_pod_identity_to_task_state_store(self, context: Context, pod: k8s.V1Pod) -> None:
         task_state_store = context.get("task_state_store")
@@ -715,14 +753,19 @@ class KubernetesPodOperator(BaseOperator):
             return
         task_state_store.set(
             POD_IDENTIFIER_STATE_KEY,
-            {"name": pod.metadata.name, "namespace": pod.metadata.namespace},
+            {
+                "name": pod.metadata.name,
+                "namespace": pod.metadata.namespace,
+                "uid": pod.metadata.uid,
+            },
         )
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
-            pod = self._get_pod_from_task_state_store(context)
+            pod, stored_namespace = self._get_pod_from_task_state_store(context)
             if pod is None:
-                pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
+                namespace = stored_namespace or pod_request_obj.metadata.namespace
+                pod = self.find_pod(namespace, context=context)
                 if pod is not None:
                     self._persist_pod_identity_to_task_state_store(context, pod)
             if pod:
