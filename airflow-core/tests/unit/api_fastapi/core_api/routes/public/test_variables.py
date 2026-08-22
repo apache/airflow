@@ -633,6 +633,33 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.json()["description"] == "updated description"
         assert response.json()["key"] == TEST_VARIABLE_KEY
 
+    @pytest.mark.parametrize(
+        "unknown",
+        ["valu", "definitely_not_a_field", ""],  # codespell:ignore valu
+    )
+    def test_patch_unknown_update_mask_field_returns_400(self, test_client, session, unknown):
+        self.create_variables()
+        response = test_client.patch(
+            f"/variables/{TEST_VARIABLE_KEY}",
+            json={"key": TEST_VARIABLE_KEY, "value": "new_value", "description": "new description"},
+            params={"update_mask": [unknown]},
+        )
+        assert response.status_code == 400
+        assert f"Unknown field(s) in update_mask: {unknown!r}" in response.json()["detail"]
+        # The request must not have been applied
+        stored = session.scalar(select(Variable).where(Variable.key == TEST_VARIABLE_KEY))
+        assert stored.val == TEST_VARIABLE_VALUE
+
+    def test_patch_update_mask_field_tolerates_surrounding_whitespace(self, test_client, session):
+        self.create_variables()
+        response = test_client.patch(
+            f"/variables/{TEST_VARIABLE_KEY}",
+            json={"key": TEST_VARIABLE_KEY, "value": "new_value", "description": "unchanged"},
+            params={"update_mask": [" value "]},
+        )
+        assert response.status_code == 200
+        assert response.json()["value"] == "new_value"
+
 
 class TestPostVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
