@@ -296,6 +296,12 @@ def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
     assert get_package_version_possibly_from_stable_txt("java-sdk") == expected_version
 
 
+def test_get_package_version_possibly_from_stable_txt_for_mypy(monkeypatch):
+    monkeypatch.setattr(release_management_commands, "get_airflow_mypy_version", lambda: "0.2.0")
+
+    assert get_package_version_possibly_from_stable_txt("apache-airflow-mypy") == "0.2.0"
+
+
 @pytest.mark.parametrize(
     ("stable_txt_content", "expected_version"),
     [
@@ -311,7 +317,7 @@ def test_get_package_version_possibly_from_stable_txt_for_ts_sdk(
     monkeypatch.setattr(global_constants, "AIRFLOW_ROOT_PATH", tmp_path)
     package_json = tmp_path / "ts-sdk" / "package.json"
     package_json.parent.mkdir(parents=True)
-    package_json.write_text('{"name": "@apache-airflow/ts-sdk", "version": "0.2.0-alpha.1"}\n')
+    package_json.write_text('{"name": "apache-airflow-ts-sdk", "version": "0.2.0-alpha.1"}\n')
     if stable_txt_content is not None:
         stable_txt = tmp_path / "generated" / "_build" / "docs" / "ts-sdk" / "stable.txt"
         stable_txt.parent.mkdir(parents=True)
