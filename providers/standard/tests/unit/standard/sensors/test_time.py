@@ -23,6 +23,7 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor
@@ -136,21 +137,31 @@ class TestTimeSensor:
         except TypeError as e:
             pytest.fail(f"TypeError raised: {e}")
 
-    def test_start_trigger_args_are_not_shared_between_tasks(self):
-        """Each task must carry its own trigger arguments.
-
-        ``start_trigger_args`` is a class attribute, so assigning through it made every task
-        built from this operator advertise the moment of whichever was constructed last.
-        """
+    def test_start_from_trigger_is_deprecated_and_ignored(self):
         with DAG(
-            dag_id="test_start_trigger_args_not_shared",
+            dag_id="test_start_from_trigger_deprecated",
+            schedule=None,
+            start_date=datetime(2020, 1, 1, 13, 0),
+        ):
+            with pytest.warns(AirflowProviderDeprecationWarning, match="start_from_trigger is deprecated"):
+                op = TimeSensor(task_id="test", target_time=time(10, 0), start_from_trigger=True)
+        assert op.start_from_trigger is False
+        with pytest.warns(AirflowProviderDeprecationWarning, match="start_from_trigger is deprecated"):
+            op.start_from_trigger = True
+        assert op.start_from_trigger is False
+
+    def test_target_datetime_recomputed_on_each_access(self):
+        with DAG(
+            dag_id="test_target_datetime_recomputed",
             schedule=None,
             start_date=datetime(2020, 1, 1),
         ):
-            early = TimeSensor(task_id="early", target_time=time(1, 0), start_from_trigger=True)
-            late = TimeSensor(task_id="late", target_time=time(23, 0), start_from_trigger=True)
+            op = TimeSensor(task_id="test", target_time=time(10, 0))
 
-        assert early.start_trigger_args is not late.start_trigger_args
-        assert early.start_trigger_args.trigger_kwargs["moment"] == early.target_datetime
-        assert late.start_trigger_args.trigger_kwargs["moment"] == late.target_datetime
-        assert early.target_datetime != late.target_datetime
+        with time_machine.travel("2025-06-01 00:00:00", tick=False):
+            first = op.target_datetime
+        with time_machine.travel("2025-06-02 00:00:00", tick=False):
+            second = op.target_datetime
+
+        assert first.date() == pendulum.datetime(2025, 6, 1).date()
+        assert second.date() == pendulum.datetime(2025, 6, 2).date()
