@@ -45,8 +45,8 @@ class TestScheduler:
             ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
         ],
     )
-    def test_scheduler_kind(self, executor, workers_values, kind):
-        """Test scheduler kind is StatefulSet only with a local executor & worker persistence is enabled."""
+    def test_scheduler_kind_falls_back_to_celery_persistence(self, executor, workers_values, kind):
+        """Scheduler kind falls back to Celery persistence when scheduler persistence is unset."""
         docs = render_chart(
             values={
                 "executor": executor,
@@ -56,6 +56,96 @@ class TestScheduler:
         )
 
         assert kind == jmespath.search("kind", docs[0])
+
+    @pytest.mark.parametrize(
+        ("scheduler_persistence", "celery_persistence", "kind"),
+        [
+            (True, False, "StatefulSet"),
+            (False, True, "Deployment"),
+        ],
+    )
+    def test_scheduler_persistence_is_independent_from_celery(
+        self,
+        scheduler_persistence,
+        celery_persistence,
+        kind,
+    ):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "scheduler": {
+                    "persistence": {
+                        "enabled": scheduler_persistence,
+                    }
+                },
+                "workers": {
+                    "celery": {
+                        "persistence": {
+                            "enabled": celery_persistence,
+                        }
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert kind == jmespath.search("kind", docs[0])
+
+    def test_scheduler_persistence_configuration_falls_back_to_celery(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "logs": {
+                    "persistence": {
+                        "enabled": False,
+                    }
+                },
+                "workers": {
+                    "celery": {
+                        "persistence": {
+                            "enabled": True,
+                            "size": "42Gi",
+                            "storageClassName": "legacy-storage",
+                            "annotations": {
+                                "legacy": "true",
+                            },
+                            "persistentVolumeClaimRetentionPolicy": {
+                                "whenDeleted": "Delete",
+                            },
+                        }
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "StatefulSet"
+        assert (
+            jmespath.search(
+                "spec.volumeClaimTemplates[0].spec.resources.requests.storage",
+                docs[0],
+            )
+            == "42Gi"
+        )
+        assert (
+            jmespath.search(
+                "spec.volumeClaimTemplates[0].spec.storageClassName",
+                docs[0],
+            )
+            == "legacy-storage"
+        )
+        assert jmespath.search(
+            "spec.volumeClaimTemplates[0].metadata.annotations",
+            docs[0],
+        ) == {
+            "legacy": "true",
+        }
+        assert jmespath.search(
+            "spec.persistentVolumeClaimRetentionPolicy",
+            docs[0],
+        ) == {
+            "whenDeleted": "Delete",
+        }
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
@@ -673,12 +763,16 @@ class TestScheduler:
     def test_scheduler_update_strategy(
         self, executor, persistence, update_strategy, expected_update_strategy
     ):
-        """UpdateStrategy should only be used when we have a local executor and workers.persistence."""
+        """UpdateStrategy is used only when scheduler is rendered as a StatefulSet."""
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"celery": {"persistence": {"enabled": persistence}}},
-                "scheduler": {"updateStrategy": update_strategy},
+                "scheduler": {
+                    "persistence": {
+                        "enabled": persistence,
+                    },
+                    "updateStrategy": update_strategy,
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -703,12 +797,16 @@ class TestScheduler:
         ],
     )
     def test_scheduler_strategy(self, executor, persistence, strategy, expected_strategy):
-        """Strategy should be used when we aren't using both a local executor and workers.persistence."""
+        """Strategy is used only when scheduler is rendered as a Deployment."""
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"celery": {"persistence": {"enabled": persistence}}},
-                "scheduler": {"strategy": strategy},
+                "scheduler": {
+                    "persistence": {
+                        "enabled": persistence,
+                    },
+                    "strategy": strategy,
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -793,7 +891,14 @@ class TestScheduler:
         docs = render_chart(
             values={
                 "executor": "LocalExecutor",
-                "workers": {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
+                "scheduler": {
+                    "persistence": {
+                        "enabled": True,
+                        "annotations": {
+                            "foo": "bar",
+                        },
+                    }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -845,19 +950,23 @@ class TestScheduler:
     def test_scheduler_template_storage_class_name(self):
         docs = render_chart(
             values={
-                "workers": {
-                    "celery": {
+                "executor": "LocalExecutor",
+                "logs": {"persistence": {"enabled": False}},
+                "scheduler": {
+                    "persistence": {
                         "enabled": True,
-                        "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
                     }
                 },
-                "logs": {"persistence": {"enabled": False}},
-                "executor": "LocalExecutor",
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
+
         assert (
-            jmespath.search("spec.volumeClaimTemplates[0].spec.storageClassName", docs[0])
+            jmespath.search(
+                "spec.volumeClaimTemplates[0].spec.storageClassName",
+                docs[0],
+            )
             == "release-name-storage-class"
         )
 
@@ -896,14 +1005,24 @@ class TestScheduler:
     def test_scheduler_template_storage_size(self):
         docs = render_chart(
             values={
-                "workers": {"celery": {"persistence": {"size": "50Gi"}}},
-                "logs": {"persistence": {"enabled": False}},
                 "executor": "LocalExecutor",
+                "logs": {"persistence": {"enabled": False}},
+                "scheduler": {
+                    "persistence": {
+                        "enabled": True,
+                        "size": "50Gi",
+                    }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
+
         assert (
-            jmespath.search("spec.volumeClaimTemplates[0].spec.resources.requests.storage", docs[0]) == "50Gi"
+            jmespath.search(
+                "spec.volumeClaimTemplates[0].spec.resources.requests.storage",
+                docs[0],
+            )
+            == "50Gi"
         )
 
 
