@@ -1,7 +1,1 @@
-Support backfilling a subset of a Dag's tasks
-
-Backfills can now target a subset of a Dag's tasks by passing a ``task_id_pattern``
-when creating a backfill. Tasks whose id contains that value are scheduled, and
-dependencies on unselected upstream tasks are ignored. The resolved task ids are
-persisted with the backfill so the selection stays reproducible even if the Dag
-later changes. When no value is supplied, the whole Dag is backfilled as before.
+Support backfilling a subset of a Dag's tasks via a ``task_id_pattern`` on backfill creation: tasks whose id contains that value are scheduled, dependencies on unselected upstream tasks are ignored, and the resolved task ids are persisted so the selection stays reproducible; omitting it backfills the whole Dag as before.
