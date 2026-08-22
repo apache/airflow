@@ -181,6 +181,14 @@ Provider Examples
        }
    ]
 
+.. note::
+   The ``<tenant-id>`` in the Azure endpoints can be specified as a tenant GUID
+   (e.g., ``72f988bf-86f1-41af-91ab-2d7cd011db47``) or as a tenant domain (e.g.,
+   ``contoso.onmicrosoft.com`` or ``example.com``). Alternatively, you can specify
+   the tenant explicitly by setting ``tenant_id`` inside ``client_kwargs``. Tenant-agnostic
+   authorities (``common``, ``organizations``, ``consumers``) are not accepted; configure a
+   specific tenant GUID or domain instead.
+
 .. seealso::
    For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
    and the `Azure OAuth2 documentation <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_.
