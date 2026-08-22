@@ -38,6 +38,13 @@ eleventyComputed:
 {% set totalModules = 0 %}
 {% for t in types %}{% set totalModules = totalModules + (moduleCounts[t.id] or 0) %}{% endfor %}
 
+{% set durableCount = 0 %}
+{% set deferrableCount = 0 %}
+{% for m in providerModules %}
+  {% if m.supports_durable_execution or m.supports_deferrable %}{% set durableCount = durableCount + 1 %}{% endif %}
+  {% if m.supports_deferrable %}{% set deferrableCount = deferrableCount + 1 %}{% endif %}
+{% endfor %}
+
 <div class="container">
   {# Breadcrumb #}
   <nav class="breadcrumb" aria-label="Breadcrumb">
@@ -383,6 +390,22 @@ eleventyComputed:
     <section class="modules">
       <div class="modules-header">
         <h2>Modules</h2>
+        {% if durableCount > 0 or deferrableCount > 0 %}
+        <div class="capability-filter-toggles">
+          {% if durableCount > 0 %}
+          <label class="capability-filter-toggle" title="Reconnects to the existing job on retry instead of resubmitting, or frees the worker slot while waiting instead of blocking.">
+            <input type="checkbox" id="durable-only-filter">
+            <span>Durable (includes deferrable) ({{ durableCount }})</span>
+          </label>
+          {% endif %}
+          {% if deferrableCount > 0 %}
+          <label class="capability-filter-toggle" title="Frees the worker slot while waiting; the Triggerer polls instead. Requires deferrable=True.">
+            <input type="checkbox" id="deferrable-only-filter">
+            <span>Deferrable only ({{ deferrableCount }})</span>
+          </label>
+          {% endif %}
+        </div>
+        {% endif %}
         <div class="search-wrapper module-search-wrapper">
           <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -393,7 +416,8 @@ eleventyComputed:
 
       <div class="grid">
         {% for module in providerModules %}
-        <div id="{{ module.id or module.name }}" class="module card" data-name="{{ module.name | lower }}" data-type="{{ module.type }}" data-category="{{ module.category }}">
+        {% set isDurableOrDeferrable = (module.supports_durable_execution or module.supports_deferrable) %}
+        <div id="{{ module.id or module.name }}" class="module card" data-name="{{ module.name | lower }}" data-type="{{ module.type }}" data-category="{{ module.category }}" data-durable="{{ isDurableOrDeferrable | default(false) }}" data-deferrable="{{ module.supports_deferrable | default(false) }}">
           <div class="icon {{ module.type }}">
             <span>{{ types | typeIcon(module.type) }}</span>
           </div>
@@ -402,6 +426,9 @@ eleventyComputed:
               {{ module.name }}
               {% if module.supports_durable_execution %}
               <span class="durable-badge" title="Reconnects to an already-running job on retry instead of resubmitting. Requires durable=True (default) and depends on operator configuration.">Durable</span>
+              {% endif %}
+              {% if module.supports_deferrable %}
+              <span class="deferrable-badge" title="Frees the worker slot while waiting. If the Triggerer crashes, another one picks it up using the same trigger class and arguments. Requires deferrable=True.">Deferrable</span>
               {% endif %}
             </h3>
             <p>{{ module.short_description }}</p>
