@@ -155,6 +155,30 @@
       },
       "required": [ "name", "kind" ]
     },
+    "arg_binding_param": {
+      "$comment": "Per-parameter metadata of a mapped @task.stub task, in dict-encoded form and declaration order. The inner object stays open so future metadata fields keep validating on older cores",
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "dict"
+        },
+        "__var": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "value_schema": { "$ref": "#/definitions/typed_dict" },
+            "default": {}
+          },
+          "required": [ "name" ]
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
     "color": {
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
@@ -370,6 +394,11 @@
           "$comment": "Only present on @task.stub tasks called with TaskFlow arguments",
           "type": "array",
           "items": { "$ref": "#/definitions/arg_binding" }
+        },
+        "_mapped_arg_binding_params": {
+          "$comment": "Only present on mapped @task.stub tasks with parameters; ordered per-parameter binding metadata",
+          "type": "array",
+          "items": { "$ref": "#/definitions/arg_binding_param" }
         }
       },
       "dependencies": {

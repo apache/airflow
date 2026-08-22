@@ -735,6 +735,8 @@ class XComArgBinding(BaseModel):
     value_schema: ArgValueSchema | None = None
     kind: Annotated[Literal["xcom"], Field(title="Kind")]
     task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    element_index: Annotated[int | None, Field(title="Element Index")] = None
 
 
 class AssetEventDagRunReference(BaseModel):

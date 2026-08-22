@@ -295,7 +295,7 @@ class TestStubTaskflowArgs:
             _to_dict(dag)
 
     def test_expand_builds_mapped_stub_without_parse_time_bindings(self):
-        """Mapped stubs capture no spec: their call args keep the legacy ignored behavior for now."""
+        """A mapped stub captures per-parameter metadata instead of a spec: values resolve per map index."""
         with DAG(dag_id="d") as dag:
             result = stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
         # op_kwargs_expand_input/partial_kwargs (not is_mapped) so the assertions also
