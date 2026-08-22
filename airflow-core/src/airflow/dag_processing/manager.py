@@ -1294,6 +1294,7 @@ class DagFileProcessorManager(LoggingMixin):
                     parsing_result=proc.parsing_result,
                     run_duration=run_duration,
                     relative_fileloc=str(file.rel_path),
+                    bundle_path=file.bundle_path,
                     session=session,
                 )
             except Exception:
@@ -1327,6 +1328,7 @@ class DagFileProcessorManager(LoggingMixin):
         run_duration: float,
         relative_fileloc: str | None,
         session: Session,
+        bundle_path: Path | None = None,
     ) -> None:
         """Persist parsed DAG data to the metadata database."""
         import_errors: dict[tuple[str, str], str] = {}
@@ -1356,6 +1358,7 @@ class DagFileProcessorManager(LoggingMixin):
             warnings=set(warnings),
             session=session,
             files_parsed=files_parsed,
+            bundle_path=bundle_path,
         )
 
     def _collect_results(self):
