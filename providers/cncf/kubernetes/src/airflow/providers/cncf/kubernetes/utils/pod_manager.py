@@ -51,6 +51,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_terminated,
     container_is_wait,
     get_container_status,
+    has_sidecar_containers,
 )
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.common.compat.sdk import AirflowException, timezone
@@ -823,7 +824,9 @@ class PodManager(LoggingMixin):
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
-            if (istio_enabled or do_xcom_push) and container_is_completed(remote_pod, container_name):
+            if (
+                istio_enabled or do_xcom_push or has_sidecar_containers(remote_pod, container_name)
+            ) and container_is_completed(remote_pod, container_name):
                 self.log.info(
                     "Container '%s' completed but pod %s still has phase %s "
                     "(likely due to a sidecar container). Skipping waiting for pod completion.",
