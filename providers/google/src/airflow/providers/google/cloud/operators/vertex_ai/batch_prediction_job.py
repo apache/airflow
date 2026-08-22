@@ -159,7 +159,17 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
     :param poll_interval: Interval size which defines how often job status is checked in deferrable mode.
     """
 
-    template_fields = ("region", "project_id", "model_name", "impersonation_chain", "job_display_name")
+    template_fields = (
+        "region",
+        "project_id",
+        "model_name",
+        "impersonation_chain",
+        "job_display_name",
+        "gcs_source",
+        "bigquery_source",
+        "gcs_destination_prefix",
+        "bigquery_destination_prefix",
+    )
     operator_extra_links = (VertexAIBatchPredictionJobLink(),)
 
     def __init__(
