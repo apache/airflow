@@ -178,6 +178,22 @@ class GetXComSliceFilterParams(BaseModel):
     include_prior_dates: bool = False
 
 
+def _sliced_or_empty(query: Select, low: int, high: int) -> Select:
+    """
+    Apply ``.slice(low, high)`` but return no rows when the bounds are crossed.
+
+    ``Select.slice(low, high)`` compiles to ``OFFSET low LIMIT (high - low)`` and does not
+    clamp a negative limit. A crossed slice (``high <= low``), which Python evaluates to an
+    empty sequence, would otherwise emit a negative SQL ``LIMIT`` -- silently returning rows
+    from ``OFFSET`` onward on SQLite (negative ``LIMIT`` means "no limit") and raising on
+    PostgreSQL/MySQL. By this point the query is already ordered and step handling is applied
+    separately, so each slice is an ascending window and ``high <= low`` is exactly the empty case.
+    """
+    if high <= low:
+        return query.limit(0)
+    return query.slice(low, high)
+
+
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
     description="Get XCom values from a mapped task by sequence slice",
@@ -235,9 +251,9 @@ def get_mapped_xcom_by_slice(
             if stop < 0:
                 stop += get_query_count(query, session=session)
             if step >= 0:
-                query = query.slice(start, stop)
+                query = _sliced_or_empty(query, start, stop)
             else:
-                query = query.slice(stop + 1, start + 1)
+                query = _sliced_or_empty(query, stop + 1, start + 1)
     else:
         query = query.order_by(XComModel.map_index.desc())
         step = -step
@@ -250,9 +266,9 @@ def get_mapped_xcom_by_slice(
             if stop >= 0:
                 stop -= get_query_count(query, session=session)
             if step > 0:
-                query = query.slice(-1 - start, -1 - stop)
+                query = _sliced_or_empty(query, -1 - start, -1 - stop)
             else:
-                query = query.slice(-stop, -start)
+                query = _sliced_or_empty(query, -stop, -start)
 
     values = [row.value for row in session.execute(query.with_only_columns(XComModel.value)).all()]
     if step != 1:
