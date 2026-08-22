@@ -24,10 +24,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
@@ -40,9 +37,8 @@ import (
 // calls, executes the task, and returns the terminal body to ship as the final
 // response frame: one of genmodels.SucceedTask, TaskState, or RetryTask.
 //
-// The supervisor owns the Execution-API state transitions in coordinator
-// mode, so we deliberately bypass worker.ExecuteTaskWorkload (which drives
-// Run / UpdateState itself) and only invoke the user's task function.
+// The supervisor owns the Execution-API state transitions, so the runtime only
+// invokes the user's task function and returns its terminal response.
 //
 // ctx is the task's root context; Serve derives it from SIGINT/SIGTERM, so a
 // cooperative task that honors ctx returns promptly on a supervisor shutdown.
@@ -66,36 +62,6 @@ func RunTask(
 	}
 
 	client := NewCoordinatorClient(comm)
-
-	// taskFunction.sendXcom reads the workload from context to get the task
-	// instance ids; populate it the same shape the gRPC path uses.
-	tiUUID, err := uuid.Parse(details.TI.ID)
-	if err != nil {
-		logger.Error("Invalid task instance UUID from supervisor",
-			"dag_id", details.TI.DagID,
-			"task_id", details.TI.TaskID,
-			"ti_id", details.TI.ID,
-			"error", err,
-		)
-		return genmodels.TaskState{
-			State:   genmodels.TaskStateStateFailed,
-			EndDate: time.Now().UTC(),
-		}
-	}
-	workload := api.ExecuteTaskWorkload{
-		TI: api.TaskInstance{
-			Id:        tiUUID,
-			DagId:     details.TI.DagID,
-			RunId:     details.TI.RunID,
-			TaskId:    details.TI.TaskID,
-			TryNumber: details.TI.TryNumber,
-			MapIndex:  mapIndexPtr(details.TI.MapIndex),
-		},
-		BundleInfo: api.BundleInfo{
-			Name:    details.BundleInfo.Name,
-			Version: ifaceStringPtr(details.BundleInfo.Version),
-		},
-	}
 
 	// Carries the task runtime context for sdk.TIRunContext injection. The
 	// scheduling timestamps live on the nested dag_run object in the
@@ -121,7 +87,6 @@ func RunTask(
 		},
 	)
 
-	ctx = context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload)
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 
@@ -231,7 +196,7 @@ func optionalBool(raw any) (bool, error) {
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form
-// exposed on api.TaskInstance / sdk.TaskInstance: nil for an unmapped task,
+// exposed on sdk.TaskInstance: nil for an unmapped task,
 // otherwise a pointer to the index. The wire field is itself optional now, so an
 // unmapped task arrives as either nil (key absent) or a pointer to the -1
 // sentinel; both collapse to nil here.
@@ -272,18 +237,7 @@ func executeTask(
 		}
 	}()
 
-	var err error
-	if tw, ok := task.(bundlev1.TaskWithArgs); ok {
-		err = tw.ExecuteArgs(ctx, logger, args)
-	} else if len(args) > 0 {
-		err = fmt.Errorf(
-			"task received %d positional argument(s) from the Dag but its implementation "+
-				"does not support argument binding (does not implement TaskWithArgs)",
-			len(args),
-		)
-	} else {
-		err = task.Execute(ctx, logger)
-	}
+	err := task.Execute(ctx, logger, args)
 	if err != nil {
 		logger.ErrorContext(ctx, "Task failed", "error", err)
 		// A task that fails when ti_context.should_retry is set is reported as

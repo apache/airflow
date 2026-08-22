@@ -280,6 +280,21 @@ repos:
           (?x)
           ^java-sdk/gradle\.properties$|
           ^java-sdk/sdk/schema/schema\.json$
+      - id: update-java-sdk-readme-matrix
+        name: Update the Java SDK compatibility matrix in java-sdk/README.md and Dokka module doc
+        entry: ./scripts/ci/prek/update_java_sdk_readme_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^java-sdk/capabilities\.yaml$|
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/README\.md$|
+          ^java-sdk/sdk/module\.md$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_java_sdk_readme_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
