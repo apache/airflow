@@ -3388,7 +3388,9 @@ class TestQueries:
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)
         scheduler_dag = sync_dag_to_db(dag)
-        with assert_queries_count(5):
+        # logical_date is before the Dag's start_date, so this manual run is outside the task
+        # window; it now creates its task instances (one bulk insert) instead of staying empty.
+        with assert_queries_count(6):
             scheduler_dag.create_dagrun(
                 run_id="test_dagrun_query_count",
                 run_type=DagRunType.MANUAL,
