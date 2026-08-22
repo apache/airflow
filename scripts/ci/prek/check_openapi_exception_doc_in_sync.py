@@ -18,32 +18,17 @@
 # under the License.
 """Check API route handlers declare every HTTP status they raise.
 
-``create_openapi_http_exception_doc(...)`` feeds the ``responses=`` block of a
-route, which is what the generated OpenAPI spec — and every client built from
-it — uses to model error responses. Nothing ties that list to the statuses the
-handler actually raises, so the two drift apart silently and a client ends up
-with no model for a response the API really returns. That drift has been fixed
-by hand repeatedly (#67570, #67571, #70992, #71011); this hook catches it
-instead.
+``responses=`` is what the generated OpenAPI spec — and every client built from
+it — uses to model error responses, but nothing ties it to the statuses a
+handler actually raises. The two drift apart silently, and that drift has been
+patched by hand repeatedly (#67570, #67571, #70992, #71011).
 
 A handler violates the rule when it raises ``HTTPException(<status>)`` in its
 own body with a status neither its own ``responses=`` block nor its router's
-declares. To stay free of false positives the check is deliberately
-conservative and stays silent when it cannot see the whole picture:
-
-* ``422`` is never required — FastAPI documents validation errors natively.
-* ``401`` and ``403`` are never required. Routers contribute them wholesale via
-  their auth dependencies, and the router that does so is often built in
-  another module (``routes/public/__init__.py`` declares both for every public
-  route), which a per-file check cannot see.
-* A status that is not a resolvable constant (``status.HTTP_404_NOT_FOUND``,
-  a bare ``HTTP_404_NOT_FOUND``, or a literal ``404``) is skipped.
-* A handler whose ``responses=`` is not a ``create_openapi_http_exception_doc``
-  call over a literal list is skipped entirely, as are handlers where any
-  declared entry cannot be resolved.
-
-Because only the handler's own body is inspected, statuses raised by a shared
-dependency or a service helper are not required to be declared. The hook
+declares. The check is deliberately conservative so it can gate CI: ``401``,
+``403`` and ``422`` are never required (FastAPI and the routers' auth
+dependencies supply them), only the handler's own body is inspected, and
+anything it cannot resolve statically is skipped rather than guessed at. It
 therefore under-reports rather than over-reports.
 """
 
@@ -64,7 +49,7 @@ from pathlib import Path
 from common_prek_utils import console
 
 ROUTE_METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
-ROUTER_CLASSES = {"APIRouter", "AirflowRouter"}
+ROUTER_CLASSES = {"APIRouter", "AirflowRouter", "VersionedAPIRouter"}
 DOC_HELPER = "create_openapi_http_exception_doc"
 # 422 is added to every route by FastAPI itself; 401/403 come from the router's auth
 # dependencies, declared once on a router this file-scoped check often cannot reach.

@@ -207,6 +207,18 @@ class TestCheckFile:
             ),
             pytest.param(
                 """
+                router = VersionedAPIRouter(
+                    responses={status.HTTP_404_NOT_FOUND: {"description": "not found"}},
+                )
+
+                @router.get("/x")
+                def handler():
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
+                """,
+                id="cadwyn-versioned-router-declares-the-status",
+            ),
+            pytest.param(
+                """
                 teams_router = AirflowRouter()
 
                 @teams_router.get(
