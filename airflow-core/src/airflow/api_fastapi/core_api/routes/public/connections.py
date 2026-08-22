@@ -293,7 +293,11 @@ def patch_connection(
     return connection
 
 
-@connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
+@connections_router.post(
+    "/test",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+    dependencies=[Depends(requires_access_connection(method="POST"))],
+)
 def test_connection(
     test_body: ConnectionBody,
     user: GetUserDep,

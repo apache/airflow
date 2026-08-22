@@ -156,7 +156,7 @@ def patch_variable(
 @variables_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[Depends(action_logging()), Depends(requires_access_variable("POST"))],
 )
 def post_variable(
