@@ -110,6 +110,23 @@ def generic_api_retry(func):
     )(func)
 
 
+def connection_api_retry(func):
+    """
+    Retry Kubernetes API calls on connection-level failures only.
+
+    Unlike ``generic_api_retry``, this does not retry ApiException status codes
+    (those are handled by the executor's requeue / ``create_pods_after`` path so
+    the scheduler loop is not blocked on Retry-After).
+    """
+    return tenacity.retry(
+        stop=tenacity.stop_after_attempt(API_RETRIES),
+        wait=WaitRetryAfterOrExponential(),
+        retry=tenacity.retry_if_exception_type(TRANSIENT_CONNECTION_ERRORS),
+        reraise=True,
+        before_sleep=tenacity.before_sleep_log(log, logging.WARNING),
+    )(func)
+
+
 def rand_str(num):
     """
     Generate random lowercase alphanumeric string of length num.
