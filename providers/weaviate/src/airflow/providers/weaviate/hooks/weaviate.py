@@ -931,7 +931,7 @@ class WeaviateHook(BaseHook):
         error: raise an error if an object belonging to a existing document is tried to be created.
 
         :param data: A single pandas DataFrame or a list of dicts to be ingested.
-        :param colleciton_name: Name of the collection in Weaviate schema where data is to be ingested.
+        :param collection_name: Name of the collection in Weaviate schema where data is to be ingested.
         :param existing: Strategy for handling existing data: 'skip', or 'replace'. Default is 'skip'.
         :param document_column: Column in DataFrame that identifying source document.
         :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
