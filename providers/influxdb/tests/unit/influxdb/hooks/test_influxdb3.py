@@ -116,6 +116,8 @@ class TestInfluxDB3Hook:
     @pytest.mark.asyncio
     async def test_query_async_requires_dataframe_result(self):
         """Async query results must resolve to a pandas DataFrame."""
+        pytest.importorskip("pandas")
+
         self.influxdb3_hook.client = mock.Mock()
         self.influxdb3_hook.client.query_async = mock.AsyncMock(return_value=[{"col1": 1}])
         self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
