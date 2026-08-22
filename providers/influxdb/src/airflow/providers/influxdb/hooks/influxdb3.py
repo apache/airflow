@@ -229,14 +229,14 @@ class InfluxDB3Hook(BaseHook):
         :param query: SQL query string
         :return: List of dictionaries representing query results
         """
-        import pandas as pd
-
         client = self.get_conn()
         if not hasattr(client, "query_async"):
             raise InfluxDB3AsyncQueryNotAvailableError(
                 "Deferrable mode requires influxdb3-python>=0.12.0, which introduced "
                 "InfluxDBClient3.query_async(). Upgrade with: pip install 'influxdb3-python>=0.12.0'"
             )
+
+        import pandas as pd
 
         result = await client.query_async(query=query, language="sql", mode="pandas")
 

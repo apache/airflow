@@ -42,7 +42,7 @@ class InfluxDB3Operator(BaseOperator):
     :param influxdb3_conn_id: Reference to :ref:`InfluxDB 3 connection id <howto/connection:influxdb3>`.
     :param deferrable: Run the query from the triggerer instead of holding a worker slot for its
         duration. Requires ``influxdb3-python>=0.12.0``. Note that InfluxDB 3 streams results over
-        Arrow Flight rather than exposing a pollable job, so the whole result set still flows back
+        Arrow Flight rather than exposing a job that can be polled, so the whole result set still flows back
         through XCom -- deferring helps with long-running queries returning modest result sets
         (aggregations, freshness probes), not with very large extracts.
     """
