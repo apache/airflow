@@ -3254,3 +3254,118 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
     trigger_id, _event, seq = events[0]
     assert trigger_id == 1
     assert seq is None
+
+
+class TestCheckForUnhandledTriggers:
+    """Tests for recovery of triggers the runner has no coroutine for."""
+
+    @pytest.mark.parametrize(
+        ("running_triggers", "running_ids", "expected_after"),
+        [
+            pytest.param({1, 2, 3}, {1, 2, 3}, {1, 2, 3}, id="in-sync"),
+            pytest.param(set(), set(), set(), id="no-triggers"),
+            pytest.param({1, 2, 3}, {1, 2}, {1, 2}, id="one-unhandled"),
+            pytest.param({1, 2, 3}, set(), set(), id="all-unhandled"),
+        ],
+    )
+    def test_unhandled_triggers_are_dropped_not_shut_down(
+        self, jobless_supervisor, mocker, running_triggers, running_ids, expected_after
+    ):
+        incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        jobless_supervisor.running_triggers = set(running_triggers)
+        jobless_supervisor.cancelling_triggers = set(running_triggers)
+
+        jobless_supervisor.check_for_unhandled_triggers(running_ids)
+
+        unhandled = running_triggers - running_ids
+        assert jobless_supervisor.stop is False
+        assert jobless_supervisor.running_triggers == expected_after
+        assert jobless_supervisor.cancelling_triggers == expected_after
+        assert (
+            mocker.call("triggers.state_mismatch", len(unhandled), tags={}) in incr.call_args_list
+        ) is bool(unhandled)
+
+    def test_dropped_trigger_is_recreated_next_loop(self, jobless_supervisor, mocker):
+        """Dropping an unhandled id is what lets update_triggers rebuild its workload."""
+        build = mocker.patch.object(
+            TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
+        )
+        jobless_supervisor.running_triggers = {1, 2}
+
+        jobless_supervisor.check_for_unhandled_triggers({1})
+        jobless_supervisor.update_triggers({1, 2})
+
+        assert build.call_args.args[1] == {2}
+
+    def test_handle_request_checks_before_adding_to_create(self, jobless_supervisor, mocker):
+        """The check fires after finished processing but before to_create is added to running_triggers."""
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        jobless_supervisor.running_triggers = {1, 2}
+        jobless_supervisor.creating_triggers.append(
+            mocker.MagicMock(id=3),
+        )
+
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(
+                events=None,
+                failures=None,
+                finished=[1],
+                running_ids={2},
+            ),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+        assert jobless_supervisor.stop is False
+        assert jobless_supervisor.running_triggers == {2, 3}
+
+    def test_creation_failure_reported_in_finished(self, jobless_supervisor, mocker):
+        """A creation failure appears in both failures and finished, so running_triggers stays in sync."""
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        jobless_supervisor.running_triggers = {1, 2, 3}
+
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(
+                events=None,
+                failures=[(3, ["Traceback..."])],
+                finished=[3],
+                running_ids={1, 2},
+            ),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+        assert jobless_supervisor.stop is False
+        assert 3 not in jobless_supervisor.running_triggers
+
+
+class TestCreationFailureInFinished:
+    """Tests that creation failures (not in self.triggers) are included in finished_ids."""
+
+    def test_creation_failure_included_in_finished(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+
+        msg = runner.process_trigger_events(finished_ids=[10])
+
+        assert msg.finished == [10, 42]
+        assert msg.running_ids == set()
+
+    def test_serialization_failure_not_in_finished(self):
+        runner = TriggerRunner()
+        runner.triggers = {42: {"task": MagicMock(), "is_watcher": False, "name": "t", "events": 0}}
+        runner.failed_triggers.append((42, ValueError("not serializable")))
+
+        msg = runner.process_trigger_events(finished_ids=[])
+
+        assert msg.finished is None
+        assert msg.running_ids == {42}
+
+    def test_caller_finished_ids_not_mutated(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+        finished_ids = [10]
+
+        runner.process_trigger_events(finished_ids=finished_ids)
+
+        assert finished_ids == [10]
