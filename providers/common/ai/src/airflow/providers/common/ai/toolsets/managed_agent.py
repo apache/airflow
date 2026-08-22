@@ -24,7 +24,6 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
-from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
@@ -33,6 +32,8 @@ from airflow.providers.common.ai.utils.tool_definition import (
 from airflow.providers.common.compat.sdk import Stats
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pydantic_ai._run_context import RunContext
 
 log = logging.getLogger(__name__)
@@ -79,6 +80,9 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         the platform default, which subclasses supply -- a number chosen here
         would silently disagree with the vendor operator's documented timeout
         for the same service.
+    :param max_retries: How many times the calling model may rephrase after the
+        remote agent raises ``ModelRetry``. ``0`` turns the first ``ModelRetry``
+        into a hard error, which disables that recovery path entirely.
     """
 
     #: Whether a completed invocation may be replayed from the durable cache
@@ -93,13 +97,17 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         tool_name: str,
         description: str | None = None,
         timeout: float | None = None,
+        max_retries: int = 1,
     ) -> None:
         if not tool_name:
             raise ValueError("tool_name must be a non-empty string.")
+        if max_retries < 0:
+            raise ValueError(f"max_retries must not be negative, got {max_retries}.")
         self._tool_name = tool_name
         # Same fallback as HookToolset uses for a method with no docstring.
         self._description = (description or "").strip() or tool_name.replace("_", " ").capitalize()
         self._timeout = timeout
+        self._max_retries = max_retries
 
     @property
     @abstractmethod
@@ -109,12 +117,9 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
 
         Must contain ``platform`` and ``name``, e.g.
         ``{"platform": "snowflake.cortex", "name": "ANALYTICS.REVENUE.BOOKINGS_ANALYST"}``.
-        Logged on every invocation, so the resolved remote identity behind a task
-        appears in that task's log even though the Dag only names a connection.
-        It is not pushed to XCom: ``FailoverManagedAgentToolset`` reports the
-        group rather than the responder, and the operational question -- how often
-        a standby is answering -- is carried by the ``managed_agent.served``
-        counter instead.
+        Logged whenever this toolset's tool is called, so the resolved remote
+        identity behind a task appears in that task's log even though the Dag
+        only names a connection.
         """
 
     @abstractmethod
@@ -172,11 +177,13 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
             self._tool_name: ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
-                # One rephrase attempt, matching HookToolset. Deliberately not
-                # more: a managed agent invocation is expensive, and a prompt the
-                # remote agent could not parse rarely becomes parseable on a
-                # second try.
-                max_retries=1,
+                # How many times the calling model may rephrase after ``invoke``
+                # raises ``ModelRetry``. One by default, matching HookToolset: a
+                # managed agent invocation is expensive, so the budget is small.
+                # Zero disables the ``ModelRetry`` path entirely -- the first one
+                # becomes a hard error -- so raise it only when the remote agent's
+                # rejections are genuinely worth re-prompting.
+                max_retries=self._max_retries,
                 args_validator=build_args_validator(_PROMPT_SCHEMA),
             )
         }
@@ -224,26 +231,19 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
     it elsewhere. Since most platforms fall on the stateful side, treat one-shot
     as something a group is deliberately restricted to, not a safe default.
 
-    Prefer plain Airflow task-level failover for a standalone call: two tasks,
-    the second with ``trigger_rule=TriggerRule.ALL_FAILED``, keeps which
-    provider served the request visible in the grid at no code cost. This class
-    is for the case a task boundary cannot express -- a managed agent consulted
-    as a tool *inside* a longer agent run, where failing the task would discard
-    the calling agent's accumulated context and re-run every earlier tool call.
-
     :param members: Interchangeable toolsets, tried in order. At least two.
     :param failover_on: Exception types that move to the next member. Defaults
         to ``Exception`` because ``common.ai`` cannot enumerate the cloud SDKs'
         exception trees (``requests``, ``botocore`` and the Azure SDK share no
-        common base), so the safe default is broad. Narrow it when the members'
-        exception types are known. ``ModelRetry`` is always re-raised and never
-        triggers failover, whatever this is set to.
+        common base), so the safe default is broad. It can be narrowed when the
+        members' exception types are known. ``ModelRetry`` is always re-raised
+        and never triggers failover, whatever this is set to.
     """
 
     def __init__(
         self,
         *,
-        members: list[BaseManagedAgentToolset],
+        members: Sequence[BaseManagedAgentToolset],
         failover_on: tuple[type[BaseException], ...] = (Exception,),
         **kwargs,
     ) -> None:
@@ -253,7 +253,10 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
                 "A failover group needs at least two members; "
                 f"got {len(members)}. Use the member toolset directly instead."
             )
-        self._members = members
+        # Copied, not aliased: the loop in invoke() relies on the group being
+        # non-empty, and a caller holding the original list could otherwise empty
+        # it after construction.
+        self._members = tuple(members)
         self._failover_on = failover_on
         # Replay is only safe if every member is safe to replay: the cache cannot
         # know which member produced the answer it holds.
@@ -295,6 +298,7 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
                 Stats.incr(
                     "managed_agent.failover",
                     tags={
+                        "tool": self._tool_name,
                         "from_platform": ref.get("platform", "unknown"),
                         "to_platform": standby.get("platform", "unknown"),
                     },
@@ -308,10 +312,10 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
             Stats.incr(
                 "managed_agent.served",
                 tags={
+                    "tool": self._tool_name,
                     "platform": ref.get("platform", "unknown"),
                     "role": "standby" if served_by_standby else "primary",
+                    "position": str(position),
                 },
             )
             return result
-        # Unreachable: the last member either returns or raises above.
-        raise ManagedAgentInvocationError("Failover group exhausted with no result.")

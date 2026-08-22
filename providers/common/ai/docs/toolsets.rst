@@ -24,7 +24,7 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Four toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
+Six toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
 package root:
 
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
@@ -37,17 +37,13 @@ package root:
 - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` — give
   the agent a shell and a filesystem inside an isolated sandbox, off the
   Airflow worker. See :ref:`which boundary that is <sandbox-boundaries>`.
+- :class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
+  — base class that provider packages subclass to expose a **vendor-managed
+  agent**, one whose reasoning loop runs on a cloud provider's infrastructure.
+- :class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`
+  — composes several interchangeable managed agents behind a single tool.
+  See :ref:`managed-agent-toolsets` below.
 
-A fourth pair,
-:class:`~airflow.providers.common.ai.toolsets.managed_agent.BaseManagedAgentToolset`
-and
-:class:`~airflow.providers.common.ai.toolsets.managed_agent.FailoverManagedAgentToolset`,
-covers **vendor-managed agents** -- agents whose reasoning loop runs on a cloud
-provider's infrastructure. The first is a base class that provider packages
-subclass; the second composes several interchangeable ones behind a single tool.
-See :ref:`managed-agent-toolsets` below.
-
-All of them implement pydantic-ai's
 Three more toolsets are documented later on this page. They are not re-exported from the
 package root, so import each of them from its own submodule::
 
@@ -1358,7 +1354,8 @@ The three error buckets do real work here:
 
 ``failover_on`` defaults to ``Exception`` because ``common.ai`` cannot enumerate
 the cloud SDKs' exception trees — ``requests``, ``botocore`` and the Azure SDK
-share no common base. Narrow it when the members' exception types are known.
+share no common base. It can be narrowed when the members' exception types are
+known.
 
 ``replayable`` on a group is ``True`` only when every member is, because the
 durable cache cannot know which member produced the answer it holds.

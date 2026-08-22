@@ -94,6 +94,20 @@ class TestBaseManagedAgentToolsetConstruction:
     def test_not_replayable_by_default(self):
         assert FakeManagedAgentToolset().replayable is False
 
+    @pytest.mark.asyncio
+    async def test_max_retries_defaults_to_one_and_is_configurable(self):
+        # One rephrase by default; 0 disables the ModelRetry path entirely, so it
+        # is a deliberate choice rather than the default.
+        default = await FakeManagedAgentToolset().get_tools(ctx=None)
+        assert default["ask_specialist"].max_retries == 1
+
+        tuned = await FakeManagedAgentToolset(max_retries=3).get_tools(ctx=None)
+        assert tuned["ask_specialist"].max_retries == 3
+
+    def test_negative_max_retries_rejected(self):
+        with pytest.raises(ValueError, match="max_retries must not be negative"):
+            FakeManagedAgentToolset(max_retries=-1)
+
 
 class TestGetTools:
     @pytest.mark.asyncio
@@ -191,6 +205,21 @@ class TestFailoverManagedAgentToolset:
         members = [FakeManagedAgentToolset() for _ in range(count)]
         with pytest.raises(ValueError, match="at least two members"):
             self._group(*members)
+
+    @pytest.mark.asyncio
+    async def test_members_are_copied_so_the_caller_cannot_empty_the_group(self):
+        # invoke() relies on the group being non-empty; aliasing the caller's list
+        # would let it be emptied after construction and make invoke return None,
+        # which reaches the model as the string "null".
+        # Constructed directly, not via _group(), which copies the list itself.
+        members = [FakeManagedAgentToolset(result="from primary"), FakeManagedAgentToolset()]
+        group = FailoverManagedAgentToolset(
+            members=members,
+            tool_name="ask_resilient",
+            description="Answers questions, on whichever cloud is up.",
+        )
+        members.clear()
+        assert await self._call(group) == "from primary"
 
     @pytest.mark.asyncio
     async def test_primary_answer_wins_and_standby_is_untouched(self):
@@ -293,7 +322,13 @@ class TestFailoverMetrics:
     async def test_primary_success_counts_as_primary(self, mock_stats):
         await self._group(FakeManagedAgentToolset(), FakeManagedAgentToolset()).invoke("q")
         mock_stats.incr.assert_called_once_with(
-            "managed_agent.served", tags={"platform": "fake.cloud", "role": "primary"}
+            "managed_agent.served",
+            tags={
+                "tool": "ask_resilient",
+                "platform": "fake.cloud",
+                "role": "primary",
+                "position": "0",
+            },
         )
 
     @pytest.mark.asyncio
@@ -305,9 +340,22 @@ class TestFailoverMetrics:
         assert mock_stats.incr.call_args_list == [
             mock.call(
                 "managed_agent.failover",
-                tags={"from_platform": "fake.cloud", "to_platform": "fake.cloud"},
+                tags={
+                    "tool": "ask_resilient",
+                    "from_platform": "fake.cloud",
+                    "to_platform": "fake.cloud",
+                },
             ),
-            mock.call("managed_agent.served", tags={"platform": "fake.cloud", "role": "standby"}),
+            mock.call(
+                "managed_agent.served",
+                tags={
+                    "tool": "ask_resilient",
+                    "platform": "fake.cloud",
+                    "role": "standby",
+                    # The member that answered, not just that a standby did.
+                    "position": "1",
+                },
+            ),
         ]
 
     @pytest.mark.asyncio
