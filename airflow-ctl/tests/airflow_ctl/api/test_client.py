@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
@@ -35,6 +36,7 @@ from airflowctl.api.client import (
     _bounded_get_new_password,
     get_client,
     get_json_error,
+    provide_api_client,
 )
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import (
@@ -523,3 +525,121 @@ def test_credentials_rejects_unsafe_env_from_environment_variable(monkeypatch, a
     monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", api_environment)
     with pytest.raises(AirflowCtlException, match="environment"):
         Credentials(client_kind=ClientKind.CLI)
+
+
+class TestGetClientEnvironment:
+    """Regression coverage for GH#70519.
+
+    ``get_client`` (and therefore every ``@provide_api_client``-decorated command) must
+    resolve the config file and token for the *requested* environment, not silently fall
+    back to "production" for every command except ``auth login``.
+    """
+
+    @staticmethod
+    def _write_environment_config(tmp_path, environment: str, api_url: str) -> None:
+        (tmp_path / f"{environment}.json").write_text(json.dumps({"api_url": api_url}), encoding="utf-8")
+
+    def test_get_client_defaults_to_production(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        self._write_environment_config(tmp_path, "production", "https://prod.example.com")
+        self._write_environment_config(tmp_path, "staging", "https://staging.example.com")
+
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN") as client:
+            assert str(client.base_url) == "https://prod.example.com/api/v2/"
+
+    def test_get_client_uses_the_requested_environment(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        self._write_environment_config(tmp_path, "production", "https://prod.example.com")
+        self._write_environment_config(tmp_path, "staging", "https://staging.example.com")
+
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="staging") as client:
+            assert str(client.base_url) == "https://staging.example.com/api/v2/"
+
+    def test_get_client_no_auth_uses_the_requested_environment(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        self._write_environment_config(tmp_path, "staging", "https://staging.example.com")
+
+        with get_client(kind=ClientKind.NO_AUTH, api_environment="staging") as client:
+            assert str(client.base_url) == "https://staging.example.com/api/v2/"
+
+    def test_environment_variable_still_overrides_the_explicit_argument(self, monkeypatch, tmp_path):
+        """AIRFLOW_CLI_ENVIRONMENT keeps taking precedence, matching Credentials' own contract."""
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "staging")
+        self._write_environment_config(tmp_path, "staging", "https://staging.example.com")
+        self._write_environment_config(tmp_path, "production", "https://prod.example.com")
+
+        # Even though "production" is passed explicitly, the env var wins.
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="production") as client:
+            assert str(client.base_url) == "https://staging.example.com/api/v2/"
+
+
+class TestProvideApiClientEnvironment:
+    """Regression coverage for GH#70519: the decorator every CLI command uses must read
+    ``args.env`` and forward it to ``get_client``, not silently drop it on the floor.
+    """
+
+    def test_forwards_env_from_args_to_get_client(self):
+        recorded_kwargs = {}
+
+        @contextlib.contextmanager
+        def fake_get_client(**kwargs):
+            recorded_kwargs.update(kwargs)
+            yield MagicMock()
+
+        args = MagicMock()
+        args.api_token = None
+        args.env = "staging"
+
+        @provide_api_client()
+        def command(_args, api_client=None):
+            return api_client
+
+        with patch("airflowctl.api.client.get_client", fake_get_client):
+            command(args)
+
+        assert recorded_kwargs["api_environment"] == "staging"
+
+    def test_defaults_to_production_when_env_is_not_set_on_args(self):
+        """A command whose args namespace has no ``env`` attribute (no ``--env`` registered,
+        or a bare mock in a test) must not crash and must keep the pre-existing default.
+        """
+        recorded_kwargs = {}
+
+        @contextlib.contextmanager
+        def fake_get_client(**kwargs):
+            recorded_kwargs.update(kwargs)
+            yield MagicMock()
+
+        class BareArgs:
+            api_token = None
+
+        @provide_api_client()
+        def command(_args, api_client=None):
+            return api_client
+
+        with patch("airflowctl.api.client.get_client", fake_get_client):
+            command(BareArgs())
+
+        assert recorded_kwargs["api_environment"] == "production"
+
+    def test_forwards_api_token_alongside_environment(self):
+        recorded_kwargs = {}
+
+        @contextlib.contextmanager
+        def fake_get_client(**kwargs):
+            recorded_kwargs.update(kwargs)
+            yield MagicMock()
+
+        args = MagicMock()
+        args.api_token = "TOKEN"
+        args.env = "staging"
+
+        @provide_api_client()
+        def command(_args, api_client=None):
+            return api_client
+
+        with patch("airflowctl.api.client.get_client", fake_get_client):
+            command(args)
+
+        assert recorded_kwargs == {"kind": ClientKind.CLI, "api_token": "TOKEN", "api_environment": "staging"}
