@@ -3004,6 +3004,14 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    unreferenced_triggers_cleanup_batch_size:
+      description: |
+        Maximum number of unreferenced triggers deleted in one database transaction.
+        This value must be at least 1.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "500"
     on_kill_timeout:
       description: |
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
