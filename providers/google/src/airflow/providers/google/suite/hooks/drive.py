@@ -141,7 +141,7 @@ class GoogleDriveHook(GoogleBaseHook):
         :return: request
         """
         service = self.get_conn()
-        request = service.files().get_media(fileId=file_id)
+        request = service.files().get_media(fileId=file_id, supportsAllDrives=True)
         return request
 
     def exists(

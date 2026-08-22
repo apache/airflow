@@ -279,7 +279,9 @@ class TestGoogleDriveHook:
         file_id = "1eC-Ahi4t57pHcLbW3C_xHB3-YrTQLQBa"
 
         self.gdrive_hook.get_media_request(file_id)
-        mock_get_conn.return_value.files.return_value.get_media.assert_called_once_with(fileId=file_id)
+        mock_get_conn.return_value.files.return_value.get_media.assert_called_once_with(
+            fileId=file_id, supportsAllDrives=True
+        )
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_one_file_exists(self, mock_get_conn):
