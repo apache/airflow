@@ -21,13 +21,15 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, get_args
 from urllib.parse import quote, unquote, urlsplit
 
-import requests
+import httpx
 from azure.core.exceptions import AzureError
 from azure.identity import ClientSecretCredential
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
     from azure.core.credentials import TokenCredential
 
     from airflow.sdk import Connection
@@ -38,8 +40,10 @@ RefreshType = Literal["full", "clearValues", "calculate", "dataOnly", "automatic
 VALID_REFRESH_TYPES: frozenset[str] = frozenset(get_args(RefreshType))
 
 
-def _format_request_error(error: requests.RequestException) -> str:
-    response_body = getattr(error.response, "text", "").strip()[:1000]
+def _format_request_error(error: httpx.HTTPError) -> str:
+    # Only HTTPStatusError carries a response; transport errors have no such attribute.
+    response = getattr(error, "response", None)
+    response_body = getattr(response, "text", "").strip()[:1000]
     response_detail = f"; response body: {response_body}" if response_body else ""
     return f"{error}{response_detail}"
 
@@ -147,13 +151,14 @@ class AzureAnalysisServicesHook(BaseHook):
         """Return the validated status of an Azure Analysis Services model refresh."""
         refresh_url = f"{self._get_refreshes_url(server_name, database)}/{quote(refresh_id, safe='')}"
         try:
-            response = requests.get(
-                refresh_url,
-                headers=self._get_headers(),
-                timeout=self.request_timeout,
-            )
-            response.raise_for_status()
-        except requests.RequestException as error:
+            with httpx.Client() as client:
+                response = client.get(
+                    refresh_url,
+                    headers=self._get_headers(),
+                    timeout=self.request_timeout,
+                )
+                response.raise_for_status()
+        except httpx.HTTPError as error:
             raise AzureAnalysisServicesRefreshException(
                 f"Failed to get status for Azure Analysis Services refresh {refresh_id}: "
                 f"{_format_request_error(error)}"
@@ -185,14 +190,15 @@ class AzureAnalysisServicesHook(BaseHook):
             )
 
         try:
-            response = requests.post(
-                self._get_refreshes_url(server_name, database),
-                json={"Type": refresh_type},
-                headers=self._get_headers(),
-                timeout=self.request_timeout,
-            )
-            response.raise_for_status()
-        except requests.RequestException as error:
+            with httpx.Client() as client:
+                response = client.post(
+                    self._get_refreshes_url(server_name, database),
+                    json={"Type": refresh_type},
+                    headers=self._get_headers(),
+                    timeout=self.request_timeout,
+                )
+                response.raise_for_status()
+        except httpx.HTTPError as error:
             raise AzureAnalysisServicesRefreshException(
                 f"Failed to trigger an Azure Analysis Services model refresh: {_format_request_error(error)}"
             ) from error
@@ -246,20 +252,25 @@ class AzureAnalysisServicesHook(BaseHook):
                 )
             time.sleep(min(check_interval, remaining))
 
-    def _get_base_url(self) -> str:
-        host = (self.connection.host or "").strip().rstrip("/")
-        parsed_host = urlsplit(f"//{host}")
+    def _assert_host(self, host: str, parsed_host: SplitResult) -> None:
+        # netloc, not .username/.port: those miss "@host" and ":0", and raise on ":abc".
         if (
             not host
             or not parsed_host.hostname
+            or "@" in parsed_host.netloc
+            or ":" in parsed_host.netloc
             or parsed_host.path
             or parsed_host.query
             or parsed_host.fragment
         ):
             raise ValueError(
-                "A valid region endpoint without a URL scheme or path is required in the "
-                "Azure Analysis Services connection host"
+                "A valid region endpoint without a URL scheme, credentials, port, or path is "
+                "required in the Azure Analysis Services connection host"
             )
+
+    def _get_base_url(self) -> str:
+        host = (self.connection.host or "").strip().rstrip("/")
+        self._assert_host(host, urlsplit(f"//{host}"))
         return f"https://{host}"
 
     def _get_headers(self) -> dict[str, str]:

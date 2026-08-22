@@ -86,7 +86,6 @@ PIP package                                 Version required
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
 ``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
 ``msal-extensions``                         ``>=1.3.0``
-``requests``                                ``>=2.32.0,<3``
 ==========================================  ===================
 
 Optional cross provider package dependencies

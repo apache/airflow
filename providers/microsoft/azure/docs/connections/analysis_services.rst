@@ -38,8 +38,8 @@ Configuring the Connection
 
 Region Endpoint
     Specify the rollout endpoint in ``host``, for example ``westus.asazure.windows.net``. Do not include
-    ``https://``, the Analysis Services server name, or a path. You can find this endpoint in the server's
-    full name, such as ``asazure://westus.asazure.windows.net/example-server``.
+    ``https://``, a port, the Analysis Services server name, or a path. You can find this endpoint in the
+    server's full name, such as ``asazure://westus.asazure.windows.net/example-server``.
 
 Client ID
     Specify the Microsoft Entra service principal application (client) ID in ``login``.
