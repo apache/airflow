@@ -17,15 +17,13 @@
 
 # This is an example Dockerfile. It is not intended for PRODUCTION use
 # [START Dockerfile]
+FROM eclipse-temurin:17-jre AS jre
+
 FROM apache/airflow:3.4.0
 USER root
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-         openjdk-17-jre-headless \
-  && apt-get autoremove -yqq --purge \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+COPY --from=jre /opt/java/openjdk /opt/java/openjdk
 USER airflow
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" apache-airflow-providers-apache-spark==5.1.1
 # [END Dockerfile]

@@ -37,7 +37,7 @@ function install_mssql_client() {
     fi
     packages=("msodbcsql18")
 
-    common::import_trusted_gpg "EB3E94ADBE1229CF" "microsoft"
+    common::import_trusted_gpg "EE4D7792F748182B" "microsoft"
 
     echo
     echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"

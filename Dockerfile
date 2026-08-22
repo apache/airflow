@@ -50,7 +50,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 # latest released version here
 ARG AIRFLOW_VERSION="3.3.1"
 
-ARG BASE_IMAGE="debian:bookworm-slim"
+ARG BASE_IMAGE="debian:trixie-slim"
 ARG AIRFLOW_PYTHON_VERSION="3.13.15"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
@@ -155,7 +155,6 @@ git \
 graphviz \
 graphviz-dev \
 krb5-user \
-lcov \
 ldap-utils \
 libbluetooth-dev \
 libbz2-dev \
@@ -185,7 +184,6 @@ libzstd-dev \
 locales \
 lsb-release \
 lzma \
-lzma-dev \
 openssh-client \
 openssl \
 pkg-config \
@@ -206,6 +204,15 @@ zlib1g-dev \
     fi
 }
 
+function get_post_python_dev_apt_deps() {
+    if [[ "${POST_PYTHON_DEV_APT_DEPS=}" == "" ]]; then
+        POST_PYTHON_DEV_APT_DEPS="\
+lcov \
+"
+        export POST_PYTHON_DEV_APT_DEPS
+    fi
+}
+
 function get_runtime_apt_deps() {
     local debian_version
     local debian_version_apt_deps
@@ -217,8 +224,8 @@ function get_runtime_apt_deps() {
     echo
     debian_version_apt_deps="\
 libffi8 \
-libldap-2.5-0 \
-libssl3 \
+libldap2 \
+libssl3t64 \
 netcat-openbsd\
 "
     echo
@@ -304,6 +311,13 @@ function install_additional_dev_dependencies() {
     fi
 }
 
+function install_post_python_dev_dependencies() {
+    if [[ "${POST_PYTHON_DEV_APT_DEPS=}" != "" ]]; then
+        # shellcheck disable=SC2086
+        apt-get install -y --no-install-recommends ${POST_PYTHON_DEV_APT_DEPS}
+    fi
+}
+
 function link_python() {
     # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
     # Links in /usr/local/bin are needed for tools that expect python to be there
@@ -374,20 +388,27 @@ function install_cosign() {
 }
 
 function install_python() {
-    # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
-    # to fail and make sure that it is not there, because there can be strange interactions if we install
-    # newer version and system libraries are installed, because
-    # when you create a virtualenv part of the shared libraries of Python can be taken from the system
-    # Installation leading to weird errors when you want to install some modules - for example when you install ssl:
-    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
-    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
+    # Airflow images build and use their own Python under /usr/python. If Debian's system Python
+    # is installed before that custom Python is built, native extensions can accidentally link
+    # against a mix of system Python libraries and /usr/python libraries. That can produce hard to
+    # diagnose import/linker errors later.
+    local installed_libpython_packages
+    installed_libpython_packages="$(
+        dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\n' 'libpython*' 2>/dev/null \
+            | awk '$1 ~ /^ii/ {print $2}' \
+            | sort || true
+    )"
+    if [[ "${installed_libpython_packages}" != "" ]]; then
         echo
         echo "ERROR! System python is installed by one of the previous steps"
         echo
-        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython3.11 is installed:"
+        echo "Please make sure that no python packages are installed by default. Displaying why these packages are installed:"
+        echo "${installed_libpython_packages}"
         echo
         apt-get install -yqq aptitude >/dev/null
-        aptitude why libpython3.11
+        while read -r libpython_package; do
+            aptitude why "${libpython_package}" || true
+        done <<< "${installed_libpython_packages}"
         echo
         exit 1
     else
@@ -587,8 +608,10 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     apt_clean
 else
     get_dev_apt_deps
+    get_post_python_dev_apt_deps
     install_debian_dev_dependencies
     install_python
+    install_post_python_dev_dependencies
     install_additional_dev_dependencies
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
@@ -611,7 +634,7 @@ set -euo pipefail
 common::get_colors
 declare -a packages
 
-readonly MARIADB_LTS_VERSION="10.11"
+readonly MARIADB_LTS_VERSION="11.8"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
@@ -675,9 +698,9 @@ install_mariadb_client() {
     # `libmariadb-dev` -> `libmariadb-dev-compat`
     # `mariadb-client-core` -> `mariadb-client` or `mariadb-client-compat` (11+)
     if [[ "${1}" == "dev" ]]; then
-        packages=("libmariadb-dev-compat" "mariadb-client")
+        packages=("libmariadb-dev-compat" "mariadb-client" "mariadb-client-compat")
     elif [[ "${1}" == "prod" ]]; then
-        packages=("libmariadb3-compat" "mariadb-client")
+        packages=("libmariadb3-compat" "mariadb-client" "mariadb-client-compat")
     else
         echo
         echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"
@@ -730,7 +753,7 @@ function install_mssql_client() {
     fi
     packages=("msodbcsql18")
 
-    common::import_trusted_gpg "EB3E94ADBE1229CF" "microsoft"
+    common::import_trusted_gpg "EE4D7792F748182B" "microsoft"
 
     echo
     echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"
