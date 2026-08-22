@@ -24,6 +24,7 @@ import { Outlet } from "react-router-dom";
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse } from "openapi/requests/types.gen";
 import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
+import { useResetGridScrollOnLeave } from "src/layouts/Details/Grid/useGridScrollRestoration";
 import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useConfig } from "src/queries/useConfig";
 import { DocumentTitleProvider } from "src/utils";
@@ -34,6 +35,8 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   const { i18n } = useTranslation();
   const { data: pluginData } = usePluginServiceGetPlugins();
   const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
+
+  useResetGridScrollOnLeave();
 
   const baseReactPlugins =
     pluginData?.plugins
