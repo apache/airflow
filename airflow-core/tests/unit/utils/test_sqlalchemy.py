@@ -36,6 +36,7 @@ from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     apply_regex_query_timeout,
+    create_savepoint,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
     prohibit_commit,
@@ -191,6 +192,16 @@ class TestSqlAlchemyUtils:
             guard.commit()
 
             # Check the expected_commit is reset
+            self.session.execute(text("SELECT 1"))
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                self.session.commit()
+
+    def test_prohibit_commit_allows_savepoint_release(self):
+        with prohibit_commit(self.session):
+            self.session.execute(text("SELECT 1"))
+            with create_savepoint(self.session):
+                self.session.execute(text("SELECT 1"))
+
             self.session.execute(text("SELECT 1"))
             with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
                 self.session.commit()
