@@ -417,6 +417,15 @@ spec:
           {{- end }}
           args: ["kerberos"]
           resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 12 }}
+          {{- if .Values.workers.kerberosSidecar.startupProbe.enabled }}
+          startupProbe:
+            exec:
+              command: ["klist", "-s"]
+            timeoutSeconds: {{ .Values.workers.kerberosSidecar.startupProbe.timeoutSeconds }}
+            initialDelaySeconds: {{ .Values.workers.kerberosSidecar.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.workers.kerberosSidecar.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.workers.kerberosSidecar.startupProbe.failureThreshold }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
