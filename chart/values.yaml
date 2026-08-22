@@ -59,14 +59,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.3.0"
+defaultAirflowTag: "3.3.1"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 3.1.0 and above is supported.
-airflowVersion: "3.3.0"
+airflowVersion: "3.3.1"
 
 images:
   airflow:
@@ -449,13 +449,24 @@ data:
   #   postgresql+psycopg2://airflow:password@postgres/airflow  (Airflow <3.4.0, or with the [psycopg2] extra)
   metadataSecretName: ~
 
+  # When `metadataSecretName` is set, the key in that secret contains the connection string.
+  # Useful when the secret is managed externally, e.g. CloudNativePG stores the URI under the "uri" key.
+  metadataSecretKey: ~
+
   # If not set, falls back to metadataSecretName. The secret must contain 'connection' key which is
   # a base64-encoded connection string, e.g.:
   #   postgresql+psycopg://user:password@host/db   (Airflow >=3.4.0)
   #   postgresql+psycopg2://user:password@host/db  (Airflow <3.4.0, or with the [psycopg2] extra)
   resultBackendSecretName: ~
 
+  # When `resultBackendSecretName` is set, the key in that secret contains the result backend
+  # connection string.
+  resultBackendSecretKey: ~
+
   brokerUrlSecretName: ~
+
+  # When `brokerUrlSecretName` is set, the key in that secret contains the broker URL.
+  brokerUrlSecretKey: ~
 
   # If `metadataSecretName` is not specified, pass connection values below
   metadataConnection:
@@ -828,6 +839,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
+      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      startupProbe:
+        enabled: true
+        timeoutSeconds: 5
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        failureThreshold: 6
+
     # Kerberos init container configuration for Airflow Celery workers
     # If not set, the values from `workers.kerberosInitContainer` section will be used.
     kerberosInitContainer:
@@ -1074,6 +1094,15 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
+      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      startupProbe:
+        enabled: true
+        timeoutSeconds: 5
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        failureThreshold: 6
 
     # Kerberos init container configuration for pods created with pod-template-file
     # If not set, the values from `workers.kerberosInitContainer` section will be used.
@@ -2906,6 +2935,12 @@ pgbouncer:
       exec:
         # Allow existing queries clients to complete within 120 seconds
         command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+
+  # Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.
+  # Matches the default preStop hook above, which needs up to 120 seconds to
+  # drain client connections; with a shorter grace period the pod is killed
+  # mid-drain and in-flight connections are cut.
+  terminationGracePeriodSeconds: 120
 
   metricsExporterSidecar:
     resources: {}

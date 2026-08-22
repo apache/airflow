@@ -216,13 +216,26 @@ To always create a fresh pod on retry rather than reattaching, set ``durable=Fal
         durable=False,
     )
 
-Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
-earlier Airflow versions ``durable=True`` (the default) falls back to the same label-search
-reattach behavior this operator has always used.
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect at all: setting it explicitly only emits a warning, and its value is
+ignored either way. The deprecated ``reattach_on_restart`` parameter (default ``True``) is the
+only lever there, and it falls back to the same label-search reattach behavior this operator has
+always used -- unchanged from before this feature existed.
 
-``durable`` supersedes the deprecated ``reattach_on_restart`` parameter -- passing
-``reattach_on_restart`` still works but emits ``AirflowProviderDeprecationWarning`` (on Airflow
-3.3+) and maps its value onto ``durable``.
+The pod identity persisted in task state store isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
+pod identity won't be there for the next retry, and the operator falls back to the label-search
+bootstrap path instead of reconnecting directly. This isn't necessarily a duplicate, the label
+search can often still find the same pod, but it loses the unambiguous reconnect and reopens
+exposure to ``FoundMoreThanOnePodFailure`` if a genuine duplicate pod exists by then. Avoid
+running cleanup on a schedule shorter than your longest ``retry_delay``.
+
+``durable`` supersedes the deprecated ``reattach_on_restart`` parameter on Airflow 3.3+, where
+passing ``reattach_on_restart`` still works and maps its value onto ``durable``. Below 3.3,
+``reattach_on_restart`` remains the only working option, since ``durable`` is a no-op there.
+Either way, passing it emits an ``AirflowProviderDeprecationWarning``, since the parameter will be
+removed once this provider's minimum supported Airflow version reaches 3.3.
 
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^

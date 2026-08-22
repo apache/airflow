@@ -320,7 +320,18 @@ core:
       default: "True"
     dag_discovery_safe_mode:
       description: |
-        If enabled, Airflow will only scan files containing both ``DAG`` and ``airflow`` (case-insensitive).
+        If enabled, Airflow only scans files containing both ``DAG`` and ``airflow`` (case-insensitive)
+        when looking for Dags. Set this to ``False`` to scan every Python file instead -- required when
+        your Dags are defined through a wrapper or abstraction whose source does not contain those strings.
+
+        This setting is read by the Dag file processor, so it must be configured for that component. In a
+        separate-process deployment (for example the Helm chart) set it on the ``dag-processor`` as well as
+        on anything that runs ``airflow dags reserialize``, and restart the component for a change to take
+        effect. If only some components see ``False``, Dags can appear after a manual reserialize and then
+        be deactivated again on the next processor scan.
+
+        As an alternative to scanning every file, set ``[core] might_contain_dag_callable`` to a custom
+        heuristic that recognizes your wrapper.
       version_added: 1.10.3
       type: string
       example: ~
@@ -921,9 +932,12 @@ logging:
       default: "INFO"
     logging_config_class:
       description: |
-        Logging class
-        Specify the class that will specify the logging configuration
-        This class has to be on the python classpath
+        Dotted import path to a ``logging.config.dictConfig`` dict. The
+        ``_class`` suffix is historical — the target is a dict, not a class.
+
+        Airflow also reads two optional module-level attributes from the
+        enclosing module: ``REMOTE_TASK_LOG`` and ``DEFAULT_REMOTE_CONN_ID``,
+        used to drive remote task-log read-back. See :ref:`write-logs-advanced`.
       version_added: 2.0.0
       type: string
       example: "my.path.default_local_settings.LOGGING_CONFIG"
@@ -1700,26 +1714,37 @@ api:
       default: "False"
     dag_cache_size:
       description: |
-        Size of the LRU cache for SerializedDAG objects in the API server.
-        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        Max number of deserialized SerializedDAG objects the API server keeps in memory.
+        Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``. Set both this and
+        ``dag_cache_ttl`` to 0 to use an unbounded dict with no eviction, matching the behavior
+        before 3.2.2.
+
         The cache is keyed by Dag version ID, so lookups by Dag ID
         (e.g., viewing a Dag's details) always query the database for the latest
         version, but the deserialized result is cached for subsequent
         version-specific lookups.
-      version_added: 3.3.0
+      version_added: 3.2.2
       type: integer
       example: ~
       default: "64"
     dag_cache_ttl:
       description: |
-        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
-        After this time, cached DAGs will be re-fetched from the database on next access.
-        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+        Seconds a deserialized SerializedDAG stays in the API server's cache, applied whether or
+        not ``dag_cache_size`` sets a size limit. After this time the Dag is re-fetched from the
+        database on next access. Set to 0 to disable TTL, leaving eviction to the
+        ``dag_cache_size`` LRU policy.
 
-        Note: After a DAG is updated, the API server may serve the previous version
-        until the cached entry expires. Lower values reduce staleness but increase
-        database load.
-      version_added: 3.3.0
+        An entry's TTL is refreshed only when the entry is checked against the database after
+        ``[core] min_serialized_dag_update_interval``, not on every request. If the TTL is shorter
+        than that interval, even frequently requested entries can expire and reload between
+        checks. ``dag_cache_size`` remains the only hard ceiling on memory.
+
+        Note: this does not govern staleness. A Dag update that creates a new version is picked
+        up immediately, because the new version is a different cache key. A version rewritten in
+        place is re-checked against its current ``dag_hash`` once
+        ``[core] min_serialized_dag_update_interval`` has elapsed since the entry was last
+        validated, so that option bounds how long a rewritten version can be served stale.
+      version_added: 3.2.2
       type: integer
       example: ~
       default: "3600"

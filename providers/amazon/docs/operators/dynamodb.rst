@@ -45,6 +45,7 @@ Wait on Amazon DynamoDB item attribute value match
 
 Use the :class:`~airflow.providers.amazon.aws.sensors.dynamodb.DynamoDBValueSensor`
 to wait for the presence of a matching DynamoDB item's attribute/value pair.
+This sensor can also be run in deferrable mode by setting ``deferrable`` param to ``True``.
 
 Wait for a Single Attribute Value Match:
 ----------------------------------------

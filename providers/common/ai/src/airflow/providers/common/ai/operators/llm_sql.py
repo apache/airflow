@@ -134,13 +134,8 @@ class LLMSQLQueryOperator(LLMOperator):
         return hook
 
     def execute(self, context: Context) -> str:
-        if self.require_approval and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The approval review body renders the prompt as text. Return a "
-                f"str prompt, or disable require_approval."
-            )
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
 
         schema_info = self._get_schema_context()
 

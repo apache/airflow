@@ -227,6 +227,21 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "dag.serialization.version_created"
+    description: "Number of times a Dag was serialized into a new Dag version, on its first serialization
+    or when its latest version already has task instances. Metric with dag_id and bundle_name tagging."
+    type: "counter"
+    legacy_name: "dag.serialization.version_created.{dag_id}.{bundle_name}"
+    name_variables: ["dag_id", "bundle_name"]
+
+  - name: "dag.serialization.version_updated"
+    description: "Number of times a Dag was serialized over its latest Dag version in place, without
+    creating a new version, because that version has no task instances. Metric with dag_id and
+    bundle_name tagging."
+    type: "counter"
+    legacy_name: "dag.serialization.version_updated.{dag_id}.{bundle_name}"
+    name_variables: ["dag_id", "bundle_name"]
+
   - name: "celery.task_timeout_error"
     description: "Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker."
     type: "counter"
@@ -346,6 +361,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.dag_bag.cache_hit"
+    description: "Number of cache hits when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_miss"
+    description: "Number of cache misses when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_clear"
+    description: "Number of times the DBDagBag cache was cleared in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "connection_test.success"
     description: "Number of worker-dispatched connection tests that completed successfully."
     type: "counter"
@@ -376,6 +409,12 @@ metrics:
 
   - name: "api_server.dag_bag.cache_size"
     description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_size"
+    description: "Current number of SerializedDAG objects cached in the scheduler's DBDagBag"
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -737,6 +776,19 @@ metrics:
   - name: "kubernetes_executor.pod_creation"
     description: "Milliseconds taken for a Kubernetes create_namespaced_pod call from the Kubernetes Executor"
     type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation_batch_duration"
+    description: "Milliseconds taken to create one batch of worker pods in a Kubernetes Executor scheduler
+    loop, covering both the sequential and the concurrent (``async_pod_creation``) creation paths."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation_batch_size"
+    description: "Number of worker pods created in one Kubernetes Executor scheduler loop."
+    type: "gauge"
     legacy_name: "-"
     name_variables: []
 

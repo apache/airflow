@@ -43,6 +43,9 @@ to pick the one that fits your use case:
    * - Natural-language → SQL generation (no execution)
      - :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator`
      - ``@task.llm_sql``
+   * - Compare schemas across data sources and detect drift
+     - :class:`~airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator`
+     - ``@task.llm_schema_compare``
    * - Multi-turn reasoning with tools (DB queries, API calls, etc.)
      - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - ``@task.agent``

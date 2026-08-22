@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import os
 from collections.abc import Sequence
@@ -90,11 +91,17 @@ class FileSensor(BaseSensorOperator):
         self.start_from_trigger = start_from_trigger
 
         if self.deferrable and self.start_from_trigger:
-            self.start_trigger_args.timeout = datetime.timedelta(seconds=self.timeout)
-            self.start_trigger_args.trigger_kwargs = dict(
-                filepath=self.path,
-                recursive=self.recursive,
-                poke_interval=self.poke_interval,
+            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
+            # assigning through it would overwrite the arguments of every other task built
+            # from this operator.
+            self.start_trigger_args = dataclasses.replace(
+                self.start_trigger_args,
+                timeout=datetime.timedelta(seconds=self.timeout),
+                trigger_kwargs=dict(
+                    filepath=self.path,
+                    recursive=self.recursive,
+                    poke_interval=self.poke_interval,
+                ),
             )
 
     @cached_property
