@@ -228,7 +228,7 @@ class TestAdbcHook:
         reason="adbc_driver_sqlite not installed",
     )
     @pytest.mark.parametrize(
-        "conn_kwargs, should_raise",
+        ("conn_kwargs", "should_raise"),
         [
             pytest.param(
                 {"adbc.connection.autocommit": "true"},
