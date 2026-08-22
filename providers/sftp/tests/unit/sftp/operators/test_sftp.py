@@ -28,11 +28,13 @@ from unittest import mock
 import paramiko
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
+from airflow.providers.sftp.triggers.sftp import SFTPTransferTrigger
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
@@ -110,6 +112,7 @@ class TestSFTPOperator:
         assert operator.sftp_hook is None
         assert operator.ssh_conn_id is None
         assert operator.remote_host is None
+        assert operator.deferrable is False
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
@@ -382,6 +385,18 @@ class TestSFTPOperator:
                 local_filepath="/tmp/test",
                 remote_filepath=["/tmp/test1", "/tmp/test2"],
             ).execute(None)
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
+    def test_non_deferrable_get_uses_sync_hook(self, mock_get):
+        SFTPOperator(
+            task_id="test_non_deferrable_get",
+            sftp_hook=self.sftp_hook,
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.GET,
+            deferrable=False,
+        ).execute(None)
+        mock_get.assert_called_once_with("/tmp/remote", "/tmp/local")
 
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
     def test_str_filepaths_get(self, mock_get):
@@ -673,3 +688,172 @@ class TestSFTPOperator:
 
         assert lineage.inputs == expected[0]
         assert lineage.outputs == expected[1]
+
+    def test_deferrable_get_defers(self):
+        operator = SFTPOperator(
+            task_id="test_deferrable_get",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.GET,
+            create_intermediate_dirs=True,
+            remote_host="sftp.example.com",
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+        trigger = exc.value.trigger
+        assert isinstance(trigger, SFTPTransferTrigger)
+        assert trigger.ssh_conn_id == "sftp_default"
+        assert trigger.local_filepath == "/tmp/local"
+        assert trigger.remote_filepath == "/tmp/remote"
+        assert trigger.operation == SFTPOperation.GET
+        assert trigger.create_intermediate_dirs is True
+        assert trigger.remote_host == "sftp.example.com"
+        assert exc.value.method_name == "execute_complete"
+
+    def test_deferrable_get_multiple_files_defers(self):
+        local_filepath = ["/tmp/a", "/tmp/b"]
+        remote_filepath = ["/remote/a", "/remote/b"]
+        operator = SFTPOperator(
+            task_id="test_deferrable_get_multi",
+            ssh_conn_id="sftp_default",
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.GET,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+        assert exc.value.trigger.local_filepath == local_filepath
+        assert exc.value.trigger.remote_filepath == remote_filepath
+
+    def test_deferrable_put_defers(self):
+        operator = SFTPOperator(
+            task_id="test_deferrable_put",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+        assert isinstance(exc.value.trigger, SFTPTransferTrigger)
+        assert exc.value.trigger.operation == SFTPOperation.PUT
+
+    def test_deferrable_uses_hook_ssh_conn_id(self):
+        operator = SFTPOperator(
+            task_id="test_deferrable_hook_conn",
+            sftp_hook=self.sftp_hook,
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.GET,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+        assert exc.value.trigger.ssh_conn_id == "ssh_default"
+
+    def test_deferrable_delete_raises(self):
+        operator = SFTPOperator(
+            task_id="test_deferrable_delete",
+            ssh_conn_id="sftp_default",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.DELETE,
+            deferrable=True,
+        )
+        with pytest.raises(ValueError, match="does not support the delete operation"):
+            operator.execute(None)
+
+    def test_deferrable_concurrency_raises(self):
+        operator = SFTPOperator(
+            task_id="test_deferrable_concurrency",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.GET,
+            concurrency=2,
+            deferrable=True,
+        )
+        with pytest.raises(ValueError, match="does not support concurrency greater than 1"):
+            operator.execute(None)
+
+    def test_deferrable_missing_conn_id_raises(self):
+        operator = SFTPOperator(
+            task_id="test_deferrable_no_conn",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.GET,
+            deferrable=True,
+        )
+        with pytest.raises(ValueError, match="requires ssh_conn_id"):
+            operator.execute(None)
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.os.path.isdir", return_value=True)
+    def test_deferrable_directory_put_raises(self, mock_isdir):
+        operator = SFTPOperator(
+            task_id="test_deferrable_dir",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local_dir",
+            remote_filepath="/tmp/remote_dir",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        with pytest.raises(ValueError, match="does not support directory transfers"):
+            operator.execute(None)
+
+    def test_execute_complete_success(self):
+        operator = SFTPOperator(
+            task_id="test_execute_complete_success",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+        )
+        assert (
+            operator.execute_complete({}, {"status": "success", "local_filepath": "/tmp/local"})
+            == "/tmp/local"
+        )
+
+    def test_execute_complete_error_raises(self):
+        operator = SFTPOperator(
+            task_id="test_execute_complete_error",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+        )
+        with pytest.raises(ValueError, match="transfer failed"):
+            operator.execute_complete({}, {"status": "error", "message": "transfer failed"})
+
+    def test_execute_complete_missing_event_raises(self):
+        operator = SFTPOperator(
+            task_id="test_execute_complete_missing",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+        )
+        with pytest.raises(ValueError, match="No event received"):
+            operator.execute_complete({}, None)
+
+    def test_execute_complete_unexpected_status_raises(self):
+        operator = SFTPOperator(
+            task_id="test_execute_complete_unexpected",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+        )
+        with pytest.raises(ValueError, match="Unexpected event status"):
+            operator.execute_complete({}, {"status": "running"})
+
+    def test_deferrable_logs_triggerer_warning(self, caplog):
+        operator = SFTPOperator(
+            task_id="test_deferrable_warning",
+            ssh_conn_id="sftp_default",
+            local_filepath="/tmp/local",
+            remote_filepath="/tmp/remote",
+            operation=SFTPOperation.GET,
+            deferrable=True,
+        )
+        with caplog.at_level(logging.WARNING), pytest.raises(TaskDeferred):
+            operator.execute(None)
+        assert "Triggerer host" in caplog.text
