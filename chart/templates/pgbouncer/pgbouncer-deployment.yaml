@@ -31,6 +31,12 @@
 {{- $containerSecurityContextMetricsExporter := include "externalContainerSecurityContext" .Values.pgbouncer.metricsExporterSidecar }}
 {{- $containerLifecycleHooks := .Values.pgbouncer.containerLifecycleHooks }}
 {{- $containerLifecycleHooksMetricsExporter := .Values.pgbouncer.metricsExporterSidecar.containerLifecycleHooks }}
+{{- $deploymentLabels := .Values.labels }}
+{{- $podLabels := .Values.pgbouncer.labels }}
+{{- if ne .Values.pgbouncer.podLabels nil }}
+  {{- $deploymentLabels = mustMerge (deepCopy .Values.pgbouncer.labels) .Values.labels }}
+  {{- $podLabels = .Values.pgbouncer.podLabels }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -41,7 +47,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
+    {{- with $deploymentLabels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- if .Values.pgbouncer.annotations }}
@@ -67,8 +73,8 @@ spec:
         tier: airflow
         component: pgbouncer
         release: {{ .Release.Name }}
-        {{- if or .Values.labels .Values.pgbouncer.labels }}
-          {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or .Values.labels $podLabels }}
+          {{- mustMerge (deepCopy $podLabels) .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}

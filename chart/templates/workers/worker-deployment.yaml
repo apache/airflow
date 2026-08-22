@@ -53,6 +53,12 @@
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.celery.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.celery.podAnnotations }}
 {{- $schedulerName := or .Values.workers.celery.schedulerName .Values.schedulerName }}
+{{- $deploymentLabels := .Values.labels }}
+{{- $podLabels := .Values.workers.celery.labels }}
+{{- if ne .Values.workers.celery.podLabels nil }}
+  {{- $deploymentLabels = mustMerge (deepCopy .Values.workers.celery.labels) .Values.labels }}
+  {{- $podLabels = .Values.workers.celery.podLabels }}
+{{- end }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
@@ -63,7 +69,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
+    {{- with $deploymentLabels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- if .Values.workers.celery.annotations }}
@@ -108,8 +114,8 @@ spec:
         {{- if ne .Values.workers.celery.name "default" }}
         worker-set: {{ .Values.workers.celery.name }}
         {{- end }}
-        {{- if or .Values.labels .Values.workers.celery.labels }}
-          {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or .Values.labels $podLabels }}
+          {{- mustMerge (deepCopy $podLabels) .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
