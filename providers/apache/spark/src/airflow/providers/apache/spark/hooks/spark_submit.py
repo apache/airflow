@@ -405,6 +405,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # fallback if connection lookup fails; overridden by rest-scheme/rest-port extras below
             "rest_scheme": "http",
             "rest_port": 6066,
+            "rest_endpoint": None,
         }
 
         try:
@@ -457,6 +458,19 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
                         base64_keytab, conn_data["principal"]
                     )
+            # Construct the Standalone Restendpoint
+            if (
+                conn.conn_type == "spark"
+                and conn_data["master"].startswith("spark://")
+                and conn_data["deploy_mode"] == "cluster"
+            ):
+                if conn_data["master"].endswith("7077"):
+                    host = conn_data["master"].replace("spark://", "").strip()
+                    conn_data["rest_endpoint"] = (
+                        f"{conn_data['rest_scheme']}://{host.split(':')[0]}:{conn_data['rest_port']}"
+                    )
+                elif conn_data["master"].endswith("6066"):
+                    conn_data["rest_endpoint"] = conn_data["master"].replace("spark://", "http://")
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
@@ -676,8 +690,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         curl_max_wait_time = 30
         spark_host = self._connection["master"]
-        if spark_host.endswith(":6066"):
-            spark_host = spark_host.replace("spark://", "http://")
+        if spark_host.endswith(":6066") or spark_host.endswith(":7077"):
+            spark_host = self._connection["rest_endpoint"]
             connection_cmd = [
                 "/usr/bin/curl",
                 "--max-time",
@@ -1296,17 +1310,31 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :return: full command to kill a driver
         """
-        # Assume that spark-submit is present in the path to the executing user
-        connection_cmd = [self._connection["spark_binary"]]
+        curl_max_wait_time = 30
+        spark_host = self._connection["master"]
+        if spark_host.endswith(":7077"):
+            spark_host = self._connection["rest_endpoint"]
+            connection_cmd = [
+                "/usr/bin/curl",
+                "--max-time",
+                str(curl_max_wait_time),
+                "-X",
+                "POST",
+                f"{spark_host}/v1/submissions/kill/{self._driver_id}",
+            ]
+            self.log.info(connection_cmd)
 
-        # The url to the spark master
-        connection_cmd += ["--master", self._connection["master"]]
+        else:
+            connection_cmd = self._get_spark_binary_path()
 
-        # The actual kill command
-        if self._driver_id:
-            connection_cmd += ["--kill", self._driver_id]
+            # The url to the spark master
+            connection_cmd += ["--master", self._connection["master"]]
 
-        self.log.debug("Spark-Kill cmd: %s", connection_cmd)
+            # The actual kill command
+            if self._driver_id:
+                connection_cmd += ["--kill", self._driver_id]
+
+            self.log.debug("Spark-Kill cmd: %s", connection_cmd)
 
         return connection_cmd
 
