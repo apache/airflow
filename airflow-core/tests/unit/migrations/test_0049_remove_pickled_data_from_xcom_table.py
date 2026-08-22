@@ -88,6 +88,51 @@ def test_sqlite_sanitize_quotes_nonfinite_strips_nul_and_keeps_literal():
     assert json.loads(rows[2]) == _LITERAL_EXPECTED
 
 
+
+def test_sqlite_sanitize_skips_already_valid_json():
+    """SQLite branch: a value that is already valid JSON (e.g. a JSON string wrapping a JSON
+    document containing NaN tokens) must be left untouched — the sanitizer regex cannot
+    distinguish ``: NaN`` in a JSON syntax position from ``: NaN`` inside a JSON string
+    that is itself the XCom value, and injecting unescaped quotes would break the outer
+    JSON string.  The ``json_valid()`` guard skips the sanitizer for already-valid values."""
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as conn:
+        conn.execute(sa.text(f"CREATE TABLE {_TABLE} (id INTEGER PRIMARY KEY, value BLOB)"))
+        # A JSON string wrapping a JSON document that contains NaN floats.
+        # json.dumps of a dict with NaN produces {"a": NaN}, which is invalid JSON.
+        # json.dumps again of that invalid-JSON string produces a *valid* JSON string:
+        #   json.dumps(json.dumps({"a": float("nan")}))  →  '"{\"a\": NaN}"'
+        # This is the shape that was reported as broken by the migration (#71921).
+        wrapped = json.dumps(json.dumps({"a": float("nan"), "b": float("inf"), "c": 1.5}))
+        conn.execute(
+            sa.text(f"INSERT INTO {_TABLE} (id, value) VALUES (1, :v)"),
+            {"v": wrapped.encode("utf-8")},
+        )
+        # A dict whose value is a JSON string (json.dumps of a dict with NaN).
+        #   {"report": "{\"amount\": NaN}"}
+        # This is already valid JSON (the NaN is inside a string) and must also be preserved.
+        dict_with_json_string = json.dumps({"report": json.dumps({"amount": float("nan")})})
+        conn.execute(
+            sa.text(f"INSERT INTO {_TABLE} (id, value) VALUES (2, :v)"),
+            {"v": dict_with_json_string.encode("utf-8")},
+        )
+        # Apply the sanitize SQL
+        conn.execute(sa.text(_migration._xcom_sqlite_sanitize_sql(_TABLE)))
+        # Both rows must still be valid JSON (the sanitizer must not corrupt them).
+        rows = dict(conn.execute(sa.text(f"SELECT id, CAST(value AS TEXT) FROM {_TABLE}")).all())
+    # Row 1: the outer JSON string must be preserved.
+    parsed1 = json.loads(rows[1])
+    assert isinstance(parsed1, str), f"Expected a JSON string, got {type(parsed1)}"
+    # Row 2: the dict must be preserved unchanged.
+    parsed2 = json.loads(rows[2])
+    assert isinstance(parsed2, dict) and "report" in parsed2
+    # The inner NaN is still a bare token *inside the string value*, which is legal JSON
+    # for the outer document.  The sanitizer must not touch it (the old regex would have
+    # injected an unescaped quote and corrupted the outer JSON). The string value itself
+    # is preserved byte-for-byte.
+    assert parsed2["report"] == json.dumps({"amount": float("nan")})
+
+
 @pytest.mark.db_test
 class TestPostgresSanitize:
     @pytest.mark.backend("postgres")
