@@ -26,6 +26,7 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
+from airflow.models.deadline import DAGRUN_CREATED_TIMING, EVALUATION_TIMING_FIELD
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.partition_mappers.wait_policy import WaitPolicy as CoreWaitPolicy
 from airflow.partition_mappers.window import Window as CoreWindow
@@ -281,6 +282,10 @@ def encode_deadline_reference(ref) -> dict[str, Any]:
     from airflow._shared.module_loading import qualname
 
     serialized = ref.serialize_reference()
+
+    # Added here rather than in serialize_reference() because custom references are expected to
+    # override that method, and an override would drop the timing.
+    serialized[EVALUATION_TIMING_FIELD] = getattr(ref, "evaluation_timing", DAGRUN_CREATED_TIMING)
 
     # Custom types (not built-in) need __class_path so the decoder can look them up.
     # Unlike built-in types which are looked up in SerializedReferenceModels,
