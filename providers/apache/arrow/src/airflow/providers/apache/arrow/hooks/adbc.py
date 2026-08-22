@@ -197,7 +197,7 @@ class AdbcHook(DbApiHook):
         to keep the Python-level bookkeeping attribute in sync so that the base
         class ``get_autocommit()`` and ``run()`` commit-guard behave correctly.
         """
-        conn._conn.set_options(**{"adbc.connection.autocommit": "true" if autocommit else "false"})
+        conn.adbc_connection.set_autocommit(autocommit)
         super().set_autocommit(conn, autocommit)
 
     def get_records(
