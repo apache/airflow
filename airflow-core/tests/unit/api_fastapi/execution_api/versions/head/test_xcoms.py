@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import urllib.parse
+from unittest import mock
 from uuid import uuid4
 
 import pytest
@@ -372,6 +373,26 @@ class TestXComsSetEndpoint:
             select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
         ).one_or_none()
         assert task_map is None, "Should not be mapped"
+
+    @mock.patch("airflow.models.xcom.XCom.set")
+    def test_xcom_set_value_error(self, mock_xcom_set, client, create_task_instance, session):
+        ti = create_task_instance()
+        session.commit()
+        
+        mock_xcom_set.side_effect = ValueError("Mocked value error")
+        
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            json="value",
+        )
+        
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": {
+                "reason": "not_found",
+                "message": "Mocked value error",
+            }
+        }
 
     @pytest.mark.parametrize(
         ("orig_value", "ser_value", "deser_value"),
