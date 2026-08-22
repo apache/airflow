@@ -10,7 +10,6 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneS
 providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
 providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py::CloudBuildCreateBuildOperator
-providers/google/src/airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py::CloudDataTransferServiceCreateJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::DataprocCreateClusterOperator
 providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::DataprocSubmitJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/functions.py::CloudFunctionDeployFunctionOperator
