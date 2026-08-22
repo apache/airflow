@@ -95,6 +95,7 @@ from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_instance_launch import TaskInstanceLaunch, TaskInstanceLaunchState
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
@@ -3199,11 +3200,48 @@ class TestSchedulerJob:
         )
         assert db_value == returned_tis[0].external_executor_id
 
+        launch = session.get(TaskInstanceLaunch, returned_tis[0].external_executor_id)
+        assert launch is not None
+        assert launch.task_instance_id == str(ti_pre_assign.id)
+        assert launch.state == TaskInstanceLaunchState.ACTIVE
+
         # In mixed-executor mode, only TIs routed to a pre-assigning executor get an external_executor_id.
         assert returned_tis[1].id == ti_regular.id
         assert returned_tis[1].external_executor_id is None
 
         session.rollback()
+
+    def test_reschedule_stuck_task_supersedes_launch_and_clears_token(self, dag_maker, session):
+        with dag_maker("test_reschedule_stuck_task_supersedes_launch", session=session):
+            EmptyOperator(task_id="task")
+
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.state = TaskInstanceState.QUEUED
+        ti.external_executor_id = "stuck-token"
+        session.add_all(
+            [
+                ti,
+                TaskInstanceLaunch(
+                    token="stuck-token",
+                    task_instance_id=str(ti.id),
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    run_id=ti.run_id,
+                    map_index=ti.map_index,
+                    try_number=ti.try_number,
+                    executor="executor",
+                ),
+            ]
+        )
+        session.flush()
+
+        SchedulerJobRunner(job=Job())._reschedule_stuck_task(ti, session)
+        session.refresh(ti)
+        launch = session.get(TaskInstanceLaunch, "stuck-token")
+
+        assert ti.state == TaskInstanceState.SCHEDULED
+        assert ti.external_executor_id is None
+        assert launch.state == TaskInstanceLaunchState.SUPERSEDED
 
     @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])
     def test_enqueue_task_instances_sets_ti_state_to_None_if_dagrun_in_finish_state(self, state, dag_maker):
@@ -3768,6 +3806,48 @@ class TestSchedulerJob:
         # DagRun.conf should be set to {} on adoption when it was None
         session.refresh(dr)
         assert dr.conf == {}
+
+    def test_failed_adoption_marks_launch_record_superseded(self, dag_maker, session, mock_executor):
+        """Test that failed adoption marks the executor token as superseded."""
+        with dag_maker("test_failed_adoption_marks_launch_record_superseded", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        old_scheduler_job = Job()
+        session.add(old_scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = old_scheduler_job.id
+        token = "test-executor-token-123"
+        ti.external_executor_id = token
+        session.commit()
+
+        # Create a launch record for this token
+        launch = TaskInstanceLaunch(
+            token=token,
+            task_instance_id=str(ti.id),
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            try_number=ti.try_number,
+            executor="test-executor",
+        )
+        session.add(launch)
+        session.commit()
+
+        # Executor refuses adoption (returns TI to reset)
+        mock_executor.try_adopt_task_instances.return_value = [ti]
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        # Verify the launch record was marked as superseded
+        launch_record = session.scalar(select(TaskInstanceLaunch).where(TaskInstanceLaunch.token == token))
+        assert launch_record is not None
+        assert launch_record.state == TaskInstanceLaunchState.SUPERSEDED
 
     def test_purge_without_heartbeat_skips_when_missing_dag_version(self, dag_maker, session, caplog):
         with dag_maker("test_purge_without_heartbeat_skips_when_missing_dag_version", session=session):

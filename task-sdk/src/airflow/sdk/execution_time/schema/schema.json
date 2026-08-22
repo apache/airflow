@@ -5179,6 +5179,18 @@
           "default": null,
           "title": "Context Carrier"
         },
+        "external_executor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Executor Id"
+        },
         "queue": {
           "default": "default",
           "title": "Queue",

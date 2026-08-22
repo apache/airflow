@@ -261,6 +261,12 @@ def clear_db_runs():
             session.execute(delete(TaskInstanceHistory))
         except ImportError:
             pass
+        try:
+            from airflow.models.task_instance_launch import TaskInstanceLaunch
+
+            session.execute(delete(TaskInstanceLaunch))
+        except ImportError:
+            pass
 
 
 @_retry_db
@@ -509,6 +515,17 @@ def clear_db_connection_tests():
             from airflow.models.connection_test import ConnectionTestRequest
 
             session.execute(delete(ConnectionTestRequest))
+        except ImportError:
+            pass
+
+
+@_retry_db
+def clear_db_task_instance_launches():
+    with create_session() as session:
+        try:
+            from airflow.models.task_instance_launch import TaskInstanceLaunch
+
+            session.execute(delete(TaskInstanceLaunch))
         except ImportError:
             pass
 
