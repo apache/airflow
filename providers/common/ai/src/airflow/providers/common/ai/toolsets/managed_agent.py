@@ -136,13 +136,10 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         """
         Send ``prompt`` to the remote agent and return the agent's answer.
 
-        Override this when the client is natively async -- the Azure SDK's
-        ``aio`` variants, the async Google client, ``aiobotocore``. When it is
-        synchronous -- boto3 for Bedrock AgentCore, the Snowflake connector for
-        Cortex -- implement :meth:`invoke_sync` instead and let the default
-        implementation here run it in a worker thread, which keeps a blocking
-        call off the event loop that the whole agent run shares. Several vendors
-        ship both, so the choice follows the client rather than the platform.
+        Override this when the vendor call is already asynchronous. When it
+        blocks, implement :meth:`invoke_sync` instead and let the default
+        implementation here run it in a worker thread, which keeps it off the
+        event loop that the whole agent run shares.
 
         Return the answer, not the transport envelope -- whatever the calling
         model should actually read. Unwrapping is the implementation's job.
@@ -179,14 +176,15 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         """
         Blocking variant of :meth:`invoke`, run in a worker thread.
 
-        This is the hook to implement when the managed agent's client is
-        synchronous. Call it normally -- the base class keeps it off the event
-        loop, so a call that takes minutes does not stall the calling agent's
-        other tool calls.
+        This is the hook to implement when the vendor call blocks. Make it
+        normally -- the base class keeps it off the event loop, so a call that
+        takes minutes does not stall the calling agent's other tool calls.
 
         The contract is :meth:`invoke`'s: return the answer rather than the
         transport envelope, sort failures into the same three buckets, and
-        release anything allocated on every path.
+        release anything allocated on every path. A thread cannot be cancelled,
+        so set a timeout on the underlying request: a caller that stops waiting
+        does not stop this call.
 
         :param prompt: The question or instruction to send to the remote agent.
         """

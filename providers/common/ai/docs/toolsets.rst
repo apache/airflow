@@ -1237,44 +1237,35 @@ derives one from a method name when there is no docstring.
     name and the description are the whole of what the model knows about the
     agent.
 
-Synchronous SDKs and the event loop
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sync or async?
+^^^^^^^^^^^^^^
 
 An agent run is driven by a single event loop, shared by the model requests and
-every toolset's tool calls. A vendor call that blocks that loop stalls all of
-them for as long as the remote agent reasons -- seconds to minutes, not
-milliseconds -- and it does so silently, with no error to point at.
+every toolset's tool calls. A call that blocks that loop stalls all of them for
+as long as the remote agent reasons -- seconds to minutes, not milliseconds --
+and it does so silently, with no error to point at.
 
-If the managed agent's client is synchronous -- boto3 for Bedrock AgentCore, or
-the Snowflake connector for Cortex, for example -- ``invoke_sync`` is the hook to
-implement. The base class runs it in a worker thread, keeping the loop free::
+Implement ``invoke_sync`` when the vendor call is blocking. The base class runs
+it in a worker thread, keeping the loop free::
 
-    class BedrockAgentCoreToolset(BaseManagedAgentToolset):
+    class MyManagedAgentToolset(BaseManagedAgentToolset):
         @property
         def agent_ref(self) -> dict[str, str]:
-            return {"platform": "aws.bedrock.agentcore", "name": self._runtime_arn}
+            return {"platform": "example.cloud", "name": self._agent_id}
 
         def invoke_sync(self, prompt: str) -> str:
-            # boto3 is synchronous; the base class keeps this off the event loop.
-            response = self._hook.conn.invoke_agent_runtime(
-                agentRuntimeArn=self._runtime_arn, payload=prompt
-            )
-            return response["response"].read().decode()
+            return self._hook.conn.invoke(agent=self._agent_id, prompt=prompt)
 
-Override ``invoke(prompt)`` -- the async coroutine -- when the client is natively
-async instead: the Azure SDK's ``aio`` variants, the async Google client, or
-``aiobotocore``. Several vendors ship both a synchronous and an asynchronous
-client, so the choice follows the client the subclass actually holds rather than
-the platform it talks to. Implement one hook or the other; a subclass that
-implements neither is rejected when it is constructed.
+Override ``invoke(prompt)`` -- the async coroutine -- when the call is already
+asynchronous. Implement one hook or the other; a subclass that implements
+neither is rejected when it is constructed.
 
 .. warning::
 
     A thread cannot be cancelled. A caller that stops waiting for
     ``invoke_sync`` does not stop the call -- it keeps a worker thread and its
-    socket until the vendor returns. Set the client's own timeout
-    (``botocore.config.Config(read_timeout=...)``,
-    ``snowflake.connector.connect(network_timeout=...)``) so that is bounded.
+    socket until the call returns. Set a timeout on the underlying request so
+    that is bounded.
 
 Toolset or operator?
 ^^^^^^^^^^^^^^^^^^^^
