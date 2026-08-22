@@ -160,8 +160,9 @@ ti_fk_constraints = [
 
 
 def _get_type_id_column(dialect_name: str) -> sa.types.TypeEngine:
-    # For PostgreSQL, use the UUID type directly as it is more efficient
-    if dialect_name == "postgresql":
+    # For PostgreSQL-family databases, use the UUID type directly as it is more efficient
+    # and matches what the ORM's sa.Uuid() renders on these dialects.
+    if dialect_name in ("postgresql", "cockroachdb"):
         return postgresql.UUID(as_uuid=False)
     # For other databases, use String(36) to match UUID format
     return sa.String(36)
@@ -275,11 +276,61 @@ def upgrade():
         with op.batch_alter_table("task_instance") as batch_op:
             batch_op.drop_constraint("task_instance_pkey", type_="primary")
 
+    elif dialect_name == "cockroachdb":
+        # CockroachDB cannot run the PL/pgSQL uuid_generate_v7() helper defined
+        # for PostgreSQL above: PL/pgSQL function bodies fail there with
+        # SQLSTATE 0A000 (https://github.com/cockroachdb/cockroach/issues/110080).
+        # Define a plain SQL function assembling the UUIDv7 hex layout directly,
+        # mirroring the MySQL branch, and backfill server side in batches.
+        op.execute(
+            """
+            CREATE FUNCTION uuid_v7_from_ts(ts TIMESTAMPTZ) RETURNS UUID VOLATILE LANGUAGE SQL AS $$
+              SELECT (
+                lpad(to_hex((extract(epoch FROM ts) * 1000)::INT8), 12, '0')
+                || '7' || substr(replace(gen_random_uuid()::STRING, '-', ''), 1, 3)
+                || '8' || substr(replace(gen_random_uuid()::STRING, '-', ''), 4, 15)
+              )::UUID
+            $$
+            """
+        )
+
+        batch_num = 0
+        while True:
+            batch_num += 1
+            result = conn.execute(
+                text(
+                    """
+                    UPDATE task_instance
+                    SET id = uuid_v7_from_ts(coalesce(queued_dttm, start_date, clock_timestamp()))
+                    WHERE id IS NULL
+                    LIMIT :batch_size
+                    """
+                ).bindparams(batch_size=batch_size)
+            )
+            if not result.rowcount:
+                break
+            print(f"Migrated {result.rowcount} task_instance rows in batch {batch_num}...")
+
+        op.execute("DROP FUNCTION uuid_v7_from_ts")
+
+        for fk in ti_fk_constraints:
+            op.drop_constraint(fk["fk"], fk["table"], type_="foreignkey")
+
     # Add primary key and unique constraint to task_instance table
-    with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.alter_column("id", type_=_get_type_id_column(dialect_name), nullable=False)
-        batch_op.create_unique_constraint("task_instance_composite_key", ti_fk_cols)
-        batch_op.create_primary_key("task_instance_pkey", ["id"])
+    if dialect_name == "cockroachdb":
+        # CockroachDB cannot drop a primary key without a replacement in the
+        # same statement, so swap it atomically. The composite unique
+        # constraint is created first so the swapped-out key columns stay
+        # backed by an index for the foreign keys recreated below.
+        op.alter_column("task_instance", "id", type_=_get_type_id_column(dialect_name), nullable=False)
+        op.create_unique_constraint("task_instance_composite_key", "task_instance", ti_fk_cols)
+        op.execute("ALTER TABLE task_instance ALTER PRIMARY KEY USING COLUMNS (id)")
+    else:
+        # Add primary key and unique constraint to task_instance table
+        with op.batch_alter_table("task_instance") as batch_op:
+            batch_op.alter_column("id", type_=_get_type_id_column(dialect_name), nullable=False)
+            batch_op.create_unique_constraint("task_instance_composite_key", ti_fk_cols)
+            batch_op.create_primary_key("task_instance_pkey", ["id"])
 
     # Create foreign key constraints
     create_foreign_keys()
@@ -305,6 +356,17 @@ def downgrade():
     elif dialect_name == "sqlite":
         with op.batch_alter_table("task_instance") as batch_op:
             batch_op.drop_constraint("task_instance_composite_key", type_="unique")
+
+    elif dialect_name == "cockroachdb":
+        for fk in ti_fk_constraints:
+            op.drop_constraint(fk["fk"], fk["table"], type_="foreignkey")
+        op.execute(
+            "ALTER TABLE task_instance ALTER PRIMARY KEY USING COLUMNS (dag_id, task_id, run_id, map_index)"
+        )
+        op.drop_constraint("task_instance_composite_key", "task_instance", type_="unique")
+        op.drop_column("task_instance", "id")
+        create_foreign_keys()
+        return
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_constraint("task_instance_pkey", type_="primary")
