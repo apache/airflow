@@ -93,11 +93,13 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
+    TaskResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1892,6 +1894,40 @@ class TestTasksOperations:
         task_instances=[task_instance_response],
         total_entries=1,
     )
+    task_collection_response = TaskCollectionResponse(
+        tasks=[
+            TaskResponse(
+                task_id="task_1",
+                task_display_name="task_1",
+                owner="airflow",
+                start_date=None,
+                end_date=None,
+                trigger_rule=None,
+                depends_on_past=False,
+                wait_for_downstream=False,
+                retries=None,
+                queue=None,
+                pool=None,
+                pool_slots=None,
+                execution_timeout=None,
+                retry_delay=None,
+                retry_exponential_backoff=0,
+                priority_weight=None,
+                weight_rule=None,
+                ui_color=None,
+                ui_fgcolor=None,
+                template_fields=None,
+                downstream_task_ids=None,
+                doc_md=None,
+                operator_name=None,
+                params=None,
+                class_ref=None,
+                is_mapped=None,
+                extra_links=[],
+            )
+        ],
+        total_entries=1,
+    )
 
     def test_clear(self):
         expected_body = self.clear_task_instances.model_dump(mode="json", exclude_none=True)
@@ -1907,6 +1943,23 @@ class TestTasksOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.tasks.clear(self.dag_id, self.clear_task_instances)
         assert response == self.task_instance_collection_response
+
+    @pytest.mark.parametrize(
+        ("order_by", "expected_params"),
+        [
+            pytest.param(None, {}, id="no-order-by"),
+            pytest.param("-task_id", {"order_by": "-task_id"}, id="with-order-by"),
+        ],
+    )
+    def test_list(self, order_by, expected_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/tasks"
+            assert dict(request.url.params) == expected_params
+            return httpx.Response(200, json=json.loads(self.task_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.list(self.dag_id, order_by=order_by)
+        assert response == self.task_collection_response
 
 
 class TestVariablesOperations:
