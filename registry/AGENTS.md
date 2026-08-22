@@ -462,6 +462,24 @@ They run inside Breeze where all providers are installed. `extract_metadata.py` 
 the CI workflow can run the fast scripts (metadata, ~30s per provider) without spinning
 up Breeze, while parameter/connection extraction is a separate step.
 
+### How a module gets a "Guide" link
+
+A module card links to the how-to guide section that documents it, alongside the
+generated API reference. Nothing declares that link: `registry_tools/docs_guides.py`
+reads the provider's own `docs/*.rst` and matches a class to a section when the
+section's title *opens with the class name as an inline literal* — ``` ``HookToolset`` ```
+or ``` ``AgentOperator`` & ``@task.agent`` ```. The anchor is derived from the whole
+title the way docutils derives its HTML id.
+
+That convention is what the guides already do, and it is deliberately the only
+signal: a hand-maintained class-to-guide table would keep pointing at sections
+that have since been renamed or split, and a link that lands on the wrong section
+is worse than no link. A class documented only in prose gets no Guide link.
+
+Both extraction paths resolve it — `extract_parameters.py` from the working tree
+for the latest release, `extract_versions.py` from the git tag for superseded ones
+— because a superseded version's page is rendered only from its own metadata file.
+
 ### Relationship to `run_provider_yaml_files_check.py`
 
 `scripts/in_container/run_provider_yaml_files_check.py` (run by the

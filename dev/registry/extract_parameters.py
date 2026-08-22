@@ -54,6 +54,7 @@ from pathlib import Path
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
 from registry_contract_models import validate_modules_catalog, validate_provider_parameters
+from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors
 from registry_tools.types import (
     BASE_CLASS_IMPORTS,
     CLASS_LEVEL_CATEGORY_OVERRIDES,
@@ -95,6 +96,7 @@ class Module:
     provider_id: str
     provider_name: str
     supports_durable_execution: bool
+    guide_url: str | None = None
 
 
 def get_category(integration_name: str) -> str:
@@ -453,6 +455,16 @@ def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:
     return module_path, name, obj
 
 
+def read_guide_docs(docs_dir: Path) -> dict[str, str]:
+    """Read a provider's authored reST docs from the working tree, keyed by path relative to ``docs_dir``."""
+    if not docs_dir.is_dir():
+        return {}
+    return {
+        path.relative_to(docs_dir).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(docs_dir.rglob("*.rst"))
+    }
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
@@ -690,6 +702,9 @@ def discover_classes_from_provider(
                 "provider_name": provider_name,
             }
         )
+
+    guide_docs = read_guide_docs(provider_yaml_path.parent / "docs")
+    attach_guide_urls(discovered, collect_guide_anchors(guide_docs), base_docs_url)
 
     return discovered
 
