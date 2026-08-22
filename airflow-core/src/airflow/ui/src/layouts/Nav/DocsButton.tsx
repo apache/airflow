@@ -53,7 +53,7 @@ export const DocsButton = ({
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
 
   const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;

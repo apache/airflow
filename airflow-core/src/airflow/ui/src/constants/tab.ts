@@ -16,26 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
-import { LuX } from "react-icons/lu";
 
-type Props = {
-  readonly filterCount: number;
-  readonly onClearFilters: () => void;
-};
+export enum TabEntity {
+  Dag = "dag",
+  Task = "task",
+  TaskInstance = "task-instance",
+}
 
-export const ResetButton = ({ filterCount, onClearFilters }: Props) => {
-  const { t: translate } = useTranslation();
-
-  if (filterCount === 0) {
-    return undefined;
-  }
-
-  return (
-    <Button onClick={onClearFilters} variant="outline">
-      <LuX />
-      {translate("table.filterReset", { count: filterCount })}
-    </Button>
-  );
-};
+export enum TabName {
+  Backfills = "backfills",
+  Calendar = "calendar",
+  Code = "code",
+  Details = "details",
+  Events = "events",
+  Overview = "",
+  Runs = "runs",
+  Tasks = "tasks",
+}

@@ -43,7 +43,7 @@ const DeleteDialog = ({
   title,
   warningText,
 }: DeleteDialogProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Modal

@@ -35,7 +35,7 @@ const DagRunGroup = ({
   readonly dagRuns: Array<DagRunAssetReference>;
   readonly prefix: string;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return dagRuns.length === 1 ? (
     <Flex flexWrap="wrap" gap={1}>
