@@ -86,6 +86,20 @@ class TestGetConnection:
         session.delete(connection)
         session.commit()
 
+    def test_connection_get_with_slash_in_id(self, client, session):
+        connection = Connection(conn_id="dev-env/project-name", conn_type="http", host="localhost")
+
+        session.add(connection)
+        session.commit()
+
+        response = client.get("/execution/connections/dev-env/project-name")
+
+        assert response.status_code == 200
+        assert response.json()["conn_id"] == "dev-env/project-name"
+
+        session.delete(connection)
+        session.commit()
+
     @mock.patch.dict(
         "os.environ",
         {"AIRFLOW_CONN_TEST_CONN2": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}'},
