@@ -221,6 +221,7 @@ pnpm install
 pnpm test
 pnpm run typecheck
 pnpm run build
+pnpm run verify:package
 ```
 
 The committed lockfile and `pnpm-workspace.yaml` define the dependency security
@@ -229,11 +230,23 @@ can enter the lockfile, transitive dependencies cannot use Git or arbitrary
 tarball sources, and only explicitly approved dependencies can run lifecycle
 build scripts. Review changes to both files together when updating dependencies.
 
+`verify:package` creates the npm tarball, rejects files outside the published
+runtime allowlist, installs it into a clean temporary project, and smoke-tests
+every `exports` entry point and the `bin` executable. The required paths are
+derived from `package.json`, so a new export subpath is covered automatically.
+
+`tsconfig.build.json` turns off `sourceMap` and `declarationMap` that the base
+`tsconfig.json` enables. The published tarball ships `dist` but not `src`, so
+emitted maps would point at files the consumer never receives — the allowlist
+rejects them rather than shipping dangling maps. Local `pnpm run typecheck`
+still uses the base config, so editor tooling is unaffected.
+
 Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
-with its own managed node + pnpm toolchain:
+or verify the package with its own managed node + pnpm toolchain:
 
 ```bash
-prek run compile-ts-sdk
+prek run compile-ts-sdk --all-files
+prek run --hook-stage manual verify-ts-sdk-package --all-files
 ```
 
 ## API reference

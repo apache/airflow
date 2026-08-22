@@ -48,6 +48,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
+    "verify:package": "node scripts/verify-package.mjs",
     "prepack": "pnpm run build",
     "generate:supervisor": "node scripts/generate-supervisor.mjs"
   },
