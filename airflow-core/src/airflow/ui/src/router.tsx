@@ -66,6 +66,7 @@ import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { TaskStateStore } from "src/pages/TaskStateStore";
+import { TimeSchedule } from "src/pages/TimeSchedule";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
@@ -126,6 +127,14 @@ export const routerConfig = [
           </DagsLayout>
         ),
         path: "task_instances",
+      },
+      {
+        element: (
+          <DagsLayout>
+            <TimeSchedule />
+          </DagsLayout>
+        ),
+        path: "time_schedule",
       },
       {
         element: <AssetsList />,

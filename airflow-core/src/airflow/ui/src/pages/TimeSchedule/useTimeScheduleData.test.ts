@@ -16,26 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { useTranslation } from "react-i18next";
+import { describe, expect, it } from "vitest";
 
-import { NavTabs } from "./Details/NavTabs";
+import { getAdditionalPageOffsets } from "./useTimeScheduleData";
 
-export const DagsLayout = ({ children }: PropsWithChildren) => {
-  const { t: translate } = useTranslation();
-
-  const tabs = [
-    { label: translate("nav.dags"), value: "/dags" },
-    { label: translate("dagRun_other"), value: "/dag_runs" },
-    { label: translate("taskInstance_other"), value: "/task_instances" },
-    { label: translate("timeSchedule.title"), value: "/time_schedule" },
-  ];
-
-  return (
-    <Box>
-      <NavTabs tabs={tabs} />
-      {children}
-    </Box>
-  );
-};
+describe("getAdditionalPageOffsets", () => {
+  it("uses the API page size without skipping entries", () => {
+    expect(
+      getAdditionalPageOffsets({ pageSize: 100, requestedEntryCount: 2000, totalEntries: 2000 }),
+    ).toEqual(Array.from({ length: 19 }, (_, index) => (index + 1) * 100));
+    expect(getAdditionalPageOffsets({ pageSize: 100, requestedEntryCount: 600, totalEntries: 2000 })).toEqual(
+      [100, 200, 300, 400, 500],
+    );
+    expect(getAdditionalPageOffsets({ pageSize: 100, requestedEntryCount: 1000, totalEntries: 250 })).toEqual(
+      [100, 200],
+    );
+  });
+});
