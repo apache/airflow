@@ -39,6 +39,10 @@ graph::
   first attempt and returns normally on the retry, exercising the UP_FOR_RETRY
   path through the Java coordinator.
 
+Each Dag is triggered once by its own module-scoped fixture. Tests that inspect
+the same Dag therefore share one completed run instead of repeating the full
+coordinator workflow for every assertion.
+
 The test asserts that the Java task instances reach state ``success``, which
 confirms:
 
@@ -55,6 +59,7 @@ confirms:
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -67,72 +72,130 @@ if TYPE_CHECKING:
 
 # The Java extract task sleeps 6 s + coordinator startup; allow plenty of room.
 _JAVA_TASK_TIMEOUT = 600
+# Each Scala task spins up its own local SparkSession; allow generous time for
+# three sequential JVM + Spark startups in a constrained CI container.
+_SPARK_TASK_TIMEOUT = 1200
 # Logs can lag slightly behind the task reaching a terminal state.
 _LOG_FETCH_TIMEOUT = 60
+
+_ANNOTATION_DAG_ID = "java_annotation_example"
+_XCOM_CASTING_DAG_ID = "java_xcom_casting_example"
+_SCALA_SPARK_DAG_ID = "scala_spark_example"
+
+
+@dataclass
+class _CompletedRun:
+    """A completed Dag run shared by all assertions for that Dag."""
+
+    client: AirflowClient
+    dag_id: str
+    run_id: str | None = None
+    state: str | None = None
+    ti_map: dict[str, dict] = field(default_factory=dict)
+    ti_states: dict[str, str] = field(default_factory=dict)
+    _error: Exception | None = field(default=None, repr=False)
+
+    def _raise_if_failed(self) -> None:
+        if self._error is not None:
+            raise self._error
+
+    def get_task_instance(self, task_id: str) -> dict:
+        self._raise_if_failed()
+        return self.ti_map.get(task_id, {})
+
+    def get_xcom(self, task_id: str, key: str = "return_value"):
+        self._raise_if_failed()
+        if self.run_id is None:
+            raise RuntimeError(f"Dag {self.dag_id!r} did not produce a run ID")
+        return self.client.get_xcom_value(
+            dag_id=self.dag_id,
+            task_id=task_id,
+            run_id=self.run_id,
+            key=key,
+        ).get("value")
+
+    def wait_for_log_record(
+        self, task_id: str, try_number: int, match: Callable[[dict], bool]
+    ) -> tuple[dict | None, list[dict]]:
+        """Poll task logs until a record matching *match* appears."""
+        self._raise_if_failed()
+        if self.run_id is None:
+            raise RuntimeError(f"Dag {self.dag_id!r} did not produce a run ID")
+        deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
+        records: list[dict] = []
+        while True:
+            resp = self.client.get_task_logs(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                task_id=task_id,
+                try_number=try_number,
+            )
+            records = [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
+            record = next((candidate for candidate in records if match(candidate)), None)
+            if record is not None or time.monotonic() > deadline:
+                return record, records
+            time.sleep(3)
+
+
+def _trigger_and_wait_for_dag(dag_id: str, timeout: int) -> _CompletedRun:
+    client = AirflowClient()
+    run_id = None
+    try:
+        resp = client.trigger_dag(dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+        run_id = resp["dag_run_id"]
+        state = client.wait_for_dag_run(dag_id=dag_id, run_id=run_id, timeout=timeout)
+        ti_resp = client.get_task_instances(dag_id=dag_id, run_id=run_id)
+        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+        ti_states = {task_id: ti.get("state") for task_id, ti in ti_map.items()}
+    except Exception as error:
+        # The E2E report captures call-phase failures, so defer fixture setup
+        # errors until a test first reads the shared result.
+        return _CompletedRun(client=client, dag_id=dag_id, run_id=run_id, _error=error)
+    return _CompletedRun(
+        client=client,
+        dag_id=dag_id,
+        run_id=run_id,
+        state=state,
+        ti_map=ti_map,
+        ti_states=ti_states,
+    )
+
+
+@pytest.fixture(scope="module")
+def annotation_example_run() -> _CompletedRun:
+    """Trigger the annotation example once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_ANNOTATION_DAG_ID, _JAVA_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
+def xcom_casting_example_run() -> _CompletedRun:
+    """Trigger the XCom casting example once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_XCOM_CASTING_DAG_ID, _JAVA_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
+def scala_spark_example_run() -> _CompletedRun:
+    """Trigger the Scala Spark example once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_SCALA_SPARK_DAG_ID, _SPARK_TASK_TIMEOUT)
 
 
 class TestJavaSDKAnnotationExample:
     """Verify the annotation-based Java SDK example executes correctly."""
 
-    airflow_client = AirflowClient()
-
-    @pytest.mark.parametrize("dag_id", ["java_annotation_example"])
-    def test_java_tasks_execute_successfully(self, dag_id: str):
+    def test_java_tasks_execute_successfully(self, annotation_example_run: _CompletedRun):
         """Both Java stubs in the annotation example must succeed."""
-        resp = self.airflow_client.trigger_dag(
-            dag_id,
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
+        for task_id in ("extract", "transform"):
+            task_instance = annotation_example_run.get_task_instance(task_id)
+            assert task_instance.get("state") == "success", (
+                f"Java {task_id!r} task did not succeed.\n"
+                f"  task state : {task_instance.get('state')!r}\n"
+                f"  dag state  : {annotation_example_run.state!r}\n"
+                f"  all tasks  : {annotation_example_run.ti_states}"
+            )
 
-        # Wait for all tasks to finish (success or failed).
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id=dag_id,
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
-        # Collect task-instance states for a detailed failure message.
-        ti_resp = self.airflow_client.get_task_instances(dag_id=dag_id, run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-
-        extract_ti = ti_map.get("extract", {})
-        transform_ti = ti_map.get("transform", {})
-
-        assert extract_ti.get("state") == "success", (
-            f"Java 'extract' task did not succeed.\n"
-            f"  task state : {extract_ti.get('state')!r}\n"
-            f"  dag state  : {dag_state!r}\n"
-            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
-        )
-        assert transform_ti.get("state") == "success", (
-            f"Java 'transform' task did not succeed.\n"
-            f"  task state : {transform_ti.get('state')!r}\n"
-            f"  dag state  : {dag_state!r}\n"
-            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
-        )
-
-    def test_transform_xcom_is_numeric_timestamp(self):
+    def test_transform_xcom_is_numeric_timestamp(self, annotation_example_run: _CompletedRun):
         """The value returned by the Java 'transform' task must be a positive integer."""
-        resp = self.airflow_client.trigger_dag(
-            "java_annotation_example",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-
-        self.airflow_client.wait_for_dag_run(
-            dag_id="java_annotation_example",
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
-        xcom = self.airflow_client.get_xcom_value(
-            dag_id="java_annotation_example",
-            task_id="transform",
-            run_id=run_id,
-            key="return_value",
-        )
-        value = xcom.get("value")
+        value = annotation_example_run.get_xcom("transform")
         assert isinstance(value, int), (
             f"Expected 'transform' XCom to be an integer (millisecond timestamp), got {value!r}"
         )
@@ -140,148 +203,58 @@ class TestJavaSDKAnnotationExample:
             f"Expected 'transform' XCom to be a positive integer (millisecond timestamp), got {value!r}"
         )
 
-    def test_concurrent_client_calls_succeed(self):
+    def test_concurrent_client_calls_succeed(self, annotation_example_run: _CompletedRun):
         """A Java task calling the client from many threads must succeed."""
-        resp = self.airflow_client.trigger_dag(
-            "java_annotation_example",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id="java_annotation_example",
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
-        ti_resp = self.airflow_client.get_task_instances(dag_id="java_annotation_example", run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-        concurrent_ti = ti_map.get("concurrent", {})
+        concurrent_ti = annotation_example_run.get_task_instance("concurrent")
 
         assert concurrent_ti.get("state") == "success", (
             f"Java 'concurrent' task did not succeed.\n"
             f"  task state : {concurrent_ti.get('state')!r}\n"
-            f"  dag state  : {dag_state!r}\n"
-            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+            f"  dag state  : {annotation_example_run.state!r}\n"
+            f"  all tasks  : {annotation_example_run.ti_states}"
         )
 
-    def test_numeric_xcom_casting(self):
-        """Numeric XComs are read across declared types (int -> long -> double, and a wire
-        double back as a float), and a boxed param stays null when its XCom is absent."""
-        resp = self.airflow_client.trigger_dag(
-            "java_xcom_casting_example",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id="java_xcom_casting_example",
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
-        ti_resp = self.airflow_client.get_task_instances(dag_id="java_xcom_casting_example", run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-
-        for task_id in ("widen_to_double", "consume_nullable", "consume_float"):
-            assert ti_map.get(task_id, {}).get("state") == "success", (
-                f"Java {task_id!r} task did not succeed.\n"
-                f"  task state : {ti_map.get(task_id, {}).get('state')!r}\n"
-                f"  dag state  : {dag_state!r}\n"
-                f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
-            )
-
-    def test_load_retried_then_succeeded(self):
+    def test_load_retried_then_succeeded(self, annotation_example_run: _CompletedRun):
         """``load`` fails once (UP_FOR_RETRY) then succeeds on the second attempt.
 
         The Java coordinator must return ``RetryTask`` (not terminal ``FAILED``)
         when the task throws with retries left, so the supervisor re-runs it. The
         end state is ``success`` reached on ``try_number`` 2.
         """
-        resp = self.airflow_client.trigger_dag(
-            "java_annotation_example",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id="java_annotation_example",
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
-        ti_resp = self.airflow_client.get_task_instances(dag_id="java_annotation_example", run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-        load_ti = ti_map.get("load", {})
+        load_ti = annotation_example_run.get_task_instance("load")
 
         assert load_ti.get("state") == "success", (
             f"Java 'load' task should succeed on retry.\n"
             f"  task state : {load_ti.get('state')!r}\n"
-            f"  dag state  : {dag_state!r}\n"
-            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+            f"  dag state  : {annotation_example_run.state!r}\n"
+            f"  all tasks  : {annotation_example_run.ti_states}"
         )
         assert load_ti.get("try_number") == 2, (
             f"Java 'load' task should have run twice (fail then retry); "
             f"try_number={load_ti.get('try_number')!r}, ti: {load_ti}"
         )
 
-    def _wait_for_transform_log_record(
-        self, run_id: str, try_number: int, match: Callable[[dict], bool]
-    ) -> tuple[dict | None, list[dict]]:
-        """Poll the ``transform`` task logs until a record matching *match* appears.
-
-        Logs can lag behind the terminal task state, and earlier records (e.g. the
-        first transform line) arrive before the one under test, so returning on any
-        record would race. Keep polling until the target record shows up or the
-        deadline passes. Returns the matching record (or ``None``) and the last
-        batch of records seen for diagnostics.
-        """
-        deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
-        records: list[dict] = []
-        while True:
-            resp = self.airflow_client.get_task_logs(
-                dag_id="java_annotation_example", run_id=run_id, task_id="transform", try_number=try_number
-            )
-            records = [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
-            record = next((r for r in records if match(r)), None)
-            if record is not None or time.monotonic() > deadline:
-                return record, records
-            time.sleep(3)
-
-    def test_application_logs_preserve_their_level(self):
+    def test_application_logs_preserve_their_level(self, annotation_example_run: _CompletedRun):
         """A Java task's SLF4J ``logger.info`` must reach the UI as INFO, not ERROR.
 
         Without the SDK's SLF4J binding the application's logs fall through to
         stderr and the supervisor tags every line ERROR. The binding routes them
         over the logs socket carrying the real level instead.
         """
-        resp = self.airflow_client.trigger_dag(
-            "java_annotation_example",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id="java_annotation_example",
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
         # The log under test is emitted only if transform actually ran; assert it
         # succeeded and fetch the attempt that produced the logs (transform does
         # not retry, but read try_number rather than assuming attempt 1).
-        ti_resp = self.airflow_client.get_task_instances(dag_id="java_annotation_example", run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-        transform_ti = ti_map.get("transform", {})
+        transform_ti = annotation_example_run.get_task_instance("transform")
         assert transform_ti.get("state") == "success", (
             f"Java 'transform' task must succeed to emit the log under test.\n"
             f"  task state : {transform_ti.get('state')!r}\n"
-            f"  dag state  : {dag_state!r}\n"
-            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+            f"  dag state  : {annotation_example_run.state!r}\n"
+            f"  all tasks  : {annotation_example_run.ti_states}"
         )
 
         # transform logs `logger.info("Got variable {}", variable)` -> "Got variable 123".
-        record, records = self._wait_for_transform_log_record(
-            run_id,
+        record, records = annotation_example_run.wait_for_log_record(
+            "transform",
             transform_ti.get("try_number", 1),
             lambda r: str(r.get("event", "")).startswith("Got variable"),
         )
@@ -294,9 +267,21 @@ class TestJavaSDKAnnotationExample:
         )
 
 
-# Each Scala task spins up its own local SparkSession; allow generous time for
-# three sequential JVM + Spark startups in a constrained CI container.
-_SPARK_TASK_TIMEOUT = 1200
+class TestJavaSDKXComCastingExample:
+    """Verify numeric XCom values are cast across declared Java types."""
+
+    def test_numeric_xcom_casting(self, xcom_casting_example_run: _CompletedRun):
+        """Numeric XComs are read across declared types (int -> long -> double, and a wire
+        double back as a float), and a boxed param stays null when its XCom is absent."""
+        for task_id in ("widen_to_double", "consume_nullable", "consume_float"):
+            task_instance = xcom_casting_example_run.get_task_instance(task_id)
+            assert task_instance.get("state") == "success", (
+                f"Java {task_id!r} task did not succeed.\n"
+                f"  task state : {task_instance.get('state')!r}\n"
+                f"  dag state  : {xcom_casting_example_run.state!r}\n"
+                f"  all tasks  : {xcom_casting_example_run.ti_states}"
+            )
+
 
 # Mirror the fixed dataset that is the single source of truth in
 # ScalaSparkExample.scala (``SalesData.rows``): 5 sales rows whose amounts
@@ -308,56 +293,32 @@ _SPARK_EXPECTED_TOTAL_REVENUE = 1000
 class TestJavaSDKScalaSparkExample:
     """Verify the Scala + Apache Spark ETL example bundle executes correctly."""
 
-    airflow_client = AirflowClient()
-
-    def test_spark_etl_pipeline(self):
+    def test_spark_etl_pipeline(self, scala_spark_example_run: _CompletedRun):
         """The three Scala Spark stubs run in order and pass scalar results via XCom.
 
         Each runs in its own JVM through ``JavaCoordinator`` with real Spark.
         """
-        resp = self.airflow_client.trigger_dag(
-            "scala_spark_example",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id="scala_spark_example",
-            run_id=run_id,
-            timeout=_SPARK_TASK_TIMEOUT,
-        )
-
-        ti_resp = self.airflow_client.get_task_instances(dag_id="scala_spark_example", run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-
         for task_id in ("spark_extract", "spark_transform", "spark_load"):
-            assert ti_map.get(task_id, {}).get("state") == "success", (
+            task_instance = scala_spark_example_run.get_task_instance(task_id)
+            assert task_instance.get("state") == "success", (
                 f"Scala Spark {task_id!r} task did not succeed.\n"
-                f"  task state : {ti_map.get(task_id, {}).get('state')!r}\n"
-                f"  dag state  : {dag_state!r}\n"
-                f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+                f"  task state : {task_instance.get('state')!r}\n"
+                f"  dag state  : {scala_spark_example_run.state!r}\n"
+                f"  all tasks  : {scala_spark_example_run.ti_states}"
             )
 
-        extract_xcom = self.airflow_client.get_xcom_value(
-            dag_id="scala_spark_example", task_id="spark_extract", run_id=run_id, key="return_value"
-        )
-        assert extract_xcom.get("value") == _SPARK_EXPECTED_ROW_COUNT, (
-            f"Expected spark_extract to push row count {_SPARK_EXPECTED_ROW_COUNT}, "
-            f"got {extract_xcom.get('value')!r}"
+        extract_xcom = scala_spark_example_run.get_xcom("spark_extract")
+        assert extract_xcom == _SPARK_EXPECTED_ROW_COUNT, (
+            f"Expected spark_extract to push row count {_SPARK_EXPECTED_ROW_COUNT}, got {extract_xcom!r}"
         )
 
-        transform_xcom = self.airflow_client.get_xcom_value(
-            dag_id="scala_spark_example", task_id="spark_transform", run_id=run_id, key="return_value"
-        )
-        assert transform_xcom.get("value") == _SPARK_EXPECTED_TOTAL_REVENUE, (
+        transform_xcom = scala_spark_example_run.get_xcom("spark_transform")
+        assert transform_xcom == _SPARK_EXPECTED_TOTAL_REVENUE, (
             f"Expected spark_transform to aggregate total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, "
-            f"got {transform_xcom.get('value')!r}"
+            f"got {transform_xcom!r}"
         )
 
-        load_xcom = self.airflow_client.get_xcom_value(
-            dag_id="scala_spark_example", task_id="spark_load", run_id=run_id, key="return_value"
-        )
-        assert load_xcom.get("value") == _SPARK_EXPECTED_TOTAL_REVENUE, (
-            f"Expected spark_load to return total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, "
-            f"got {load_xcom.get('value')!r}"
+        load_xcom = scala_spark_example_run.get_xcom("spark_load")
+        assert load_xcom == _SPARK_EXPECTED_TOTAL_REVENUE, (
+            f"Expected spark_load to return total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, got {load_xcom!r}"
         )
