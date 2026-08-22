@@ -247,10 +247,13 @@ config:
           The use of a database is highly recommended
           When not specified, sql_alchemy_conn with a db+ scheme prefix will be used
           https://docs.celeryq.dev/en/latest/userguide/configuration.html#task-result-backend-settings
+          The psycopg2 driver in the example below works on every supported Airflow version.
+          Set db+postgresql+psycopg:// only on Airflow 3.2.0 and later - earlier releases do not
+          guarantee SQLAlchemy 2.0, which is where the psycopg (v3) dialect lives
         version_added: ~
         type: string
         sensitive: true
-        example: "db+postgresql+psycopg://postgres:airflow@postgres/airflow"
+        example: "db+postgresql+psycopg2://postgres:airflow@postgres/airflow"
         default: ~
       result_backend_sqlalchemy_engine_options:
         description: |
