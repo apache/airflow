@@ -32,6 +32,10 @@ class TestStatsd:
         )
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
+        assert jmespath.search("spec.strategy", docs[0]) == {
+            "type": "RollingUpdate",
+            "rollingUpdate": {"maxUnavailable": 0, "maxSurge": 1},
+        }
 
         assert jmespath.search("spec.template.spec.containers[0].name", docs[0]) == "statsd"
 
@@ -51,6 +55,18 @@ class TestStatsd:
             "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml",
         ]
         assert expected_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_should_configure_statsd_deployment_strategy(self):
+        strategy = {
+            "type": "RollingUpdate",
+            "rollingUpdate": {"maxUnavailable": 0, "maxSurge": 1},
+        }
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "strategy": strategy}},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.strategy", docs[0]) == strategy
 
     @pytest.mark.parametrize(
         ("ttl"),
