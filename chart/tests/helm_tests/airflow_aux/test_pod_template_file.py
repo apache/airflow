@@ -1454,6 +1454,29 @@ class TestPodTemplateFile:
         assert initContainers["name"] == "kerberos-init"
         assert initContainers["args"] == ["kerberos", "-o"]
 
+    @pytest.mark.parametrize("readonly_cache", [False, True])
+    def test_kerberos_readonly_cache(self, readonly_cache: bool):
+        docs = render_chart(
+            name="test-release",
+            values={
+                "workers": {
+                    "kubernetes": {
+                        "readonlyKerberosCache": readonly_cache,
+                    },
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert (
+            jmespath.search(
+                "spec.containers[?name=='base'].volumeMounts[?name=='kerberos-ccache'].readOnly |",
+                docs[0],
+            )
+            == readonly_cache
+        )
+
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [

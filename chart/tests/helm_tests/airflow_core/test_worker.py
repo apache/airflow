@@ -924,6 +924,22 @@ class TestWorker:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "test-release"]}}}
 
+    @pytest.mark.parametrize("readonly_cache", [False, True])
+    def test_kerberos_readonly_cache(self, readonly_cache: bool):
+        docs = render_chart(
+            name="test-release",
+            values={"workers": {"celery": {"readonlyKerberosCache": readonly_cache}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[?name=='worker'] | [0].volumeMounts[?name=='kerberos-ccache'] | [0].readOnly",
+                docs[0],
+            )
+            == readonly_cache
+        )
+
     def test_default_command_and_args_airflow_version(self):
         docs = render_chart(
             show_only=["templates/workers/worker-deployment.yaml"],

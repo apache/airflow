@@ -870,6 +870,9 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # Should the kerberos-ccache mount be readonly for Celery Workers
+    readonlyKerberosCache: true
+
     # Resource configuration for Airflow Celery workers
     resources: {}
     #  limits:
@@ -1125,6 +1128,9 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Should the kerberos-ccache mount be readonly for Celery Workers
+    readonlyKerberosCache: true
 
     # Resource configuration for pods created with pod-template-file
     resources: {}
