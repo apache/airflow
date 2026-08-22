@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from airflow._shared.observability.traces import start_debug_span
 from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 
 # add logger to parameter of setproctitle to support logging
@@ -308,6 +309,7 @@ class LocalExecutor(BaseExecutor):
             proc.kill()
             proc.join(timeout=0.2)
 
+    @start_debug_span("local_executor._process_workloads")
     def _process_workloads(self, workload_list):
         for workload in workload_list:
             self.activity_queue.put(workload)
