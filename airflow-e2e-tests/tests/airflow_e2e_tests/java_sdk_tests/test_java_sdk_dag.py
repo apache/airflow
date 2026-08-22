@@ -50,6 +50,10 @@ confirms:
 4. A Java task that throws with retries left returns ``RetryTask`` rather than a
    terminal ``FAILED``, so the supervisor marks it UP_FOR_RETRY and re-runs it;
    ``load`` therefore ends ``success`` on its second attempt (try_number 2).
+
+The ``java_interface_example`` and ``scala_spark_example`` Dags are covered too:
+the former for tasks written against ``InputTask``, whose arguments the SDK
+resolves from the stub call site and injects.
 """
 
 from __future__ import annotations
@@ -292,6 +296,40 @@ class TestJavaSDKAnnotationExample:
         assert str(record.get("level", "")).lower() == "info", (
             f"application INFO log should keep its level, got {record.get('level')!r}; record: {record}"
         )
+
+
+class TestJavaSDKInterfaceExample:
+    """Verify the interface-based Java SDK example resolves its injected inputs."""
+
+    airflow_client = AirflowClient()
+
+    def test_input_tasks_receive_their_bound_arguments(self):
+        """``transform`` and ``summarize`` implement ``InputTask``, so reaching ``success``
+        proves the supervisor's bindings arrived: ``transform`` requires position 0 as a
+        ``Long`` (the ``extract`` XCom), and ``summarize`` throws unless its bundle field
+        holds the ``region_code="emea"`` literal from the keyword call site."""
+        resp = self.airflow_client.trigger_dag(
+            "java_interface_example",
+            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+        )
+        run_id = resp["dag_run_id"]
+
+        dag_state = self.airflow_client.wait_for_dag_run(
+            dag_id="java_interface_example",
+            run_id=run_id,
+            timeout=_JAVA_TASK_TIMEOUT,
+        )
+
+        ti_resp = self.airflow_client.get_task_instances(dag_id="java_interface_example", run_id=run_id)
+        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+
+        for task_id in ("transform", "summarize"):
+            assert ti_map.get(task_id, {}).get("state") == "success", (
+                f"Java {task_id!r} task did not succeed.\n"
+                f"  task state : {ti_map.get(task_id, {}).get('state')!r}\n"
+                f"  dag state  : {dag_state!r}\n"
+                f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+            )
 
 
 # Each Scala task spins up its own local SparkSession; allow generous time for

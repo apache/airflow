@@ -26,12 +26,45 @@ package org.apache.airflow.sdk
  * [Server.serve] to start accepting task-execution requests.
  *
  * @property dags All registered Dags keyed by [DagDef.id].
- * @throws IllegalArgumentException if any two Dags share the same ID.
+ * @throws IllegalArgumentException if any two Dags share the same ID, if a
+ *    task depends on an upstream that is not registered in its own Dag, or if
+ *    the dependencies of a Dag contain a cycle.
  */
 class Bundle(
   dags: Iterable<DagDef>,
 ) {
   internal val dags: Map<String, DagDef> = dags.associateByDagId()
+
+  init {
+    for (dag in this.dags.values) {
+      for ((taskId, def) in dag.tasks) {
+        for (upstream in def.upstreams) {
+          require(dag.tasks[upstream.id] === upstream) {
+            "Task '$taskId' in Dag '${dag.id}' depends on task '${upstream.id}' " +
+              "that is not registered in the same Dag"
+          }
+        }
+      }
+      checkNoCycle(dag)
+    }
+  }
+}
+
+// Ref-twin wiring cannot express a cycle, but TaskDef.dependsOn can.
+private fun checkNoCycle(dag: DagDef) {
+  val visiting = mutableSetOf<String>()
+  val done = mutableSetOf<String>()
+
+  fun visit(def: TaskDef) {
+    if (def.id in done) return
+    require(visiting.add(def.id)) {
+      "Task dependencies in Dag '${dag.id}' contain a cycle involving task '${def.id}'"
+    }
+    def.upstreams.forEach(::visit)
+    visiting -= def.id
+    done += def.id
+  }
+  dag.tasks.values.forEach(::visit)
 }
 
 private fun Iterable<DagDef>.associateByDagId(): Map<String, DagDef> {

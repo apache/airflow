@@ -590,7 +590,7 @@ prek hook regenerate it.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.3 · supervisor schema: 2026-06-16*
+*Min. Airflow version: 3.3 · supervisor schema: 2026-10-30*
 
 | Dimension | Tier | Supported | Since | Notes |
 |---|---|---|---|---|
@@ -616,17 +616,17 @@ prek hook regenerate it.
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
 | **Native-Dag authoring** |  |  |  |  |
-| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
-| capability: `task-args` | MUST † | n/a | – |  |
-| capability: `dag-params` | MUST † | n/a | – |  |
-| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
-| capability: `branching` | SHOULD † | n/a | – |  |
-| capability: `dag-test` | SHOULD † | n/a | – |  |
-| capability: `task-group` | MAY † | n/a | – |  |
-| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
-| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
-| capability: `asset-scheduling` | MAY † | n/a | – |  |
-| capability: `object-store` | MAY † | n/a | – |  |
+| capability: `native-dag-authoring` | SHOULD | ✓ | 3.3 |  |
+| capability: `task-args` | MUST † | ✓ | 3.3 |  |
+| capability: `dag-params` | MUST † | ✗ | – |  |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.3 |  |
+| capability: `branching` | SHOULD † | ✗ | – |  |
+| capability: `dag-test` | SHOULD † | ✗ | – |  |
+| capability: `task-group` | MAY † | ✗ | – |  |
+| capability: `dynamic-task-mapping` | MAY † | ✗ | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – |  |
+| capability: `object-store` | MAY † | ✗ | – |  |
 
 *Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
 
@@ -723,9 +723,13 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
   not the implementation language.
 - Keep `sdk/src/main/kotlin/` (the public API surface) free of internal
   implementation details; those belong in the `execution/` sub-package.
-- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. When adding a
-  new annotation, define it in `Builder.kt`, handle it in
-  `BuilderProcessor.kt`, and add a golden-output test in
+- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
+  class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
+  from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
+  `sdk/schema/dag-schema.json`); `@Wiring` and the `In`/`TaskRef` wiring types
+  are hand-written next to the rest of the public surface in
+  `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
   the JVM process from Python beyond what `_build_execute_task_command`
@@ -747,9 +751,14 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 5. Update `airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst`
    if the change is user-visible.
 
-**Adding a new annotation**:
+**Adding a new annotation or configuration attribute**:
 
-1. Define the annotation interface in `Builder.kt`.
+1. Hand-written annotations live in `sdk/src/main/kotlin/org/apache/airflow/sdk/`
+   next to the runtime types (one package, so user code needs a single
+   `import org.apache.airflow.sdk.*`); the configuration attributes of
+   `@Builder.Dag` / `@Builder.Task` come from the Dag serialization schema via
+   `:sdk:generateDagDsl` (adjust its allowlist/exclusion rules in
+   `sdk/build.gradle.kts` when the exposed field set should change).
 2. Handle it in `BuilderProcessor.kt` — generate the appropriate code in the
    `*Builder` class.
 3. Add a test in `BuilderTest.kt` with expected generated output.
