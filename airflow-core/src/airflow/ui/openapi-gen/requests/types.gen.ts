@@ -274,7 +274,7 @@ export type BackfillPostBody = {
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     /**
-     * Regular expression selecting a subset of tasks to backfill. When set, only the matching tasks are scheduled and dependencies on unselected upstream tasks are ignored. The request is rejected if the pattern matches no task.
+     * Substring selecting a subset of tasks to backfill: tasks whose id contains this value are scheduled and dependencies on unselected upstream tasks are ignored. The request is rejected if it matches no task.
      */
     task_id_pattern?: string | null;
     /**

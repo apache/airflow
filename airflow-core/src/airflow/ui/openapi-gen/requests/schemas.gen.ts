@@ -931,7 +931,7 @@ export const $BackfillPostBody = {
                 }
             ],
             title: 'Task Id Pattern',
-            description: 'Regular expression selecting a subset of tasks to backfill. When set, only the matching tasks are scheduled and dependencies on unselected upstream tasks are ignored. The request is rejected if the pattern matches no task.'
+            description: 'Substring selecting a subset of tasks to backfill: tasks whose id contains this value are scheduled and dependencies on unselected upstream tasks are ignored. The request is rejected if it matches no task.'
         },
         run_on_latest_version: {
             anyOf: [

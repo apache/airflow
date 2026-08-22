@@ -1456,6 +1456,13 @@ class BackfillPostBody(BaseModel):
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
+    task_id_pattern: Annotated[
+        str | None,
+        Field(
+            description="Substring selecting a subset of tasks to backfill: tasks whose id contains this value are scheduled and dependencies on unselected upstream tasks are ignored. The request is rejected if it matches no task.",
+            title="Task Id Pattern",
+        ),
+    ] = None
     run_on_latest_version: Annotated[
         bool | None,
         Field(
@@ -1478,6 +1485,7 @@ class BackfillResponse(BaseModel):
     is_paused: Annotated[bool, Field(title="Is Paused")]
     reprocess_behavior: ReprocessBehavior
     max_active_runs: Annotated[int, Field(title="Max Active Runs")]
+    selected_task_ids: Annotated[list[str] | None, Field(title="Selected Task Ids")]
     created_at: Annotated[datetime, Field(title="Created At")]
     completed_at: Annotated[datetime | None, Field(title="Completed At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]

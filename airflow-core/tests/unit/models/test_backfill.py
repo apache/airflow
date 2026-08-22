@@ -37,7 +37,6 @@ from airflow.models.backfill import (
     InvalidBackfillConf,
     InvalidBackfillDateRange,
     InvalidBackfillDirection,
-    InvalidBackfillTaskPattern,
     InvalidReprocessBehavior,
     NoBackfillRunsToCreate,
     NoMatchingTasksForBackfill,
@@ -1533,12 +1532,11 @@ def test_handle_clear_run_preserves_partition_key(dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    "pattern, expected",
+    ("pattern", "expected"),
     [
         ("write_", ["write_a", "write_b"]),
-        ("^write_a$", ["write_a"]),
-        ("a", ["read_a", "write_a"]),
-        (".*", ["read_a", "write_a", "write_b"]),
+        ("write_a", ["write_a"]),
+        ("_a", ["read_a", "write_a"]),
     ],
 )
 def test_resolve_backfill_task_ids(pattern, expected, dag_maker, session):
@@ -1558,16 +1556,8 @@ def test_resolve_backfill_task_ids_no_match(dag_maker, session):
         _resolve_backfill_task_ids(dag, "does_not_exist")
 
 
-def test_resolve_backfill_task_ids_invalid_pattern(dag_maker, session):
-    with dag_maker(schedule="@daily") as dag:
-        PythonOperator(task_id="hi", python_callable=print)
-    session.commit()
-    with pytest.raises(InvalidBackfillTaskPattern, match="Invalid task_id_pattern"):
-        _resolve_backfill_task_ids(dag, "[")
-
-
 @pytest.mark.parametrize(
-    "pattern, expected",
+    ("pattern", "expected"),
     [
         ("write_", ["write_a", "write_b"]),
         (None, None),
@@ -1613,12 +1603,12 @@ def test_create_backfill_no_matching_tasks_raises(dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    "pattern, expectation",
+    ("pattern", "expectation"),
     [
         # A depends_on_past task that is not selected must not force reprocess_behavior.
-        ("^plain$", nullcontext()),
+        ("plain", nullcontext()),
         # Selecting the depends_on_past task with reprocess NONE still fails.
-        ("^dop$", pytest.raises(InvalidReprocessBehavior)),
+        ("dop", pytest.raises(InvalidReprocessBehavior)),
     ],
 )
 def test_create_backfill_depends_on_past_only_considers_selected(pattern, expectation, dag_maker, session):

@@ -42,9 +42,9 @@ pytestmark = pytest.mark.db_test
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.parametrize(
-    "task_id_pattern, expected_task_ids",
+    ("task_id_pattern", "expected_task_ids"),
     [
-        ("^write_", {"write_a", "write_b"}),
+        ("write_", {"write_a", "write_b"}),
         (None, {"read_a", "write_a", "write_b"}),
     ],
 )

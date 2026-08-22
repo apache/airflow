@@ -450,7 +450,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "max_active_runs": 5,
             "run_backwards": False,
             "dag_run_conf": {},
-            "task_id_pattern": "^write_",
+            "task_id_pattern": "write_",
         }
         response = test_client.post(url="/backfills", json=data)
         assert response.status_code == 200
@@ -1232,7 +1232,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             "run_backwards": False,
             "dag_run_conf": {},
         }
-        ok = test_client.post(url="/backfills/dry_run", json={**base, "task_id_pattern": "^write_"})
+        ok = test_client.post(url="/backfills/dry_run", json={**base, "task_id_pattern": "write_"})
         assert ok.status_code == 200
         assert ok.json()["total_entries"] > 0
 

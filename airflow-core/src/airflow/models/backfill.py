@@ -23,7 +23,6 @@ Internal classes for management of dag backfills.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
@@ -138,15 +137,7 @@ class NoBackfillRunsToCreate(ValueError):
 
 class NoMatchingTasksForBackfill(ValueError):
     """
-    Raised when a backfill's task-id pattern matches no tasks in the Dag.
-
-    :meta private:
-    """
-
-
-class InvalidBackfillTaskPattern(ValueError):
-    """
-    Raised when a backfill's task-id pattern is not a valid regular expression.
+    Raised when a backfill's task-id filter matches no tasks in the Dag.
 
     :meta private:
     """
@@ -310,16 +301,15 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
 
 def _resolve_backfill_task_ids(dag: SerializedDAG, task_id_pattern: str) -> list[str]:
     """
-    Resolve a task-id regex to the sorted list of matching task ids in the Dag.
+    Resolve a task-id substring filter to the sorted list of matching task ids in the Dag.
 
-    :raises InvalidBackfillTaskPattern: the pattern is not a valid regular expression.
-    :raises NoMatchingTasksForBackfill: the pattern matches no task in the Dag.
+    Matching is plain substring containment (a task is selected when its id contains
+    ``task_id_pattern``), mirroring ``SerializedDAG.partial_subset``. This deliberately
+    avoids compiling a user-supplied regular expression, which would be a ReDoS vector.
+
+    :raises NoMatchingTasksForBackfill: the filter matches no task in the Dag.
     """
-    try:
-        pattern = re.compile(task_id_pattern)
-    except re.error as e:
-        raise InvalidBackfillTaskPattern(f"Invalid task_id_pattern {task_id_pattern!r}: {e}") from e
-    matched = sorted(task_id for task_id in dag.task_ids if pattern.search(task_id))
+    matched = sorted(task_id for task_id in dag.task_ids if task_id_pattern in task_id)
     if not matched:
         raise NoMatchingTasksForBackfill(
             f"task_id_pattern {task_id_pattern!r} did not match any task in Dag {dag.dag_id}."

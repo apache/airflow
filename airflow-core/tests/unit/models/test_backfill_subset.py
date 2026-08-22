@@ -69,10 +69,10 @@ def _first_backfill_run(backfill_id, session) -> DagRun:
 def test_subset_backfill_creates_only_selected_tis(dag_maker, session):
     """verify_integrity on a subset backfill run creates task instances only for selected tasks."""
     with dag_maker(schedule="@daily") as dag:
-        task_a = EmptyOperator(task_id="task_a")
-        task_b = EmptyOperator(task_id="task_b")
-        task_c = EmptyOperator(task_id="task_c")
-        task_a >> task_b >> task_c
+        load = EmptyOperator(task_id="load")
+        transform_x = EmptyOperator(task_id="transform_x")
+        publish_x = EmptyOperator(task_id="publish_x")
+        load >> transform_x >> publish_x
     session.commit()
 
     backfill = _create_backfill(
@@ -83,30 +83,30 @@ def test_subset_backfill_creates_only_selected_tis(dag_maker, session):
         reverse=False,
         triggering_user_name="pytest",
         dag_run_conf={},
-        task_id_pattern="task_[bc]",
+        task_id_pattern="_x",
     )
-    assert set(backfill.selected_task_ids) == {"task_b", "task_c"}
+    assert set(backfill.selected_task_ids) == {"transform_x", "publish_x"}
 
     run = _first_backfill_run(backfill.id, session)
     # Attach the pruned Dag exactly like the scheduler does.
     run.dag = DBDagBag().get_dag_for_run(run, session=session)
-    assert set(run.dag.task_ids) == {"task_b", "task_c"}
+    assert set(run.dag.task_ids) == {"transform_x", "publish_x"}
 
     dag_version_id = DagVersion.get_latest_version(dag_id=dag.dag_id, session=session).id
     run.verify_integrity(dag_version_id=dag_version_id, session=session)
     session.flush()
 
     created = {ti.task_id for ti in run.get_task_instances(session=session)}
-    assert created == {"task_b", "task_c"}
+    assert created == {"transform_x", "publish_x"}
 
 
 def test_subset_backfill_selected_task_not_blocked_by_unselected_upstream(dag_maker, session):
     """A selected task whose upstream is unselected is schedulable (the upstream dep is ignored)."""
     with dag_maker(schedule="@daily") as dag:
-        task_a = EmptyOperator(task_id="task_a")
-        task_b = EmptyOperator(task_id="task_b")
-        task_c = EmptyOperator(task_id="task_c")
-        task_a >> task_b >> task_c
+        load = EmptyOperator(task_id="load")
+        transform_x = EmptyOperator(task_id="transform_x")
+        publish_x = EmptyOperator(task_id="publish_x")
+        load >> transform_x >> publish_x
     session.commit()
 
     backfill = _create_backfill(
@@ -117,7 +117,7 @@ def test_subset_backfill_selected_task_not_blocked_by_unselected_upstream(dag_ma
         reverse=False,
         triggering_user_name="pytest",
         dag_run_conf={},
-        task_id_pattern="task_[bc]",
+        task_id_pattern="_x",
     )
 
     run = _first_backfill_run(backfill.id, session)
@@ -130,6 +130,6 @@ def test_subset_backfill_selected_task_not_blocked_by_unselected_upstream(dag_ma
 
     decision = run.task_instance_scheduling_decisions(session=session)
     schedulable = {ti.task_id for ti in decision.schedulable_tis}
-    # task_b's only upstream (task_a) was pruned away, so it is immediately schedulable;
-    # task_c still waits on the not-yet-run task_b.
-    assert schedulable == {"task_b"}
+    # transform_x's only upstream (load) was pruned away, so it is immediately schedulable;
+    # publish_x still waits on the not-yet-run transform_x.
+    assert schedulable == {"transform_x"}
