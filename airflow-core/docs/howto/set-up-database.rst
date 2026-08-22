@@ -278,6 +278,15 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 .. note::
 
+   SQLAlchemy supports multiple fallback hosts for the psycopg2, psycopg, and asyncpg PostgreSQL dialects.
+   These dialects accept repeated ``host=<host>:<port>`` query parameters, with driver-specific port
+   requirements. See
+   `Specifying multiple fallback hosts <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#specifying-multiple-fallback-hosts>`__
+   and `asyncpg Multihost Connections <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#multihost-connections>`__
+   in the SQLAlchemy documentation for details.
+
+.. note::
+
    Airflow is known - especially in high-performance setup - to open many connections to metadata database. This might cause problems for
    Postgres resource usage, because in Postgres, each connection creates a new process and it makes Postgres resource-hungry when a lot
    of connections are opened. Therefore we recommend to use `PGBouncer <https://www.pgbouncer.org/>`_ as database proxy for all Postgres
