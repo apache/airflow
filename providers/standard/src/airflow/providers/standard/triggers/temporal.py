@@ -22,9 +22,128 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pendulum
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
+
+
+def _parse_timezone(value: str | int | datetime.tzinfo) -> Timezone | FixedTimezone:
+    """Return a pendulum timezone from an IANA name, fixed offset (seconds), or existing tzinfo."""
+    if isinstance(value, (Timezone, FixedTimezone)):
+        return value
+    if isinstance(value, datetime.tzinfo):
+        # Generic tzinfo (zoneinfo, datetime.timezone): rebuild a pendulum zone from its
+        # IANA name or fixed offset so pendulum's DST arithmetic gets a native zone type.
+        return pendulum.timezone(serializable_timezone(value))
+    return pendulum.timezone(value)
+
+
+def serializable_timezone(tzinfo: datetime.tzinfo | None) -> str | int:
+    """
+    Encode a tzinfo as a value that round-trips through ``pendulum.timezone`` / parse_timezone.
+
+    Named zones become their IANA name (e.g. ``Asia/Singapore``). Fixed-offset zones become
+    the offset in seconds (int), which is what Airflow's own timezone serializer uses.
+    UTC / zero-offset is always the string ``UTC`` for stable serialization.
+    """
+    if tzinfo is None:
+        return "UTC"
+    if isinstance(tzinfo, FixedTimezone):
+        if tzinfo.offset == 0:
+            return "UTC"
+        return tzinfo.offset
+    name = getattr(tzinfo, "name", None) or getattr(tzinfo, "key", None) or getattr(tzinfo, "zone", None)
+    if name:
+        if name in ("UTC", "utc", "+00:00"):
+            return "UTC"
+        return name
+    offset = tzinfo.utcoffset(None)
+    if offset is not None:
+        total = int(offset.total_seconds())
+        return "UTC" if total == 0 else total
+    return "UTC"
+
+
+def _coerce_target_time(target_time: datetime.time | str) -> datetime.time:
+    """Accept ``datetime.time`` or an ISO time string (Airflow serializes time as str)."""
+    if isinstance(target_time, str):
+        return datetime.time.fromisoformat(target_time)
+    if isinstance(target_time, datetime.time):
+        # Drop tzinfo so storage / comparison is wall-clock-only; zone is separate.
+        if target_time.tzinfo is not None:
+            return target_time.replace(tzinfo=None)
+        return target_time
+    raise TypeError(f"Expected datetime.time or str for target_time. Got {type(target_time)}")
+
+
+def resolve_time_of_day_moment(
+    target_time: datetime.time | str,
+    *,
+    tz: str | int | datetime.tzinfo = "UTC",
+    as_of: datetime.datetime | None = None,
+) -> pendulum.DateTime:
+    """
+    Resolve ``target_time`` on "today" in ``tz`` to a UTC-aware moment.
+
+    Semantics:
+
+    - **Already passed today**: still returns today's occurrence (caller succeeds immediately).
+      Does *not* roll forward to the next day.
+    - **Non-existent local time** (spring-forward gap, e.g. 02:30 America/New_York on DST start):
+      shifts forward to the next valid local time (e.g. 03:30).
+    - **Ambiguous local time** (fall-back overlap, e.g. 01:30 on DST end): uses ``fold=0``
+      (the first occurrence).
+    - Moment is computed from ``as_of`` (default: now) so callers can cache per attempt and
+      avoid midnight drift when re-checking within the same run.
+    """
+    wall_time = _coerce_target_time(target_time)
+    tzinfo = _parse_timezone(tz)
+
+    if as_of is None:
+        as_of = timezone.utcnow()
+    local_now = pendulum.instance(as_of).in_timezone(tzinfo)
+
+    # pendulum.datetime shifts non-existent (gap) times forward to the next valid wall time.
+    moment_local = pendulum.datetime(
+        local_now.year,
+        local_now.month,
+        local_now.day,
+        wall_time.hour,
+        wall_time.minute,
+        wall_time.second,
+        wall_time.microsecond,
+        tz=tzinfo,
+    )
+
+    # If the wall clock was preserved, check for ambiguous (fold) times and prefer fold=0.
+    if (
+        moment_local.hour,
+        moment_local.minute,
+        moment_local.second,
+        moment_local.microsecond,
+    ) == (
+        wall_time.hour,
+        wall_time.minute,
+        wall_time.second,
+        wall_time.microsecond,
+    ):
+        dt0 = datetime.datetime(
+            local_now.year,
+            local_now.month,
+            local_now.day,
+            wall_time.hour,
+            wall_time.minute,
+            wall_time.second,
+            wall_time.microsecond,
+            tzinfo=tzinfo,
+            fold=0,
+        )
+        dt1 = dt0.replace(fold=1)
+        if dt0.utcoffset() != dt1.utcoffset():
+            moment_local = pendulum.instance(dt0)
+
+    return timezone.convert_to_utc(moment_local)
 
 
 class DateTimeTrigger(BaseTrigger):
@@ -84,6 +203,58 @@ class DateTimeTrigger(BaseTrigger):
         else:
             self.log.info("yielding event with payload %r", self.moment)
             yield TriggerEvent(self.moment)
+
+
+class TimeOfDayTrigger(DateTimeTrigger):
+    """
+    Trigger that fires once the wall-clock reaches ``target_time`` in ``tz``.
+
+    The concrete moment is resolved at construction (triggerer start), not at
+    Dag-parse time. That keeps ``start_trigger_args`` parse-stable while
+    preserving ``TimeSensor(start_from_trigger=True)``.
+
+    ``serialize()`` includes the resolved ``moment`` so a reconstruct cannot
+    re-resolve "today" after midnight. ``start_trigger_args`` still omit
+    ``moment`` so Dag serialization stays parse-stable.
+
+    ``target_time`` is accepted as an ISO time string so trigger kwargs remain
+    JSON/serde-safe (``datetime.time`` is not accepted by Airflow's trigger serde).
+
+    :param target_time: wall-clock time of day (``datetime.time`` or ISO time string)
+    :param tz: IANA name (str) or fixed offset in seconds (int); must round-trip
+        through ``pendulum.timezone``. Named ``tz`` to avoid shadowing the
+        ``timezone`` module imported from the SDK compat layer.
+    :param end_from_trigger: whether the trigger should mark the task successful after
+        the time condition is reached
+    :param moment: optional pre-resolved UTC moment; used on serialize reconstruct
+    """
+
+    def __init__(
+        self,
+        target_time: datetime.time | str,
+        *,
+        tz: str | int = "UTC",
+        end_from_trigger: bool = False,
+        moment: datetime.datetime | None = None,
+    ) -> None:
+        wall = _coerce_target_time(target_time)
+        super().__init__(
+            moment=moment if moment is not None else resolve_time_of_day_moment(wall, tz=tz),
+            end_from_trigger=end_from_trigger,
+        )
+        self.target_time: str = wall.isoformat()
+        self.tz: str | int = tz
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.standard.triggers.temporal.TimeOfDayTrigger",
+            {
+                "target_time": self.target_time,
+                "tz": self.tz,
+                "end_from_trigger": self.end_from_trigger,
+                "moment": self.moment,
+            },
+        )
 
 
 class TimeDeltaTrigger(DateTimeTrigger):
