@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
@@ -103,6 +104,15 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
             raise ValueError("tool_name must be a non-empty string.")
         if max_retries < 0:
             raise ValueError(f"max_retries must not be negative, got {max_retries}.")
+        cls = type(self)
+        if (
+            cls.invoke is BaseManagedAgentToolset.invoke
+            and cls.invoke_sync is BaseManagedAgentToolset.invoke_sync
+        ):
+            raise TypeError(
+                f"{cls.__name__} must implement invoke_sync() for a blocking vendor SDK, "
+                "or override invoke() for a natively async client."
+            )
         self._tool_name = tool_name
         # Same fallback as HookToolset uses for a method with no docstring.
         self._description = (description or "").strip() or tool_name.replace("_", " ").capitalize()
@@ -122,10 +132,17 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         only names a connection.
         """
 
-    @abstractmethod
     async def invoke(self, prompt: str) -> Any:
         """
         Send ``prompt`` to the remote agent and return the agent's answer.
+
+        Override this when the client is natively async -- the Azure SDK's
+        ``aio`` variants, the async Google client, ``aiobotocore``. When it is
+        synchronous -- boto3 for Bedrock AgentCore, the Snowflake connector for
+        Cortex -- implement :meth:`invoke_sync` instead and let the default
+        implementation here run it in a worker thread, which keeps a blocking
+        call off the event loop that the whole agent run shares. Several vendors
+        ship both, so the choice follows the client rather than the platform.
 
         Return the answer, not the transport envelope -- whatever the calling
         model should actually read. Unwrapping is the implementation's job.
@@ -156,6 +173,27 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
 
         :param prompt: The question or instruction to send to the remote agent.
         """
+        return await asyncio.to_thread(self.invoke_sync, prompt)
+
+    def invoke_sync(self, prompt: str) -> Any:
+        """
+        Blocking variant of :meth:`invoke`, run in a worker thread.
+
+        This is the hook to implement when the managed agent's client is
+        synchronous. Call it normally -- the base class keeps it off the event
+        loop, so a call that takes minutes does not stall the calling agent's
+        other tool calls.
+
+        The contract is :meth:`invoke`'s: return the answer rather than the
+        transport envelope, sort failures into the same three buckets, and
+        release anything allocated on every path.
+
+        :param prompt: The question or instruction to send to the remote agent.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement invoke_sync() for a blocking vendor SDK, "
+            "or override invoke() for a natively async client."
+        )
 
     @property
     def id(self) -> str:
@@ -166,10 +204,11 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
             name=self._tool_name,
             description=self._description,
             parameters_json_schema=_PROMPT_SCHEMA,
-            # HookToolset sets sequential=True because its tools share one hook
-            # object doing synchronous I/O. Nothing is shared here: each call is
-            # an independent request to a remote service, so two calls the model
-            # issues in one turn are safe to run at once.
+            # HookToolset sets sequential=True because its tools call synchronous
+            # hook methods straight from the event loop. Here a blocking SDK goes
+            # through invoke_sync(), which the base class runs in a worker thread,
+            # and each call is an independent request to a remote service -- so
+            # two calls the model issues in one turn really can run at once.
             sequential=False,
             **return_schema_kwargs({"type": "string"}),
         )

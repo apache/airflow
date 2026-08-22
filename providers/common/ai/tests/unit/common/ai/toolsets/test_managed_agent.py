@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import time
 from typing import Any
 from unittest import mock
 
@@ -107,6 +109,61 @@ class TestBaseManagedAgentToolsetConstruction:
     def test_negative_max_retries_rejected(self):
         with pytest.raises(ValueError, match="max_retries must not be negative"):
             FakeManagedAgentToolset(max_retries=-1)
+
+    def test_subclass_implementing_neither_invoke_hook_is_rejected(self):
+        class Neither(BaseManagedAgentToolset):
+            @property
+            def agent_ref(self) -> dict[str, str]:
+                return {"platform": "fake.cloud", "name": "neither"}
+
+        with pytest.raises(TypeError, match="must implement invoke_sync"):
+            Neither(tool_name="ask_nothing")
+
+
+class TestSyncInvocation:
+    """A blocking vendor SDK must not run on the agent's event loop."""
+
+    class _Blocking(BaseManagedAgentToolset):
+        @property
+        def agent_ref(self) -> dict[str, str]:
+            return {"platform": "fake.cloud", "name": "blocking"}
+
+        def invoke_sync(self, prompt: str) -> Any:
+            time.sleep(0.2)
+            return f"slept for {prompt}"
+
+    @pytest.mark.asyncio
+    async def test_invoke_sync_is_offloaded_so_the_loop_keeps_running(self):
+        # A synchronous client would freeze every other tool call for the
+        # duration of the remote call if it ran on the loop, so the base class
+        # runs invoke_sync in a worker thread.
+        ticks = 0
+
+        async def ticker():
+            nonlocal ticks
+            while True:
+                await asyncio.sleep(0.01)
+                ticks += 1
+
+        task = asyncio.create_task(ticker())
+        result = await self._Blocking(tool_name="ask_slow").invoke("q")
+        task.cancel()
+
+        assert result == "slept for q"
+        assert ticks >= 3, "the event loop was blocked while invoke_sync ran"
+
+    @pytest.mark.asyncio
+    async def test_invoke_sync_result_reaches_the_model_through_call_tool(self):
+        toolset = self._Blocking(tool_name="ask_slow")
+        tools = await toolset.get_tools(ctx=None)
+        result = await toolset.call_tool("ask_slow", {"prompt": "q"}, None, tools["ask_slow"])
+        assert result == "slept for q"
+
+    @pytest.mark.asyncio
+    async def test_an_async_override_is_used_as_is(self):
+        # FakeManagedAgentToolset overrides invoke() directly, the path a vendor
+        # with a natively async client takes.
+        assert await FakeManagedAgentToolset(result="async answer").invoke("q") == "async answer"
 
 
 class TestGetTools:
