@@ -1635,6 +1635,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterListLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAICustomJobLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink",
