@@ -30,6 +30,7 @@ class Db2Dialect(Dialect):
         self,
         table: str,
         schema: str | None = None,
+        predicate=None,
         **kwargs,
     ) -> list[str] | None:
         """

@@ -55,7 +55,7 @@ class TestDb2Hook:
             password="db2pass",
             schema="testdb",
             port=50000,
-            extra='{"ssl": true, "sslcert": "/path/to/cert.pem"}',
+            extra='{"SECURITY": "SSL", "SSLServerCertificate": "/path/to/cert.crt"}',
         )
         return conn
 
@@ -96,8 +96,8 @@ class TestDb2Hook:
         assert conn == mock_db_conn
         mock_ibm_db_dbi.connect.assert_called_once()
         call_args = mock_ibm_db_dbi.connect.call_args[0][0]
-        assert "SSL=true" in call_args
-        assert "SSLCERT=/path/to/cert.pem" in call_args
+        assert "SECURITY=SSL" in call_args
+        assert "SSLSERVERCERTIFICATE=/path/to/cert.crt" in call_args
 
     @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     def test_get_uri(self, mock_get_connection, mock_connection):
