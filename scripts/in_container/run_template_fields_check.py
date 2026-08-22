@@ -166,7 +166,7 @@ if __name__ == "__main__":
         modules_to_validate = [
             module_name
             for pyfile in py_files
-            if (module_name := pyfile.rstrip(".py").replace("/", ".")) in provider_modules
+            if (module_name := pyfile.removesuffix(".py").replace("/", ".")) in provider_modules
         ]
     else:
         modules_to_validate = provider_modules
