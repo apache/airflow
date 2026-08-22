@@ -34,3 +34,10 @@ class AddTriggeringUserNameField(VersionChange):
         """Remove the `triggering_user_name` field from the dag_run object when converting to the previous version."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("triggering_user_name", None)
+
+    # The compat previous-run route has no response model, so it is addressed by path.
+    @convert_response_to_previous_version_for("/dag-runs/{dag_id}/previous", ["GET"])  # type: ignore[arg-type]
+    def remove_triggering_user_name_from_compat_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the `triggering_user_name` field from the compat previous-run response."""
+        if isinstance(response.body, dict):
+            response.body.pop("triggering_user_name", None)
