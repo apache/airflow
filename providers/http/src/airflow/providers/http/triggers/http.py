@@ -22,7 +22,6 @@ import importlib
 import inspect
 import sys
 from collections.abc import AsyncIterator
-from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -33,6 +32,7 @@ from requests.structures import CaseInsensitiveDict
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.http.auth_helpers import deserialize_auth_type, serialize_auth_type
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -43,21 +43,6 @@ else:
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
-
-
-def serialize_auth_type(auth: str | type | None) -> str | None:
-    if auth is None:
-        return None
-    if isinstance(auth, str):
-        return auth
-    return f"{auth.__module__}.{auth.__qualname__}"
-
-
-def deserialize_auth_type(path: str | None) -> type | None:
-    if path is None:
-        return None
-    module_path, cls_name = path.rsplit(".", 1)
-    return getattr(import_module(module_path), cls_name)
 
 
 class HttpResponseSerializer:
@@ -220,6 +205,7 @@ class HttpSensorTrigger(BaseTrigger):
     :param extra_options: Additional kwargs to pass when creating a request.
         For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
     :param poke_interval: Time to sleep using asyncio
+    :param auth_type: The auth type for the service.
     """
 
     def __init__(
@@ -231,6 +217,7 @@ class HttpSensorTrigger(BaseTrigger):
         headers: dict[str, str] | None = None,
         extra_options: dict[str, Any] | None = None,
         poke_interval: float = 5.0,
+        auth_type: str | None = None,
     ):
         super().__init__()
         self.endpoint = endpoint
@@ -240,6 +227,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.extra_options = extra_options or {}
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
+        self.auth_type = deserialize_auth_type(auth_type)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -253,6 +241,7 @@ class HttpSensorTrigger(BaseTrigger):
                 "extra_options": self.extra_options,
                 "http_conn_id": self.http_conn_id,
                 "poke_interval": self.poke_interval,
+                "auth_type": serialize_auth_type(self.auth_type),
             },
         )
 
@@ -278,6 +267,7 @@ class HttpSensorTrigger(BaseTrigger):
     def _get_async_hook(self) -> HttpAsyncHook:
         return HttpAsyncHook(
             method=self.method,
+            auth_type=self.auth_type,
             http_conn_id=self.http_conn_id,
         )
 

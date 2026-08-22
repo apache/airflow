@@ -34,9 +34,10 @@ from requests.models import RequestEncodingMixin
 from airflow.hooks import base
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.http.auth_helpers import serialize_auth_type
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
-from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
+from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
