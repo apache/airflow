@@ -91,10 +91,11 @@ from airflow.sdk import (
 )
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineReference, VariableInterval
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
+from airflow.sdk.serde import serialize
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -4135,6 +4136,7 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
         (DeadlineReference.FIXED_DATETIME, datetime.timedelta(hours=1)),
     ]
 
+    deadline_intervals = {}
     for deadline_type, interval in deadline_configs:
         if deadline_type == DeadlineReference.DAGRUN_QUEUED_AT:
             reference = DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference()
@@ -4147,7 +4149,7 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
         deadline_alert = DeadlineAlertModel(
             serialized_dag_id=serialized_dag_id,
             reference=reference,
-            interval=interval.total_seconds(),
+            interval=serialize(interval),
             callback_def={"path": f"{__name__}.empty_callback_for_deadline", "kwargs": {}},
         )
         session.add(deadline_alert)
@@ -4161,6 +4163,7 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
             dag_id=dag_run.dag_id,
         )
         session.add(deadline)
+        deadline_intervals[deadline_alert.id] = interval
 
     session.flush()
 
@@ -4183,11 +4186,51 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
     for deadline in deadlines_after:
         if deadline.deadline_time != deadline_times_by_alert[deadline.deadline_alert_id]:
             recalculated_count += 1
-            deadline_alert = session.get(DeadlineAlertModel, deadline.deadline_alert_id)
-            expected_time = dag_run.queued_at + datetime.timedelta(seconds=deadline_alert.interval)
+            expected_time = dag_run.queued_at + deadline_intervals[deadline.deadline_alert_id]
             assert deadline.deadline_time == expected_time
 
     assert recalculated_count == 2
+
+
+@mock.patch("airflow.sdk.definitions.deadline.Variable.get", return_value="7200")
+def test_clear_task_instances_recalculates_variable_interval_deadline(_, dag_maker, session):
+    """Test that clearing tasks resolves a serialized VariableInterval deadline."""
+    with dag_maker(
+        dag_id="test_recalculate_variable_interval_deadline", schedule=datetime.timedelta(days=1)
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+    dag_run.queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    session.flush()
+
+    serialized_dag_id = session.scalar(
+        select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+    )
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=serialized_dag_id,
+        reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
+        interval=serialize(VariableInterval("deadline_seconds")),
+        callback_def={"path": f"{__name__}.empty_callback_for_deadline", "kwargs": {}},
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    deadline = Deadline(
+        dagrun_id=dag_run.id,
+        deadline_alert_id=deadline_alert.id,
+        deadline_time=dag_run.queued_at + datetime.timedelta(hours=1),
+        callback=AsyncCallback(empty_callback_for_deadline),
+        dag_id=dag_run.dag_id,
+    )
+    session.add(deadline)
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    assert deadline.deadline_time == dag_run.queued_at + datetime.timedelta(hours=2)
 
 
 def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
