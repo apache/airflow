@@ -146,4 +146,8 @@ DatabricksRunNowDeferrableOperator
 
 Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` operator.
 
+.. note::
+  When using Airflow 3, deferrable execution requires Airflow 3.1.0 or later. Airflow 3.0.x
+  cannot fetch the Databricks connection from the Triggerer during asynchronous polling.
+
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
