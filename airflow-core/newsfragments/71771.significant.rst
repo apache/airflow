@@ -1,0 +1,44 @@
+Persist Dag parse results a group at a time
+
+The Dag processor now writes the files that finished parsing together in a single pass, rather
+than one call per file. Everything a write does besides the Dags themselves is paid once per
+group instead of once per file.
+
+**What changed:**
+
+- ``DagFileProcessorManager.persist_parsing_results`` is the seam for replacing the write.
+  It is handed one group of ``FileParseResult`` at a time, together with the session to write on.
+  A file that parsed and defined no Dags is in the group like any other, since its import errors
+  still have to be cleared.
+- ``DagFileProcessorManager.persist_parsing_result``, which took one file at a time, is
+  deprecated and will be removed in Airflow 4.0. Overriding it still works until then, but parse
+  results are persisted one file at a time and batching is skipped for the whole Dag processor.
+- Overriding ``handle_parsing_result`` is still supported and also skips batching. It remains the
+  only hook that sees every completion, including callback-only runs and failed parses.
+
+**Behaviour changes:**
+
+- ``on_asset_created`` now reports the definition that is written. Where two files in one group
+  define the same asset differently, writing a file at a time announced the first file's
+  definition and then silently overwrote it, so the announcement disagreed with the row; a group
+  coalesces the definitions before creating the row and announces what it wrote.
+
+**Migration:**
+
+- Move a ``persist_parsing_result`` override to ``persist_parsing_results``, which receives a
+  sequence of results and a session instead of one file's arguments.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * Replace ``DagFileProcessorManager.persist_parsing_result`` overrides with
+    ``DagFileProcessorManager.persist_parsing_results``, which is handed a group of parse results.
