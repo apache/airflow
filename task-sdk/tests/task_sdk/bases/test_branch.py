@@ -61,10 +61,12 @@ class TestBranchMixIn:
 
         mock_task = MagicMock(spec=BaseOperator)
         mock_task.downstream_list = [downstream1, downstream2]
+        mock_task.task_group = None
         mock_dag = MagicMock(spec=DAG)
         mock_dag.task_ids = ["branch", "down1", "down2"]
         mock_dag.get_task.return_value = downstream1
         mock_dag.task_group_dict = {}
+        mock_dag.task_dict = {"branch": mock_task, "down1": downstream1, "down2": downstream2}
         mock_task.dag = mock_dag
 
         ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1, task=mock_task)
@@ -101,13 +103,35 @@ class TestBranchMixIn:
 
         mock_dag = MagicMock(spec=DAG)
         mock_dag.task_group_dict = {}
+        mock_dag.task_dict = {"regular_task": object()}
         mock_task = MagicMock(spec=BaseOperator)
+        mock_task.task_group = None
         mock_task.dag = mock_dag
 
         ti = Mock(spec=RuntimeTaskInstanceProtocol, task=mock_task)
 
         result = list(mixin._expand_task_group_roots(ti, "regular_task"))
         assert result == ["regular_task"]
+
+    def test_expand_task_group_roots_resolves_relative_id_inside_group(self):
+        """A relative branch ID should resolve to the fully-qualified id ("path_a" -> "tg.path_a")."""
+        mixin = BranchMixIn()
+
+        mock_tg = MagicMock(spec=TaskGroup)
+        mock_tg.group_id = "tg"
+        mock_tg.prefix_group_id = True
+
+        mock_dag = MagicMock(spec=DAG)
+        mock_dag.task_group_dict = {"tg": mock_tg}
+        mock_dag.task_dict = {"tg.choose": object(), "tg.path_a": object()}
+        mock_task = MagicMock(spec=BaseOperator)
+        mock_task.task_group = mock_tg
+        mock_task.dag = mock_dag
+
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, task=mock_task)
+
+        assert list(mixin._expand_task_group_roots(ti, "path_a")) == ["tg.path_a"]
+        assert list(mixin._expand_task_group_roots(ti, "tg.path_a")) == ["tg.path_a"]
 
 
 class TestBaseBranchOperator:
