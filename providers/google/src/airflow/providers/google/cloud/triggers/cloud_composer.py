@@ -24,12 +24,17 @@ from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from dateutil import parser
 from google.api_core.exceptions import NotFound
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
+from airflow.providers.google.cloud.utils.composer import (
+    check_dag_run_states_in_window,
+    composer_dag_run_date_field,
+    is_in_execution_window,
+    parse_composer_airflow_datetime,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -212,7 +217,8 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         self.composer_dag_id = composer_dag_id
         self.start_date = start_date
         self.end_date = end_date
-        self.allowed_states = allowed_states
+        # Empty/None must not treat every run as failure (see sensor default).
+        self.allowed_states = list(allowed_states) if allowed_states else ["success"]
         self.composer_dag_run_id = composer_dag_run_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -270,16 +276,13 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         start_date: datetime,
         end_date: datetime,
     ) -> bool:
-        for dag_run in dag_runs:
-            if (
-                start_date.timestamp()
-                < parser.parse(
-                    dag_run["execution_date" if self.composer_airflow_version < 3 else "logical_date"]
-                ).timestamp()
-                < end_date.timestamp()
-            ) and dag_run["state"] not in self.allowed_states:
-                return False
-        return True
+        return check_dag_run_states_in_window(
+            dag_runs,
+            start_date=start_date,
+            end_date=end_date,
+            allowed_states=self.allowed_states,
+            composer_airflow_version=self.composer_airflow_version,
+        )
 
     def _get_async_hook(self) -> CloudComposerAsyncHook:
         return CloudComposerAsyncHook(
@@ -414,13 +417,14 @@ class CloudComposerExternalTaskTrigger(BaseTrigger):
             self.composer_external_dag_id,
             self.environment_id,
         )
+        date_field = composer_dag_run_date_field(self.composer_airflow_version)
         task_instances_response = await self.gcp_hook.get_task_instances(
             composer_airflow_uri=composer_airflow_uri,
             composer_dag_id=self.composer_external_dag_id,
             composer_airflow_version=self.composer_airflow_version,
             query_parameters={
-                "execution_date_gte" if self.composer_airflow_version < 3 else "logical_date_gte": start_date,
-                "execution_date_lte" if self.composer_airflow_version < 3 else "logical_date_lte": end_date,
+                f"{date_field}_gte": start_date,
+                f"{date_field}_lte": end_date,
             },
         )
         task_instances = task_instances_response["task_instances"]
@@ -447,14 +451,12 @@ class CloudComposerExternalTaskTrigger(BaseTrigger):
         end_date: datetime,
         states: Iterable[str],
     ) -> bool:
+        date_field = composer_dag_run_date_field(self.composer_airflow_version)
         for task_instance in task_instances:
-            if (
-                start_date.timestamp()
-                < parser.parse(
-                    task_instance["execution_date" if self.composer_airflow_version < 3 else "logical_date"]
-                ).timestamp()
-                < end_date.timestamp()
-            ) and task_instance["state"] not in states:
+            run_dt = parse_composer_airflow_datetime(task_instance.get(date_field))
+            if run_dt is None:
+                continue
+            if is_in_execution_window(run_dt, start_date, end_date) and task_instance["state"] not in states:
                 return False
         return True
 
