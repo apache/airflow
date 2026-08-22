@@ -1430,7 +1430,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                # Skip RUNNING: the callback token endpoint owns that transition, so persisting it here races.
+                if state in (CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
             else:
                 cls.logger().error("Unknown workload key type in event buffer: %r", key)
@@ -1447,10 +1448,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            if state == CallbackState.RUNNING:
-                callback.state = CallbackState.RUNNING
-                cls.logger().info("Callback %s is currently running", callback_id)
-            elif state == CallbackState.SUCCESS:
+            if state == CallbackState.SUCCESS:
                 callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)
             elif state == CallbackState.FAILED:
