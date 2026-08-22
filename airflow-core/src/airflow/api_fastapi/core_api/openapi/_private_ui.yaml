@@ -2681,6 +2681,11 @@ components:
         multi_team:
           type: boolean
           title: Multi Team
+        sensitive_field_names:
+          items:
+            type: string
+          type: array
+          title: Sensitive Field Names
         rerun_with_latest_version:
           anyOf:
           - type: boolean
@@ -2700,6 +2705,7 @@ components:
       - show_external_log_redirect
       - theme
       - multi_team
+      - sensitive_field_names
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:

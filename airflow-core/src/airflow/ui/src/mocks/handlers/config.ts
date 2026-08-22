@@ -29,6 +29,7 @@ export const handlers: Array<HttpHandler> = [
       multi_team: false,
       page_size: 15,
       require_confirmation_dag_change: false,
+      sensitive_field_names: [],
       test_connection: "Disabled",
     }),
   ),
