@@ -133,6 +133,7 @@ class TestMSGraphTrigger:
                 "scopes": [KiotaRequestAdapterHook.DEFAULT_SCOPE],
                 "api_version": APIVersion.v1.value,
                 "serializer": f"{ResponseSerializer.__module__}.{ResponseSerializer.__name__}",
+                "pagination_link": False,
             }
 
     def test_get_conn(self):
