@@ -331,8 +331,9 @@ _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
 
 def _get_forwardable_dag_params(params: Mapping[str, Any]) -> dict[str, Any]:
     """Return the Dag params that can be forwarded to Databricks."""
-    # A nullable Param left unset has no value to forward, and the Databricks payload has no
-    # slot for null.
+    # A Param that resolves to None has no value to forward, and the Databricks payload has no
+    # slot for null. The dict() round-trip is what resolves each Param: ParamsDict.items() yields
+    # the Param objects themselves, none of which would ever compare equal to None.
     return {key: value for key, value in dict(params).items() if value is not None}
 
 
