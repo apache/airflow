@@ -20,6 +20,8 @@ import time
 from unittest import mock
 
 import pytest
+from anthropic import APIStatusError
+from httpx import Request, Response
 
 from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.triggers.base import TriggerEvent
@@ -28,6 +30,12 @@ pytest.importorskip("anthropic")
 
 TRIGGER_PATH = "airflow.providers.anthropic.triggers.batch"
 HOOK_PATH = "airflow.providers.anthropic.hooks.anthropic.AnthropicHook.get_batch"
+
+
+def _api_status_error(status_code: int) -> APIStatusError:
+    request = Request("GET", "https://api.anthropic.com/v1/messages/batches/batch_1")
+    response = Response(status_code, request=request)
+    return APIStatusError(f"HTTP {status_code}", response=response, body=None)
 
 
 def _batch(status, succeeded=0, errored=0, canceled=0, expired=0, processing=0):
@@ -103,11 +111,22 @@ class TestAnthropicBatchTrigger:
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.asyncio.sleep")
     @mock.patch(HOOK_PATH)
-    async def test_persistent_error_yields_error_after_retries(self, mock_get_batch, mock_sleep):
-        mock_get_batch.side_effect = RuntimeError("kaboom")
+    async def test_permanent_api_error_yields_error_without_retry(self, mock_get_batch, mock_sleep):
+        mock_get_batch.side_effect = _api_status_error(404)
         event = await self._trigger().run().__anext__()
-        assert event == TriggerEvent({"status": "error", "batch_id": self.BATCH_ID, "message": "kaboom"})
-        assert mock_get_batch.call_count == 5
+        assert event.payload["status"] == "error"
+        assert mock_get_batch.call_count == 1
+        mock_sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.asyncio.sleep")
+    @mock.patch(HOOK_PATH)
+    async def test_transient_server_error_then_success(self, mock_get_batch, mock_sleep):
+        mock_get_batch.side_effect = [_api_status_error(503), _batch("ended", succeeded=1)]
+        event = await self._trigger().run().__anext__()
+        assert event.payload["status"] == "success"
+        assert mock_get_batch.call_count == 2
+        mock_sleep.assert_awaited_once_with(self.POLL)
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.asyncio.sleep")
