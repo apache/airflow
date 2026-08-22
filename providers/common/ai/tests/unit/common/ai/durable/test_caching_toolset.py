@@ -147,6 +147,21 @@ class TestCachingToolsetReplayVerification:
         assert result == "fresh result"
         mock_toolset.call_tool.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_unverifiable_current_call_treated_as_miss(self, mock_toolset, mock_storage, counter):
+        mock_storage.load_tool_result.return_value = (True, "stale result", None)
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+        tool_args = {"value": object()}
+
+        result = await caching.call_tool("search", tool_args, ctx_for("call_1"), MagicMock())
+
+        assert result == "fresh result"
+        mock_toolset.call_tool.assert_called_once()
+        assert counter.replayed_tool == 0
+        mock_storage.save_tool_result.assert_called_once_with(
+            f"{P}tool_step_0", "fresh result", fingerprint=None
+        )
+
 
 class TestSharedCounter:
     @pytest.mark.asyncio
