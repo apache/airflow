@@ -700,16 +700,22 @@ The API server caches serialized Dag objects in memory. Over time, as Dag versio
 
 There are two complementary approaches:
 
-**1. Bounded DAG caching (available since Airflow 3.3.0)**
+**1. Dag cache eviction (available since Airflow 3.2.2)**
 
-The API server supports LRU+TTL caching that bounds how many serialized Dag versions are kept
-in memory. Configure this in the ``[api]`` section:
+The API server can evict cached serialized Dag versions by size, by age, or both. Configure
+this in the ``[api]`` section:
 
 .. code-block:: ini
 
     [api]
-    dag_cache_size = 64    ; max cached versions (0 = unbounded, pre-3.2 behavior)
-    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = LRU only)
+    dag_cache_size = 64    ; max cached versions (0 = no size limit)
+    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = no TTL)
+
+``dag_cache_size`` is the only hard ceiling on memory. An entry's TTL is refreshed only when the
+entry is checked against the database after ``[core] min_serialized_dag_update_interval``, not on
+every request. With a shorter TTL, even frequently requested entries can expire and reload
+between checks. Setting both options to 0 uses an unbounded dict with no eviction, matching the
+behavior before 3.2.2.
 
 The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
 previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
@@ -741,7 +747,7 @@ See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, 
 .. note::
 
     Worker recycling handles memory growth from *any* source, not just the Dag cache.
-    For production deployments, using both bounded caching and gunicorn worker recycling
+    For production deployments, using both cache eviction and gunicorn worker recycling
     provides the best results.
 
 
