@@ -1,0 +1,1 @@
+Add ``retries`` to ``TaskGroup`` to retry a whole task group as a unit. When any task in a group fails after exhausting its own retries, every task in the group is cleared and re-run, up to the configured number of group retries.
