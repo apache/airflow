@@ -428,6 +428,14 @@ represented as Java objects when read back via ``getXCom``.
 
 .. note::
 
+   ``char`` and ``Character`` are not supported.  JSON has no single-character type, so a
+   character value is stored as a JSON string (or a number) and is read back as one of the
+   Java types in the table above.  Declaring ``char`` or ``Character`` as an
+   ``@Builder.XCom`` parameter compiles, but reading a pushed value fails at runtime with a
+   ``ClassCastException``.  Use ``String`` instead.
+
+.. note::
+
    An ``@Builder.XCom`` parameter that reads a value which was never pushed resolves to
    ``null``.  A boxed parameter (``Integer``, ``Long``, ``Boolean``, …) receives ``null``
    safely, but a primitive parameter (``int``, ``long``, ``boolean``, …) cannot represent
