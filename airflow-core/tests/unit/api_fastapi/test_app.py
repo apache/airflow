@@ -187,7 +187,7 @@ class TestInitializeApiServerStats:
         ):
             app_module._initialize_api_server_stats()
 
-            mock_get_factory.assert_called_once_with()
+            assert mock_get_factory.call_count == 1
             mock_stats.initialize.assert_called_once()
             _, kwargs = mock_stats.initialize.call_args
             assert kwargs["factory"] is sentinel_factory

@@ -20,6 +20,7 @@ import logging
 import os
 import re
 import socket
+import sys
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -105,6 +106,37 @@ def initialize(
     _factory = factory
     _backend = None
     _export_legacy_names = export_legacy_names
+    _propagate_to_sibling_modules(factory=factory, export_legacy_names=export_legacy_names)
+
+
+def _propagate_to_sibling_modules(
+    *,
+    factory: Callable[[], StatsLogger | NoStatsLogger],
+    export_legacy_names: bool,
+) -> None:
+    """
+    Apply the same configuration to other loaded copies of this module.
+
+    This source file is symlinked into multiple distributions (e.g. ``airflow-core`` and
+    ``task-sdk``), each importing it under a different module name (``airflow._shared...`` vs
+    ``airflow.sdk._shared...``). Python treats each as a distinct module object with its own
+    module-level globals, so a process that has both loaded (e.g. the scheduler, which also runs
+    plugin/listener code that reaches ``Stats`` through the task-sdk path) would otherwise end up
+    with one singleton initialized and the other silently defaulting to ``NoStatsLogger``.
+    ``__file__`` differs per symlinked path, so siblings are identified by resolved real path
+    instead. Attributes are set via ``setattr`` (mypy has no visibility into another module's
+    globals) rather than by calling the sibling's own ``initialize()``, to avoid re-entering
+    this function.
+    """
+    this_file = os.path.realpath(__file__)
+    for name, module in list(sys.modules.items()):
+        if name == __name__ or module is None:
+            continue
+        if os.path.realpath(getattr(module, "__file__", "") or "") != this_file:
+            continue
+        setattr(module, "_factory", factory)
+        setattr(module, "_backend", None)
+        setattr(module, "_export_legacy_names", export_legacy_names)
 
 
 def _get_backend() -> StatsLogger | NoStatsLogger:
