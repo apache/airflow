@@ -20,6 +20,9 @@ import * as ChakraUI from "@chakra-ui/react";
 import * as EmotionReact from "@emotion/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
+// Plugins are UMD-bundled against a `React` global, so this republishes the
+// host's React to them verbatim — the one place the namespace import is needed.
+// eslint-disable-next-line @typescript-eslint/no-restricted-imports
 import React, { StrictMode } from "react";
 import * as ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -29,7 +32,7 @@ import * as ReactRouterDOM from "react-router-dom";
 import * as ReactJSXRuntime from "react/jsx-runtime";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
-import { pruneLegacyDependencyKeys } from "src/constants/localStorage";
+import { pruneLegacyDependencyKeys, pruneLegacyTagFilterKeys } from "src/constants/localStorage";
 import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
 import { ShortcutRegistryProvider } from "src/context/keyboardShortcuts";
@@ -97,6 +100,7 @@ axios.interceptors.response.use(
 );
 
 pruneLegacyDependencyKeys();
+pruneLegacyTagFilterKeys();
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>

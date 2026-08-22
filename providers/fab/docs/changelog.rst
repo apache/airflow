@@ -20,6 +20,32 @@
 Changelog
 ---------
 
+3.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate issuer and audience of Azure AD id_tokens in FAB auth manager (#71735)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.8.1 (#71508)``
+* ``Add pnpm overrides after audit review in fab provider (#71448)``
+* ``Bump webpack to 5.109.2 and webpack-cli to 7.2.2 (#71005)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix SSO docs pointing at the pre-Airflow 3 OAuth redirect path (#71624)``
+* ``Document API token response details (#71583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+
+
 3.8.0
 .....
 
@@ -34,6 +60,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix asset state store writes forbidden under FAB auth manager (#70478)``
+* ``Stop dumping every Dag to stdout when syncing FAB permissions (#70939)``
 
 Misc
 ~~~~

@@ -45,7 +45,7 @@ const normalizeSearch = (value: string) => {
 };
 
 export const PresetFiltersMenu = () => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [, setSorting] = useLocalStorage<SortingState>(tableSortKey(pathname), []);
