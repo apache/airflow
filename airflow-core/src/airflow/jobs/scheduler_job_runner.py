@@ -3443,36 +3443,55 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for executor, tis in exec_to_tis.items():
                         to_reset.extend(executor.try_adopt_task_instances(tis))
 
+                    # Executors may hand back TaskInstances that are no longer bound to this
+                    # session, and the query above loads only a few columns — so the reads
+                    # below (the full row copied by prepare_db_for_next_try into
+                    # TaskInstanceHistory, last_heartbeat_at, dag_run.conf) would trigger
+                    # lazy loads that raise DetachedInstanceError on a detached instance and
+                    # crash the scheduler loop. Re-select the rows by their already-loaded
+                    # ids so both branches work on fully loaded, session-bound instances.
+                    to_reset_ids = {ti.id for ti in to_reset}
+                    ids_to_process = [ti.id for ti in tis_to_adopt_or_reset]
+                    bound_tis: list[TaskInstance] = (
+                        list(
+                            session.scalars(
+                                select(TI).options(joinedload(TI.dag_run)).where(TI.id.in_(ids_to_process))
+                            )
+                        )
+                        if ids_to_process
+                        else []
+                    )
+
                     reset_tis_message = []
-                    for ti in to_reset:
-                        reset_tis_message.append(repr(ti))
-                        # If we reset a TI, it will be eligible to be scheduled again.
-                        # This can cause the scheduler to increase the try_number on the TI.
-                        # Record the current try to TaskInstanceHistory first so users have an audit trail for
-                        # the attempt that was abandoned.
-                        ti.prepare_db_for_next_try(session=session)
+                    for ti in bound_tis:
+                        if ti.id in to_reset_ids:
+                            reset_tis_message.append(repr(ti))
+                            # If we reset a TI, it will be eligible to be scheduled again.
+                            # This can cause the scheduler to increase the try_number on the TI.
+                            # Record the current try to TaskInstanceHistory first so users have an
+                            # audit trail for the attempt that was abandoned.
+                            ti.prepare_db_for_next_try(session=session)
 
-                        ti.state = None
-                        ti.queued_by_job_id = None
-                        ti.external_executor_id = None
-                        ti.clear_next_method_args()
+                            ti.state = None
+                            ti.queued_by_job_id = None
+                            ti.external_executor_id = None
+                            ti.clear_next_method_args()
+                        else:
+                            ti.queued_by_job_id = self.job.id
+                            # If old ti from Airflow 2 and last_heartbeat_at is None, set last_heartbeat_at to now
+                            if ti.last_heartbeat_at is None:
+                                ti.last_heartbeat_at = timezone.utcnow()
+                            # If old ti from Airflow 2 and dag_run.conf is None, set dag_run.conf to {}
+                            if ti.dag_run.conf is None:
+                                ti.dag_run.conf = {}
 
-                    for ti in set(tis_to_adopt_or_reset) - set(to_reset):
-                        ti.queued_by_job_id = self.job.id
-                        # If old ti from Airflow 2 and last_heartbeat_at is None, set last_heartbeat_at to now
-                        if ti.last_heartbeat_at is None:
-                            ti.last_heartbeat_at = timezone.utcnow()
-                        # If old ti from Airflow 2 and dag_run.conf is None, set dag_run.conf to {}
-                        if ti.dag_run.conf is None:
-                            ti.dag_run.conf = {}
-
-                    stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
-                    stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
-                    if to_reset:
+                    stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset_ids))
+                    stats.incr("scheduler.orphaned_tasks.adopted", len(ids_to_process) - len(to_reset_ids))
+                    if reset_tis_message:
                         task_instance_str = "\n\t".join(reset_tis_message)
                         self.log.info(
                             "Reset the following %s orphaned TaskInstances:\n\t%s",
-                            len(to_reset),
+                            len(to_reset_ids),
                             task_instance_str,
                         )
 
@@ -3483,7 +3502,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session.rollback()
                     raise
 
-        return len(to_reset)
+        return len(to_reset_ids)
 
     @provide_session
     def check_trigger_timeouts(
