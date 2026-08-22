@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Hashable
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -30,6 +31,38 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.executors.workloads.types import WorkloadState
+
+
+class WorkloadType(str, Enum):
+    """Central registry of executor workload types."""
+
+    EXECUTE_TASK = "ExecuteTask"
+    EXECUTE_CALLBACK = "ExecuteCallback"
+    TEST_CONNECTION = "TestConnection"
+
+
+# Central executor priority registry: tuple is ordered from highest priority to lowest.
+#
+# Connection tests are short-lived and user-interactive, so they sort ahead of tasks:
+# otherwise a sustained task backlog would starve them until the reaper times them out.
+#
+# Adding a new workload type is a four-place change that must stay in sync:
+#   1. ``WorkloadType`` — declare the enum member.
+#   2. ``_workload_type_priority_order`` — insert it at the right priority slot.
+#   3. ``All`` and ``ExecutorWorkload`` in ``airflow.executors.workloads`` — extend the
+#      discriminated unions (``Field(discriminator="type")``) that gate (de)serialization,
+#      e.g. Celery's ``TypeAdapter`` decodes dequeued workloads with ``ExecutorWorkload``.
+#   4. ``sort_key`` — the ``BaseWorkloadSchema`` default of ``0`` gives FIFO ordering;
+#      override it on the new schema if it needs ordering within its priority group.
+_workload_type_priority_order = (
+    WorkloadType.EXECUTE_CALLBACK,
+    WorkloadType.TEST_CONNECTION,
+    WorkloadType.EXECUTE_TASK,
+)
+
+WORKLOAD_TYPE_PRIORITY: dict[WorkloadType, int] = {
+    name: idx for idx, name in enumerate(_workload_type_priority_order)
+}
 
 
 class BaseWorkload:
@@ -92,6 +125,18 @@ class BaseWorkloadSchema(BaseModel):
             extras={"sub": sub_id, "scope": "workload"},
             valid_for=valid_for,
         )
+
+    @property
+    def sort_key(self) -> int:
+        """
+        Return the sort key for ordering workloads within the same priority.
+
+        The default of ``0`` gives FIFO behaviour (Python's stable sort preserves
+        insertion order among equal keys).  Override in subclasses that need
+        priority ordering within their priority group — for example, ``ExecuteTask`` returns
+        ``-self.ti.priority_weight`` so that higher-weight tasks are scheduled first.
+        """
+        return 0
 
 
 class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
