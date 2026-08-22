@@ -1226,6 +1226,7 @@ def get_provider_info():
             "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
             "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
         ],
+        "email-backends": ["airflow.providers.amazon.aws.utils.emailer.send_email"],
         "logging": [
             "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
             "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler",

@@ -522,6 +522,13 @@
                 "type": "string"
             }
         },
+        "email-backends": {
+            "type": "array",
+            "description": "Email backend function names",
+            "items": {
+                "type": "string"
+            }
+        },
         "auth-managers": {
             "type": "array",
             "description": "Auth managers class names",
