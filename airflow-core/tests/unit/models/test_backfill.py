@@ -39,11 +39,13 @@ from airflow.models.backfill import (
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     NoBackfillRunsToCreate,
+    NoMatchingTasksForBackfill,
     ReprocessBehavior,
     _create_backfill,
     _do_dry_run,
     _get_latest_dag_run_row_query,
     _handle_clear_run,
+    _resolve_backfill_task_ids,
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
@@ -1527,3 +1529,103 @@ def test_handle_clear_run_preserves_partition_key(dag_maker, session):
     )
     assert bdr is not None
     assert bdr.partition_key == partition_key
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        ("write_", ["write_a", "write_b"]),
+        ("write_a", ["write_a"]),
+        ("_a", ["read_a", "write_a"]),
+    ],
+)
+def test_resolve_backfill_task_ids(pattern, expected, dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="read_a", python_callable=print)
+        PythonOperator(task_id="write_a", python_callable=print)
+        PythonOperator(task_id="write_b", python_callable=print)
+    session.commit()
+    assert _resolve_backfill_task_ids(dag, pattern) == expected
+
+
+def test_resolve_backfill_task_ids_no_match(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+    with pytest.raises(NoMatchingTasksForBackfill, match="did not match any task"):
+        _resolve_backfill_task_ids(dag, "does_not_exist")
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        ("write_", ["write_a", "write_b"]),
+        (None, None),
+    ],
+)
+def test_create_backfill_persists_selected_task_ids(pattern, expected, dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="read_a", python_callable=print)
+        PythonOperator(task_id="write_a", python_callable=print)
+        PythonOperator(task_id="write_b", python_callable=print)
+    session.commit()
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-02"),
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        task_id_pattern=pattern,
+    )
+    persisted = session.scalar(select(Backfill).where(Backfill.id == b.id))
+    assert persisted.selected_task_ids == expected
+
+
+def test_create_backfill_no_matching_tasks_raises(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+    with pytest.raises(NoMatchingTasksForBackfill):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-02"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+            task_id_pattern="nope",
+        )
+    # no backfill should have been persisted
+    assert session.scalar(select(func.count()).select_from(Backfill)) == 0
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expectation"),
+    [
+        # A depends_on_past task that is not selected must not force reprocess_behavior.
+        ("plain", nullcontext()),
+        # Selecting the depends_on_past task with reprocess NONE still fails.
+        ("dop", pytest.raises(InvalidReprocessBehavior)),
+    ],
+)
+def test_create_backfill_depends_on_past_only_considers_selected(pattern, expectation, dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="plain", python_callable=print)
+        PythonOperator(task_id="dop", python_callable=print, depends_on_past=True)
+    session.commit()
+
+    with expectation:
+        b = _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-02"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+            task_id_pattern=pattern,
+        )
+        assert b.selected_task_ids == ["plain"]

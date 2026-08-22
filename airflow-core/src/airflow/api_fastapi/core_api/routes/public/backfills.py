@@ -59,6 +59,7 @@ from airflow.models.backfill import (
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     NoBackfillRunsToCreate,
+    NoMatchingTasksForBackfill,
     _create_backfill,
     _do_dry_run,
 )
@@ -309,6 +310,7 @@ def create_backfill(
             triggering_user_name=user.get_display_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            task_id_pattern=backfill_request.task_id_pattern,
         )
         return BackfillResponse.model_validate(backfill_obj)
     except OperationalError as e:
@@ -338,6 +340,7 @@ def create_backfill(
         InvalidBackfillDateRange,
         InvalidBackfillConf,
         NoBackfillRunsToCreate,
+        NoMatchingTasksForBackfill,
     ) as e:
         raise RequestValidationError(str(e))
 
@@ -372,6 +375,7 @@ def create_backfill_dry_run(
             reprocess_behavior=body.reprocess_behavior,
             dag_run_conf=body.dag_run_conf,
             session=session,
+            task_id_pattern=body.task_id_pattern,
         )
         backfills = [
             DryRunBackfillResponse(
@@ -402,5 +406,6 @@ def create_backfill_dry_run(
         InvalidBackfillDate,
         InvalidBackfillDateRange,
         InvalidBackfillConf,
+        NoMatchingTasksForBackfill,
     ) as e:
         raise RequestValidationError(str(e))
