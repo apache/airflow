@@ -26,7 +26,7 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator
+from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
@@ -108,6 +108,7 @@ from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
@@ -1355,6 +1356,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.executor_events.batch_size", num_events)
         stats.incr("scheduler.executor_events.processed", num_events)
 
+    @staticmethod
+    def _find_ti_ids_rescheduled_this_try(tis: Sequence[TI], *, session: Session) -> set[UUID]:
+        """Find which of the given task instances have already been rescheduled during their current try."""
+        candidate_ids = [
+            ti.id
+            for ti in tis
+            if ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED) and ti.next_method is None
+        ]
+        if not candidate_ids:
+            return set()
+        # Resolved once for the whole batch to keep the reschedule lookup off the per-event hot path.
+        return set(
+            session.scalars(
+                select(TaskReschedule.ti_id).where(TaskReschedule.ti_id.in_(candidate_ids)).distinct()
+            )
+        )
+
     @classmethod
     def process_executor_events(
         cls,
@@ -1488,7 +1506,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-        tis: Iterator[TI] = session.scalars(locked_query)
+        tis: Sequence[TI] = session.scalars(locked_query).all()
+        ti_ids_rescheduled_this_try = cls._find_ti_ids_rescheduled_this_try(tis, session=session)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
@@ -1552,6 +1571,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # from the worker exit after defer() has not been processed yet - should not fail it.
             # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 5) a sensor in reschedule mode was put back to scheduled or queued for its next poke but the
+            # executor success from the previous poke has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1566,11 +1587,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
-                    # before we saw the executor success from the defer exit for the same try_number.
                     ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
                     and state == TaskInstanceState.SUCCESS
-                    and ti.next_method is not None
+                    and (
+                        # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
+                        # before we saw the executor success from the defer exit for the same try_number.
+                        ti.next_method is not None
+                        # Sensor in reschedule mode: the TI was put back for its next poke before we saw
+                        # the executor success from the previous poke. A reschedule exit leaves
+                        # next_method unset and keeps the same try_number, so an earlier reschedule of
+                        # this try is the only thing that tells this apart from an externally killed task.
+                        or ti.id in ti_ids_rescheduled_this_try
+                    )
                 )
             )
 
