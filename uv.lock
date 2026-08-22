@@ -4750,6 +4750,9 @@ pyiceberg-core = [
 sqlalchemy = [
     { name = "sqlalchemy" },
 ]
+sqlglot = [
+    { name = "sqlglot" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -4758,7 +4761,7 @@ dev = [
     { name = "apache-airflow-providers-amazon" },
     { name = "apache-airflow-providers-apache-iceberg" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars", "sqlalchemy"] },
+    { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars", "sqlalchemy", "sqlglot"] },
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-odbc" },
     { name = "apache-airflow-providers-openlineage" },
@@ -4788,9 +4791,10 @@ requires-dist = [
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "pyiceberg-core", marker = "extra == 'pyiceberg-core'", specifier = ">=0.8.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
+    { name = "sqlglot", marker = "extra == 'sqlglot'", specifier = ">=30.0.0" },
     { name = "sqlparse", specifier = ">=0.5.1" },
 ]
-provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "amazon", "datafusion", "pyiceberg-core", "apache-iceberg"]
+provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "sqlglot", "amazon", "datafusion", "pyiceberg-core", "apache-iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4802,6 +4806,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extras = ["pandas"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["sqlalchemy"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-common-sql", extras = ["sqlglot"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
     { name = "apache-airflow-providers-odbc", editable = "providers/odbc" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },

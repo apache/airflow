@@ -35,6 +35,7 @@ different databases. Parameters of the operators are:
 - ``handler`` (optional) the function that will be applied to the cursor. If it's ``None`` results won't returned (default: fetch_all_handler).
 - ``split_statements`` (optional) if split single SQL string into statements and run separately (default: False).
 - ``return_last`` (optional) depends ``split_statements`` and if it's ``True`` this parameter is used to return the result of only last statement or all split statements (default: True).
+- ``deferrable`` (optional) defaults to False and does not use the ``default_deferrable`` Airflow configuration. Currently all hooks used by this operator except the PostgresHook are incompatible with the deferrable mode. Using ``default_deferrable`` could result in failures for tasks using the incompatible hooks.
 
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 
