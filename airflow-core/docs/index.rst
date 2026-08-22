@@ -60,16 +60,21 @@ Let's look at a code snippet that defines a simple Dag:
     from airflow.providers.standard.operators.bash import BashOperator
 
     # A Dag represents a workflow, a collection of tasks
-    with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *") as dag:
-        # Tasks are represented as operators
+    with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *"):
+        # Tasks are defined by instantiating operators
         hello = BashOperator(task_id="hello", bash_command="echo hello")
 
-        @task()
+        # Equivalent of BashOperator using the Airflow Taskflow syntax
+        @task.bash
         def airflow():
-            print("airflow")
+            return "echo airflow"
+
+        @task
+        def world():
+            print("world")
 
         # Set dependencies between tasks
-        hello >> airflow()
+        hello >> airflow() >> world()
 
 
 Here you see:
