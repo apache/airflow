@@ -64,3 +64,45 @@ An example usage of the ``SnowflakeCortexAgentOperator`` is as follows:
    Parameters passed to the operator take precedence over the corresponding
    values configured in the Airflow connection metadata, such as ``database``,
    ``schema`` and ``role``.
+
+.. _howto/operator:SnowflakeCortexAgentCreateOperator:
+
+SnowflakeCortexAgentCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Snowflake Cortex Agent you can use
+:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentCreateOperator`.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_cortex_agent_create]
+    :end-before: [END howto_operator_snowflake_cortex_agent_create]
+    :dedent: 4
+
+.. _howto/operator:SnowflakeCortexAgentUpdateOperator:
+
+SnowflakeCortexAgentUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To update an existing Snowflake Cortex Agent you can use
+:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentUpdateOperator`.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_cortex_agent_update]
+    :end-before: [END howto_operator_snowflake_cortex_agent_update]
+    :dedent: 4
+
+.. _howto/operator:SnowflakeCortexAgentDeleteOperator:
+
+SnowflakeCortexAgentDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To delete a Snowflake Cortex Agent you can use
+:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentDeleteOperator`.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_cortex_agent_delete]
+    :end-before: [END howto_operator_snowflake_cortex_agent_delete]
+    :dedent: 4
