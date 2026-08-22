@@ -194,6 +194,17 @@ func extract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
 `TryNumber`; `ctx.DagRun()` returns `DagID`, `RunID`, and the `*time.Time` fields `LogicalDate`,
 `DataIntervalStart`, and `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger).
 
+### Task logging
+
+In coordinator mode, the injected logger filters records using Airflow's configured `[logging] logging_level` before sending them to the supervisor. Airflow also propagates `[logging] namespace_levels`; use a group-scoped logger to set the namespace:
+
+```go
+databaseLog := log.WithGroup("example.database")
+databaseLog.Debug("query complete", "rows", 42)
+```
+
+Namespace levels use longest dotted-prefix matching, so an `example=DEBUG` override also applies to `example.database` unless a more specific override takes precedence.
+
 ## Deployment
 
 A Python task runner executes the Go task directly, with no separate Go worker process to run on the host.
