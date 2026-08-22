@@ -20,8 +20,6 @@
 Lineage
 ========
 
-.. note:: Lineage support is very experimental and subject to change.
-
 Airflow provides a powerful feature for tracking data lineage not only between tasks but also from hooks used within those tasks.
 This functionality helps you understand how data flows throughout your Airflow pipelines.
 
