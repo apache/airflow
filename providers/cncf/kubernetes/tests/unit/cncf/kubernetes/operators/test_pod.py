@@ -823,6 +823,41 @@ class TestKubernetesPodOperator:
 
         assert result == should_delete
 
+    @patch(HOOK_CLASS, new=MagicMock)
+    @patch(KUB_OP_PATH.format("find_pod"))
+    @patch(KUB_OP_PATH.format("await_pod_completion"))
+    def test_execute_sync_on_kill_during_wait_is_not_success(self, await_pod_completion_mock, find_pod_mock):
+        """SIGTERM/on_kill while waiting on the child must fail the task, not succeed."""
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["sleep 120"],
+            name="sleep-worker",
+            task_id="task",
+            do_xcom_push=False,
+            get_logs=True,
+            log_pod_spec_on_failure=False,
+        )
+        running = MagicMock()
+        running.metadata.name = "sleep-worker"
+        running.metadata.namespace = "default"
+        running.status.phase = PodPhase.RUNNING
+        find_pod_mock.return_value = running
+        self.create_mock.return_value = running
+        self.await_pod_mock.return_value = running
+
+        def _sigterm_during_log_follow(pod):
+            # Same as task_runner's SIGTERM handler: on_kill() then execution continues.
+            k.on_kill()
+
+        await_pod_completion_mock.side_effect = _sigterm_during_log_follow
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(AirflowException, match="interrupted before it completed"):
+            k.execute(context=context)
+
     @pytest.mark.parametrize(
         "pod_phase",
         [
@@ -3610,6 +3645,24 @@ class TestKubernetesPodOperatorAsync:
         pod = k.build_pod_request_obj(create_context(k))
         pod.status = V1PodStatus(phase=PodPhase.FAILED)
         with pytest.raises(AirflowException, match=expect_match):
+            k.cleanup(pod, pod)
+
+    def test_cleanup_raises_when_on_kill_already_ran(self):
+        """on_kill deletes the child pod; cleanup must not then report success.
+
+        Dual interrupt (executor task pod + KPO child) delivers SIGTERM into the
+        task process. task_runner calls on_kill(), which sets ``_killed`` and
+        deletes the child. cleanup() used to return immediately in that case,
+        so execute() finished normally and the TI was marked SUCCESS even though
+        the workload never completed (apache/airflow#71202).
+        """
+        k = KubernetesPodOperator(task_id="task", name="sleep-worker", log_pod_spec_on_failure=False)
+        k._killed = True
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="sleep-worker", namespace="default"),
+            status=V1PodStatus(phase=PodPhase.SUCCEEDED),
+        )
+        with pytest.raises(AirflowException, match="interrupted before it completed"):
             k.cleanup(pod, pod)
 
     @patch(KUB_OP_PATH.format("_write_logs"))
