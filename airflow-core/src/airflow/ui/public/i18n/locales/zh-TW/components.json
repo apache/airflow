@@ -149,6 +149,7 @@
     "loadingFailed": "載入 Dag 資訊失敗，請重試。",
     "manualRunDenied": "此 Dag 不允許手動執行",
     "partitionKeyHelp": "選填 - 僅適用於分區的 Dag",
+    "partitionKeySuggestedHelp": "此為建議值，該分區可能已經執行過 - 送出前請確認是否為您要的分區，或自行修改。",
     "runIdHelp": "選填 - 若未提供將會自動產生",
     "selectDescription": "觸發此 Dag 單次執行",
     "selectLabel": "單次執行",

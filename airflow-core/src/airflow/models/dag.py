@@ -358,6 +358,10 @@ class DagModel(Base):
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Whether the timetable do partitioning.
     timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Whether partition keys are supplied at trigger time instead of derived from a schedule.
+    timetable_partitioned_at_runtime: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="0"
+    )
     # Whether the timetable is periodic (supports backfilling).
     timetable_periodic: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Cached partition mapper metadata for partitioned timetables, populated

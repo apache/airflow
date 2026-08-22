@@ -58,7 +58,11 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
+from airflow.api_fastapi.core_api.datamodels.dags import (
+    DAG_ALIAS_MAPPING,
+    DAG_RESPONSE_ROUTE_SUPPLIED_FIELDS,
+    DAGResponse,
+)
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGRunStateCountsResponse,
@@ -255,6 +259,9 @@ def get_dags(
     # aggregate rows by dag_id
     # Build the dict dynamically from DAGResponse.model_fields so that new fields
     # added to DAGResponse are picked up automatically without code changes here.
+    # ``getattr`` is deliberately left without a default so a field that is neither
+    # a ``DagModel`` attribute nor declared route-supplied fails loudly here
+    # instead of silently serializing as ``None``.
     dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {}
     for dag in dags:
         dag_data = {
@@ -262,6 +269,7 @@ def get_dags(
                 dag, DAG_ALIAS_MAPPING.get(field_name, field_name)
             )
             for field_name in DAGResponse.model_fields
+            if field_name not in DAG_RESPONSE_ROUTE_SUPPLIED_FIELDS
         }
         dag_data.update(
             {

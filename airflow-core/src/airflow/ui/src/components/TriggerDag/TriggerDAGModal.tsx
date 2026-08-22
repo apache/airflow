@@ -75,6 +75,8 @@ const TriggerDAGModal = ({
   const isBackfillable = dag?.is_backfillable ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
+  const isPartitionedAtRuntime = dag?.timetable_partitioned_at_runtime ?? false;
+  const suggestedPartitionKey = dag?.suggested_partition_key;
   const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
@@ -142,11 +144,13 @@ const TriggerDAGModal = ({
               error={error}
               hasSchedule={hasSchedule}
               isPartitioned={isPartitioned}
+              isPartitionedAtRuntime={isPartitionedAtRuntime}
               isPaused={isPaused}
               isPending={isPending}
               onSubmitTrigger={triggerDagRun}
               open={open}
               prefillConfig={prefillConfig}
+              suggestedPartitionKey={suggestedPartitionKey}
             />
           ) : (
             isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />

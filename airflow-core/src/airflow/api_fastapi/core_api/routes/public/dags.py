@@ -17,13 +17,14 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, update
 
+from airflow._shared.timezones import timezone
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
@@ -56,6 +57,7 @@ from airflow.api_fastapi.common.parameters import (
     datetime_range_filter_factory,
     filter_param_factory,
 )
+from airflow.api_fastapi.common.partition_helpers import suggest_partition_key_for_dag
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.dags import (
@@ -79,7 +81,36 @@ from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.serialization.serialized_objects import SerializedDAG
+
+
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
+
+
+def attach_suggested_partition_key(dag_model: DagModel, dag: SerializedDAG, *, session: Session) -> None:
+    """
+    Attach the manual-trigger partition key suggestion to *dag_model* for serialization.
+
+    ``suggested_partition_key`` is computed per request from live pending
+    partitions and run history, so it cannot be a ``DagModel`` column. Setting a
+    non-mapped attribute leaves the SQLAlchemy identity map untouched — nothing
+    is persisted by a later ``flush()``. Only single-Dag routes carry it; the
+    collection routes leave it at its ``None`` default rather than issue a query
+    per Dag.
+    """
+    setattr(
+        dag_model,
+        "suggested_partition_key",
+        suggest_partition_key_for_dag(
+            dag_id=dag_model.dag_id,
+            timetable=dag.timetable,
+            now=timezone.coerce_datetime(timezone.utcnow()),
+            session=session,
+        ),
+    )
 
 
 @dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
@@ -209,6 +240,8 @@ def get_dag(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
+    attach_suggested_partition_key(dag_model, dag, session=session)
+
     return dag_model
 
 
@@ -235,6 +268,8 @@ def get_dag_details(
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
+
+    attach_suggested_partition_key(dag_model, dag, session=session)
 
     # Check if this Dag is marked as favorite by the current user
     user_id = str(user.get_id())

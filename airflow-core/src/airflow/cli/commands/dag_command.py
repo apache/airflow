@@ -389,6 +389,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "timetable_summary": core_timetable.summary,
         "timetable_description": core_timetable.description,
         "timetable_partitioned": core_timetable.partitioned,
+        "timetable_partitioned_at_runtime": core_timetable.partitioned_at_runtime,
         "timetable_periodic": core_timetable.periodic,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
@@ -403,6 +404,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_logical_date": None,
         "next_dagrun_run_after": None,
         "allowed_run_types": dag.allowed_run_types,
+        # No DB session here, so the trigger-form suggestion sources are unavailable.
+        "suggested_partition_key": None,
         "is_backfillable": core_timetable.periodic
         and (dag.allowed_run_types is None or DagRunType.BACKFILL_JOB in dag.allowed_run_types),
     }
