@@ -219,7 +219,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context) -> PokeReturnValue | bool:
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
                 job_id=self.job_id,
@@ -236,26 +236,35 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
             project_id=self.project_id,
             location=self.location,
         )
-        return result["metrics"] if self.callback is None else self.callback(result["metrics"])
+        result = result["metrics"] if self.callback is None else self.callback(result["metrics"])
+
+        if isinstance(result, PokeReturnValue):
+            return result
+
+        if bool(result):
+            return PokeReturnValue(
+                is_done=True,
+                xcom_value=result,
+            )
+        return False
 
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""
         if not self.deferrable:
-            super().execute(context)
-        else:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=DataflowJobMetricsTrigger(
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location,
-                    gcp_conn_id=self.gcp_conn_id,
-                    poll_sleep=self.poll_interval,
-                    impersonation_chain=self.impersonation_chain,
-                    fail_on_terminal_state=self.fail_on_terminal_state,
-                ),
-                method_name="execute_complete",
-            )
+            return super().execute(context)
+        self.defer(
+            timeout=self.execution_timeout,
+            trigger=DataflowJobMetricsTrigger(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+                gcp_conn_id=self.gcp_conn_id,
+                poll_sleep=self.poll_interval,
+                impersonation_chain=self.impersonation_chain,
+                fail_on_terminal_state=self.fail_on_terminal_state,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
         """
@@ -372,21 +381,20 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""
         if not self.deferrable:
-            super().execute(context)
-        else:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=DataflowJobMessagesTrigger(
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location,
-                    gcp_conn_id=self.gcp_conn_id,
-                    poll_sleep=self.poll_interval,
-                    impersonation_chain=self.impersonation_chain,
-                    fail_on_terminal_state=self.fail_on_terminal_state,
-                ),
-                method_name="execute_complete",
-            )
+            return super().execute(context)
+        self.defer(
+            timeout=self.execution_timeout,
+            trigger=DataflowJobMessagesTrigger(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+                gcp_conn_id=self.gcp_conn_id,
+                poll_sleep=self.poll_interval,
+                impersonation_chain=self.impersonation_chain,
+                fail_on_terminal_state=self.fail_on_terminal_state,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
         """
@@ -502,20 +510,19 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""
         if not self.deferrable:
-            super().execute(context)
-        else:
-            self.defer(
-                trigger=DataflowJobAutoScalingEventTrigger(
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location,
-                    gcp_conn_id=self.gcp_conn_id,
-                    poll_sleep=self.poll_interval,
-                    impersonation_chain=self.impersonation_chain,
-                    fail_on_terminal_state=self.fail_on_terminal_state,
-                ),
-                method_name="execute_complete",
-            )
+            return super().execute(context)
+        self.defer(
+            trigger=DataflowJobAutoScalingEventTrigger(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+                gcp_conn_id=self.gcp_conn_id,
+                poll_sleep=self.poll_interval,
+                impersonation_chain=self.impersonation_chain,
+                fail_on_terminal_state=self.fail_on_terminal_state,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
         """
