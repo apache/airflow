@@ -69,8 +69,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
     :param return_gcs_uris: If True, return a list of GCS URIs. If False (default), return the legacy
         list of Azure FileShare filenames and emit a deprecation warning.
 
-    Note that ``share_name``, ``directory_path``, ``prefix``, and ``dest_gcs`` are
-    templated, so you can use variables in them if you wish.
+    Note that ``share_name``, ``directory_name``, ``directory_path``, ``prefix``, and
+    ``dest_gcs`` are templated, so you can use variables in them if you wish.
     """
 
     template_fields: Sequence[str] = (
@@ -102,8 +102,11 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.share_name = share_name
         self.directory_path = directory_path
         self.directory_name = directory_name
-        if self.directory_path is None and self.directory_name is not None:
-            self.directory_path = self.directory_name
+        # The deprecated directory_name->directory_path alias is decided here on the un-rendered
+        # values (native rendering can turn a supplied directory_path into None) and applied in
+        # execute(), which runs for mapped tasks too — render_template_fields overrides do not.
+        self._use_directory_name = directory_path is None and directory_name is not None
+        if self._use_directory_name:
             warnings.warn(
                 "Use 'directory_path' instead of 'directory_name'. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
@@ -139,6 +142,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
             )
 
     def execute(self, context: Context) -> list[str]:
+        if self._use_directory_name:
+            self.directory_path = self.directory_name
         self._check_inputs()
         azure_fileshare_hook = AzureFileShareHook(
             share_name=self.share_name,
