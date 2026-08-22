@@ -81,7 +81,6 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/waiters/test_base_waiter.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/hooks/test_hdfs.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/sensors/test_hdfs.py",
-            "providers/apache/hive/tests/unit/apache/hive/plugins/test_hive.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
             "providers/celery/tests/unit/celery/executors/test_default_celery.py",
             "providers/cloudant/tests/unit/cloudant/test_cloudant_fake.py",
