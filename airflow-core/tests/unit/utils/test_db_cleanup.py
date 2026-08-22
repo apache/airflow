@@ -551,6 +551,78 @@ class TestDBCleanup:
         assert latest_id in remaining  # kept by keep_last
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
+    def test_do_delete_skip_if_referenced_guards_against_race(self):
+        """_do_delete must not issue a DELETE that violates an ON DELETE RESTRICT FK.
+
+        Simulates a race where a dag_version row passes the SELECT filter (no TI
+        references it at archive-creation time) but a TI referencing it is inserted
+        before the DELETE runs.  The skip_if_referenced guard on the DELETE itself
+        must leave the row in place instead of failing with IntegrityError.
+        """
+        from airflow.utils.db import reflect_tables
+
+        base_date = pendulum.DateTime(2020, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"race-test-{uuid4()}"
+        dag_id = f"race_dag_{uuid4()}"
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+            session.flush()
+
+            dv = DagVersion(
+                dag_id=dag_id,
+                version_number=1,
+                bundle_name=bundle_name,
+                created_at=base_date,
+                last_updated=base_date,
+            )
+            session.add(dv)
+            session.flush()
+            dv_id = dv.id
+
+            # Manually create an archive table containing this dag_version row,
+            # simulating the CTAS step that ran before the TI was inserted.
+            archive_name = f"{ARCHIVE_TABLE_PREFIX}dag_version__race_test"
+            session.execute(
+                text(f"CREATE TABLE {archive_name} AS SELECT * FROM dag_version WHERE id = '{dv_id}'")
+            )
+            session.commit()
+
+            # Now insert a TI referencing the dag_version (the "race").
+            dag_run = DagRun(dag_id, run_id="race-run", run_type=DagRunType.MANUAL, start_date=base_date)
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dv_id,
+            )
+            ti.dag_id = dag_id
+            ti.start_date = base_date
+            session.add_all([dag_run, ti])
+            session.commit()
+
+            # Build a select query that would return the row (simulating what _build_query
+            # returned before the TI was inserted).
+            metadata = reflect_tables([archive_name, "dag_version"], session)
+            archive_table = metadata.tables[archive_name]
+            query = select(archive_table)
+
+            # _do_delete must silently skip the row (FK guard on DELETE), not raise IntegrityError.
+            _do_delete(
+                query=query,
+                orm_model=config_dict["dag_version"].orm_model,
+                skip_archive=True,
+                session=session,
+                batch_size=None,
+                skip_if_referenced=[("task_instance", "dag_version_id")],
+                referenced_pk_column="id",
+            )
+
+            remaining = set(session.scalars(select(DagVersion.id).where(DagVersion.dag_id == dag_id)).all())
+
+        assert dv_id in remaining, "dag_version referenced by a task_instance must not be deleted"
+
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
         with pytest.raises(ValueError, match="referenced_pk_column"):
@@ -877,6 +949,23 @@ class TestDBCleanup:
         print(f"excl+conf={exclusion_list.union(config_dict)}")
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
+
+    def test_dag_id_column_name_matches_schema(self):
+        """
+        Regression guard: every dag_id_column_name in config_dict must be an actual column in its
+        database table, so that --dag-ids filtering never raises UndefinedColumn.
+        """
+        with create_session() as session:
+            insp = inspect(session.bind)
+            existing_tables = set(insp.get_table_names())
+            for table_name, cfg in config_dict.items():
+                if cfg.dag_id_column_name is None or table_name not in existing_tables:
+                    continue
+                db_columns = {col["name"] for col in insp.get_columns(table_name)}
+                assert cfg.dag_id_column_name in db_columns, (
+                    f"config_dict[{table_name!r}].dag_id_column_name={cfg.dag_id_column_name!r} "
+                    f"is not a column of table {table_name!r} in the database"
+                )
 
     def test_no_failure_warnings(self):
         """
