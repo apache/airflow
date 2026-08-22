@@ -57,7 +57,7 @@ class GCSDagBundle(BaseDagBundle):
         self.gcs_dags_dir: Path = self.base_dir
         self._gcs_hook: GCSHook | None = None
 
-    def _log_context(self) -> dict:
+    def _get_log_context(self) -> dict:
         return {
             "bucket_name": self.bucket_name,
             "prefix": self.prefix,
