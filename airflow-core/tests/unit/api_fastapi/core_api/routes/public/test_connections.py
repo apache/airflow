@@ -311,6 +311,22 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
+    @pytest.mark.parametrize(
+        "invalid_port",
+        [-1, 65536, 999999, -8080],
+    )
+    def test_post_should_respond_422_invalid_port(self, test_client, invalid_port):
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "port": invalid_port,
+            },
+        )
+        assert response.status_code == 422
+        assert "Input should be" in response.json()["detail"][0]["msg"]
+
     @conf_vars({("core", "multi_team"): "True"})
     def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
         response = test_client.post(
@@ -647,6 +663,24 @@ class TestPatchConnection(TestConnectionEndpoint):
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
         assert response.json() == expected_result
+
+    @pytest.mark.parametrize(
+        "invalid_port",
+        [-1, 65536, 999999, -8080],
+    )
+    def test_patch_should_respond_422_invalid_port(self, test_client, invalid_port):
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "port": invalid_port,
+            },
+        )
+        assert response.status_code == 422
+        assert "Input should be" in response.json()["detail"][0]["msg"]
+
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
