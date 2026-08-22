@@ -123,42 +123,58 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
             return ref.snapshot_id
         return None
 
+    def _watermark_accessors(self) -> list[Any]:
+        """Return one state store accessor per asset watching this trigger."""
+        # asset_state_store postdates the Airflow versions this provider supports, and the
+        # triggerer only sets it for a trigger that watches assets.
+        store = getattr(self, "asset_state_store", None)
+        if store is None:
+            return []
+        try:
+            return list(store)
+        except TypeError:
+            pass
+        # Airflow older than the release that made the accessors iterable. It addresses one
+        # asset directly and refuses to guess when several watch the trigger, and it cannot be
+        # asked how many there are, so find out by reading and drop the watermark if it refuses.
+        try:
+            store.get(WATERMARK_KEY)
+        except ValueError as err:
+            # A state store backend can raise ValueError too, and swallowing that would
+            # disable the watermark without saying so.
+            if _MULTI_ASSET_ERROR not in str(err):
+                raise
+            self.log.warning(
+                "%s is watched by more than one asset, and this Airflow version cannot address "
+                "them separately; not persisting a snapshot watermark, so a triggerer restart "
+                "may re-emit the current head.",
+                self.table,
+            )
+            return []
+        return [store]
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         # serialize() is captured once when the trigger row is created, so a value mutated on
         # self is lost when the triggerer restarts and the current head would be re-emitted as
         # a new commit. The watermark survives that; the kwarg only seeds the first run.
-        # It postdates the Airflow versions this provider supports and is absent when several
-        # assets share the trigger, so polling carries on without it, losing only that cursor.
-        store = getattr(self, "asset_state_store", None)
-        if store is not None:
-            try:
-                stored = await asyncio.to_thread(store.get, WATERMARK_KEY)
-            except ValueError as err:
-                # The accessor serves one asset at a time, so it refuses to guess when this
-                # trigger is watched by several. That happens because triggers are deduplicated
-                # by hash(classpath, kwargs) while asset_watcher is many-to-many, so two assets
-                # watching this table with the same arguments share one trigger. There is then
-                # no single cursor to keep. A state store backend can raise ValueError too, and
-                # swallowing that would disable the watermark without saying so.
-                if _MULTI_ASSET_ERROR not in str(err):
-                    raise
-                self.log.warning(
-                    "%s is watched by more than one asset; not persisting a snapshot watermark, "
-                    "so a triggerer restart may re-emit the current head.",
-                    self.table,
-                )
-                store = None
-            else:
-                if stored is not None:
-                    self.last_seen_snapshot_id = int(stored)
+        accessors = await asyncio.to_thread(self._watermark_accessors)
+        if accessors:
+            # Triggers are deduplicated by hash(classpath, kwargs) while asset_watcher is
+            # many-to-many, so several assets can watch one trigger. Resume from the oldest of
+            # their watermarks, so a write that reached only some of them repeats a snapshot
+            # rather than skipping one.
+            stored = [await asyncio.to_thread(a.get, WATERMARK_KEY) for a in accessors]
+            seen = [int(v) for v in stored if v is not None]
+            if len(seen) == len(accessors):
+                self.last_seen_snapshot_id = min(seen)
 
         while True:
             # pyiceberg is synchronous, so keep the catalog call off the event loop.
             head = await asyncio.to_thread(self._head_snapshot_id)
             if head is not None and head != self.last_seen_snapshot_id:
                 previous, self.last_seen_snapshot_id = self.last_seen_snapshot_id, head
-                if store is not None:
-                    await asyncio.to_thread(store.set, WATERMARK_KEY, head)
+                for accessor in accessors:
+                    await asyncio.to_thread(accessor.set, WATERMARK_KEY, head)
                 yield TriggerEvent(
                     {
                         "table": self.table,

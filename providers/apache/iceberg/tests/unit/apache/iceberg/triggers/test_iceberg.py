@@ -163,6 +163,32 @@ async def test_watches_the_requested_branch():
     assert payloads[0]["snapshot_id"] == 999
 
 
+class _Accessor:
+    """One asset's slice of the state store."""
+
+    def __init__(self, stored=None):
+        self.stored = stored
+
+    def get(self, key, default=None):
+        return self.stored if self.stored is not None else default
+
+    def set(self, key, value):
+        self.stored = value
+
+
+class _Accessors:
+    """Stands in for AssetStateStoreAccessors, which yields one accessor per watched asset."""
+
+    def __init__(self, *accessors):
+        self._accessors = list(accessors)
+
+    def __len__(self):
+        return len(self._accessors)
+
+    def __iter__(self):
+        return iter(self._accessors)
+
+
 @pytest.mark.asyncio
 async def test_resumes_from_the_stored_watermark():
     """A restarted triggerer must not re-emit a snapshot it already reported.
@@ -170,26 +196,20 @@ async def test_resumes_from_the_stored_watermark():
     ``serialize()`` is captured once, so the kwarg still holds the value from when the trigger
     row was written; only the stored watermark reflects what was actually emitted.
     """
-    store = MagicMock()
-    store.get.return_value = 222
-
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
-    trigger.asset_state_store = store
+    trigger.asset_state_store = _Accessors(_Accessor(222))
 
     with patch(LOAD_TABLE, return_value=_table_at(222)):
         payloads = await _collect(trigger, 1, timeout=0.2)
 
     assert payloads == []
-    store.get.assert_called_once_with("snapshot_id")
 
 
 @pytest.mark.asyncio
 async def test_persists_the_watermark_on_each_event():
-    store = MagicMock()
-    store.get.return_value = None
-
+    accessor = _Accessor()
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
-    trigger.asset_state_store = store
+    trigger.asset_state_store = _Accessors(accessor)
 
     with patch(LOAD_TABLE, side_effect=[_table_at(111), _table_at(222), _table_at(222)]):
         # Gathering 2 events runs several real asyncio.to_thread calls (head lookup + store
@@ -197,31 +217,106 @@ async def test_persists_the_watermark_on_each_event():
         payloads = await _collect(trigger, 2, timeout=3.0)
 
     assert [p["snapshot_id"] for p in payloads] == [111, 222]
-    assert [c.args for c in store.set.call_args_list] == [("snapshot_id", 111), ("snapshot_id", 222)]
+    assert accessor.stored == 222
 
 
 @pytest.mark.asyncio
-async def test_runs_without_a_watermark_when_several_assets_watch_it():
-    """More than one watched asset leaves no single cursor, so it degrades instead of raising."""
-    store = MagicMock()
-    store.get.side_effect = ValueError("Task has 2 concrete inlets and outlets")
-
+async def test_keeps_a_watermark_for_every_asset_watching_it():
+    """Triggers are deduplicated, so several assets can watch one and each needs its own cursor."""
+    raw, curated = _Accessor(), _Accessor()
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
-    trigger.asset_state_store = store
+    trigger.asset_state_store = _Accessors(raw, curated)
 
     with patch(LOAD_TABLE, return_value=_table_at(111)):
         payloads = await _collect(trigger, 1)
 
     assert [p["snapshot_id"] for p in payloads] == [111]
-    store.set.assert_not_called()
+    assert (raw.stored, curated.stored) == (111, 111)
 
 
 @pytest.mark.asyncio
-async def test_a_state_store_failure_is_not_mistaken_for_several_assets():
-    """A pluggable backend can raise ValueError too, and hiding it would disable the watermark."""
-    store = MagicMock()
-    store.get.side_effect = ValueError("could not decode the stored reference")
+async def test_resumes_several_assets_from_the_oldest_watermark():
+    """A write that reached only some assets must repeat a snapshot rather than skip one."""
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = _Accessors(_Accessor(222), _Accessor(111))
 
+    with patch(LOAD_TABLE, return_value=_table_at(222)):
+        payloads = await _collect(trigger, 1)
+
+    assert [p["snapshot_id"] for p in payloads] == [222]
+
+
+@pytest.mark.asyncio
+async def test_a_state_store_failure_is_not_swallowed():
+    """Hiding a backend failure would disable the watermark without saying so."""
+    accessor = _Accessor()
+    accessor.get = MagicMock(side_effect=ValueError("could not decode the stored reference"))
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = _Accessors(accessor)
+
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        with pytest.raises(ValueError, match="could not decode"):
+            await _collect(trigger, 1)
+
+
+class _LegacyAccessors:
+    """An asset_state_store from before the accessors became iterable.
+
+    It is not iterable and cannot be counted, so the only way to learn that several assets
+    watch the trigger is to read and be refused.
+    """
+
+    def __init__(self, asset_count, stored=None):
+        self._asset_count = asset_count
+        self.stored = stored
+
+    def __getitem__(self, key):
+        raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
+
+    def _check(self):
+        if self._asset_count != 1:
+            raise ValueError(
+                f"Task has {self._asset_count} concrete inlets and outlets — "
+                "use context['asset_state_store'][MY_ASSET] to specify which"
+            )
+
+    def get(self, key, default=None):
+        self._check()
+        return self.stored if self.stored is not None else default
+
+    def set(self, key, value):
+        self._check()
+        self.stored = value
+
+
+@pytest.mark.asyncio
+async def test_keeps_the_watermark_on_airflow_without_iterable_accessors():
+    """One asset on an older Airflow still resumes, addressing the store directly."""
+    store = _LegacyAccessors(asset_count=1, stored=222)
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
+    trigger.asset_state_store = store
+
+    with patch(LOAD_TABLE, return_value=_table_at(222)):
+        assert await _collect(trigger, 1, timeout=0.2) == []
+
+
+@pytest.mark.asyncio
+async def test_degrades_on_airflow_without_iterable_accessors():
+    """Several assets on an older Airflow cannot be addressed, so polling carries on unwatermarked."""
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
+    trigger.asset_state_store = _LegacyAccessors(asset_count=2)
+
+    with patch(LOAD_TABLE, return_value=_table_at(111)):
+        payloads = await _collect(trigger, 1)
+
+    assert [p["snapshot_id"] for p in payloads] == [111]
+
+
+@pytest.mark.asyncio
+async def test_a_legacy_state_store_failure_is_not_swallowed():
+    """The legacy path must degrade only on the refusal, not on a backend failure."""
+    store = _LegacyAccessors(asset_count=1)
+    store.get = MagicMock(side_effect=ValueError("could not decode the stored reference"))
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
     trigger.asset_state_store = store
 
