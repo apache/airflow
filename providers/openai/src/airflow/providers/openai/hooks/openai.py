@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, overload
 
 from deprecated import deprecated
 from openai import OpenAI
@@ -494,21 +494,39 @@ class OpenAIHook(BaseHook):
         run = self.conn.beta.threads.runs.update(thread_id=thread_id, run_id=run_id, **kwargs)
         return run
 
+    @overload
+    def create_embeddings(
+        self,
+        text: str | list[int],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float]: ...
+
+    @overload
+    def create_embeddings(
+        self,
+        text: list[str] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[list[float]]: ...
+
     def create_embeddings(
         self,
         text: str | list[str] | list[int] | list[list[int]],
         model: str = "text-embedding-3-small",
         **kwargs: Any,
-    ) -> list[float]:
+    ) -> list[float] | list[list[float]]:
         """
         Generate embeddings for the given text using the given model.
 
         :param text: The text to generate embeddings for.
         :param model: The model to use for generating embeddings.
+        :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
-        embeddings: list[float] = response.data[0].embedding
-        return embeddings
+        if isinstance(text, str) or (text and isinstance(text[0], int)):
+            return response.data[0].embedding
+        return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
 
     def upload_file(self, file: str, purpose: Literal["fine-tune", "assistants", "batch"]) -> FileObject:
         """

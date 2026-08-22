@@ -509,6 +509,41 @@ def test_create_embeddings(mock_openai_hook, mock_embeddings_response):
     assert embeddings == [0.1, 0.2, 0.3]
 
 
+@pytest.mark.parametrize(
+    ("input_text", "response_items", "expected"),
+    [
+        pytest.param(
+            ["First text", "Second text"],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="text-batch",
+        ),
+        pytest.param(
+            [[1, 2], [3, 4]],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="token-batch",
+        ),
+    ],
+)
+def test_create_batched_embeddings(input_text, response_items, expected):
+    hook = OpenAIHook(conn_id="unused")
+    conn = MagicMock(spec=OpenAI)
+    conn.embeddings.create.return_value = CreateEmbeddingResponse(
+        data=[
+            Embedding(embedding=vector, index=index, object="embedding") for index, vector in response_items
+        ],
+        model="text-embedding-3-small",
+        object="list",
+        usage={"prompt_tokens": 4, "total_tokens": 4},
+    )
+    hook.__dict__["conn"] = conn
+
+    embeddings = hook.create_embeddings(input_text)
+
+    assert embeddings == expected
+
+
 @patch("builtins.open", new_callable=mock_open, read_data="test-data")
 def test_upload_file(mock_file_open, mock_openai_hook, mock_file):
     mock_file.name = FILE_NAME

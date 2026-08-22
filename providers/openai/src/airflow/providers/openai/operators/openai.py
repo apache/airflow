@@ -40,6 +40,8 @@ class OpenAIEmbeddingOperator(BaseOperator):
     :param model: The OpenAI model to be used for generating the embeddings.
     :param embedding_kwargs: Additional keyword arguments to pass to the OpenAI `create_embeddings` method.
 
+    Returns one embedding for a single string or token array, and one embedding per item for a batch.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenAIEmbeddingOperator`
@@ -68,7 +70,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
-    def execute(self, context: Context) -> list[float]:
+    def execute(self, context: Context) -> list[float] | list[list[float]]:
         if not self.input_text or not isinstance(self.input_text, (str, list)):
             raise ValueError(
                 "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
