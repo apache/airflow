@@ -517,6 +517,18 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
+def _task_exec_configured() -> bool:
+    """
+    Whether ``[core] execute_tasks_new_python_interpreter`` asks for a fresh interpreter per task.
+
+    Opt-in fork-safety escape hatch: a bare ``os.fork()`` of a multithreaded
+    supervisor can inherit a C-library lock mid-held by a sibling thread
+    (OpenSSL's global lock, taken inside ``SSL_CTX_new``), which then blocks
+    every ``SSLContext`` construction in the child forever.
+    """
+    return conf.getboolean("core", "execute_tasks_new_python_interpreter", fallback=False)
+
+
 def _resolve_child_target(dotted: str) -> Callable[[], None]:
     """
     Resolve a ``module:qualname`` string to the callable the exec'd child runs.
@@ -1412,10 +1424,13 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        # Opt in to fork+exec on platforms that need it (currently macOS).
+        # Opt in to fork+exec on platforms that need it (currently macOS), or
+        # when a fresh interpreter per task is configured (fork of a
+        # multithreaded supervisor can inherit held C-library locks, e.g.
+        # OpenSSL's, and deadlock the child; see #71707).
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _should_use_exec()
+        use_exec = target is _subprocess_main and (_should_use_exec() or _task_exec_configured())
         proc: Self = super().start(
             id=what.id,
             client=client,
