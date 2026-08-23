@@ -92,6 +92,79 @@ class TestGitSyncWorker:
             "spec.template.spec.containers[1].env", docs[0]
         )
 
+    def test_env_override_replaces_hardcoded_value(self):
+        """User-provided env should replace the hardcoded default without duplicates."""
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "repo": "https://default.example.com/repo.git",
+                        "env": [
+                            {"name": "GIT_SYNC_REPO", "value": "https://override.example.com/repo.git"},
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        git_sync_repo_entries = [e for e in env if e["name"] == "GIT_SYNC_REPO"]
+        assert len(git_sync_repo_entries) == 1, "Expected exactly one GIT_SYNC_REPO entry, no duplicates"
+        assert git_sync_repo_entries[0]["value"] == "https://override.example.com/repo.git"
+
+    def test_env_override_with_secret_ref(self):
+        """User-provided env with valueFrom.secretKeyRef should replace the hardcoded default."""
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "repo": "https://default.example.com/repo.git",
+                        "env": [
+                            {
+                                "name": "GIT_SYNC_REPO",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "my-git-secret",
+                                        "key": "repo-url",
+                                    }
+                                },
+                            },
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        git_sync_repo_entries = [e for e in env if e["name"] == "GIT_SYNC_REPO"]
+        assert len(git_sync_repo_entries) == 1, "Expected exactly one GIT_SYNC_REPO entry, no duplicates"
+        assert git_sync_repo_entries[0]["valueFrom"]["secretKeyRef"]["name"] == "my-git-secret"
+
+    def test_env_vars_secret_loads_from_secret_key_ref(self):
+        """When envVarsSecret is set, main env vars should use valueFrom.secretKeyRef."""
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "envVarsSecret": "git-sync-env-secret",
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        repo_entries = [e for e in env if e["name"] == "GIT_SYNC_REPO"]
+        assert len(repo_entries) == 1
+        assert repo_entries[0]["valueFrom"]["secretKeyRef"]["name"] == "git-sync-env-secret"
+        assert repo_entries[0]["valueFrom"]["secretKeyRef"]["key"] == "GIT_SYNC_REPO"
+        assert repo_entries[0]["valueFrom"]["secretKeyRef"]["optional"] is True
+
     def test_resources_are_configurable(self):
         docs = render_chart(
             values={
