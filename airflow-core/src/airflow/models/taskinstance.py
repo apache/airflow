@@ -248,25 +248,26 @@ def _recalculate_dagrun_queued_at_deadlines(
     if not results:
         return
 
-    # Local imports to avoid a circular import between models and serialization.
-    from airflow.sdk.definitions.deadline import VariableInterval
-    from airflow.serialization.decoders import decode_deadline_alert
-    from airflow.serialization.definitions.deadline import DeadlineAlertFields
+    # Local import to avoid a circular import between models and serialization.
+    from airflow.serialization.decoders import decode_deadline_alert_model, resolve_deadline_alert_interval
 
     for deadline, deadline_alert in results:
-        # We can't use evaluate_with() since the new queued_at is not written to the DB yet, but
-        # interval is stored as JSON (a serialized timedelta or VariableInterval), so decode it the
-        # same way DagRun creation does instead of passing the raw value to timedelta().
-        deserialized_alert = decode_deadline_alert(
-            {
-                DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
-            }
-        )
-        interval = deserialized_alert.interval
-        if isinstance(interval, VariableInterval):
-            interval = interval.resolve()
+        # We can't use evaluate_with() since the new queued_at is not written to the DB yet, and
+        # interval is stored as JSON, so it has to be decoded rather than passed to timedelta().
+        try:
+            interval = resolve_deadline_alert_interval(decode_deadline_alert_model(deadline_alert))
+        except (ValueError, TypeError):
+            # A variable-backed interval resolves against an Airflow Variable that may be missing
+            # or non-numeric. Leave this deadline alone rather than failing the whole clear.
+            log.warning(
+                "Skipping recalculation of deadline %s for DagRun %s.%s: interval could not be resolved",
+                deadline.id,
+                dagrun.dag_id,
+                dagrun.run_id,
+                exc_info=True,
+            )
+            continue
+
         new_deadline_time = new_queued_at + interval
 
         log.debug(

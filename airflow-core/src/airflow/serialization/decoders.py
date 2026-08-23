@@ -53,6 +53,7 @@ from airflow.serialization.helpers import (
 )
 
 if TYPE_CHECKING:
+    from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
     from airflow.partition_mappers.base import PartitionMapper
     from airflow.partition_mappers.wait_policy import WaitPolicy
     from airflow.partition_mappers.window import Window
@@ -182,7 +183,7 @@ def decode_deadline_reference(reference_data: dict):
     return reference_class.deserialize_reference(reference_data)
 
 
-def decode_deadline_alert(encoded_data: dict):
+def decode_deadline_alert(encoded_data: dict) -> SerializedDeadlineAlert:
     """
     Decode a previously serialized deadline alert.
 
@@ -228,6 +229,36 @@ def decode_deadline_alert(encoded_data: dict):
         callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
     )
+
+
+def decode_deadline_alert_model(deadline_alert: DeadlineAlertModel) -> SerializedDeadlineAlert:
+    """
+    Decode a ``DeadlineAlert`` ORM row into its serialized representation.
+
+    :meta private:
+    """
+    return decode_deadline_alert(
+        {
+            DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+            DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+            DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+        }
+    )
+
+
+def resolve_deadline_alert_interval(alert: SerializedDeadlineAlert) -> datetime.timedelta:
+    """
+    Resolve a decoded alert's interval to a ``timedelta``.
+
+    A ``SerializedVariableInterval`` reads its Airflow Variable here, so this is only called at
+    the point a deadline is actually calculated. It raises ``ValueError`` if the Variable is
+    missing or is not an integer number of seconds.
+
+    :meta private:
+    """
+    if isinstance(alert.interval, SerializedVariableInterval):
+        return alert.interval.resolve()
+    return alert.interval
 
 
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:

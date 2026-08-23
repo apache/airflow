@@ -4145,8 +4145,8 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
     to ``timedelta()``. Storing the interval via ``serialize`` here mirrors production and covers
     both interval kinds.
     """
+    from airflow.models.variable import Variable
     from airflow.sdk.definitions.deadline import VariableInterval
-    from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.serde import serialize
 
     variable_key = "deadline_interval_key"
@@ -4260,6 +4260,72 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
             assert deadline.deadline_time == expected_time
 
     assert recalculated_count == 2
+
+
+def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_maker, session):
+    """A variable-backed interval that cannot be resolved must not abort the clear.
+
+    ``SerializedVariableInterval.resolve()`` raises ``ValueError`` when the Airflow Variable is
+    missing or is not an integer, and that happens while the DAG run is being cleared. The clear
+    should still go through, leaving the unresolvable deadline at its old time.
+    """
+    from airflow.models.variable import Variable
+    from airflow.sdk.definitions.deadline import VariableInterval
+    from airflow.sdk.serde import serialize
+
+    with dag_maker(
+        dag_id="test_recalculate_deadlines_unresolvable",
+        schedule=datetime.timedelta(days=1),
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+    original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    dag_run.queued_at = original_queued_at
+    session.flush()
+
+    serialized_dag_id = session.scalar(
+        select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+    )
+
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=serialized_dag_id,
+        reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
+        interval=serialize(VariableInterval("missing_deadline_interval_key")),
+        callback_def={"path": f"{__name__}.empty_callback_for_deadline", "kwargs": {}},
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    original_deadline_time = original_queued_at + datetime.timedelta(hours=1)
+    session.add(
+        Deadline(
+            dagrun_id=dag_run.id,
+            deadline_alert_id=deadline_alert.id,
+            deadline_time=original_deadline_time,
+            callback=AsyncCallback(empty_callback_for_deadline),
+            dag_id=dag_run.dag_id,
+        )
+    )
+    session.flush()
+
+    tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+
+    with (
+        mock.patch.object(Variable, "get", side_effect=KeyError("missing_deadline_interval_key")),
+        mock.patch("airflow.models.taskinstance.log") as mock_log,
+    ):
+        clear_task_instances(tis, session)
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    assert dag_run.queued_at > original_queued_at
+
+    deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
+    assert deadline.deadline_time == original_deadline_time
+    assert mock_log.warning.call_count == 1
 
 
 def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
