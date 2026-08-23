@@ -160,10 +160,10 @@ func TestSocketLogHandlerUsesEnvironmentLevelFiltering(t *testing.T) {
 	logger := slog.New(newSocketLogHandlerFromEnv(&buf))
 	logger.Info("global filtered")
 	logger.WithGroup("example.detail").Debug("namespace debug")
+	logger.WithGroup("example.detail").Log(context.Background(), slog.LevelDebug+1, "custom level")
 	logger.WithGroup("example.noisy.child").Info("namespace filtered")
 	logger.WithGroup("example.noisy.child").Warn("namespace warning")
 	logger.WithGroup("unrelated").Warn("unrelated filtered")
-	logger.Log(context.Background(), slog.LevelDebug+1, "unsupported level")
 	logger.Error("global error")
 
 	var entries []map[string]any
@@ -172,13 +172,15 @@ func TestSocketLogHandlerUsesEnvironmentLevelFiltering(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(line), &entry))
 		entries = append(entries, entry)
 	}
-	require.Len(t, entries, 3)
+	require.Len(t, entries, 4)
 	assert.Equal(t, "namespace debug", entries[0]["event"])
 	assert.Equal(t, "example.detail", entries[0]["logger"])
-	assert.Equal(t, "namespace warning", entries[1]["event"])
-	assert.Equal(t, "example.noisy.child", entries[1]["logger"])
-	assert.Equal(t, "global error", entries[2]["event"])
-	assert.NotContains(t, entries[2], "logger")
+	assert.Equal(t, "custom level", entries[1]["event"])
+	assert.Equal(t, "debug", entries[1]["level"])
+	assert.Equal(t, "namespace warning", entries[2]["event"])
+	assert.Equal(t, "example.noisy.child", entries[2]["logger"])
+	assert.Equal(t, "global error", entries[3]["event"])
+	assert.NotContains(t, entries[3], "logger")
 }
 
 func TestSocketLogHandlerUsesGroupNamespaceInEnabled(t *testing.T) {
