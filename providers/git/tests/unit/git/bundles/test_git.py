@@ -341,6 +341,44 @@ class TestGitDagBundle:
         assert_repo_is_closed(bundle2)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_without_refresh_discards_working_tree_mutations(self, mock_githook, git_repo):
+        """
+        Skipping the fetch must not skip the clean-working-tree guarantee: the refresh() that
+        the reuse path replaces resets the working tree, so reuse has to do the same or a
+        previous task's leftovers get served as bundle content.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle.initialize()
+        starting_version = _version_str(bundle.get_current_version())
+
+        # A previous task left the tracked dag file modified on the shared storage
+        tracked_file = bundle.repo_path / "test_dag.py"
+        original_contents = tracked_file.read_text()
+        tracked_file.write_text("raise SystemExit('leftover from a previous task')")
+
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle2.initialize()
+
+        assert tracked_file.read_text() == original_contents
+        # Still no fetch: reuse restored the committed state, it did not move to a new commit
+        assert _version_str(bundle2.get_current_version()) == starting_version
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_initialize_with_refresh_default_fetches_latest(self, mock_githook, git_repo):
         """Default behavior is unchanged: a second initialize fetches the latest commit."""
         repo_path, repo = git_repo

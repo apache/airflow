@@ -219,6 +219,11 @@ class GitDagBundle(BaseDagBundle):
                     repo = Repo(self.repo_path)
                     try:
                         repo.git.checkout(self.tracking_ref)
+                        # Same working tree guarantee the skipped refresh() would have given:
+                        # its head.reset(..., working_tree=True) discards mutations a previous
+                        # task left behind, so callers still get the clean state they expect.
+                        # Untracked files are left alone, exactly as refresh() leaves them.
+                        repo.git.reset("--hard", "HEAD")
                         bare_repo = Repo(self.bare_repo_path)
                     except Exception:
                         repo.close()
@@ -227,7 +232,7 @@ class GitDagBundle(BaseDagBundle):
                     # Reuse is best-effort: fall back to the full initialization path if the
                     # on-disk repo is unusable for any reason - not only git-level errors but
                     # also e.g. an OSError/PermissionError on the shared bundle storage.
-                    self._log.info(
+                    self._log.warning(
                         "Failed to reuse existing tracking repo, falling back to full initialization",
                         repo_path=self.repo_path,
                         exc=e,
