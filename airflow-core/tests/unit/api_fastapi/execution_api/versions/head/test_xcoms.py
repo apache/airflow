@@ -373,6 +373,44 @@ class TestXComsGetEndpoint:
         assert slice_response.status_code == 200
         assert slice_response.json() == ["f", None, "o", "b"]
 
+    def test_xcom_get_with_slice_mapped_task_without_gap_uses_sql_pagination(
+        self, client, dag_maker, session
+    ):
+        """
+        When every mapped instance has already pushed an XCom, the slice endpoint must
+        not fall into the gap-filling branch that loads every row into memory -- it should
+        keep using SQL-side OFFSET/LIMIT/slice() pagination.
+        """
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["f", "o", "o", "b"])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+
+        for map_index, value in enumerate(["f", "o", "o", "b"]):
+            ti = tis[map_index]
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value=value,
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    map_index=map_index,
+                )
+            )
+        session.commit()
+
+        response = client.get("/execution/xcoms/dag/runid/task/xcom_1/slice")
+        assert response.status_code == 200
+        assert response.json() == ["f", "o", "o", "b"]
+
     @pytest.mark.parametrize(
         ("include_prior_dates", "expected_xcoms"),
         [[True, ["earlier_value", "later_value"]], [False, ["later_value"]]],

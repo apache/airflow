@@ -236,28 +236,26 @@ def get_mapped_xcom_by_slice(
     mapped_length = (
         None if params.include_prior_dates else _get_mapped_length(dag_id, run_id, task_id, session=session)
     )
-    if mapped_length is not None:
-        query = XComModel.get_many(
-            run_id=run_id,
-            key=key,
-            task_ids=task_id,
-            dag_ids=dag_id,
-        ).order_by(None)
-        by_map_index = {
-            row.map_index: row.value
-            for row in session.execute(query.with_only_columns(XComModel.map_index, XComModel.value))
-        }
-        values = [by_map_index.get(i) for i in range(mapped_length)]
-        return XComSequenceSliceResponse(values[params.start : params.stop : params.step])
-
-    query = XComModel.get_many(
+    base_query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
-    )
-    query = query.order_by(None)
+    ).order_by(None)
+
+    # Only fall back to fetching every XCom row (needed to place each value at its true
+    # map_index) when there's an actual gap. The common case -- every mapped instance has
+    # pushed its XCom -- keeps the cheaper SQL-side OFFSET/LIMIT/slice() below.
+    if mapped_length is not None and get_query_count(base_query, session=session) < mapped_length:
+        by_map_index = {
+            row.map_index: row.value
+            for row in session.execute(base_query.with_only_columns(XComModel.map_index, XComModel.value))
+        }
+        values = [by_map_index.get(i) for i in range(mapped_length)]
+        return XComSequenceSliceResponse(values[params.start : params.stop : params.step])
+
+    query = base_query
 
     step = params.step or 1
 
