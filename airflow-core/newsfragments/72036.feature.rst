@@ -1,0 +1,1 @@
+Add an ``airflow teams inspect`` CLI command for displaying resources associated with a team, including DAG bundles, pools, connections, and variables.
