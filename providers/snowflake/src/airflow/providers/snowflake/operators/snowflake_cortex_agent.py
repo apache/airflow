@@ -23,7 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseOperator
-from airflow.providers.snowflake.hooks.snowflake_cortex_agent import SnowflakeCortexAgentHook
+from airflow.providers.snowflake.hooks.snowflake_cortex_agent import CreateMode, SnowflakeCortexAgentHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -136,5 +136,262 @@ class SnowflakeCortexAgentOperator(BaseOperator):
             orchestration=self.orchestration,
             tools=self.tools,
             tool_resources=self.tool_resources,
+            timeout=self.timeout,
+        )
+
+
+class SnowflakeCortexAgentCreateOperator(BaseOperator):
+    """
+    Create a Snowflake Cortex Agent.
+
+    :param database: Database in which to create the Cortex Agent.
+    :param schema: Schema in which to create the Cortex Agent.
+    :param agent_name: Name of the Cortex Agent.
+    :param comment: Optional comment.
+    :param profile: Agent profile configuration. Optional.
+    :param models: Model configuration. Optional.
+    :param instructions: Agent instructions. Optional.
+    :param orchestration: Orchestration configuration. Optional.
+    :param tools: Agent tools. Optional.
+    :param tool_resources: Tool resource configuration. Optional.
+    :param create_mode: Resource creation mode. Defaults to
+        ``CreateMode.ERROR_IF_EXISTS``.
+    :param timeout: Maximum time in seconds to wait for the request to
+        complete. Defaults to ``600``.
+    :param snowflake_conn_id: Snowflake connection ID. Defaults to
+        ``snowflake_default``.
+    """
+
+    template_fields: Sequence[str] = (
+        "database",
+        "schema",
+        "agent_name",
+        "comment",
+    )
+
+    ui_color = "#29B5E8"
+
+    def __init__(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        comment: str | None = None,
+        profile: dict[str, Any] | None = None,
+        models: dict[str, Any] | None = None,
+        instructions: dict[str, Any] | None = None,
+        orchestration: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_resources: dict[str, Any] | None = None,
+        create_mode: CreateMode = CreateMode.ERROR_IF_EXISTS,
+        timeout: int | None = 600,
+        snowflake_conn_id: str = "snowflake_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.database = database
+        self.schema = schema
+        self.agent_name = agent_name
+        self.comment = comment
+        self.profile = profile
+        self.models = models
+        self.instructions = instructions
+        self.orchestration = orchestration
+        self.tools = tools
+        self.tool_resources = tool_resources
+        self.create_mode = create_mode
+        self.timeout = timeout
+        self.snowflake_conn_id = snowflake_conn_id
+
+    @cached_property
+    def hook(self) -> SnowflakeCortexAgentHook:
+        """Return the Snowflake Cortex Agent hook."""
+        return SnowflakeCortexAgentHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        """Create the Snowflake Cortex Agent."""
+        self.log.info(
+            "Creating Snowflake Cortex Agent '%s.%s.%s'.",
+            self.database,
+            self.schema,
+            self.agent_name,
+        )
+
+        return self.hook.create_agent(
+            database=self.database,
+            schema=self.schema,
+            agent_name=self.agent_name,
+            comment=self.comment,
+            profile=self.profile,
+            models=self.models,
+            instructions=self.instructions,
+            orchestration=self.orchestration,
+            tools=self.tools,
+            tool_resources=self.tool_resources,
+            create_mode=self.create_mode,
+            timeout=self.timeout,
+        )
+
+
+class SnowflakeCortexAgentUpdateOperator(BaseOperator):
+    """
+    Update a Snowflake Cortex Agent.
+
+    :param database: Database containing the Cortex Agent.
+    :param schema: Schema containing the Cortex Agent.
+    :param agent_name: Name of the Cortex Agent.
+    :param comment: Optional comment.
+    :param profile: Agent profile configuration. Optional.
+    :param models: Model configuration. Optional.
+    :param instructions: Agent instructions. Optional.
+    :param orchestration: Orchestration configuration. Optional.
+    :param tools: Agent tools. Optional.
+    :param tool_resources: Tool resource configuration. Optional.
+    :param timeout: Maximum time in seconds to wait for the request to
+        complete. Defaults to ``600``.
+    :param snowflake_conn_id: Snowflake connection ID. Defaults to
+        ``snowflake_default``.
+    """
+
+    template_fields: Sequence[str] = (
+        "database",
+        "schema",
+        "agent_name",
+        "comment",
+    )
+
+    ui_color = "#29B5E8"
+
+    def __init__(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        comment: str | None = None,
+        profile: dict[str, Any] | None = None,
+        models: dict[str, Any] | None = None,
+        instructions: dict[str, Any] | None = None,
+        orchestration: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_resources: dict[str, Any] | None = None,
+        timeout: int | None = 600,
+        snowflake_conn_id: str = "snowflake_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.database = database
+        self.schema = schema
+        self.agent_name = agent_name
+        self.comment = comment
+        self.profile = profile
+        self.models = models
+        self.instructions = instructions
+        self.orchestration = orchestration
+        self.tools = tools
+        self.tool_resources = tool_resources
+        self.timeout = timeout
+        self.snowflake_conn_id = snowflake_conn_id
+
+    @cached_property
+    def hook(self) -> SnowflakeCortexAgentHook:
+        """Return the Snowflake Cortex Agent hook."""
+        return SnowflakeCortexAgentHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        """Update the Snowflake Cortex Agent."""
+        self.log.info(
+            "Updating Snowflake Cortex Agent '%s.%s.%s'.",
+            self.database,
+            self.schema,
+            self.agent_name,
+        )
+
+        return self.hook.update_agent(
+            database=self.database,
+            schema=self.schema,
+            agent_name=self.agent_name,
+            comment=self.comment,
+            profile=self.profile,
+            models=self.models,
+            instructions=self.instructions,
+            orchestration=self.orchestration,
+            tools=self.tools,
+            tool_resources=self.tool_resources,
+            timeout=self.timeout,
+        )
+
+
+class SnowflakeCortexAgentDeleteOperator(BaseOperator):
+    """
+    Delete a Snowflake Cortex Agent.
+
+    :param database: Database containing the Cortex Agent.
+    :param schema: Schema containing the Cortex Agent.
+    :param agent_name: Name of the Cortex Agent.
+    :param if_exists: Ignore the request if the agent does not exist.
+        Defaults to ``False``.
+    :param timeout: Maximum time in seconds to wait for the request to
+        complete. Defaults to ``600``.
+    :param snowflake_conn_id: Snowflake connection ID. Defaults to
+        ``snowflake_default``.
+    """
+
+    template_fields: Sequence[str] = (
+        "database",
+        "schema",
+        "agent_name",
+    )
+
+    ui_color = "#29B5E8"
+
+    def __init__(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        if_exists: bool = False,
+        timeout: int | None = 600,
+        snowflake_conn_id: str = "snowflake_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.database = database
+        self.schema = schema
+        self.agent_name = agent_name
+        self.if_exists = if_exists
+        self.timeout = timeout
+        self.snowflake_conn_id = snowflake_conn_id
+
+    @cached_property
+    def hook(self) -> SnowflakeCortexAgentHook:
+        """Return the Snowflake Cortex Agent hook."""
+        return SnowflakeCortexAgentHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        """Delete the Snowflake Cortex Agent."""
+        self.log.info(
+            "Deleting Snowflake Cortex Agent '%s.%s.%s'.",
+            self.database,
+            self.schema,
+            self.agent_name,
+        )
+
+        return self.hook.delete_agent(
+            database=self.database,
+            schema=self.schema,
+            agent_name=self.agent_name,
+            if_exists=self.if_exists,
             timeout=self.timeout,
         )
