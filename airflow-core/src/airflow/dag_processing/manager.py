@@ -56,7 +56,6 @@ from airflow.dag_processing.bundles.base import (
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-from airflow.exceptions import AirflowException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -156,7 +155,7 @@ class DagFileInfo:
     @property
     def normalized_file_path_for_stats(self) -> str:
         """Return the relative file path normalized for use in stats tags."""
-        return normalize_name_for_stats(str(self.rel_path))
+        return normalize_name_for_stats(str(self.rel_path), log_warning=False)
 
 
 def _config_int_factory(section: str, key: str):
@@ -299,6 +298,11 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
 
+    dag_discovery_safe_mode: bool = attrs.field(
+        factory=_config_bool_factory("core", "dag_discovery_safe_mode")
+    )
+    """Resolved once per process so file discovery and the deactivation scan use the same value."""
+
     _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=_make_execution_api)
     """API server to interact with Metadata DB"""
 
@@ -335,7 +339,14 @@ class DagFileProcessorManager(LoggingMixin):
         """Sync configured DAG bundles to the metadata database."""
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
-        DagBundlesManager().sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        # Best-effort legacy repair: a failure here must not crash DFP startup.
+        # Affected Dags self-heal on the next successful parse.
+        try:
+            dag_bundle_manager.reassign_dags_with_unconfigured_bundles()
+        except Exception:
+            self.log.exception("Failed to reassign Dags with unconfigured bundles during startup")
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
@@ -466,6 +477,7 @@ class DagFileProcessorManager(LoggingMixin):
         ).where(~DagModel.is_stale)
         dags_parsed = session.execute(query)
 
+        stuck_legacy_rows = 0
         for dag in dags_parsed:
             # Dags whose bundle has been removed from config (bundle no longer active) are stale —
             # the processor has stopped parsing their files, so the time-based check below would never fire.
@@ -485,10 +497,24 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 to_deactivate.add(dag.dag_id)
                 continue
+            # A Dag upgraded from Airflow 2.x can still have a NULL relative_fileloc:
+            # the 0082 migration adds the column as nullable, and the startup repair
+            # in DagBundlesManager only backfills it when the Dag's fileloc resolves to
+            # a configured bundle. Rows whose fileloc matches no bundle stay NULL, so
+            # the time-based stale check below would build Path(None) and crash. Skip
+            # them here and count them so the total is surfaced after the loop.
+            # See https://github.com/apache/airflow/issues/63323.
+            if dag.relative_fileloc is None:
+                stuck_legacy_rows += 1
+                continue
             # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
             # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
             # This is especially relevant for Dag files that generate Dags in a dynamic manner.
-            file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
+            rel_path = Path(dag.relative_fileloc)
+            file_info = DagFileInfo(rel_path=rel_path, bundle_name=dag.bundle_name)
+            if file_info not in last_parsed:
+                # Zip-packaged dags are keyed by the archive path, not the inner file, so try the parent as well
+                file_info = DagFileInfo(rel_path=rel_path.parent, bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
                     self.log.info(
@@ -520,6 +546,15 @@ class DagFileProcessorManager(LoggingMixin):
                     session.rollback()
                 else:
                     raise
+
+        if stuck_legacy_rows:
+            # Surface how many legacy rows the startup repair could not route;
+            # each one keeps raising "Requested bundle is not configured." until
+            # a matching bundle is added to dag_bundle_config_list.
+            self.log.info(
+                "Skipped stale check for %d legacy Dag(s) with NULL relative_fileloc.",
+                stuck_legacy_rows,
+            )
 
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -822,7 +857,7 @@ class DagFileProcessorManager(LoggingMixin):
                 try:
                     bundle.initialize()
                     any_refreshed = True
-                except AirflowException as e:
+                except Exception as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
             try:
@@ -925,8 +960,16 @@ class DagFileProcessorManager(LoggingMixin):
         """Get relative paths for dag files from bundle dir."""
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        rel_paths = [Path(x).relative_to(bundle.path) for x in list_py_file_paths(bundle.path)]
-        self.log.info("Found %s files for bundle %s", len(rel_paths), bundle.name)
+        rel_paths = [
+            Path(x).relative_to(bundle.path)
+            for x in list_py_file_paths(bundle.path, safe_mode=self.dag_discovery_safe_mode)
+        ]
+        self.log.info(
+            "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
+            len(rel_paths),
+            bundle.name,
+            self.dag_discovery_safe_mode,
+        )
 
         return rel_paths
 
@@ -944,7 +987,8 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
-                        if might_contain_dag(info.filename, True, z):
+                        # Use the configured discovery safe mode
+                        if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
                 self.log.exception("There was an error accessing ZIP file %s", abs_path)

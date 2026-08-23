@@ -58,8 +58,6 @@ if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
-_SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
-
 ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
@@ -97,13 +95,6 @@ class ConfigModifications:
 
     def add_default_update(self, section: str, option: str, new_default: str) -> None:
         self.default_updates[(section, option)] = new_default
-
-
-def _parse_sqlite_version(s: str) -> tuple[int, ...]:
-    match = _SQLITE3_VERSION_PATTERN.match(s)
-    if match is None:
-        return ()
-    return tuple(int(p) for p in match.group("version").split("."))
 
 
 @overload
@@ -426,7 +417,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         import sqlite3
 
         min_sqlite_version = (3, 15, 0)
-        if _parse_sqlite_version(sqlite3.sqlite_version) >= min_sqlite_version:
+        if sqlite3.sqlite_version_info >= min_sqlite_version:
             return
 
         from airflow.utils.docs import get_docs_url

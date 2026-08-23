@@ -31,9 +31,14 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    AssetWatcherModel,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    TaskOutletAssetReference,
 )
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
+from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.temporal import StartOfHourMapper
 from airflow.partition_mappers.window import HourWindow
@@ -42,12 +47,15 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_apdr,
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_pakl,
     clear_db_serialized_dags,
+    clear_db_teams,
 )
 
 pytestmark = pytest.mark.db_test
@@ -59,6 +67,8 @@ def cleanup():
     clear_db_serialized_dags()
     clear_db_apdr()
     clear_db_pakl()
+    clear_db_teams()
+    clear_db_dag_bundles()
 
 
 class TestNextRunAssets:
@@ -137,9 +147,15 @@ class TestNextRunAssets:
             )
         }
         # Queue and add an event only for A
-        session.add(AssetDagRunQueue(asset_id=assets["s3://bucket/A"].id, target_dag_id="two_assets_equal"))
+        event = AssetEvent(asset_id=assets["s3://bucket/A"].id, timestamp=dr.logical_date or pendulum.now())
+        session.add(event)
+        session.flush()
         session.add(
-            AssetEvent(asset_id=assets["s3://bucket/A"].id, timestamp=dr.logical_date or pendulum.now())
+            AssetDagRunQueue(
+                asset_id=assets["s3://bucket/A"].id,
+                target_dag_id="two_assets_equal",
+                asset_event_id=event.id,
+            )
         )
         session.commit()
 
@@ -210,12 +226,16 @@ class TestNextRunAssets:
         dag_maker.sync_dagbag_to_db()
 
         asset = session.scalars(select(AssetModel).where(AssetModel.uri == "s3://bucket/F")).one()
-        session.add(AssetDagRunQueue(asset_id=asset.id, target_dag_id="filter_run"))
-        # event before latest_run should be ignored
         ts_base = dr.logical_date or pendulum.now()
-        session.add(AssetEvent(asset_id=asset.id, timestamp=ts_base.subtract(minutes=10)))
+        # event before latest_run should be ignored
+        event_before = AssetEvent(asset_id=asset.id, timestamp=ts_base.subtract(minutes=10))
         # event after latest_run counts
-        session.add(AssetEvent(asset_id=asset.id, timestamp=ts_base.add(minutes=10)))
+        event_after = AssetEvent(asset_id=asset.id, timestamp=ts_base.add(minutes=10))
+        session.add_all([event_before, event_after])
+        session.flush()
+        session.add(
+            AssetDagRunQueue(asset_id=asset.id, target_dag_id="filter_run", asset_event_id=event_after.id)
+        )
         session.commit()
 
         resp = test_client.get("/next_run_assets/filter_run")
@@ -746,12 +766,56 @@ class TestGetAssetsUi:
 
     def test_query_count(self, test_client, session):
         """The asset relationships are eager-loaded, so the query count stays fixed regardless of
-        how many assets are returned (a lazy-loading regression would issue queries per asset)."""
-        for i in range(5):
-            asset = AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset")
-            session.add(asset)
-            session.add(AssetActive.for_asset(asset))
+        how many assets are returned (a lazy-loading regression would issue queries per asset).
+
+        At least two assets carry a watcher (with a trigger) and an alias so the count guards the
+        ``selectinload`` of every relationship, including the nested ``watchers -> trigger`` join.
+        """
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(5)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.flush()
+
+        for i in range(2):
+            trigger = Trigger(classpath=f"airflow.triggers.testing.TestTrigger{i}", kwargs={})
+            session.add(trigger)
+            session.flush()
+            assets[i].watchers.append(AssetWatcherModel(name=f"watcher{i}", trigger_id=trigger.id))
+            assets[i].aliases.append(AssetAliasModel(name=f"alias{i}", group=""))
         session.commit()
 
-        with assert_queries_count(7):
+        with assert_queries_count(8):
             assert test_client.get("/assets").status_code == 200
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        bundle = DagBundleModel(name="team-bundle")
+        bundle.teams.append(Team(name="owning-team"))
+        session.add(bundle)
+        session.flush()
+
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(5)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.flush()
+
+        for i, asset in enumerate(assets):
+            session.add(DagModel(dag_id=f"scheduled_dag{i}", bundle_name="team-bundle"))
+            session.add(DagModel(dag_id=f"producing_dag{i}", bundle_name="team-bundle"))
+            session.add(DagScheduleAssetReference(dag_id=f"scheduled_dag{i}", asset=asset))
+            session.add(TaskOutletAssetReference(dag_id=f"producing_dag{i}", task_id="task", asset=asset))
+        session.commit()
+
+        with assert_queries_count(12):
+            response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        assets_by_name = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets_by_name["asset0"]["scheduled_dags"][0]["team_name"] == "owning-team"
+        assert assets_by_name["asset0"]["producing_tasks"][0]["team_name"] == "owning-team"

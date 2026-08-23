@@ -61,7 +61,8 @@ class GoogleAdsToGcsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param api_version: Optional Google Ads API version to use.
+    :param api_version: Optional Google Ads API version to use. If not set, the operator uses the
+        default version of the installed ``google-ads`` library.
     :param unwrap_single: If True, return the GCS URI as a string instead of a list.
         Defaults to False for backward compatibility.
     """

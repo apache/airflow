@@ -17,11 +17,12 @@
 
 [build-system]
 requires = [
-    "hatchling==1.31.0",
-    "packaging==26.2",
+    "hatchling==1.32.0",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
+    "tomlkit==0.15.1",
     "trove-classifiers==2026.6.1.19",
 ]
 build-backend = "hatchling.build"
@@ -191,9 +192,6 @@ apache-airflow = "airflow.__main__:main"
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
 ]
-"common.dataquality" = [
-    "apache-airflow-providers-common-dataquality>=0.1.0"
-]
 "common.io" = [
     "apache-airflow-providers-common-io>=1.4.2"
 ]
@@ -256,9 +254,6 @@ apache-airflow = "airflow.__main__:main"
 ]
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
-]
-"ibm.mq" = [
-    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
 ]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
@@ -444,7 +439,6 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-ai>=0.1.0",
     "apache-airflow-providers-common-compat>=1.2.1",
-    "apache-airflow-providers-common-dataquality>=0.1.0",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
@@ -466,7 +460,6 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
-    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
@@ -569,7 +562,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.29",
+    "uv>=0.12.5",
 ]
 
 [project.urls]
@@ -609,6 +602,10 @@ extend-exclude = [
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 external = ["MIG"]
+# Pin the base rule set instead of inheriting Ruff's default, which Ruff changes
+# between releases (0.16 widened it from ~250 to ~510 rules). Everything Airflow
+# actually opts into lives in extend-select below.
+select = ["E4", "E7", "E9", "F"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
@@ -716,6 +713,13 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
+    # New in Ruff 0.16, inside sections Airflow selects wholesale. Deferred so a tooling
+    # bump does not also carry semantic changes; both need per-site judgement.
+    "ISC004", # Implicit string concat in a collection literal; 109 sites, unsafe autofix
+    # LOG004 is not a mechanical replacement: switching to `.error()` where an exception is
+    # in flight silently drops the traceback, while leaving `.exception()` where none is
+    # only prints a bare `NoneType: None`. Review already caught one bad guess in 13.
+    "LOG004", # `.exception()` outside an exception handler; 13 sites
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -1198,6 +1202,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/hashicorp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/http/src",
     "$MYPY_CONFIG_FILE_DIR/providers/http/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/src",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/imap/src",
@@ -1490,6 +1496,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
@@ -1568,6 +1575,12 @@ apache-airflow-task-sdk-integration-tests = false
 # past that release so 1.2.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-07-15.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
+# Temporary: google-cloud-aiplatform 1.164.0 is the first release whose "evaluation" extra
+# allows the litellm versions that carry the Python 3.14 security fixes, and it was published
+# 2026-08-12, inside the "4 days" exclude-newer window. This pins the per-package cutoff just
+# past that release so 1.164.0 resolves while any later release stays quarantined.
+# Remove once the rolling window advances past 2026-08-12.
+google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1642,6 +1655,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
@@ -1716,6 +1730,8 @@ apache-airflow-task-sdk-integration-tests = false
 # `[tool.uv.exclude-newer-package]` above for rationale.
 # Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
+# Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
+google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1805,6 +1821,7 @@ apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-ibm-db2 = { workspace = true }
 apache-airflow-providers-ibm-mq = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
@@ -1946,6 +1963,7 @@ members = [
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
+    "providers/ibm/db2",
     "providers/ibm/mq",
     "providers/imap",
     "providers/influxdb",

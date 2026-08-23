@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "事件類型"
-    },
-    "title": "稽核日誌事件"
+    }
   },
   "deadlines": {
     "columns": {

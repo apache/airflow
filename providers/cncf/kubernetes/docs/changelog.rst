@@ -27,6 +27,64 @@
 Changelog
 ---------
 
+10.21.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make KubernetesPodOperator durable execution inert below Airflow 3.3 (#71492)``
+* ``Coerce explicit None _request_timeout in async/sync k8s API clients (#69611)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing argument docs for pod methods (#71217)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+10.21.0
+.......
+
+.. note::
+    ``airflow kubernetes cleanup-pods`` now takes ``--min-completed-minutes``, which defaults to
+    ``1``. Terminal pods are therefore no longer deleted immediately; pass
+    ``--min-completed-minutes 0`` to restore the previous behavior. The delay closes a race
+    where cleanup removed a pod before ``await_pod_completion`` had read its final state.
+
+Features
+~~~~~~~~
+
+* ``Add '--min-completed-minutes' to 'cleanup-pods' to prevent KubernetesPodOperator race condition (#70595)``
+* ``Add opt-in concurrent pod creation to KubernetesExecutor (#68480)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent deferrable KubernetesPodOperator log parsing from blocking the triggerer event loop (#69661)``
+* ``Fix KubernetesPodOperator dry_run requiring live Kubernetes API client (#70234)``
+* ``Build KubernetesInstallKueueOperator manifest URL after rendering (#70335)``
+
+Misc
+~~~~
+
+* ``Mark KubernetesPodOperator and AgentOperator as durable capable (#70289)``
+* ``Validate KubernetesResourceBaseOperator yaml_conf after rendering (#70337)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document Kubernetes RBAC permissions (#68716)``
+* ``Documenting effect if task state store cleanup for KubernetesPodOperator (#70722)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix version_added for the concurrent pod creation options (#71157)``
+
 10.20.0
 .......
 
@@ -898,7 +956,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 10.2.0
 ......

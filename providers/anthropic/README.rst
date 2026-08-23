@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-anthropic``
 
-Release: ``0.2.0``
+Release: ``0.3.0``
 
 
 `Anthropic <https://docs.claude.com/>`__ provider for Apache Airflow.
@@ -38,7 +38,7 @@ This is a provider package for ``anthropic`` provider. All classes for this prov
 are in ``airflow.providers.anthropic`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.3.0/>`_.
 
 Installation
 ------------
@@ -57,7 +57,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``anthropic``                               ``>=0.101.0``
+``anthropic``                               ``>=0.121.0``
 ==========================================  ==================
 
 Optional dependencies
@@ -66,10 +66,10 @@ Optional dependencies
 ===========  ===============================
 Extra        Dependencies
 ===========  ===============================
-``bedrock``  ``anthropic[bedrock]>=0.101.0``
-``vertex``   ``anthropic[vertex]>=0.101.0``
-``aws``      ``anthropic[aws]>=0.101.0``
+``bedrock``  ``anthropic[bedrock]>=0.121.0``
+``vertex``   ``anthropic[vertex]>=0.121.0``
+``aws``      ``anthropic[aws]>=0.121.0``
 ===========  ===============================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.3.0/changelog.html>`_.
