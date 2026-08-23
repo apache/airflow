@@ -313,27 +313,29 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        opened = []
-
-        def unusable_on_first_open(*args, **kwargs):
-            opened.append(args)
-            if len(opened) == 1:
-                raise PermissionError("bundle storage temporarily unavailable")
-            return Repo(*args, **kwargs)
-
         bundle2 = GitDagBundle(
             name="test",
             git_conn_id=CONN_HTTPS,
             tracking_ref=GIT_DEFAULT_BRANCH,
             refresh_on_initialize=False,
         )
+
+        # Fail the reuse attempt itself - the first open of the working repo - rather than the
+        # Nth open overall, so the test does not encode how often Repo() gets constructed.
+        failed = []
+
+        def unusable_working_repo(path, *args, **kwargs):
+            if Path(path) == bundle2.repo_path and not failed:
+                failed.append(path)
+                raise PermissionError("bundle storage temporarily unavailable")
+            return Repo(path, *args, **kwargs)
+
         with mock.patch(
-            "airflow.providers.git.bundles.git.Repo", wraps=Repo, side_effect=unusable_on_first_open
+            "airflow.providers.git.bundles.git.Repo", wraps=Repo, side_effect=unusable_working_repo
         ):
             bundle2.initialize()
 
-        # The failed reuse attempt was not the last open: initialization continued past it
-        assert len(opened) > 1
+        assert failed, "the reuse path never attempted to open the working repo"
         assert _version_str(bundle2.get_current_version()) != starting_version
         files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
         assert files_in_repo == {"test_dag.py", "new_test.py"}
