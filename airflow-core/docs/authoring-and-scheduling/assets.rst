@@ -414,6 +414,12 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
         s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
         yield Metadata(s3_asset, extra={"k": "v"}, alias=AssetAlias("my-task-outputs"))
 
+``Metadata.partition_key`` is recorded on the concrete asset accessor only
+(``outlet_events[asset].add_partitions``). Alias-resolved events keep using the
+Dag-run partition key. Declare the asset as an outlet, or call
+``add_partitions`` on that asset, if the key must appear on the event. Do not
+expect ``alias=`` to fan out per-emission partition keys.
+
 Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
 
 .. code-block:: python
@@ -995,6 +1001,9 @@ partition:
         # Same as:
         # yield Metadata(self, extra={"row_count": 1}, partition_key="us")
 
+``Metadata.partition_key`` is recorded on the concrete asset accessor. Events
+emitted only through an alias still use the producing Dag run's partition key.
+
 Inside an ``@asset`` function, ``self`` (the emitted ``Asset``) and
 ``outlet_events`` (the outlet event accessor) are reserved parameter names that
 Airflow populates at runtime. Prefer keyword-only ``outlet_events``. Pass a
@@ -1024,8 +1033,7 @@ Airflow does not invent a key from extra.
 .. note::
 
    Airflow 3 batches asset events that share a partition key into one downstream
-   Dag run. The Airflow 2.10-looking "one run per mapped task instance" behavior
-   needs distinct partition keys, or https://github.com/apache/airflow/pull/68517.
+   Dag run. Distinct keys are required for one run per mapped task instance.
 
 When a runtime run emits exactly one partition key, the producing
 ``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume

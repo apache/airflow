@@ -2182,7 +2182,7 @@ class TestSerializeOutletEvents:
         ]
 
     def test_emits_shared_extra_on_each_partition_key(self):
-        """Metadata-equivalent: extra plus two keys → two payloads, same extra, distinct keys."""
+        """Extra plus two keys serializes to two payloads with the same extra and distinct keys."""
         accessors = OutletEventAccessors()
         accessor = accessors[Asset(name="a")]
         accessor.extra.update({"row_count": 1})
