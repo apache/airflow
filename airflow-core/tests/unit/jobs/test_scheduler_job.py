@@ -47,6 +47,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
@@ -6343,6 +6344,378 @@ class TestSchedulerJob:
         ).one_or_none()
         # ADRQ is deleted even when no DagRun is created, to prevent stale rows accumulating.
         assert _adrq is None
+
+    def _create_mapped_outlet_dags(
+        self,
+        dag_maker,
+        session,
+        *,
+        items: list,
+        asset: Asset,
+        schedule=None,
+        catchup: bool = False,
+        consumer_dag_id: str = "mapped-asset-consumer",
+        producer_dag_id: str = "mapped-asset-producer",
+    ) -> list[TaskInstance]:
+        with dag_maker(
+            dag_id=consumer_dag_id, schedule=schedule or [asset], catchup=catchup, session=session
+        ):
+            EmptyOperator(task_id="consume")
+
+        with dag_maker(dag_id=producer_dag_id, schedule=None, serialized=True, session=session):
+
+            @task(outlets=[asset])
+            def publish(item):
+                return item
+
+            publish.expand(item=items)
+
+        dag_maker.create_dagrun(session=session)
+        return session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == producer_dag_id,
+                TaskInstance.task_id == "publish",
+                TaskInstance.map_index >= 0,
+            )
+            .order_by(TaskInstance.map_index)
+        ).all()
+
+    def _register_mapped_outlet(
+        self,
+        ti: TaskInstance,
+        asset: Asset,
+        extra: dict,
+        session: Session,
+    ) -> None:
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[ensure_serialized_asset(asset).asprofile()],
+            outlet_events=[{"dest_asset_key": {"name": asset.name, "uri": asset.uri}, "extra": extra}],
+            session=session,
+        )
+
+    def _tick_asset_runs(self, session):
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._create_dagruns_for_dags(session, session)
+        return scheduler_job
+
+    def test_mapped_asset_empty_expand_creates_no_run(self, session, dag_maker):
+        asset = Asset(name="mapped-outlet-empty", uri="test://mapped-outlet-empty")
+        consumer_dag_id = "mapped-asset-empty-consumer"
+        mapped_tis = self._create_mapped_outlet_dags(
+            dag_maker,
+            session,
+            items=[],
+            asset=asset,
+            consumer_dag_id=consumer_dag_id,
+            producer_dag_id="mapped-asset-empty-producer",
+        )
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        assert mapped_tis == []
+        assert (
+            session.scalars(
+                select(AssetEvent).where(AssetEvent.source_dag_id == "mapped-asset-empty-producer")
+            ).all()
+            == []
+        )
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).all() == []
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    @pytest.mark.parametrize(
+        ("items", "same_extras"),
+        [
+            pytest.param([1], False, id="single-item"),
+            pytest.param([1, 2, 3], False, id="three-distinct-extras"),
+            pytest.param([1, 2, 3], True, id="three-same-extras"),
+        ],
+    )
+    def test_mapped_asset_events_consumed_together(self, items, same_extras, session, dag_maker):
+        asset = Asset(name="mapped-outlet", uri="test://mapped-outlet")
+        consumer_dag_id = "mapped-asset-consumer"
+        mapped_tis = self._create_mapped_outlet_dags(
+            dag_maker, session, items=items, asset=asset, consumer_dag_id=consumer_dag_id
+        )
+        extras = {
+            ti.map_index: {"item": 1} if same_extras else {"item": items[ti.map_index]} for ti in mapped_tis
+        }
+        for ti in mapped_tis:
+            self._register_mapped_outlet(ti, asset, extras[ti.map_index], session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        leftover_adrq = session.scalars(
+            select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+        ).all()
+        assert created_run.state == State.QUEUED
+        assert {e.source_map_index for e in created_run.consumed_asset_events} == set(extras)
+        assert {e.source_map_index: e.extra for e in created_run.consumed_asset_events} == extras
+        assert leftover_adrq == []
+
+    def test_mapped_asset_leftovers_consumed_on_next_tick(self, session, dag_maker):
+        asset = Asset(name="mapped-outlet-leftover", uri="test://mapped-outlet-leftover")
+        consumer_dag_id = "mapped-asset-leftover-consumer"
+        mapped_tis = self._create_mapped_outlet_dags(
+            dag_maker,
+            session,
+            items=[1, 2, 3],
+            asset=asset,
+            consumer_dag_id=consumer_dag_id,
+            producer_dag_id="mapped-asset-leftover-producer",
+        )
+        self._register_mapped_outlet(mapped_tis[0], asset, {"item": 1}, session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        first_runs = session.scalars(
+            select(DagRun).where(DagRun.dag_id == consumer_dag_id).order_by(DagRun.id)
+        ).all()
+        assert len(first_runs) == 1
+        assert {e.source_map_index for e in first_runs[0].consumed_asset_events} == {0}
+        assert {e.extra["item"] for e in first_runs[0].consumed_asset_events} == {1}
+
+        mapped_tis = session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == "mapped-asset-leftover-producer",
+                TaskInstance.task_id == "publish",
+                TaskInstance.map_index >= 0,
+            )
+            .order_by(TaskInstance.map_index)
+        ).all()
+        self._register_mapped_outlet(mapped_tis[1], asset, {"item": 2}, session)
+        self._register_mapped_outlet(mapped_tis[2], asset, {"item": 3}, session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        runs = session.scalars(
+            select(DagRun).where(DagRun.dag_id == consumer_dag_id).order_by(DagRun.id)
+        ).all()
+        assert len(runs) == 2
+        assert {e.source_map_index for e in runs[1].consumed_asset_events} == {1, 2}
+        assert {e.extra["item"] for e in runs[1].consumed_asset_events} == {2, 3}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    def test_mapped_asset_failed_index_not_queued(self, session, dag_maker):
+        asset = Asset(name="mapped-outlet-failed", uri="test://mapped-outlet-failed")
+        consumer_dag_id = "mapped-asset-failed-consumer"
+        mapped_tis = self._create_mapped_outlet_dags(
+            dag_maker,
+            session,
+            items=[1, 2, 3],
+            asset=asset,
+            consumer_dag_id=consumer_dag_id,
+            producer_dag_id="mapped-asset-failed-producer",
+        )
+        self._register_mapped_outlet(mapped_tis[0], asset, {"item": 1}, session)
+        self._register_mapped_outlet(mapped_tis[2], asset, {"item": 3}, session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        assert {e.source_map_index for e in created_run.consumed_asset_events} == {0, 2}
+        assert {e.extra["item"] for e in created_run.consumed_asset_events} == {1, 3}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    def test_mapped_asset_two_producers_same_second(self, session, dag_maker):
+        asset = Asset(name="shared-outlet", uri="test://shared-outlet")
+        consumer_dag_id = "same-second-consumer"
+        with dag_maker(dag_id=consumer_dag_id, schedule=[asset], session=session):
+            EmptyOperator(task_id="consume")
+
+        with dag_maker(dag_id="same-second-prod-a", schedule=None, serialized=True, session=session):
+            EmptyOperator(task_id="pub", outlets=[asset])
+        ti_a = dag_maker.create_dagrun(session=session).get_task_instance("pub", session=session)
+
+        with dag_maker(dag_id="same-second-prod-b", schedule=None, serialized=True, session=session):
+            EmptyOperator(task_id="pub", outlets=[asset])
+        ti_b = dag_maker.create_dagrun(session=session).get_task_instance("pub", session=session)
+
+        self._register_mapped_outlet(ti_a, asset, {"from": "a"}, session)
+        self._register_mapped_outlet(ti_b, asset, {"from": "b"}, session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        extras = {e.extra["from"] for e in created_run.consumed_asset_events}
+        assert extras == {"a", "b"}
+        assert {e.source_dag_id for e in created_run.consumed_asset_events} == {
+            "same-second-prod-a",
+            "same-second-prod-b",
+        }
+        assert {e.timestamp for e in created_run.consumed_asset_events} == {DEFAULT_DATE}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    def test_mapped_asset_alias_yields_consumed_together(self, session, dag_maker):
+        alias = AssetAlias("mapped-alias")
+        consumer_dag_id = "alias-yield-consumer"
+        with dag_maker(dag_id=consumer_dag_id, schedule=[alias], session=session):
+            EmptyOperator(task_id="consume")
+
+        with dag_maker(dag_id="alias-yield-producer", schedule=None, serialized=True, session=session):
+
+            @task(outlets=[alias])
+            def produce():
+                return None
+
+            produce()
+
+        ti = dag_maker.create_dagrun(session=session).get_task_instance("produce", session=session)
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[AssetProfile(name=alias.name, type="AssetAlias")],
+            outlet_events=[
+                {
+                    "dest_asset_key": {"name": f"dyn-{item}", "uri": f"test://dyn-{item}"},
+                    "source_alias_name": alias.name,
+                    "extra": {"item": item},
+                }
+                for item in (1, 2, 3)
+            ],
+            session=session,
+        )
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        assert {e.extra["item"] for e in created_run.consumed_asset_events} == {1, 2, 3}
+        assert {e.asset.uri for e in created_run.consumed_asset_events} == {
+            "test://dyn-1",
+            "test://dyn-2",
+            "test://dyn-3",
+        }
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    def test_mapped_asset_and_condition_keeps_adrq(self, session, dag_maker):
+        asset1 = Asset(name="and-asset-1", uri="test://and-asset-1")
+        asset2 = Asset(name="and-asset-2", uri="test://and-asset-2")
+        consumer_dag_id = "and-consumer"
+        mapped_tis = self._create_mapped_outlet_dags(
+            dag_maker,
+            session,
+            items=[1, 2, 3],
+            asset=asset1,
+            schedule=asset1 & asset2,
+            consumer_dag_id=consumer_dag_id,
+            producer_dag_id="and-producer",
+        )
+        for ti in mapped_tis:
+            self._register_mapped_outlet(ti, asset1, {"item": ti.map_index + 1}, session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one_or_none() is None
+        adrqs = session.scalars(
+            select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+        ).all()
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+        assert len(adrqs) == 3
+        assert {row.asset_id for row in adrqs} == {asset1_id}
+
+    def test_mapped_asset_or_condition_consumes_fan_out(self, session, dag_maker):
+        asset1 = Asset(name="or-asset-1", uri="test://or-asset-1")
+        asset2 = Asset(name="or-asset-2", uri="test://or-asset-2")
+        consumer_dag_id = "or-consumer"
+        mapped_tis = self._create_mapped_outlet_dags(
+            dag_maker,
+            session,
+            items=[1, 2, 3],
+            asset=asset1,
+            schedule=asset1 | asset2,
+            consumer_dag_id=consumer_dag_id,
+            producer_dag_id="or-producer",
+        )
+        for ti in mapped_tis:
+            self._register_mapped_outlet(ti, asset1, {"item": ti.map_index + 1}, session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        assert {e.source_map_index for e in created_run.consumed_asset_events} == {0, 1, 2}
+        assert {e.extra["item"] for e in created_run.consumed_asset_events} == {1, 2, 3}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    @pytest.mark.parametrize("catchup", [False, True])
+    def test_mapped_asset_catchup_keeps_queued_events(self, catchup, session, dag_maker):
+        asset = Asset(name="mapped-outlet-catchup", uri="test://mapped-outlet-catchup")
+        consumer_dag_id = "mapped-asset-catchup-consumer"
+        mapped_tis = self._create_mapped_outlet_dags(
+            dag_maker,
+            session,
+            items=[1, 2, 3],
+            asset=asset,
+            catchup=catchup,
+            consumer_dag_id=consumer_dag_id,
+            producer_dag_id="mapped-asset-catchup-producer",
+        )
+        for ti in mapped_tis:
+            self._register_mapped_outlet(ti, asset, {"item": ti.map_index + 1}, session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        assert {e.source_map_index for e in created_run.consumed_asset_events} == {0, 1, 2}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
