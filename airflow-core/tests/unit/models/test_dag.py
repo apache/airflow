@@ -2710,14 +2710,16 @@ class TestDagModel:
             session.flush()
             return event
 
-        def _adrq_count():
-            return session.scalar(
-                select(func.count())
-                .select_from(AssetDagRunQueue)
-                .where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+        def _adrq_ids():
+            return set(
+                session.scalars(
+                    select(AssetDagRunQueue.asset_event_id).where(
+                        AssetDagRunQueue.target_dag_id == dag_model.dag_id
+                    )
+                )
             )
 
-        _queue_event()
+        first = _queue_event()
         query, _ = DagModel.dags_needing_dagruns(session)
         assert query.all() == [dag_model]
 
@@ -2735,30 +2737,18 @@ class TestDagModel:
             logical_date=pendulum.now("UTC").add(minutes=1),
         )
         extra = _queue_event()
+        remaining = {first.id, extra.id}
         query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         assert query.all() == []
         assert dag_model.dag_id not in triggered_date_by_dag
-        assert _adrq_count() >= 1
-        assert extra.id in set(
-            session.scalars(
-                select(AssetDagRunQueue.asset_event_id).where(
-                    AssetDagRunQueue.target_dag_id == dag_model.dag_id
-                )
-            )
-        )
+        assert _adrq_ids() == remaining
 
         run1.state = DagRunState.SUCCESS
         session.flush()
         query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         assert query.all() == [dag_model]
         assert dag_model.dag_id in triggered_date_by_dag
-        assert extra.id in set(
-            session.scalars(
-                select(AssetDagRunQueue.asset_event_id).where(
-                    AssetDagRunQueue.target_dag_id == dag_model.dag_id
-                )
-            )
-        )
+        assert _adrq_ids() == remaining
 
     def test_dags_needing_dagruns_skips_adrq_when_serialized_dag_missing(
         self, session, caplog, testing_dag_bundle

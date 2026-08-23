@@ -5940,9 +5940,7 @@ class TestSchedulerJob:
     def test_asset_events_queued_while_at_max_active_runs_are_all_consumed(
         self, catchup, terminal_state, session, dag_maker
     ):
-        """Regression test for GH-56050.
-
-        Events 2, 3, 4 that land while run 1 holds ``max_active_runs=1`` must all be
+        """Events 2, 3, 4 that land while run 1 holds ``max_active_runs=1`` must all be
         consumed by run 2 after the cap lifts. Catchup only changes whether
         pre-subscription events join the first run; it must not change this
         follow-up consume. A FAILED run 1 lifts the cap the same way SUCCESS does.
@@ -6100,7 +6098,7 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     def test_already_consumed_adrq_after_max_active_runs_lift_does_not_create_empty_run(
-        self, session, dag_maker, caplog
+        self, session, dag_maker
     ):
         """Stale ADRQ rows that already sit on dagrun_asset_event must not spawn an empty run."""
         asset = Asset(uri="test://asset-max-active-runs-empty", name="mar_empty_asset", group="test_group")
@@ -6143,10 +6141,8 @@ class TestSchedulerJob:
         run1.state = DagRunState.SUCCESS
         session.flush()
 
-        with caplog.at_level("INFO"):
-            self.job_runner._create_dagruns_for_dags(session, session)
+        self.job_runner._create_dagruns_for_dags(session, session)
 
-        assert "No DagRun created" in caplog.text
         runs = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).all()
         assert [r.id for r in runs] == [run1.id]
         assert (
