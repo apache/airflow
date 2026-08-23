@@ -1,0 +1,1 @@
+``get_running_dag_runs_to_examine`` now returns a ``Sequence[DagRun]`` type instead of ``ScalarResult[Dagrun]``
