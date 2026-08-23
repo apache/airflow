@@ -52,7 +52,7 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
+    # [START howto_adbc_hook]
     @dag.task
     def create_table():
         from airflow.providers.apache.arrow.hooks.adbc import AdbcHook
@@ -89,6 +89,7 @@ with DAG(
         hook.run("DROP TABLE IF EXISTS users")
 
     create_table() >> insert_rows() >> query_rows() >> drop_table()
+    # [END howto_adbc_hook]
 
     from tests_common.test_utils.watcher import watcher
 

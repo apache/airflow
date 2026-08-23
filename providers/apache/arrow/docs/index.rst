@@ -57,6 +57,7 @@
     :caption: Guides
 
     Connection types <connections/adbc>
+    Using AdbcHook <operators>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
