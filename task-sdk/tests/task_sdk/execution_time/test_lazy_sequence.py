@@ -139,6 +139,15 @@ def test_getitem_calls_correct_deserialise(monkeypatch, mock_supervisor_comms, l
     )
 
 
+def test_getitem_index_sparse_gap_returns_none(mock_supervisor_comms, lazy_sequence):
+    """
+    A mapped task instance that hasn't pushed an XCom yet (still within the logical
+    map_index range, e.g. up_for_reschedule or skipped) resolves to None, not IndexError.
+    """
+    mock_supervisor_comms.send.return_value = XComSequenceIndexResult(root=None)
+    assert lazy_sequence[4] is None
+
+
 def test_getitem_indexerror(mock_supervisor_comms, lazy_sequence):
     mock_supervisor_comms.send.return_value = ErrorResponse(
         error=ErrorType.XCOM_NOT_FOUND,
