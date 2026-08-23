@@ -42,6 +42,37 @@ Breaking changes
   imports and all non-evaluation features keep working; the evaluation code paths raise
   ``AirflowOptionalProviderFeatureException`` with this install hint.
 
+22.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support sovereign console links (#70001)``
+* ``Add synchronous Vertex AI Agent Engine query operator (#70933)``
+* ``Add Cloud Run job links during execution (#70179)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prepare Cloud Batch jobs before template rendering (#70835)``
+* ``Improve BigQuery-to-SQL column lineage rendering (#70816)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+* ``Use latest Google Ads API version by default (#71280)``
+
+Misc
+~~~~
+
+* ``Restore the evaluation extra of google-cloud-aiplatform (#71520)``
+* ``Add type annotations to sql hooks (#70815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace the ACL calls with IAM roles for the system tests + add new (#70978)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix Java Beam SDK example to target Java 11 (#71218)``
+
+
 22.3.0
 ......
 
