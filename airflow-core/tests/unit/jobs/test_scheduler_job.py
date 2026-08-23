@@ -5942,7 +5942,7 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     def test_mapped_outlet_asset_events_consumed_in_one_tick(self, session, dag_maker):
-        """GH-54659: every mapped outlet event is consumed in the next asset-triggered run.
+        """Every mapped outlet event is consumed in the next asset-triggered run.
 
         When N mapped TIs of the same producer succeed with the same unpartitioned
         outlet, one scheduler tick must attach all N events (timestamp then id
@@ -6005,7 +6005,7 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     def test_mapped_outlet_asset_events_consumed_across_staggered_ticks(self, session, dag_maker):
-        """GH-54659: events that arrive after a tick are consumed by a later run.
+        """Events that arrive after a tick are consumed by a later run.
 
         map_index 0 is consumed alone on the first tick; 1 and 2 batch into the
         next run. max_active_runs is high enough that the second run is created
@@ -6076,50 +6076,58 @@ class TestSchedulerJob:
         """Events that share a timestamp are still distinct by id and all consumed."""
         asset = Asset(uri="test://mapped-outlet-same-ts", name="mapped_outlet_same_ts")
 
-        with dag_maker(dag_id="mapped-outlet-same-ts-producer", schedule=None, session=session):
-            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
-        producer_run = dag_maker.create_dagrun(run_id="producer-run")
-
-        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-
-        with dag_maker(dag_id="mapped-outlet-same-ts-consumer", schedule=[asset], session=session):
+        with dag_maker(
+            dag_id="mapped-outlet-same-ts-consumer",
+            schedule=[asset],
+            max_active_runs=16,
+            session=session,
+        ):
             EmptyOperator(task_id="consume")
         consumer_dag = dag_maker.dag
+        consumer_dag_id = consumer_dag.dag_id
+        consume_task = consumer_dag.get_task("consume")
 
-        ts = timezone.utcnow()
-        events = [
-            AssetEvent(
-                asset_id=asset_id,
-                source_task_id="task",
-                source_dag_id=producer_run.dag_id,
-                source_run_id=producer_run.run_id,
-                source_map_index=map_index,
-                timestamp=ts,
+        with dag_maker(dag_id="mapped-outlet-same-ts-producer", schedule=None, session=session):
+
+            @task(outlets=[asset])
+            def produce(item):
+                return item
+
+            produce.expand(item=[1, 2, 3])
+
+        producer_run = dag_maker.create_dagrun(run_id="producer-run")
+        with time_machine.travel(DEFAULT_DATE, tick=False):
+            for map_index in range(3):
+                dag_maker.run_ti("produce", dag_run=producer_run, map_index=map_index, session=session)
+        session.commit()
+
+        events = session.scalars(
+            select(AssetEvent).where(AssetEvent.source_dag_id == producer_run.dag_id)
+        ).all()
+        assert {e.source_map_index for e in events} == {0, 1, 2}
+        assert len(events) == 3
+        assert len({e.timestamp for e in events}) == 1
+        assert (
+            len(
+                session.scalars(
+                    select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+                ).all()
             )
-            for map_index in range(3)
-        ]
-        session.add_all(events)
-        session.flush()
-        session.add_all(
-            [
-                AssetDagRunQueue(
-                    asset_id=asset_id, target_dag_id=consumer_dag.dag_id, asset_event_id=event.id
-                )
-                for event in events
-            ]
+            == 3
         )
-        session.flush()
 
         self._tick_asset_dagruns(session)
 
-        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)).one()
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
         consumed = self._consumed_by_timestamp_then_id(created_run)
         assert [e.source_map_index for e in consumed] == [0, 1, 2]
-        assert [e.id for e in consumed] == sorted(event.id for event in events)
+        assert [e.id for e in consumed] == sorted(e.id for e in events)
         assert len({e.timestamp for e in consumed}) == 1
+        trig = self._triggering_asset_events(created_run, consume_task, asset, session)
+        assert {e.source_map_index for e in trig} == {0, 1, 2}
         assert (
             session.scalars(
-                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag.dag_id)
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
             ).all()
             == []
         )
@@ -6137,7 +6145,9 @@ class TestSchedulerJob:
             session=session,
         ):
             EmptyOperator(task_id="consume")
-        consumer_dag_id = dag_maker.dag.dag_id
+        consumer_dag = dag_maker.dag
+        consumer_dag_id = consumer_dag.dag_id
+        consume_task = consumer_dag.get_task("consume")
 
         with dag_maker(dag_id="mapped-outlet-and-producer-a", schedule=None, session=session):
 
@@ -6164,22 +6174,31 @@ class TestSchedulerJob:
             == 3
         )
 
-        asset_b_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_b.uri))
-        event_b = AssetEvent(asset_id=asset_b_id, timestamp=timezone.utcnow())
-        session.add(event_b)
-        session.flush()
-        session.add(
-            AssetDagRunQueue(asset_id=asset_b_id, target_dag_id=consumer_dag_id, asset_event_id=event_b.id)
-        )
-        session.flush()
+        with dag_maker(dag_id="mapped-outlet-and-producer-b", schedule=None, session=session):
+
+            @task(outlets=[asset_b])
+            def produce_b():
+                return 1
+
+            produce_b()
+
+        producer_b_run = dag_maker.create_dagrun(run_id="producer-b-run")
+        dag_maker.run_ti("produce_b", dag_run=producer_b_run, session=session)
+        session.commit()
 
         self._tick_asset_dagruns(session)
 
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
         consumed = list(created_run.consumed_asset_events)
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_a.uri))
+        asset_b_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_b.uri))
         assert len(consumed) == 4
-        assert {e.source_map_index for e in consumed if e.asset_id != asset_b_id} == {0, 1, 2}
-        assert event_b.id in {e.id for e in consumed}
+        assert {e.source_map_index for e in consumed if e.asset_id == asset_a_id} == {0, 1, 2}
+        assert sum(1 for e in consumed if e.asset_id == asset_b_id) == 1
+        trig_a = self._triggering_asset_events(created_run, consume_task, asset_a, session)
+        assert {e.source_map_index for e in trig_a} == {0, 1, 2}
+        trig_b = self._triggering_asset_events(created_run, consume_task, asset_b, session)
+        assert len(trig_b) == 1
         assert (
             session.scalars(
                 select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
@@ -6203,7 +6222,9 @@ class TestSchedulerJob:
             session=session,
         ):
             EmptyOperator(task_id="consume")
-        consumer_dag_id = dag_maker.dag.dag_id
+        consumer_dag = dag_maker.dag
+        consumer_dag_id = consumer_dag.dag_id
+        consume_task = consumer_dag.get_task("consume")
 
         with dag_maker(dag_id="mapped-outlet-alias-producer", schedule=None, session=session):
 
@@ -6231,6 +6252,8 @@ class TestSchedulerJob:
         consumed = list(created_run.consumed_asset_events)
         assert {e.source_map_index for e in consumed} == {0, 1, 2}
         assert len(consumed) == 3
+        trig = self._triggering_asset_events(created_run, consume_task, alias, session)
+        assert {e.source_map_index for e in trig} == {0, 1, 2}
         assert (
             session.scalars(
                 select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
