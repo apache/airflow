@@ -574,6 +574,15 @@ class TestFabAirflowSecurityManagerOverride:
             pytest.param(
                 {
                     "client_kwargs": {},
+                    "api_base_url": "https://login.microsoftonline.com/common/oauth2/v2.0/",
+                    "access_token_url": "https://login.microsoftonline.com/tenant-from-token-url/oauth2/v2.0/token",
+                },
+                "tenant-from-token-url",
+                id="skips-tenant-agnostic-endpoint",
+            ),
+            pytest.param(
+                {
+                    "client_kwargs": {},
                     "api_base_url": None,
                     "access_token_url": None,
                     "authorize_url": "https://login.microsoftonline.com/tenant-from-auth-url/oauth2/v2.0/authorize",

@@ -30,6 +30,7 @@ import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
+import requests
 from flask import current_app, flash, g, has_app_context, has_request_context, session
 from flask_appbuilder import Model, const
 from flask_appbuilder.const import (
@@ -407,8 +408,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         self.create_jwt_manager()
 
     def _get_authentik_jwks(self, jwks_url) -> dict:
-        import requests
-
         resp = requests.get(jwks_url, timeout=30)
         if resp.status_code == 200:
             return resp.json()
@@ -2428,8 +2427,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             session.sid = str(uuid.uuid4())  # type: ignore
 
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
-        import requests
-
         return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
     def _get_azure_tenant_identifier(self) -> str | None:
@@ -2439,10 +2436,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Prefers an explicit ``tenant_id`` in ``client_kwargs``; otherwise derives it from
         the tenant path segment of configured Azure HTTPS endpoints on ``login.microsoftonline.com``.
 
-        Returns ``None`` when no tenant can be determined or when the configuration uses
-        tenant-agnostic endpoints (``common``, ``organizations``, ``consumers``).
+        Returns ``None`` when an explicit ``tenant_id`` is tenant-agnostic or when no
+        tenant-specific identifier can be derived from the configured endpoints. Tenant-agnostic
+        authorities (``common``, ``organizations``, ``consumers``) are skipped while searching.
         """
         azure = self.oauth_remotes["azure"]
+        tenant_agnostic_authorities = ("common", "organizations", "consumers")
 
         tenant_id = azure.client_kwargs.get("tenant_id")
         if tenant_id and isinstance(tenant_id, str) and tenant_id.strip():
@@ -2463,10 +2462,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     continue
                 path_parts = [segment for segment in parsed.path.split("/") if segment]
                 if path_parts:
-                    tenant_identifier = path_parts[0]
+                    tenant_candidate = path_parts[0]
+                    if tenant_candidate.lower() in tenant_agnostic_authorities:
+                        continue
+                    tenant_identifier = tenant_candidate
                     break
 
-        if not tenant_identifier or tenant_identifier.lower() in ("common", "organizations", "consumers"):
+        if not tenant_identifier or tenant_identifier.lower() in tenant_agnostic_authorities:
             return None
         return tenant_identifier
 
@@ -2486,8 +2488,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         if tenant_identifier in self._azure_tenant_guid_cache:
             return self._azure_tenant_guid_cache[tenant_identifier]
-
-        import requests
 
         encoded_tenant = urllib.parse.quote(tenant_identifier, safe="")
         discovery_url = (
