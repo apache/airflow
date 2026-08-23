@@ -50,11 +50,9 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.deadline import VariableInterval
-from airflow.serialization.decoders import decode_deadline_alert
-from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
+from airflow.serialization.decoders import decode_deadline_alert_model, resolve_deadline_alert_interval
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -741,21 +739,8 @@ class SerializedDAG:
             if not deadline_alert:
                 continue
 
-            deserialized_deadline_alert = decode_deadline_alert(
-                {
-                    Encoding.TYPE: DAT.DEADLINE_ALERT,
-                    Encoding.VAR: {
-                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
-                    },
-                }
-            )
-
-            interval = deserialized_deadline_alert.interval
-
-            if isinstance(interval, VariableInterval):
-                interval = interval.resolve()
+            deserialized_deadline_alert = decode_deadline_alert_model(deadline_alert)
+            interval = resolve_deadline_alert_interval(deserialized_deadline_alert)
 
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
