@@ -1,0 +1,1 @@
+Fix ``airflow db clean`` table configurations for Airflow 3: correct ``asset_event`` DAG ID column to ``source_dag_id``, update ``task_reschedule`` to drop obsolete ``dag_id`` filter and include it in ``task_instance`` dependent tables, update ``callback`` table name, and remove obsolete ``sla_miss`` table.
