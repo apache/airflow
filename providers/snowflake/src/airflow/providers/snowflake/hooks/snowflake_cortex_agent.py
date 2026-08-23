@@ -152,11 +152,10 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             conversation, this should contain the conversation history and the
             current user message. When ``thread_id`` and ``parent_message_id``
             are provided, this should contain only the current user message.
-        :param thread_id: Existing conversation thread identifier. Optional.
-            When provided, ``parent_message_id`` must also be supplied.
-            Defaults to ``None``.
+        :param thread_id: Existing conversation thread identifier. When provided,
+            ``parent_message_id`` must also be supplied. Optional. Defaults to ``None``.
         :param parent_message_id: Parent message identifier within the specified
-            thread. Required when ``thread_id`` is provided. Defaults to ``None``.
+            thread. Required when ``thread_id`` is provided. Optional. Defaults to ``None``.
         :param tool_choice: Tool selection configuration for the agent. Optional.
             Defaults to ``None``.
         :param models: Model configuration for the agent. Optional. Defaults to
@@ -170,7 +169,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         :param tool_resources: Configuration for tools specified in ``tools``.
             Optional. Defaults to ``None``.
         :param timeout: Maximum time in seconds to wait for the Cortex Agent request
-            to complete. Defaults to ``600``.
+            to complete. Optional. Defaults to ``600``.
         :return: JSON response returned by the Cortex Agent.
         """
         if thread_id is not None and parent_message_id is None:
@@ -228,7 +227,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         :param schema: Schema containing the Cortex Agent.
         :param agent_name: Name of the Cortex Agent.
         :param timeout: Maximum time in seconds to wait for the Cortex Agent
-            request to complete. Defaults to ``600``.
+            request to complete. Optional. Defaults to ``600``.
         :return: JSON description of the Cortex Agent.
         """
         endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
@@ -262,7 +261,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         :param show_limit: Maximum number of agents to return. Optional.
             Defaults to ``None``.
         :param timeout: Maximum time in seconds to wait for the Cortex Agent
-            request to complete. Defaults to ``600``.
+            request to complete. Optional. Defaults to ``600``.
         :return: List of Cortex Agents.
         """
         endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents"
@@ -302,9 +301,9 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         :param schema: Schema containing the Cortex Agent.
         :param agent_name: Name of the Cortex Agent.
         :param if_exists: If ``True``, do not fail when the agent does not exist.
-            Defaults to ``False``.
+            Optional. Defaults to ``False``.
         :param timeout: Maximum time in seconds to wait for the Cortex Agent request
-            to complete. Defaults to ``600``.
+            to complete. Optional. Defaults to ``600``.
         :return: JSON response confirming deletion.
         """
         endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
