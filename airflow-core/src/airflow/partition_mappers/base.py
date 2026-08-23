@@ -138,6 +138,16 @@ class PartitionMapper(ABC):
         """
         return None
 
+    def validate_source_key(self, key: str) -> None:
+        """
+        Validate that a source partition key is in a supported format.
+
+        The default implementation accepts any key. Mappers that parse or
+        otherwise expect structured source keys should override this to reject
+        malformed-but-parseable inputs before they are normalized.
+        """
+        return None
+
     def serialize(self) -> dict[str, Any]:
         if self.max_downstream_keys is None:
             return {}
