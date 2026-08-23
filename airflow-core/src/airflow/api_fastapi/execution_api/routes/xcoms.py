@@ -179,20 +179,27 @@ def get_mapped_xcom_by_index(
         )
 
     if mapped_length is not None:
-        map_index = offset if offset >= 0 else mapped_length + offset
-        if not (0 <= map_index < mapped_length):
-            raise not_found()
-        xcom_query = XComModel.get_many(
+        any_pushed = XComModel.get_many(
             run_id=run_id,
             key=key,
             task_ids=task_id,
             dag_ids=dag_id,
-            map_indexes=map_index,
-        )
-        result: tuple[XComModel] | None = session.scalars(xcom_query.order_by(None)).first()
-        if result is None:
-            return XComSequenceIndexResponse(None)
-        return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
+        ).order_by(None)
+        if session.execute(any_pushed.limit(1)).first() is not None:
+            map_index = offset if offset >= 0 else mapped_length + offset
+            if not (0 <= map_index < mapped_length):
+                raise not_found()
+            xcom_query = XComModel.get_many(
+                run_id=run_id,
+                key=key,
+                task_ids=task_id,
+                dag_ids=dag_id,
+                map_indexes=map_index,
+            )
+            result: tuple[XComModel] | None = session.scalars(xcom_query.order_by(None)).first()
+            if result is None:
+                return XComSequenceIndexResponse(None)
+            return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
 
     xcom_query = XComModel.get_many(
         run_id=run_id,
@@ -245,9 +252,13 @@ def get_mapped_xcom_by_slice(
     ).order_by(None)
 
     # Only fall back to fetching every XCom row (needed to place each value at its true
-    # map_index) when there's an actual gap. The common case -- every mapped instance has
-    # pushed its XCom -- keeps the cheaper SQL-side OFFSET/LIMIT/slice() below.
-    if mapped_length is not None and get_query_count(base_query, session=session) < mapped_length:
+    # map_index) when there's an actual gap for this key -- i.e. some, but not all, of the
+    # mapped instances have pushed it. If none have (e.g. the key doesn't exist at all),
+    # that's not a gap to fill with None; it's an empty/not-found result, handled below by
+    # the unchanged SQL-side path. The common case -- every instance has pushed -- also
+    # keeps that cheaper OFFSET/LIMIT/slice() path.
+    existing_count = get_query_count(base_query, session=session) if mapped_length is not None else 0
+    if mapped_length is not None and 0 < existing_count < mapped_length:
         by_map_index = {
             row.map_index: row.value
             for row in session.execute(base_query.with_only_columns(XComModel.map_index, XComModel.value))

@@ -244,6 +244,44 @@ class TestXComsGetEndpoint:
         assert response.status_code == 200
         assert response.json() == "f"
 
+    def test_xcom_get_with_offset_mapped_task_wrong_key_not_found(self, client, dag_maker, session):
+        """
+        A mapped task with no XCom rows at all for the requested key (e.g. the key is
+        wrong, or nothing has been pushed yet) must 404, not be treated as a sparse
+        sequence and resolve every offset to None.
+        """
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["f", "o", "o", "b"])
+        dag_maker.create_dagrun(run_id="runid")
+
+        response = client.get("/execution/xcoms/dag/runid/task/non_existent_key/item/0")
+        assert response.status_code == 404
+
+    def test_xcom_get_with_slice_mapped_task_wrong_key_not_found(self, client, dag_maker, session):
+        """
+        Same as above, but for the slice endpoint: no XCom rows at all for the key means
+        an empty result, not a full-length list of None.
+        """
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["f", "o", "o", "b"])
+        dag_maker.create_dagrun(run_id="runid")
+
+        response = client.get("/execution/xcoms/dag/runid/task/non_existent_key/slice")
+        assert response.status_code == 200
+        assert response.json() == []
+
     @pytest.mark.parametrize(
         "key",
         [
