@@ -1209,7 +1209,7 @@ class NullableDatetimeRangeFilter(RangeFilter):
         super().__init__(value, attribute)
         self.null_lower_bound_clause = null_lower_bound_clause
 
-    def _get_null_lower_bound_clause(self):
+    def _get_null_lower_bound_clause(self) -> ColumnElement[bool]:
         null_clause = self.attribute.is_(None)
         if self.null_lower_bound_clause is not None:
             null_clause = and_(null_clause, self.null_lower_bound_clause)
@@ -1239,7 +1239,11 @@ class NullableDatetimeRangeFilter(RangeFilter):
 
 
 def datetime_range_filter_factory(
-    filter_name: str, model: Base, attribute_name: str | None = None
+    filter_name: str,
+    model: Base,
+    attribute_name: str | None = None,
+    *,
+    null_lower_bound_clause: ColumnElement[bool] | None = None,
 ) -> Callable[[datetime | None, datetime | None, datetime | None, datetime | None], RangeFilter]:
     def depends_datetime(
         lower_bound_gte: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
@@ -1254,13 +1258,7 @@ def datetime_range_filter_factory(
             upper_bound_lte=upper_bound_lte,
             upper_bound_lt=upper_bound_lt,
         )
-        attr_name = attribute_name or filter_name
-        if filter_name in ("start_date", "end_date") or (model is DagRun and attr_name == "start_date"):
-            null_lower_bound_clause: ColumnElement[bool] | None = None
-            if model is DagRun:
-                null_lower_bound_clause = DagRun.id.is_not(None)
-                if attr_name == "start_date":
-                    null_lower_bound_clause = and_(null_lower_bound_clause, DagRun.end_date.is_(None))
+        if filter_name in ("start_date", "end_date"):
             return NullableDatetimeRangeFilter(
                 range_val, attr, null_lower_bound_clause=null_lower_bound_clause
             )

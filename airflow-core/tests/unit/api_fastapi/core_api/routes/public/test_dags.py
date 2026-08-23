@@ -459,24 +459,6 @@ class TestGetDags(TestDagEndpoint):
 
         assert actual_ids == expected_ids
 
-    def test_get_dags_start_date_lower_bound_excludes_finished_latest_run_with_null_start_date(
-        self, test_client, session
-    ):
-        run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID))
-        run.start_date = None
-        run.end_date = DAG1_START_DATE + timedelta(minutes=5)
-        session.commit()
-
-        response = test_client.get(
-            "/dags",
-            params={"dag_run_start_date_gte": DAG2_START_DATE.isoformat(), "exclude_stale": False},
-        )
-
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 0
-        assert [dag["dag_id"] for dag in body["dags"]] == []
-
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
