@@ -1,0 +1,1 @@
+Fixed a bug where a manually triggered Dag run whose ``logical_date`` happened to match a later scheduled run's ``logical_date`` would silently and permanently block that scheduled run from ever being created. The two runs represent different data intervals despite sharing a ``logical_date``, and are now distinguished by ``run_type`` in the metadata database.
