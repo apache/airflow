@@ -827,6 +827,95 @@ class TestGitDagBundle:
         assert {"test_dag.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_tracking_ref_commit_sha_rollback(self, mock_githook, git_repo):
+        """Ensure tracking_ref accepts a full commit SHA, and rolling back to an
+        already-local SHA succeeds after a config-driven bundle re-creation.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit
+
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        second_commit = repo.index.commit("Another commit")
+
+        # Initial deploy pinned to the second commit's SHA; both commits are already
+        # fetched into local storage since the origin repo had them at clone time.
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == second_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
+        assert_repo_is_closed(bundle)
+
+        # Rollback: config change re-creates the bundle pointed back at the first commit's
+        # SHA. That commit's objects are already in local storage, so it succeeds.
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=first_commit.hexsha)
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == first_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_tracking_ref_commit_sha_promote_fails_without_clearing_storage(self, mock_githook, git_repo):
+        """A SHA created after the bundle's local storage was first populated can't be
+        promoted to in-place: the working clone never fetches it before checkout.
+
+        This documents a known limitation rather than desired behavior -- it should start
+        passing once the fix tracked at https://github.com/apache/airflow/issues/71388 lands,
+        at which point this test should be updated to assert success instead.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=first_commit.hexsha)
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == first_commit.hexsha
+        assert_repo_is_closed(bundle)
+
+        # Created after the bundle's local storage already exists.
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        second_commit = repo.index.commit("Another commit")
+
+        # Promote in-place: config change re-creates the bundle against the same local
+        # storage. The new commit's objects were never fetched into the working clone.
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
+        with pytest.raises(GitCommandError, match="reference is not a tree|unable to read tree"):
+            bundle.initialize()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_tracking_ref_commit_sha_promote_succeeds_with_fresh_storage(self, mock_githook, git_repo):
+        """Promoting a SHA-pinned tracking_ref to a new commit succeeds once local storage
+        is cleared (e.g. a fresh pod), since that re-clones from the updated bare mirror.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=first_commit.hexsha)
+        bundle.initialize()
+        assert_repo_is_closed(bundle)
+
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        second_commit = repo.index.commit("Another commit")
+
+        # Different bundle name -> fresh local storage, simulating a freshly started pod.
+        bundle = GitDagBundle(name="test-fresh", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == second_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_after_force_push_does_not_reclone(self, mock_githook, git_repo):
         """Refresh after force-push must fetch+reset, never clone."""
         repo_path, repo = git_repo
@@ -1359,10 +1448,10 @@ class TestGitDagBundle:
             with mock.patch("airflow.providers.git.bundles.git.Repo.clone_from") as mock_clone:
                 mock_clone.side_effect = NoSuchPathError("Path not found")
                 bundle = GitDagBundle(name="test", tracking_ref="main")
-                with pytest.raises(AirflowException) as exc_info:
+                with pytest.raises(FileNotFoundError) as exc_info:
                     bundle._clone_repo_if_required()
 
-                assert "Repository path: %s not found" in str(exc_info.value)
+                assert str(exc_info.value) == f"Repository path: {bundle.bare_repo_path} not found"
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
@@ -1847,3 +1936,61 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert "branch_file.py" in files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_fetch_submodules_applies_ssh_env_during_initialize(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that git submodule command runs in custom_environment(GIT_SSH_COMMAND=...)."""
+        SSH_CMD = "ssh -i /id_rsa -o StrictHostKeyChecking=no"
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {"GIT_SSH_COMMAND": SSH_CMD}
+        mock_exists.return_value = True  # Skips clone
+
+        mock_submodules_repo_instance = mock.MagicMock()
+        mock_repo_class.side_effect = [mock.MagicMock(), mock_submodules_repo_instance]
+        mock_submodules_repo_instance.commit.return_value = mock.MagicMock()
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+        bundle.initialize()
+
+        mock_submodules_repo_instance.git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=SSH_CMD)
+        mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_fetch_submodules_applies_ssh_env_during_refresh(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that submodule sync/update run inside custom_environment(GIT_SSH_COMMAND=...) during refresh."""
+        SSH_CMD = "ssh -i /id_rsa -o StrictHostKeyChecking=no"
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {"GIT_SSH_COMMAND": SSH_CMD}
+        mock_exists.return_value = True
+
+        mock_working_repo = mock.MagicMock()
+        mock_repo_class.side_effect = [mock.MagicMock(), mock_working_repo]
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            submodules=True,
+        )
+
+        # Calling initialize without a specific version triggers refresh()
+        bundle.initialize()
+
+        mock_working_repo.git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=SSH_CMD)
+        mock_rmtree.assert_not_called()

@@ -39,6 +39,7 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
@@ -62,6 +63,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
@@ -289,6 +291,11 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         return value
 
 
+def _build_pipe_clause(pipe_as_or: bool) -> str:
+    """Build the per-parameter pipe note. OR is the documented default (see the API description), so only the literal exception is spelled out."""
+    return "" if pipe_as_or else "Here `|` is matched literally, not as OR. "
+
+
 _LIKE_ESCAPE_CHAR = "\\"
 
 
@@ -421,13 +428,10 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
         task_display_name_prefix_pattern: str | None = Query(
             default=None,
             description=(
-                "Prefix match on task display name: optional ``_task_display_property_value`` else "
-                "``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to "
-                "``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` "
-                "(or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. "
-                "Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the "
-                "term are stripped before matching so the range scan stays index-compatible under "
-                "locale-aware collations."
+                "Case-sensitive prefix match on task display name (`_task_display_property_value` else "
+                "`task_id`). Index-friendly alternative to `task_display_name_pattern`; on large databases "
+                "combine with `dag_id_prefix_pattern` (or a specific Dag in the path) so composite indexes "
+                'apply. See "Filtering with pattern parameters".'
             ),
         ),
     ) -> Self:
@@ -492,20 +496,11 @@ def search_param_factory(
     skip_none: bool = True,
     pipe_as_or: bool = True,
 ) -> Callable[[str | None], _SearchParam]:
-    pipe_clause = (
-        "Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
-        if pipe_as_or
-        else "The pipe `|` is matched literally, not as an OR separator. "
-    )
+    prefix_pattern_name = pattern_name.replace("_pattern", "_prefix_pattern")
     DESCRIPTION = (
-        "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
-        f"{pipe_clause}"
-        "Regular expressions are **not** supported. "
-        "\n\n"
-        "**Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and "
-        "most of the time prevents the database from using B-tree indexes, which can be very "
-        "slow on large tables. Prefer the equivalent "
-        f"``{pattern_name.replace('_pattern', '_prefix_pattern')}`` parameter when possible."
+        "Case-insensitive substring match (SQL `ILIKE`). "
+        f"{_build_pipe_clause(pipe_as_or)}"
+        f'Slower than `{prefix_pattern_name}` on large tables — see "Filtering with pattern parameters".'
     )
 
     def depends_search(
@@ -599,20 +594,10 @@ def prefix_search_param_factory(
     Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
     B-tree index range scan, while substring matching requires a full table scan.
     """
-    pipe_clause = (
-        "Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). "
-        if pipe_as_or
-        else "The pipe `|` is part of the prefix, not an OR separator. "
-    )
     DESCRIPTION = (
-        "Prefix match — returns items whose value starts with the given string "
-        f"(case-sensitive, index-friendly). {pipe_clause}"
-        "Use `~` to match all. Wildcard characters (`%`, `_`) "
-        "are treated as literal characters. Trailing non-alphanumeric characters "
-        "in the prefix are stripped before matching so the range scan stays "
-        "index-compatible under locale-aware collations — e.g. `test_` effectively "
-        "matches items starting with `test`, and `s3://` matches items starting with "
-        "`s3`."
+        "Case-sensitive, index-friendly prefix match. "
+        f"{_build_pipe_clause(pipe_as_or)}"
+        'See "Filtering with pattern parameters".'
     )
 
     def depends_prefix_search(
@@ -1020,6 +1005,75 @@ class _OwnersFilter(BaseParam[list[str]]):
         return cls().set_value(owners)
 
 
+class _TeamsFilter(BaseParam[list[str]]):
+    """Filter Dags by team name (via bundle association)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        from airflow.models.team import Team
+
+        return select.where(
+            DagModel.bundle_name.in_(
+                sql_select(DagBundleModel.name).join(DagBundleModel.teams).where(Team.name.in_(self.value))
+            )
+        )
+
+    @classmethod
+    def depends(cls, teams: list[str] = Query(default_factory=list)) -> _TeamsFilter:
+        return cls().set_value(teams)
+
+
+class _DagIdTeamsFilter(BaseParam[list[str]]):
+    """Filter rows by team name through their ``dag_id`` (via bundle association)."""
+
+    def __init__(
+        self,
+        dag_id_attribute: ColumnElement | InstrumentedAttribute,
+        value: list[str] | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(value, skip_none)
+        self.dag_id_attribute = dag_id_attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        from airflow.models.team import Team
+
+        return select.where(
+            self.dag_id_attribute.in_(
+                sql_select(DagModel.dag_id)
+                .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
+                .join(DagBundleModel.teams)
+                .where(Team.name.in_(self.value))
+            )
+        )
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use teams_filter_factory instead, depends is not implemented.")
+
+
+def teams_filter_factory(
+    dag_id_attribute: ColumnElement | InstrumentedAttribute,
+) -> Callable[[list[str]], _DagIdTeamsFilter]:
+    """Build a ``teams`` filter that scopes rows by team through the given ``dag_id`` column."""
+
+    def depends_teams_filter(teams: list[str] = Query(default_factory=list)) -> _DagIdTeamsFilter:
+        return _DagIdTeamsFilter(dag_id_attribute).set_value(teams)
+
+    return depends_teams_filter
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -1251,6 +1305,10 @@ QueryDagDisplayNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
     Depends(prefix_search_param_factory(DagModel.dag_display_name, "dag_display_name_prefix_pattern")),
 ]
+QueryTimetableTypePrefixPatternSearch = Annotated[
+    _PrefixSearchParam,
+    Depends(prefix_search_param_factory(DagModel.timetable_type, "timetable_type_prefix_pattern")),
+]
 QueryBundleNameFilter = Annotated[
     FilterParam[str | None],
     Depends(filter_param_factory(DagModel.bundle_name, str | None, filter_name="bundle_name")),
@@ -1268,6 +1326,7 @@ QueryDagIdPrefixPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+QueryTeamsFilter = Annotated[_TeamsFilter, Depends(_TeamsFilter.depends)]
 
 
 class _HasAssetScheduleFilter(BaseParam[bool]):
@@ -1362,7 +1421,12 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
     def depends(
         cls,
         consuming_asset_pattern: str | None = Query(
-            None, description="Filter by consuming asset name or URI using pattern matching"
+            None,
+            description=(
+                "Case-insensitive substring match against the consuming asset name or URI. "
+                "Unlike the wildcard `*_pattern` parameters, `%` and `_` are matched literally, "
+                "`|` is not an OR separator, and `~` does not match everything."
+            ),
         ),
     ) -> _ConsumingAssetFilter:
         return cls().set_value(consuming_asset_pattern)
@@ -1413,29 +1477,29 @@ QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingAct
 class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
     """Filter Dags that have any DagRun in the given state, not only the latest one."""
 
-    # Only these states have a partial index on dag_run; others would force a full table scan.
-    SUPPORTED_STATES = (DagRunState.QUEUED, DagRunState.RUNNING)
-
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
 
-        run_subquery = sql_select(DagRun.dag_id).where(DagRun.state == self.value).distinct()
-        return select.where(DagModel.dag_id.in_(run_subquery))
+        # Alias DagRun so this EXISTS subquery cannot auto-correlate to a DagRun the outer query
+        # may already reference (e.g. the last_dag_run_state filter), which would strip the
+        # subquery's FROM and raise. EXISTS resolves each Dag via the (dag_id, state) index.
+        any_run = aliased(DagRun)
+        has_run_in_state = (
+            sql_select(any_run.dag_id)
+            .where(any_run.dag_id == DagModel.dag_id, any_run.state == self.value)
+            .exists()
+        )
+        return select.where(has_run_in_state)
 
     @classmethod
     def depends(
         cls,
         dag_run_state: DagRunState | None = Query(
             None,
-            description="Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.",
+            description="Filter Dags that have any DagRun in the given state.",
         ),
     ) -> _AnyDagRunStateFilter:
-        if dag_run_state is not None and dag_run_state not in cls.SUPPORTED_STATES:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail=f"dag_run_state only supports {[state.value for state in cls.SUPPORTED_STATES]}.",
-            )
         return cls().set_value(dag_run_state)
 
 
@@ -1751,6 +1815,12 @@ QueryUriExactMatch = Annotated[
             ),
         )
     ),
+]
+QueryAssetGroupPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetModel.group, "group_pattern"))
+]
+QueryAssetGroupPrefixPatternSearch = Annotated[
+    _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.group, "group_prefix_pattern"))
 ]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))

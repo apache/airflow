@@ -246,7 +246,16 @@ class TestConnectionAccessor:
         accessor = ConnectionAccessor()
 
         # Conn from the supervisor / API Server
-        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
+        )
 
         mock_supervisor_comms.send.return_value = conn_result
 
@@ -259,7 +268,16 @@ class TestConnectionAccessor:
     def test_get_method_valid_connection(self, mock_supervisor_comms):
         """Test that the get method returns the requested connection using `conn.get`."""
         accessor = ConnectionAccessor()
-        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
+        )
 
         mock_supervisor_comms.send.return_value = conn_result
 
@@ -289,6 +307,9 @@ class TestConnectionAccessor:
             host="mysql",
             port=3306,
             extra='{"extra_key": "extra_value"}',
+            schema=None,
+            login=None,
+            password=None,
         )
 
         mock_supervisor_comms.send.return_value = conn_result
@@ -306,7 +327,14 @@ class TestConnectionAccessor:
 
         # Conn from the supervisor / API Server
         conn_result = ConnectionResult(
-            conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306, extra="This is not JSON!"
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            extra="This is not JSON!",
+            schema=None,
+            login=None,
+            password=None,
         )
 
         mock_supervisor_comms.send.return_value = conn_result
@@ -359,6 +387,132 @@ class TestVariableAccessor:
 
         val = accessor.get("nonexistent_var_key", default="default_value")
         assert val == "default_value"
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_from_cache(self, mock_mask_secret):
+        """SecretCache hit path applies the same masking as the backends path."""
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw_json):
+            accessor = VariableAccessor(deserialize_json=True)
+            val = accessor.db_config
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        mock_mask_secret.assert_any_call(raw_json, "db_config")
+        mock_mask_secret.assert_any_call({"password": "s3cr3t", "host": "db.example.com"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_value_masks_secret(self, mock_mask_secret, mock_supervisor_comms):
+        """var.value.<key> masks the string value when the key name is sensitive."""
+        accessor = VariableAccessor(deserialize_json=False)
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_password", value="s3cr3t")
+
+        val = accessor.my_password
+
+        assert val == "s3cr3t"
+        mock_mask_secret.assert_called_once_with("s3cr3t", "my_password")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_raw_string_and_dict_values(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json.<key> masks both the raw JSON string and the deserialized dict's sensitive fields."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        mock_supervisor_comms.send.return_value = VariableResult(key="db_config", value=raw_json)
+
+        val = accessor.db_config
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        # First call: raw JSON string with variable key (masks if key name is sensitive)
+        mock_mask_secret.assert_any_call(raw_json, "db_config")
+        # Second call: deserialized dict so internal sensitive fields like "password" get masked
+        mock_mask_secret.assert_any_call({"password": "s3cr3t", "host": "db.example.com"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_list_values(self, mock_mask_secret, mock_supervisor_comms):
+        """A JSON list is handed to the masker whole, exactly as a dict is."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '[{"password": "s3cr3t"}, {"password": "s3cr3t2"}]'
+        mock_supervisor_comms.send.return_value = VariableResult(key="db_configs", value=raw_json)
+
+        val = accessor.db_configs
+
+        assert val == [{"password": "s3cr3t"}, {"password": "s3cr3t2"}]
+        mock_mask_secret.assert_any_call(raw_json, "db_configs")
+        # under the variable's key; dicts inside are still masked by their own key names
+        mock_mask_secret.assert_any_call([{"password": "s3cr3t"}, {"password": "s3cr3t2"}], "db_configs")
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            pytest.param("12345", 12345, id="int"),
+            pytest.param("true", True, id="bool"),
+            pytest.param("null", None, id="null"),
+            pytest.param("1.5", 1.5, id="float"),
+        ],
+    )
+    def test_var_json_scalar_values_pass_through(self, raw, expected, mock_supervisor_comms):
+        """Handing a scalar to the masker is a no-op and must not change the value returned."""
+        accessor = VariableAccessor(deserialize_json=True)
+        mock_supervisor_comms.send.return_value = VariableResult(key="some_number", value=raw)
+
+        assert accessor.some_number == expected
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_sensitive_key_masks_raw_json(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json.<sensitive_key> masks the entire raw JSON string because the variable key is sensitive."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '{"endpoint": "https://api.example.com", "token": "abc123"}'
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_secret", value=raw_json)
+
+        val = accessor.my_secret
+
+        assert val == {"endpoint": "https://api.example.com", "token": "abc123"}
+        mock_mask_secret.assert_any_call(raw_json, "my_secret")
+        mock_mask_secret.assert_any_call({"endpoint": "https://api.example.com", "token": "abc123"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_string_value_masks_both_forms(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json with a JSON string value masks both the quoted raw and the unquoted value."""
+        accessor = VariableAccessor(deserialize_json=True)
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_token", value='"s3cr3t"')
+
+        val = accessor.my_token
+
+        assert val == "s3cr3t"
+        assert mock_mask_secret.call_count == 2
+        mock_mask_secret.assert_any_call('"s3cr3t"', "my_token")
+        mock_mask_secret.assert_any_call("s3cr3t", "my_token")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_list_value_does_not_over_mask(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json with a non-sensitive list variable does not mask individual list elements."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '["us-east-1", "eu-west-1"]'
+        mock_supervisor_comms.send.return_value = VariableResult(key="aws_regions", value=raw_json)
+
+        val = accessor.aws_regions
+
+        assert val == ["us-east-1", "eu-west-1"]
+        mock_mask_secret.assert_any_call(raw_json, "aws_regions")
+        mock_mask_secret.assert_any_call(["us-east-1", "eu-west-1"], "aws_regions")
+        # never anonymously -- that is what would mask the elements globally
+        assert mock.call(["us-east-1", "eu-west-1"]) not in mock_mask_secret.call_args_list
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_invalid_json_raises(self, mock_mask_secret):
+        """Invalid JSON raises JSONDecodeError; the raw value is still masked before the error."""
+        import json
+
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw = "not-valid-json"
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw):
+            accessor = VariableAccessor(deserialize_json=True)
+            with pytest.raises(json.JSONDecodeError):
+                accessor.bad_var
+
+        mock_mask_secret.assert_called_once_with(raw, "bad_var")
 
 
 class TestCurrentContext:
@@ -1022,6 +1176,11 @@ class TestInletEventAccessor:
             run_type="scheduled",
             state="success",
             consumed_asset_events=[],
+            logical_date=None,
+            data_interval_start=None,
+            data_interval_end=None,
+            end_date=None,
+            partition_key=None,
         )
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [dag_run_result]
@@ -1067,6 +1226,8 @@ class TestDagRunStartDateNullable:
             state="queued",
             conf=None,
             consumed_asset_events=[],
+            end_date=None,
+            partition_key=None,
         )
 
         assert dag_run.start_date is None
@@ -1145,6 +1306,10 @@ class TestSecretsBackend:
             conn_type="http",
             host="example.com",
             port=443,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
         )
         conn_result = ConnectionResult.from_conn_response(conn_response)
         mock_supervisor_comms.send.return_value = conn_result
@@ -1177,6 +1342,11 @@ class TestSecretsBackend:
             conn_id="test_conn",
             conn_type="postgres",
             host="db.example.com",
+            schema=None,
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
         )
         conn_result = ConnectionResult.from_conn_response(conn_response)
         mock_supervisor_comms.send.return_value = conn_result

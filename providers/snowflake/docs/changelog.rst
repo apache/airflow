@@ -27,33 +27,90 @@
 Changelog
 ---------
 
+6.16.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+6.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SnowflakeCortexAgentOperator to Snowflake Provider (#69939)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Log check_query_output response via format string in Snowflake SQL API hook (#67848)``
+* ``Fix snowflake provider installs picking an unimportable pyOpenSSL (#71145)``
+
+Misc
+~~~~
+
+* ``Use common.compat.sdk for timezone imports in providers (#70492)``
+* ``Move the SnowparkContainerJobOperator required-argument check to execute() (#70332, #70874)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
 6.15.0
 ......
 
 Features
 ~~~~~~~~
 
-* ``Add SnowparkContainerJobOperator (#68259)``
+* ``Add durable execution to SnowflakeSqlApiOperator (#69477)``
 * ``Add SnowflakeCortexAgentHook (#68942)``
+* ``Add SnowparkContainerJobOperator (#68259)``
 
 Bug Fixes
 ~~~~~~~~~
 
+* ``Set stream=False for Snowflake Cortex Agent requests. (#69731)``
 * ``Fix SnowflakeSqlApiOperator polling to avoid needless sleeps (#69450)``
 * ``Align hook run() annotations with None-able handler results (#69230)``
 
 Misc
 ~~~~
 
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
 * ``Extract configuration-specific logic from _get_static_conn_params() (#68597)``
 * ``SnowflakeHook: extract OAuth token lifecycle management into dedicated helper (#68549)``
 
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-07-06 (#69486)``
    * ``Document each provider's optional extras in its docs index (#69478)``
-   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
    * ``SnowflakeSqlApiOperator: add XCom query ID test coverage (#68731)``
    * ``Add a test verifying that SnowparkOperator closes the Snowpark (#68775)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
    * ``Refactor Snowflake provider tests to remove legacy unittest imports (#68898)``
 
 6.14.0

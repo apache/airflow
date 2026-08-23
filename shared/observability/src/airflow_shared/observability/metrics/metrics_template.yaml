@@ -39,14 +39,6 @@ metrics:
     legacy_name: "-"
     name_variables: ["job_name"]
 
-  - name: "local_task_job.task_exit"
-    description: "Number of ``LocalTaskJob`` terminations with a ``{return_code}`` while
-    running a task ``{task_id}`` of a Dag  ``{dag_id}``.
-    Metric with job_id, dag_id, task_id and return_code tagging."
-    type: "counter"
-    legacy_name: "local_task_job.task_exit.{job_id}.{dag_id}.{task_id}.{return_code}"
-    name_variables: ["job_id", "dag_id", "task_id", "return_code"]
-
   - name: "operator_failures"
     description: "Operator ``{operator_name}`` failures."
     type: "counter"
@@ -162,12 +154,6 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_file_processor_timeouts"
-    description: "(DEPRECATED) same behavior as ``dag_processing.processor_timeouts``"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "scheduler.tasks.killed_externally"
     description: "Number of tasks killed externally. Metric with dag_id and task_id tagging."
     type: "counter"
@@ -240,6 +226,21 @@ metrics:
     type: "counter"
     legacy_name: "-"
     name_variables: []
+
+  - name: "dag.serialization.version_created"
+    description: "Number of times a Dag was serialized into a new Dag version, on its first serialization
+    or when its latest version already has task instances. Metric with dag_id and bundle_name tagging."
+    type: "counter"
+    legacy_name: "dag.serialization.version_created.{dag_id}.{bundle_name}"
+    name_variables: ["dag_id", "bundle_name"]
+
+  - name: "dag.serialization.version_updated"
+    description: "Number of times a Dag was serialized over its latest Dag version in place, without
+    creating a new version, because that version has no task instances. Metric with dag_id and
+    bundle_name tagging."
+    type: "counter"
+    legacy_name: "dag.serialization.version_updated.{dag_id}.{bundle_name}"
+    name_variables: ["dag_id", "bundle_name"]
 
   - name: "celery.task_timeout_error"
     description: "Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker."
@@ -360,6 +361,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.dag_bag.cache_hit"
+    description: "Number of cache hits when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_miss"
+    description: "Number of cache misses when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_clear"
+    description: "Number of times the DBDagBag cache was cleared in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "connection_test.success"
     description: "Number of worker-dispatched connection tests that completed successfully."
     type: "counter"
@@ -379,6 +398,23 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "managed_agent.failover"
+    description: "Number of failover transitions inside a ``FailoverManagedAgentToolset`` group,
+    emitted once each time a member fails and the next one is tried.
+    Metric with tool, from_platform and to_platform tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["tool", "from_platform", "to_platform"]
+
+  - name: "managed_agent.served"
+    description: "Number of managed agent invocations answered inside a
+    ``FailoverManagedAgentToolset`` group, emitted once per answer. Metric with tool,
+    platform, role (``primary`` or ``standby``) and position tagging, where position is
+    the zero-based index of the member that answered."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["tool", "platform", "role", "position"]
+
   # ==========
   # Gauges
   # ==========
@@ -390,6 +426,12 @@ metrics:
 
   - name: "api_server.dag_bag.cache_size"
     description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_size"
+    description: "Current number of SerializedDAG objects cached in the scheduler's DBDagBag"
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -432,12 +474,6 @@ metrics:
     type: "gauge"
     legacy_name: "dag_processing.last_run.seconds_ago.{file_name}"
     name_variables: ["file_name"]
-
-  - name: "dag_processing.last_num_of_db_queries.{dag_file}"
-    description: "Number of queries to Airflow database during parsing per ``{dag_file}``"
-    type: "gauge"
-    legacy_name: "-"
-    name_variables: ["dag_file"]
 
   - name: "scheduler.tasks.starving"
     description: "Number of tasks that cannot be scheduled because of no open slot in pool"
@@ -757,6 +793,19 @@ metrics:
   - name: "kubernetes_executor.pod_creation"
     description: "Milliseconds taken for a Kubernetes create_namespaced_pod call from the Kubernetes Executor"
     type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation_batch_duration"
+    description: "Milliseconds taken to create one batch of worker pods in a Kubernetes Executor scheduler
+    loop, covering both the sequential and the concurrent (``async_pod_creation``) creation paths."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation_batch_size"
+    description: "Number of worker pods created in one Kubernetes Executor scheduler loop."
+    type: "gauge"
     legacy_name: "-"
     name_variables: []
 

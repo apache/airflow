@@ -17,7 +17,7 @@
 # under the License.
 
 """
-remove pickled data from dagrun table.
+Remove pickled data from dagrun table.
 
 Revision ID: e39a26ac59f6
 Revises: 38770795785f

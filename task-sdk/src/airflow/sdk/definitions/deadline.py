@@ -20,7 +20,7 @@ import logging
 from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
@@ -42,11 +42,13 @@ class BaseDeadlineReference(ABC):
     """
     Base class for all Deadline Reference implementations.
 
-    This is a lightweight SDK class for DAG authoring. It only handles serialization.
-    The actual evaluation logic (_evaluate_with) is in Core's SerializedReferenceModels.
+    This is a lightweight SDK class for Dag authoring. It only handles serialization.
+    The actual evaluation logic (``_evaluate_with``) is in Core's ``SerializedReferenceModels``.
 
     For custom deadline references, users should inherit from this class and implement
-    _evaluate_with() with deferred Core imports (imports inside the method body).
+    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).  A custom
+    reference must be decorated with ``@deadline_reference`` and listed in the ``deadline_references``
+    attribute of an ``AirflowPlugin``; see :external:doc:`howto/deadline-alerts`.
     """
 
     @property
@@ -272,7 +274,19 @@ class DeadlineReference:
         deadline_reference_type: DeadlineReferenceTypes | None = None,
     ) -> type[BaseDeadlineReference]:
         """
-        Register a custom deadline reference class.
+        Register a custom deadline reference class for use in Dag files.
+
+        This makes the reference available to Dag authors as ``DeadlineReference.<ClassName>`` and
+        records when it should be evaluated.
+
+        .. warning::
+
+            Registering the reference is **not** the same as registering the plugin, despite the
+            name of this method.  This only affects the process that runs the Dag file; it does not
+            make the class resolvable when the scheduler deserializes the Dag.  The class must
+            *also* be listed in the ``deadline_references`` attribute of an ``AirflowPlugin``, or
+            deserialization raises ``DeadlineReferenceNotRegistered``.  See
+            :external:doc:`howto/deadline-alerts`.
 
         :param reference_class: The custom reference class inheriting from BaseDeadlineReference
         :param deadline_reference_type: A DeadlineReference.TYPES for when the deadline should be evaluated ("DAGRUN_CREATED",
@@ -290,7 +304,15 @@ class DeadlineReference:
             raise ValueError(f"{reference_class.__name__} must inherit from BaseDeadlineReference")
 
         # Register the new reference with DeadlineReference for discoverability
-        setattr(cls, reference_class.__name__, reference_class())
+        try:
+            reference_instance = reference_class()
+        except TypeError as e:
+            raise TypeError(
+                f"{reference_class.__name__} must be constructible with no arguments in order to be "
+                f"registered as a deadline reference. If it takes parameters, decorate it with "
+                f"@dataclass and give every field a default value. Original error: {e}"
+            ) from e
+        setattr(cls, reference_class.__name__, reference_instance)
         logger.info("Registered DeadlineReference %s", reference_class.__name__)
 
         # Add to appropriate deadline_reference_type classification
@@ -310,34 +332,65 @@ class DeadlineReference:
         return reference_class
 
 
+@overload
+def deadline_reference(
+    deadline_reference_type: type[BaseDeadlineReference],
+) -> type[BaseDeadlineReference]: ...
+
+
+@overload
 def deadline_reference(
     deadline_reference_type: DeadlineReferenceTypes | None = None,
-) -> Callable[[type[BaseDeadlineReference]], type[BaseDeadlineReference]]:
+) -> Callable[[type[BaseDeadlineReference]], type[BaseDeadlineReference]]: ...
+
+
+def deadline_reference(deadline_reference_type=None):
     """
     Decorate a class to register a custom deadline reference.
 
-    Usage:
+    May be used with or without parentheses. Without parentheses the reference is evaluated when a
+    new dagrun is created; pass a ``DeadlineReference.TYPES`` value to choose a different time.
+
+    The decorated class must also be registered in the ``deadline_references`` list of an
+    ``AirflowPlugin`` so that it can be resolved when the Dag is deserialized.  An unregistered
+    reference raises ``DeadlineReferenceNotRegistered``.  See also
+    :external:doc:`howto/deadline-alerts`.
+
+    .. code-block:: python
+
+        @deadline_reference
+        class MyBareReference(BaseDeadlineReference):
+            # Equivalent to @deadline_reference(); evaluated when a new dagrun is created.
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return some_datetime
+
+
         @deadline_reference()
         class MyCustomReference(BaseDeadlineReference):
             # By default, evaluate_with will be called when a new dagrun is created.
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                 # Put your business logic here (use deferred imports for Core types)
                 from airflow.models import DagRun
+
                 return some_datetime
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
 
+
+        # Optionally, specify when it is calculated by providing a DeadlineReference.TYPES value.
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
         class MyQueuedRef(BaseDeadlineReference):
-            # Optionally, you can specify when you want it calculated by providing a DeadlineReference.TYPES
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                 # Put your business logic here
+                # Put your business logic here
                 return some_datetime
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
     """
+    # Used bare, without parentheses: the decorated class is passed in directly.
+    if isinstance(deadline_reference_type, type):
+        return DeadlineReference.register_custom_reference(deadline_reference_type)
 
     def decorator(
         reference_class: type[BaseDeadlineReference],

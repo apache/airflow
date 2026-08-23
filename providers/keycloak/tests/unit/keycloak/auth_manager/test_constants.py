@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CACHE_TIMEOUT_SECONDS_KEY,
+    CONF_CACHE_TTL_SECONDS_KEY,
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
@@ -28,6 +30,12 @@ from airflow.providers.keycloak.auth_manager.constants import (
 class TestKeycloakAuthManagerConstants:
     def test_conf_section_name(self):
         assert CONF_SECTION_NAME == "keycloak_auth_manager"
+
+    def test_conf_cache_ttl_seconds_key(self):
+        assert CONF_CACHE_TTL_SECONDS_KEY == "cache_ttl_seconds"
+
+    def test_conf_cache_timeout_seconds_key(self):
+        assert CONF_CACHE_TIMEOUT_SECONDS_KEY == "cache_timeout_seconds"
 
     def test_conf_client_id_key(self):
         assert CONF_CLIENT_ID_KEY == "client_id"

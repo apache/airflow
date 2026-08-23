@@ -28,6 +28,7 @@ import warnings
 from base64 import b64encode
 from collections.abc import Callable
 from configparser import ConfigParser
+from importlib.util import find_spec
 from inspect import ismodule
 from io import StringIO
 from re import Pattern
@@ -56,8 +57,6 @@ log = logging.getLogger(__name__)
 if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
-
-_SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
@@ -96,13 +95,6 @@ class ConfigModifications:
 
     def add_default_update(self, section: str, option: str, new_default: str) -> None:
         self.default_updates[(section, option)] = new_default
-
-
-def _parse_sqlite_version(s: str) -> tuple[int, ...]:
-    match = _SQLITE3_VERSION_PATTERN.match(s)
-    if match is None:
-        return ()
-    return tuple(int(p) for p in match.group("version").split("."))
 
 
 @overload
@@ -372,13 +364,18 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         Upgrade SQL schemas.
 
         As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
-        must be replaced with `postgresql+psycopg2`. The bare `postgresql`
-        scheme is also upgraded to make the psycopg2 driver explicit.
+        must be replaced with `postgresql+psycopg` if the psycopg (v3) driver
+        is installed, or `postgresql+psycopg2` otherwise. The bare `postgresql`
+        scheme is upgraded the same way to make the driver explicit.
         """
         section, key = "database", "sql_alchemy_conn"
         old_value = self.get(section, key, _extra_stacklevel=1)
         bad_schemes = ["postgres+psycopg2", "postgres", "postgresql"]
-        good_scheme = "postgresql+psycopg2"
+        # The provider-side hooks (common.sql / postgres / amazon) also gate psycopg (v3) on an
+        # ``_is_sqlalchemy_2()`` check, because they support Airflow 2.11 on SQLAlchemy 1.4, which has
+        # no native ``postgresql+psycopg`` dialect. airflow-core pins ``sqlalchemy>=2.0``, so that
+        # dialect is always present when the package is importable — ``find_spec`` alone suffices here.
+        good_scheme = "postgresql+psycopg" if find_spec("psycopg") is not None else "postgresql+psycopg2"
         parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:
             warnings.warn(
@@ -420,7 +417,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         import sqlite3
 
         min_sqlite_version = (3, 15, 0)
-        if _parse_sqlite_version(sqlite3.sqlite_version) >= min_sqlite_version:
+        if sqlite3.sqlite_version_info >= min_sqlite_version:
             return
 
         from airflow.utils.docs import get_docs_url

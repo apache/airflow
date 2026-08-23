@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.12.0"]
+requires = ["flit_core==4.0.2"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "22.2.2"
+version = "22.4.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -84,7 +84,10 @@ dependencies = [
     # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    "google-cloud-aiplatform[evaluation]>=1.155.0",
+    # Floor raised to 1.164.0: earlier "evaluation" extras cap litellm below the version that
+    # carries the fixes for CVE-2026-35030 and its follow-on advisories on Python 3.14.
+    # - https://github.com/googleapis/python-aiplatform/issues/7057
+    "google-cloud-aiplatform[evaluation]>=1.164.0",
     "ray[default]>=2.42.0;python_version<'3.13'",
     "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
     "ray[default]>=2.55.0;python_version>='3.14' and python_version <'3.15'",
@@ -277,8 +280,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

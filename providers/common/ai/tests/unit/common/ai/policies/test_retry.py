@@ -28,8 +28,11 @@ pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy 
 from airflow.providers.common.ai.policies.retry import (
     ErrorClassification,
     LLMRetryPolicy,
+    redact_registered_secrets,
 )
+from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
+from airflow.sdk.log import mask_secret
 
 
 def _make_mock_agent(category, should_retry, delay=0, reasoning="test"):
@@ -44,6 +47,18 @@ def _make_mock_agent(category, should_retry, delay=0, reasoning="test"):
     mock_agent = MagicMock()
     mock_agent.run_sync.return_value = mock_result
     return mock_agent
+
+
+@pytest.mark.enable_redact
+def test_redact_registered_secrets_masks_only_registered_values():
+    """Docs tell Dag authors to import and wrap this, so both the name and its narrow scope are contracts."""
+    reset_secrets_masker()
+    mask_secret("super-secret-conn-password")
+
+    assert (
+        redact_registered_secrets("contact user@example.com with super-secret-conn-password")
+        == "contact user@example.com with ***"
+    )
 
 
 class TestLLMClassifyDecisions:
@@ -107,6 +122,159 @@ class TestLLMClassifyDecisions:
         prompt = mock_agent.run_sync.call_args[0][0]
         assert "ValueError: bad column type" in prompt
         assert "attempt 2 of 5" in prompt
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_prompt_redacts_known_secrets(self, mock_hook_cls):
+        reset_secrets_masker()
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test")
+        policy.evaluate(
+            ConnectionError(f"could not authenticate with password {secret_value}"),
+            try_number=1,
+            max_tries=3,
+        )
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert secret_value not in prompt
+        assert prompt == (
+            "Classify this error from a data pipeline task (attempt 1 of 3):\n\n"
+            "ConnectionError: could not authenticate with password ***"
+        )
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_prompt_keeps_raw_message_when_redaction_disabled(self, mock_hook_cls):
+        reset_secrets_masker()
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test", redact_exception=False)
+        policy.evaluate(
+            ConnectionError(f"could not authenticate with password {secret_value}"),
+            try_number=1,
+            max_tries=3,
+        )
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert secret_value in prompt
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_explicit_redactor_none_still_applies_default_masking(self, mock_hook_cls):
+        """redactor=None means "use the default masker" -- the same as omitting it."""
+        reset_secrets_masker()
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test", redactor=None)
+        policy.evaluate(
+            ConnectionError(f"could not authenticate with password {secret_value}"),
+            try_number=1,
+            max_tries=3,
+        )
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert secret_value not in prompt
+        assert "***" in prompt
+
+    def test_redact_exception_false_with_explicit_redactor_raises(self):
+        with pytest.raises(ValueError, match="redactor must not be set when redact_exception=False"):
+            LLMRetryPolicy(llm_conn_id="test", redact_exception=False, redactor=lambda message: message)
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_custom_redactor_replaces_masker_instead_of_stacking(self, mock_hook_cls):
+        """A custom redactor replaces the secrets masker entirely -- it is not applied on top."""
+        reset_secrets_masker()
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test", redactor=lambda s: s.replace("authenticate", "REDACTED"))
+        policy.evaluate(
+            ConnectionError(f"could not authenticate with password {secret_value}"),
+            try_number=1,
+            max_tries=3,
+        )
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        # The registered secret is untouched by the masker...
+        assert secret_value in prompt
+        # ...but the custom redactor's own transformation did apply.
+        assert "REDACTED" in prompt
+
+    @pytest.mark.parametrize(
+        ("max_exception_length", "message_length", "expect_truncated"),
+        [
+            pytest.param(4096, 4096, False, id="default-limit-exact-fit"),
+            pytest.param(4096, 5000, True, id="default-limit-exceeded"),
+            pytest.param(10, 20, True, id="custom-limit-exceeded"),
+            pytest.param(10, 5, False, id="custom-limit-under"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_message_truncated_when_over_max_exception_length(
+        self, mock_hook_cls, max_exception_length, message_length, expect_truncated
+    ):
+        mock_agent = _make_mock_agent("data", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(
+            llm_conn_id="test", redact_exception=False, max_exception_length=max_exception_length
+        )
+        policy.evaluate(ValueError("x" * message_length), try_number=1, max_tries=3)
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert ("... (truncated)" in prompt) is expect_truncated
+        if expect_truncated:
+            assert f"{'x' * max_exception_length}... (truncated)" in prompt
+        else:
+            assert "x" * message_length in prompt
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_truncation_happens_after_redaction(self, mock_hook_cls):
+        """Redact-then-truncate must not equal truncate-then-redact for this input.
+
+        The secret sits right at the truncation boundary: truncating first would slice
+        it in half so the masker could no longer recognize and mask it.
+        """
+        reset_secrets_masker()
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+        max_exception_length = 20
+        # Padding places the secret so it straddles the truncation boundary.
+        padding = "a" * (max_exception_length - 5)
+        message = f"{padding}{secret_value}"
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test", max_exception_length=max_exception_length)
+        policy.evaluate(ConnectionError(message), try_number=1, max_tries=3)
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert secret_value not in prompt
+        assert "***" in prompt
+
+    @pytest.mark.parametrize("max_exception_length", [0, -1, -100])
+    def test_non_positive_max_exception_length_raises(self, max_exception_length):
+        with pytest.raises(ValueError, match="max_exception_length must be a positive integer"):
+            LLMRetryPolicy(llm_conn_id="test", max_exception_length=max_exception_length)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_custom_instructions_forwarded_to_agent(self, mock_hook_cls):
