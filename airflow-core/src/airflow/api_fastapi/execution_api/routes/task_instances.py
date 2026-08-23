@@ -292,12 +292,12 @@ def ti_run(
                 xcom_query = xcom_query.where(XComModel.map_index == map_index)
 
             xcom_keys = list(session.scalars(xcom_query))
-        task_reschedule_count = (
-            session.scalar(
-                select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
-            )
-            or 0
-        )
+        task_reschedule_count, first_task_reschedule_start_date = session.execute(
+            select(
+                func.count(TaskReschedule.id),
+                func.min(TaskReschedule.start_date),
+            ).where(TaskReschedule.ti_id == task_instance_id)
+        ).one()
 
         context = TIRunContext(
             dag_run=dr,
@@ -309,6 +309,8 @@ def ti_run(
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
+        if first_task_reschedule_start_date is not None:
+            context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
