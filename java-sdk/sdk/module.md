@@ -29,7 +29,7 @@ meaning of each dimension is defined in the
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.3 · supervisor schema: 2026-06-16*
+*Min. Airflow version: 3.3 · supervisor schema: 2026-10-30*
 
 | Dimension | Tier | Supported | Since | Notes |
 |---|---|---|---|---|
