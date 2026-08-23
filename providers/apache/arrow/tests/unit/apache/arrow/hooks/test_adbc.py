@@ -33,9 +33,9 @@ from airflow.providers.common.sql.dialects.dialect import Dialect
 
 class TestAdbcHook:
     def setup_method(self):
-        # Create a MagicMock cursor similar to DbApiHook tests
-        self.cur = mock.MagicMock(rowcount=0, fast_executemany=False)
-        self.conn = mock.MagicMock()
+        self.cur = mock.MagicMock(spec=Cursor, rowcount=0)
+        self.cur.fast_executemany = False
+        self.conn = mock.MagicMock(spec=dbapi.Connection)
         self.conn.cursor.return_value = self.cur
         # Provide a real pyarrow Schema so _to_record_batch can build RecordBatch
         self.conn.adbc_get_table_schema.return_value = schema([field("col", string())])
