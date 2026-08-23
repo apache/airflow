@@ -27,7 +27,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt } from "react-icons/lu";
@@ -58,10 +58,10 @@ import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
 type Props = {
   readonly dagView: DagView;
   readonly limit: number;
-  readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
+  readonly panelGroupRef: RefObject<ImperativePanelGroupHandle | null>;
   readonly setDagView: (value: DagView) => void;
   readonly setLimit: (value: number) => void;
-  readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorOptions>>;
+  readonly setShowVersionIndicatorMode: Dispatch<SetStateAction<VersionIndicatorOptions>>;
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
 };
 
