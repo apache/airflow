@@ -405,10 +405,7 @@ def _create_backfill_dag_run_non_partitioned(
                 return
             lock = session.execute(
                 with_row_locks(
-                    query=select(DagRun).where(
-                        DagRun.logical_date == info.logical_date,
-                        DagRun.dag_id == dag.dag_id,
-                    ),
+                    query=select(DagRun).where(DagRun.id == dr.id),
                     session=session,
                     skip_locked=True,
                 )
@@ -599,7 +596,7 @@ def _handle_clear_run(
     # Update backfill_id, run_type, and optionally conf in DagRun table
     stmt = (
         update(DagRun)
-        .where(DagRun.logical_date == info.logical_date, DagRun.dag_id == dag.dag_id)
+        .where(DagRun.id == dr.id)
         .values(
             backfill_id=backfill_id,
             run_type=DagRunType.BACKFILL_JOB,
