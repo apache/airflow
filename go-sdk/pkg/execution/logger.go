@@ -103,10 +103,16 @@ func newSocketLogHandlerFromEnv(writer io.Writer) *SocketLogHandler {
 	if !ok {
 		defaultLevel = slog.LevelInfo
 	}
-	return newSocketLogHandler(
+	namespaceLevels, invalidEntries := parseNamespaceLogLevels(os.Getenv(namespaceLevelsEnv))
+	handler := newSocketLogHandler(
 		writer,
-		newLogLevelFilter(defaultLevel, parseNamespaceLogLevels(os.Getenv(namespaceLevelsEnv))),
+		newLogLevelFilter(defaultLevel, namespaceLevels),
 	)
+	logger := slog.New(handler)
+	for _, invalidEntry := range invalidEntries {
+		logger.Error("Ignoring invalid namespace_levels entry", "entry", invalidEntry)
+	}
+	return handler
 }
 
 func newSocketLogHandler(writer io.Writer, filter *logLevelFilter) *SocketLogHandler {
@@ -167,8 +173,9 @@ func getAirflowLogLevelName(level slog.Level) string {
 	}
 }
 
-func parseNamespaceLogLevels(value string) map[string]slog.Level {
+func parseNamespaceLogLevels(value string) (map[string]slog.Level, []string) {
 	levels := make(map[string]slog.Level)
+	var invalidEntries []string
 	entries := strings.FieldsFunc(value, func(r rune) bool {
 		return r == ',' || unicode.IsSpace(r)
 	})
@@ -177,11 +184,12 @@ func parseNamespaceLogLevels(value string) map[string]slog.Level {
 		loggerName = strings.TrimSpace(loggerName)
 		level, validLevel := parseLogLevel(levelName)
 		if !ok || loggerName == "" || !validLevel {
+			invalidEntries = append(invalidEntries, entry)
 			continue
 		}
 		levels[loggerName] = level
 	}
-	return levels
+	return levels, invalidEntries
 }
 
 func (f *logLevelFilter) getLevel(loggerName string) slog.Level {

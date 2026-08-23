@@ -115,12 +115,29 @@ func TestGetAirflowLogLevelName(t *testing.T) {
 }
 
 func TestParseNamespaceLogLevels(t *testing.T) {
+	levels, invalidEntries := parseNamespaceLogLevels(
+		"example=INFO, malformed example.detail=DEBUG example=WARNING =ERROR empty= unknown=VERBOSE",
+	)
 	assert.Equal(t, map[string]slog.Level{
 		"example":        slog.LevelWarn,
 		"example.detail": slog.LevelDebug,
-	}, parseNamespaceLogLevels(
-		"example=INFO, malformed example.detail=DEBUG example=WARNING =ERROR empty= unknown=VERBOSE",
-	))
+	}, levels)
+	assert.Equal(t, []string{"malformed", "=ERROR", "empty=", "unknown=VERBOSE"}, invalidEntries)
+}
+
+func TestSocketLogHandlerReportsInvalidNamespaceLevels(t *testing.T) {
+	t.Setenv(loggingLevelEnv, "INFO")
+	invalidEntry := "example=DEB" + "GU"
+	t.Setenv(namespaceLevelsEnv, invalidEntry)
+
+	var buf bytes.Buffer
+	newSocketLogHandlerFromEnv(&buf)
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.Equal(t, "Ignoring invalid namespace_levels entry", entry["event"])
+	assert.Equal(t, invalidEntry, entry["entry"])
+	assert.Equal(t, "error", entry["level"])
 }
 
 func TestLogLevelFilterUsesLongestNamespacePrefix(t *testing.T) {
