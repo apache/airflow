@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.ai.hooks.langchain import LangChainHook
+from airflow.providers.common.ai.hooks.langchain import LangChainAzureHook, LangChainHook
 
 
 @pytest.fixture(autouse=True)
@@ -291,3 +291,81 @@ class TestSameHookForBoth:
         mock_init_embeddings.assert_called_once_with("openai:text-embedding-3-small", api_key="sk-test")
         assert chat is mock_init_chat_model.return_value
         assert embed is mock_init_embeddings.return_value
+
+
+class TestLangChainAzureHookInit:
+    def test_conn_type_is_langchain_azure(self):
+        assert LangChainAzureHook.conn_type == "langchain-azure"
+        assert LangChainAzureHook.default_conn_name == "langchain_azure_default"
+        assert LangChainAzureHook.hook_name == "LangChain (Azure OpenAI)"
+
+    def test_default_conn_name_does_not_leak_into_base_class(self):
+        assert LangChainAzureHook().llm_conn_id == "langchain_azure_default"
+        assert LangChainHook().llm_conn_id == "langchain_default"
+
+
+class TestLangChainAzureGetUiFieldBehaviour:
+    def test_shape(self):
+        behaviour = LangChainAzureHook.get_ui_field_behaviour()
+        assert behaviour["hidden_fields"] == ["schema", "port", "login"]
+        assert behaviour["relabeling"] == {"password": "API Key", "host": "Azure Endpoint"}
+        assert behaviour["placeholders"]["host"] == "https://<resource>.openai.azure.com"
+
+
+class TestLangChainAzureConnectionKwargs:
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainAzureHook, "get_connection")
+    def test_maps_host_to_azure_endpoint(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(password="azure-key", host="https://my-resource.openai.azure.com")
+
+        hook = LangChainAzureHook(llm_model="azure_openai:gpt-4o")
+        hook.get_chat_model()
+
+        mock_init_chat_model.assert_called_once_with(
+            "azure_openai:gpt-4o",
+            api_key="azure-key",
+            azure_endpoint="https://my-resource.openai.azure.com",
+        )
+
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainAzureHook, "get_connection")
+    def test_includes_api_version_from_extra(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(
+            password="azure-key",
+            host="https://my-resource.openai.azure.com",
+            extra={"api_version": "2024-07-01-preview"},
+        )
+
+        hook = LangChainAzureHook(llm_model="azure_openai:gpt-4o")
+        hook.get_chat_model()
+
+        mock_init_chat_model.assert_called_once_with(
+            "azure_openai:gpt-4o",
+            api_key="azure-key",
+            azure_endpoint="https://my-resource.openai.azure.com",
+            api_version="2024-07-01-preview",
+        )
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainAzureHook, "get_connection")
+    def test_embedding_model_also_uses_azure_kwargs(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn(password="azure-key", host="https://my-resource.openai.azure.com")
+
+        hook = LangChainAzureHook(embed_model="azure_openai:text-embedding-3-small")
+        hook.get_embedding_model()
+
+        mock_init_embeddings.assert_called_once_with(
+            "azure_openai:text-embedding-3-small",
+            api_key="azure-key",
+            azure_endpoint="https://my-resource.openai.azure.com",
+        )
+
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainAzureHook, "get_connection")
+    def test_no_credentials_passes_empty_kwargs(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn()
+
+        hook = LangChainAzureHook(llm_model="azure_openai:gpt-4o")
+        hook.get_chat_model()
+
+        mock_init_chat_model.assert_called_once_with("azure_openai:gpt-4o")
