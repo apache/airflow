@@ -5923,6 +5923,240 @@ class TestSchedulerJob:
         )
 
     @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        "catchup",
+        [
+            pytest.param(False, id="catchup-off"),
+            pytest.param(True, id="catchup-on"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "terminal_state",
+        [
+            pytest.param(DagRunState.SUCCESS, id="run1-success"),
+            pytest.param(DagRunState.FAILED, id="run1-failed"),
+        ],
+    )
+    def test_asset_events_queued_while_at_max_active_runs_are_all_consumed(
+        self, catchup, terminal_state, session, dag_maker
+    ):
+        """Regression test for GH-56050.
+
+        Events 2, 3, 4 that land while run 1 holds ``max_active_runs=1`` must all be
+        consumed by run 2 after the cap lifts. Catchup only changes whether
+        pre-subscription events join the first run; it must not change this
+        follow-up consume. A FAILED run 1 lifts the cap the same way SUCCESS does.
+        """
+        asset = Asset(uri="test://asset-max-active-runs-queue", name="mar_queue_asset", group="test_group")
+        with dag_maker(
+            dag_id="max-active-runs-asset-consumer",
+            schedule=[asset],
+            max_active_runs=1,
+            catchup=catchup,
+            session=session,
+        ):
+            pass
+        consumer_dag_id = dag_maker.dag.dag_id
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+        base = timezone.datetime(2025, 9, 24, 10, 0, 0)
+
+        def _queue_event(ts):
+            event = AssetEvent(asset_id=asset_id, timestamp=ts)
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(asset_id=asset_id, target_dag_id=consumer_dag_id, asset_event_id=event.id)
+            )
+            session.flush()
+            return event
+
+        def _tick():
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        def _runs():
+            return session.scalars(
+                select(DagRun).where(DagRun.dag_id == consumer_dag_id).order_by(DagRun.id)
+            ).all()
+
+        def _adrq_event_ids():
+            return set(
+                session.scalars(
+                    select(AssetDagRunQueue.asset_event_id).where(
+                        AssetDagRunQueue.target_dag_id == consumer_dag_id
+                    )
+                )
+            )
+
+        event1 = _queue_event(base)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        _tick()
+
+        runs = _runs()
+        assert len(runs) == 1
+        run1 = runs[0]
+        assert {e.id for e in run1.consumed_asset_events} == {event1.id}
+        assert _adrq_event_ids() == set()
+
+        run1.state = DagRunState.RUNNING
+        session.flush()
+
+        event2 = _queue_event(base + timedelta(minutes=1))
+        event3 = _queue_event(base + timedelta(minutes=2))
+        event4 = _queue_event(base + timedelta(minutes=3))
+        queued_ids = {event2.id, event3.id, event4.id}
+        assert _adrq_event_ids() == queued_ids
+
+        _tick()
+        runs = _runs()
+        assert len(runs) == 1
+        assert runs[0].id == run1.id
+        assert {e.id for e in runs[0].consumed_asset_events} == {event1.id}
+        assert _adrq_event_ids() == queued_ids
+
+        run1 = session.merge(run1)
+        run1.state = terminal_state
+        session.flush()
+
+        _tick()
+        runs = _runs()
+        assert len(runs) == 2
+        run2 = runs[1]
+        assert {e.id for e in run2.consumed_asset_events} == queued_ids
+        assert run2.run_after == timezone.coerce_datetime(event4.timestamp)
+        assert _adrq_event_ids() == set()
+
+    @pytest.mark.need_serialized_dag
+    def test_asset_events_wait_when_max_active_runs_is_two(self, session, dag_maker):
+        """A third queued event is not consumed until one of two active runs finishes."""
+        asset = Asset(uri="test://asset-max-active-runs-two", name="mar_two_asset", group="test_group")
+        with dag_maker(
+            dag_id="max-active-runs-two-consumer",
+            schedule=[asset],
+            max_active_runs=2,
+            session=session,
+        ):
+            pass
+        consumer_dag_id = dag_maker.dag.dag_id
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+        base = timezone.datetime(2025, 9, 24, 11, 0, 0)
+
+        def _queue_event(ts):
+            event = AssetEvent(asset_id=asset_id, timestamp=ts)
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(asset_id=asset_id, target_dag_id=consumer_dag_id, asset_event_id=event.id)
+            )
+            session.flush()
+            return event
+
+        def _tick():
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        def _runs():
+            return session.scalars(
+                select(DagRun).where(DagRun.dag_id == consumer_dag_id).order_by(DagRun.id)
+            ).all()
+
+        def _adrq_event_ids():
+            return set(
+                session.scalars(
+                    select(AssetDagRunQueue.asset_event_id).where(
+                        AssetDagRunQueue.target_dag_id == consumer_dag_id
+                    )
+                )
+            )
+
+        event1 = _queue_event(base)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        _tick()
+        event2 = _queue_event(base + timedelta(minutes=1))
+        _tick()
+        runs = _runs()
+        assert len(runs) == 2
+        assert {e.id for e in runs[0].consumed_asset_events} == {event1.id}
+        assert {e.id for e in runs[1].consumed_asset_events} == {event2.id}
+
+        for run in runs:
+            run.state = DagRunState.RUNNING
+        session.flush()
+
+        event3 = _queue_event(base + timedelta(minutes=2))
+        _tick()
+        runs = _runs()
+        assert len(runs) == 2
+        assert _adrq_event_ids() == {event3.id}
+
+        runs[0].state = DagRunState.SUCCESS
+        session.flush()
+        _tick()
+        runs = _runs()
+        assert len(runs) == 3
+        assert {e.id for e in runs[2].consumed_asset_events} == {event3.id}
+        assert runs[2].run_after == timezone.coerce_datetime(event3.timestamp)
+        assert _adrq_event_ids() == set()
+
+    @pytest.mark.need_serialized_dag
+    def test_already_consumed_adrq_after_max_active_runs_lift_does_not_create_empty_run(
+        self, session, dag_maker, caplog
+    ):
+        """Stale ADRQ rows that already sit on dagrun_asset_event must not spawn an empty run."""
+        asset = Asset(uri="test://asset-max-active-runs-empty", name="mar_empty_asset", group="test_group")
+        with dag_maker(
+            dag_id="max-active-runs-empty-consume",
+            schedule=[asset],
+            max_active_runs=1,
+            session=session,
+        ):
+            pass
+        dag_model = dag_maker.dag_model
+        consumer_dag_id = dag_model.dag_id
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        event1 = AssetEvent(asset_id=asset_id, timestamp=timezone.datetime(2025, 9, 24, 12, 0, 0))
+        session.add(event1)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(asset_id=asset_id, target_dag_id=consumer_dag_id, asset_event_id=event1.id)
+        )
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._create_dagruns_for_dags(session, session)
+
+        run1 = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        run1.state = DagRunState.RUNNING
+        session.flush()
+
+        event2 = AssetEvent(asset_id=asset_id, timestamp=timezone.datetime(2025, 9, 24, 12, 1, 0))
+        session.add(event2)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(asset_id=asset_id, target_dag_id=consumer_dag_id, asset_event_id=event2.id)
+        )
+        run1.consumed_asset_events.append(event2)
+        session.flush()
+
+        run1.state = DagRunState.SUCCESS
+        session.flush()
+
+        with caplog.at_level("INFO"):
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        assert "No DagRun created" in caplog.text
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).all()
+        assert [r.id for r in runs] == [run1.id]
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_triggered_skips_stale_triggered_date(self, session, dag_maker):
         asset = Asset(uri="test://asset-for-stale-trigger-date", name="asset-for-stale-trigger-date")
         with dag_maker(dag_id="asset-consumer-stale-trigger-date", schedule=[asset], session=session):
@@ -11694,6 +11928,113 @@ def test_consumer_dag_run_partition_date_identity_passthrough(dag_maker: DagMake
     assert dag_run is not None
     assert dag_run.partition_key == "2026-05-20T01:00:00"
     assert dag_run.partition_date == source_partition_date
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_same_key_events_during_max_active_runs_land_on_next_run(
+    dag_maker: DagMaker, session: Session
+):
+    """Same partition key, events 2-4 while run 1 is RUNNING, must land on run 2.
+
+    APDR create does not consult max_active_runs: a new pending APDR is opened once
+    the previous APDR has ``created_dag_run_id`` set, and the scheduler may create
+    a second QUEUED DagRun while run 1 is still RUNNING. ``_start_queued_dagruns``
+    then holds that run. Later events must not attach to run 1 or drop PAKL rows.
+    """
+    asset = Asset(name="max-active-runs-partition-asset")
+    consumer_dag_id = "max-active-runs-partition-consumer"
+    partition_key = "same-key"
+
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        max_active_runs=1,
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    def _event_ids_for_apdr(apdr_id: int) -> set[int]:
+        return set(
+            session.scalars(
+                select(PartitionedAssetKeyLog.asset_event_id).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr_id
+                )
+            )
+        )
+
+    apdr1 = _produce_and_register_asset_event(
+        dag_id="max-active-runs-partition-producer-1",
+        asset=asset,
+        partition_key=partition_key,
+        session=session,
+        dag_maker=dag_maker,
+    )
+    event1_ids = _event_ids_for_apdr(apdr1.id)
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr1)
+    assert apdr1.created_dag_run_id is not None
+    run1 = session.scalar(select(DagRun).where(DagRun.id == apdr1.created_dag_run_id))
+    assert run1 is not None
+    # Drive run 1 to RUNNING the same way the non-partitioned contract does: APDR
+    # create does not consult max_active_runs, so the cap is enforced later.
+    run1.state = DagRunState.RUNNING
+    session.flush()
+    assert {e.id for e in run1.consumed_asset_events} == event1_ids
+
+    follow_up_ids: set[int] = set()
+    follow_up_apdr = None
+    for i in range(2, 5):
+        apdr = _produce_and_register_asset_event(
+            dag_id=f"max-active-runs-partition-producer-{i}",
+            asset=asset,
+            partition_key=partition_key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+        if follow_up_apdr is None:
+            follow_up_apdr = apdr
+        else:
+            assert apdr.id == follow_up_apdr.id
+        follow_up_ids |= _event_ids_for_apdr(apdr.id)
+
+    assert follow_up_apdr is not None
+    session.refresh(follow_up_apdr)
+    assert follow_up_apdr.id != apdr1.id
+    assert follow_up_apdr.created_dag_run_id is None
+    assert follow_up_ids != event1_ids
+    assert len(follow_up_ids) == 3
+    session.refresh(run1)
+    assert {e.id for e in run1.consumed_asset_events} == event1_ids
+    assert session.scalar(select(func.count()).select_from(PartitionedAssetKeyLog)) == 4
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(follow_up_apdr)
+    assert follow_up_apdr.created_dag_run_id is not None
+    run2 = session.scalar(select(DagRun).where(DagRun.id == follow_up_apdr.created_dag_run_id))
+    assert run2 is not None
+    assert run2.id != run1.id
+    assert {e.id for e in run2.consumed_asset_events} == follow_up_ids
+    session.refresh(run1)
+    assert {e.id for e in run1.consumed_asset_events} == event1_ids
+
+    # run_after is stamped utcnow() at create; move it to the past so the
+    # queued-start query would pick this run if the cap did not apply.
+    run2.run_after = timezone.datetime(2025, 1, 1)
+    session.flush()
+    runner._start_queued_dagruns(session)
+    session.refresh(run1)
+    session.refresh(run2)
+    assert run1.state == DagRunState.RUNNING
+    assert run2.state == DagRunState.QUEUED
 
 
 @pytest.mark.need_serialized_dag
