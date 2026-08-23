@@ -19,8 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.execution.ArgBinding
 import org.apache.airflow.sdk.execution.Client
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.decodeArgBindings
 
 /**
  * A connection registered in Airflow's connection store.
@@ -152,10 +154,35 @@ class Client internal constructor(
     runId = details.ti.runId,
     mapIndex = details.ti.mapIndex ?: -1,
   )
+
+  internal val argBindings: List<ArgBinding> by lazy {
+    decodeArgBindings(details.tiContext?.argBindings)
+  }
+
+  // A literal binding carries the inline value from the Dag file; an XCom
+  // binding pulls the bound upstream task's return-value XCom, honouring the
+  // bound map index and element index.
+  internal fun resolveBinding(binding: ArgBinding): Any? =
+    when (binding) {
+      is ArgBinding.Literal -> binding.value
+      is ArgBinding.XCom -> {
+        val value = getXCom(taskId = binding.taskId, mapIndex = binding.mapIndex.takeIf { it >= 0 })
+        when {
+          binding.elementIndex == null -> value
+          value is List<*> -> value[binding.elementIndex]
+          else ->
+            error(
+              "Argument '${binding.name}' binds element ${binding.elementIndex} of task '${binding.taskId}', " +
+                "but its XCom is not a list",
+            )
+        }
+      }
+    }
 }
 
 /**
- * Thrown when a task parameter with a primitive type reads an XCom that was never pushed.
+ * Thrown when a task's input resolves to nothing where a value is required —
+ * a parameter with a primitive type, or a [TaskArgs.require] read.
  */
 class MissingXComException(
   message: String,
