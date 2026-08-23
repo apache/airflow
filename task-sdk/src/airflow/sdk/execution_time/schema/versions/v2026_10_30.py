@@ -64,3 +64,19 @@ class AddDagDefinitionsToDagFileParsingResult(VersionChange):
         schema(DagFileParsingResult).field("parsed_definitions").didnt_exist,
         schema(DagFileParsingResult).field("dag_source_codes").didnt_exist,
     )
+
+
+class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
+    """
+    Add the ``first_task_reschedule_start_date`` field carrying the earliest reschedule start date.
+
+    The supervisor-schema mirror of the execution API's
+    ``AddFirstTaskRescheduleStartDateField``, named apart so the two migrations
+    are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
