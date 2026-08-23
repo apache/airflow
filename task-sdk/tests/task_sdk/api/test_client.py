@@ -1293,10 +1293,6 @@ class TestDagRunOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                assert request.url.params["dag_id"] == "test_trigger"
-                assert request.url.params["run_ids"] == "test_run_id"
-                return httpx.Response(status_code=200, json=0)
             if request.url.path == "/dag-runs/test_trigger/test_run_id":
                 actual_body = json.loads(request.read())
                 assert actual_body["logical_date"] == "2025-01-01T00:00:00Z"
@@ -1316,87 +1312,44 @@ class TestDagRunOperations:
         )
 
         assert result == OKResponse(ok=True)
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id"),
-        ]
+        # A trigger that succeeds costs one request; the probe below only runs on failure
+        assert requests == [("POST", "/dag-runs/test_trigger/test_run_id")]
 
-    def test_trigger_dry_run_skips_precheck_conflict(self):
-        client = make_client_w_dry_run()
+    @pytest.mark.parametrize(
+        "ambiguous_error",
+        [
+            pytest.param(httpx.ReadError, id="read-error"),
+            pytest.param(httpx.ReadTimeout, id="read-timeout"),
+            pytest.param(httpx.RemoteProtocolError, id="remote-protocol-error"),
+        ],
+    )
+    def test_trigger_treats_ambiguous_response_as_success_when_dag_run_exists(self, ambiguous_error):
+        """The POST reached the server and created the run, but the response was lost in transit."""
+        requests: list[tuple[str, str]] = []
+        dag_run_exists = False
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal dag_run_exists
+            requests.append((request.method, request.url.path))
+            if request.method == "GET" and request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_trigger"
+                assert request.url.params["run_ids"] == "test_run_id"
+                return httpx.Response(status_code=200, json=1 if dag_run_exists else 0)
+            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
+                dag_run_exists = True
+                raise ambiguous_error("Trigger response was lost", request=request)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
 
         assert result == OKResponse(ok=True)
-
-    def test_trigger_pre_existing_dag_run_returns_conflict_without_posting(self):
-        requests: list[tuple[str, str]] = []
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=1)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                return httpx.Response(status_code=500, json={"detail": "POST should not happen"})
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
-
-        assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
         assert requests == [
-            ("GET", "/dag-runs/count"),
-        ]
-
-    def test_trigger_clears_pre_existing_dag_run_without_posting_when_resetting(self):
-        requests: list[tuple[str, str]] = []
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=1)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                return httpx.Response(status_code=500, json={"detail": "POST should not happen"})
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id/clear":
-                return httpx.Response(status_code=204)
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id", reset_dag_run=True)
-
-        assert result == OKResponse(ok=True)
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id/clear"),
-        ]
-
-    def test_trigger_returns_conflict_from_post_when_run_was_missing_before(self):
-        requests: list[tuple[str, str]] = []
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=0)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                return httpx.Response(
-                    status_code=409,
-                    json={
-                        "detail": {
-                            "reason": "already_exists",
-                            "message": "A Dag Run already exists for Dag test_trigger with run id test_run_id",
-                        }
-                    },
-                )
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
-
-        assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
-        assert requests == [
-            ("GET", "/dag-runs/count"),
             ("POST", "/dag-runs/test_trigger/test_run_id"),
+            ("GET", "/dag-runs/count"),
         ]
 
-    def test_trigger_treats_read_error_as_success_when_dag_run_appears_after_missing_precheck(self):
+    def test_trigger_clears_dag_run_found_after_ambiguous_response_when_resetting(self):
         requests: list[tuple[str, str]] = []
         dag_run_exists = False
 
@@ -1408,59 +1361,36 @@ class TestDagRunOperations:
             if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
                 dag_run_exists = True
                 raise httpx.ReadError("Trigger response was lost", request=request)
+            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id/clear":
+                return httpx.Response(status_code=204)
             return httpx.Response(status_code=422)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
+        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id", reset_dag_run=True)
 
         assert result == OKResponse(ok=True)
         assert requests == [
-            ("GET", "/dag-runs/count"),
             ("POST", "/dag-runs/test_trigger/test_run_id"),
             ("GET", "/dag-runs/count"),
+            ("POST", "/dag-runs/test_trigger/test_run_id/clear"),
         ]
 
-    def test_trigger_treats_read_timeout_as_success_when_dag_run_appears_after_missing_precheck(self):
+    def test_trigger_retries_probe_after_ambiguous_response(self):
+        """The probe is an idempotent GET, so it still goes through the generic retry layer."""
         requests: list[tuple[str, str]] = []
         dag_run_exists = False
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            nonlocal dag_run_exists
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=1 if dag_run_exists else 0)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                dag_run_exists = True
-                raise httpx.ReadTimeout("Trigger response timed out", request=request)
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
-
-        assert result == OKResponse(ok=True)
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id"),
-            ("GET", "/dag-runs/count"),
-        ]
-
-    def test_trigger_retries_followup_probe_after_ambiguous_response(self):
-        requests: list[tuple[str, str]] = []
-        dag_run_exists = False
-        followup_attempts = 0
+        probe_attempts = 0
 
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
 
             def handle_request(request: httpx.Request) -> httpx.Response:
-                nonlocal dag_run_exists, followup_attempts
+                nonlocal dag_run_exists, probe_attempts
                 requests.append((request.method, request.url.path))
                 if request.method == "GET" and request.url.path == "/dag-runs/count":
-                    if not dag_run_exists:
-                        return httpx.Response(status_code=200, json=0)
-                    followup_attempts += 1
-                    if followup_attempts == 1:
+                    probe_attempts += 1
+                    if probe_attempts == 1:
                         return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
-                    return httpx.Response(status_code=200, json=1)
+                    return httpx.Response(status_code=200, json=1 if dag_run_exists else 0)
                 if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
                     dag_run_exists = True
                     raise httpx.ReadError("Trigger response was lost", request=request)
@@ -1471,102 +1401,12 @@ class TestDagRunOperations:
 
         assert result == OKResponse(ok=True)
         assert requests == [
-            ("GET", "/dag-runs/count"),
             ("POST", "/dag-runs/test_trigger/test_run_id"),
             ("GET", "/dag-runs/count"),
             ("GET", "/dag-runs/count"),
         ]
 
-    def test_trigger_treats_read_error_as_success_when_resetting_missing_dag_run_appears(self):
-        requests: list[tuple[str, str]] = []
-        dag_run_exists = False
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            nonlocal dag_run_exists
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=1 if dag_run_exists else 0)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                dag_run_exists = True
-                raise httpx.ReadError("Trigger response was lost", request=request)
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(
-            dag_id="test_trigger",
-            run_id="test_run_id",
-            reset_dag_run=True,
-        )
-
-        assert result == OKResponse(ok=True)
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id"),
-            ("GET", "/dag-runs/count"),
-        ]
-
-    def test_trigger_treats_remote_protocol_error_as_success_when_dag_run_appears_after_missing_precheck(
-        self,
-    ):
-        requests: list[tuple[str, str]] = []
-        dag_run_exists = False
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            nonlocal dag_run_exists
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=1 if dag_run_exists else 0)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                dag_run_exists = True
-                raise httpx.RemoteProtocolError("Trigger response was lost", request=request)
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
-
-        assert result == OKResponse(ok=True)
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id"),
-            ("GET", "/dag-runs/count"),
-        ]
-
-    def test_trigger_conflict_from_post_clears_run_when_resetting(self):
-        requests: list[tuple[str, str]] = []
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=0)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                return httpx.Response(
-                    status_code=409,
-                    json={
-                        "detail": {
-                            "reason": "already_exists",
-                            "message": "A Dag Run already exists for Dag test_trigger with run id test_run_id",
-                        }
-                    },
-                )
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id/clear":
-                return httpx.Response(status_code=204)
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dag_runs.trigger(
-            dag_id="test_trigger",
-            run_id="test_run_id",
-            reset_dag_run=True,
-        )
-
-        assert result == OKResponse(ok=True)
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id"),
-            ("POST", "/dag-runs/test_trigger/test_run_id/clear"),
-        ]
-
-    def test_trigger_reraises_read_error_when_dag_run_is_missing_after_precheck(self):
+    def test_trigger_reraises_ambiguous_error_when_dag_run_was_not_created(self):
         requests: list[tuple[str, str]] = []
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1583,52 +1423,33 @@ class TestDagRunOperations:
             client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
 
         assert requests == [
-            ("GET", "/dag-runs/count"),
             ("POST", "/dag-runs/test_trigger/test_run_id"),
             ("GET", "/dag-runs/count"),
         ]
 
-    def test_trigger_reraises_connect_error_even_if_dag_run_exists_after_precheck(self):
+    @pytest.mark.parametrize(
+        ("unambiguous_error", "message"),
+        [
+            pytest.param(httpx.ConnectError, "Could not connect", id="connect-error"),
+            pytest.param(httpx.PoolTimeout, "Could not get a connection from the pool", id="pool-timeout"),
+        ],
+    )
+    def test_trigger_reraises_errors_that_never_reached_the_server(self, unambiguous_error, message):
+        """The request never left the client, so there is nothing to probe for."""
         requests: list[tuple[str, str]] = []
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=0)
             if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                raise httpx.ConnectError("Could not connect", request=request)
+                raise unambiguous_error(message, request=request)
             return httpx.Response(status_code=422)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with pytest.raises(httpx.ConnectError, match="Could not connect"):
+        with pytest.raises(unambiguous_error, match=message):
             client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
 
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id"),
-        ]
-
-    def test_trigger_reraises_pool_timeout_even_if_dag_run_exists_after_precheck(self):
-        requests: list[tuple[str, str]] = []
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=0)
-            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
-                raise httpx.PoolTimeout("Could not get a connection from the pool", request=request)
-            return httpx.Response(status_code=422)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-
-        with pytest.raises(httpx.PoolTimeout, match="Could not get a connection from the pool"):
-            client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
-
-        assert requests == [
-            ("GET", "/dag-runs/count"),
-            ("POST", "/dag-runs/test_trigger/test_run_id"),
-        ]
+        assert requests == [("POST", "/dag-runs/test_trigger/test_run_id")]
 
     def test_trigger_conflict(self):
         """Test that if the Dag run already exists, the client returns an error when default reset_dag_run=False"""
@@ -1637,8 +1458,6 @@ class TestDagRunOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=1)
             if request.method == "POST" and request.url.path == "/dag-runs/test_trigger_conflict/test_run_id":
                 return httpx.Response(
                     status_code=409,
@@ -1659,7 +1478,7 @@ class TestDagRunOperations:
 
         assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
         assert requests == [
-            ("GET", "/dag-runs/count"),
+            ("POST", "/dag-runs/test_trigger_conflict/test_run_id"),
         ]
 
     def test_trigger_conflict_reset_dag_run(self):
@@ -1669,8 +1488,6 @@ class TestDagRunOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests.append((request.method, request.url.path))
-            if request.method == "GET" and request.url.path == "/dag-runs/count":
-                return httpx.Response(status_code=200, json=1)
             if (
                 request.method == "POST"
                 and request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id"
@@ -1703,7 +1520,7 @@ class TestDagRunOperations:
 
         assert result == OKResponse(ok=True)
         assert requests == [
-            ("GET", "/dag-runs/count"),
+            ("POST", "/dag-runs/test_trigger_conflict_reset/test_run_id"),
             ("POST", "/dag-runs/test_trigger_conflict_reset/test_run_id/clear"),
         ]
 

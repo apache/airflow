@@ -899,49 +899,36 @@ class DagRunOperations:
             run_after=run_after,
         )
 
-        # GET dag-runs/count is available since Airflow 3.0.0. Failures propagate rather
-        # than falling through to POST — if the count endpoint is unreachable, the POST
-        # would fail too. None signals dry-run (skip pre-check, no-op POST).
-        dag_run_count_before = (
-            None if self.client._dry_run else self.get_count(dag_id=dag_id, run_ids=[run_id]).count
-        )
-        if dag_run_count_before is not None and dag_run_count_before > 0:
-            if reset_dag_run:
-                log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
-                # TODO: Make clear() idempotent as a follow-up.
-                return self.clear(run_id=run_id, dag_id=dag_id)
-            log.info("Dag Run already exists!", dag_id=dag_id, run_id=run_id)
-            return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
-
         try:
             self.client._request_without_retry(
                 "POST", f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
             )
         except (httpx.ReadError, httpx.ReadTimeout, httpx.RemoteProtocolError):
-            if dag_run_count_before == 0 and self.get_count(dag_id=dag_id, run_ids=[run_id]).count > 0:
+            # The POST reached the server but the response was lost, so the Dag run may or may
+            # not have been created. Probe once rather than retrying a non-idempotent POST.
+            if self.get_count(dag_id=dag_id, run_ids=[run_id]).count == 0:
+                raise
+            if reset_dag_run:
                 log.info(
-                    "Dag Run exists after ambiguous trigger response; treating trigger as successful.",
+                    "Dag Run exists after ambiguous trigger response; Resetting Dag Run.",
                     dag_id=dag_id,
                     run_id=run_id,
                 )
-                return OKResponse(ok=True)
-            raise
+                # TODO: Make clear() idempotent as a follow-up.
+                return self.clear(run_id=run_id, dag_id=dag_id)
+            log.info(
+                "Dag Run exists after ambiguous trigger response; treating trigger as successful.",
+                dag_id=dag_id,
+                run_id=run_id,
+            )
+            return OKResponse(ok=True)
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
-                    log.info(
-                        "Dag Run already exists after trigger attempt; Resetting Dag Run.",
-                        detail=e.detail,
-                        dag_id=dag_id,
-                        run_id=run_id,
-                    )
+                    log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
                     return self.clear(run_id=run_id, dag_id=dag_id)
-                log.info(
-                    "Dag Run already exists after trigger attempt.",
-                    detail=e.detail,
-                    dag_id=dag_id,
-                    run_id=run_id,
-                )
+
+                log.info("Dag Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
             raise
 
@@ -1148,7 +1135,6 @@ class Client(httpx.Client):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
         auth = BearerAuth(token)
-        self._dry_run: bool = dry_run
 
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
