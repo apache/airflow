@@ -5940,10 +5940,12 @@ class TestSchedulerJob:
     def test_asset_events_queued_while_at_max_active_runs_are_all_consumed(
         self, catchup, terminal_state, session, dag_maker
     ):
-        """Events 2, 3, 4 that land while run 1 holds ``max_active_runs=1`` must all be
-        consumed by run 2 after the cap lifts. Catchup only changes whether
-        pre-subscription events join the first run; it must not change this
-        follow-up consume. A FAILED run 1 lifts the cap the same way SUCCESS does.
+        """Events queued while a Dag is at max_active_runs land on the next run.
+
+        Events 2, 3, 4 that land while run 1 holds ``max_active_runs=1`` must all be
+        consumed by run 2 after the cap lifts. A later event 5 is its own run.
+        Catchup only changes whether pre-subscription events join the first run.
+        A FAILED run 1 lifts the cap the same way SUCCESS does.
         """
         asset = Asset(uri="test://asset-max-active-runs-queue", name="mar_queue_asset", group="test_group")
         with dag_maker(
@@ -6022,6 +6024,21 @@ class TestSchedulerJob:
         run2 = runs[1]
         assert {e.id for e in run2.consumed_asset_events} == queued_ids
         assert run2.run_after == timezone.coerce_datetime(event4.timestamp)
+        assert _adrq_event_ids() == set()
+
+        event5 = _queue_event(base + timedelta(minutes=10))
+        _tick()
+        runs = _runs()
+        assert len(runs) == 2
+        assert _adrq_event_ids() == {event5.id}
+
+        run2 = session.merge(run2)
+        run2.state = terminal_state
+        session.flush()
+        _tick()
+        runs = _runs()
+        assert len(runs) == 3
+        assert {e.id for e in runs[2].consumed_asset_events} == {event5.id}
         assert _adrq_event_ids() == set()
 
     @pytest.mark.need_serialized_dag
