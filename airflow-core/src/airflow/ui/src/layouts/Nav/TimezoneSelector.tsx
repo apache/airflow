@@ -33,7 +33,7 @@ dayjs.extend(timezone);
 
 const TimezoneSelector = () => {
   const { selectedTimezone, setSelectedTimezone } = useTimezone();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [currentTime, setCurrentTime] = useState<string>("");
 
   const tzList = Intl.supportedValuesOf("timeZone");

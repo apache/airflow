@@ -1193,6 +1193,7 @@ export type DagScheduleAssetReference = {
     dag_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**
@@ -1313,6 +1314,7 @@ export type ExternalViewResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -1540,6 +1542,17 @@ export type PatchTaskInstanceBody = {
 };
 
 /**
+ * Serializer for the optional Dag/task scoping criteria of a UI plugin.
+ */
+export type PluginAppliesToResponse = {
+    dag_tags?: Array<(string)> | null;
+    dag_ids?: Array<(string)> | null;
+    task_ids?: Array<(string)> | null;
+    operators?: Array<(string)> | null;
+    operator_names?: Array<(string)> | null;
+};
+
+/**
  * Plugin Collection serializer.
  */
 export type PluginCollectionResponse = {
@@ -1689,6 +1702,7 @@ export type ReactAppResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
@@ -1925,6 +1939,7 @@ export type TaskOutletAssetReference = {
     task_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**

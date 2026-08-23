@@ -35,7 +35,7 @@ export const AssetExpression = ({
   readonly events?: Array<NextRunAssetEventResponse>;
   readonly expression: ExpressionType | undefined;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   if (expression === undefined) {
     return undefined;
