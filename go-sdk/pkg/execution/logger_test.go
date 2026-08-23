@@ -342,6 +342,21 @@ func TestSocketLogHandlerKeyMapping(t *testing.T) {
 	assert.False(t, hasTime)
 }
 
+func TestSocketLogHandlerStandardFieldsOverrideAttrs(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler).
+		With("level", "custom", "logger", "custom").
+		WithGroup("example")
+
+	logger.Info("message")
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.Equal(t, "info", entry["level"])
+	assert.Equal(t, "example", entry["logger"])
+}
+
 // TestSocketLogHandlerStringifiesErrorAttr verifies that an attribute whose
 // value is a stock `error` is rendered as its .Error() string. Without value
 // resolution the underlying struct's unexported fields would be marshaled as
