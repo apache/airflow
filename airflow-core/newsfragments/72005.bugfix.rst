@@ -1,0 +1,1 @@
+Stop list pages shifting while a filter loads. The row count heading no longer disappears mid-load, so the search and filter controls beneath it stay put, and the Dags and Assets lists keep their current rows on screen until the filtered ones arrive.
