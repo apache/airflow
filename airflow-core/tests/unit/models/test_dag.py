@@ -2612,6 +2612,40 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
+    def test_dags_needing_dagruns_assets_stale_flag_does_not_hide_adrq(self, dag_maker, session):
+        """A stale exceeds_max_non_backfill flag must not hide asset leftovers.
+
+        The cached flag is timetable-only. With zero active runs and queued
+        events, the Dag stays selectable even when the flag is still True.
+        """
+        asset = Asset(uri="test://asset-stale-flag", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="stale_flag_asset_consumer",
+            max_active_runs=1,
+            schedule=[asset],
+            start_date=pendulum.now().add(days=-2),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+        for _ in range(3):
+            event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(
+                    asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id
+                )
+            )
+        dag_model.exceeds_max_non_backfill = True
+        session.flush()
+
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+        assert dag_model.dag_id in triggered_date_by_dag
+
     @pytest.mark.parametrize("active_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     @pytest.mark.parametrize(
         "run_type",

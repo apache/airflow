@@ -2752,6 +2752,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
                 dag_run.consumed_asset_events.extend(asset_events)
+                self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
                 self.log.info(
                     "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
                     dag.dag_id,
