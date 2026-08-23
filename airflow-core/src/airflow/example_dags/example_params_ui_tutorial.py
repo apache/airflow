@@ -316,8 +316,7 @@ with DAG(
 ) as dag:
     # [START section_3]
     @task(task_display_name="Show used parameters")
-    def show_params(**kwargs) -> None:
-        params = kwargs["params"]
+    def show_params(params=None) -> None:
         print(f"This DAG was triggered with the following parameters:\n\n{json.dumps(params, indent=4)}\n")
 
     show_params()
