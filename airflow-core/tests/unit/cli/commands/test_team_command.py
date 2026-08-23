@@ -624,3 +624,87 @@ class TestCliTeams:
                     team_command.team_verify(self.parser.parse_args(["teams", "verify"]))
 
         assert "references unknown team 'missing-team'" in stdout.getvalue()
+
+    def test_team_inspect(self, stdout_capture):
+        """Test inspecting a team with associated resources."""
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        self.session.add(
+            Pool(
+                pool=Pool.get_default_team_pool_name("team1"),
+                slots=128,
+                description="Default pool",
+                include_deferred=False,
+                team_name="team1",
+            )
+        )
+
+        dag_bundle = DagBundleModel(name="bundle1")
+        self.session.add(dag_bundle)
+        self.session.commit()
+
+        self.session.execute(
+            dag_bundle_team_association_table.insert().values(
+                dag_bundle_name="bundle1",
+                team_name="team1",
+            )
+        )
+
+        self.session.add_all(
+            [
+                Connection(conn_id="conn1", conn_type="http", team_name="team1"),
+                Variable(key="var1", val="value", team_name="team1"),
+                Pool(
+                    pool="pool1",
+                    slots=5,
+                    description="Additional pool",
+                    include_deferred=False,
+                    team_name="team1",
+                ),
+            ]
+        )
+        self.session.commit()
+
+        with stdout_capture as stdout:
+            team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
+
+        output = stdout.getvalue()
+
+        assert "Team: team1" in output
+        assert "bundle1" in output
+        assert Pool.get_default_team_pool_name("team1") in output
+        assert "pool1" in output
+        assert "conn1" in output
+        assert "var1" in output
+
+    def test_team_inspect_empty_team(self, stdout_capture):
+        """Test inspecting a team with no associated resources."""
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        self.session.add(
+            Pool(
+                pool=Pool.get_default_team_pool_name("team1"),
+                slots=128,
+                description="Default pool",
+                include_deferred=False,
+                team_name="team1",
+            )
+        )
+
+        self.session.commit()
+
+        with stdout_capture as stdout:
+            team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
+
+        output = stdout.getvalue()
+
+        assert "Team: team1" in output
+        assert Pool.get_default_team_pool_name("team1") in output
+        assert output.count("(none)") == 3
+
+    def test_team_inspect_nonexistent_team(self):
+        """Test inspecting a team that does not exist."""
+        with pytest.raises(SystemExit, match="Team 'team1' does not exist"):
+            team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
