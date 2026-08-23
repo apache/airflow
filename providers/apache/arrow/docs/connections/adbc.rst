@@ -87,9 +87,6 @@ Extra (JSON)
            * - ``password``
              - string
              - Database password (alternative to encoding it in the URI).
-           * - ``adbc.connection.autocommit``
-             - bool
-             - Enable autocommit at the database level (driver-dependent).
            * - ``adbc.sqlite.query.batch_rows``
              - int
              - SQLite: number of rows fetched per Arrow batch.
