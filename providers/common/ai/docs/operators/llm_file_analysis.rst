@@ -111,6 +111,18 @@ returns the prompt string; file settings are passed to the decorator:
     :start-after: [START howto_decorator_llm_file_analysis]
     :end-before: [END howto_decorator_llm_file_analysis]
 
+Human-in-the-Loop Approval
+---------------------------
+
+Set ``require_approval=True`` to pause the task after the analysis and wait
+for a human reviewer to approve the output before it is returned.
+When ``allow_modifications=True``, the reviewer can also edit the output:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_file_analysis.py
+    :language: python
+    :start-after: [START howto_operator_llm_file_analysis_approval]
+    :end-before: [END howto_operator_llm_file_analysis_approval]
+
 Parameters
 ----------
 
