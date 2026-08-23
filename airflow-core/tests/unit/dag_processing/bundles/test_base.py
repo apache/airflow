@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import fcntl
 import logging
-import structlog
 import tempfile
 import threading
 import time
@@ -28,6 +27,7 @@ from pathlib import Path
 from unittest.mock import call, patch
 
 import pytest
+import structlog
 import time_machine
 
 from airflow._shared.timezones import timezone as tz
