@@ -94,6 +94,10 @@ Parameters
    * - ``embed_conn_id``
      - Optional separate connection ID for the embedding provider. Falls
        back to ``llm_conn_id`` when ``None``.
+   * - ``embedding_kwargs``
+     - Additional keyword arguments passed to the embedding model constructor
+       when ``embed_model`` is a string or omitted, for example
+       ``{"dimensions": 128}``. Templated.
    * - ``chunk_size``
      - Sentence-splitter chunk size (default 512).
    * - ``chunk_overlap``

@@ -67,6 +67,7 @@ class TestRetrievalOperatorInit:
             "embed_model",
             "llm_conn_id",
             "embed_conn_id",
+            "embedding_kwargs",
         }
 
 
@@ -135,6 +136,7 @@ class TestRetrievalOperatorOutput:
             embed_model="text-embedding-3-small",
             llm_conn_id="my_llm_conn",
             embed_conn_id="my_embed_conn",
+            embedding_kwargs={"dimensions": 128},
         )
         op.execute(context=MagicMock())
 
@@ -142,6 +144,7 @@ class TestRetrievalOperatorOutput:
             llm_conn_id="my_llm_conn",
             embed_conn_id="my_embed_conn",
             embed_model="text-embedding-3-small",
+            embedding_kwargs={"dimensions": 128},
         )
 
     def test_byo_embed_model_bypasses_hook(self, _li, tmp_path):

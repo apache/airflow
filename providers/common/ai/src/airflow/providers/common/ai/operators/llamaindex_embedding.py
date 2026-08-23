@@ -69,6 +69,8 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         back to :attr:`LlamaIndexHook.default_conn_name` when ``None``.
     :param embed_conn_id: Optional separate Airflow connection ID for the
         embedding provider. Falls back to ``llm_conn_id`` when ``None``.
+    :param embedding_kwargs: Additional keyword arguments passed to the embedding
+        model constructor when ``embed_model`` is a string or omitted.
     :param chunk_size: Chunk size for the sentence splitter.
     :param chunk_overlap: Overlap between chunks.
     :param persist_dir: Optional path to persist the index. Accepts local
@@ -83,6 +85,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         "embed_model",
         "llm_conn_id",
         "embed_conn_id",
+        "embedding_kwargs",
         "persist_dir",
         "persist_conn_id",
     )
@@ -94,6 +97,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         embed_model: str | BaseEmbedding | None = None,
         llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
+        embedding_kwargs: dict[str, Any] | None = None,
         chunk_size: int = 512,
         chunk_overlap: int = 50,
         persist_dir: str | None = None,
@@ -105,6 +109,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         self.embed_model = embed_model
         self.llm_conn_id = llm_conn_id
         self.embed_conn_id = embed_conn_id
+        self.embedding_kwargs = embedding_kwargs or {}
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.persist_dir = persist_dir
@@ -190,6 +195,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
                 llm_conn_id=self.llm_conn_id,
                 embed_conn_id=self.embed_conn_id,
                 embed_model=self.embed_model,
+                embedding_kwargs=self.embedding_kwargs,
             ).get_embedding_model()
 
         # ``BaseEmbedding`` always exposes these two methods (see

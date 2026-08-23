@@ -75,6 +75,9 @@ class LlamaIndexHook(BaseHook):
     :param embed_model: Embedding model name (e.g.
         ``"text-embedding-3-small"``). Overrides ``extra["embed_model"]``
         on the connection.
+    :param embedding_kwargs: Additional keyword arguments to pass to the embedding
+        model constructor. Connection credentials and the base URL take precedence
+        over matching values.
     :param llm_model: LLM model name (e.g. ``"gpt-4o"``). Overrides
         ``extra["llm_model"]`` on the connection. Required when calling
         :meth:`get_llm`.
@@ -90,6 +93,7 @@ class LlamaIndexHook(BaseHook):
         llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
         embed_model: str | None = None,
+        embedding_kwargs: dict[str, Any] | None = None,
         llm_model: str | None = None,
         **kwargs: Any,
     ) -> None:
@@ -99,6 +103,7 @@ class LlamaIndexHook(BaseHook):
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
         self.embed_model = embed_model
+        self.embedding_kwargs = embedding_kwargs or {}
         self.llm_model = llm_model
 
     @staticmethod
@@ -164,7 +169,8 @@ class LlamaIndexHook(BaseHook):
             extra_key="embed_model",
             kind="embedding",
         )
-        return OpenAIEmbedding(model=model_id, **self._connection_kwargs(conn))
+        kwargs = {**self.embedding_kwargs, **self._connection_kwargs(conn)}
+        return OpenAIEmbedding(model=model_id, **kwargs)
 
     def get_llm(self) -> LLM:
         """

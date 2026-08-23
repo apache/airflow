@@ -72,6 +72,9 @@ class LlamaIndexRetrievalOperator(BaseOperator):
         Used only when ``embed_model`` is a string (or omitted entirely).
     :param embed_conn_id: Optional separate Airflow connection ID for the
         embedding provider. Falls back to ``llm_conn_id`` when ``None``.
+    :param embedding_kwargs: Additional keyword arguments passed to the embedding
+        model constructor when ``embed_model`` is a string or omitted. Options
+        that affect vector dimensions must match those used to build the index.
     :param top_k: Number of top results to retrieve.
     """
 
@@ -82,6 +85,7 @@ class LlamaIndexRetrievalOperator(BaseOperator):
         "embed_model",
         "llm_conn_id",
         "embed_conn_id",
+        "embedding_kwargs",
     )
 
     def __init__(
@@ -93,6 +97,7 @@ class LlamaIndexRetrievalOperator(BaseOperator):
         embed_model: str | BaseEmbedding | None = None,
         llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
+        embedding_kwargs: dict[str, Any] | None = None,
         top_k: int = 5,
         **kwargs: Any,
     ) -> None:
@@ -103,6 +108,7 @@ class LlamaIndexRetrievalOperator(BaseOperator):
         self.embed_model = embed_model
         self.llm_conn_id = llm_conn_id
         self.embed_conn_id = embed_conn_id
+        self.embedding_kwargs = embedding_kwargs or {}
         self.top_k = top_k
 
     def execute(self, context: Context) -> dict[str, Any]:
@@ -155,6 +161,7 @@ class LlamaIndexRetrievalOperator(BaseOperator):
                 llm_conn_id=self.llm_conn_id,
                 embed_conn_id=self.embed_conn_id,
                 embed_model=self.embed_model,
+                embedding_kwargs=self.embedding_kwargs,
             ).get_embedding_model()
 
         # ``BaseEmbedding`` always exposes these two methods (see

@@ -68,6 +68,9 @@ class LangChainHook(BaseHook):
     :param embed_model: Embedding model identifier in ``provider:name`` format
         (e.g. ``"openai:text-embedding-3-small"``). Overrides
         ``extra["embed_model"]`` on the connection.
+    :param embedding_kwargs: Additional keyword arguments to pass to the embedding
+        model constructor. Connection credentials and the base URL take precedence
+        over matching values.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -81,6 +84,7 @@ class LangChainHook(BaseHook):
         embed_conn_id: str | None = None,
         llm_model: str | None = None,
         embed_model: str | None = None,
+        embedding_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,6 +96,7 @@ class LangChainHook(BaseHook):
         self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
         self.llm_model = llm_model
         self.embed_model = embed_model
+        self.embedding_kwargs = embedding_kwargs or {}
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -170,7 +175,8 @@ class LangChainHook(BaseHook):
             extra_key="embed_model",
             kind="embedding",
         )
-        return init_embeddings(model_id, **self._connection_kwargs(conn))
+        kwargs = {**self.embedding_kwargs, **self._connection_kwargs(conn)}
+        return init_embeddings(model_id, **kwargs)
 
     def test_connection(self) -> tuple[bool, str]:
         """
