@@ -6461,6 +6461,7 @@ class TestSchedulerJob:
             select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
         ).all()
         assert created_run.state == State.QUEUED
+        assert len(created_run.consumed_asset_events) == len(items)
         assert {e.source_map_index for e in created_run.consumed_asset_events} == set(extras)
         assert {e.source_map_index: e.extra for e in created_run.consumed_asset_events} == extras
         assert leftover_adrq == []
@@ -6488,6 +6489,12 @@ class TestSchedulerJob:
         assert len(first_runs) == 1
         assert {e.source_map_index for e in first_runs[0].consumed_asset_events} == {0}
         assert {e.extra["item"] for e in first_runs[0].consumed_asset_events} == {1}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
 
         mapped_tis = session.scalars(
             select(TaskInstance)
@@ -6502,6 +6509,18 @@ class TestSchedulerJob:
         self._register_mapped_outlet(mapped_tis[2], asset, {"item": 3}, session)
         session.flush()
 
+        queued_events = session.scalars(
+            select(AssetEvent).where(AssetEvent.source_dag_id == "mapped-asset-leftover-producer")
+        ).all()
+        leftover_adrq = session.scalars(
+            select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+        ).all()
+        assert {e.source_map_index for e in queued_events} == {0, 1, 2}
+        assert {row.asset_event_id for row in leftover_adrq} == {
+            e.id for e in queued_events if e.source_map_index in {1, 2}
+        }
+        assert len(session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).all()) == 1
+
         self._tick_asset_runs(session)
         session.expire_all()
 
@@ -6511,6 +6530,12 @@ class TestSchedulerJob:
         assert len(runs) == 2
         assert {e.source_map_index for e in runs[1].consumed_asset_events} == {1, 2}
         assert {e.extra["item"] for e in runs[1].consumed_asset_events} == {2, 3}
+        assert {
+            e.source_map_index
+            for e in session.scalars(
+                select(AssetEvent).where(AssetEvent.source_dag_id == "mapped-asset-leftover-producer")
+            )
+        } == {0, 1, 2}
         assert (
             session.scalars(
                 select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
@@ -6529,6 +6554,13 @@ class TestSchedulerJob:
             consumer_dag_id=consumer_dag_id,
             producer_dag_id="mapped-asset-failed-producer",
         )
+        mapped_tis[1].state = TaskInstanceState.FAILED
+        TaskInstance.register_asset_changes_in_db(
+            ti=mapped_tis[1],
+            task_outlets=[],
+            outlet_events=[],
+            session=session,
+        )
         self._register_mapped_outlet(mapped_tis[0], asset, {"item": 1}, session)
         self._register_mapped_outlet(mapped_tis[2], asset, {"item": 3}, session)
         session.flush()
@@ -6537,6 +6569,10 @@ class TestSchedulerJob:
         session.expire_all()
 
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        events = session.scalars(
+            select(AssetEvent).where(AssetEvent.source_dag_id == "mapped-asset-failed-producer")
+        ).all()
+        assert {e.source_map_index for e in events} == {0, 2}
         assert {e.source_map_index for e in created_run.consumed_asset_events} == {0, 2}
         assert {e.extra["item"] for e in created_run.consumed_asset_events} == {1, 3}
         assert (
@@ -6570,6 +6606,7 @@ class TestSchedulerJob:
 
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
         extras = {e.extra["from"] for e in created_run.consumed_asset_events}
+        assert len(created_run.consumed_asset_events) == 2
         assert extras == {"a", "b"}
         assert {e.source_dag_id for e in created_run.consumed_asset_events} == {
             "same-second-prod-a",
@@ -6617,12 +6654,15 @@ class TestSchedulerJob:
         session.expire_all()
 
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
-        assert {e.extra["item"] for e in created_run.consumed_asset_events} == {1, 2, 3}
-        assert {e.asset.uri for e in created_run.consumed_asset_events} == {
+        events = created_run.consumed_asset_events
+        assert len(events) == 3
+        assert {e.extra["item"] for e in events} == {1, 2, 3}
+        assert {e.asset.uri for e in events} == {
             "test://dyn-1",
             "test://dyn-2",
             "test://dyn-3",
         }
+        assert {source_alias.name for e in events for source_alias in e.source_aliases} == {alias.name}
         assert (
             session.scalars(
                 select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
@@ -6658,7 +6698,8 @@ class TestSchedulerJob:
         assert len(adrqs) == 3
         assert {row.asset_id for row in adrqs} == {asset1_id}
 
-    def test_mapped_asset_or_condition_consumes_fan_out(self, session, dag_maker):
+    @mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", autospec=True)
+    def test_mapped_asset_or_condition_consumes_fan_out(self, mock_with_row_locks, session, dag_maker):
         asset1 = Asset(name="or-asset-1", uri="test://or-asset-1")
         asset2 = Asset(name="or-asset-2", uri="test://or-asset-2")
         consumer_dag_id = "or-consumer"
@@ -6671,22 +6712,37 @@ class TestSchedulerJob:
             consumer_dag_id=consumer_dag_id,
             producer_dag_id="or-producer",
         )
+        with dag_maker(dag_id="or-producer-2", schedule=None, serialized=True, session=session):
+            EmptyOperator(task_id="pub", outlets=[asset2])
+        ti_asset2 = dag_maker.create_dagrun(session=session).get_task_instance("pub", session=session)
         for ti in mapped_tis:
             self._register_mapped_outlet(ti, asset1, {"item": ti.map_index + 1}, session)
+        self._register_mapped_outlet(ti_asset2, asset2, {"from": "asset2"}, session)
         session.flush()
 
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+        asset2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset2.uri))
+
+        def _lock_only_asset1(query, session, **kwargs):
+            locked = with_row_locks(query, session, **kwargs)
+            entity = query.column_descriptions[0]["entity"]
+            if entity is AssetDagRunQueue:
+                return locked.where(AssetDagRunQueue.asset_id == asset1_id)
+            return locked
+
+        mock_with_row_locks.side_effect = _lock_only_asset1
         self._tick_asset_runs(session)
         session.expire_all()
 
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        leftover_adrq = session.scalars(
+            select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+        ).all()
         assert {e.source_map_index for e in created_run.consumed_asset_events} == {0, 1, 2}
         assert {e.extra["item"] for e in created_run.consumed_asset_events} == {1, 2, 3}
-        assert (
-            session.scalars(
-                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
-            ).all()
-            == []
-        )
+        assert {e.asset.uri for e in created_run.consumed_asset_events} == {asset1.uri}
+        assert len(leftover_adrq) == 1
+        assert leftover_adrq[0].asset_id == asset2_id
 
     @pytest.mark.parametrize("catchup", [False, True])
     def test_mapped_asset_catchup_keeps_queued_events(self, catchup, session, dag_maker):
@@ -6710,6 +6766,7 @@ class TestSchedulerJob:
 
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
         assert {e.source_map_index for e in created_run.consumed_asset_events} == {0, 1, 2}
+        assert {e.extra["item"] for e in created_run.consumed_asset_events} == {1, 2, 3}
         assert (
             session.scalars(
                 select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
