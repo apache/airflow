@@ -16,21 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, get_args
 from urllib.parse import quote, unquote, urlsplit
 
 import httpx
 from azure.core.exceptions import AzureError
-from azure.identity import ClientSecretCredential
+from azure.identity.aio import ClientSecretCredential
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from azure.core.credentials import TokenCredential
+    from azure.core.credentials_async import AsyncTokenCredential
 
     from airflow.sdk import Connection
 
@@ -70,6 +69,9 @@ class AzureAnalysisServicesHook(BaseHook):
     """
     Interact with the Azure Analysis Services asynchronous refresh REST API.
 
+    All request methods are asynchronous and are meant to be awaited from a trigger. Call
+    :meth:`aclose` when done so the HTTP client and the credential release their resources.
+
     :param azure_analysis_services_conn_id: The Azure Analysis Services connection ID.
     :param request_timeout: Timeout in seconds for each HTTP request.
 
@@ -93,7 +95,8 @@ class AzureAnalysisServicesHook(BaseHook):
             raise ValueError("request_timeout must be greater than zero")
         self.azure_analysis_services_conn_id = azure_analysis_services_conn_id
         self.request_timeout = request_timeout
-        self._credential: TokenCredential | None = None
+        self._credential: AsyncTokenCredential | None = None
+        self._client: httpx.AsyncClient | None = None
 
     @cached_property
     def connection(self) -> Connection:
@@ -126,7 +129,14 @@ class AzureAnalysisServicesHook(BaseHook):
             },
         }
 
-    def get_conn(self) -> TokenCredential:
+    @property
+    def client(self) -> httpx.AsyncClient:
+        """Return the shared HTTP client, creating it on first use."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=self.request_timeout)
+        return self._client
+
+    def get_conn(self) -> AsyncTokenCredential:
         """Return and cache the service principal credential."""
         if self._credential is not None:
             return self._credential
@@ -147,17 +157,23 @@ class AzureAnalysisServicesHook(BaseHook):
         )
         return self._credential
 
-    def get_refresh_status(self, server_name: str, database: str, refresh_id: str) -> str:
+    async def aclose(self) -> None:
+        """Release the HTTP client and the credential."""
+        client, self._client = self._client, None
+        credential, self._credential = self._credential, None
+        try:
+            if client is not None:
+                await client.aclose()
+        finally:
+            if credential is not None:
+                await credential.close()
+
+    async def get_refresh_status(self, server_name: str, database: str, refresh_id: str) -> str:
         """Return the validated status of an Azure Analysis Services model refresh."""
         refresh_url = f"{self._get_refreshes_url(server_name, database)}/{quote(refresh_id, safe='')}"
         try:
-            with httpx.Client() as client:
-                response = client.get(
-                    refresh_url,
-                    headers=self._get_headers(),
-                    timeout=self.request_timeout,
-                )
-                response.raise_for_status()
+            response = await self.client.get(refresh_url, headers=await self._get_headers())
+            response.raise_for_status()
         except httpx.HTTPError as error:
             raise AzureAnalysisServicesRefreshException(
                 f"Failed to get status for Azure Analysis Services refresh {refresh_id}: "
@@ -182,7 +198,9 @@ class AzureAnalysisServicesHook(BaseHook):
             )
         return status
 
-    def trigger_refresh(self, server_name: str, database: str, refresh_type: RefreshType = "full") -> str:
+    async def trigger_refresh(
+        self, server_name: str, database: str, refresh_type: RefreshType = "full"
+    ) -> str:
         """Trigger a model refresh and return its refresh ID."""
         if refresh_type not in VALID_REFRESH_TYPES:
             raise ValueError(
@@ -190,14 +208,12 @@ class AzureAnalysisServicesHook(BaseHook):
             )
 
         try:
-            with httpx.Client() as client:
-                response = client.post(
-                    self._get_refreshes_url(server_name, database),
-                    json={"Type": refresh_type},
-                    headers=self._get_headers(),
-                    timeout=self.request_timeout,
-                )
-                response.raise_for_status()
+            response = await self.client.post(
+                self._get_refreshes_url(server_name, database),
+                json={"Type": refresh_type},
+                headers=await self._get_headers(),
+            )
+            response.raise_for_status()
         except httpx.HTTPError as error:
             raise AzureAnalysisServicesRefreshException(
                 f"Failed to trigger an Azure Analysis Services model refresh: {_format_request_error(error)}"
@@ -220,38 +236,6 @@ class AzureAnalysisServicesHook(BaseHook):
             )
         return unquote(location_parts[-1])
 
-    def wait_for_refresh(
-        self,
-        server_name: str,
-        database: str,
-        refresh_id: str,
-        check_interval: float = 60,
-        timeout: float = 60 * 60 * 24 * 7,
-    ) -> None:
-        """Poll until the refresh reaches a terminal status or the timeout expires."""
-        if check_interval <= 0:
-            raise ValueError("check_interval must be greater than zero")
-        if timeout <= 0:
-            raise ValueError("timeout must be greater than zero")
-
-        deadline = time.monotonic() + timeout
-        while True:
-            status = self.get_refresh_status(server_name, database, refresh_id)
-            self.log.info("Refresh %s status: %s", refresh_id, status)
-            if status == AzureAnalysisServicesRefreshStatus.SUCCEEDED:
-                return
-            if status in AzureAnalysisServicesRefreshStatus.FAILURE_STATUSES:
-                raise AzureAnalysisServicesRefreshException(
-                    f"Azure Analysis Services refresh {refresh_id} finished with status {status}"
-                )
-
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise AzureAnalysisServicesRefreshException(
-                    f"Timeout waiting for Azure Analysis Services refresh {refresh_id} to complete"
-                )
-            time.sleep(min(check_interval, remaining))
-
     def _assert_host(self, host: str, parsed_host: SplitResult) -> None:
         # netloc, not .username/.port: those miss "@host" and ":0", and raise on ":abc".
         if (
@@ -273,9 +257,9 @@ class AzureAnalysisServicesHook(BaseHook):
         self._assert_host(host, urlsplit(f"//{host}"))
         return f"https://{host}"
 
-    def _get_headers(self) -> dict[str, str]:
+    async def _get_headers(self) -> dict[str, str]:
         try:
-            token = self.get_conn().get_token(TOKEN_SCOPE)
+            token = await self.get_conn().get_token(TOKEN_SCOPE)
         except AzureError as error:
             raise AzureAnalysisServicesRefreshException(
                 "Failed to authenticate with Azure Analysis Services"

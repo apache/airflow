@@ -18,18 +18,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseSensorOperator, conf
-from airflow.providers.microsoft.azure.hooks.analysis_services import (
-    AzureAnalysisServicesHook,
-    AzureAnalysisServicesRefreshException,
-    AzureAnalysisServicesRefreshStatus,
-)
+from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.microsoft.azure.hooks.analysis_services import AzureAnalysisServicesHook
 from airflow.providers.microsoft.azure.triggers.analysis_services import (
     AzureAnalysisServicesRefreshTrigger,
-    validate_refresh_event,
+    validate_completed_refresh_event,
 )
 
 if TYPE_CHECKING:
@@ -40,6 +35,9 @@ class AzureAnalysisServicesSensor(BaseSensorOperator):
     """
     Wait for an Azure Analysis Services model refresh to finish.
 
+    The sensor always runs deferred: status polling happens in the triggerer, so no worker slot is
+    held while the model is refreshing. A triggerer must therefore be running in the deployment.
+
     .. seealso::
         For more information, see
         :ref:`howto/sensor:AzureAnalysisServicesSensor`.
@@ -49,7 +47,6 @@ class AzureAnalysisServicesSensor(BaseSensorOperator):
     :param refresh_id: The refresh operation ID to monitor.
     :param azure_analysis_services_conn_id: The Azure Analysis Services connection ID.
     :param request_timeout: Timeout in seconds for each HTTP request.
-    :param deferrable: Defer polling to the triggerer.
     """
 
     template_fields: Sequence[str] = (
@@ -69,7 +66,6 @@ class AzureAnalysisServicesSensor(BaseSensorOperator):
         refresh_id: str,
         azure_analysis_services_conn_id: str = AzureAnalysisServicesHook.default_conn_name,
         request_timeout: float = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -80,38 +76,9 @@ class AzureAnalysisServicesSensor(BaseSensorOperator):
         self.refresh_id = refresh_id
         self.azure_analysis_services_conn_id = azure_analysis_services_conn_id
         self.request_timeout = request_timeout
-        self.deferrable = deferrable
-
-    @cached_property
-    def hook(self) -> AzureAnalysisServicesHook:
-        """Return the Azure Analysis Services hook."""
-        return AzureAnalysisServicesHook(
-            azure_analysis_services_conn_id=self.azure_analysis_services_conn_id,
-            request_timeout=self.request_timeout,
-        )
-
-    def poke(self, context: Context) -> bool:
-        """Return whether the model refresh succeeded."""
-        status = self.hook.get_refresh_status(
-            server_name=self.server_name,
-            database=self.database,
-            refresh_id=self.refresh_id,
-        )
-        self.log.info("Refresh %s status: %s", self.refresh_id, status)
-        if status in AzureAnalysisServicesRefreshStatus.FAILURE_STATUSES:
-            raise AzureAnalysisServicesRefreshException(
-                f"Azure Analysis Services refresh {self.refresh_id} finished with status {status}"
-            )
-        return status == AzureAnalysisServicesRefreshStatus.SUCCEEDED
 
     def execute(self, context: Context) -> None:
-        """Wait synchronously or defer status polling to the triggerer."""
-        if not self.deferrable:
-            super().execute(context=context)
-            return
-        if self.poke(context=context):
-            return
-
+        """Defer status polling to the triggerer."""
         self.defer(
             timeout=timedelta(seconds=self.timeout),
             trigger=AzureAnalysisServicesRefreshTrigger(
@@ -127,5 +94,5 @@ class AzureAnalysisServicesSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None) -> None:
         """Validate the terminal trigger event."""
-        refresh_id = validate_refresh_event(event)
+        refresh_id = validate_completed_refresh_event(event)
         self.log.info("Azure Analysis Services refresh %s completed successfully", refresh_id)

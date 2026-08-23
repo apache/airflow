@@ -18,18 +18,16 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseOperator, conf
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.analysis_services import (
     AzureAnalysisServicesHook,
-    AzureAnalysisServicesRefreshException,
-    AzureAnalysisServicesRefreshStatus,
     RefreshType,
 )
 from airflow.providers.microsoft.azure.triggers.analysis_services import (
     AzureAnalysisServicesRefreshTrigger,
+    validate_completed_refresh_event,
     validate_refresh_event,
 )
 
@@ -41,6 +39,10 @@ class AzureAnalysisServicesRefreshOperator(BaseOperator):
     """
     Trigger an Azure Analysis Services model refresh and optionally wait for completion.
 
+    The operator always runs deferred: both the request that starts the refresh and the status
+    polling happen in the triggerer, so no worker slot is held while the model is refreshing.
+    A triggerer must therefore be running in the deployment.
+
     .. seealso::
         For more information, see
         :ref:`howto/operator:AzureAnalysisServicesRefreshOperator`.
@@ -51,9 +53,9 @@ class AzureAnalysisServicesRefreshOperator(BaseOperator):
     :param refresh_type: The processing type to request.
     :param wait_for_termination: Wait for the refresh to reach a terminal status.
     :param check_interval: Time in seconds between status requests.
-    :param timeout: Maximum time in seconds to wait for the refresh.
+    :param timeout: Maximum time in seconds to wait for the refresh to complete. The clock starts
+        once the refresh has been submitted.
     :param request_timeout: Timeout in seconds for each HTTP request.
-    :param deferrable: Defer polling to the triggerer when waiting for completion.
     """
 
     template_fields: Sequence[str] = (
@@ -76,7 +78,6 @@ class AzureAnalysisServicesRefreshOperator(BaseOperator):
         check_interval: float = 60,
         timeout: float = 60 * 60 * 24 * 7,
         request_timeout: float = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -94,64 +95,42 @@ class AzureAnalysisServicesRefreshOperator(BaseOperator):
         self.check_interval = check_interval
         self.timeout = timeout
         self.request_timeout = request_timeout
-        self.deferrable = deferrable
 
-    @cached_property
-    def hook(self) -> AzureAnalysisServicesHook:
-        """Return the Azure Analysis Services hook."""
-        return AzureAnalysisServicesHook(
-            azure_analysis_services_conn_id=self.azure_analysis_services_conn_id,
-            request_timeout=self.request_timeout,
+    def execute(self, context: Context) -> None:
+        """Defer to the trigger so the refresh is submitted off the worker."""
+        self.defer(
+            trigger=self._build_trigger(refresh_id=None),
+            method_name=self.handle_refresh.__name__,
         )
 
-    def execute(self, context: Context) -> str:
-        """Trigger the model refresh and wait when requested."""
-        refresh_id = self.hook.trigger_refresh(
-            server_name=self.server_name,
-            database=self.database,
-            refresh_type=self.refresh_type,
-        )
+    def handle_refresh(self, context: Context, event: dict[str, Any] | None) -> str | None:
+        """Record the new refresh ID and defer again when the refresh has to be awaited."""
+        refresh_id = validate_refresh_event(event)
         self.log.info("Triggered Azure Analysis Services refresh %s", refresh_id)
+        context["ti"].xcom_push(key=f"{self.task_id}.refresh_id", value=refresh_id)
         if not self.wait_for_termination:
             return refresh_id
 
-        if self.deferrable:
-            status = self.hook.get_refresh_status(
-                server_name=self.server_name,
-                database=self.database,
-                refresh_id=refresh_id,
-            )
-            if status == AzureAnalysisServicesRefreshStatus.SUCCEEDED:
-                return refresh_id
-            if status in AzureAnalysisServicesRefreshStatus.FAILURE_STATUSES:
-                raise AzureAnalysisServicesRefreshException(
-                    f"Azure Analysis Services refresh {refresh_id} finished with status {status}"
-                )
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=AzureAnalysisServicesRefreshTrigger(
-                    conn_id=self.azure_analysis_services_conn_id,
-                    server_name=self.server_name,
-                    database=self.database,
-                    refresh_id=refresh_id,
-                    poke_interval=self.check_interval,
-                    request_timeout=self.request_timeout,
-                ),
-                method_name=self.execute_complete.__name__,
-            )
+        # The timeout covers waiting for the refresh, so it starts once it has been submitted.
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=self._build_trigger(refresh_id=refresh_id),
+            method_name=self.execute_complete.__name__,
+        )
 
-        self.hook.wait_for_refresh(
+    def _build_trigger(self, *, refresh_id: str | None) -> AzureAnalysisServicesRefreshTrigger:
+        return AzureAnalysisServicesRefreshTrigger(
+            conn_id=self.azure_analysis_services_conn_id,
             server_name=self.server_name,
             database=self.database,
             refresh_id=refresh_id,
-            check_interval=self.check_interval,
-            timeout=self.timeout,
+            refresh_type=self.refresh_type,
+            poke_interval=self.check_interval,
+            request_timeout=self.request_timeout,
         )
-        self.log.info("Azure Analysis Services refresh %s completed successfully", refresh_id)
-        return refresh_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None) -> str:
         """Validate the terminal trigger event and return the refresh ID."""
-        refresh_id = validate_refresh_event(event)
+        refresh_id = validate_completed_refresh_event(event)
         self.log.info("Azure Analysis Services refresh %s completed successfully", refresh_id)
         return refresh_id

@@ -52,30 +52,28 @@ with DAG(
     # [END howto_operator_azure_analysis_services_refresh]
 
     # [START howto_sensor_azure_analysis_services_refresh]
-    wait_with_deferrable_sensor = AzureAnalysisServicesSensor(
-        task_id="wait_with_deferrable_sensor",
+    wait_for_refresh = AzureAnalysisServicesSensor(
+        task_id="wait_for_refresh",
         server_name=SERVER_NAME,
         database=DATABASE,
         refresh_id=start_refresh_without_wait.output,
-        deferrable=True,
         poke_interval=10,
         timeout=600,
     )
     # [END howto_sensor_azure_analysis_services_refresh]
 
-    # [START howto_operator_azure_analysis_services_deferrable]
-    refresh_with_deferrable_operator = AzureAnalysisServicesRefreshOperator(
-        task_id="refresh_with_deferrable_operator",
+    # [START howto_operator_azure_analysis_services_refresh_and_wait]
+    refresh_and_wait = AzureAnalysisServicesRefreshOperator(
+        task_id="refresh_and_wait",
         server_name=SERVER_NAME,
         database=DATABASE,
         refresh_type=REFRESH_TYPE,
-        deferrable=True,
         check_interval=10,
         timeout=600,
     )
-    # [END howto_operator_azure_analysis_services_deferrable]
+    # [END howto_operator_azure_analysis_services_refresh_and_wait]
 
-    start_refresh_without_wait >> wait_with_deferrable_sensor >> refresh_with_deferrable_operator
+    start_refresh_without_wait >> wait_for_refresh >> refresh_and_wait
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

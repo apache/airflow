@@ -41,20 +41,24 @@ with ``wait_for_termination=False`` to start a refresh and immediately return it
     :start-after: [START howto_operator_azure_analysis_services_refresh]
     :end-before: [END howto_operator_azure_analysis_services_refresh]
 
-By default, ``wait_for_termination=True`` and ``deferrable=False``, so the operator waits synchronously for
-the refresh to finish.
+Wait for the refresh to finish
+------------------------------
 
-Wait with a deferrable operator
--------------------------------
-
-Set ``deferrable=True`` to release the worker slot while the triggerer polls the refresh status. The
-``timeout`` parameter limits the entire wait, while ``request_timeout`` limits each REST request.
+With the default ``wait_for_termination=True`` the operator also waits for the refresh to reach a
+terminal status. The ``timeout`` parameter limits that wait and starts once the refresh has been
+submitted, while ``request_timeout`` limits each individual REST request.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_analysis_services.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_azure_analysis_services_deferrable]
-    :end-before: [END howto_operator_azure_analysis_services_deferrable]
+    :start-after: [START howto_operator_azure_analysis_services_refresh_and_wait]
+    :end-before: [END howto_operator_azure_analysis_services_refresh_and_wait]
+
+.. note::
+
+    The operator and the sensor always run deferred. Both the request that starts the refresh and
+    the status polling are performed by the triggerer, so no worker slot is held while the model is
+    refreshing. A triggerer must be running in your deployment.
 
 .. _howto/sensor:AzureAnalysisServicesSensor:
 

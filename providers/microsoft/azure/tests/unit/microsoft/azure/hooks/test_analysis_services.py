@@ -55,10 +55,8 @@ def build_response(
 
 
 def build_client(client_class: mock.MagicMock) -> mock.MagicMock:
-    """Return the client instance that the patched ``httpx.Client`` context manager yields."""
-    client = client_class.return_value
-    client.__enter__.return_value = client
-    return client
+    """Return the ``httpx.AsyncClient`` instance that the patched class hands to the hook."""
+    return client_class.return_value
 
 
 class TestAzureAnalysisServicesHook:
@@ -154,22 +152,24 @@ class TestAzureAnalysisServicesHook:
         with pytest.raises(ValueError, match=message):
             AzureAnalysisServicesHook("invalid-auth").get_conn()
 
+    @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
-    def test_get_headers_uses_literal_token_scope(self, credential_class):
+    async def test_get_headers_uses_literal_token_scope(self, credential_class):
         credential_class.return_value.get_token.return_value = AccessToken("token", 0)
 
-        headers = AzureAnalysisServicesHook(CONN_ID)._get_headers()
+        headers = await AzureAnalysisServicesHook(CONN_ID)._get_headers()
 
-        credential_class.return_value.get_token.assert_called_once_with(TOKEN_SCOPE)
+        credential_class.return_value.get_token.assert_awaited_once_with(TOKEN_SCOPE)
         assert TOKEN_SCOPE == "https://*.asazure.windows.net/.default"
         assert headers == HEADERS
 
+    @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
-    def test_get_headers_wraps_authentication_errors(self, credential_class):
+    async def test_get_headers_wraps_authentication_errors(self, credential_class):
         credential_class.return_value.get_token.side_effect = ClientAuthenticationError("bad credential")
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Failed to authenticate"):
-            AzureAnalysisServicesHook(CONN_ID)._get_headers()
+            await AzureAnalysisServicesHook(CONN_ID)._get_headers()
 
     @pytest.mark.parametrize(
         "host",
@@ -221,10 +221,11 @@ class TestAzureAnalysisServicesHook:
         with pytest.raises(ValueError, match=message):
             AzureAnalysisServicesHook(CONN_ID)._get_refreshes_url(server_name, database)
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("refresh_type", sorted(VALID_REFRESH_TYPES))
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_trigger_refresh_posts_official_request_body(self, client_class, get_headers, refresh_type):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_trigger_refresh_posts_official_request_body(self, client_class, get_headers, refresh_type):
         client = build_client(client_class)
         client.post.return_value = build_response(
             headers={
@@ -233,57 +234,62 @@ class TestAzureAnalysisServicesHook:
         )
         hook = AzureAnalysisServicesHook(CONN_ID, request_timeout=REQUEST_TIMEOUT)
 
-        result = hook.trigger_refresh(SERVER_NAME, DATABASE, refresh_type)
+        result = await hook.trigger_refresh(SERVER_NAME, DATABASE, refresh_type)
 
         assert result == REFRESH_ID
-        client.post.assert_called_once_with(
+        client_class.assert_called_once_with(timeout=REQUEST_TIMEOUT)
+        client.post.assert_awaited_once_with(
             f"https://{HOST}/servers/{SERVER_NAME}/models/Adventure%20Works/refreshes",
             json={"Type": refresh_type},
             headers=HEADERS,
-            timeout=REQUEST_TIMEOUT,
         )
 
-    def test_trigger_refresh_rejects_unknown_type(self):
+    @pytest.mark.asyncio
+    async def test_trigger_refresh_rejects_unknown_type(self):
         with pytest.raises(ValueError, match="Invalid refresh_type"):
-            AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE, "invalid")
+            await AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE, "invalid")
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "location",
         [None, "", f"https://{HOST}/servers/{SERVER_NAME}/models/{DATABASE}/refreshes/", "https://["],
     )
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_trigger_refresh_rejects_invalid_location(self, client_class, get_headers, location):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_trigger_refresh_rejects_invalid_location(self, client_class, get_headers, location):
         build_client(client_class).post.return_value = build_response(
             headers={"Location": location} if location is not None else {}
         )
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Location header"):
-            AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
+            await AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
 
+    @pytest.mark.asyncio
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_trigger_refresh_decodes_refresh_id(self, client_class, get_headers):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_trigger_refresh_decodes_refresh_id(self, client_class, get_headers):
         build_client(client_class).post.return_value = build_response(
             headers={"Location": f"https://{HOST}/models/model/refreshes/refresh%20id"}
         )
 
-        result = AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
+        result = await AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
 
         assert result == "refresh id"
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("error", [httpx.ConnectError("offline"), httpx.ReadTimeout("slow")])
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_trigger_refresh_wraps_request_errors(self, client_class, get_headers, error):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_trigger_refresh_wraps_request_errors(self, client_class, get_headers, error):
         build_client(client_class).post.side_effect = error
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Failed to trigger"):
-            AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
+            await AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
 
+    @pytest.mark.asyncio
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_trigger_refresh_includes_truncated_http_error_response(self, client_class, get_headers):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_trigger_refresh_includes_truncated_http_error_response(self, client_class, get_headers):
         response_text = "A refresh is already running. " + "x" * 1000
         response = build_response(text=response_text)
         response.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -292,29 +298,31 @@ class TestAzureAnalysisServicesHook:
         build_client(client_class).post.return_value = response
 
         with pytest.raises(AzureAnalysisServicesRefreshException) as error:
-            AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
+            await AzureAnalysisServicesHook(CONN_ID).trigger_refresh(SERVER_NAME, DATABASE)
 
         assert "409 Client Error: Conflict" in str(error.value)
         assert f"response body: {response_text[:1000]}" in str(error.value)
         assert response_text[:1001] not in str(error.value)
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("status", sorted(AzureAnalysisServicesRefreshStatus.VALID_STATUSES))
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_get_refresh_status_returns_valid_status(self, client_class, get_headers, status):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_get_refresh_status_returns_valid_status(self, client_class, get_headers, status):
         client = build_client(client_class)
         client.get.return_value = build_response(body={"status": status})
         hook = AzureAnalysisServicesHook(CONN_ID, request_timeout=REQUEST_TIMEOUT)
 
-        result = hook.get_refresh_status(SERVER_NAME, DATABASE, "refresh id")
+        result = await hook.get_refresh_status(SERVER_NAME, DATABASE, "refresh id")
 
         assert result == status
-        client.get.assert_called_once_with(
+        client_class.assert_called_once_with(timeout=REQUEST_TIMEOUT)
+        client.get.assert_awaited_once_with(
             f"https://{HOST}/servers/{SERVER_NAME}/models/Adventure%20Works/refreshes/refresh%20id",
             headers=HEADERS,
-            timeout=REQUEST_TIMEOUT,
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("body", "message"),
         [
@@ -325,35 +333,40 @@ class TestAzureAnalysisServicesHook:
         ],
     )
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_get_refresh_status_rejects_invalid_response(self, client_class, get_headers, body, message):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_get_refresh_status_rejects_invalid_response(
+        self, client_class, get_headers, body, message
+    ):
         build_client(client_class).get.return_value = build_response(body=body)
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match=message):
-            AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
+            await AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
+    @pytest.mark.asyncio
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_get_refresh_status_rejects_non_json_response(self, client_class, get_headers):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_get_refresh_status_rejects_non_json_response(self, client_class, get_headers):
         response = build_response()
         response.json.side_effect = json.JSONDecodeError("bad json", "", 0)
         build_client(client_class).get.return_value = response
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="non-JSON"):
-            AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
+            await AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("error", [httpx.ConnectError("offline"), httpx.ReadTimeout("slow")])
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_get_refresh_status_wraps_request_errors(self, client_class, get_headers, error):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_get_refresh_status_wraps_request_errors(self, client_class, get_headers, error):
         build_client(client_class).get.side_effect = error
 
         with pytest.raises(AzureAnalysisServicesRefreshException, match="Failed to get status"):
-            AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
+            await AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
+    @pytest.mark.asyncio
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
-    @mock.patch(f"{MODULE}.httpx.Client", autospec=True)
-    def test_get_refresh_status_includes_http_error_response(self, client_class, get_headers):
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_get_refresh_status_includes_http_error_response(self, client_class, get_headers):
         response = build_response(text='{"error":"model not found"}')
         response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "500 Server Error", request=mock.Mock(spec=httpx.Request), response=response
@@ -361,56 +374,71 @@ class TestAzureAnalysisServicesHook:
         build_client(client_class).get.return_value = response
 
         with pytest.raises(AzureAnalysisServicesRefreshException) as error:
-            AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
+            await AzureAnalysisServicesHook(CONN_ID).get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
         assert "500 Server Error" in str(error.value)
         assert 'response body: {"error":"model not found"}' in str(error.value)
 
-    @mock.patch.object(AzureAnalysisServicesHook, "get_refresh_status", autospec=True)
-    @mock.patch(f"{MODULE}.time.sleep", autospec=True)
-    def test_wait_for_refresh_returns_after_success(self, sleep, get_status):
-        get_status.side_effect = [
-            AzureAnalysisServicesRefreshStatus.NOT_STARTED,
-            AzureAnalysisServicesRefreshStatus.IN_PROGRESS,
-            AzureAnalysisServicesRefreshStatus.SUCCEEDED,
-        ]
+    @pytest.mark.asyncio
+    @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_reuses_single_async_client_across_calls(self, client_class, get_headers):
+        client = build_client(client_class)
+        client.get.return_value = build_response(
+            body={"status": AzureAnalysisServicesRefreshStatus.IN_PROGRESS}
+        )
+        hook = AzureAnalysisServicesHook(CONN_ID, request_timeout=REQUEST_TIMEOUT)
+
+        await hook.get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
+        await hook.get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
+
+        client_class.assert_called_once_with(timeout=REQUEST_TIMEOUT)
+        assert client.get.await_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_aclose_closes_client_and_credential(self, client_class, credential_class):
         hook = AzureAnalysisServicesHook(CONN_ID)
+        client = hook.client
+        credential = hook.get_conn()
 
-        result = hook.wait_for_refresh(SERVER_NAME, DATABASE, REFRESH_ID, check_interval=1, timeout=10)
+        await hook.aclose()
 
-        assert result is None
-        assert sleep.call_count == 2
+        client.aclose.assert_awaited_once_with()
+        credential.close.assert_awaited_once_with()
+        assert hook._client is None
+        assert hook._credential is None
 
-    @pytest.mark.parametrize("status", sorted(AzureAnalysisServicesRefreshStatus.FAILURE_STATUSES))
-    @mock.patch.object(AzureAnalysisServicesHook, "get_refresh_status", autospec=True)
-    def test_wait_for_refresh_raises_for_failure_status(self, get_status, status):
-        get_status.return_value = status
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_aclose_closes_credential_even_if_client_fails(self, client_class, credential_class):
+        hook = AzureAnalysisServicesHook(CONN_ID)
+        hook.client.aclose.side_effect = RuntimeError("transport already gone")
+        credential = hook.get_conn()
 
-        with pytest.raises(AzureAnalysisServicesRefreshException, match=f"status {status}"):
-            AzureAnalysisServicesHook(CONN_ID).wait_for_refresh(
-                SERVER_NAME, DATABASE, REFRESH_ID, check_interval=1, timeout=10
-            )
+        with pytest.raises(RuntimeError, match="transport already gone"):
+            await hook.aclose()
 
-    @mock.patch.object(AzureAnalysisServicesHook, "get_refresh_status", autospec=True)
-    @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 5])
-    def test_wait_for_refresh_raises_after_timeout(self, monotonic, get_status):
-        get_status.return_value = AzureAnalysisServicesRefreshStatus.IN_PROGRESS
+        credential.close.assert_awaited_once_with()
+        assert hook._client is None
+        assert hook._credential is None
 
-        with pytest.raises(AzureAnalysisServicesRefreshException, match="Timeout waiting"):
-            AzureAnalysisServicesHook(CONN_ID).wait_for_refresh(
-                SERVER_NAME, DATABASE, REFRESH_ID, check_interval=1, timeout=5
-            )
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    async def test_aclose_is_idempotent(self, client_class, credential_class):
+        hook = AzureAnalysisServicesHook(CONN_ID)
+        client = hook.client
+        credential = hook.get_conn()
 
-    @pytest.mark.parametrize(
-        ("check_interval", "timeout", "message"),
-        [(0, 5, "check_interval"), (1, 0, "timeout")],
-    )
-    def test_wait_for_refresh_rejects_invalid_polling_arguments(self, check_interval, timeout, message):
-        with pytest.raises(ValueError, match=message):
-            AzureAnalysisServicesHook(CONN_ID).wait_for_refresh(
-                SERVER_NAME,
-                DATABASE,
-                REFRESH_ID,
-                check_interval=check_interval,
-                timeout=timeout,
-            )
+        await hook.aclose()
+        await hook.aclose()
+
+        client.aclose.assert_awaited_once_with()
+        credential.close.assert_awaited_once_with()
+
+    @pytest.mark.asyncio
+    async def test_aclose_is_noop_when_nothing_created(self):
+        await AzureAnalysisServicesHook(CONN_ID).aclose()
