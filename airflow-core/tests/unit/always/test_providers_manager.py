@@ -40,7 +40,10 @@ from airflow.providers_manager import (
     RemoteLoggingInfo,
 )
 
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import (
+    skip_if_force_lowest_dependencies_marker,
+    skip_unless_all_providers_installed,
+)
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -109,6 +112,7 @@ class TestProviderManager:
         pm1.resource_version = "updated_version"
         assert pm2.resource_version == "updated_version"
 
+    @skip_unless_all_providers_installed
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
             self._caplog.clear()
@@ -128,6 +132,7 @@ class TestProviderManager:
             assert self._caplog.records == []
 
     def test_providers_manager_register_plugins(self):
+        pytest.importorskip("airflow.providers.apache.hive")
         providers_manager = ProvidersManager()
         providers_manager._provider_dict = LazyDictWithCache()
         providers_manager._provider_dict["apache-airflow-providers-apache-hive"] = ProviderInfo(
@@ -246,6 +251,7 @@ class TestProviderManager:
         assert "bad" not in providers_manager._remote_logging_by_scheme
         assert providers_manager._remote_logging_info_list == []
 
+    @skip_unless_all_providers_installed
     def test_connection_form_widgets(self, yaml_ui_metadata_counts):
         yaml_widgets, _ = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
@@ -259,6 +265,7 @@ class TestProviderManager:
             # widgets loaded from YAML metadata only
             assert len(connections_form_widgets) == yaml_widgets
 
+    @skip_unless_all_providers_installed
     def test_field_behaviours(self, yaml_ui_metadata_counts):
         _, yaml_behaviours = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
@@ -276,11 +283,13 @@ class TestProviderManager:
         extra_link_class_names = list(provider_manager.extra_links_class_names)
         assert len(extra_link_class_names) > 6
 
+    @skip_unless_all_providers_installed
     def test_logging(self):
         provider_manager = ProvidersManager()
         logging_class_names = list(provider_manager.logging_class_names)
         assert len(logging_class_names) > 5
 
+    @skip_unless_all_providers_installed
     def test_secrets_backends(self):
         provider_manager = ProvidersManager()
         secrets_backends_class_names = list(provider_manager.secrets_backend_class_names)
@@ -301,6 +310,7 @@ class TestProviderManager:
         auth_manager_class_names = list(provider_manager.auth_managers)
         assert len(auth_manager_class_names) > 0
 
+    @skip_unless_all_providers_installed
     def test_cli(self):
         provider_manager = ProvidersManager()
 
@@ -335,6 +345,7 @@ class TestProviderManager:
         assert [func.__module__ for func in sorted_cli_command_functions] == expected_functions_modules
         assert sorted_cli_command_providers == expected_providers
 
+    @skip_unless_all_providers_installed
     def test_dialects(self):
         provider_manager = ProvidersManager()
         dialect_class_names = list(provider_manager.dialects)

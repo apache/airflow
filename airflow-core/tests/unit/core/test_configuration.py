@@ -52,7 +52,10 @@ from tests_common.test_utils.config import (
     conf_vars,
     create_fresh_airflow_config,
 )
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import (
+    skip_if_force_lowest_dependencies_marker,
+    skip_unless_all_providers_installed,
+)
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 from unit.utils.test_config import (
     remove_all_configurations,
@@ -422,6 +425,7 @@ class TestConf:
             assert test_conf.getboolean(section, key) is False
 
     @skip_if_force_lowest_dependencies_marker
+    @skip_unless_all_providers_installed
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -508,6 +512,7 @@ class TestConf:
         assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
 
     @skip_if_force_lowest_dependencies_marker
+    @skip_unless_all_providers_installed
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -1909,6 +1914,7 @@ sql_alchemy_conn=sqlite://test
 
 
 @skip_if_force_lowest_dependencies_marker
+@skip_unless_all_providers_installed
 def test_sensitive_values():
     from airflow.settings import conf
 
