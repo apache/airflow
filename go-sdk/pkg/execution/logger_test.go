@@ -70,14 +70,15 @@ func TestSocketLogHandlerLevelFiltering(t *testing.T) {
 
 func TestParseLogLevel(t *testing.T) {
 	tests := map[string]slog.Level{
-		"notset":   notsetLogLevel,
-		"DEBUG":    slog.LevelDebug,
-		" info ":   slog.LevelInfo,
-		"WARN":     slog.LevelWarn,
-		"warning":  slog.LevelWarn,
-		"ERROR":    slog.LevelError,
-		"critical": criticalLogLevel,
-		"FATAL":    criticalLogLevel,
+		"notset":    notsetLogLevel,
+		"DEBUG":     slog.LevelDebug,
+		" info ":    slog.LevelInfo,
+		"WARN":      slog.LevelWarn,
+		"warning":   slog.LevelWarn,
+		"ERROR":     slog.LevelError,
+		"exception": slog.LevelError,
+		"critical":  criticalLogLevel,
+		"FATAL":     criticalLogLevel,
 	}
 	for value, expected := range tests {
 		level, ok := parseLogLevel(value)

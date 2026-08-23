@@ -141,7 +141,7 @@ func parseLogLevel(value string) (slog.Level, bool) {
 		return slog.LevelInfo, true
 	case "WARN", "WARNING":
 		return slog.LevelWarn, true
-	case "ERROR":
+	case "ERROR", "EXCEPTION":
 		return slog.LevelError, true
 	case "CRITICAL", "FATAL":
 		return criticalLogLevel, true
