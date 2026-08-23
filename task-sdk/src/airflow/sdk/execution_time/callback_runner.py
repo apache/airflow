@@ -116,6 +116,8 @@ def create_executable_runner(
             for metadata in _run():
                 if isinstance(metadata, Metadata):
                     outlet_events[metadata.asset].extra.update(metadata.extra)
+                    if metadata.partition_key is not None:
+                        outlet_events[metadata.asset].add_partitions(metadata.partition_key)
                     if metadata.alias:
                         outlet_events[metadata.alias].add(metadata.asset, extra=metadata.extra)
                 else:
@@ -164,6 +166,8 @@ def create_async_executable_runner(
             async for result in func(*args, **kwargs):
                 if isinstance(result, Metadata):
                     outlet_events[result.asset].extra.update(result.extra)
+                    if result.partition_key is not None:
+                        outlet_events[result.asset].add_partitions(result.partition_key)
                     if result.alias:
                         outlet_events[result.alias].add(result.asset, extra=result.extra)
 

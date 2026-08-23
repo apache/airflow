@@ -2181,6 +2181,29 @@ class TestSerializeOutletEvents:
             {"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {}, "partition_key": "us"},
         ]
 
+    def test_emits_shared_extra_on_each_partition_key(self):
+        """Metadata-equivalent: extra plus two keys → two payloads, same extra, distinct keys."""
+        accessors = OutletEventAccessors()
+        accessor = accessors[Asset(name="a")]
+        accessor.extra.update({"row_count": 1})
+        accessor.add_partitions("us")
+        accessor.add_partitions("eu")
+
+        events = list(_serialize_outlet_events(accessors))
+
+        assert sorted(events, key=lambda e: e["partition_key"]) == [
+            {
+                "dest_asset_key": {"name": "a", "uri": "a"},
+                "extra": {"row_count": 1},
+                "partition_key": "eu",
+            },
+            {
+                "dest_asset_key": {"name": "a", "uri": "a"},
+                "extra": {"row_count": 1},
+                "partition_key": "us",
+            },
+        ]
+
 
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):

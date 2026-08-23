@@ -127,6 +127,7 @@ from airflow.sdk import (
     FixedKeyMapper,
     HourWindow,
     IdentityMapper,
+    Metadata,
     MinimumCount,
     RollupMapper,
     SegmentWindow,
@@ -12830,6 +12831,318 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
         assert asset_event.source_task_id == "hi"
         assert "asset-event-producer-" in asset_event.source_dag_id
         assert asset_event.source_run_id == "test"
+
+
+def _run_mapped_partition_producer(
+    *,
+    dag_id: str,
+    asset: Asset,
+    items: list[str],
+    use_metadata: bool,
+    extra_only: bool,
+    dag_maker: DagMaker,
+    session: Session,
+) -> None:
+    with dag_maker(dag_id=dag_id, schedule=None, session=session):
+        if extra_only and use_metadata:
+
+            @task(outlets=[asset])
+            def produce(item):
+                yield Metadata(asset, extra={"section": item})
+
+        elif extra_only:
+
+            @task(outlets=[asset])
+            def produce(item, *, outlet_events):
+                outlet_events[asset].extra = {"section": item}
+
+        elif use_metadata:
+
+            @task(outlets=[asset])
+            def produce(item):
+                yield Metadata(asset, extra={"section": item}, partition_key=item)
+
+        else:
+
+            @task(outlets=[asset])
+            def produce(item, *, outlet_events):
+                outlet_events[asset].extra = {"section": item}
+                outlet_events[asset].add_partitions(item)
+
+        produce.expand(item=items)
+
+    dr = dag_maker.create_dagrun(session=session)
+    for map_index in range(len(items)):
+        dag_maker.run_ti("produce", dag_run=dr, map_index=map_index, session=session)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    "use_metadata",
+    [True, False],
+    ids=["metadata", "outlet_events"],
+)
+def test_mapped_producer_partition_keys_match_between_apis(
+    dag_maker: DagMaker, session: Session, use_metadata: bool
+):
+    items = ["us", "eu", "apac"]
+    api = "meta" if use_metadata else "oe"
+    asset = Asset(name=f"parity-{api}")
+    consumer_id = f"consumer-{api}"
+    producer_id = f"producer-{api}"
+
+    with dag_maker(
+        dag_id=consumer_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    _run_mapped_partition_producer(
+        dag_id=producer_id,
+        asset=asset,
+        items=items,
+        use_metadata=use_metadata,
+        extra_only=False,
+        dag_maker=dag_maker,
+        session=session,
+    )
+
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == producer_id)).all()
+    assert {event.partition_key for event in events} == set(items)
+    assert {event.extra.get("section") for event in events} == set(items)
+
+    apdrs = session.scalars(
+        select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == consumer_id)
+    ).all()
+    assert {apdr.partition_key for apdr in apdrs} == set(items)
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    consumer_runs = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_id)).all()
+    assert {run.partition_key for run in consumer_runs} == set(items)
+    for run in consumer_runs:
+        consumed = run.consumed_asset_events
+        assert len(consumed) == 1
+        assert consumed[0].partition_key == run.partition_key
+        assert consumed[0].extra == {"section": run.partition_key}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    "use_metadata",
+    [True, False],
+    ids=["metadata", "outlet_events"],
+)
+def test_extra_only_mapped_emit_does_not_create_apdr(
+    dag_maker: DagMaker, session: Session, use_metadata: bool
+):
+    items = ["us", "eu", "apac"]
+    api = "meta" if use_metadata else "oe"
+    asset = Asset(name=f"extra-only-{api}")
+    consumer_id = f"extra-only-consumer-{api}"
+    producer_id = f"extra-only-producer-{api}"
+
+    session.execute(delete(Log))
+    session.commit()
+
+    with dag_maker(
+        dag_id=consumer_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    _run_mapped_partition_producer(
+        dag_id=producer_id,
+        asset=asset,
+        items=items,
+        use_metadata=use_metadata,
+        extra_only=True,
+        dag_maker=dag_maker,
+        session=session,
+    )
+
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == producer_id)).all()
+    assert len(events) == 3
+    assert {event.extra.get("section") for event in events} == set(items)
+    assert all(event.partition_key is None for event in events)
+
+    assert session.scalar(select(AssetPartitionDagRun)) is None
+    logs = session.scalars(select(Log).where(Log.event == "missing partition key")).all()
+    assert logs
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalars(select(DagRun).where(DagRun.dag_id == consumer_id)).all() == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_runtime_partition_key_without_partition_date_still_queues(dag_maker: DagMaker, session: Session):
+    """IdentityMapper + Metadata-style key (no producer date) still creates an APDR."""
+    asset = Asset(name="rt-no-date")
+    with dag_maker(
+        dag_id="rt-no-date-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    with dag_maker(dag_id="rt-no-date-producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[o.asprofile() for o in dag.get_task("hi").outlets],
+        outlet_events=[
+            {
+                "dest_asset_key": {"name": "rt-no-date", "uri": "rt-no-date"},
+                "extra": {},
+                "partition_key": "us",
+            }
+        ],
+        session=session,
+    )
+    session.commit()
+
+    apdr = session.scalar(select(AssetPartitionDagRun))
+    assert apdr is not None
+    assert apdr.partition_key == "us"
+    assert apdr.partition_date is None
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_event_does_not_queue_non_partitioned_consumer(dag_maker: DagMaker, session: Session):
+    asset = Asset(name="non-part-consumer-asset")
+    with dag_maker(dag_id="non-part-consumer", schedule=asset, session=session):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    with dag_maker(dag_id="non-part-producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[o.asprofile() for o in dag.get_task("hi").outlets],
+        outlet_events=[
+            {
+                "dest_asset_key": {
+                    "name": "non-part-consumer-asset",
+                    "uri": "non-part-consumer-asset",
+                },
+                "extra": {},
+                "partition_key": "us",
+            }
+        ],
+        session=session,
+    )
+    session.commit()
+
+    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+    assert session.scalar(select(AssetPartitionDagRun)) is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_multi_partition_payloads_share_merged_extra(dag_maker: DagMaker, session: Session):
+    """add_partitions(['us','eu']) and two Metadata yields are equivalent if extras match."""
+    asset = Asset(name="multi-part-extra")
+    with dag_maker(
+        dag_id="multi-part-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    with dag_maker(dag_id="multi-part-producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    extra = {"row_count": 1}
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[o.asprofile() for o in dag.get_task("hi").outlets],
+        outlet_events=[
+            {
+                "dest_asset_key": {"name": "multi-part-extra", "uri": "multi-part-extra"},
+                "extra": extra,
+                "partition_key": "us",
+            },
+            {
+                "dest_asset_key": {"name": "multi-part-extra", "uri": "multi-part-extra"},
+                "extra": extra,
+                "partition_key": "eu",
+            },
+        ],
+        session=session,
+    )
+    session.commit()
+
+    events = session.scalars(
+        select(AssetEvent).where(AssetEvent.source_dag_id == "multi-part-producer")
+    ).all()
+    assert {event.partition_key for event in events} == {"us", "eu"}
+    assert all(event.extra == extra for event in events)
+
+    apdrs = session.scalars(select(AssetPartitionDagRun)).all()
+    assert {apdr.partition_key for apdr in apdrs} == {"us", "eu"}
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    consumer_runs = session.scalars(select(DagRun).where(DagRun.dag_id == "multi-part-consumer")).all()
+    assert {run.partition_key for run in consumer_runs} == {"us", "eu"}
+    for run in consumer_runs:
+        consumed = run.consumed_asset_events
+        assert len(consumed) == 1
+        assert consumed[0].extra == extra
+        assert consumed[0].partition_key == run.partition_key
 
 
 def _make_n_satisfied_apdrs(

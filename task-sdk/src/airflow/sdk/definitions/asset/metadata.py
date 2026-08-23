@@ -31,8 +31,15 @@ __all__ = ["Metadata"]
 
 @attrs.define(init=True)
 class Metadata:
-    """Metadata to attach to an AssetEvent."""
+    """
+    Metadata to attach to an AssetEvent.
+
+    ``extra`` is a JSON-serializable mapping merged onto the outlet event.
+    ``partition_key`` is an optional identity for partitioned consumers; it is
+    not inferred from ``extra``.
+    """
 
     asset: Asset
     extra: dict[str, JsonValue] = attrs.field(factory=dict)
     alias: AssetAlias | None = None
+    partition_key: str | None = None
