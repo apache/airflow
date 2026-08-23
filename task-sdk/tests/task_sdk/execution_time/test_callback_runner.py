@@ -123,6 +123,19 @@ class TestCreateExecutableRunnerMetadata:
         assert len(outlet_events[alias].asset_alias_events) == 1
         assert outlet_events[alias].asset_alias_events[0].extra == {"k": "v"}
 
+        events = list(_serialize_outlet_events(outlet_events))
+        asset_payloads = [e for e in events if "source_alias_name" not in e]
+        alias_payloads = [e for e in events if "source_alias_name" in e]
+        assert asset_payloads == [
+            {
+                "dest_asset_key": {"name": "a", "uri": "a"},
+                "extra": {"k": "v"},
+                "partition_key": "us",
+            }
+        ]
+        assert len(alias_payloads) == 1
+        assert "partition_key" not in alias_payloads[0]
+
     def test_alias_as_metadata_asset_with_partition_key_raises_type_error(self):
         alias = AssetAlias("outputs")
 

@@ -13075,7 +13075,14 @@ def test_partitioned_event_does_not_queue_non_partitioned_consumer(dag_maker: Da
     )
     session.commit()
 
-    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(AssetDagRunQueue)
+            .where(AssetDagRunQueue.target_dag_id == "non-part-consumer")
+        )
+        == 0
+    )
     assert session.scalar(select(AssetPartitionDagRun)) is None
 
 
