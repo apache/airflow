@@ -173,7 +173,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
-from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
+from tests_common.test_utils.taskinstance import create_task_instance, get_template_context, run_task_instance
 from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
 
@@ -6356,11 +6356,12 @@ class TestSchedulerJob:
         catchup: bool = False,
         consumer_dag_id: str = "mapped-asset-consumer",
         producer_dag_id: str = "mapped-asset-producer",
-    ) -> list[TaskInstance]:
+    ) -> tuple[list[TaskInstance], object]:
         with dag_maker(
             dag_id=consumer_dag_id, schedule=schedule or [asset], catchup=catchup, session=session
         ):
             EmptyOperator(task_id="consume")
+        consume_task = dag_maker.dag.get_task("consume")
 
         with dag_maker(dag_id=producer_dag_id, schedule=None, serialized=True, session=session):
 
@@ -6371,7 +6372,7 @@ class TestSchedulerJob:
             publish.expand(item=items)
 
         dag_maker.create_dagrun(session=session)
-        return session.scalars(
+        mapped_tis = session.scalars(
             select(TaskInstance)
             .where(
                 TaskInstance.dag_id == producer_dag_id,
@@ -6380,6 +6381,7 @@ class TestSchedulerJob:
             )
             .order_by(TaskInstance.map_index)
         ).all()
+        return mapped_tis, consume_task
 
     def _register_mapped_outlet(
         self,
@@ -6401,10 +6403,18 @@ class TestSchedulerJob:
         self.job_runner._create_dagruns_for_dags(session, session)
         return scheduler_job
 
+    @staticmethod
+    def _triggering_asset_events(dag_run, task, asset, session):
+        # Access the relationship first so model_validate includes consumed events instead of [].
+        _ = dag_run.consumed_asset_events
+        ti = dag_run.get_task_instance(task.task_id, session=session)
+        context = get_template_context(ti, task, session=session)
+        return list(context["triggering_asset_events"][asset])
+
     def test_mapped_asset_empty_expand_creates_no_run(self, session, dag_maker):
         asset = Asset(name="mapped-outlet-empty", uri="test://mapped-outlet-empty")
         consumer_dag_id = "mapped-asset-empty-consumer"
-        mapped_tis = self._create_mapped_outlet_dags(
+        mapped_tis, _ = self._create_mapped_outlet_dags(
             dag_maker,
             session,
             items=[],
@@ -6443,7 +6453,7 @@ class TestSchedulerJob:
     def test_mapped_asset_events_consumed_together(self, items, same_extras, session, dag_maker):
         asset = Asset(name="mapped-outlet", uri="test://mapped-outlet")
         consumer_dag_id = "mapped-asset-consumer"
-        mapped_tis = self._create_mapped_outlet_dags(
+        mapped_tis, consume_task = self._create_mapped_outlet_dags(
             dag_maker, session, items=items, asset=asset, consumer_dag_id=consumer_dag_id
         )
         extras = {
@@ -6464,12 +6474,47 @@ class TestSchedulerJob:
         assert len(created_run.consumed_asset_events) == len(items)
         assert {e.source_map_index for e in created_run.consumed_asset_events} == set(extras)
         assert {e.source_map_index: e.extra for e in created_run.consumed_asset_events} == extras
+        trig = self._triggering_asset_events(created_run, consume_task, asset, session)
+        assert {e.source_map_index for e in trig} == set(extras)
+        assert {e.source_map_index: e.extra for e in trig} == extras
         assert leftover_adrq == []
+
+    def test_mapped_asset_run_ti_consumes_all_outlets(self, session, dag_maker):
+        asset = Asset(name="mapped-outlet-run-ti", uri="test://mapped-outlet-run-ti")
+        consumer_dag_id = "mapped-asset-run-ti-consumer"
+        producer_dag_id = "mapped-asset-run-ti-producer"
+        mapped_tis, consume_task = self._create_mapped_outlet_dags(
+            dag_maker,
+            session,
+            items=[1, 2, 3],
+            asset=asset,
+            consumer_dag_id=consumer_dag_id,
+            producer_dag_id=producer_dag_id,
+        )
+        producer_run = session.scalar(select(DagRun).where(DagRun.dag_id == producer_dag_id))
+        assert len(mapped_tis) == 3
+        for map_index in range(3):
+            dag_maker.run_ti("publish", dag_run=producer_run, map_index=map_index, session=session)
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        assert {e.source_map_index for e in created_run.consumed_asset_events} == {0, 1, 2}
+        trig = self._triggering_asset_events(created_run, consume_task, asset, session)
+        assert {e.source_map_index for e in trig} == {0, 1, 2}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
 
     def test_mapped_asset_leftovers_consumed_on_next_tick(self, session, dag_maker):
         asset = Asset(name="mapped-outlet-leftover", uri="test://mapped-outlet-leftover")
         consumer_dag_id = "mapped-asset-leftover-consumer"
-        mapped_tis = self._create_mapped_outlet_dags(
+        mapped_tis, consume_task = self._create_mapped_outlet_dags(
             dag_maker,
             session,
             items=[1, 2, 3],
@@ -6489,6 +6534,8 @@ class TestSchedulerJob:
         assert len(first_runs) == 1
         assert {e.source_map_index for e in first_runs[0].consumed_asset_events} == {0}
         assert {e.extra["item"] for e in first_runs[0].consumed_asset_events} == {1}
+        trig_first = self._triggering_asset_events(first_runs[0], consume_task, asset, session)
+        assert {e.source_map_index for e in trig_first} == {0}
         assert (
             session.scalars(
                 select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
@@ -6530,6 +6577,8 @@ class TestSchedulerJob:
         assert len(runs) == 2
         assert {e.source_map_index for e in runs[1].consumed_asset_events} == {1, 2}
         assert {e.extra["item"] for e in runs[1].consumed_asset_events} == {2, 3}
+        trig_second = self._triggering_asset_events(runs[1], consume_task, asset, session)
+        assert {e.source_map_index for e in trig_second} == {1, 2}
         assert {
             e.source_map_index
             for e in session.scalars(
@@ -6546,7 +6595,7 @@ class TestSchedulerJob:
     def test_mapped_asset_failed_index_not_queued(self, session, dag_maker):
         asset = Asset(name="mapped-outlet-failed", uri="test://mapped-outlet-failed")
         consumer_dag_id = "mapped-asset-failed-consumer"
-        mapped_tis = self._create_mapped_outlet_dags(
+        mapped_tis, _ = self._create_mapped_outlet_dags(
             dag_maker,
             session,
             items=[1, 2, 3],
@@ -6674,7 +6723,7 @@ class TestSchedulerJob:
         asset1 = Asset(name="and-asset-1", uri="test://and-asset-1")
         asset2 = Asset(name="and-asset-2", uri="test://and-asset-2")
         consumer_dag_id = "and-consumer"
-        mapped_tis = self._create_mapped_outlet_dags(
+        mapped_tis, _ = self._create_mapped_outlet_dags(
             dag_maker,
             session,
             items=[1, 2, 3],
@@ -6698,12 +6747,36 @@ class TestSchedulerJob:
         assert len(adrqs) == 3
         assert {row.asset_id for row in adrqs} == {asset1_id}
 
+        asset2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset2.uri))
+        event_b = AssetEvent(asset_id=asset2_id, timestamp=timezone.utcnow())
+        session.add(event_b)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(asset_id=asset2_id, target_dag_id=consumer_dag_id, asset_event_id=event_b.id)
+        )
+        session.flush()
+
+        self._tick_asset_runs(session)
+        session.expire_all()
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        consumed = list(created_run.consumed_asset_events)
+        assert len(consumed) == 4
+        assert {e.source_map_index for e in consumed if e.asset_id != asset2_id} == {0, 1, 2}
+        assert event_b.id in {e.id for e in consumed}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
     @mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", autospec=True)
     def test_mapped_asset_or_condition_consumes_fan_out(self, mock_with_row_locks, session, dag_maker):
         asset1 = Asset(name="or-asset-1", uri="test://or-asset-1")
         asset2 = Asset(name="or-asset-2", uri="test://or-asset-2")
         consumer_dag_id = "or-consumer"
-        mapped_tis = self._create_mapped_outlet_dags(
+        mapped_tis, _ = self._create_mapped_outlet_dags(
             dag_maker,
             session,
             items=[1, 2, 3],
@@ -6748,7 +6821,7 @@ class TestSchedulerJob:
     def test_mapped_asset_catchup_keeps_queued_events(self, catchup, session, dag_maker):
         asset = Asset(name="mapped-outlet-catchup", uri="test://mapped-outlet-catchup")
         consumer_dag_id = "mapped-asset-catchup-consumer"
-        mapped_tis = self._create_mapped_outlet_dags(
+        mapped_tis, _ = self._create_mapped_outlet_dags(
             dag_maker,
             session,
             items=[1, 2, 3],
