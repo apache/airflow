@@ -21,19 +21,19 @@ import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
 import type { DAGWarningResponse } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 
 import { ErrorAlert } from "./ErrorAlert";
 import { WarningAlert } from "./WarningAlert";
 
 type ImportDAGErrorModalProps = {
-  error?: unknown;
-  onClose: () => void;
-  open: boolean;
-  warnings?: Array<DAGWarningResponse>;
+  readonly error?: unknown;
+  readonly onClose: () => void;
+  readonly open: boolean;
+  readonly warnings?: Array<DAGWarningResponse>;
 };
 
-export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, onClose, open, warnings }) => {
+export const DAGWarningsModal = ({ error, onClose, open, warnings }: ImportDAGErrorModalProps) => {
   const { t: translate } = useTranslation("components");
   const heading = Boolean(error)
     ? warnings?.length !== undefined && warnings.length > 0
@@ -44,32 +44,32 @@ export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, on
     : "";
 
   return (
-    <Dialog.Root data-testid="dag-warnings-modal" onOpenChange={onClose} open={open} scrollBehavior="inside">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <HStack fontSize="xl">
+    <Modal
+      data-testid="dag-warnings-modal"
+      headerProps={{
+        children: (
+          <HStack gap={2}>
             <LuFileWarning />
-            <Heading>{heading}</Heading>
+            <Heading fontSize="lg">{heading}</Heading>
           </HStack>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body>
-          {Boolean(error) && (
-            <VStack>
-              <ErrorAlert error={error} />
-              <Spacer />
-            </VStack>
-          )}
-          {warnings?.map((warning) => (
-            <VStack key={warning.message}>
-              <WarningAlert warning={warning} />
-              <Spacer />
-            </VStack>
-          ))}
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+        ),
+      }}
+      onOpenChange={onClose}
+      open={open}
+      scrollBehavior="inside"
+    >
+      {Boolean(error) && (
+        <VStack>
+          <ErrorAlert error={error} />
+          <Spacer />
+        </VStack>
+      )}
+      {warnings?.map((warning) => (
+        <VStack key={warning.message}>
+          <WarningAlert warning={warning} />
+          <Spacer />
+        </VStack>
+      ))}
+    </Modal>
   );
 };

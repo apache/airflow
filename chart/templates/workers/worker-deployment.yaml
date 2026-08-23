@@ -217,7 +217,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -242,7 +242,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
             {{- if .Values.workers.celery.waitForMigrations.env }}
               {{- tpl (toYaml .Values.workers.celery.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -325,7 +325,7 @@ spec:
             - name: DUMB_INIT_SETSID
               value: "0"
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
             {{- if $keda }}
             {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.workers.celery.keda.usePgbouncer) .) | indent 10 }}
             {{- end }}
@@ -403,6 +403,15 @@ spec:
           {{- end }}
           args: ["kerberos"]
           resources: {{- toYaml .Values.workers.celery.kerberosSidecar.resources | nindent 12 }}
+          {{- if .Values.workers.celery.kerberosSidecar.startupProbe.enabled }}
+          startupProbe:
+            exec:
+              command: ["klist", "-s"]
+            timeoutSeconds: {{ .Values.workers.celery.kerberosSidecar.startupProbe.timeoutSeconds }}
+            initialDelaySeconds: {{ .Values.workers.celery.kerberosSidecar.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.workers.celery.kerberosSidecar.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.workers.celery.kerberosSidecar.startupProbe.failureThreshold }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -434,7 +443,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.extraContainers }}
           {{- tpl (toYaml .Values.workers.celery.extraContainers) . | nindent 8 }}

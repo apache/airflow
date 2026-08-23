@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     CI_AMD_PLATFORM,
     CI_ARM_PLATFORM,
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     JAVA_SDK_VERSION,
@@ -56,6 +57,9 @@ ALL_KUBERNETES_VERSIONS_AS_STRING = " ".join(ALLOWED_KUBERNETES_VERSIONS)
 ALL_KUBERNETES_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_KUBERNETES_VERSIONS]) + "]"
 ALL_PYTHON_VERSIONS_AS_STRING = " ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS)
 ALL_PYTHON_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
+CURRENT_PYTHON_VERSIONS_AS_LIST = (
+    "[" + ", ".join([f"'{v}'" for v in CURRENT_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
+)
 
 DEFAULT_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[0].lstrip("v")
 LAST_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[-1].lstrip("v")
@@ -1491,6 +1495,51 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run java e2e tests when java compose override changes",
         ),
         pytest.param(
+            ("ts-sdk/src/sdk/client.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when the documented sources change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/index.md",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Build ts-sdk docs for a docs-only Markdown change that skips ts-sdk tests",
+        ),
+        pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Build only ts-sdk docs when a TypeDoc category entry point changes",
+        ),
+        pytest.param(
+            ("ts-sdk/tsconfig.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when tsconfig.json changes since docs/tsconfig.json extends it",
+        ),
+        pytest.param(
+            ("ts-sdk/package.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when package.json changes since it pins @msgpack/msgpack",
+        ),
+        pytest.param(
+            ("ts-sdk/README.md",),
+            {
+                "run-ts-sdk-docs": "false",
+            },
+            id="Skip ts-sdk docs build for a ts-sdk README-only change",
+        ),
+        pytest.param(
             ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
             {
                 "run-java-sdk-e2e-tests": "true",
@@ -1822,6 +1871,21 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
             ("ts-sdk/example/README.md",),
             True,
             id="skipped when only nested ts-sdk docs change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package.json",),
+            True,
+            id="skipped when only the docs toolchain's package.json changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package-lock.json",),
+            True,
+            id="skipped when only the docs toolchain's lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            True,
+            id="skipped when only a TypeDoc category entry point changes",
         ),
     ],
 )
@@ -2884,6 +2948,23 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     )
 
 
+# The image cache is pushed for `python-versions`, so a narrowed list leaves the remaining
+# versions with no cache and they build from scratch on every run. `refresh-image-registry-cache.yml`
+# forces the label below for exactly that reason; this pins the behaviour it relies on.
+
+
+def test_all_python_versions_with_all_versions_label():
+    """Set on the event that would otherwise narrow: a text-only push."""
+    stderr = SelectiveChecks(
+        files=("INTHEWILD.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        pr_labels=("all versions",),
+        default_branch="main",
+    )
+    assert_outputs_are_printed({"python-versions": CURRENT_PYTHON_VERSIONS_AS_LIST}, str(stderr))
+
+
 @pytest.mark.parametrize(
     "github_event",
     [
@@ -3022,6 +3103,13 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "apache-airflow",
             },
             id="Only Airflow docs changed",
+        ),
+        pytest.param(
+            ("dev/mypy/docs/index.rst",),
+            {
+                "docs-list-as-string": "apache-airflow-mypy",
+            },
+            id="Only Apache Airflow Mypy docs changed",
         ),
         pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),

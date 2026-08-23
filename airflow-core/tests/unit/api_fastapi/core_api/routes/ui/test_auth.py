@@ -22,6 +22,10 @@ import pytest
 
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.models.team import Team
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_teams
 
 pytestmark = pytest.mark.db_test
 
@@ -61,6 +65,12 @@ class TestGetAuthLinks:
 
 
 class TestGetMeResponse:
+    @pytest.fixture(autouse=True)
+    def clean_teams(self):
+        clear_db_teams()
+        yield
+        clear_db_teams()
+
     def test_should_response_200_with_authenticated_user(self, test_client):
         """Test /auth/me endpoint with SimpleAuthManager authenticated user."""
         response = test_client.get("/auth/me")
@@ -69,7 +79,41 @@ class TestGetMeResponse:
         assert response.json() == {
             "username": "test",
             "id": "test",
+            "teams": None,
         }
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teams_of_user_authorized_on_all_teams(self, test_client, session):
+        session.add_all([Team(name="team2"), Team(name="team1")])
+        session.commit()
+
+        response = test_client.get("/auth/me")
+
+        assert response.status_code == 200
+        assert response.json()["teams"] == ["team1", "team2"]
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch.object(SimpleAuthManager, "_is_admin", return_value=False)
+    def test_teams_limited_to_the_teams_the_user_belongs_to(self, _, test_client, session):
+        session.add_all([Team(name="team1"), Team(name="team2")])
+        session.commit()
+
+        response = test_client.get("/auth/me")
+
+        assert response.status_code == 200
+        # The authenticated test user belongs to ``team1`` only.
+        assert response.json()["teams"] == ["team1"]
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch.object(SimpleAuthManager, "_is_admin", return_value=False)
+    def test_teams_empty_when_user_belongs_to_no_team(self, _, test_client, session):
+        session.add(Team(name="team2"))
+        session.commit()
+
+        response = test_client.get("/auth/me")
+
+        assert response.status_code == 200
+        assert response.json()["teams"] == []
 
     def test_with_unauthenticated_user(self, unauthenticated_test_client):
         """Test /auth/me endpoint with no authentication."""

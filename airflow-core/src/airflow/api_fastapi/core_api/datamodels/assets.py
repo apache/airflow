@@ -50,6 +50,7 @@ class DagScheduleAssetReference(StrictBaseModel):
     dag_id: str
     created_at: datetime
     updated_at: datetime
+    team_name: str | None = None
 
 
 class TaskInletAssetReference(StrictBaseModel):
@@ -68,6 +69,7 @@ class TaskOutletAssetReference(StrictBaseModel):
     task_id: str
     created_at: datetime
     updated_at: datetime
+    team_name: str | None = None
 
 
 class LastAssetEventResponse(BaseModel):
@@ -164,12 +166,19 @@ class DagRunAssetReference(StrictBaseModel):
     run_id: str
     dag_id: str
     logical_date: datetime | None
-    start_date: datetime
+    start_date: datetime | None
     end_date: datetime | None
     state: str
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     partition_key: str | None
+    triggering: bool = Field(
+        description=(
+            "Whether this asset event triggered the referenced dag run. Only a run's most recent "
+            "consumed asset event triggers it; earlier consumed events are included in the run but "
+            "did not trigger it."
+        ),
+    )
 
 
 class AssetEventResponse(BaseModel):

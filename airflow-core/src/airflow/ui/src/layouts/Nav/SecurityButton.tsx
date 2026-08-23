@@ -27,7 +27,7 @@ import { NavButton } from "./NavButton";
 
 export const SecurityButton = () => {
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   if (authLinks?.extra_menu_items === undefined || authLinks.extra_menu_items.length < 1) {
     return undefined;

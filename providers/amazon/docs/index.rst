@@ -35,6 +35,7 @@
 
     Bundles <bundles/index>
     Connection types <connections/index>
+    Email backend <email-backend>
     Notifications <notifications/index>
     Operators <operators/index>
     Transfers <transfer/index>
@@ -88,7 +89,7 @@ apache-airflow-providers-amazon package
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 9.34.0
+Release: 9.35.0
 
 Provider package
 ----------------
@@ -171,9 +172,9 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-amazon[aiobotocore]
 
 
-====================  =====================================================================================================================================================================
+====================  ============================================================================================================================================================
 Extra                 Dependencies
-====================  =====================================================================================================================================================================
+====================  ============================================================================================================================================================
 ``aiobotocore``       ``aiobotocore>=3.0.0``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
 ``s3fs``              ``s3fs>=2023.10.0``
@@ -186,14 +187,14 @@ Extra                 Dependencies
 ``imap``              ``apache-airflow-providers-imap``
 ``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
 ``mongo``             ``apache-airflow-providers-mongo``
-``pandas``            ``pandas>=2.1.2,<3; python_version <"3.13"``, ``pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3,<3; python_version >="3.14"``
+``pandas``            ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
 ``salesforce``        ``apache-airflow-providers-salesforce``
 ``ssh``               ``apache-airflow-providers-ssh``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ``sqlalchemy``        ``sqlalchemy>=1.4.54``
-====================  =====================================================================================================================================================================
+====================  ============================================================================================================================================================
 
 Downloading official packages
 -----------------------------
@@ -201,5 +202,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 9.34.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.34.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.34.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.34.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 9.34.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.34.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.34.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.34.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 9.35.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 9.35.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0-py3-none-any.whl.sha512>`__)

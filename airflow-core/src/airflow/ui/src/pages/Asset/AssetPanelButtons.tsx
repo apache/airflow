@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Button, ButtonGroup, Flex, Popover, Portal } from "@chakra-ui/react";
+import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { MdSettings } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -26,7 +27,7 @@ import { IconButton } from "src/components/ui";
 
 type Props = {
   readonly dependencyType: "data" | "scheduling";
-  readonly setDependencyType: React.Dispatch<React.SetStateAction<"data" | "scheduling">>;
+  readonly setDependencyType: Dispatch<SetStateAction<"data" | "scheduling">>;
 };
 
 export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) => {
