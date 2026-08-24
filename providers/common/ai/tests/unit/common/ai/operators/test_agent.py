@@ -156,12 +156,32 @@ class TestAgentOperatorTemplateFields:
             "system_prompt",
             "agent_params",
             "message_history",
-            "max_cost",
+            "usage_limits",
         }
         assert set(AgentOperator.template_fields) == expected
 
 
 class TestAgentOperatorExecute:
+    @pytest.mark.parametrize(
+        "bad",
+        [pytest.param([], id="list"), pytest.param("0.5", id="str"), pytest.param(5, id="int")],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_rejects_non_container_usage_limits(self, mock_hook_cls, bad):
+        """A non-UsageLimits/dict/None value (e.g. a str migrated from ``max_cost``,
+        or the whole field written as a single un-rendered Jinja expression) is
+        rejected by ``coerce_usage_limits`` at execute time, not at ``__init__`` --
+        checking it at ``__init__`` would raise on a still-templated string before
+        it is ever rendered (the ``validate-operators-init`` hook forbids exactly
+        that: value-dependent validation of a template field before render)."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", usage_limits=bad)
+        with pytest.raises(TypeError, match="usage_limits must be a UsageLimits, a dict, or None"):
+            op.execute(context=MagicMock())
+        mock_agent.run_sync.assert_not_called()
+
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_forwards_usage_limits_to_run_sync(self, mock_hook_cls):
         """``usage_limits`` is forwarded to ``agent.run_sync`` on the non-durable path."""
@@ -180,8 +200,8 @@ class TestAgentOperatorExecute:
         mock_agent.run_sync.assert_called_once_with("run", usage_limits=limits)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_forwards_max_cost_as_cost_limit(self, mock_hook_cls):
-        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_agent = _make_mock_agent("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -189,20 +209,59 @@ class TestAgentOperatorExecute:
             task_id="test",
             prompt="run",
             llm_conn_id="my_llm",
-            max_cost=0.5,
+            usage_limits={"cost_limit": "0.5"},
         )
         op.execute(context=MagicMock())
 
         _, kwargs = mock_agent.run_sync.call_args
-        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
+        assert kwargs["usage_limits"] == UsageLimits(cost_limit=Decimal("0.5"))
+
+    @pytest.mark.parametrize(
+        ("field", "rendered", "expected"),
+        [
+            pytest.param("cost_limit", "0.05", Decimal("0.05"), id="decimal"),
+            pytest.param("request_limit", "7", 7, id="int"),
+            pytest.param("count_tokens_before_request", "true", True, id="bool"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_renders_templated_usage_limits_dict_then_coerces(
+        self, mock_hook_cls, field, rendered, expected
+    ):
+        """The template chain end to end, for each ``_COERCERS`` type: Jinja renders
+        the dict's string leaf (still a string -- Jinja never converts type), then
+        ``execute`` coerces it to the field's real type. @amoghrajesh's review asked
+        whether *every* field can be templated, not just ``cost_limit``."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="run",
+            llm_conn_id="my_llm",
+            usage_limits={field: "{{ params.value }}"},
+        )
+        op.render_template_fields({"params": {"value": rendered}})
+        assert op.usage_limits == {field: rendered}
+
+        op.execute(context=MagicMock())
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert getattr(kwargs["usage_limits"], field) == expected
+
+    def test_render_template_fields_leaves_usage_limits_object_unchanged(self):
+        """A ``UsageLimits`` instance has no ``resolve``/``template_fields``, so Jinja's
+        nested-template-field walk is a no-op and the exact same object comes back."""
+        limits = UsageLimits(cost_limit=Decimal("1"))
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", usage_limits=limits)
+        op.render_template_fields({})
+        assert op.usage_limits is limits
 
     @pytest.mark.parametrize(
         "cap_kwargs",
         [
-            pytest.param({"max_cost": 0.05}, id="max_cost"),
-            pytest.param(
-                {"usage_limits": UsageLimits(cost_limit=Decimal("0.05"))}, id="usage_limits_cost_limit"
-            ),
+            pytest.param({"usage_limits": {"cost_limit": "0.05"}}, id="usage_limits_dict"),
+            pytest.param({"usage_limits": UsageLimits(cost_limit=Decimal("0.05"))}, id="usage_limits_object"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -218,24 +277,31 @@ class TestAgentOperatorExecute:
             op.execute(context=MagicMock())
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_completes_when_cost_stays_under_max_cost(self, mock_hook_cls):
-        """A real run costing less than ``max_cost`` completes and returns the model output."""
+    def test_execute_completes_when_cost_stays_under_cap(self, mock_hook_cls):
+        """A real run costing less than the configured ``cost_limit`` completes and returns the model output."""
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_build_priced_response), **kw
         )
 
-        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", max_cost=PRICED_COST * 2)
+        op = AgentOperator(
+            task_id="test",
+            prompt="run",
+            llm_conn_id="my_llm",
+            usage_limits={"cost_limit": str(PRICED_COST * 2)},
+        )
 
         assert op.execute(context=MagicMock()) == "the answer"
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_raises_valueerror_for_unparsable_max_cost(self, mock_hook_cls):
-        """An unparsable templated ``max_cost`` surfaces as ``ValueError`` before any model call."""
+    def test_execute_raises_valueerror_for_unparsable_usage_limits_value(self, mock_hook_cls):
+        """An unparsable templated ``usage_limits`` value surfaces as ``ValueError`` before any model call."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", max_cost="")
-        with pytest.raises(ValueError, match="max_cost must be a number"):
+        op = AgentOperator(
+            task_id="test", prompt="run", llm_conn_id="my_llm", usage_limits={"cost_limit": ""}
+        )
+        with pytest.raises(ValueError, match=r"usage_limits\['cost_limit'\]"):
             op.execute(context=MagicMock())
         mock_agent.run_sync.assert_not_called()
 
@@ -261,8 +327,8 @@ class TestAgentOperatorExecute:
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_regenerate_with_feedback_forwards_max_cost(self, mock_hook_cls):
-        """``max_cost`` is also resolved into ``usage_limits.cost_limit`` by ``regenerate_with_feedback``."""
+    def test_regenerate_with_feedback_coerces_usage_limits_dict(self, mock_hook_cls):
+        """A dict ``usage_limits`` is also coerced by ``regenerate_with_feedback``."""
         mock_agent = _make_mock_agent("revised")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -270,7 +336,7 @@ class TestAgentOperatorExecute:
             task_id="test",
             prompt="run",
             llm_conn_id="my_llm",
-            max_cost=0.5,
+            usage_limits={"cost_limit": "0.5"},
         )
         op.regenerate_with_feedback(feedback="Add detail", message_history=[])
 

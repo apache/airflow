@@ -29,7 +29,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
-from airflow.providers.common.ai.utils.usage import resolve_usage_limits
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseOperator
 
 try:
@@ -42,8 +42,6 @@ except ImportError:  # pragma: no cover - cores before the worker-side registrat
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
-    from decimal import Decimal
-
     from pydantic_ai import Agent
     from pydantic_ai.usage import UsageLimits
 
@@ -79,16 +77,24 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
         for the full list.
     :param usage_limits: Optional pydantic-ai
-        :class:`~pydantic_ai.usage.UsageLimits` enforced on the run. Pass
-        ``UsageLimits(request_limit=..., total_tokens_limit=..., ...)`` to fail
-        the task when the agent exceeds the configured token, request, or tool
-        budget. ``None`` (default) means no enforcement.
-    :param max_cost: Convenience per-run USD cost cap, as a templated alternative
-        to ``usage_limits.cost_limit`` (``usage_limits`` itself cannot be
-        templated). When set, overrides ``cost_limit`` on ``usage_limits``
-        (building one if ``usage_limits`` is ``None``); every other field on
-        ``usage_limits`` is left untouched. ``None`` (default) leaves
-        ``usage_limits`` unchanged. See :ref:`howto/operator:llm` for caveats.
+        :class:`~pydantic_ai.usage.UsageLimits` enforced on the run, or a dict
+        of the same fields (e.g.
+        ``{"cost_limit": "{{ params.budget }}", "request_limit": 5}``). The dict
+        form is templated: each value is rendered by Jinja like any other
+        ``template_fields`` entry, then coerced to that field's type (``Decimal``,
+        ``int``, or ``bool``). A value that cannot be coerced -- an unset Airflow
+        Variable renders to ``""``, a typo renders to a non-numeric string --
+        fails the task with a ``ValueError`` naming the field and the rendered
+        value, instead of silently disabling the limit. A ``UsageLimits``
+        instance passed directly is used as-is and is not templated or
+        validated. ``None`` (default) means no enforcement.
+
+        A dict that omits ``request_limit`` still gets pydantic-ai's default of
+        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
+        request cap. This matches building a ``UsageLimits`` directly, but it is
+        easy to miss when moving from ``usage_limits=None`` to a dict that only
+        sets ``cost_limit``. See :ref:`howto/operator:llm` for the full set of
+        caveats.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
         HITL interface.  Default ``False``.
@@ -113,7 +119,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         "model_id",
         "system_prompt",
         "agent_params",
-        "max_cost",
+        "usage_limits",
     )
 
     def __init__(
@@ -125,8 +131,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         system_prompt: str = "",
         output_type: type = str,
         agent_params: dict[str, Any] | None = None,
-        usage_limits: UsageLimits | None = None,
-        max_cost: Decimal | float | str | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
@@ -145,8 +150,8 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         # user opts in, dump to a dict so the value is deserializable anywhere.
         self._serialize_model_output = serialize_output or not _CORE_WALKER
         self.agent_params = agent_params or {}
+        # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
-        self.max_cost = max_cost
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
@@ -173,9 +178,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = agent.run_sync(
-            self.prompt, usage_limits=resolve_usage_limits(self.usage_limits, self.max_cost)
-        )
+        result = agent.run_sync(self.prompt, usage_limits=coerce_usage_limits(self.usage_limits))
         log_run_summary(self.log, result)
         output = result.output
 

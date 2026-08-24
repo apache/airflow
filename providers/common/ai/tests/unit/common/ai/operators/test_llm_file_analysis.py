@@ -87,7 +87,7 @@ class TestLLMFileAnalysisOperator:
             "model_id",
             "system_prompt",
             "agent_params",
-            "max_cost",
+            "usage_limits",
             "file_path",
             "file_conn_id",
         }
@@ -133,8 +133,8 @@ class TestLLMFileAnalysisOperator:
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
-    def test_execute_forwards_max_cost_as_cost_limit(self, mock_build_request, mock_hook_cls):
-        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_build_request, mock_hook_cls):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_build_request.return_value = FileAnalysisRequest(
             user_content="prepared prompt",
             resolved_paths=["/tmp/app.log"],
@@ -149,7 +149,7 @@ class TestLLMFileAnalysisOperator:
             prompt="Summarize the file",
             llm_conn_id="my_llm",
             file_path="/tmp/app.log",
-            max_cost=0.5,
+            usage_limits={"cost_limit": "0.5"},
         )
         op.execute(context={})
 

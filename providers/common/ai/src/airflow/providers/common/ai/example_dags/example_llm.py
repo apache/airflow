@@ -153,25 +153,28 @@ def example_llm_operator_usage_limits():
 example_llm_operator_usage_limits()
 
 
-# [START howto_operator_llm_max_cost]
+# [START howto_operator_llm_templated_usage_limits]
 @dag(tags=["example"])
-def example_llm_operator_max_cost():
+def example_llm_operator_templated_usage_limits():
     LLMOperator(
         task_id="capped_summary",
         prompt="Summarize the trade-offs of a message queue vs. direct HTTP calls in three bullet points.",
         llm_conn_id="pydanticai_default",
         system_prompt="You are a concise technical reviewer.",
-        # Unlike usage_limits (a UsageLimits object), max_cost is a scalar and
-        # can be templated -- e.g. driven by an Airflow Variable so the budget
-        # can change per environment without editing the DAG. This caps a single
-        # task run, not a day's total spend -- each run gets the full budget again.
-        max_cost="{{ var.value.llm_max_cost_per_task }}",
+        # A plain dict lets every UsageLimits field be templated -- e.g. driven by
+        # an Airflow Variable so the budget can change per environment without
+        # editing the Dag. This caps a single task run, not a day's total spend --
+        # each run gets the full budget again.
+        usage_limits={
+            "cost_limit": "{{ var.value.llm_cost_cap_per_task }}",
+            "request_limit": 5,
+        },
     )
 
 
-# [END howto_operator_llm_max_cost]
+# [END howto_operator_llm_templated_usage_limits]
 
-example_llm_operator_max_cost()
+example_llm_operator_templated_usage_limits()
 
 
 # [START howto_operator_llm_approval]

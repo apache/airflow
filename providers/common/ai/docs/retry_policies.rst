@@ -81,7 +81,7 @@ When a task fails, ``LLMRetryPolicy``:
 
 This classification call is a separate LLM request, made by ``LLMRetryPolicy``
 itself rather than by an operator -- it is not subject to an operator's
-``usage_limits`` or ``max_cost``, and it runs on every task failure regardless
+``usage_limits``, and it runs on every task failure regardless
 of any cost cap configured on the failing task. It is bounded by ``timeout``
 and ``max_exception_length``, but not by a cost limit.
 

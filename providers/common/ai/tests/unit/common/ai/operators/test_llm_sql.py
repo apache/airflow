@@ -210,7 +210,7 @@ class TestLLMSQLQueryOperator:
             "model_id",
             "system_prompt",
             "agent_params",
-            "max_cost",
+            "usage_limits",
             "db_conn_id",
             "table_names",
             "schema_context",
@@ -235,8 +235,8 @@ class TestLLMSQLQueryOperator:
         mock_agent.run_sync.assert_called_once_with("Get active users", usage_limits=None)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_forwards_max_cost_as_cost_limit(self, mock_hook_cls):
-        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_agent = _make_mock_agent("SELECT id, name FROM users WHERE active = true")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -245,7 +245,7 @@ class TestLLMSQLQueryOperator:
             prompt="Get active users",
             llm_conn_id="my_llm",
             schema_context="Table: users\nColumns: id INT, name TEXT, active BOOLEAN",
-            max_cost=0.5,
+            usage_limits={"cost_limit": "0.5"},
         )
         op.execute(context=MagicMock())
 
