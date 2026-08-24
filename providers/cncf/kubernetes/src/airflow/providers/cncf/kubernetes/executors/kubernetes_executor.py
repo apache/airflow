@@ -1090,7 +1090,7 @@ class KubernetesExecutor(BaseExecutor):
             from sqlalchemy import select
 
             from airflow.jobs.job import Job
-            from airflow.utils import timezone
+            from airflow.providers.common.compat.sdk import timezone
             from airflow.utils.session import create_session
             from airflow.utils.state import JobState
 
