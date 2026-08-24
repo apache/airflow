@@ -24,7 +24,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError
 from pydantic_ai.models import Model
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
@@ -36,6 +40,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
@@ -240,6 +245,349 @@ class TestPydanticAIHookGetConn:
         mock_infer_model.assert_called_once()
 
 
+class _ConnRegistry:
+    """
+    In-memory stand-in for connection and hook lookup.
+
+    ``_resolve_fallback_models`` goes through ``BaseHook.get_hook``, which needs both the
+    metadata DB and provider discovery; this resolves both from a dict instead.
+    """
+
+    def __init__(self) -> None:
+        self.conns: dict[str, Connection] = {}
+        self.hook_classes: dict[str, type[PydanticAIHook]] = {}
+
+    def add(
+        self,
+        conn_id: str,
+        *,
+        conn_type: str = "pydanticai",
+        hook_class: type[PydanticAIHook] = PydanticAIHook,
+        password: str | None = None,
+        extra: dict | None = None,
+    ) -> None:
+        self.conns[conn_id] = Connection(
+            conn_id=conn_id,
+            conn_type=conn_type,
+            password=password,
+            extra=json.dumps(extra) if extra else None,
+        )
+        self.hook_classes[conn_id] = hook_class
+
+    def get_connection(self, conn_id: str) -> Connection:
+        try:
+            return self.conns[conn_id]
+        except KeyError:
+            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+
+    def get_hook(self, conn_id: str, hook_params: dict | None = None):
+        if conn_id not in self.conns:
+            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+        hook_class = self.hook_classes[conn_id]
+        return hook_class(llm_conn_id=conn_id, **(hook_params or {}))
+
+
+@pytest.fixture
+def registry():
+    """Patch connection and hook lookup onto a registry the test populates."""
+    reg = _ConnRegistry()
+    with (
+        patch.object(PydanticAIHook, "get_connection", side_effect=reg.get_connection),
+        patch.object(PydanticAIHook, "get_hook", side_effect=reg.get_hook),
+    ):
+        yield reg
+
+
+class _InferModelStub:
+    """Resolve every model string to its own recognisable model, and record how it was built."""
+
+    def __init__(self, mock: MagicMock) -> None:
+        self.mock = mock
+        self.models: dict[str, MagicMock] = {}
+
+    def __call__(self, model_name: str, **kwargs) -> MagicMock:
+        return self.models.setdefault(model_name, MagicMock(spec=Model, name=model_name))
+
+    def provider_kwargs_for(self, model_name: str, infer_provider_class: MagicMock) -> dict:
+        """Return the kwargs the provider for *model_name* would be constructed with."""
+        factory = next(
+            call.kwargs["provider_factory"] for call in self.mock.call_args_list if call.args[0] == model_name
+        )
+        infer_provider_class.return_value.reset_mock()
+        factory(model_name.split(":")[0])
+        return infer_provider_class.return_value.call_args.kwargs
+
+
+@pytest.fixture
+def infer_model_stub():
+    """Patch ``infer_model`` so tests can tell the models of a chain apart."""
+    with patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True) as mock:
+        stub = _InferModelStub(mock)
+        mock.side_effect = stub
+        yield stub
+
+
+class TestPydanticAIHookFallback:
+    def test_no_fallback_returns_the_bare_model(self, registry, infer_model_stub):
+        """Without a chain the resolved model is not wrapped at all."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_param_builds_chain_in_order(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        registry.add("third", extra={"model": "groq:llama-4"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second", "third"])
+        model = hook.get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+            infer_model_stub.models["groq:llama-4"],
+        ]
+
+    def test_chain_from_connection_extra(self, registry, infer_model_stub):
+        """A deployment manager can configure failover without touching Dag code."""
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]},
+        )
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    def test_param_overrides_extra(self, registry, infer_model_stub):
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["ignored"]},
+        )
+        registry.add("ignored", extra={"model": "groq:llama-4"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models[1] is infer_model_stub.models["anthropic:claude-opus-4-6"]
+
+    def test_empty_list_param_disables_the_extra_chain(self, registry, infer_model_stub):
+        """``[]`` is an explicit opt-out, distinct from ``None`` meaning "read the extra"."""
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]},
+        )
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=[]).get_conn()
+
+        assert model is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_chain_can_span_providers(self, registry, infer_model_stub):
+        """Each connection resolves through its own hook class, so credentials differ per hop."""
+        registry.add("primary", password="sk-openai", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add(
+            "bedrock_dr",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={
+                "model": "bedrock:us.anthropic.claude-opus-4-5",
+                "region_name": "us-east-1",
+                "aws_access_key_id": "AKIA-test",
+                "aws_secret_access_key": "secret",
+            },
+        )
+
+        with patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True
+        ) as mock_infer_provider_class:
+            mock_infer_provider_class.return_value = MagicMock(return_value=MagicMock())
+            hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["bedrock_dr"])
+            model = hook.get_conn()
+
+            assert isinstance(model, FallbackModel)
+            assert model.models == [
+                infer_model_stub.models["openai:gpt-5.6-sol"],
+                infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-5"],
+            ]
+
+            # Each hop is built by its own hook's field mapping: the primary from
+            # password/host, the Bedrock hop from its extra.
+            assert infer_model_stub.provider_kwargs_for("openai:gpt-5.6-sol", mock_infer_provider_class) == {
+                "api_key": "sk-openai"
+            }
+            assert infer_model_stub.provider_kwargs_for(
+                "bedrock:us.anthropic.claude-opus-4-5", mock_infer_provider_class
+            ) == {
+                "region_name": "us-east-1",
+                "aws_access_key_id": "AKIA-test",
+                "aws_secret_access_key": "secret",
+            }
+
+    def test_model_id_is_not_forwarded_to_fallbacks(self, registry, infer_model_stub):
+        """``model_id`` names a model of the primary's provider; each fallback uses its own."""
+        registry.add("primary", extra={"model": "openai:gpt-4o-mini"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        hook = PydanticAIHook(
+            llm_conn_id="primary",
+            model_id="openai:gpt-5.6-sol",
+            fallback_conn_ids=["second"],
+        )
+        model = hook.get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    def test_non_pydanticai_fallback_raises(self, registry, infer_model_stub):
+        """``BaseHook.get_hook`` dispatches on conn_type alone and can return anything."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("wrong_type", conn_type="langchain")
+        registry.hook_classes["wrong_type"] = MagicMock  # type: ignore[assignment]
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["wrong_type"])
+        with pytest.raises(ValueError, match="not a PydanticAIHook"):
+            hook.get_conn()
+
+    def test_nested_chain_raises(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add(
+            "second",
+            extra={"model": "anthropic:claude-opus-4-6", "fallback_conn_ids": ["third"]},
+        )
+        registry.add("third", extra={"model": "groq:llama-4"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+        with pytest.raises(ValueError, match="not resolved recursively"):
+            hook.get_conn()
+
+    @pytest.mark.parametrize(
+        ("fallback_conn_ids", "match"),
+        [
+            pytest.param(["second", "second"], "more than once", id="repeated-fallback"),
+            pytest.param(["primary"], "as one of its own fallbacks", id="primary-repeated"),
+        ],
+    )
+    def test_duplicate_conn_id_raises(self, registry, infer_model_stub, fallback_conn_ids, match):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids)
+        with pytest.raises(ValueError, match=match):
+            hook.get_conn()
+
+    @pytest.mark.parametrize(
+        "fallback_conn_ids",
+        [
+            pytest.param("second,third", id="comma-separated-string"),
+            pytest.param(["second", ""], id="empty-entry"),
+            pytest.param(["second", 3], id="non-string-entry"),
+        ],
+    )
+    def test_malformed_fallback_conn_ids_raises(self, registry, infer_model_stub, fallback_conn_ids):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids)
+        with pytest.raises(ValueError, match="must be a list of non-empty connection IDs"):
+            hook.get_conn()
+
+    @pytest.mark.parametrize(
+        "malformed",
+        [
+            pytest.param("", id="empty-string"),
+            pytest.param(0, id="zero"),
+            pytest.param({}, id="empty-dict"),
+            pytest.param(False, id="false"),
+        ],
+    )
+    def test_malformed_fallback_conn_ids_from_extra_raises(self, registry, infer_model_stub, malformed):
+        """Falsy-but-not-``None`` extra values must not be silently treated as "no chain".
+
+        ``None`` is the only value the schema allows to mean "no chain"; any other falsy
+        value that made it into the extra is a misconfiguration and must fail the same way
+        a malformed hook argument does, not disappear into an empty chain.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": malformed})
+
+        hook = PydanticAIHook(llm_conn_id="primary")
+        with pytest.raises(ValueError, match="must be a list of non-empty connection IDs"):
+            hook.get_conn()
+
+    def test_fallback_without_a_model_names_the_connection(self, registry, infer_model_stub):
+        """The error has to say which hop is misconfigured, not just that one is."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second")
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+        with pytest.raises(ValueError, match="No model specified for connection 'second'"):
+            hook.get_conn()
+
+    def test_test_connection_validates_the_whole_chain(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second")
+
+        success, message = PydanticAIHook(
+            llm_conn_id="primary", fallback_conn_ids=["second"]
+        ).test_connection()
+
+        assert success is False
+        assert "second" in message
+
+    def test_missing_fallback_conn_is_reported_by_name(self, registry, infer_model_stub):
+        """
+        A typo'd fallback conn_id must surface Airflow's real not-found error, by name.
+
+        The test double has to fail the same way ``BaseHook.get_connection``/``get_hook`` do
+        in production (``AirflowNotFoundException``, not a bare ``KeyError``) for this edge
+        case to be exercised at all. Both exception types happen to embed the conn_id in
+        their message, so asserting on the type -- not just the message -- is what actually
+        pins the fixture to the real behavior.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["typo_conn"])
+
+        with pytest.raises(AirflowNotFoundException, match="typo_conn"):
+            hook.get_conn()
+
+        success, message = hook.test_connection()
+        assert success is False
+        assert "typo_conn" in message
+
+    def test_exhausted_chain_from_a_connection_raises_fallback_exception_group(self, registry):
+        """
+        A fully exhausted chain built by ``get_conn()`` surfaces pydantic-ai's own aggregate
+        exception, not the last provider's own exception type. A ``RetryRule`` written against a
+        provider-specific exception has to account for that (see ``docs/retry_policies.rst``).
+        """
+
+        def _always_fails(messages, info):
+            raise ModelAPIError("test-model", "provider outage")
+
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        with patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai.infer_model",
+            autospec=True,
+            side_effect=lambda model, **kwargs: FunctionModel(_always_fails),
+        ):
+            model = PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        with pytest.raises(FallbackExceptionGroup):
+            Agent(model, instructions="classify").run_sync("hello")
+
+
 class TestPydanticAIHookCreateAgent:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
@@ -327,6 +675,24 @@ class TestPydanticAIHookCreateAgent:
             output_type=str,
         )
         mock_agent_cls.assert_not_called()
+
+    def test_create_agent_with_spec_file_raises_when_chain_configured_without_model(self):
+        """A connection-only chain cannot be wired into a spec-file agent silently.
+
+        The spec file's own model can't be wrapped in a ``FallbackModel`` -- it is
+        resolved by pydantic-ai, not by this hook -- so a connection that declares
+        ``fallback_conn_ids`` but no ``model`` must fail loudly here rather than let the
+        chain quietly disappear.
+        """
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="pydanticai",
+            extra=json.dumps({"fallback_conn_ids": ["second"]}),
+        )
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn):
+            with pytest.raises(ValueError, match="fallback chain is configured for 'test_conn' but no model"):
+                hook.create_agent(spec_file="/path/to/agent.yaml")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")

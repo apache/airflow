@@ -83,6 +83,40 @@ If the LLM call fails (provider down, timeout, bad credentials), the policy
 falls back to ``fallback_rules`` if configured, or to the task's standard
 retry behaviour.
 
+This policy decides *between* attempts. Failing over to another vendor *within*
+an attempt is a separate mechanism on the connection — see
+:doc:`provider_fallback`, which also sets out how the two layers compose.
+
+When the connection also carries a fallback chain
+--------------------------------------------------
+
+``LLMRetryPolicy`` builds its classifier hook from ``llm_conn_id`` without passing
+``fallback_conn_ids``, so if that connection's extra configures a chain (see
+:doc:`provider_fallback`), the policy inherits it silently -- editing the connection changes
+retry behaviour with no change to the Dag. Two things follow:
+
+* ``timeout`` stops bounding the whole classification call. pydantic-ai applies a
+  ``ModelSettings`` timeout to each model in the chain, not to the chain as a whole, so a
+  30-second ``timeout`` across a three-connection chain is a 90-second worst case before the
+  policy falls back to ``fallback_rules``.
+* If every connection in the chain fails, the classification call raises
+  ``pydantic_ai.exceptions.FallbackExceptionGroup``. ``evaluate()`` still degrades to
+  ``fallback_rules`` correctly -- it catches the broad ``Exception``, and an exception group is
+  one -- so the only cost here is that the classification is wasted.
+
+Separately, and regardless of this policy: if the connection **the task itself** uses to call
+the LLM (for example ``llm_conn_id`` on ``LLMOperator`` or ``AgentOperator``) carries a fallback
+chain, the exception the task raises once that chain is exhausted is
+``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own exception.
+``RetryRule`` matches with ``isinstance``, so a rule written as
+``RetryRule(exception=ModelHTTPError, ...)`` -- in ``fallback_rules`` here or in a plain
+``ExceptionRetryPolicy`` -- stops matching. Match ``pydantic_ai.exceptions.FallbackExceptionGroup``
+explicitly as well; its only common ancestor with ``ModelAPIError`` is ``Exception``, too
+broad to write a rule against. The original per-model exceptions are still available on
+``FallbackExceptionGroup.exceptions``, but ``RetryRule`` only compares the top-level
+exception type, so a rule set that told 429s apart from 400s collapses into one rule once
+the chain is in play.
+
 What the model can and cannot do
 --------------------------------
 
