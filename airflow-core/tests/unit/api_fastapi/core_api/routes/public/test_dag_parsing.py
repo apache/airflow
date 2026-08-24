@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 from sqlalchemy import select
 
 from airflow.models.dagbag import DagPriorityParsingRequest, DBDagBag
+from airflow.models.errors import ParseImportError
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.db import clear_db_dag_parsing_requests, clear_db_logs, parse_and_sync_to_db
@@ -85,6 +88,38 @@ class TestDagParsingEndpoint:
             f"/parseDagFile/{token}", headers={"Accept": "application/json"}
         )
         assert response.status_code == 403
+
+    @mock.patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_reparse_import_error_file_without_registered_dag(
+        self,
+        mock_get_auth_manager,
+        url_safe_serializer,
+        session,
+        test_client,
+    ):
+        error = ParseImportError(
+            bundle_name="example_dags",
+            filename="broken_dag.py",
+            stacktrace="Broken DAG import",
+        )
+        session.add(error)
+        session.commit()
+
+        mock_get_auth_manager.return_value.authorize_view.return_value = True
+
+        token = url_safe_serializer.dumps(
+            {
+                "bundle_name": "example_dags",
+                "relative_fileloc": "broken_dag.py",
+            }
+        )
+
+        response = test_client.put(
+            f"/parseDagFile/{token}",
+            headers={"Accept": "application/json"},
+        )
+
+        assert response.status_code == 201
 
     def test_bad_file_request(self, url_safe_serializer, session, test_client):
         payload = {"bundle_name": "some_bundle", "relative_fileloc": "/some/random/file.py"}
