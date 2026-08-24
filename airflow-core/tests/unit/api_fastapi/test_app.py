@@ -24,6 +24,7 @@ from fastapi import FastAPI
 
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 
 from tests_common.test_utils.config import conf_vars
 
@@ -86,6 +87,15 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views,
 
     # Assert that execution-related functions were also called
     mock_create_task_exec_api.assert_called_once_with()
+
+
+@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+def test_access_log_middleware_installed_for_every_apps_selection(apps, client):
+    """Both server backends disable their own access logger, so a selection that skips this
+    middleware has no access logging at all."""
+    installed = [m.cls for m in client(apps=apps).app.user_middleware]
+
+    assert installed.count(HttpAccessLogMiddleware) == 1
 
 
 def test_catch_all_route_last(client):
