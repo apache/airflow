@@ -11615,6 +11615,14 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+        task_id_pattern:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id Pattern
+          description: 'Substring selecting a subset of tasks to backfill: tasks whose
+            id contains this value are scheduled and dependencies on unselected upstream
+            tasks are ignored. The request is rejected if it matches no task.'
         run_on_latest_version:
           anyOf:
           - type: boolean
@@ -11663,6 +11671,13 @@ components:
         max_active_runs:
           type: integer
           title: Max Active Runs
+        selected_task_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Selected Task Ids
         created_at:
           type: string
           format: date-time
@@ -11690,6 +11705,7 @@ components:
       - is_paused
       - reprocess_behavior
       - max_active_runs
+      - selected_task_ids
       - created_at
       - completed_at
       - updated_at

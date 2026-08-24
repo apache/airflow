@@ -154,6 +154,7 @@ class TestListBackfills(TestBackfillEndpoint):
                     "is_paused": False,
                     "reprocess_behavior": "none",
                     "max_active_runs": 10,
+                    "selected_task_ids": None,
                     "to_date": to_iso(to_date),
                     "updated_at": mock.ANY,
                 }
@@ -183,6 +184,7 @@ class TestGetBackfill(TestBackfillEndpoint):
             "is_paused": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
+            "selected_task_ids": None,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }
@@ -429,10 +431,47 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "is_paused": False,
             "reprocess_behavior": repro_exp,
             "max_active_runs": 5,
+            "selected_task_ids": None,
             "to_date": to_date_iso,
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
+
+    def test_create_backfill_with_task_id_pattern(self, session, dag_maker, test_client):
+        with dag_maker(session=session, dag_id="TEST_DAG_SUBSET", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="read_a")
+            EmptyOperator(task_id="write_a")
+            EmptyOperator(task_id="write_b")
+        session.commit()
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-01-02")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+            "task_id_pattern": "write_",
+        }
+        response = test_client.post(url="/backfills", json=data)
+        assert response.status_code == 200
+        assert response.json()["selected_task_ids"] == ["write_a", "write_b"]
+
+    def test_create_backfill_task_id_pattern_no_match(self, session, dag_maker, test_client):
+        with dag_maker(session=session, dag_id="TEST_DAG_NO_MATCH", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-01-02")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+            "task_id_pattern": "does_not_exist",
+        }
+        response = test_client.post(url="/backfills", json=data)
+        assert response.status_code == 422
+        assert "did not match any task" in response.json().get("detail")
 
     @mock.patch(
         "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
@@ -1175,6 +1214,32 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
         response_json = response.json()
         assert response_json["backfills"] == expected_dates
 
+    def test_create_backfill_dry_run_with_task_id_pattern(self, session, dag_maker, test_client):
+        with dag_maker(
+            session=session,
+            dag_id="TEST_DAG_DRY_SUBSET",
+            schedule="0 0 * * *",
+            start_date=pendulum.parse("2024-01-01"),
+        ) as dag:
+            EmptyOperator(task_id="read_a")
+            EmptyOperator(task_id="write_a")
+        session.commit()
+        base = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-01-03")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+        }
+        ok = test_client.post(url="/backfills/dry_run", json={**base, "task_id_pattern": "write_"})
+        assert ok.status_code == 200
+        assert ok.json()["total_entries"] > 0
+
+        no_match = test_client.post(url="/backfills/dry_run", json={**base, "task_id_pattern": "nope"})
+        assert no_match.status_code == 422
+        assert "did not match any task" in no_match.json().get("detail")
+
     def test_create_backfill_dry_run_rejects_invalid_conf(self, session, dag_maker, test_client):
         from airflow.sdk import Param
 
@@ -1297,6 +1362,7 @@ class TestCreateBackfillPartitioned(TestBackfillEndpoint):
                 "is_paused": False,
                 "reprocess_behavior": "none",
                 "max_active_runs": 5,
+                "selected_task_ids": None,
                 "to_date": "2026-02-20T00:00:00Z",
                 "updated_at": mock.ANY,
             }
@@ -1456,6 +1522,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
             "is_paused": True,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
+            "selected_task_ids": None,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }
@@ -1536,6 +1603,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "is_paused": True,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
+            "selected_task_ids": None,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }
@@ -1595,6 +1663,7 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
             "is_paused": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
+            "selected_task_ids": None,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }

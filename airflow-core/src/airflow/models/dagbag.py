@@ -204,9 +204,19 @@ class DBDagBag:
         return dag_run.created_dag_version_id
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
-        if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
-            return self._get_dag(version_id=version_id, session=session)
-        return None
+        if not (version_id := self._version_from_dag_run(dag_run=dag_run, session=session)):
+            return None
+        dag = self._get_dag(version_id=version_id, session=session)
+        if dag and dag_run.backfill_id and (backfill := dag_run.backfill) and backfill.selected_task_ids:
+            # Subset backfill: restrict the run to the selected tasks. partial_subset
+            # deep-copies, so the shared cached Dag is never mutated, and pruning the
+            # upstream/downstream references is what makes unselected upstreams ignored.
+            return dag.partial_subset(
+                backfill.selected_task_ids,
+                include_upstream=False,
+                include_downstream=False,
+            )
+        return dag
 
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
         """
