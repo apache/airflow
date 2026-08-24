@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import subprocess
@@ -39,6 +40,7 @@ from opentelemetry.sdk.metrics.view import (
 from airflow_shared.observability.common import get_otel_data_exporter
 from airflow_shared.observability.metrics import otel_logger as otel_logger_module
 from airflow_shared.observability.metrics.otel_logger import (
+    _OWNER_PID_ATTR,
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
     MetricsMap,
@@ -81,14 +83,16 @@ def name():
 
 @pytest.fixture(autouse=True)
 def reset_process_provider():
-    """Clear the per-process provider cache so tests never inherit one another's pipeline."""
+    """Clear the per-process pipeline so tests never inherit one another's."""
 
     def discard() -> None:
-        # Stop the pipeline rather than just dropping the reference: its exporter threads would
+        provider = otel_logger_module._find_provider_built_by_this_process()
+        if provider is None:
+            return
+        # Stop the pipeline rather than just dropping the marker: its exporter threads would
         # otherwise stay alive for the rest of the session.
-        if otel_logger_module._provider is not None:
-            otel_logger_module._stop_inherited_pipeline(otel_logger_module._provider)
-        otel_logger_module._provider = None
+        otel_logger_module._stop_inherited_pipeline(provider)
+        delattr(provider, _OWNER_PID_ATTR)
 
     discard()
     yield
@@ -727,17 +731,155 @@ class TestOtelMetrics:
         assert count_live_readers() == readers_after_first
 
 
-TEST_MODULE = "tests.observability.metrics.test_otel_logger"
+class TestOtelProviderIsProcessScoped:
+    """One MeterProvider per process, however many callers -- or module copies -- ask for one."""
+
+    def test_a_second_module_copy_reuses_one_provider(self, reset_meter_provider):
+        """Test that an independently imported copy of this module shares the same provider."""
+        second_copy = load_independent_module_copy()
+        assert second_copy is not otel_logger_module
+
+        first = get_otel_logger(host="localhost", port=4318, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS)
+        readers_after_first = count_live_readers()
+
+        second = second_copy.get_otel_logger(
+            host="localhost", port=4318, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS
+        )
+
+        assert second.otel is first.otel
+        assert count_live_readers() == readers_after_first
+
+    @pytest.mark.parametrize(
+        ("attribute", "first_value", "second_value"),
+        [
+            pytest.param("prefix", "alpha", "beta", id="prefix"),
+            pytest.param("statsd_influxdb_enabled", True, False, id="statsd_influxdb_enabled"),
+        ],
+    )
+    def test_sharing_a_provider_keeps_per_caller_configuration(
+        self, attribute, first_value, second_value, reset_meter_provider
+    ):
+        """Test that callers sharing one provider still get their own logger configuration."""
+        first = get_otel_logger(
+            host="localhost",
+            port=4318,
+            conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS,
+            **{attribute: first_value},
+        )
+        second = get_otel_logger(
+            host="localhost",
+            port=4318,
+            conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS,
+            **{attribute: second_value},
+        )
+
+        assert first.otel is second.otel
+        assert getattr(first, attribute) == first_value
+        assert getattr(second, attribute) == second_value
+
+    def test_a_provider_built_by_another_process_is_not_reused(self, reset_meter_provider):
+        """Test that a provider inherited from another process is replaced, not adopted."""
+        inherited = SDKMeterProvider(shutdown_on_exit=False)
+        setattr(inherited, _OWNER_PID_ATTR, os.getpid() + 1)
+        metrics.set_meter_provider(inherited)
+
+        logger = get_otel_logger(host="localhost", port=4318, conf_interval=NO_PERIODIC_EXPORT_INTERVAL_MS)
+
+        assert logger.otel is not inherited
+
+    def test_both_module_copies_still_export_their_metrics(self):
+        """Test that sharing one provider does not stop either module copy emitting metrics."""
+        proc = subprocess.run(
+            [sys.executable, "-c", TWO_MODULE_COPIES_PROGRAM],
+            check=False,
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+
+        context = f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        assert "COPIES_SHARE_PROVIDER=True" in proc.stdout, (
+            f"The two module copies each built their own provider.\n{context}"
+        )
+        assert "copyone.from_first_copy" in proc.stdout, (
+            f"The first module copy's metric was not exported.\n{context}"
+        )
+        assert "copytwo.from_second_copy" in proc.stdout, (
+            f"The second module copy's metric was not exported.\n{context}"
+        )
+
+
+def load_independent_module_copy():
+    """
+    Load a second, independent copy of otel_logger, as the two ``_shared`` symlinks do.
+
+    ``shared/observability`` is symlinked into both ``airflow/_shared`` and ``airflow/sdk/_shared``,
+    so the same file is executed twice under two names and each copy gets its own module globals.
+    The name below keeps the package prefix so the module's relative imports still resolve.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "airflow_shared.observability.metrics._otel_logger_second_copy", otel_logger_module.__file__
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# Runs in a fresh interpreter because it needs a process whose global MeterProvider starts out
+# unset. It imports only the installed package, so unlike the mock_service_* helpers it does not
+# depend on this test module being importable by name from the subprocess's working directory.
+TWO_MODULE_COPIES_PROGRAM = """
+import importlib.util
+
+from airflow_shared.observability.metrics import otel_logger as first_copy
+
+spec = importlib.util.spec_from_file_location(
+    "airflow_shared.observability.metrics._otel_logger_second_copy", first_copy.__file__
+)
+second_copy = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(second_copy)
+
+first_logger = first_copy.get_otel_logger(debug=True, prefix="copyone")
+second_logger = second_copy.get_otel_logger(debug=True, prefix="copytwo")
+
+print("COPIES_SHARE_PROVIDER=%s" % (first_logger.otel is second_logger.otel))
+
+first_logger.incr("from_first_copy")
+second_logger.incr("from_second_copy")
+
+# Flush both explicitly so that what was exported is asserted independently of whether the two
+# copies ended up sharing one provider.
+first_logger.otel.force_flush()
+second_logger.otel.force_flush()
+"""
 
 
 def run_service_helper(runner: str, child_out=None) -> subprocess.CompletedProcess:
-    """Run one of this module's ``mock_service_*`` helpers in a fresh interpreter."""
+    """
+    Run one of this module's ``mock_service_*`` helpers in a fresh interpreter.
+
+    The helper module is loaded by file path rather than imported by dotted name: ``tests`` is a
+    namespace package here, and any regular ``tests`` package that happens to be installed in the
+    environment would win the import and hide it.
+    """
     env = os.environ.copy()
     if child_out is not None:
         env["CHILD_METRICS_OUT"] = str(child_out)
 
+    program = (
+        "import importlib.util, sys;"
+        f"spec = importlib.util.spec_from_file_location('otel_service_helpers', {__file__!r});"
+        "m = importlib.util.module_from_spec(spec);"
+        "sys.modules['otel_service_helpers'] = m;"
+        "spec.loader.exec_module(m);"
+        f"m.{runner}()"
+    )
+
     proc = subprocess.run(
-        [sys.executable, "-c", f"import {TEST_MODULE} as m; m.{runner}()"],
+        [sys.executable, "-c", program],
         check=False,
         env=env,
         capture_output=True,
