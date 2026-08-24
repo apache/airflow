@@ -472,9 +472,9 @@ of day, making schedule patterns and congested periods easier to identify.
 Display Options
 '''''''''''''''
 
-- **Latest 200** loads the 200 most recent Dag runs by default.
-- **Latest 600**, **Latest 1000**, **Latest 2000**, and **Latest 5000** increase the number of runs loaded.
-- **All Dag runs** loads all matching runs.
+- **Latest 200** streams the 200 most recent matching Dag runs by default.
+- **Latest 600**, **Latest 1000**, **Latest 2000**, and **Latest 5000** increase the bounded number of runs
+  selected before aggregation.
 - The count above the timeline shows how many matching runs were rendered.
 - **Scheduled Dags only** is enabled by default and shows Dags with periodic timetables. Clear it to include other
   Dags that have matching Dag runs.

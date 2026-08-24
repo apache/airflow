@@ -25,56 +25,87 @@ import { initReactI18next } from "react-i18next";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DAGRunResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import {
+  TIME_SCHEDULE_AGGREGATION_MODE_KEY,
+  TIME_SCHEDULE_DAG_RUN_LIMIT_KEY,
+  TIME_SCHEDULE_SCHEDULED_ONLY_KEY,
+  TIME_SCHEDULE_VIEW_MODE_KEY,
+} from "src/constants/localStorage";
 import { TimezoneContext } from "src/context/timezone";
 
 import { TimeSchedule } from "./TimeSchedule";
-import { getTimelineItemColorPalette } from "./timelineUtils";
 
-type DagRunsFixture = {
-  dag_runs: Array<
-    Pick<
-      DAGRunResponse,
-      | "dag_display_name"
-      | "dag_id"
-      | "dag_run_id"
-      | "duration"
-      | "end_date"
-      | "run_after"
-      | "start_date"
-      | "state"
-    >
-  >;
-};
-type DagsUiFixture = {
-  dags: Array<
-    Pick<
-      DAGWithLatestDagRunsResponse,
-      "dag_display_name" | "dag_id" | "next_dagrun_run_after" | "timetable_periodic" | "timetable_summary"
-    >
-  >;
-  total_entries: number;
+type StreamItem = {
+  readonly dag_id: string;
+  readonly dag_run_id: string;
+  readonly duration_ms: number;
+  readonly end_date: string | null;
+  readonly is_placeholder: boolean;
+  readonly is_planned: boolean;
+  readonly is_time_scheduled: boolean;
+  readonly label: string;
+  readonly run_count: number;
+  readonly start_date: string | null;
+  readonly state: "failed" | "planned" | "success";
 };
 
-const { configResponse, dagRunsResponse, dagsUiResponse, getDagDetails, getDagRuns, getDagsUi } = vi.hoisted(
-  () => ({
-    configResponse: { current: { fallback_page_limit: 100, multi_team: false } },
-    dagRunsResponse: { current: {} as DagRunsFixture },
-    dagsUiResponse: { current: {} as DagsUiFixture },
-    getDagDetails: vi.fn(),
-    getDagRuns: vi.fn(),
-    getDagsUi: vi.fn(),
-  }),
-);
+type StreamBatch = {
+  readonly dag_run_count: number;
+  readonly items: Array<StreamItem>;
+};
+
+const { configResponse, fetchTimeSchedule } = vi.hoisted(() => ({
+  configResponse: { current: { multi_team: false } },
+  fetchTimeSchedule: vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(),
+}));
 
 const TIME_SCHEDULE_STORAGE_KEYS = [
-  "time-schedule-view-mode",
-  "time-schedule-aggregation-mode",
-  "time-schedule-dag-run-limit",
-  "time-schedule-scheduled-only",
+  TIME_SCHEDULE_VIEW_MODE_KEY,
+  TIME_SCHEDULE_AGGREGATION_MODE_KEY,
+  TIME_SCHEDULE_DAG_RUN_LIMIT_KEY,
+  TIME_SCHEDULE_SCHEDULED_ONLY_KEY,
 ];
 
-const render = (selectedTimezone: string = "UTC", initialEntry: string = "/time_schedule") =>
+const createStreamItem = (overrides: Partial<StreamItem> = {}): StreamItem => ({
+  dag_id: "example_dag",
+  dag_run_id: "run-1",
+  duration_ms: 60_000,
+  end_date: "2024-01-01T00:01:00Z",
+  is_placeholder: false,
+  is_planned: false,
+  is_time_scheduled: true,
+  label: "example_dag",
+  run_count: 1,
+  start_date: "2024-01-01T00:00:00Z",
+  state: "success",
+  ...overrides,
+});
+
+const defaultBatches: Array<StreamBatch> = [
+  { dag_run_count: 1, items: [createStreamItem()] },
+  {
+    dag_run_count: 1,
+    items: [
+      createStreamItem({
+        dag_id: "another_dag",
+        dag_run_id: "run-2",
+        duration_ms: 120_000,
+        end_date: "2024-01-01T02:02:00Z",
+        label: "another_dag",
+        start_date: "2024-01-01T02:00:00Z",
+        state: "failed",
+      }),
+    ],
+  },
+];
+
+const createStreamResponse = (batches: Array<StreamBatch> = defaultBatches) =>
+  new Response(`${batches.map((batch) => JSON.stringify(batch)).join("\n")}\n`, {
+    headers: { "Content-Type": "application/x-ndjson" },
+    status: 200,
+  });
+
+const render = (initialEntry = "/time_schedule", selectedTimezone = "UTC") =>
   baseRender(
     <QueryClientProvider client={new QueryClient()}>
       <TimezoneContext.Provider value={{ selectedTimezone, setSelectedTimezone: vi.fn() }}>
@@ -88,10 +119,16 @@ const render = (selectedTimezone: string = "UTC", initialEntry: string = "/time_
   );
 
 const selectOption = async (selectTestId: string, optionName: string) => {
-  const trigger = within(screen.getByTestId(selectTestId)).getByRole("combobox");
-
-  fireEvent.click(trigger);
+  fireEvent.click(within(screen.getByTestId(selectTestId)).getByRole("combobox"));
   fireEvent.click(await screen.findByRole("option", { name: optionName }));
+};
+
+const getLatestRequest = () => {
+  const request = fetchTimeSchedule.mock.calls.at(-1)?.[0];
+  const requestUrl =
+    typeof request === "string" ? request : request instanceof URL ? request.href : request?.url;
+
+  return new URL(requestUrl ?? "", "http://localhost");
 };
 
 if (!i18n.isInitialized) {
@@ -103,10 +140,9 @@ if (!i18n.isInitialized) {
       en: {
         common: {
           dagId: "Dag ID",
+          filters: { filterByTag: "Filter by tag", timetableType: "Timetable Type" },
           states: { scheduled: "Scheduled" },
           timeSchedule: {
-            all: "All",
-            allDagRuns: "All Dag runs",
             dagRuns: "{{count}} Dag runs",
             dagRunsRendered: "{{count}} Dag runs rendered",
             dagRunsToDisplay: "Dag runs to display",
@@ -143,16 +179,6 @@ if (!i18n.isInitialized) {
 
 vi.mock("openapi/queries", () => ({
   useConfigServiceGetConfigs: () => ({ data: configResponse.current }),
-  useDagRunServiceGetDagRuns: (params: unknown) => {
-    getDagRuns(params);
-
-    return { data: dagRunsResponse.current, isLoading: false };
-  },
-  useDagServiceGetDagsUi: (params: unknown) => {
-    getDagsUi(params);
-
-    return { data: dagsUiResponse.current, isLoading: false };
-  },
   useTeamsServiceListTeams: () => ({ data: { teams: [] } }),
 }));
 
@@ -160,7 +186,6 @@ vi.mock("src/queries/useDagTagsInfinite", () => ({
   useDagTagsInfinite: () => ({
     data: { pages: [{ tags: ["tag-a", "tag-b"], total_entries: 2 }] },
     fetchNextPage: vi.fn(),
-    fetchPreviousPage: vi.fn(),
   }),
 }));
 
@@ -168,440 +193,213 @@ vi.mock("src/queries/useDagTimetableTypesInfinite", () => ({
   useDagTimetableTypesInfinite: () => ({
     data: { pages: [{ timetable_types: ["CronTriggerTimetable", "NullTimetable"], total_entries: 2 }] },
     fetchNextPage: vi.fn(),
-    fetchPreviousPage: vi.fn(),
   }),
-}));
-
-vi.mock("openapi/requests/services.gen", () => ({
-  DagRunService: { getDagRuns },
-  DagService: { getDagDetails, getDagsUi },
 }));
 
 describe("TimeSchedule page", () => {
   beforeEach(() => {
     configResponse.current.multi_team = false;
     TIME_SCHEDULE_STORAGE_KEYS.forEach((key) => globalThis.localStorage.removeItem(key));
-    getDagsUi.mockReset();
-    getDagRuns.mockReset();
-    getDagDetails.mockReset();
-    getDagDetails.mockImplementation(({ dagId }: { dagId: string }) =>
-      Promise.resolve({ dag_id: dagId, dag_run_timeout: dagId === "example_dag" ? "PT1H" : null }),
-    );
-    dagsUiResponse.current = {
-      dags: [
-        {
-          dag_display_name: "example_dag",
-          dag_id: "example_dag",
-          next_dagrun_run_after: "2024-01-01T00:00:00Z",
-          timetable_periodic: true,
-          timetable_summary: "@daily",
-        },
-        {
-          dag_display_name: "another_dag",
-          dag_id: "another_dag",
-          next_dagrun_run_after: "2024-01-01T02:00:00Z",
-          timetable_periodic: true,
-          timetable_summary: "@daily",
-        },
-      ],
-      total_entries: 2,
-    };
-    dagRunsResponse.current = {
-      dag_runs: [
-        {
-          dag_display_name: "example_dag",
-          dag_id: "example_dag",
-          dag_run_id: "run-1",
-          duration: 60,
-          end_date: "2024-01-01T00:01:00Z",
-          run_after: "2024-01-01T00:00:00Z",
-          start_date: "2024-01-01T00:00:00Z",
-          state: "success",
-        },
-        {
-          dag_display_name: "another_dag",
-          dag_id: "another_dag",
-          dag_run_id: "run-2",
-          duration: 120,
-          end_date: "2024-01-01T02:02:00Z",
-          run_after: "2024-01-01T02:00:00Z",
-          start_date: "2024-01-01T02:00:00Z",
-          state: "failed",
-        },
-      ],
-    };
+    fetchTimeSchedule.mockReset();
+    fetchTimeSchedule.mockResolvedValue(createStreamResponse());
+    vi.stubGlobal("fetch", fetchTimeSchedule);
   });
 
   afterEach(() => {
     TIME_SCHEDULE_STORAGE_KEYS.forEach((key) => globalThis.localStorage.removeItem(key));
+    vi.unstubAllGlobals();
   });
 
-  it("renders all Dag runs on a 24-hour timeline", async () => {
+  it("renders streamed batches progressively on the Day timeline", async () => {
     render();
 
     await waitFor(() => expect(screen.getByText("2 Dag runs rendered")).toBeInTheDocument());
     expect(screen.getByTestId("time-schedule-day-grid")).toBeInTheDocument();
-    expect(screen.getAllByText("00:00")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("24:00")[0]).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "example_dag" })).toHaveAttribute("href", "/dags/example_dag");
     expect(screen.getByRole("link", { name: "View Dag run run-1" })).toHaveAttribute(
       "href",
       "/dags/example_dag/runs/run-1",
     );
+    expect(screen.getByRole("link", { name: "View Dag run run-2" })).toHaveAttribute(
+      "href",
+      "/dags/another_dag/runs/run-2",
+    );
   });
 
-  it("renders dotted hourly grid lines and solid six-hour lines", async () => {
+  it("requests one server stream for the selected view and aggregation", async () => {
     render();
 
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalledTimes(1));
+    const request = getLatestRequest();
+
+    expect(request.pathname).toBe("/ui/time-schedule");
+    expect(request.searchParams.get("aggregation_mode")).toBe("mean");
+    expect(request.searchParams.get("limit")).toBe("200");
+    expect(request.searchParams.get("show_scheduled_only")).toBe("true");
+    expect(request.searchParams.get("time_scale")).toBe("60");
+    expect(request.searchParams.get("timezone")).toBe("UTC");
+    expect(request.searchParams.get("view_mode")).toBe("day");
+  });
+
+  it("forwards Dag run and Dag metadata filters to the server", async () => {
+    configResponse.current.multi_team = true;
+    render(
+      "/time_schedule?dag_id_pattern=example&state=failed&run_type=scheduled&tags=tag-a&tags=tag-b&tags_match_mode=all&timetable_type=CronTriggerTimetable&teams=analytics",
+    );
+
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
+    const request = getLatestRequest();
+
+    expect(request.searchParams.get("dag_id_pattern")).toBe("example");
+    expect(request.searchParams.get("state")).toBe("failed");
+    expect(request.searchParams.get("run_type")).toBe("scheduled");
+    expect(request.searchParams.getAll("tags")).toEqual(["tag-a", "tag-b"]);
+    expect(request.searchParams.get("tags_match_mode")).toBe("all");
+    expect(request.searchParams.get("timetable_type")).toBe("CronTriggerTimetable");
+    expect(request.searchParams.getAll("teams")).toEqual(["analytics"]);
+  });
+
+  it("requests only Week data when the view changes", async () => {
+    render();
     await waitFor(() => expect(screen.getByText("2 Dag runs rendered")).toBeInTheDocument());
-    expect(screen.getByTestId("time-schedule-grid-line-60").firstElementChild).toHaveStyle({
-      borderLeftStyle: "dotted",
-    });
-    expect(screen.getByTestId("time-schedule-grid-line-360").firstElementChild).toHaveStyle({
-      borderLeftStyle: "solid",
-    });
-  });
-
-  it("centers the first and last time labels on the padded chart edges", () => {
-    render();
-
-    const labels = screen.getAllByText("00:00");
-
-    expect(labels[0]).toHaveStyle({ transform: "translateX(-50%)" });
-    expect(screen.getByText("24:00")).toHaveStyle({ transform: "translateX(-50%)" });
-  });
-
-  it("recalculates time labels when returning from week view to day view", async () => {
-    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
-
-    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, value: 1200 });
-
-    render();
 
     await selectOption("time-schedule-view-mode", "Week");
-    await selectOption("time-schedule-view-mode", "Day");
 
-    await waitFor(() => expect(screen.getByText("12:00")).toBeInTheDocument());
-
-    if (originalClientWidth) {
-      Object.defineProperty(HTMLElement.prototype, "clientWidth", originalClientWidth);
-    } else {
-      delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
-    }
+    await waitFor(() => expect(getLatestRequest().searchParams.get("view_mode")).toBe("week"));
+    expect(screen.getByTestId("time-schedule-week-grid")).toBeInTheDocument();
+    expect(screen.queryByTestId("time-schedule-day-grid")).not.toBeInTheDocument();
   });
 
-  it("uses state colors and a visible minimum width for runs", () => {
+  it("requests the selected aggregation without calculating the unused view", async () => {
     render();
-
-    expect(getTimelineItemColorPalette({ isPlanned: false, state: "failed" })).toBe("failed");
-    expect(screen.getByTestId("time-schedule-run-bar-run-1")).toHaveStyle({
-      width: "max(42px, 0.06944444444444445%)",
-    });
-  });
-
-  it("uses 200 Dag runs by default and lets users increase the display limit", async () => {
-    render();
-
-    expect(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox")).toHaveTextContent(
-      "Latest 200",
-    );
-    expect(getDagRuns).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100 }));
-
-    await selectOption("time-schedule-dag-run-limit", "Latest 1000");
-
-    expect(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox")).toHaveTextContent(
-      "Latest 1000",
-    );
-    await selectOption("time-schedule-dag-run-limit", "All Dag runs");
-    expect(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox")).toHaveTextContent(
-      "All Dag runs",
-    );
-  });
-
-  it("does not apply a date range unless the user selects one", () => {
-    render();
-
-    expect(getDagRuns).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        startDateGte: undefined,
-        startDateLte: undefined,
-      }),
-    );
-  });
-
-  it("applies Dag ID and team filters to the Dag metadata request", () => {
-    configResponse.current.multi_team = true;
-
-    render("UTC", "/time_schedule?dag_id_pattern=example&teams=team-a");
-
-    expect(getDagsUi).toHaveBeenLastCalledWith(
-      expect.objectContaining({ dagIdPattern: "example", teams: ["team-a"] }),
-    );
-  });
-
-  it("aggregates runs that start in the same minute using the selected duration rule", async () => {
-    dagRunsResponse.current = {
-      dag_runs: [
-        {
-          dag_display_name: "example_dag",
-          dag_id: "example_dag",
-          dag_run_id: "run-1",
-          duration: 60,
-          end_date: "2024-01-01T00:01:05Z",
-          run_after: "2024-01-01T00:00:00Z",
-          start_date: "2024-01-01T00:00:05Z",
-          state: "success",
-        },
-        {
-          dag_display_name: "example_dag",
-          dag_id: "example_dag",
-          dag_run_id: "run-2",
-          duration: 120,
-          end_date: "2024-01-02T00:02:55Z",
-          run_after: "2024-01-02T00:00:00Z",
-          start_date: "2024-01-02T00:00:55Z",
-          state: "success",
-        },
-      ],
-    };
-
-    render();
-
-    expect(screen.getByTestId("time-schedule-run-bar-run-1")).toHaveStyle({
-      width: "max(42px, 0.10416666666666667%)",
-    });
-    expect(screen.queryByTestId("time-schedule-run-bar-run-2")).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
 
     await selectOption("time-schedule-aggregation", "Max");
 
-    expect(screen.getByTestId("time-schedule-run-bar-run-1")).toHaveStyle({
-      width: "max(42px, 0.1388888888888889%)",
-    });
+    await waitFor(() => expect(getLatestRequest().searchParams.get("aggregation_mode")).toBe("max"));
   });
 
-  it("renders a planned scheduled Dag using its dagrun timeout", async () => {
-    dagRunsResponse.current = { dag_runs: [] };
-    dagsUiResponse.current = {
-      dags: [
+  it("limits Dag runs to bounded choices and never offers All Dag runs", async () => {
+    render();
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
+
+    fireEvent.click(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox"));
+
+    expect(await screen.findByRole("option", { name: "Latest 200" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Latest 5000" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /All Dag runs/u })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("option", { name: "Latest 600" }));
+    await waitFor(() => expect(getLatestRequest().searchParams.get("limit")).toBe("600"));
+  });
+
+  it("moves Scheduled Dags only filtering to the server request", async () => {
+    render();
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Scheduled Dags only" }));
+
+    await waitFor(() => expect(getLatestRequest().searchParams.get("show_scheduled_only")).toBe("false"));
+  });
+
+  it("renders a planned item returned by the server", async () => {
+    fetchTimeSchedule.mockResolvedValue(
+      createStreamResponse([
         {
-          dag_display_name: "planned_dag",
-          dag_id: "planned_dag",
-          next_dagrun_run_after: "2024-01-01T12:00:00Z",
-          timetable_periodic: true,
-          timetable_summary: "@daily",
+          dag_run_count: 0,
+          items: [
+            createStreamItem({
+              dag_id: "planned_dag",
+              dag_run_id: "planned_dag-planned",
+              is_planned: true,
+              label: "planned_dag",
+              run_count: 0,
+              state: "planned",
+            }),
+          ],
         },
-      ],
-      total_entries: 1,
-    };
-    getDagDetails.mockResolvedValue({ dag_id: "planned_dag", dag_run_timeout: "PT1H1M" });
+      ]),
+    );
 
     render();
 
-    await waitFor(() =>
-      expect(screen.getByTestId("time-schedule-run-bar-planned_dag-planned")).toHaveStyle({
-        width: "max(42px, 4.236111111111112%)",
-      }),
-    );
-    expect(screen.getByRole("link", { name: "View planned_dag Dag runs" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "View planned_dag Dag runs" })).toHaveAttribute(
       "href",
       "/dags/planned_dag/runs",
     );
   });
 
-  it("hides unscheduled Dag runs by default and shows them when unchecked", () => {
-    dagsUiResponse.current = {
-      dags: dagsUiResponse.current.dags.slice(0, 1),
-      total_entries: 1,
-    };
-
+  it("keeps existing zoom behavior while requesting the matching server bucket size", async () => {
     render();
-
-    expect(screen.getByTestId("time-schedule-run-bar-run-1")).toBeInTheDocument();
-    expect(screen.queryByTestId("time-schedule-run-bar-run-2")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("checkbox", { name: "Scheduled Dags only" }));
-
-    expect(screen.getByTestId("time-schedule-run-bar-run-2")).toBeInTheDocument();
-  });
-
-  it("positions runs in the selected timezone", () => {
-    render("Asia/Seoul");
-
-    expect(screen.getByTestId("time-schedule-run-bar-run-1")).toHaveStyle({ left: "37.5%" });
-  });
-
-  it("sorts Dag rows and synchronizes the timeline header", () => {
-    render();
-
-    const sortButton = screen.getByRole("button", { name: "Sort Dag ID: dagIdAscending" });
-    const dagLinks = () =>
-      screen
-        .getAllByRole("link")
-        .filter((link) => link.getAttribute("href")?.match(/^\/dags\/[^/]+$/u))
-        .map((link) => link.textContent);
-
-    expect(dagLinks()).toEqual(["another_dag", "example_dag"]);
-    fireEvent.click(sortButton);
-    expect(dagLinks()).toEqual(["example_dag", "another_dag"]);
-
-    const chartBody = screen.getByTestId("time-schedule-chart-body");
-    const header = screen.getByTestId("time-schedule-header-row");
-
-    chartBody.scrollLeft = 120;
-    fireEvent.scroll(chartBody);
-    expect(header.scrollLeft).toBe(120);
-  });
-
-  it("zooms the chart with controls", () => {
-    render();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-    expect(screen.getByText("30m")).toBeInTheDocument();
-    expect(screen.getByTestId("time-schedule-chart-body").firstElementChild).toHaveStyle({
-      minWidth: "1920px",
-    });
-  });
-
-  it("offers Dag run limits aligned with the API page size", async () => {
-    render();
-
-    await selectOption("time-schedule-dag-run-limit", "Latest 600");
-
-    expect(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox")).toHaveTextContent(
-      "Latest 600",
-    );
-  });
-
-  it("only handles keyboard zoom from within the chart", () => {
-    render();
-
-    fireEvent.keyDown(document.body, { ctrlKey: true, key: "ArrowUp" });
-    expect(screen.getByText("60m")).toBeInTheDocument();
-
-    fireEvent.keyDown(screen.getByTestId("time-schedule-chart"), { ctrlKey: true, key: "ArrowUp" });
-    expect(screen.getByText("50m")).toBeInTheDocument();
-  });
-
-  it("restores the selected view, aggregation, Dag run limit, and scheduled Dag filter after remounting", async () => {
-    const { unmount } = render();
-
-    await selectOption("time-schedule-view-mode", "Week");
-    await selectOption("time-schedule-aggregation", "Max");
-    await selectOption("time-schedule-dag-run-limit", "Latest 1000");
-    fireEvent.click(screen.getByRole("checkbox", { name: "Scheduled Dags only" }));
-    unmount();
-
-    render();
-
-    expect(within(screen.getByTestId("time-schedule-view-mode")).getByRole("combobox")).toHaveTextContent(
-      "Week",
-    );
-    expect(within(screen.getByTestId("time-schedule-aggregation")).getByRole("combobox")).toHaveTextContent(
-      "Max",
-    );
-    expect(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox")).toHaveTextContent(
-      "Latest 1000",
-    );
-    expect(screen.getByRole("checkbox", { name: "Scheduled Dags only" })).not.toBeChecked();
-    expect(screen.getByText("60m")).toBeInTheDocument();
-  });
-
-  it("renders aggregated Week runs in weekday and time cells", async () => {
-    render();
-
-    await selectOption("time-schedule-view-mode", "Week");
-
-    expect(screen.getByTestId("time-schedule-week-grid")).toBeInTheDocument();
-    expect(screen.getByTestId("time-schedule-week-header")).toContainElement(screen.getByText("Sun"));
-    expect(screen.getByTestId("time-schedule-week-body")).not.toContainElement(screen.getByText("Sun"));
-    expect(screen.getByText("Sun")).toBeInTheDocument();
-    expect(screen.getByTestId("time-schedule-week-bar-run-1")).toHaveTextContent("example_dag");
-    expect(screen.getByTestId("time-schedule-week-bar-run-1")).toHaveStyle({ height: "20px" });
-    expect(screen.getByRole("link", { name: "View Dag run run-1" })).toHaveAttribute(
-      "href",
-      "/dags/example_dag/runs/run-1",
-    );
-
-    const weekBody = screen.getByTestId("time-schedule-week-body");
-    const weekHeader = screen.getByTestId("time-schedule-week-header");
-
-    weekBody.scrollLeft = 120;
-    fireEvent.scroll(weekBody);
-    expect(weekHeader.scrollLeft).toBe(120);
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
 
+    await waitFor(() => expect(getLatestRequest().searchParams.get("time_scale")).toBe("30"));
     expect(screen.getByText("30m")).toBeInTheDocument();
   });
 
-  it("places overlapping Week runs in separate columns", async () => {
-    dagRunsResponse.current = {
-      dag_runs: [
-        {
-          dag_display_name: "example_dag",
-          dag_id: "example_dag",
-          dag_run_id: "overlap-run-1",
-          duration: 7200,
-          end_date: "2024-01-01T02:00:00Z",
-          run_after: "2024-01-01T00:00:00Z",
-          start_date: "2024-01-01T00:00:00Z",
-          state: "success",
-        },
-        {
-          dag_display_name: "another_dag",
-          dag_id: "another_dag",
-          dag_run_id: "overlap-run-2",
-          duration: 7200,
-          end_date: "2024-01-01T03:00:00Z",
-          run_after: "2024-01-01T01:00:00Z",
-          start_date: "2024-01-01T01:00:00Z",
-          state: "failed",
-        },
-      ],
-    };
+  it("keeps rendered bars visible while zoom aggregation is debounced", async () => {
     render();
+    expect(await screen.findByRole("link", { name: "View Dag run run-1" })).toBeInTheDocument();
 
-    await selectOption("time-schedule-view-mode", "Week");
-
-    expect(screen.getByTestId("time-schedule-week-bar-overlap-run-1")).toHaveStyle({
-      left: "calc(0% + 2px)",
-      width: "calc(50% - 4px)",
-    });
-    expect(screen.getByTestId("time-schedule-week-bar-overlap-run-2")).toHaveStyle({
-      left: "calc(50% + 2px)",
-      width: "calc(50% - 4px)",
-    });
-  });
-
-  it("zooms the Week time axis around the pointer position", async () => {
-    render();
-
-    await selectOption("time-schedule-view-mode", "Week");
-
-    const weekBody = screen.getByTestId("time-schedule-week-body");
-
-    Object.defineProperty(weekBody, "clientHeight", { configurable: true, value: 400 });
-    Object.defineProperty(weekBody, "scrollHeight", {
-      configurable: true,
-      get: () => (screen.queryByText("30m") ? 1920 : 960),
-    });
-    vi.spyOn(weekBody, "getBoundingClientRect").mockReturnValue({
-      bottom: 500,
-      height: 400,
-      left: 0,
-      right: 1000,
-      toJSON: () => ({}),
-      top: 100,
-      width: 1000,
-      x: 0,
-      y: 100,
-    });
-    weekBody.scrollTop = 100;
-
-    fireEvent.mouseMove(weekBody, { clientX: 500, clientY: 300 });
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
 
-    await waitFor(() => expect(screen.getByText("30m")).toBeInTheDocument());
-    expect(weekBody.scrollTop).toBe(400);
+    expect(fetchTimeSchedule).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("link", { name: "View Dag run run-1" })).toBeInTheDocument();
+
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalledTimes(2));
+  });
+
+  it("requests only the final server aggregation while zooming repeatedly", async () => {
+    render();
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalledTimes(1));
+
+    const zoomIn = screen.getByRole("button", { name: "Zoom in" });
+
+    fireEvent.click(zoomIn);
+    fireEvent.click(zoomIn);
+    fireEvent.click(zoomIn);
+
+    expect(fetchTimeSchedule).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalledTimes(2));
+    expect(getLatestRequest().searchParams.get("time_scale")).toBe("10");
+  });
+
+  it("restores bounded view settings after remounting", async () => {
+    globalThis.localStorage.setItem(TIME_SCHEDULE_VIEW_MODE_KEY, JSON.stringify("week"));
+    globalThis.localStorage.setItem(TIME_SCHEDULE_AGGREGATION_MODE_KEY, JSON.stringify("min"));
+    globalThis.localStorage.setItem(TIME_SCHEDULE_DAG_RUN_LIMIT_KEY, JSON.stringify(1000));
+    globalThis.localStorage.setItem(TIME_SCHEDULE_SCHEDULED_ONLY_KEY, JSON.stringify(false));
+
+    render();
+
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
+    const request = getLatestRequest();
+
+    expect(request.searchParams.get("view_mode")).toBe("week");
+    expect(request.searchParams.get("aggregation_mode")).toBe("min");
+    expect(request.searchParams.get("limit")).toBe("1000");
+    expect(request.searchParams.get("show_scheduled_only")).toBe("false");
+  });
+
+  it("shows a stream error without keeping the chart in its loading state", async () => {
+    fetchTimeSchedule.mockResolvedValue(new Response(null, { status: 500 }));
+
+    render();
+
+    expect(await screen.findByText("Time Schedule request failed with status 500")).toBeInTheDocument();
+    expect(screen.getByText("0 Dag runs rendered")).toBeInTheDocument();
+  });
+
+  it("does not focus the chart when opening a view control", async () => {
+    render();
+    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
+
+    const chart = screen.getByTestId("time-schedule-chart");
+    const limitSelect = within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox");
+
+    fireEvent.mouseDown(limitSelect);
+
+    expect(chart).not.toHaveFocus();
   });
 });

@@ -25,14 +25,15 @@ import { Select } from "src/components/ui/Select";
 import { TagFilter } from "src/pages/DagsList/DagsFilters/TagFilter";
 import { TimetableTypeFilter } from "src/pages/DagsList/DagsFilters/TimetableTypeFilter";
 
-import type { AggregationMode, DagRunLimit, TimeScale, ViewMode } from "./types";
+import {
+  DAG_RUN_LIMITS,
+  type AggregationMode,
+  type DagRunLimit,
+  type TimeScale,
+  type ViewMode,
+} from "./types";
 
-const DAG_RUN_LIMIT_OPTIONS: ReadonlyArray<number> = [200, 600, 1000, 2000, 5000] satisfies ReadonlyArray<
-  Exclude<DagRunLimit, "all">
->;
-
-const isDagRunLimit = (value: number): value is Exclude<DagRunLimit, "all"> =>
-  DAG_RUN_LIMIT_OPTIONS.includes(value);
+const isDagRunLimit = (value: number): value is DagRunLimit => DAG_RUN_LIMITS.includes(value as DagRunLimit);
 
 type TimeScheduleControlsProps = {
   readonly filterConfigs: Parameters<typeof FilterBar>[0]["configs"];
@@ -143,13 +144,10 @@ export const TimeScheduleViewControls = ({
 }: TimeScheduleViewControlsProps) => {
   const { t: translate } = useTranslation();
   const dagRunLimitOptions = createListCollection({
-    items: [
-      ...DAG_RUN_LIMIT_OPTIONS.map((value) => ({
-        label: translate("timeSchedule.latestDagRuns", { count: value }),
-        value: String(value),
-      })),
-      { label: translate("timeSchedule.allDagRuns"), value: "all" },
-    ],
+    items: DAG_RUN_LIMITS.map((value) => ({
+      label: translate("timeSchedule.latestDagRuns", { count: value }),
+      value: String(value),
+    })),
   });
   const viewModeOptions = createListCollection({
     items: [
@@ -196,14 +194,10 @@ export const TimeScheduleViewControls = ({
         onValueChange={({ value }) => {
           const [selectedValue] = value;
 
-          if (selectedValue === "all") {
-            onDagRunLimitChange("all");
-          } else {
-            const parsedValue = Number(selectedValue);
+          const parsedValue = Number(selectedValue);
 
-            if (isDagRunLimit(parsedValue)) {
-              onDagRunLimitChange(parsedValue);
-            }
+          if (isDagRunLimit(parsedValue)) {
+            onDagRunLimitChange(parsedValue);
           }
         }}
         size="sm"

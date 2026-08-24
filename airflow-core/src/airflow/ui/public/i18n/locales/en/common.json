@@ -425,7 +425,6 @@
     "pastWeek": "Past Week"
   },
   "timeSchedule": {
-    "allDagRuns": "All Dag runs",
     "dagRuns": "{{count}} Dag runs",
     "dagRunsRendered": "{{count}} Dag runs rendered",
     "dagRunsToDisplay": "Dag runs to display",

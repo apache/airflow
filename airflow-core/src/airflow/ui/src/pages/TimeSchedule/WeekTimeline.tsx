@@ -96,7 +96,7 @@ export const WeekTimeline = ({
         data-testid="time-schedule-week-body"
         height="calc(100% - 40px)"
         minHeight={0}
-        onMouseDown={() => chartRootRef.current?.focus()}
+        onMouseDown={() => chartRootRef.current?.focus({ preventScroll: true })}
         onMouseLeave={onMouseLeave}
         onMouseMove={onMouseMove}
         overflowX="auto"

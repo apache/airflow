@@ -11220,6 +11220,103 @@ export const $ThemeColors = {
     description: 'Color tokens for the UI theme. All fields are optional; at least one must be provided.'
 } as const;
 
+export const $TimeScheduleBatch = {
+    properties: {
+        dag_run_count: {
+            type: 'integer',
+            title: 'Dag Run Count'
+        },
+        items: {
+            items: {
+                '$ref': '#/components/schemas/TimeScheduleItem'
+            },
+            type: 'array',
+            title: 'Items'
+        }
+    },
+    type: 'object',
+    required: ['dag_run_count', 'items'],
+    title: 'TimeScheduleBatch',
+    description: 'A progressively streamed batch of Time Schedule bars.'
+} as const;
+
+export const $TimeScheduleItem = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        },
+        duration_ms: {
+            type: 'number',
+            title: 'Duration Ms'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        is_placeholder: {
+            type: 'boolean',
+            title: 'Is Placeholder'
+        },
+        is_planned: {
+            type: 'boolean',
+            title: 'Is Planned'
+        },
+        is_time_scheduled: {
+            type: 'boolean',
+            title: 'Is Time Scheduled'
+        },
+        label: {
+            type: 'string',
+            title: 'Label'
+        },
+        run_count: {
+            type: 'integer',
+            title: 'Run Count'
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagRunState'
+                },
+                {
+                    type: 'string',
+                    enum: ['placeholder', 'planned']
+                }
+            ],
+            title: 'State'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'dag_run_id', 'duration_ms', 'end_date', 'is_placeholder', 'is_planned', 'is_time_scheduled', 'label', 'run_count', 'start_date', 'state'],
+    title: 'TimeScheduleItem',
+    description: 'An aggregated bar in the Time Schedule UI.'
+} as const;
+
 export const $TokenType = {
     type: 'string',
     enum: ['api', 'cli'],

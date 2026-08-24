@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DAGRunResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 export type AggregationMode = "max" | "mean" | "min";
-export type DagRunLimit = "all" | 1000 | 200 | 2000 | 5000 | 600;
+export const DAG_RUN_LIMITS = [200, 600, 1000, 2000, 5000] as const;
+export type DagRunLimit = (typeof DAG_RUN_LIMITS)[number];
 export type RowSortMode = "dagIdAscending" | "dagIdDescending" | "startTime";
-export type TimeScale = 1 | 10 | 15 | 20 | 30 | 40 | 5 | 50 | 60;
+// eslint-disable-next-line perfectionist/sort-union-types -- Numeric options are ordered by magnitude.
+export type TimeScale = 1 | 5 | 10 | 15 | 20 | 30 | 40 | 50 | 60;
 export type ViewMode = "day" | "week";
 
 export type TimelineItem = {
@@ -59,11 +61,6 @@ export type WeekItemLayout = {
   readonly item: TimelineItem;
   readonly top: number;
 };
-
-export type ScheduledDag = Pick<
-  DAGWithLatestDagRunsResponse,
-  "dag_display_name" | "dag_id" | "next_dagrun_run_after" | "timetable_periodic" | "timetable_summary"
->;
 
 export type TimeMarker = {
   readonly label: string;

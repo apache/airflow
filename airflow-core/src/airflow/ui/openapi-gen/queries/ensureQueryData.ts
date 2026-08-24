@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TimeScheduleService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -2145,3 +2145,70 @@ export const ensureUseTeamsServiceListTeamsData = (queryClient: QueryClient, { l
   offset?: number;
   orderBy?: string[];
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseTeamsServiceListTeamsKeyFn({ limit, offset, orderBy }), queryFn: () => TeamsService.listTeams({ limit, offset, orderBy }) });
+/**
+* Get Time Schedule Stream
+* Stream server-filtered and aggregated Time Schedule data in Dag batches.
+*
+* This private UI endpoint returns newline-delimited ``TimeScheduleBatch`` JSON objects rather than raw
+* Dag run rows. Each batch contains up to 25 Dags and is emitted after its database session has closed,
+* allowing the UI to render progressively without a slow client retaining a database connection.
+*
+* Dag metadata filters and Dag run filters are applied before the bounded, newest-first Dag run selection.
+* Periodic Dags without a selected run can produce planned items from their next run time and
+* ``dagrun_timeout``. The endpoint is coupled to the Time Schedule UI and is not a stable public API.
+* @param data The data for the request.
+* @param data.aggregationMode
+* @param data.limit
+* @param data.showScheduledOnly
+* @param data.timeScale
+* @param data.timezone
+* @param data.viewMode
+* @param data.tags
+* @param data.tagsMatchMode
+* @param data.teams
+* @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+* @param data.runType
+* @param data.state
+* @param data.runAfterGte
+* @param data.runAfterGt
+* @param data.runAfterLte
+* @param data.runAfterLt
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.durationGte
+* @param data.durationGt
+* @param data.durationLte
+* @param data.durationLt
+* @param data.timetableType
+* @returns string NDJSON stream of aggregated Time Schedule batches
+* @throws ApiError
+*/
+export const ensureUseTimeScheduleServiceGetTimeScheduleStreamData = (queryClient: QueryClient, { aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }: {
+  aggregationMode?: "max" | "mean" | "min";
+  dagIdPattern?: string;
+  durationGt?: number;
+  durationGte?: number;
+  durationLt?: number;
+  durationLte?: number;
+  limit?: number;
+  runAfterGt?: string;
+  runAfterGte?: string;
+  runAfterLt?: string;
+  runAfterLte?: string;
+  runType?: string[];
+  showScheduledOnly?: boolean;
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+  state?: string[];
+  tags?: string[];
+  tagsMatchMode?: "any" | "all";
+  teams?: string[];
+  timeScale?: 1 | 5 | 10 | 15 | 20 | 30 | 40 | 50 | 60;
+  timetableType?: string[];
+  timezone?: string;
+  viewMode?: "day" | "week";
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseTimeScheduleServiceGetTimeScheduleStreamKeyFn({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }), queryFn: () => TimeScheduleService.getTimeScheduleStream({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }) });

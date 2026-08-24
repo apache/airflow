@@ -94,9 +94,6 @@ export const TimeSchedule = () => {
   const renderTimelineTooltip = (item: (typeof timelineItems)[number]) => (
     <TimelineTooltip item={item} selectedTimezone={selectedTimezone} />
   );
-  const focusChart = () => {
-    zoom.chartRootRef.current?.focus();
-  };
 
   return (
     <VStack align="stretch" gap={4}>
@@ -108,8 +105,6 @@ export const TimeSchedule = () => {
         borderRadius="md"
         borderWidth="1px"
         data-testid="time-schedule-chart"
-        onFocus={focusChart}
-        onMouseDown={focusChart}
         onMouseLeave={zoom.onChartMouseLeave}
         onMouseMove={zoom.onChartMouseMove}
         overscrollBehavior="auto"

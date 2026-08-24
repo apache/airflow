@@ -105,7 +105,7 @@ export const DayTimeline = ({
             borderBottomWidth="1px"
             data-testid="time-schedule-header-row"
             minHeight="48px"
-            onMouseDown={() => chartRootRef.current?.focus()}
+            onMouseDown={() => chartRootRef.current?.focus({ preventScroll: true })}
             onMouseLeave={onMouseLeave}
             onMouseMove={onMouseMove}
             overflowX="hidden"
@@ -183,7 +183,7 @@ export const DayTimeline = ({
           <Box
             data-testid="time-schedule-chart-body"
             minHeight={0}
-            onMouseDown={() => chartRootRef.current?.focus()}
+            onMouseDown={() => chartRootRef.current?.focus({ preventScroll: true })}
             onMouseLeave={onMouseLeave}
             onMouseMove={onMouseMove}
             overflowX="auto"
