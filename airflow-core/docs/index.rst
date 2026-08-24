@@ -61,10 +61,10 @@ Let's look at a code snippet that defines a simple Dag:
 
     # A Dag represents a workflow, a collection of tasks
     with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *"):
-        # Tasks are defined by instantiating operators
+        # Tasks can be defined by instantiating operators
         hello = BashOperator(task_id="hello", bash_command="echo hello")
 
-        # Equivalent of BashOperator using the Airflow Taskflow syntax
+        # Tasks can be also defined with decorators (Airflow Taskflow syntax)
         @task.bash
         def airflow():
             return "echo airflow"
@@ -80,7 +80,8 @@ Let's look at a code snippet that defines a simple Dag:
 Here you see:
 
 - A Dag named ``"demo"``, scheduled to run daily starting on January 1st, 2022. A Dag is how Airflow represents a workflow.
-- Two tasks: One using a ``BashOperator`` to run a shell script, and another using the ``@task`` decorator to define a Python function.
+- Two Bash tasks: to run a shell script, one using a ``BashOperator`` and another using the ``@task.bash`` decorator.
+- One Python task: to run a Python function using the ``@task`` decorator.
 - The ``>>`` operator defines a dependency between the two tasks and controls execution order.
 
 Airflow parses the script, schedules the tasks, and executes them in the defined order. The status of the ``"demo"`` Dag
