@@ -19,9 +19,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import Field, computed_field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.dags import create_file_token
 
 
 class ImportErrorResponse(BaseModel):
@@ -32,6 +33,15 @@ class ImportErrorResponse(BaseModel):
     filename: str
     bundle_name: str | None
     stacktrace: str = Field(alias="stack_trace")
+
+    @computed_field
+    @property
+    def file_token(self) -> str:
+        """Return file token for reparsing the failed Dag file."""
+        return create_file_token(
+            bundle_name=self.bundle_name,
+            relative_fileloc=self.filename,
+        )
 
 
 class ImportErrorCollectionResponse(BaseModel):

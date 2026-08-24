@@ -74,7 +74,9 @@ from airflow.models.asset import AssetEvent
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
+from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
@@ -207,7 +209,13 @@ def requires_access_dag_from_file_token(
     """
     Authorize the caller against the DAGs referenced by a signed ``file_token``.
 
-    For ``file_token`` based endpoints (such as ``reparse``), the token is resolved to its referenced file, and authorization is performed against exactly the DAGs defined in that file, never against a request parameter.
+    For ``file_token`` based endpoints (such as ``reparse``), the token is
+    resolved to its referenced file, and authorization is performed against
+    exactly the DAGs defined in that file, never against a request parameter.
+
+    If the file has an import error but no registered Dag yet, authorization
+    falls back to the ``IMPORT_ERRORS_ALL`` view scoped to the file's bundle
+    team.
     """
 
     def inner(
@@ -221,27 +229,68 @@ def requires_access_dag_from_file_token(
         except BadSignature:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
 
+        bundle_name = payload["bundle_name"]
+        relative_fileloc = payload["relative_fileloc"]
+
         dag_ids = list(
             session.scalars(
                 select(DagModel.dag_id).where(
-                    DagModel.bundle_name == payload["bundle_name"],
-                    DagModel.relative_fileloc == payload["relative_fileloc"],
+                    DagModel.bundle_name == bundle_name,
+                    DagModel.relative_fileloc == relative_fileloc,
                 )
             )
         )
-        if not dag_ids:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
 
-        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
-        requests: list[IsAuthorizedDagRequest] = [
-            {"method": method, "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id))}
-            for dag_id in dag_ids
-        ]
-        _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(requests, user=user),
+        if not dag_ids:
+            import_error_exists = session.scalar(
+                select(ParseImportError.id).where(
+                    ParseImportError.bundle_name == bundle_name,
+                    ParseImportError.filename == relative_fileloc,
+                )
+            )
+
+            if import_error_exists is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+            team_name = (
+                DagBundleModel.get_team_name(bundle_name, session=session)
+                if bundle_name
+                else None
+            )
+
+            _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().authorize_view(
+                    access_view=AccessView.IMPORT_ERRORS_ALL,
+                    user=user,
+                    team_name=team_name,
+                ),
+            )
+            return
+
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(
+            dag_ids,
+            session=session,
         )
 
-    return inner
+        requests: list[IsAuthorizedDagRequest] = [
+            {
+                "method": method,
+                "details": DagDetails(
+                    id=dag_id,
+                    team_name=dag_id_to_team.get(dag_id),
+                ),
+            }
+            for dag_id in dag_ids
+        ]
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests,
+                user=user,
+            ),
+        )
+
+        return inner
 
 
 class PermittedDagFilter(OrmClause[set[str]]):
