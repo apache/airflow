@@ -316,18 +316,15 @@ class GitDagBundle(BaseDagBundle):
             raise
 
     def _sync_bare_repo_remote_url(self) -> None:
-        """
-        Re-point the bare repo's origin at the current repo url.
-
-        Bundles cloned before credentials moved to GIT_ASKPASS embedded ``user:token`` in the
-        remote url, so the token sits in cleartext in ``<bundle>/bare/config``, readable by any
-        Dag author on the Dag processor. Rewriting origin is what removes it from those bundles.
-        """
+        """Re-point the bare repo's origin at the current repo url."""
         try:
             origin = self.bare_repo.remotes.origin
         except AttributeError:
             return
         repo_url = str(self.repo_url)
+        # Bundles cloned before credentials moved to GIT_ASKPASS embedded ``user:token`` here, so
+        # the token sits in cleartext in ``<bundle>/bare/config`` where any Dag author on the Dag
+        # processor can read it. Rewriting origin is what removes it from those bundles.
         if origin.url != repo_url:
             self._log.info("Updating bare repository remote url", bare_repo_path=self.bare_repo_path)
             origin.set_url(repo_url)
