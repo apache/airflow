@@ -37,6 +37,7 @@ from collections.abc import Callable
 from functools import partial
 
 import pytest
+from alembic import command
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from alembic.script import ScriptDirectory
@@ -74,6 +75,24 @@ pytestmark = pytest.mark.db_test
 def test_get_asset_name_collation():
     with conf_vars({("database", "sql_engine_collation_for_asset_names"): "latin1_bin"}):
         assert get_asset_name_collation() == "latin1_bin"
+
+
+def test_asset_name_collation_in_mysql_offline_migrations(capsys):
+    with conf_vars(
+        {
+            ("database", "sql_alchemy_conn"): "mysql+pymysql://root@localhost/airflow",
+            ("database", "sql_engine_collation_for_asset_names"): "latin1_bin",
+        }
+    ):
+        command.upgrade(
+            _get_alembic_config(),
+            f"base:{_REVISION_HEADS_MAP['3.4.0']}",
+            sql=True,
+        )
+
+    emitted_sql = capsys.readouterr().out
+    assert emitted_sql.count("latin1_bin") == 15
+    assert "latin1_general_cs" not in emitted_sql
 
 
 # Stairway starts from the 3.0.0 head revision.  Starting here (rather than
