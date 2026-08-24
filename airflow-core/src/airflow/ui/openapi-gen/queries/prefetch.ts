@@ -786,17 +786,20 @@ export const prefetchUseDagServiceGetDagRunStateCountsUi = (queryClient: QueryCl
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) });
 /**
 * Get Latest Run Task Instance State Counts
-* Return task-instance state counts for each Dag's latest run, for the Dag list page.
+* Return task-instance state counts for the given Dag runs, for the Dag list page.
 *
-* Dags without any run are omitted from the response.
+* The Dag list response already carries the latest run of each Dag, so the caller passes
+* those run ids straight in. Deriving the latest run again here would mean an
+* ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+* badly once a Dag has many runs. Runs the caller may not read are dropped.
 * @param data The data for the request.
-* @param data.dagIds
+* @param data.dagRunIds
 * @returns DAGsLatestRunTaskInstanceStateCountsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetLatestRunTaskInstanceStateCountsUi = (queryClient: QueryClient, { dagIds }: {
-  dagIds: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetLatestRunTaskInstanceStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getLatestRunTaskInstanceStateCountsUi({ dagIds }) });
+export const prefetchUseDagServiceGetLatestRunTaskInstanceStateCountsUi = (queryClient: QueryClient, { dagRunIds }: {
+  dagRunIds: number[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetLatestRunTaskInstanceStateCountsUiKeyFn({ dagRunIds }), queryFn: () => DagService.getLatestRunTaskInstanceStateCountsUi({ dagRunIds }) });
 /**
 * Get Event Log
 * @param data The data for the request.

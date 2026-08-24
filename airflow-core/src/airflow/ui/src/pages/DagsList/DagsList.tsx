@@ -371,7 +371,6 @@ export const DagsList = () => {
   };
 
   const { data: taskStateCountsData, isLoading: taskStateCountsLoading } = useLatestRunTaskStateCounts({
-    dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
     dags: data?.dags,
   });
   const taskStateContext: LatestRunTaskStateCountsContext = {

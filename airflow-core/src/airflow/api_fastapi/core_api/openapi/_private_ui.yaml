@@ -885,26 +885,34 @@ paths:
       tags:
       - DAG
       summary: Get Latest Run Task Instance State Counts
-      description: 'Return task-instance state counts for each Dag''s latest run,
-        for the Dag list page.
+      description: 'Return task-instance state counts for the given Dag runs, for
+        the Dag list page.
 
 
-        Dags without any run are omitted from the response.'
+        The Dag list response already carries the latest run of each Dag, so the caller
+        passes
+
+        those run ids straight in. Deriving the latest run again here would mean an
+
+        ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index
+        and degrades
+
+        badly once a Dag has many runs. Runs the caller may not read are dropped.'
       operationId: get_latest_run_task_instance_state_counts_ui
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: dag_ids
+      - name: dag_run_ids
         in: query
         required: true
         schema:
           type: array
           items:
-            type: string
+            type: integer
           minItems: 1
           maxItems: 100
-          title: Dag Ids
+          title: Dag Run Ids
       responses:
         '200':
           description: Successful Response

@@ -3654,7 +3654,7 @@ export type GetDagRunStateCountsUiData = {
 export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
 
 export type GetLatestRunTaskInstanceStateCountsUiData = {
-    dagIds: Array<(string)>;
+    dagRunIds: Array<(number)>;
 };
 
 export type GetLatestRunTaskInstanceStateCountsUiResponse = DAGsLatestRunTaskInstanceStateCountsCollectionResponse;
