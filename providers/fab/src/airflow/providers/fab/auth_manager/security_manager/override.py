@@ -25,10 +25,12 @@ import itertools
 import json
 import logging
 import re
+import urllib.parse
 import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
+import requests
 from flask import current_app, flash, g, has_app_context, has_request_context, session
 from flask_appbuilder import Model, const
 from flask_appbuilder.const import (
@@ -70,7 +72,6 @@ from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.auth_manager.models import (
     Action,
@@ -160,6 +161,10 @@ MAX_NUM_DATABASE_USER_SESSIONS = 50000
 
 class FabException(Exception):
     """Custom exception for FAB security manager."""
+
+
+class AzureTenantResolutionError(FabException):
+    """Raised when an Azure AD tenant identifier cannot be resolved to a canonical GUID."""
 
 
 class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
@@ -384,6 +389,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # done in super, but we need it before we can call super.
         self.appbuilder = appbuilder
 
+        self._azure_tenant_guid_cache: dict[str, str] = {}
         self._init_config()
         self._init_auth()
         self._init_data_model()
@@ -402,8 +408,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         self.create_jwt_manager()
 
     def _get_authentik_jwks(self, jwks_url) -> dict:
-        import requests
-
         resp = requests.get(jwks_url, timeout=30)
         if resp.status_code == 200:
             return resp.json()
@@ -2423,48 +2427,131 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             session.sid = str(uuid.uuid4())  # type: ignore
 
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
-        import requests
-
         return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
-    def _get_azure_tenant_id(self) -> str | None:
+    def _get_azure_tenant_identifier(self) -> str | None:
         """
-        Resolve the Azure AD tenant the deployment is configured against.
+        Extract the configured Azure AD tenant identifier.
 
         Prefers an explicit ``tenant_id`` in ``client_kwargs``; otherwise derives it from
-        the tenant segment of the configured Azure endpoints, which is where the documented
-        configuration puts it (``https://login.microsoftonline.com/<tenant-id>/...``).
+        the tenant path segment of configured Azure HTTPS endpoints on ``login.microsoftonline.com``.
 
-        Returns ``None`` when the configuration is tenant-agnostic (the ``common`` or
-        ``organizations`` endpoints), because there is then no single issuer to pin to.
+        Returns ``None`` when an explicit ``tenant_id`` is tenant-agnostic or when no
+        tenant-specific identifier can be derived from the configured endpoints. Tenant-agnostic
+        authorities (``common``, ``organizations``, ``consumers``) are skipped while searching.
         """
         azure = self.oauth_remotes["azure"]
+        tenant_agnostic_authorities = ("common", "organizations", "consumers")
 
         tenant_id = azure.client_kwargs.get("tenant_id")
-        if tenant_id:
-            return tenant_id
+        if tenant_id and isinstance(tenant_id, str) and tenant_id.strip():
+            tenant_identifier = tenant_id.strip()
+        else:
+            tenant_identifier = None
+            for url in (
+                getattr(azure, "api_base_url", None),
+                getattr(azure, "access_token_url", None),
+                getattr(azure, "authorize_url", None),
+            ):
+                if not isinstance(url, str):
+                    continue
+                parsed = urllib.parse.urlsplit(url)
+                if parsed.scheme.lower() != "https":
+                    continue
+                if (parsed.hostname or "").lower() != "login.microsoftonline.com":
+                    continue
+                path_parts = [segment for segment in parsed.path.split("/") if segment]
+                if path_parts:
+                    tenant_candidate = path_parts[0]
+                    if tenant_candidate.lower() in tenant_agnostic_authorities:
+                        continue
+                    tenant_identifier = tenant_candidate
+                    break
 
-        for url in (
-            getattr(azure, "api_base_url", None),
-            getattr(azure, "access_token_url", None),
-            getattr(azure, "authorize_url", None),
-        ):
-            if not isinstance(url, str):
-                continue
-            match = re.search(r"login\.microsoftonline\.com/([^/]+)/", url)
-            if match and match.group(1) not in ("common", "organizations", "consumers"):
-                return match.group(1)
+        if not tenant_identifier or tenant_identifier.lower() in tenant_agnostic_authorities:
+            return None
+        return tenant_identifier
 
-        return None
+    def _resolve_azure_tenant_guid(self, tenant_identifier: str) -> str:
+        """
+        Resolve an Azure tenant identifier (GUID or domain) to a canonical tenant GUID.
+
+        If the identifier is a valid UUID, it is normalized to lowercase hyphenated format
+        without calling any network endpoint. If the identifier is a domain, its OpenID
+        discovery metadata is queried from login.microsoftonline.com to extract the canonical
+        tenant GUID from the issuer claim. Successful resolutions are cached.
+        """
+        try:
+            return str(uuid.UUID(tenant_identifier))
+        except (ValueError, AttributeError):
+            pass
+
+        if tenant_identifier in self._azure_tenant_guid_cache:
+            return self._azure_tenant_guid_cache[tenant_identifier]
+
+        encoded_tenant = urllib.parse.quote(tenant_identifier, safe="")
+        discovery_url = (
+            f"https://login.microsoftonline.com/{encoded_tenant}/v2.0/.well-known/openid-configuration"
+        )
+        try:
+            resp = requests.get(discovery_url, timeout=5, allow_redirects=False)
+        except requests.exceptions.RequestException as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}' via OpenID discovery."
+            ) from ex
+
+        if resp.status_code != 200:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"OpenID discovery endpoint returned HTTP {resp.status_code}."
+            )
+
+        try:
+            data = resp.json()
+        except ValueError as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}' via OpenID discovery."
+            ) from ex
+
+        if not isinstance(data, dict):
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                "OpenID discovery response is not a JSON object."
+            )
+
+        issuer = data.get("issuer")
+        if not isinstance(issuer, str):
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                "OpenID discovery response missing 'issuer' claim."
+            )
+
+        match = re.fullmatch(r"https://login\.microsoftonline\.com/([^/]+)/v2\.0", issuer, re.IGNORECASE)
+        if not match:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"OpenID discovery returned unexpected issuer '{issuer}'."
+            )
+
+        try:
+            canonical_guid = str(uuid.UUID(match.group(1)))
+        except (ValueError, AttributeError) as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"issuer '{issuer}' does not contain a valid tenant GUID."
+            ) from ex
+
+        self._azure_tenant_guid_cache[tenant_identifier] = canonical_guid
+        return canonical_guid
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
-            tenant_id = self._get_azure_tenant_id()
-            if not tenant_id:
-                raise AirflowConfigException(
+            tenant_identifier = self._get_azure_tenant_identifier()
+            if not tenant_identifier:
+                raise AzureTenantResolutionError(
                     "Azure AD tenant could not be determined from the OAuth configuration. "
                     "The Microsoft key set used to verify id_token signatures serves keys for "
                     "every tenant, so without a tenant the issuer of the token cannot be "
@@ -2473,6 +2560,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     "in the azure provider's client_kwargs."
                 )
 
+            tenant_guid = self._resolve_azure_tenant_guid(tenant_identifier)
+
             claims_options = {
                 # The token must have been issued by the configured tenant. Both the v1.0 and
                 # v2.0 issuer forms are accepted because either may be returned depending on
@@ -2480,8 +2569,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "iss": {
                     "essential": True,
                     "values": [
-                        f"https://login.microsoftonline.com/{tenant_id}/v2.0",
-                        f"https://sts.windows.net/{tenant_id}/",
+                        f"https://login.microsoftonline.com/{tenant_guid}/v2.0",
+                        f"https://sts.windows.net/{tenant_guid}/",
                     ],
                 },
                 # The token must have been minted for this application.

@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import Mock, call
 
 import pytest
+import requests
+from authlib.jose import JsonWebKey, jwt as authlib_jwt
+from authlib.jose.errors import InvalidClaimError
 from flask_appbuilder import const
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -33,16 +37,45 @@ from airflow.providers.fab.auth_manager.models import (
     User,
 )
 from airflow.providers.fab.auth_manager.security_manager.override import (
+    AzureTenantResolutionError,
     FabAirflowSecurityManagerOverride,
     FabException,
 )
+
+TENANT_GUID = "72f988bf-86f1-41af-91ab-2d7cd011db47"
+OTHER_GUID = "00000000-0000-0000-0000-000000000000"
+CLIENT_ID = "app-xyz"
+
+
+def _create_azure_jwt(
+    key,
+    iss=f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0",
+    aud=CLIENT_ID,
+    tid=TENANT_GUID,
+    oid="user-oid",
+    kid="test-kid",
+) -> str:
+    token = authlib_jwt.encode(
+        {"alg": "RS256", "kid": kid},
+        {"iss": iss, "aud": aud, "tid": tid, "oid": oid},
+        key,
+    )
+    return token.decode("utf-8") if isinstance(token, bytes) else token
+
+
+def _create_mock_response(*, status_code=200, json_data=None, json_side_effect=None) -> Mock:
+    response = Mock(spec=requests.Response)
+    response.status_code = status_code
+    response.json.return_value = json_data
+    response.json.side_effect = json_side_effect
+    return response
 
 
 class EmptySecurityManager(FabAirflowSecurityManagerOverride):
     # noinspection PyMissingConstructor
     # super() not called on purpose to avoid the whole chain of init calls
     def __init__(self):
-        pass
+        self._azure_tenant_guid_cache = {}
 
 
 class TestFabAirflowSecurityManagerOverride:
@@ -479,14 +512,18 @@ class TestFabAirflowSecurityManagerOverride:
         # A resolvable tenant is required before the key set is fetched, so the mock
         # carries the tenant-specific endpoint the documented configuration uses.
         sm.oauth_remotes = {
-            "azure": Mock(
+            "azure": SimpleNamespace(
                 client_kwargs={},
-                api_base_url="https://login.microsoftonline.com/tenant-abc/oauth2/v2.0/",
+                client_id="app-xyz",
+                api_base_url=f"https://login.microsoftonline.com/{TENANT_GUID}/oauth2/v2.0/",
             )
         }
 
         with mock.patch.object(
-            EmptySecurityManager, "_get_microsoft_jwks", side_effect=RuntimeError("verify-branch-reached")
+            EmptySecurityManager,
+            "_get_microsoft_jwks",
+            autospec=True,
+            side_effect=RuntimeError("verify-branch-reached"),
         ) as mock_jwks:
             with pytest.raises(RuntimeError, match="verify-branch-reached"):
                 sm._decode_and_validate_azure_jwt("header.payload.signature")
@@ -534,64 +571,440 @@ class TestFabAirflowSecurityManagerOverride:
                 "tenant-from-token-url",
                 id="from-access-token-url",
             ),
+            pytest.param(
+                {
+                    "client_kwargs": {},
+                    "api_base_url": "https://login.microsoftonline.com/common/oauth2/v2.0/",
+                    "access_token_url": "https://login.microsoftonline.com/tenant-from-token-url/oauth2/v2.0/token",
+                },
+                "tenant-from-token-url",
+                id="skips-tenant-agnostic-endpoint",
+            ),
+            pytest.param(
+                {
+                    "client_kwargs": {},
+                    "api_base_url": None,
+                    "access_token_url": None,
+                    "authorize_url": "https://login.microsoftonline.com/tenant-from-auth-url/oauth2/v2.0/authorize",
+                },
+                "tenant-from-auth-url",
+                id="from-authorize-url",
+            ),
         ],
     )
-    def test_get_azure_tenant_id_resolves_configured_tenant(self, remote_kwargs, expected):
-        """The tenant is taken from client_kwargs when set, otherwise from the configured endpoints."""
+    def test_get_azure_tenant_identifier_resolves_configured_tenant(self, remote_kwargs, expected):
+        """The tenant identifier is taken from client_kwargs when set, otherwise from configured endpoints."""
         sm = EmptySecurityManager()
-        sm.oauth_remotes = {"azure": Mock(**remote_kwargs)}
+        sm.oauth_remotes = {"azure": SimpleNamespace(**remote_kwargs)}
 
-        assert sm._get_azure_tenant_id() == expected
+        assert sm._get_azure_tenant_identifier() == expected
 
-    @pytest.mark.parametrize("multi_tenant_segment", ["common", "organizations", "consumers"])
-    def test_get_azure_tenant_id_returns_none_for_tenant_agnostic_endpoints(self, multi_tenant_segment):
-        """The shared endpoints identify no single tenant, so no issuer can be pinned."""
+    @pytest.mark.parametrize(
+        "multi_tenant_segment",
+        [
+            pytest.param("common", id="common"),
+            pytest.param("organizations", id="organizations"),
+            pytest.param("consumers", id="consumers"),
+            pytest.param("CONSUMERS", id="case-insensitive"),
+        ],
+    )
+    @pytest.mark.parametrize("configuration_source", ["client-kwargs", "endpoint"])
+    def test_get_azure_tenant_identifier_returns_none_for_tenant_agnostic_authorities(
+        self, multi_tenant_segment, configuration_source
+    ):
+        """Shared authorities identify no deployment-specific tenant, so no issuer can be pinned."""
         sm = EmptySecurityManager()
+        client_kwargs = {"tenant_id": multi_tenant_segment} if configuration_source == "client-kwargs" else {}
+        api_base_url = (
+            None
+            if configuration_source == "client-kwargs"
+            else f"https://login.microsoftonline.com/{multi_tenant_segment}/oauth2/v2.0/"
+        )
         sm.oauth_remotes = {
-            "azure": Mock(
-                client_kwargs={},
-                api_base_url=f"https://login.microsoftonline.com/{multi_tenant_segment}/oauth2/v2.0/",
+            "azure": SimpleNamespace(
+                client_kwargs=client_kwargs,
+                api_base_url=api_base_url,
                 access_token_url=None,
                 authorize_url=None,
             )
         }
 
-        assert sm._get_azure_tenant_id() is None
+        assert sm._get_azure_tenant_identifier() is None
 
-    def test_decode_and_validate_azure_jwt_requires_a_resolvable_tenant(self):
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            pytest.param(
+                "https://LOGIN.MICROSOFTONLINE.COM/tenant-uppercase-host/oauth2/v2.0/",
+                "tenant-uppercase-host",
+                id="case-insensitive-hostname",
+            ),
+            pytest.param(
+                "http://login.microsoftonline.com/tenant-http/oauth2/v2.0/",
+                None,
+                id="reject-non-https",
+            ),
+            pytest.param(
+                "https://evil.com/login.microsoftonline.com/tenant-abc",
+                None,
+                id="reject-microsoft-in-path",
+            ),
+            pytest.param(
+                "https://login.microsoftonline.com@evil.com/tenant-abc",
+                None,
+                id="reject-microsoft-in-userinfo",
+            ),
+            pytest.param(
+                "https://other.microsoftonline.com/tenant-abc",
+                None,
+                id="reject-wrong-subdomain",
+            ),
+            pytest.param(
+                "https://login.microsoftonline.com/",
+                None,
+                id="reject-empty-path",
+            ),
+        ],
+    )
+    def test_get_azure_tenant_identifier_endpoint_validation(self, url, expected):
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs={},
+                api_base_url=url,
+                access_token_url=None,
+                authorize_url=None,
+            )
+        }
+        assert sm._get_azure_tenant_identifier() == expected
+
+    @pytest.mark.parametrize(
+        "remote_kwargs",
+        [
+            pytest.param(
+                {
+                    "client_kwargs": {},
+                    "api_base_url": "https://login.microsoftonline.com/common/oauth2/v2.0/",
+                    "access_token_url": None,
+                    "authorize_url": None,
+                },
+                id="common-endpoint",
+            ),
+            pytest.param({"client_kwargs": {"tenant_id": "common"}}, id="common-client-kwargs"),
+            pytest.param({"client_kwargs": {"tenant_id": "organizations"}}, id="organizations-client-kwargs"),
+            pytest.param({"client_kwargs": {"tenant_id": "consumers"}}, id="consumers-client-kwargs"),
+        ],
+    )
+    def test_decode_and_validate_azure_jwt_requires_a_resolvable_tenant(self, remote_kwargs):
         """Without a tenant there is no issuer to check, so the token is not accepted."""
-        from airflow.exceptions import AirflowConfigException
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {"azure": SimpleNamespace(**remote_kwargs)}
+
+        with mock.patch("requests.get", autospec=True) as mock_requests_get:
+            with pytest.raises(AzureTenantResolutionError, match="tenant could not be determined"):
+                sm._decode_and_validate_azure_jwt("header.payload.signature")
+
+        mock_requests_get.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "configured_tenant",
+        [
+            pytest.param(TENANT_GUID, id="lowercase-guid"),
+            pytest.param(TENANT_GUID.upper(), id="uppercase-guid"),
+        ],
+    )
+    def test_decode_and_validate_azure_jwt_guid_does_not_call_metadata(self, configured_tenant):
+        """GUID tenant identifiers (lowercase and uppercase) canonicalize without metadata HTTP calls."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_azure_jwt(key=key)
 
         sm = EmptySecurityManager()
         sm.oauth_remotes = {
-            "azure": Mock(
-                client_kwargs={},
-                api_base_url="https://login.microsoftonline.com/common/oauth2/v2.0/",
+            "azure": SimpleNamespace(
+                client_kwargs={"tenant_id": configured_tenant},
+                client_id=CLIENT_ID,
+            )
+        }
+
+        with (
+            mock.patch.object(
+                EmptySecurityManager,
+                "_get_microsoft_jwks",
+                autospec=True,
+                return_value={"keys": [public_key]},
+            ),
+            mock.patch("requests.get", autospec=True) as mock_requests_get,
+        ):
+            claims = sm._decode_and_validate_azure_jwt(id_token)
+
+        mock_requests_get.assert_not_called()
+        assert claims["iss"] == f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"
+        assert claims["aud"] == CLIENT_ID
+
+    @pytest.mark.parametrize(
+        "domain",
+        [
+            pytest.param("microsoft.onmicrosoft.com", id="onmicrosoft-domain"),
+            pytest.param("custom.company.org", id="custom-domain"),
+        ],
+    )
+    @pytest.mark.parametrize("configuration_source", ["client-kwargs", "endpoint"])
+    def test_decode_and_validate_azure_jwt_domain_resolves_via_metadata(self, domain, configuration_source):
+        """Domain tenant identifiers resolve canonical GUID via OIDC metadata and validate token."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_azure_jwt(key=key)
+
+        sm = EmptySecurityManager()
+        client_kwargs = {"tenant_id": domain} if configuration_source == "client-kwargs" else {}
+        api_base_url = (
+            None
+            if configuration_source == "client-kwargs"
+            else f"https://login.microsoftonline.com/{domain}/oauth2/v2.0/"
+        )
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs=client_kwargs,
+                client_id=CLIENT_ID,
+                api_base_url=api_base_url,
                 access_token_url=None,
                 authorize_url=None,
             )
         }
 
-        with pytest.raises(AirflowConfigException, match="tenant could not be determined"):
-            sm._decode_and_validate_azure_jwt("header.payload.signature")
+        mock_resp = _create_mock_response(
+            json_data={"issuer": f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"}
+        )
 
-    def test_decode_and_validate_azure_jwt_pins_issuer_and_audience(self):
-        """The decode call constrains both the issuer and the audience of the token."""
+        with (
+            mock.patch.object(
+                EmptySecurityManager,
+                "_get_microsoft_jwks",
+                autospec=True,
+                return_value={"keys": [public_key]},
+            ),
+            mock.patch("requests.get", autospec=True, return_value=mock_resp) as mock_requests_get,
+        ):
+            claims = sm._decode_and_validate_azure_jwt(id_token)
+
+        mock_requests_get.assert_called_once_with(
+            f"https://login.microsoftonline.com/{domain}/v2.0/.well-known/openid-configuration",
+            timeout=5,
+            allow_redirects=False,
+        )
+        assert claims["iss"] == f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"
+
+    def test_decode_and_validate_azure_jwt_v1_issuer_supported_with_domain(self):
+        """v1 STS issuer is accepted when domain is configured and resolves to canonical GUID."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_azure_jwt(key=key, iss=f"https://sts.windows.net/{TENANT_GUID}/")
+
         sm = EmptySecurityManager()
-        sm.oauth_remotes = {"azure": Mock(client_kwargs={"tenant_id": "tenant-abc"}, client_id="app-xyz")}
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs={"tenant_id": "microsoft.onmicrosoft.com"},
+                client_id=CLIENT_ID,
+            )
+        }
 
-        with mock.patch.object(EmptySecurityManager, "_get_microsoft_jwks", return_value={"keys": []}):
-            with mock.patch("authlib.jose.JsonWebKey.import_key_set"):
-                with mock.patch("authlib.jose.jwt.decode") as mock_decode:
-                    sm._decode_and_validate_azure_jwt("header.payload.signature")
+        mock_resp = _create_mock_response(
+            json_data={"issuer": f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"}
+        )
 
-        claims_options = mock_decode.call_args.kwargs["claims_options"]
-        assert claims_options["aud"] == {"essential": True, "value": "app-xyz"}
-        assert claims_options["iss"]["essential"] is True
-        assert claims_options["iss"]["values"] == [
-            "https://login.microsoftonline.com/tenant-abc/v2.0",
-            "https://sts.windows.net/tenant-abc/",
-        ]
+        with (
+            mock.patch.object(
+                EmptySecurityManager,
+                "_get_microsoft_jwks",
+                autospec=True,
+                return_value={"keys": [public_key]},
+            ),
+            mock.patch("requests.get", autospec=True, return_value=mock_resp),
+        ):
+            claims = sm._decode_and_validate_azure_jwt(id_token)
+
+        assert claims["iss"] == f"https://sts.windows.net/{TENANT_GUID}/"
+
+    def test_decode_and_validate_azure_jwt_rejects_issuer_mismatch(self):
+        """Tokens issued for a different tenant are rejected with InvalidClaimError."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_azure_jwt(key=key, iss=f"https://login.microsoftonline.com/{OTHER_GUID}/v2.0")
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs={"tenant_id": "microsoft.onmicrosoft.com"},
+                client_id=CLIENT_ID,
+            )
+        }
+
+        mock_resp = _create_mock_response(
+            json_data={"issuer": f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"}
+        )
+
+        with (
+            mock.patch.object(
+                EmptySecurityManager,
+                "_get_microsoft_jwks",
+                autospec=True,
+                return_value={"keys": [public_key]},
+            ),
+            mock.patch("requests.get", autospec=True, return_value=mock_resp),
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'iss'"):
+                sm._decode_and_validate_azure_jwt(id_token)
+
+    def test_decode_and_validate_azure_jwt_rejects_audience_mismatch(self):
+        """Tokens minted for another client/application are rejected."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_azure_jwt(key=key, aud="wrong-audience")
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs={"tenant_id": TENANT_GUID},
+                client_id=CLIENT_ID,
+            )
+        }
+
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_microsoft_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'aud'"):
+                sm._decode_and_validate_azure_jwt(id_token)
+
+    @pytest.mark.parametrize(
+        ("response_kwargs", "request_side_effect", "error_match"),
+        [
+            pytest.param({"status_code": 404}, None, "HTTP 404", id="http-404"),
+            pytest.param({"status_code": 500}, None, "HTTP 500", id="http-500"),
+            pytest.param({"status_code": 302}, None, "HTTP 302", id="http-302-redirect"),
+            pytest.param(
+                {},
+                requests.exceptions.Timeout("network timeout"),
+                "via OpenID discovery",
+                id="network-timeout",
+            ),
+            pytest.param(
+                {"json_side_effect": ValueError("bad json")},
+                None,
+                "via OpenID discovery",
+                id="malformed-json",
+            ),
+            pytest.param(
+                {"json_data": ["not", "dict"]},
+                None,
+                "not a JSON object",
+                id="json-not-dict",
+            ),
+            pytest.param({"json_data": {}}, None, "missing 'issuer'", id="missing-issuer"),
+            pytest.param(
+                {
+                    "json_data": {"issuer": f"http://login.microsoftonline.com/{TENANT_GUID}/v2.0"},
+                },
+                None,
+                "unexpected issuer",
+                id="non-https-issuer",
+            ),
+            pytest.param(
+                {
+                    "json_data": {"issuer": f"https://evil.com/{TENANT_GUID}/v2.0"},
+                },
+                None,
+                "unexpected issuer",
+                id="wrong-issuer-host",
+            ),
+            pytest.param(
+                {
+                    "json_data": {"issuer": "https://login.microsoftonline.com/not-a-uuid/v2.0"},
+                },
+                None,
+                "does not contain a valid tenant GUID",
+                id="non-uuid-issuer",
+            ),
+            pytest.param(
+                {
+                    "json_data": {"issuer": f"https://login.microsoftonline.com/{TENANT_GUID}/v3.0"},
+                },
+                None,
+                "unexpected issuer",
+                id="wrong-issuer-path",
+            ),
+        ],
+    )
+    def test_resolve_azure_tenant_guid_metadata_failures(
+        self, response_kwargs, request_side_effect, error_match
+    ):
+        """All metadata discovery failures fail closed with AzureTenantResolutionError."""
+        sm = EmptySecurityManager()
+
+        if request_side_effect:
+            mock_get = mock.patch("requests.get", autospec=True, side_effect=request_side_effect)
+        else:
+            mock_resp = _create_mock_response(**response_kwargs)
+            mock_get = mock.patch("requests.get", autospec=True, return_value=mock_resp)
+
+        with mock_get:
+            with pytest.raises(AzureTenantResolutionError, match=error_match):
+                sm._resolve_azure_tenant_guid("contoso.onmicrosoft.com")
+
+    def test_resolve_azure_tenant_guid_encodes_identifier_as_one_path_segment(self):
+        sm = EmptySecurityManager()
+        mock_resp = _create_mock_response(
+            json_data={"issuer": f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"}
+        )
+
+        with mock.patch("requests.get", autospec=True, return_value=mock_resp) as mock_requests_get:
+            result = sm._resolve_azure_tenant_guid("tenant/name?query#fragment")
+
+        assert result == TENANT_GUID
+        mock_requests_get.assert_called_once_with(
+            "https://login.microsoftonline.com/tenant%2Fname%3Fquery%23fragment/"
+            "v2.0/.well-known/openid-configuration",
+            timeout=5,
+            allow_redirects=False,
+        )
+
+    def test_resolve_azure_tenant_guid_caches_successful_result(self):
+        """Successful domain resolution is cached and does not make repeated HTTP requests."""
+        sm = EmptySecurityManager()
+        mock_resp = _create_mock_response(
+            json_data={"issuer": f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"}
+        )
+
+        with mock.patch("requests.get", autospec=True, return_value=mock_resp) as mock_requests_get:
+            res1 = sm._resolve_azure_tenant_guid("contoso.onmicrosoft.com")
+            res2 = sm._resolve_azure_tenant_guid("contoso.onmicrosoft.com")
+
+        assert res1 == TENANT_GUID
+        assert res2 == TENANT_GUID
+        mock_requests_get.assert_called_once()
+
+    def test_resolve_azure_tenant_guid_does_not_cache_transient_failures(self):
+        """Transient discovery failures are not cached; subsequent calls retry HTTP request."""
+        sm = EmptySecurityManager()
+        mock_resp_success = _create_mock_response(
+            json_data={"issuer": f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0"}
+        )
+
+        with mock.patch(
+            "requests.get",
+            autospec=True,
+            side_effect=[requests.exceptions.Timeout("temporary connection failure"), mock_resp_success],
+        ) as mock_requests_get:
+            with pytest.raises(AzureTenantResolutionError, match="via OpenID discovery"):
+                sm._resolve_azure_tenant_guid("contoso.onmicrosoft.com")
+
+            res = sm._resolve_azure_tenant_guid("contoso.onmicrosoft.com")
+
+        assert res == TENANT_GUID
+        assert mock_requests_get.call_count == 2
 
 
 def test_ldap_search_escapes_username_and_validates_filter():
