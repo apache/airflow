@@ -20,8 +20,13 @@ import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.common.compat.sdk import BaseSensorOperator, conf
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+    validate_execute_complete_event,
+)
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
 
@@ -114,15 +119,16 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> int:
         """
         Execute when the trigger fires - returns immediately.
 
         This relies on trigger to throw an exception, otherwise it assumes
         execution was successful.
         """
-        if event["status"] in ["error", "cancelled"]:
-            raise AirflowException()
+        event = validate_execute_complete_event(event)
+        if event["status"] != "success":
+            raise DbtCloudJobRunException(event["message"])
         self.log.info(event["message"])
         return int(event["run_id"])
 
