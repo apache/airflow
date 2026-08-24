@@ -41,7 +41,7 @@ const EditableMarkdownButton = ({
   readonly placeholder: string;
   readonly setMdContent: (value: string) => void;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   const hasContent = Boolean(mdContent?.trim());

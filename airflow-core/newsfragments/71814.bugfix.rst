@@ -1,0 +1,1 @@
+The API server now honors ``[api] dag_cache_ttl`` when ``dag_cache_size`` is 0, so cached serialized Dags can expire even when their count is not limited.

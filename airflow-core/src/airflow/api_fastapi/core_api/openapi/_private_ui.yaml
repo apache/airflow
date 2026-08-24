@@ -3154,6 +3154,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -4712,6 +4717,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
