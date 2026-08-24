@@ -855,13 +855,12 @@ class AssetModelOperation(NamedTuple):
                 dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
-            # Insertion order is lock order, and assets are shared, so two writers taking them
-            # in opposite orders deadlock. Deduplicated before sorting: sorting the pairs first
-            # compares SerializedAssets wherever a Dag repeats one, which they do not support.
-            assets=dict(sorted({(a.name, a.uri): a for a in _find_all_assets(dags.values())}.items())),
-            asset_aliases=dict(
-                sorted({alias.name: alias for alias in _find_all_asset_aliases(dags.values())}.items())
-            ),
+            # Left in the order the Dags define them: that order decides which of two assets
+            # sharing a name is activated, so sorting here would move it, and a sweep would stop
+            # landing where writing its files one at a time does. Rows are sorted where they are
+            # inserted instead.
+            assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
+            asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
         return coll
 
@@ -879,16 +878,19 @@ class AssetModelOperation(NamedTuple):
             asset = self.assets[key]
             model.group = asset.group
             model.extra = asset.extra
-        orm_assets.update(
-            ((model.name, model.uri), model)
-            for model in asset_manager.create_assets(
-                [asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets],
-                session=session,
-            )
+        # ``asset`` is unique on (name, uri), so two writers inserting the same new rows in
+        # opposite orders deadlock on that index.
+        to_create = sorted(
+            (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
+            key=lambda asset: (asset.name, asset.uri),
         )
-        # Sorted again: the rows that already existed came back in the query's order, and
-        # ``activate_assets_if_possible`` locks them in the order it is handed.
-        return dict(sorted(orm_assets.items()))
+        created = {
+            (model.name, model.uri): model
+            for model in asset_manager.create_assets(to_create, session=session)
+        }
+        # Back in collection order, which is what decides the activation below.
+        orm_assets.update((key, created[key]) for key in self.assets if key in created)
+        return orm_assets
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
         # Optimization: skip all database calls if no asset aliases were collected.
@@ -902,10 +904,14 @@ class AssetModelOperation(NamedTuple):
         }
         for name, model in orm_aliases.items():
             model.group = self.asset_aliases[name].group
+        # ``asset_alias`` is unique on name; sorted for the reason the assets above are.
         orm_aliases.update(
             (model.name, model)
             for model in asset_manager.create_asset_aliases(
-                [alias for name, alias in self.asset_aliases.items() if name not in orm_aliases],
+                sorted(
+                    (alias for name, alias in self.asset_aliases.items() if name not in orm_aliases),
+                    key=lambda alias: alias.name,
+                ),
                 session=session,
             )
         )
@@ -935,8 +941,21 @@ class AssetModelOperation(NamedTuple):
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
             stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
-        if values := [{"name": m.name, "uri": m.uri} for m in models]:
-            session.execute(stmt, values)
+        # Of two assets sharing a name or a uri only the one offered first is activated. Choosing
+        # that here rather than leaving it to the insert means the rows can then be sorted, which
+        # they must be: ``asset_active`` is unique on both columns, so two writers inserting them
+        # in opposite orders deadlock on the index.
+        claimed_names: set[str] = set()
+        claimed_uris: set[str] = set()
+        values = []
+        for model in models:
+            if model.name in claimed_names or model.uri in claimed_uris:
+                continue
+            claimed_names.add(model.name)
+            claimed_uris.add(model.uri)
+            values.append({"name": model.name, "uri": model.uri})
+        if values:
+            session.execute(stmt, sorted(values, key=lambda value: (value["name"], value["uri"])))
 
     def add_dag_asset_references(
         self,
