@@ -36,10 +36,10 @@ There are very many reasons why your task might not be getting scheduled. Here a
   may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
 
-- Does the file containing your Dag contain the string ``airflow`` and ``DAG`` somewhere
-  in the contents? When searching the Dag directory, Airflow ignores files not containing
-  ``airflow`` and ``DAG`` in order to prevent the DagBag parsing from importing all python
-  files collocated with user's Dags.
+- Does the file containing your Dag contain ``airflow`` and at least one of ``dag`` or
+  ``asset`` somewhere in the contents (all matched case-insensitively)? When searching the
+  Dag directory, Airflow skips files that do not match, in order to prevent the DagBag
+  parsing from importing all python files collocated with user's Dags.
 
 - Is your ``start_date`` set properly? For time-based Dags, the task won't be triggered until the
   the first schedule interval following the start date has passed.
